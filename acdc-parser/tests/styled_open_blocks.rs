@@ -1,5 +1,7 @@
 use acdc_parser::{
-    AdmonitionVariant, Block, CompatibilityMode, DelimitedBlockType, Options, parse,
+    AdmonitionVariant, CompatibilityMode, Options,
+    ast::{BlockKind, BlockRef},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -22,39 +24,77 @@ fn styled_open_blocks_select_one_content_model(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [Block::DelimitedBlock(block)] = parsed.document().blocks.as_slice() else {
+    let [block] = &*parsed.document_ref().blocks().collect::<Vec<_>>() else {
         return Err("expected one delimited block".into());
     };
-    assert!(
-        match expected {
-            "example" => matches!(block.inner, DelimitedBlockType::DelimitedExample(_)),
-            "quote" => matches!(block.inner, DelimitedBlockType::DelimitedQuote(_)),
-            "verse" => matches!(block.inner, DelimitedBlockType::DelimitedVerse(_)),
-            "sidebar" => matches!(block.inner, DelimitedBlockType::DelimitedSidebar(_)),
-            "pass" => matches!(block.inner, DelimitedBlockType::DelimitedPass(_)),
-            "comment" => matches!(block.inner, DelimitedBlockType::DelimitedComment(_)),
-            _ => false,
-        },
-        "expected {expected}: {block:?}"
-    );
-    assert_eq!(block.delimiter, "--");
-    let open = block
-        .open_delimiter_location
-        .as_ref()
-        .ok_or("missing opener")?;
-    let close = block
-        .close_delimiter_location
-        .as_ref()
-        .ok_or("missing closer")?;
-    assert_eq!(&source[open.absolute_start..=open.absolute_end], "--");
-    assert_eq!(&source[close.absolute_start..=close.absolute_end], "--");
-    assert_eq!(block.location.absolute_start, 0);
-    assert_eq!(block.location.absolute_end + 1, source.len());
+    let (actual, retained_delimiter, open, close) = if let BlockKind::Example(node) = block.kind() {
+        (
+            "example",
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        )
+    } else if let BlockKind::Quote(node) = block.kind() {
+        (
+            "quote",
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        )
+    } else if let BlockKind::Verse(node) = block.kind() {
+        (
+            "verse",
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        )
+    } else if let BlockKind::Sidebar(node) = block.kind() {
+        (
+            "sidebar",
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        )
+    } else if let BlockKind::Passthrough(node) = block.kind() {
+        (
+            "pass",
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        )
+    } else if let BlockKind::DelimitedComment(node) = block.kind() {
+        (
+            "comment",
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        )
+    } else {
+        return Err("expected a supported delimited block".into());
+    };
+    assert_eq!(actual, expected, "{block:?}");
+    assert_eq!(retained_delimiter, "--");
+    let open = open.ok_or("missing opener")?;
+    let close = close.ok_or("missing closer")?;
+    assert_eq!(&source[open.absolute_start()..=open.absolute_end()], "--");
+    assert_eq!(&source[close.absolute_start()..=close.absolute_end()], "--");
+    assert_eq!(block.location().absolute_start(), 0);
+    assert_eq!(block.location().absolute_end() + 1, source.len());
     if matches!(expected, "quote" | "verse") {
-        assert!(block.metadata.attribution.is_some());
-        assert!(block.metadata.citetitle.is_some());
+        assert!(
+            block
+                .attributes()
+                .ok_or("missing attributes")?
+                .contains("attribution")
+        );
+        assert!(
+            block
+                .attributes()
+                .ok_or("missing attributes")?
+                .contains("citetitle")
+        );
     }
-    assert_eq!(parsed.document().footnotes.len(), footnotes);
+    assert_eq!(parsed.document_ref().footnotes().count(), footnotes);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }
@@ -75,14 +115,19 @@ fn styled_open_admonitions_register_body_once(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [Block::Admonition(block)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Admonition(block)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected one admonition".into());
     };
-    assert_eq!(block.variant, variant);
-    assert_eq!(block.blocks.len(), 1);
-    assert_eq!(block.location.absolute_start, 0);
-    assert_eq!(block.location.absolute_end + 1, source.len());
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(block.variant(), variant);
+    assert_eq!(block.blocks().count(), 1);
+    assert_eq!(block.location().absolute_start(), 0);
+    assert_eq!(block.location().absolute_end() + 1, source.len());
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }

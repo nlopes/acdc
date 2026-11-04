@@ -1,6 +1,7 @@
 use acdc_parser::{
-    Block, CompatibilityMode, DelimitedBlockType, InlineNode, Options, SubstitutionSpec,
-    WarningKind, parse,
+    CompatibilityMode, Options, SubstitutionSpec, WarningKind,
+    ast::{AttributeValueRef, BlockKind, BlockRef, InlineKind, InlineRef, SubstitutionSpecRef},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -15,7 +16,7 @@ fn supported_block_substitutions_do_not_warn(#[case] mode: CompatibilityMode) ->
     )?;
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     assert!(parsed.source_recovery().is_none());
-    assert_eq!(parsed.document().footnotes.len(), 0);
+    assert_eq!(parsed.document_ref().footnotes().count(), 0);
     Ok(())
 }
 
@@ -38,35 +39,34 @@ fn unsupported_substitutions_preserve_source_and_report_recovery(
     }
     assert!(parsed.source_recovery().is_some());
     assert_eq!(parsed.source(), source.trim_end());
-    assert_eq!(parsed.document().footnotes.len(), 0);
+    assert_eq!(parsed.document_ref().footnotes().count(), 0);
     let [
-        Block::Paragraph(first),
-        Block::Paragraph(second),
-        Block::DelimitedBlock(stem),
-    ] = parsed.document().blocks.as_slice()
+        BlockKind::Paragraph(first),
+        BlockKind::Paragraph(second),
+        BlockKind::Stem(stem),
+    ] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
     else {
         return Err("expected two paragraphs and a STEM block".into());
     };
     assert_eq!(
-        first.metadata.substitutions,
-        Some(SubstitutionSpec::Source(vec![
-            "header".into(),
-            "+quotes".into(),
-            "typo".into()
-        ]))
+        first.attributes().get("subs"),
+        Some(AttributeValueRef::Substitutions(SubstitutionSpecRef::from(
+            &SubstitutionSpec::Source(vec!["header".into(), "+quotes".into(), "typo".into()])
+        )))
     );
     assert!(matches!(
-        first.content.first(),
-        Some(InlineNode::BoldText(_))
+        first.content().inlines().next().map(InlineRef::kind),
+        Some(InlineKind::Bold(_))
     ));
     assert!(
-        matches!(second.content.as_slice(), [InlineNode::PlainText(text)]
-        if text.content == "*Literal formatting* expanded.")
+        matches!(&*second.content().inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Plain(text)]
+        if text.text() == "*Literal formatting* expanded.")
     );
-    let DelimitedBlockType::DelimitedStem(formula) = &stem.inner else {
-        return Err("expected STEM content".into());
-    };
-    assert_eq!(formula.content, "expanded *x* footnote:[keep the source]");
+    assert_eq!(stem.text(), "expanded *x* footnote:[keep the source]");
     assert_eq!(
         stem.source_text(),
         Some("{value} *x* footnote:[keep the source]\n")

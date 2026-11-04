@@ -1,4 +1,8 @@
-use acdc_parser::{Block, CompatibilityMode, InlineNode, Options, parse};
+use acdc_parser::{
+    CompatibilityMode, Options,
+    ast::{BlockKind, BlockRef, ElementIdRef, InlineKind, InlineRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -14,10 +18,17 @@ fn pass_paragraphs_retain_raw_source_without_registering_macros(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Paragraph(block)) = parsed.document().blocks.last() else {
+    let Some(BlockKind::Paragraph(block)) =
+        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    else {
         return Err("expected paragraph source form".into());
     };
-    let [InlineNode::RawText(raw)] = block.content.as_slice() else {
+    let [InlineKind::Raw(raw)] = &*block
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected raw content".into());
     };
     let expected = if indent.is_empty() {
@@ -25,13 +36,13 @@ fn pass_paragraphs_retain_raw_source_without_registering_macros(
     } else {
         &body
     };
-    assert_eq!(raw.content, expected);
-    assert_eq!(raw.subs, []);
+    assert_eq!(raw.text(), expected);
+    assert_eq!(raw.substitutions().collect::<Vec<_>>(), []);
     assert_eq!(
-        &source[raw.location.absolute_start..=raw.location.absolute_end],
+        &source[raw.location().absolute_start()..=raw.location().absolute_end()],
         expected
     );
-    assert_eq!(parsed.document().footnotes, []);
+    assert!(parsed.document_ref().footnotes().next().is_none());
     assert_eq!(block.source_text(), Some(expected));
     Ok(())
 }
@@ -50,21 +61,31 @@ fn simple_admonition_metadata_has_one_owner(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [Block::Admonition(block)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Admonition(block)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected admonition".into());
     };
-    assert_eq!(block.metadata.id.as_ref().map(|id| id.id), Some("owner"));
-    let [Block::Paragraph(paragraph)] = block.blocks.as_slice() else {
+    assert_eq!(block.id().map(ElementIdRef::as_str), Some("owner"));
+    let [BlockKind::Paragraph(paragraph)] =
+        &*block.blocks().map(BlockRef::kind).collect::<Vec<_>>()
+    else {
         return Err("expected one body".into());
     };
-    assert!(paragraph.metadata.id.is_none());
-    assert_eq!(paragraph.metadata.roles, [] as [&str; 0]);
-    assert!(paragraph.metadata.style.is_none());
+    assert!(paragraph.id().is_none());
     assert_eq!(
-        paragraph.metadata.substitutions,
-        block.metadata.substitutions
+        paragraph.roles().iter().collect::<Vec<_>>(),
+        [] as [&str; 0]
     );
-    assert!(!paragraph.title.is_present());
+    assert!(paragraph.style().is_none());
+    assert_eq!(
+        paragraph.attributes().get("subs"),
+        block.attributes().get("subs")
+    );
+    assert!(paragraph.title().is_none());
     Ok(())
 }
 
@@ -87,7 +108,7 @@ fn admonition_reads_distinguish_simple_and_compound_bodies(
             .blocks()
             .next()
             .ok_or("missing block")?;
-        let acdc_parser::ast::BlockKind::Admonition(admonition) = block.kind() else {
+        let BlockKind::Admonition(admonition) = block.kind() else {
             return Err("expected admonition".into());
         };
         assert_eq!(admonition.simple_paragraph().is_some(), simple);

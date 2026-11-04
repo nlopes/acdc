@@ -1,4 +1,8 @@
-use acdc_parser::{Block, CompatibilityMode, Options, WarningKind, parse};
+use acdc_parser::{
+    CompatibilityMode, Options, WarningKind,
+    ast::{AttributeValueRef, BlockKind, BlockRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -37,13 +41,20 @@ fn heading_styles_keep_their_selected_meaning(
     } else {
         draft
     };
-    let heading = parsed.document().blocks.first().ok_or("missing heading")?;
+    let heading = parsed
+        .document_ref()
+        .blocks()
+        .next()
+        .ok_or("missing heading")?;
     assert_eq!(
-        heading.metadata().ok_or("missing metadata")?.style,
-        expected
+        heading
+            .attributes()
+            .ok_or("missing attributes")?
+            .get("style"),
+        expected.map(AttributeValueRef::Text)
     );
     assert_eq!(
-        matches!(heading, Block::DiscreteHeader(_)),
+        matches!(heading.kind(), BlockKind::DiscreteHeader(_)),
         matches!(expected, Some("discrete" | "float"))
     );
     assert_eq!(
@@ -66,23 +77,28 @@ fn discrete_boundaries_preserve_nesting_and_register_heading_content_once(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
-    let Some(Block::Section(parent)) = parsed.document().blocks.first() else {
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    let Some(BlockKind::Section(parent)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("missing parent section".into());
     };
-    let Some(Block::Section(child)) = parent.content.first() else {
+    let Some(BlockKind::Section(child)) = parent.blocks().next().map(BlockRef::kind) else {
         return Err("missing child section".into());
     };
     if mode == CompatibilityMode::Asciidoctor {
         assert!(matches!(
-            child.content.first(),
-            Some(Block::DiscreteHeader(_))
+            child.blocks().next().map(BlockRef::kind),
+            Some(BlockKind::DiscreteHeader(_))
         ));
-        assert!(matches!(child.content.get(1), Some(Block::Paragraph(_))));
-        assert_eq!(parsed.document().blocks.len(), 2);
+        assert!(matches!(
+            child.blocks().nth(1).map(BlockRef::kind),
+            Some(BlockKind::Paragraph(_))
+        ));
+        assert_eq!(parsed.document_ref().blocks().count(), 2);
     } else {
-        assert_eq!(child.content, Vec::new());
-        assert_eq!(parsed.document().blocks.len(), 4);
+        assert!(child.blocks().next().is_none());
+        assert_eq!(parsed.document_ref().blocks().count(), 4);
     }
     Ok(())
 }

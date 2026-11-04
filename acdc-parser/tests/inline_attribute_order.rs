@@ -1,5 +1,5 @@
 use acdc_parser::{
-    CompatibilityMode, InlineNode, Options,
+    CompatibilityMode, Options,
     ast::{BlockKind, BlockRef, ContentRef, InlineKind, StructuralRef},
     parse,
 };
@@ -42,14 +42,14 @@ fn ordinary_order_preserves_single_registration_and_reference_ranges(
         include_str!("../fixtures/tests/compatibility_inline_attribute_effects.adoc"),
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     assert_eq!(
         parsed
-            .document()
-            .footnotes
-            .first()
+            .document_ref()
+            .footnotes()
+            .next()
             .ok_or("missing note")?
-            .id,
+            .id(),
         Some("n")
     );
     let bold = parsed
@@ -75,16 +75,16 @@ fn ordinary_order_preserves_single_registration_and_reference_ranges(
             0
         }
     );
-    for block in &parsed.document().blocks {
-        let acdc_parser::Block::Paragraph(paragraph) = block else {
+    for block in parsed.document_ref().blocks() {
+        let BlockKind::Paragraph(paragraph) = block.kind() else {
             continue;
         };
-        for node in &paragraph.content {
-            if let InlineNode::BoldText(value) = node {
+        for node in paragraph.content().inlines() {
+            if let InlineKind::Bold(value) = node.kind() {
                 assert!(matches!(
                     parsed
                         .source()
-                        .get(value.location.absolute_start..=value.location.absolute_end),
+                        .get(value.location().absolute_start()..=value.location().absolute_end()),
                     Some("{wrapped}" | "{term-wrapped}")
                 ));
             }

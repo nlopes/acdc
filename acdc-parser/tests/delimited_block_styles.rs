@@ -1,4 +1,8 @@
-use acdc_parser::{AttributeValue, Block, CompatibilityMode, DelimitedBlockType, Options, parse};
+use acdc_parser::{
+    CompatibilityMode, Options,
+    ast::{AttributeValueRef, BlockKind},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -23,42 +27,58 @@ fn delimited_style_selects_content_without_changing_source_form(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [Block::DelimitedBlock(block)] = parsed.document().blocks.as_slice() else {
+    let [block] = &*parsed.document_ref().blocks().collect::<Vec<_>>() else {
         return Err("expected one delimited block".into());
     };
-    assert!(
-        match expected {
-            "literal" => matches!(block.inner, DelimitedBlockType::DelimitedLiteral(_)),
-            "listing" => matches!(block.inner, DelimitedBlockType::DelimitedListing(_)),
-            "sidebar" => matches!(block.inner, DelimitedBlockType::DelimitedSidebar(_)),
-            _ => false,
-        },
-        "expected {expected}: {block:?}"
-    );
-    assert_eq!(block.delimiter, delimiter);
-    assert_eq!(block.location.absolute_start, 0);
-    assert_eq!(block.location.absolute_end + 1, source.len());
-    let open = block
-        .open_delimiter_location
-        .as_ref()
-        .ok_or("missing opener")?;
-    let close = block
-        .close_delimiter_location
-        .as_ref()
-        .ok_or("missing closer")?;
-    assert_eq!(&source[open.absolute_start..=open.absolute_end], delimiter);
+    let (actual, retained_delimiter, open, close) = if let BlockKind::Literal(node) = block.kind() {
+        (
+            "literal",
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        )
+    } else if let BlockKind::Listing(node) = block.kind() {
+        (
+            "listing",
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        )
+    } else if let BlockKind::Sidebar(node) = block.kind() {
+        (
+            "sidebar",
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        )
+    } else {
+        return Err("expected a supported delimited block".into());
+    };
+    assert_eq!(actual, expected, "{block:?}");
+    assert_eq!(retained_delimiter, delimiter);
+    assert_eq!(block.location().absolute_start(), 0);
+    assert_eq!(block.location().absolute_end() + 1, source.len());
+    let open = open.ok_or("missing opener")?;
+    let close = close.ok_or("missing closer")?;
     assert_eq!(
-        &source[close.absolute_start..=close.absolute_end],
+        &source[open.absolute_start()..=open.absolute_end()],
+        delimiter
+    );
+    assert_eq!(
+        &source[close.absolute_start()..=close.absolute_end()],
         delimiter
     );
     if style == "source,rust" && expected == "listing" {
         assert_eq!(
-            block.metadata.attributes.get("language"),
-            Some(&AttributeValue::String("rust".into()))
+            block
+                .attributes()
+                .ok_or("missing attributes")?
+                .get("language"),
+            Some(AttributeValueRef::Text("rust"))
         );
     }
     if expected != "sidebar" {
-        assert_eq!(parsed.document().footnotes, []);
+        assert!(parsed.document_ref().footnotes().next().is_none());
     }
     assert_eq!(parsed.warnings(), []);
     Ok(())
@@ -79,7 +99,7 @@ fn transformed_verbatim_blocks_apply_explicit_substitutions_once(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }

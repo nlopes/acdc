@@ -1,4 +1,8 @@
-use acdc_parser::{Block, CompatibilityMode, InlineNode, Options, parse};
+use acdc_parser::{
+    CompatibilityMode, Options,
+    ast::{BlockKind, BlockRef, ElementIdRef, InlineKind},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -22,23 +26,31 @@ fn indented_styles_select_content_once(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [Block::Paragraph(block)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(block)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected a paragraph source form".into());
     };
-    assert_eq!(block.metadata.style, Some(expected));
-    assert_eq!(block.title.len(), 1);
-    assert_eq!(block.metadata.id.as_ref().map(|id| id.id), Some("identity"));
-    assert_eq!(parsed.document().footnotes.len(), usize::from(formatted));
+    assert_eq!(block.style(), Some(expected));
+    assert_eq!(block.title().ok_or("missing title")?.inlines().len(), 1);
+    assert_eq!(block.id().map(ElementIdRef::as_str), Some("identity"));
+    assert_eq!(
+        parsed.document_ref().footnotes().count(),
+        usize::from(formatted)
+    );
     assert_eq!(
         block
-            .content
-            .iter()
-            .any(|node| matches!(node, InlineNode::BoldText(_))),
+            .content()
+            .inlines()
+            .any(|node| matches!(node.kind(), InlineKind::Bold(_))),
         formatted
     );
     if matches!(expected, "quote" | "verse") {
-        assert!(block.metadata.attribution.is_some());
-        assert!(block.metadata.citetitle.is_some());
+        assert!(block.attributes().contains("attribution"));
+        assert!(block.attributes().contains("citetitle"));
     }
     assert_eq!(block.source_text(), Some("  *Body* footnote:body[Note]"));
     assert_eq!(parsed.warnings(), []);
@@ -54,25 +66,34 @@ fn indented_normal_retains_nested_source_locations(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [Block::Paragraph(block)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(block)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected paragraph".into());
     };
-    let first = block.content.first().ok_or("missing content")?;
-    assert!(matches!(first, InlineNode::PlainText(text) if text.content == "é "));
-    assert_eq!(first.location().start.column, 3);
+    let first = block.content().inlines().next().ok_or("missing content")?;
+    assert!(matches!(first.kind(), InlineKind::Plain(text) if text.text() == "é "));
+    assert_eq!(first.location().start().column(), 3);
     let bold = block
-        .content
-        .iter()
-        .find(|node| matches!(node, InlineNode::BoldText(_)))
+        .content()
+        .inlines()
+        .find(|node| matches!(node.kind(), InlineKind::Bold(_)))
         .ok_or("missing bold")?;
     assert_eq!(
-        &source[bold.location().absolute_start..=bold.location().absolute_end],
+        &source[bold.location().absolute_start()..=bold.location().absolute_end()],
         "*Bold*"
     );
-    assert_eq!(parsed.document().footnotes.len(), 1);
-    let note = parsed.document().footnotes.first().ok_or("missing note")?;
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    let note = parsed
+        .document_ref()
+        .footnotes()
+        .next()
+        .ok_or("missing note")?;
     assert_eq!(
-        &source[note.location.absolute_start..=note.location.absolute_end],
+        &source[note.location().absolute_start()..=note.location().absolute_end()],
         "footnote:n[Note]"
     );
     Ok(())
@@ -86,15 +107,23 @@ fn paragraph_alias_depends_on_compatibility_mode(
         "[paragraph]\n  *Body* footnote:n[Note]",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [Block::Paragraph(block)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(block)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected paragraph".into());
     };
     let draft = mode == CompatibilityMode::Draft;
     assert_eq!(
-        block.metadata.style,
+        block.style(),
         Some(if draft { "normal" } else { "literal" })
     );
-    assert_eq!(parsed.document().footnotes.len(), usize::from(draft));
+    assert_eq!(
+        parsed.document_ref().footnotes().count(),
+        usize::from(draft)
+    );
     Ok(())
 }
 
@@ -107,11 +136,16 @@ fn indented_admonitions_keep_one_body_and_registration(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [Block::Admonition(block)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Admonition(block)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected admonition".into());
     };
-    assert_eq!(block.blocks.len(), 1);
-    assert_eq!(parsed.document().footnotes.len(), 1);
-    assert_eq!(block.location.absolute_end + 1, source.len());
+    assert_eq!(block.blocks().count(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(block.location().absolute_end() + 1, source.len());
     Ok(())
 }
