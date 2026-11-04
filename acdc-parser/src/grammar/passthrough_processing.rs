@@ -915,6 +915,7 @@ fn process_inline_children<'a>(
         | InlineNode::VerbatimText(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::Symbol(_)
+        | InlineNode::CharacterReference(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
         | InlineNode::CalloutRef(_) => {}
@@ -1397,6 +1398,7 @@ fn for_each_inline_children<'a>(
         | InlineNode::VerbatimText(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::Symbol(_)
+        | InlineNode::CharacterReference(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
         | InlineNode::CalloutRef(_) => {}

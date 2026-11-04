@@ -224,6 +224,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         let (prefix, content, suffix) = match node.kind() {
             InlineKind::Plain(text) => return self.write_verbatim_text(text.text()),
+            InlineKind::CharacterReference(reference) => {
+                return self.write_verbatim_text(&acdc_converters_core::character_reference_text(
+                    reference.kind(),
+                ));
+            }
             InlineKind::Verbatim(text) => return self.write_verbatim_text(text.text()),
             InlineKind::Symbol(symbol) => {
                 let replacements = replacements();

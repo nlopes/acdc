@@ -8,6 +8,7 @@ publish = false
 
 [dependencies]
 acdc-parser.workspace = true
+html-escape.workspace = true
 percent-encoding.workspace = true
 relative-path.workspace = true
 rustc-hash.workspace = true

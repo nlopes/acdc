@@ -396,6 +396,9 @@ pub(crate) fn extract_text_and_callouts<'inline>(
                 result.push_str(plain.text());
             }
             InlineKind::Symbol(symbol) => result.push_str(symbol.text()),
+            InlineKind::CharacterReference(reference) => result.push_str(
+                &acdc_converters_core::character_reference_text(reference.kind()),
+            ),
             InlineKind::LineBreak(_) => {
                 result.push('\n');
             }
@@ -942,5 +945,36 @@ fn decoded_entity(entity: &str) -> Option<char> {
             };
             char::from_u32(value)
         }
+    }
+}
+
+#[cfg(all(test, feature = "highlighting"))]
+mod character_reference_tests {
+    use super::{TextBoundaries, extract_text_and_callouts};
+    use acdc_parser::{
+        CharacterReference, CharacterReferenceKind, InlineNode, Location, ast::InlineRef,
+    };
+
+    #[test]
+    fn character_references_reach_highlighted_code_as_characters() -> Result<(), &'static str> {
+        let nodes = [
+            InlineNode::CharacterReference(
+                CharacterReference::new(CharacterReferenceKind::Numeric(65), Location::default())
+                    .ok_or("invalid reference")?,
+            ),
+            InlineNode::CharacterReference(
+                CharacterReference::new(
+                    CharacterReferenceKind::Named("NotEqualTilde"),
+                    Location::default(),
+                )
+                .ok_or("invalid reference")?,
+            ),
+        ];
+        let inlines = nodes.iter().map(InlineRef::from);
+        let (text, callouts) =
+            extract_text_and_callouts(inlines.clone(), TextBoundaries::NONE, &inlines, None);
+        assert_eq!(text, "A≂̸");
+        assert_eq!(callouts, []);
+        Ok(())
     }
 }

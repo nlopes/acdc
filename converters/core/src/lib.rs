@@ -98,6 +98,35 @@ pub fn shows_block_title(inner: &DelimitedBlockType<'_>) -> bool {
     !matches!(inner, DelimitedBlockType::DelimitedPass(_))
 }
 
+/// Unicode text for a parsed character reference.
+///
+/// Known HTML names use the entity dictionary. Unknown names and invalid numeric
+/// characters retain their reference spelling.
+#[must_use]
+pub fn character_reference_text(
+    reference: acdc_parser::CharacterReferenceKind<'_>,
+) -> Cow<'static, str> {
+    match reference {
+        acdc_parser::CharacterReferenceKind::Named(name) => {
+            if let Ok(index) = html_escape::NAMED_ENTITIES
+                .binary_search_by(|(candidate, _)| candidate.cmp(&name.as_bytes()))
+                && let Some((_, text)) = html_escape::NAMED_ENTITIES.get(index)
+            {
+                return Cow::Borrowed(text);
+            }
+        }
+        acdc_parser::CharacterReferenceKind::Numeric(value) => {
+            if let Some(character) = char::from_u32(value)
+                .filter(|ch| !matches!(ch, '\0'..='\u{8}' | '\u{b}' | '\u{e}'..='\u{1f}'))
+            {
+                return Cow::Owned(character.to_string());
+            }
+        }
+        _ => {}
+    }
+    Cow::Owned(reference.to_string())
+}
+
 /// Decode HTML numeric character references (`&#NNN;` and `&#xHH;`) to Unicode characters.
 ///
 /// Non-HTML converters (terminal, manpage) should call this on `RawText` content

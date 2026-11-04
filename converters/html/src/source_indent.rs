@@ -74,6 +74,7 @@ fn text(node: InlineRef<'_>) -> Option<&str> {
         | InlineKind::CurvedQuotation(_)
         | InlineKind::CurvedApostrophe(_)
         | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::CharacterReference(_)
         | InlineKind::Symbol(_)
         | InlineKind::LineBreak(_)
         | InlineKind::Anchor(_)

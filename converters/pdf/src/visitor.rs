@@ -775,6 +775,9 @@ impl<'a> PdfVisitor<'a, '_, '_> {
     ) -> Result<(), Error> {
         match node.kind() {
             InlineKind::Plain(plain) => self.write_plain(plain.text()),
+            InlineKind::CharacterReference(reference) => self.write_text_expr(
+                &acdc_converters_core::character_reference_text(reference.kind()),
+            ),
             InlineKind::Symbol(symbol) => self.write_text_expr(symbol.text()),
             InlineKind::Raw(raw) => self.write_raw(raw),
             InlineKind::Verbatim(verbatim) => self.write_text_expr(verbatim.text()),

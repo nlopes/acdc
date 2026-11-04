@@ -20,6 +20,11 @@ node_ref!(
     crate::Symbol,
     "A resolved typographic symbol."
 );
+node_ref!(
+    CharacterReferenceRef<'doc>,
+    crate::CharacterReference<'doc>,
+    "An identified character reference."
+);
 node_ref!(PlainRef<'doc>, crate::Plain<'doc>, "Plain text.");
 node_ref!(
     RawRef<'doc>,
@@ -129,6 +134,7 @@ pub struct InlineRef<'doc> {
 pub enum InlineKind<'doc> {
     Plain(PlainRef<'doc>),
     Symbol(SymbolRef<'doc>),
+    CharacterReference(CharacterReferenceRef<'doc>),
     Raw(RawRef<'doc>),
     Verbatim(VerbatimRef<'doc>),
     Bold(BoldRef<'doc>),
@@ -172,6 +178,7 @@ impl<'doc> InlineRef<'doc> {
         match self.kind {
             InlineKind::Plain(node) => node.location(),
             InlineKind::Symbol(node) => node.location(),
+            InlineKind::CharacterReference(node) => node.location(),
             InlineKind::Raw(node) => node.location(),
             InlineKind::Verbatim(node) => node.location(),
             InlineKind::Bold(node) => node.location(),
@@ -208,6 +215,9 @@ impl<'doc> From<&'doc InlineNode<'doc>> for InlineRef<'doc> {
     fn from(inline: &'doc InlineNode<'doc>) -> Self {
         let kind = match inline {
             InlineNode::Symbol(node) => InlineKind::Symbol(SymbolRef::new(node)),
+            InlineNode::CharacterReference(node) => {
+                InlineKind::CharacterReference(CharacterReferenceRef::new(node))
+            }
             InlineNode::PlainText(node) => InlineKind::Plain(PlainRef::new(node)),
             InlineNode::RawText(node) => InlineKind::Raw(RawRef::new(node)),
             InlineNode::VerbatimText(node) => InlineKind::Verbatim(VerbatimRef::new(node)),

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Constructed character-reference nodes render as references in prose and as character values in code fences.
+
 - Document attribute values keep literal quotes in text labels and media paths. Literal quotes in cross-reference labels and style names now follow Asciidoctor.
 
 - Linked image and icon destinations, image dimensions and video posters retain literal quotes from parsed attributes instead of interpreting them again.

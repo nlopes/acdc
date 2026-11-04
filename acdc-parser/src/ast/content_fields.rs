@@ -258,6 +258,7 @@ impl<'doc> InlineRef<'doc> {
             | InlineKind::Verbatim(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
             | InlineKind::Symbol(_)
+            | InlineKind::CharacterReference(_)
             | InlineKind::LineBreak(_)
             | InlineKind::Callout(_)
             | InlineKind::Autolink(_)

@@ -15,6 +15,7 @@ default = []
 network = ["acdc-parser/network"]
 
 [dependencies]
+html-escape.workspace = true
 acdc-parser.workspace = true
 base64.workspace = true
 clap.workspace = true

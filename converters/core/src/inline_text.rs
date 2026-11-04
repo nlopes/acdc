@@ -63,7 +63,7 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
         self
     }
 
-    /// Decode numeric character references (`&#39;`) in raw text.
+    /// Decode parsed character references and numeric references in raw text.
     ///
     /// Non-HTML backends want the character; HTML keeps the reference.
     /// Explicitly escaped references remain literal.
@@ -166,6 +166,13 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
     fn write_inline<W: Write + ?Sized>(self, w: &mut W, node: InlineRef<'_>) -> fmt::Result {
         match node.kind() {
             InlineKind::Plain(text) => w.write_str(text.text()),
+            InlineKind::CharacterReference(reference) => {
+                if self.decode_char_refs {
+                    w.write_str(&crate::character_reference_text(reference.kind()))
+                } else {
+                    write!(w, "{}", reference.kind())
+                }
+            }
             InlineKind::Raw(text) => {
                 let content = if self.projection == TextProjection::Source {
                     Cow::Borrowed(text.text())
@@ -987,5 +994,47 @@ mod tests {
         assert_eq!(super::stylized_id("other.adoc#part"), "other#part");
         assert_eq!(super::stylized_id("dir/other.adoc#part"), "dir/other#part");
         assert_eq!(super::stylized_id("no-extension#part"), "no-extension#part");
+    }
+}
+
+#[cfg(test)]
+mod character_reference_tests {
+    use super::InlineTextTransform;
+    use acdc_parser::{CharacterReference, CharacterReferenceKind, InlineNode, Location};
+
+    #[test]
+    fn character_references_keep_source_identity_and_decode_for_text() -> Result<(), &'static str> {
+        for (kind, spelling, text) in [
+            (CharacterReferenceKind::Named("amp"), "&amp;", "&"),
+            (
+                CharacterReferenceKind::Named("NotEqualTilde"),
+                "&NotEqualTilde;",
+                "≂̸",
+            ),
+            (
+                CharacterReferenceKind::Named("unknown"),
+                "&unknown;",
+                "&unknown;",
+            ),
+            (CharacterReferenceKind::Numeric(65), "&#65;", "A"),
+            (CharacterReferenceKind::Numeric(0x1f600), "&#128512;", "😀"),
+            (
+                CharacterReferenceKind::Numeric(0xd800),
+                "&#55296;",
+                "&#55296;",
+            ),
+        ] {
+            let nodes = [InlineNode::CharacterReference(
+                CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
+            )];
+            assert_eq!(InlineTextTransform::default().to_string(&nodes), spelling);
+            assert_eq!(
+                InlineTextTransform::default()
+                    .decode_char_refs(true)
+                    .to_string(&nodes),
+                text
+            );
+        }
+        Ok(())
     }
 }

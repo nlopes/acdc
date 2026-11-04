@@ -121,6 +121,10 @@ nondefault section category/numbering. Ordinary text containing ampersands is
 also rejected until literal text and character references have authoritative
 parser classifications. Export does not guess their meaning from stored text.
 Protected literal text and raw output remain distinct supported forms.
+Constructed `CharacterReference` nodes export as `charref` literals with their
+named identity or canonical decimal numeric value. Invalid XML numeric values
+fail export; unknown names retain their identity. This API support does not
+change reference recognition in parsed source.
 
 Ordinary source comments and parser/edit history can be omitted. Derived
 reference and TOC entries can be omitted only when their titles, labels, category,

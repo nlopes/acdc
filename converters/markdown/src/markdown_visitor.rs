@@ -212,6 +212,9 @@ fn raw_content(content: ContentRef<'_>) -> (String, Option<InlineRef<'_>>) {
             InlineKind::Verbatim(text) => output.push_str(text.text()),
             InlineKind::Raw(text) => output.push_str(text.text()),
             InlineKind::Plain(text) => output.push_str(text.text()),
+            InlineKind::CharacterReference(reference) => output.push_str(
+                &acdc_converters_core::character_reference_text(reference.kind()),
+            ),
             InlineKind::LineBreak(_) => output.push('\n'),
             InlineKind::Callout(callout) => {
                 let _ = write!(output, "({})", callout.number());
@@ -286,6 +289,9 @@ fn source_content<'inline>(
             }
             InlineKind::Raw(text) => output.push_str(text.text()),
             InlineKind::Plain(text) => output.push_str(text.text()),
+            InlineKind::CharacterReference(reference) => output.push_str(
+                &acdc_converters_core::character_reference_text(reference.kind()),
+            ),
             InlineKind::LineBreak(_) => output.push('\n'),
             InlineKind::Callout(callout) => {
                 let _ = write!(output, "({})", callout.number());
@@ -568,6 +574,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 | InlineKind::CurvedQuotation(_)
                 | InlineKind::CurvedApostrophe(_)
                 | InlineKind::StandaloneCurvedApostrophe(_)
+                | InlineKind::CharacterReference(_)
                 | InlineKind::Symbol(_)
                 | InlineKind::Anchor(_)
                 | InlineKind::Footnote(_)
@@ -2387,6 +2394,9 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 self.write_escaped_text(text.text())?;
             }
             InlineKind::Symbol(symbol) => self.write_escaped_text(symbol.text())?,
+            InlineKind::CharacterReference(reference) => {
+                write!(self.writer, "{}", reference.kind())?;
+            }
             InlineKind::LineBreak(_) => writeln!(self.writer, "  ")?,
             InlineKind::Raw(text) => {
                 self.write_passthrough(text.text(), || text.substitutions())?;

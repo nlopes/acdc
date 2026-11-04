@@ -121,3 +121,17 @@ impl<'doc> From<&'doc crate::Symbol> for SymbolRef<'doc> {
         Self::new(owner)
     }
 }
+
+impl<'doc> super::CharacterReferenceRef<'doc> {
+    /// The identified name or numeric value.
+    #[must_use]
+    pub fn kind(self) -> crate::CharacterReferenceKind<'doc> {
+        self.node.kind()
+    }
+}
+
+impl<'doc> From<&'doc crate::CharacterReference<'doc>> for super::CharacterReferenceRef<'doc> {
+    fn from(owner: &'doc crate::CharacterReference<'doc>) -> Self {
+        Self::new(owner)
+    }
+}

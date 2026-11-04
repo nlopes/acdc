@@ -263,6 +263,7 @@ fn collect_inline_ranges(
             | InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::CharacterReference(_)
             | InlineNode::Symbol(_)
             | InlineNode::LineBreak(_)
             | InlineNode::InlineAnchor(_)

@@ -1710,6 +1710,7 @@ fn collect_inline_preparation(
             | InlineKind::CurvedQuotation(_)
             | InlineKind::CurvedApostrophe(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::CharacterReference(_)
             | InlineKind::Symbol(_)
             | InlineKind::LineBreak(_)
             | InlineKind::Anchor(_)
@@ -4554,6 +4555,49 @@ mod tests {
             processor.render_document(parsed.document(), Some(&source_file), &mut diagnostics);
         std::fs::set_permissions(&fonts, std::fs::Permissions::from_mode(0o755))?;
         assert!(result?.pdf.starts_with(b"%PDF-"));
+        Ok(())
+    }
+    #[test]
+    fn constructed_character_references_render_as_typst_text() -> Result<(), Box<dyn StdError>> {
+        use acdc_parser::{
+            Block, Bold, CharacterReference, CharacterReferenceKind, Document, Form, InlineNode,
+            Location, Paragraph,
+        };
+        let mut content = Vec::new();
+        for kind in [
+            CharacterReferenceKind::Numeric(169),
+            CharacterReferenceKind::Named("amp"),
+            CharacterReferenceKind::Named("unknown"),
+        ] {
+            content.push(InlineNode::CharacterReference(
+                CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
+            ));
+        }
+        let bold = InlineNode::BoldText(Bold {
+            role: None,
+            id: None,
+            form: Form::Constrained,
+            content: content.clone(),
+            location: Location::default(),
+        });
+        content.push(bold);
+        let mut doc = Document::default();
+        doc.blocks.push(Block::Paragraph(Paragraph::new(
+            content,
+            Location::default(),
+        )));
+        let processor = Processor::new(Options::default(), ParserOptions::builder())?;
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let typst = processor
+            .convert_to_typst_source(&doc, &mut Diagnostics::new(&source, &mut warnings))?;
+        for text in ["©", "&", "&unknown;"] {
+            assert!(
+                typst.matches(&format!("#text({text:?})")).count() >= 2,
+                "{typst}"
+            );
+        }
+        assert!(warnings.is_empty(), "{warnings:?}");
         Ok(())
     }
 }

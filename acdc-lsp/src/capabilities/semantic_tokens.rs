@@ -332,6 +332,7 @@ fn collect_tokens_from_inline(
         | InlineNode::CurvedQuotationText(_)
         | InlineNode::CurvedApostropheText(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::CharacterReference(_)
             | InlineNode::Symbol(_)
         | InlineNode::LineBreak(_)
         | InlineNode::Macro(_)

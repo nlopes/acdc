@@ -185,6 +185,7 @@ pub(crate) fn contains_link(node: InlineRef<'_>) -> bool {
         | InlineKind::Raw(_)
         | InlineKind::Verbatim(_)
         | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::CharacterReference(_)
         | InlineKind::Symbol(_)
         | InlineKind::LineBreak(_)
         | InlineKind::Anchor(_)
@@ -486,6 +487,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         match node.kind() {
             InlineKind::Plain(text) => self.render_plain_text(text.text())?,
+            InlineKind::CharacterReference(reference) => self.render_plain_text(
+                &acdc_converters_core::character_reference_text(reference.kind()),
+            )?,
             InlineKind::Symbol(symbol) => {
                 self.render_plain_text(replacements().symbol(symbol.kind()))?;
                 if symbol.kind() == SymbolKind::SpacedEmDash

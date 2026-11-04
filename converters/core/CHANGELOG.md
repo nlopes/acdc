@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Text extraction supports constructed character-reference nodes. `decode_char_refs(true)` decodes known names and valid numeric values; unknown or invalid values keep their reference spelling.
+
 - Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
 
 - Removed the obsolete `SubsFlags`, `effective_subs_flags`, `apply_replacements`, and `baseline_subs` APIs. Use `effective_subs` for block output settings and retained Raw profiles for deferred text substitutions. The free `substitutions::substitute_attributes` wrapper is replaced by `TraversalContext::substitute_attributes` for raw source templates.

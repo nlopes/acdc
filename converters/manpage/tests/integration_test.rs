@@ -646,3 +646,52 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
     }
     Ok(())
 }
+
+#[test]
+fn constructed_character_references_render_in_plain_and_formatted_content() -> Result<(), Error> {
+    use acdc_parser::{
+        Block, Bold, CharacterReference, CharacterReferenceKind, Document, Form, InlineNode,
+        Location, Paragraph,
+    };
+    let mut content = Vec::new();
+    for kind in [
+        CharacterReferenceKind::Numeric(169),
+        CharacterReferenceKind::Named("amp"),
+        CharacterReferenceKind::Named("unknown"),
+    ] {
+        content.push(InlineNode::CharacterReference(
+            CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
+        ));
+    }
+    let bold = InlineNode::BoldText(Bold {
+        role: None,
+        id: None,
+        form: Form::Constrained,
+        content: content.clone(),
+        location: Location::default(),
+    });
+    content.push(bold);
+    let mut doc = Document::default();
+    doc.blocks.push(Block::Paragraph(Paragraph::new(
+        content,
+        Location::default(),
+    )));
+    let processor = Processor::new(
+        ConverterOptions::builder().embedded(true).build(),
+        ParserOptions::builder(),
+    )?;
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let warning_source = WarningSource::new("manpage");
+    processor.write_to(
+        &doc,
+        &mut output,
+        None,
+        None,
+        &mut Diagnostics::new(&warning_source, &mut warnings),
+    )?;
+    let output = String::from_utf8(output)?;
+    assert!(output.contains(r"\(co&&unknown;"), "{output}");
+    assert!(warnings.is_empty(), "{warnings:?}");
+    Ok(())
+}

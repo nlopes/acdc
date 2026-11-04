@@ -275,6 +275,7 @@ fn link_label_needs_split(node: InlineRef<'_>, in_reference: bool, index: bool) 
         | InlineKind::Raw(_)
         | InlineKind::Verbatim(_)
         | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::CharacterReference(_)
         | InlineKind::Symbol(_)
         | InlineKind::LineBreak(_)
         | InlineKind::Callout(_)
@@ -411,6 +412,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         match node.kind() {
             InlineKind::Plain(p) => self.render_plain(p, options, subs),
+            InlineKind::CharacterReference(reference) => {
+                write!(self.writer_mut(), "{}", reference.kind())?;
+                Ok(())
+            }
             InlineKind::Symbol(symbol) => {
                 write!(
                     self.writer_mut(),
@@ -820,6 +825,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             | InlineKind::CurvedQuotation(_)
             | InlineKind::CurvedApostrophe(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::CharacterReference(_)
             | InlineKind::Symbol(_)
             | InlineKind::LineBreak(_)
             | InlineKind::Anchor(_)

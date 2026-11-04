@@ -845,6 +845,66 @@
         }
       }
     },
+    "src/model/inlines/character_reference.rs::CharacterReference": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "kind",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineLiteral"
+      },
+      "properties": {
+        "kind": {
+          "policy": "preserve-the-resolved-scalar-value-as-text",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/character_reference.rs::CharacterReferenceKind": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Named": [
+            "0"
+          ],
+          "Numeric": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineLiteral/properties/value"
+      },
+      "properties": {
+        "variant:Named": {
+          "policy": "preserve-the-resolved-scalar-value-as-text",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "Named.0": {
+          "policy": "preserve-the-resolved-scalar-value-as-text",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "variant:Numeric": {
+          "policy": "preserve-the-resolved-scalar-value-as-text",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "Numeric.0": {
+          "policy": "preserve-the-resolved-scalar-value-as-text",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        }
+      }
+    },
     "src/model/inlines/hyperlinks.rs::Link": {
       "shape": {
         "kind": "struct",
@@ -1784,6 +1844,9 @@
           "CalloutRef": [
             "0"
           ],
+          "CharacterReference": [
+            "0"
+          ],
           "CurvedApostropheText": [
             "0"
           ],
@@ -1971,6 +2034,14 @@
         "VerbatimText.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
+        },
+        "variant:CharacterReference": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineLiteral"
+        },
+        "CharacterReference.0": {
+          "policy": "preserve-the-resolved-scalar-value-as-text",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
         }
       }
     },

@@ -658,6 +658,7 @@ fn formatted_code_text(node: InlineRef<'_>) -> Option<String> {
         | InlineKind::Raw(_)
         | InlineKind::Verbatim(_)
         | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::CharacterReference(_)
         | InlineKind::Symbol(_)
         | InlineKind::LineBreak(_)
         | InlineKind::Anchor(_)

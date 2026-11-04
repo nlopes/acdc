@@ -116,7 +116,8 @@ fn edge(node: &InlineNode<'_>, first: bool, state: &ParserState<'_>) -> Edge {
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
         | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_) => Edge::Boundary,
+        | InlineNode::CalloutRef(_)
+        | InlineNode::CharacterReference(_) => Edge::Boundary,
     }
 }
 

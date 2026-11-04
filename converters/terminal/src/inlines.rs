@@ -198,16 +198,16 @@ fn render_inline_node_to_writer<'a, W: Write + ?Sized>(
     traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
     match node.kind() {
-        InlineKind::Plain(p) => {
-            write!(w, "{}", p.text())?;
-        }
+        InlineKind::Plain(p) => write!(w, "{}", p.text())?,
+        InlineKind::CharacterReference(reference) => write!(
+            w,
+            "{}",
+            acdc_converters_core::character_reference_text(reference.kind())
+        )?,
         InlineKind::Raw(r) => {
             write_raw_text(w, r, TextBoundaries::NONE)?;
         }
-        InlineKind::Verbatim(v) => {
-            // Verbatim text preserves backslashes
-            write!(w, "{}", v.text())?;
-        }
+        InlineKind::Verbatim(v) => write!(w, "{}", v.text())?,
         InlineKind::Italic(i) => {
             for inner in i.content().inlines() {
                 render_inline_node_to_writer(inner, w, processor, traversal)?;
@@ -313,6 +313,11 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
             InlineKind::Plain(p) => {
                 write!(self.writer_mut(), "{}", p.text())?;
             }
+            InlineKind::CharacterReference(reference) => write!(
+                self.writer_mut(),
+                "{}",
+                acdc_converters_core::character_reference_text(reference.kind())
+            )?,
             InlineKind::Italic(_)
             | InlineKind::Bold(_)
             | InlineKind::Highlight(_)
@@ -543,6 +548,7 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
             | InlineKind::CurvedQuotation(_)
             | InlineKind::CurvedApostrophe(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::CharacterReference(_)
             | InlineKind::Symbol(_)
             | InlineKind::LineBreak(_)
             | InlineKind::Anchor(_)
@@ -608,6 +614,7 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
             | InlineKind::CurvedQuotation(_)
             | InlineKind::CurvedApostrophe(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::CharacterReference(_)
             | InlineKind::Symbol(_)
             | InlineKind::LineBreak(_)
             | InlineKind::Anchor(_)
@@ -766,6 +773,7 @@ fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
         }
         InlineKind::Plain(_)
         | InlineKind::Raw(_)
+        | InlineKind::CharacterReference(_)
         | InlineKind::Symbol(_)
         | InlineKind::Verbatim(_)
         | InlineKind::Italic(_)

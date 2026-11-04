@@ -355,7 +355,8 @@ impl TextNeighbors {
                     }
                     continue;
                 }
-                InlineKind::Bold(_)
+                InlineKind::CharacterReference(_)
+                | InlineKind::Bold(_)
                 | InlineKind::Italic(_)
                 | InlineKind::Monospace(_)
                 | InlineKind::Highlight(_)

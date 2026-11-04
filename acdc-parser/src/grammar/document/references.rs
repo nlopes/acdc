@@ -866,6 +866,7 @@ pub(super) fn collect_inline_references<'a>(
             | InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::Symbol(_)
+            | InlineNode::CharacterReference(_)
             | InlineNode::LineBreak(_)
             | InlineNode::Macro(_)
             | InlineNode::CalloutRef(_) => {}

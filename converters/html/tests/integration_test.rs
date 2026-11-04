@@ -3633,3 +3633,30 @@ fn checked_table_metadata_edits_reach_rendered_decoration(
     }
     Ok(())
 }
+
+#[test]
+fn constructed_character_references_render_without_double_escaping() -> Result<(), Error> {
+    use acdc_parser::{
+        Block, CharacterReference, CharacterReferenceKind, Document, Location, Paragraph,
+    };
+    let mut doc = Document::default();
+    let mut content = Vec::new();
+    for kind in [
+        CharacterReferenceKind::Named("copy"),
+        CharacterReferenceKind::Numeric(65),
+    ] {
+        content.push(acdc_parser::InlineNode::CharacterReference(
+            CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
+        ));
+    }
+    doc.blocks.push(Block::Paragraph(Paragraph::new(
+        content,
+        Location::default(),
+    )));
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let html = render_fixture_document(&doc, variant, true)?;
+        assert!(html.contains("&copy;&#65;"), "{html}");
+        assert!(!html.contains("&amp;copy;"), "{html}");
+    }
+    Ok(())
+}

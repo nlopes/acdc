@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added `InlineNode::CharacterReference` for constructed ASTs, with named/numeric values and `CharacterReferenceRef` reads. Native JSON uses `name: "charref"`; numeric values use canonical decimal reference spelling. Checked ASG export accepts reference nodes and rejects invalid XML numeric characters. Parsing behavior is unchanged.
+
 - Added the offline `asg_schema_audit` example with a pinned upstream schema, validator controls, and a node/property inventory. It reports native JSON shape differences separately from ASG export or language conformance.
 
 - Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.

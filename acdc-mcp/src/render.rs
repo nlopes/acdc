@@ -115,6 +115,14 @@ pub(super) fn inline_text(nodes: &[InlineNode<'_>], format: Format) -> String {
             InlineNode::CurvedQuotationText(t) => format!("“{}”", inline_text(&t.content, format)),
             InlineNode::CurvedApostropheText(t) => format!("‘{}’", inline_text(&t.content, format)),
             InlineNode::Symbol(symbol) => symbol.kind.text().into(),
+            InlineNode::CharacterReference(reference) => {
+                let spelling = reference.kind().to_string();
+                if format == Format::Asciidoc {
+                    spelling
+                } else {
+                    html_escape::decode_html_entities(&spelling).into_owned()
+                }
+            }
             InlineNode::StandaloneCurvedApostrophe(_) => "’".into(),
             InlineNode::LineBreak(_) => {
                 if format == Format::Asciidoc {

@@ -37,6 +37,19 @@ fn inline(value: &InlineNode<'_>, path: &str) -> Result<Value, Error> {
         }
         InlineNode::VerbatimText(text) => literal("text", text.content),
         InlineNode::Symbol(symbol) => literal("text", symbol.kind.text()),
+        InlineNode::CharacterReference(reference) => {
+            if let crate::CharacterReferenceKind::Numeric(value) = reference.kind()
+                && !matches!(value, 0x9 | 0xa | 0xd | 0x20..=0xd7ff | 0xe000..=0xfffd | 0x10000..=0x0010_ffff)
+            {
+                return Err(unsupported(
+                    path,
+                    "the numeric reference does not identify an XML character",
+                ));
+            }
+            let mut result = node("charref", "string");
+            result.insert("value".into(), Value::String(reference.kind().to_string()));
+            result
+        }
         InlineNode::StandaloneCurvedApostrophe(_) => literal("text", "\u{2019}"),
         InlineNode::RawText(raw) => match raw.subs.as_slice() {
             [] => literal("raw", raw.content),
@@ -332,7 +345,8 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 content.iter().any(|inline| match inline {
                     InlineNode::PlainText(text) => !text.content.trim().is_empty(),
                     InlineNode::RawText(text) => !text.content.trim().is_empty(),
-                    InlineNode::Symbol(_)
+                    InlineNode::CharacterReference(_)
+                    | InlineNode::Symbol(_)
                     | InlineNode::VerbatimText(_)
                     | InlineNode::BoldText(_)
                     | InlineNode::ItalicText(_)

@@ -5,12 +5,14 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
+mod character_reference;
 mod hyperlinks;
 mod icon;
 mod macros;
 mod symbol;
 mod text;
 
+pub use character_reference::{CharacterReference, CharacterReferenceKind};
 pub use hyperlinks::{Link, Mailto, Url};
 pub use icon::Icon;
 pub use macros::*;
@@ -30,6 +32,7 @@ pub enum InlineNode<'a> {
     PlainText(Plain<'a>),
     /// Resolved typography that requires no further language interpretation.
     Symbol(Symbol),
+    CharacterReference(CharacterReference<'a>),
     /// Passthrough text that carries its own substitutions instead of inheriting them.
     RawText(Raw<'a>),
     /// Literal or listing text rendered with verbatim whitespace and escaping rules.
@@ -57,6 +60,7 @@ impl InlineNode<'_> {
         match self {
             InlineNode::PlainText(t) => &t.location,
             InlineNode::Symbol(t) => &t.location,
+            InlineNode::CharacterReference(t) => &t.location,
             InlineNode::RawText(t) => &t.location,
             InlineNode::VerbatimText(t) => &t.location,
             InlineNode::BoldText(t) => &t.location,
@@ -83,6 +87,7 @@ impl InlineNode<'_> {
         match self {
             InlineNode::PlainText(t) => &mut t.location,
             InlineNode::Symbol(t) => &mut t.location,
+            InlineNode::CharacterReference(t) => &mut t.location,
             InlineNode::RawText(t) => &mut t.location,
             InlineNode::VerbatimText(t) => &mut t.location,
             InlineNode::BoldText(t) => &mut t.location,
@@ -286,6 +291,12 @@ impl Serialize for InlineNode<'_> {
                 map.serialize_entry("name", "curved_apostrophe")?;
                 map.serialize_entry("type", "string")?;
                 map.serialize_entry("location", &standalone.location)?;
+            }
+            InlineNode::CharacterReference(reference) => {
+                map.serialize_entry("name", "charref")?;
+                map.serialize_entry("type", "string")?;
+                map.serialize_entry("value", &reference.kind())?;
+                map.serialize_entry("location", &reference.location)?;
             }
             InlineNode::Symbol(symbol) => {
                 map.serialize_entry("name", "symbol")?;
