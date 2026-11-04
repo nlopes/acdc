@@ -493,6 +493,12 @@ resolved typography, named/numeric character references, and the draft's four
 inline span types. Literal reference-shaped text stays text. See
 link:schemas/asg/README.adoc[the support contract] for exact limits.
 
+For the named acdc extension, call
+`asg::document_with_profile(parsed.document(), asg::Profile::Acdc)`.
+Its output identifies `urn:acdc:asg:1` and preserves resolved captions,
+attribution and citation content. This choice is independent of
+`CompatibilityMode`; unsupported nested values still fail export.
+
 Native JSON preserves acdc's model; it is not a claim of ASG conformance.
 
 Run `cargo run -p acdc-parser --example asg_schema_audit --all-features --locked --offline`

@@ -5900,5 +5900,37 @@
         }
       ]
     }
+  },
+  "extension_profiles": {
+    "urn:acdc:asg:1": {
+      "schema": "acdc-v1.json",
+      "base": "strict_export_groups",
+      "additions": {
+        "content": {
+          "owners": {
+            "BlockMetadata": [
+              "caption",
+              "attribution",
+              "citetitle"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/abstractBlock/properties/caption",
+            "#/$defs/abstractBlock/properties/attribution",
+            "#/$defs/abstractBlock/properties/citetitle"
+          ],
+          "handling": "Preserve resolved caption state and content arrays directly. Titles/reftext retain upstream arrays; reject unsupported nested semantics and stale derived catalogs. Other strict rejection rules remain unchanged.",
+          "tests": [
+            "asg_content.rs::resolved_content_fields_preserve_their_inline_trees",
+            "asg_content.rs::content_presence_and_caption_variants_do_not_collapse",
+            "asg_content.rs::captioned_targets_are_reconstructible_but_stale_catalogs_fail",
+            "asg_content.rs::nested_unsupported_content_keeps_its_property_path",
+            "asg_content.rs::programmatic_literal_content_is_not_parsed_again",
+            "asg_content.rs::strict_export_is_unchanged_and_profiles_are_explicit",
+            "asg_content.rs::extension_schema_is_closed_and_keeps_the_pinned_structure"
+          ]
+        }
+      }
+    }
   }
 }

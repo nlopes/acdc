@@ -15,7 +15,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
         title: Option<&'a Title<'doc>>,
         path: &str,
     ) -> Result<(), Error> {
-        metadata::apply(result, value, path)?;
+        metadata::apply(self.profile, result, value, path)?;
         if let Some(title) = title {
             metadata::title(result, title, path)?;
         }
@@ -33,7 +33,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             Some("verse") => "verse",
             Some("pass") => "pass",
             Some("sidebar" | "example" | "quote" | "abstract" | "partintro") => {
-                metadata::check(&value.metadata, path)?;
+                metadata::check(&value.metadata, path, self.profile)?;
                 return Err(unsupported(
                     &pointer(path, "form"),
                     "this paragraph style needs an explicit parent-block form",
@@ -194,6 +194,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
                     title: title.filter(|title| title.is_present()),
                     label: anchor.xreflabel.as_ref(),
                     section: None,
+                    caption: None,
                 },
                 path,
             )?;

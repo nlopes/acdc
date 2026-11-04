@@ -1,9 +1,10 @@
-//! Checked export to the pinned, incomplete `AsciiDoc` ASG draft.
+//! Checked export to the pinned `AsciiDoc` ASG draft or the named acdc extension.
 //!
 //! This format is separate from native AST JSON. Export reads resolved AST values
 //! directly and fails if their meaning has no supported mapping. It never reparses
 //! strings, changes the AST, or runs a converter.
 
+mod content;
 mod diagnostics;
 mod metadata;
 mod projection;
@@ -22,7 +23,23 @@ pub const SCHEMA_REVISION: &str = "68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4";
 
 static VALIDATOR: OnceLock<Result<jsonschema::Validator, String>> = OnceLock::new();
 
-/// A document cannot be represented by the pinned ASG subset.
+/// Identifier of the versioned acdc extension schema.
+pub const ACDC_SCHEMA_ID: &str = "urn:acdc:asg:1";
+
+/// The output contract, independent of the parser's compatibility mode.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Profile {
+    /// The pinned upstream subset; reject unsupported semantics.
+    #[default]
+    Upstream,
+    /// The closed acdc extension schema identified by [`ACDC_SCHEMA_ID`].
+    Acdc,
+}
+
+static ACDC_VALIDATOR: OnceLock<Result<jsonschema::Validator, String>> = OnceLock::new();
+
+/// A document cannot be represented by the selected ASG profile.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -42,7 +59,7 @@ pub enum Error {
         /// Why the value cannot be represented.
         message: String,
     },
-    /// Available source coordinates violate the pinned location contract.
+    /// Available source coordinates violate the ASG location contract.
     #[error("invalid ASG location at {path}: {message}")]
     InvalidLocation {
         /// JSON Pointer to the invalid boundary.
@@ -54,7 +71,7 @@ pub enum Error {
         /// Which location requirement failed.
         message: String,
     },
-    /// Projected output violates the pinned schema.
+    /// Projected output violates the selected schema.
     #[error("invalid ASG projection at {path}: {message}")]
     Projection {
         /// JSON Pointer into the projected output.
@@ -72,9 +89,22 @@ pub enum Error {
 /// semantics and validates against [`SCHEMA_REVISION`]; it does not establish
 /// source round-trip fidelity or complete language conformance.
 pub fn document(document: &Document<'_>) -> Result<Value, Error> {
-    let value = projection::document(document)
+    document_with_profile(document, Profile::Upstream)
+}
+
+/// Export using an explicit schema profile.
+///
+/// The acdc profile adds a required `profile` identifier and supported content
+/// properties. It does not claim upstream schema conformance. Both profiles
+/// read resolved values directly and leave the native AST unchanged.
+///
+/// # Errors
+/// Returns an error for unsupported nested values, invalid locations, or output
+/// that does not validate against the selected schema. No partial output is returned.
+pub fn document_with_profile(document: &Document<'_>, profile: Profile) -> Result<Value, Error> {
+    let value = projection::document(document, profile)
         .map_err(|error| error.with_context("document", &document.location))?;
-    validate(&value, "")?;
+    validate(&value, "", profile)?;
     Ok(value)
 }
 
@@ -98,7 +128,7 @@ pub fn inlines(inlines: &[InlineNode<'_>]) -> Result<Value, Error> {
             Value::Array(vec![Value::Object(paragraph)]),
         ),
     ]));
-    validate(&wrapper, "/blocks/0/inlines")?;
+    validate(&wrapper, "/blocks/0/inlines", Profile::Upstream)?;
     wrapper
         .pointer_mut("/blocks/0/inlines")
         .map(Value::take)
@@ -134,11 +164,17 @@ fn pointer(path: &str, key: &str) -> String {
     format!("{path}/{}", key.replace('~', "~0").replace('/', "~1"))
 }
 
-fn validate(value: &Value, prefix: &str) -> Result<(), Error> {
-    let validator = VALIDATOR
+fn validate(value: &Value, prefix: &str, profile: Profile) -> Result<(), Error> {
+    let (cache, bytes): (_, &[u8]) = match profile {
+        Profile::Upstream => (&VALIDATOR, include_bytes!("../../schemas/asg/schema.json")),
+        Profile::Acdc => (
+            &ACDC_VALIDATOR,
+            include_bytes!("../../schemas/asg/acdc-v1.json"),
+        ),
+    };
+    let validator = cache
         .get_or_init(|| {
-            let schema = serde_json::from_slice(include_bytes!("../../schemas/asg/schema.json"))
-                .map_err(|error| error.to_string())?;
+            let schema = serde_json::from_slice(bytes).map_err(|error| error.to_string())?;
             jsonschema::validator_for(&schema).map_err(|error| error.to_string())
         })
         .as_ref()
@@ -154,7 +190,7 @@ fn validate(value: &Value, prefix: &str) -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, validate};
+    use super::{Error, Profile, validate};
 
     #[test]
     fn invalid_projection_is_not_reported_as_unsupported_source() {
@@ -162,7 +198,7 @@ mod tests {
             "name":"paragraph", "type":"block", "inlines":"wrong shape"
         }]});
         assert!(
-            matches!(validate(&value, ""), Err(Error::Projection { path, .. }) if path == "/blocks/0")
+            matches!(validate(&value, "", Profile::Upstream), Err(Error::Projection { path, .. }) if path == "/blocks/0")
         );
     }
 }

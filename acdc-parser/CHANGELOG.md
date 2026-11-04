@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Checked ASG export preserves supported block forms, literal bodies, TOC/discrete headings, breaks and media targets, including complete video playlists. Missing source forms and unsupported semantic properties fail explicitly. Parsed captions and image alternative content still need a named content extension; they are not flattened into scalar attributes.
+- `asg::document_with_profile(document, asg::Profile::Acdc)` preserves resolved captions, attribution and citation content under the versioned `urn:acdc:asg:1` extension schema. Empty values and formatted content remain structured. The existing export functions still use the pinned upstream subset and reject unsupported properties.
+
+- Checked ASG export preserves supported block forms, literal bodies, TOC/discrete headings, breaks and media targets, including complete video playlists. Missing source forms and unsupported semantic properties fail explicitly. Strict upstream export rejects parsed captions and image alternative content rather than flattening them into scalar attributes.
 
 - Checked ASG export supports ordered, unordered, callout and description lists, including formatted terms, attached blocks and supported identities/metadata. Callout markers retain resolved numbering and automatic form. Checklists, unrecoverable item state and unsupported nested content fail with item/property paths.
 

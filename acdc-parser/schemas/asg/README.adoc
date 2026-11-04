@@ -178,6 +178,42 @@ The evidence covers positive mappings, rejected owners/properties and permitted
 omissions. Adding a model declaration or field requires an inventory decision;
 adding a mapping also requires semantic assertions beyond schema validity.
 
+== acdc extension profile
+
+`asg::document_with_profile(document, asg::Profile::Acdc)` selects
+`acdc-v1.json`, identified by `urn:acdc:asg:1`. Each extended document includes
+that identifier in its required `profile` field. This is an acdc format, not
+upstream ASG conformance. `asg::document` and `Profile::Upstream` keep the strict
+upstream contract. Parser compatibility mode and output profile are independent.
+
+The schema is a separately named derivative of the pinned schema, under the
+same EPL-2.0 license and notices. Its closed definitions are changed directly;
+adding an `allOf` sibling would not extend a closed upstream object. Tests compare
+the complete derived schema with the pin and allow only the documented additions.
+Both validators use local schema bytes and do not fetch references.
+
+Titles and reference text keep the upstream inline-array representation.
+Attribution and citation use `attribution` and `citetitle` inline arrays on their
+owning block. An absent field stays absent; a present empty field becomes `[]`.
+Literal values stay text nodes, and parsed formatting keeps its nodes. Export does
+not expand attributes, parse strings, or duplicate raw metadata strings.
+
+A block's resolved `caption` has one of three closed forms:
+
+* `{"kind":"unnumbered"}` retains caption-capable state without a prefix.
+* `{"kind":"custom","prefix":[...]}` retains an explicit prefix as inline content.
+  A literal programmatic prefix becomes text without an invented source location.
+* `{"kind":"numbered","counter":"example","label":"Example","number":1}`
+  retains the counter, literal label and assigned ordinal. The other counters are
+  `figure`, `listing` and `table`. An unassigned ordinal omits `number`; it is not zero.
+
+This supports captioned listings and examples, including their retained titles
+and reconstructible reference catalogs. A stale catalog still fails export.
+Cross-reference controls, image alternative content, unsupported inline nodes,
+header metadata and other uncovered semantics retain their explicit errors.
+Nested content is checked under the same schema; unknown fields are invalid.
+`support-inventory.json` records these additions separately from strict support.
+
 == References
 
 Links, URL macros, mail links and autolinks export as `ref` with variant `link`.

@@ -6,12 +6,14 @@ use std::collections::BTreeMap;
 use serde_json::{Map, Value};
 
 use crate::{
-    Block, BlockMetadata, ContentAttribute, DelimitedBlockType, Document,
+    Block, BlockMetadata, Caption, ContentAttribute, DelimitedBlockType, Document,
     DocumentAttributeAssignment, Form, Header, InlineNode, Section, SectionKind, Substitution,
     Title,
 };
 
-use super::{Error, diagnostics, metadata, pointer, references, unsupported};
+use super::{
+    ACDC_SCHEMA_ID, Error, Profile, diagnostics, metadata, pointer, references, unsupported,
+};
 
 type Node = Map<String, Value>;
 
@@ -190,9 +192,11 @@ struct Target<'a, 'doc> {
     title: Option<&'a Title<'doc>>,
     label: Option<&'a ContentAttribute<'doc>>,
     section: Option<&'a Section<'doc>>,
+    caption: Option<&'a Caption<'doc>>,
 }
 
 struct Export<'a, 'doc> {
+    profile: Profile,
     targets: BTreeMap<String, Target<'a, 'doc>>,
 }
 
@@ -241,7 +245,7 @@ fn project_header(header: &Header<'_>) -> Result<Value, Error> {
     Ok(Value::Object(projected))
 }
 
-pub(super) fn document(value: &Document<'_>) -> Result<Value, Error> {
+pub(super) fn document(value: &Document<'_>, profile: Profile) -> Result<Value, Error> {
     if let Some(note) = value.footnotes.first() {
         return Err(unsupported(
             "/footnotes/0",
@@ -250,6 +254,9 @@ pub(super) fn document(value: &Document<'_>) -> Result<Value, Error> {
         .with_context("footnote", &note.location));
     }
     let mut result = node("document", "block");
+    if profile == Profile::Acdc {
+        result.insert("profile".into(), ACDC_SCHEMA_ID.into());
+    }
     let mut attributes = Map::new();
     let mut assignments = value.attributes.assignments().collect::<Vec<_>>();
     assignments.sort_by_key(|(name, _)| *name);
@@ -285,6 +292,7 @@ pub(super) fn document(value: &Document<'_>) -> Result<Value, Error> {
         result.insert("header".into(), projected);
     }
     let mut export = Export {
+        profile,
         targets: BTreeMap::new(),
     };
     result.insert("blocks".into(), export.blocks(&value.blocks, "/blocks")?);
@@ -442,7 +450,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             ));
         }
         let mut result = node("section", "block");
-        metadata::apply(&mut result, &section.metadata, at)?;
+        metadata::apply(self.profile, &mut result, &section.metadata, at)?;
         result.insert("id".into(), Value::String(section.id().into_owned()));
         result.insert(
             "title".into(),
@@ -472,6 +480,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 title: title.filter(|title| title.is_present()),
                 label: metadata::label(metadata),
                 section,
+                caption: metadata.caption.as_ref(),
             };
             self.insert_target(id, target, path)?;
         }
@@ -526,7 +535,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             });
             if reference.title.as_ref() != target.title
                 || reference.xreflabel.as_ref() != label
-                || reference.caption.is_some()
+                || reference.caption.as_ref() != target.caption
                 || reference.is_bibliography()
                 || reference.has_automatic_citation()
                 || reference.section_number().is_some()

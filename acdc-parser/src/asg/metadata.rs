@@ -2,7 +2,7 @@ use serde_json::{Map, Value};
 
 use crate::{Anchor, AttributeValue, BlockMetadata, ContentAttribute, Location, Title};
 
-use super::{Error, pointer, projection::inlines, unsupported};
+use super::{Error, Profile, content, pointer, projection::inlines, unsupported};
 
 pub(super) fn location(
     node: &mut Map<String, Value>,
@@ -69,7 +69,7 @@ pub(super) fn title(
     Ok(())
 }
 
-pub(super) fn check(value: &BlockMetadata<'_>, path: &str) -> Result<(), Error> {
+pub(super) fn check(value: &BlockMetadata<'_>, path: &str, profile: Profile) -> Result<(), Error> {
     let at = pointer(path, "metadata");
     value.validate_attributes(&[]).map_err(|error| {
         unsupported(
@@ -79,9 +79,18 @@ pub(super) fn check(value: &BlockMetadata<'_>, path: &str) -> Result<(), Error> 
     })?;
     for (present, name) in [
         (value.has_document_attributes(), "document_attributes"),
-        (value.caption.is_some(), "caption"),
-        (value.attribution.is_some(), "attribution"),
-        (value.citetitle.is_some(), "citetitle"),
+        (
+            profile == Profile::Upstream && value.caption.is_some(),
+            "caption",
+        ),
+        (
+            profile == Profile::Upstream && value.attribution.is_some(),
+            "attribution",
+        ),
+        (
+            profile == Profile::Upstream && value.citetitle.is_some(),
+            "citetitle",
+        ),
         (value.substitutions.is_some(), "substitutions"),
     ] {
         if present {
@@ -129,11 +138,13 @@ pub(super) fn check(value: &BlockMetadata<'_>, path: &str) -> Result<(), Error> 
 }
 
 pub(super) fn apply(
+    profile: Profile,
     node: &mut Map<String, Value>,
     value: &BlockMetadata<'_>,
     path: &str,
 ) -> Result<(), Error> {
-    check(value, path)?;
+    check(value, path, profile)?;
+    content::apply(node, value, path)?;
     if let Some(anchor) = anchor(value) {
         node.insert("id".into(), anchor.id.into());
     }
@@ -220,7 +231,7 @@ pub(super) fn header(value: &BlockMetadata<'_>) -> Result<(), Error> {
 }
 
 pub(super) fn empty(value: &BlockMetadata<'_>, path: &str) -> Result<(), Error> {
-    check(value, path)?;
+    check(value, path, Profile::Upstream)?;
     for (present, property) in [
         (!value.attributes.is_empty(), "attributes"),
         (
@@ -246,7 +257,7 @@ pub(super) fn empty(value: &BlockMetadata<'_>, path: &str) -> Result<(), Error> 
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, check};
+    use super::{Error, Profile, check};
     use crate::{
         BlockMetadata, DocumentAttribute, DocumentAttributeAssignment, Location,
         grammar::BlockAttributeMode, model::content_attribute::PendingContentAttribute,
@@ -285,7 +296,7 @@ mod tests {
             ),
         ] {
             assert!(
-                matches!(check(&metadata, "/blocks/0"), Err(Error::Unsupported {path, ..})
+                matches!(check(&metadata, "/blocks/0", Profile::Upstream), Err(Error::Unsupported {path, ..})
                 if path == format!("/blocks/0/metadata/{property}"))
             );
         }
@@ -300,7 +311,7 @@ mod tests {
             Location::default(),
         ));
         assert!(
-            matches!(check(&metadata, "/blocks/0"), Err(Error::Unsupported {path, ..})
+            matches!(check(&metadata, "/blocks/0", Profile::Upstream), Err(Error::Unsupported {path, ..})
             if path == "/blocks/0/metadata/document_attributes")
         );
     }
