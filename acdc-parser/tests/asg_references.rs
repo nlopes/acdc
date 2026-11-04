@@ -2,9 +2,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    AttributeValue, Block, CompatibilityMode, ContentAttribute, CrossReference, InlineMacro,
-    InlineNode, Link, Location, Options, Source, XrefSignifier, XrefStyle, asg,
-    ast::{ContentRef, ParagraphRef},
+    AttributeValue, CompatibilityMode, ContentAttribute, CrossReference, InlineMacro, InlineNode,
+    Link, Location, Options, Source, XrefSignifier, XrefStyle, asg,
+    ast::{BlockKind, BlockRef, ContentRef},
     parse, parse_inline,
 };
 use serde_json::{Value, json};
@@ -216,10 +216,12 @@ fn scheme_hiding_changes_only_automatic_display_text() -> Result<(), Error> {
         "= Guide\n:hide-uri-scheme:\n\nhttps://example.org[] and link:https://example.org[Explicit]",
         &Options::default(),
     )?;
-    let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Paragraph(paragraph)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("paragraph".into());
     };
-    let value = asg::inlines(ParagraphRef::from(paragraph).content())?;
+    let value = asg::inlines(paragraph.content())?;
     assert_eq!(
         value.pointer("/0/target"),
         Some(&json!("https://example.org"))

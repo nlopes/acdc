@@ -1,6 +1,6 @@
 use acdc_parser::{
     CompatibilityMode, IndexTerm, IndexTermKind, InlineMacro, InlineNode, Location, Options,
-    ast::{AttributeValueRef, IndexTermRef},
+    ast::{AttributeValueRef, BlockKind, BlockRef, IndexTermRef, InlineKind, InlineRef},
     parse, parse_inline,
 };
 
@@ -98,13 +98,22 @@ fn index_controls_restore_protected_values_without_registering_content() -> Resu
         "indexterm2:[Visible,id=\"\",roles=+one two+,options=+a,b+,custom=+a,b]+,title=\"\"]",
         &Options::default(),
     )?;
-    let [acdc_parser::Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(paragraph)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("paragraph".into());
     };
-    let [InlineNode::Macro(InlineMacro::IndexTerm(owner))] = paragraph.content.as_slice() else {
+    let [InlineKind::IndexTerm(node)] = &*paragraph
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("index term".into());
     };
-    let node = IndexTermRef::from(owner.as_ref());
     assert_eq!(node.id().ok_or("present empty ID")?.as_str(), "");
     assert_eq!(node.roles().iter().collect::<Vec<_>>(), ["one", "two"]);
     assert_eq!(node.options().iter().collect::<Vec<_>>(), ["a", "b"]);
@@ -126,20 +135,30 @@ fn index_controls_freeze_at_macro_recognition_without_duplicating_catalog_metada
         ":label: Expanded\n:control: replaced\n\n[subs=\"specialcharacters,macros,attributes\"]\nindexterm2:[{label},custom={control},id=entry]",
         &Options::default(),
     )?;
-    let [acdc_parser::Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(paragraph)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("paragraph".into());
     };
-    let [inline @ InlineNode::Macro(InlineMacro::IndexTerm(owner))] = paragraph.content.as_slice()
+    let [InlineKind::IndexTerm(node)] = &*paragraph
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
     else {
         return Err("index term".into());
     };
     assert_eq!(
-        IndexTermRef::from(owner.as_ref())
-            .attributes()
-            .get("custom"),
+        node.attributes().get("custom"),
         Some(AttributeValueRef::Text("{control}"))
     );
-    let json = serde_json::to_value(inline)?;
+    let native = serde_json::to_value(parsed.document_ref())?;
+    let json = native
+        .pointer("/blocks/0/inlines/0")
+        .ok_or("native index term")?;
     assert!(json.get("metadata").is_some());
     assert!(json.get("catalog").is_some());
     assert!(json.pointer("/catalog/metadata").is_none());
@@ -150,11 +169,7 @@ fn index_controls_freeze_at_macro_recognition_without_duplicating_catalog_metada
 fn index_ids_follow_expansion_includes_and_table_cells(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
-    use acdc_parser::{
-        SafeMode,
-        ast::{BlockKind, ContentRef, InlineKind},
-        parse_file,
-    };
+    use acdc_parser::{SafeMode, ast::ContentRef, parse_file};
 
     fn term(content: ContentRef<'_>) -> Result<IndexTermRef<'_>, Error> {
         content

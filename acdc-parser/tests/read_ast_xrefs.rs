@@ -1,7 +1,7 @@
 use acdc_parser::{
     CompatibilityMode, CrossReference, InlineMacro, InlineNode, Location, Options,
     XrefCaptionLabel, XrefSignifier, XrefStyle,
-    ast::{AttributeValueRef, CrossReferenceRef, InlineKind, InlineRef},
+    ast::{AttributeValueRef, BlockKind, BlockRef, CrossReferenceRef, InlineKind, InlineRef},
     parse_inline,
 };
 
@@ -99,14 +99,22 @@ fn xref_controls_preserve_empty_values_and_restore_protected_text() -> Result<()
         "xref:target[id=\"\",role=+two roles+,opts=+one,two+,custom=+a,b]+,title=\"\"]",
         &Options::default(),
     )?;
-    let [acdc_parser::Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(paragraph)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("paragraph".into());
     };
-    let [InlineNode::Macro(InlineMacro::CrossReference(owner))] = paragraph.content.as_slice()
+    let [InlineKind::CrossReference(node)] = &*paragraph
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
     else {
         return Err("xref".into());
     };
-    let node = CrossReferenceRef::from(owner.as_ref());
     assert_eq!(node.id().ok_or("empty ID")?.as_str(), "");
     assert_eq!(node.roles().iter().collect::<Vec<_>>(), ["two", "roles"]);
     assert_eq!(node.options().iter().collect::<Vec<_>>(), ["one", "two"]);
@@ -195,9 +203,9 @@ fn retained_xref_controls_do_not_register_content(
         "xref:target[id=occurrence,title=footnote:ignored[Note],reftext=footnote:other[Other]]\n\n[[target]]\nTarget.",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert!(!parsed.document().references.contains_key("occurrence"));
-    assert!(parsed.document().references.contains_key("target"));
-    assert_eq!(parsed.document().footnotes, []);
+    assert!(!parsed.document_ref().references().contains("occurrence"));
+    assert!(parsed.document_ref().references().contains("target"));
+    assert_eq!(parsed.document_ref().footnotes().count(), 0);
     Ok(())
 }
 
