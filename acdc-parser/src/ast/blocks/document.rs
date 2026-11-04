@@ -110,6 +110,14 @@ impl<'doc> From<&'doc crate::Header<'doc>> for HeaderRef<'doc> {
     }
 }
 
+/// Copy one header without copying the rest of its document or reparsing content.
+/// Source text can still borrow from the original owner.
+impl<'doc> From<HeaderRef<'doc>> for crate::Header<'doc> {
+    fn from(header: HeaderRef<'doc>) -> Self {
+        header.node.clone()
+    }
+}
+
 impl<'doc> AuthorRef<'doc> {
     /// The first name.
     #[must_use]
@@ -145,6 +153,13 @@ impl<'doc> AuthorRef<'doc> {
 impl<'doc> From<&'doc Author<'doc>> for AuthorRef<'doc> {
     fn from(author: &'doc Author<'doc>) -> Self {
         Self { author }
+    }
+}
+
+/// Copy prepared author values without normalization or allocation.
+impl<'doc> From<AuthorRef<'doc>> for Author<'doc> {
+    fn from(author: AuthorRef<'doc>) -> Self {
+        author.author.clone()
     }
 }
 

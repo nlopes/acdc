@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Copy an individual header or author with `Header::from(HeaderRef)` or
+  `Author::from(AuthorRef)`. These copies preserve prepared values and source
+  lifetimes without copying the document body or replaying registrations.
+
 - **Breaking:** `Header` and `Author` fields are private. Read through `ast::HeaderRef`
   and `ast::AuthorRef`; use their owned setters to edit prepared values. Header
   `take_*` methods transfer metadata, titles, and authors with their source

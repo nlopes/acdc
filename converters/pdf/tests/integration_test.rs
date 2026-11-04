@@ -1850,10 +1850,8 @@ fn named_pdf_destinations_keep_caller_built_document_titles() -> Result<(), Erro
         include_str!("fixtures/source/named_destinations.adoc"),
         &Options::default(),
     )?;
-    let mut parsed_stored = acdc_parser::Document::from(parsed.document());
-    let mut header = parsed_stored
-        .take_header()
-        .ok_or("missing fixture header")?;
+    let mut header =
+        acdc_parser::Header::from(parsed.document().header().ok_or("missing fixture header")?);
     let mut document = Document::default();
     document.set_header(Some(
         acdc_parser::Header::new(

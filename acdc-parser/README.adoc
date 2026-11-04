@@ -120,6 +120,10 @@ other `set_*` methods to replace owned parts. Their `take_*` counterparts transf
 them to a borrow of the old document. You can edit those parts and put them back;
 registrations stay unchanged until you replace them or reparse the source.
 
+To copy only a header or author, use `Header::from(header_ref)` or
+`Author::from(author_ref)`. These copies keep stored values and can still borrow
+source text; they do not copy the document body or replay registrations.
+
 Read constructed headers and authors through `HeaderRef::from(&header)` and
 `AuthorRef::from(&author)`. Their fields are private; use setters to edit prepared
 values. Clone an owned header and use `take_metadata()` to prepare a replacement

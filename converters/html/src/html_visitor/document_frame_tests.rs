@@ -17,7 +17,6 @@ fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
         "[[first]]\n[[last]]\n= Frame\n:lang: fr\n:toc: left\n:toc-class: header-toc\n:revnumber: 1.0\n\nBody.\n",
         &Options::default(),
     )?;
-    let parsed_stored = acdc_parser::Document::from(parsed.document());
     let replay = parse(
         ":lang: es\n:toc: right\n:toc-class: replay-toc\n\nBody.\n",
         &Options::default(),
@@ -25,9 +24,7 @@ fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         for (explicit, expected_id) in [(false, "last"), (true, "first")] {
             let mut document = Document::default();
-            let mut original = Document::from(acdc_parser::ast::DocumentRef::from(&parsed_stored))
-                .take_header()
-                .ok_or("expected a header")?;
+            let mut original = Header::from(parsed.document().header().ok_or("expected a header")?);
             document.set_header(Some(
                 Header::new(original.take_title(), Location::default())
                     .with_metadata(original.take_metadata())?,
