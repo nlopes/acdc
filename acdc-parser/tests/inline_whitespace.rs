@@ -1,13 +1,17 @@
-use acdc_parser::{Block, InlineMacro, InlineNode, Options, WarningKind, parse, parse_inline};
+use acdc_parser::{
+    Options, WarningKind,
+    ast::{BlockKind, BlockRef, ContentRef, InlineKind, InlineRef},
+    parse, parse_inline,
+};
 
 type Error = Box<dyn std::error::Error>;
 
-fn formatted_content<'a>(node: &'a InlineNode<'_>, marker: &str) -> Option<&'a [InlineNode<'a>]> {
-    match (marker, node) {
-        ("``" | "`", InlineNode::MonospaceText(span)) => Some(&span.content),
-        ("**" | "*", InlineNode::BoldText(span)) => Some(&span.content),
-        ("__" | "_", InlineNode::ItalicText(span)) => Some(&span.content),
-        ("##" | "#", InlineNode::HighlightText(span)) => Some(&span.content),
+fn formatted_content<'doc>(node: InlineRef<'doc>, marker: &str) -> Option<ContentRef<'doc>> {
+    match (marker, node.kind()) {
+        ("``" | "`", InlineKind::Monospace(span)) => Some(span.content()),
+        ("**" | "*", InlineKind::Bold(span)) => Some(span.content()),
+        ("__" | "_", InlineKind::Italic(span)) => Some(span.content()),
+        ("##" | "#", InlineKind::Highlight(span)) => Some(span.content()),
         _ => None,
     }
 }
@@ -29,32 +33,36 @@ fn formatting_preserves_whitespace_and_its_source_span() -> Result<(), Error> {
             for newline in ["\n", "\r\n"] {
                 let source = format!("α A{marker}{body}{marker}B.\n").replace('\n', newline);
                 let parsed = parse(&source, &Options::default())?;
-                let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+                let Some(BlockKind::Paragraph(paragraph)) =
+                    parsed.document_ref().blocks().next().map(BlockRef::kind)
+                else {
                     return Err("expected a paragraph".into());
                 };
                 let span = paragraph
-                    .content
-                    .iter()
-                    .find(|node| formatted_content(node, marker).is_some())
+                    .content()
+                    .inlines()
+                    .find(|node| formatted_content(*node, marker).is_some())
                     .ok_or("missing formatted span")?;
                 let nodes = formatted_content(span, marker).ok_or("missing content")?;
-                let [InlineNode::PlainText(text)] = nodes else {
+                let [InlineKind::Plain(text)] =
+                    &*nodes.inlines().map(InlineRef::kind).collect::<Vec<_>>()
+                else {
                     return Err(
                         format!("expected one whitespace node: {source:?}: {nodes:?}").into(),
                     );
                 };
-                assert_eq!(text.content, expected, "{source:?}");
+                assert_eq!(text.text(), expected, "{source:?}");
                 let start = parsed.source().find(marker).ok_or("missing marker")? + marker.len();
                 let end = start + body.char_indices().last().ok_or("empty body")?.0;
-                assert_eq!(text.location.absolute_start, start, "{source:?}");
-                assert_eq!(text.location.absolute_end, end, "{source:?}");
+                assert_eq!(text.location().absolute_start(), start, "{source:?}");
+                assert_eq!(text.location().absolute_end(), end, "{source:?}");
                 let prefix = parsed.source().get(..end).ok_or("invalid endpoint")?;
                 assert_eq!(
-                    text.location.end.line,
+                    text.location().end().line(),
                     u32::try_from(prefix.bytes().filter(|byte| *byte == b'\n').count() + 1)?
                 );
                 assert_eq!(
-                    text.location.end.column,
+                    text.location().end().column(),
                     u32::try_from(
                         prefix
                             .rsplit('\n')
@@ -83,12 +91,14 @@ fn whitespace_and_empty_attributes_keep_constrained_quote_order() -> Result<(), 
                 };
                 let source = format!(":empty:\n\n{metadata}A {marker}{body}{marker} B.");
                 let parsed = parse(&source, &Options::default())?;
-                let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+                let Some(BlockKind::Paragraph(paragraph)) =
+                    parsed.document_ref().blocks().next().map(BlockRef::kind)
+                else {
                     return Err("expected a paragraph".into());
                 };
                 let content = paragraph
-                    .content
-                    .iter()
+                    .content()
+                    .inlines()
                     .find_map(|node| formatted_content(node, marker));
                 if subs == "attributes,quotes" {
                     assert!(content.is_none(), "{source}");
@@ -97,10 +107,12 @@ fn whitespace_and_empty_attributes_keep_constrained_quote_order() -> Result<(), 
                     if expected.is_empty() {
                         assert!(content.is_empty(), "{source}");
                     } else {
-                        let [InlineNode::PlainText(text)] = content else {
+                        let [InlineKind::Plain(text)] =
+                            &*content.inlines().map(InlineRef::kind).collect::<Vec<_>>()
+                        else {
                             return Err(format!("missing whitespace: {source}: {content:?}").into());
                         };
-                        assert_eq!(text.content, expected, "{source}");
+                        assert_eq!(text.text(), expected, "{source}");
                     }
                 }
             }
@@ -114,13 +126,16 @@ fn blank_block_expansions_keep_their_existing_empty_content() -> Result<(), Erro
     for body in ["{sp}", "{sp}{sp}", "{nbsp}", "{empty}"] {
         let source = format!(":empty:\n\n{body}\n\nAfter.");
         let parsed = parse(&source, &Options::default())?;
-        let [Block::Paragraph(blank), Block::Paragraph(after)] =
-            parsed.document().blocks.as_slice()
+        let [BlockKind::Paragraph(blank), BlockKind::Paragraph(after)] = &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
         else {
             return Err("expected the blank paragraph and its following sibling".into());
         };
-        assert!(blank.content.is_empty(), "{source}");
-        assert_ne!(after.content, []);
+        assert!(blank.content().is_empty(), "{source}");
+        assert!(!after.content().is_empty());
     }
     Ok(())
 }
@@ -131,14 +146,15 @@ fn inline_api_preserves_whitespace_inside_formatting() -> Result<(), Error> {
         let source = format!("A{marker} {marker}B");
         let parsed = parse_inline(&source, &Options::default())?;
         let nodes = parsed
+            .content()
             .inlines()
-            .iter()
             .find_map(|node| formatted_content(node, marker))
             .ok_or("missing formatted span")?;
-        let [InlineNode::PlainText(text)] = nodes else {
+        let [InlineKind::Plain(text)] = &*nodes.inlines().map(InlineRef::kind).collect::<Vec<_>>()
+        else {
             return Err("expected one whitespace node".into());
         };
-        assert_eq!(text.content, " ");
+        assert_eq!(text.text(), " ");
     }
     Ok(())
 }
@@ -183,20 +199,26 @@ fn formatted_whitespace_remains_inside_link_labels() -> Result<(), Error> {
     for marker in ["``", "**", "__", "##"] {
         let source = format!("link:https://example.org[A{marker}{{sp}}{marker}B]");
         let parsed = parse_inline(&source, &Options::default())?;
-        let [InlineNode::Macro(InlineMacro::Link(link))] = parsed.inlines() else {
+        let [InlineKind::Link(link)] = &*parsed
+            .content()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected one link".into());
         };
         let nodes = link
-            .text
-            .iter()
+            .text()
+            .inlines()
             .find_map(|node| formatted_content(node, marker))
             .ok_or("missing formatted label")?;
-        let [InlineNode::PlainText(text)] = nodes else {
+        let [InlineKind::Plain(text)] = &*nodes.inlines().map(InlineRef::kind).collect::<Vec<_>>()
+        else {
             return Err("missing whitespace in link label".into());
         };
-        assert_eq!(text.content, " ");
+        assert_eq!(text.text(), " ");
         assert_eq!(
-            source.get(text.location.absolute_start..=text.location.absolute_end),
+            source.get(text.location().absolute_start()..=text.location().absolute_end()),
             Some("{sp}")
         );
     }
@@ -214,34 +236,43 @@ fn whitespace_macro_labels_keep_only_their_source_span() -> Result<(), Error> {
         for body in [" ", "  ", "\t", "{sp}", "{sp}{sp}"] {
             let source = format!("{target}[{body}]");
             let parsed = parse(&source, &Options::default())?;
-            let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+            let Some(BlockKind::Paragraph(paragraph)) =
+                parsed.document_ref().blocks().next().map(BlockRef::kind)
+            else {
                 return Err("expected a paragraph".into());
             };
-            let [InlineNode::Macro(inline_macro)] = paragraph.content.as_slice() else {
+            let [inline_macro] = &*paragraph
+                .content()
+                .inlines()
+                .map(InlineRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err("expected one macro".into());
             };
-            let content = if let InlineMacro::Link(link) = inline_macro {
-                &link.text
-            } else if let InlineMacro::Url(url) = inline_macro {
-                &url.text
-            } else if let InlineMacro::Mailto(mailto) = inline_macro {
-                &mailto.text
-            } else if let InlineMacro::CrossReference(xref) = inline_macro {
-                &xref.text
+            let content = if let InlineKind::Link(link) = inline_macro {
+                link.text()
+            } else if let InlineKind::Url(url) = inline_macro {
+                url.text()
+            } else if let InlineKind::Mailto(mailto) = inline_macro {
+                mailto.text()
+            } else if let InlineKind::CrossReference(xref) = inline_macro {
+                xref.text()
             } else {
                 return Err("unexpected macro".into());
             };
-            let [InlineNode::PlainText(text)] = content.as_slice() else {
+            let [InlineKind::Plain(text)] =
+                &*content.inlines().map(InlineRef::kind).collect::<Vec<_>>()
+            else {
                 return Err("expected a whitespace label".into());
             };
-            assert_eq!(text.content, body.replace("{sp}", " "), "{source}");
+            assert_eq!(text.text(), body.replace("{sp}", " "), "{source}");
             assert_eq!(
-                source.get(text.location.absolute_start..=text.location.absolute_end),
+                source.get(text.location().absolute_start()..=text.location().absolute_end()),
                 Some(body),
                 "{source}"
             );
             assert_eq!(
-                text.location.end.column as usize,
+                text.location().end().column() as usize,
                 target.len() + 1 + body.len(),
                 "{source}"
             );
