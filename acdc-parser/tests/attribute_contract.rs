@@ -1,8 +1,8 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, Caption, CompatibilityMode, InlineNode, Options, asg,
-    ast::{AttributeValueRef, BlockKind, BlockRef, ContentRef, InlineKind, InlineRef},
+    CompatibilityMode, Options, asg,
+    ast::{AttributeValueRef, BlockKind, BlockRef, CaptionRef, InlineKind, InlineRef},
     parse,
 };
 use serde_json::{Value, json};
@@ -20,7 +20,7 @@ fn attribute_meaning_agrees_across_reads_native_json_and_checked_export() -> Res
              image:photo.png[alt='*Bird*',title='_Tip_',width=0120]\n",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let native = serde_json::to_value(parsed.document())?;
+        let native = serde_json::to_value(parsed.document_ref())?;
         let graph = asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc)?;
         for (pointer, expected) in [
             ("/blocks/0/title/0/variant", json!("strong")),
@@ -55,13 +55,16 @@ fn attribute_meaning_agrees_across_reads_native_json_and_checked_export() -> Res
             title.inlines().next().map(InlineRef::kind),
             Some(InlineKind::Bold(_))
         ));
-        let Block::DelimitedBlock(example) = parsed.document().blocks.get(1).ok_or("example")?
-        else {
+        let BlockKind::Example(example) = blocks.next().ok_or("example")?.kind() else {
             return Err("example".into());
         };
         assert!(matches!(
-            example.metadata.caption,
-            Some(Caption::CustomContent(_))
+            CaptionRef::resolve(
+                example.attributes(),
+                parsed.document_ref().attributes(),
+                None
+            ),
+            Some(CaptionRef::CustomContent(_))
         ));
         for (native_path, graph_path) in [
             ("/blocks/0/title", "/blocks/0/title"),
@@ -84,7 +87,7 @@ fn attribute_meaning_agrees_across_reads_native_json_and_checked_export() -> Res
                 .pointer("/blocks/2/metadata/attributes/attribution")
                 .is_none()
         );
-        assert_eq!(serde_json::to_value(parsed.document())?, native);
+        assert_eq!(serde_json::to_value(parsed.document_ref())?, native);
         assert_eq!(
             asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc)?,
             graph
@@ -118,21 +121,20 @@ fn snapshot_and_selected_content_survive_projection_without_side_effects() -> Re
              [title='*Selected* footnote:kept[Kept]']\nBody.\n",
             &options,
         )?;
-        let before = serde_json::to_value(parsed.document())?;
+        let before = serde_json::to_value(parsed.document_ref())?;
         let quote = parsed
-            .document()
-            .blocks
-            .iter()
+            .document_ref()
+            .blocks()
             .find_map(|block| {
-                if let Block::DelimitedBlock(block) = block {
+                if let BlockKind::Quote(block) = block.kind() {
                     Some(block)
                 } else {
                     None
                 }
             })
             .ok_or("quote")?;
-        let attribution = quote.metadata.attribution.as_ref().ok_or("attribution")?;
-        let value = asg::inlines(ContentRef::from(attribution))?;
+        let attribution = quote.attribution().ok_or("attribution")?;
+        let value = asg::inlines(attribution)?;
         assert_eq!(
             value.pointer("/0/value"),
             Some(&json!(if mode == CompatibilityMode::Asciidoctor {
@@ -146,16 +148,21 @@ fn snapshot_and_selected_content_survive_projection_without_side_effects() -> Re
             Some(&json!([{"line":5,"col":21},{"line":5,"col":27}]))
         );
         assert!(matches!(
-            attribution.first(),
-            Some(InlineNode::PlainText(_))
+            attribution.inlines().next().map(InlineRef::kind),
+            Some(InlineKind::Plain(_))
         ));
-        assert_eq!(parsed.document().footnotes.len(), 1);
+        assert_eq!(parsed.document_ref().footnotes().count(), 1);
         assert_eq!(
-            parsed.document().footnotes.first().ok_or("footnote")?.id,
+            parsed
+                .document_ref()
+                .footnotes()
+                .next()
+                .ok_or("footnote")?
+                .id(),
             Some("kept")
         );
         assert!(asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc).is_err());
-        assert_eq!(serde_json::to_value(parsed.document())?, before);
+        assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     }
     Ok(())
 }

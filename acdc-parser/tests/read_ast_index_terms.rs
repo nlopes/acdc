@@ -1,6 +1,9 @@
 use acdc_parser::{
     CompatibilityMode, InlineMacro, InlineNode, Options,
-    ast::{ContentRef, IndexTermRef, IndexTermRelationshipRef, InlineKind},
+    ast::{
+        BlockKind, BlockRef, ContentRef, IndexTermRef, IndexTermRelationshipRef, InlineKind,
+        InlineRef,
+    },
     parse, parse_inline,
 };
 
@@ -86,13 +89,22 @@ fn index_catalog_reads_preserve_registration_time_labels() -> Result<(), Error> 
         ":term: Expanded\n\n[subs=\"specialcharacters,macros,attributes\"]\nindexterm2:[{term}]",
         &Options::default(),
     )?;
-    let [acdc_parser::Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(paragraph)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("paragraph".into());
     };
-    let [InlineNode::Macro(InlineMacro::IndexTerm(owner))] = paragraph.content.as_slice() else {
+    let [InlineKind::IndexTerm(node)] = &*paragraph
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("index term".into());
     };
-    let node = IndexTermRef::from(owner.as_ref());
     let catalog = node.catalog();
     shared(catalog);
     assert_eq!(text(node.term())?, "Expanded");

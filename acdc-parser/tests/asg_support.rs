@@ -3,7 +3,9 @@
 
 use acdc_parser::{
     Anchor, AttributeValue, Block, Caption, CompatibilityMode, ContentAttribute, Document,
-    Location, Options, Paragraph, SubstitutionSpec, asg, ast::ParagraphRef, parse,
+    Location, Options, Paragraph, SubstitutionSpec, asg,
+    ast::{BlockKind, BlockRef},
+    parse,
 };
 use serde_json::json;
 
@@ -57,11 +59,13 @@ fn unsupported_inline_owners_are_rejected_inside_supported_paragraphs() -> Resul
                 &format!("= Guide\n:experimental:\n:stem:\n\nBefore {source} after."),
                 &options,
             )?;
-            let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+            let Some(BlockKind::Paragraph(paragraph)) =
+                parsed.document_ref().blocks().next().map(BlockRef::kind)
+            else {
                 return Err(format!("missing paragraph: {source}").into());
             };
             assert!(
-                matches!(asg::inlines(ParagraphRef::from(paragraph).content()), Err(asg::Error::Unsupported {
+                matches!(asg::inlines(paragraph.content()), Err(asg::Error::Unsupported {
                 construct: Some(actual), ..
             }) if actual == owner),
                 "{mode:?}: {owner}: {source}"

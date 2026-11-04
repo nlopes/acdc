@@ -1,7 +1,9 @@
 use acdc_parser::{
     CompatibilityMode, ContentAttribute, ElementAttributes, InlineMacro, InlineNode, Link,
     Location, Mailto, Options, Source, Url,
-    ast::{AttributeValueRef, InlineKind, InlineRef, LinkRef, MailtoRef, UrlRef},
+    ast::{
+        AttributeValueRef, BlockKind, BlockRef, InlineKind, InlineRef, LinkRef, MailtoRef, UrlRef,
+    },
     parse_inline,
 };
 
@@ -195,11 +197,17 @@ fn empty_link_text_keeps_automatic_display_policy() -> Result<(), Error> {
         ":hide-uri-scheme:\n\nlink:https://example.org[title=\"\"]",
         &Options::default(),
     )?;
-    let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Paragraph(paragraph)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("paragraph".into());
     };
-    let InlineKind::Link(link) =
-        InlineRef::from(paragraph.content.first().ok_or("link inline")?).kind()
+    let InlineKind::Link(link) = paragraph
+        .content()
+        .inlines()
+        .next()
+        .ok_or("link inline")?
+        .kind()
     else {
         return Err("link".into());
     };

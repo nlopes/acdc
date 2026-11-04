@@ -1,6 +1,7 @@
 use acdc_parser::{
-    Block, CrossReference, InlineMacro, InlineNode, Options, XrefCaptionLabel, XrefStyle, parse,
-    parse_inline,
+    CrossReference, InlineMacro, InlineNode, Options, XrefCaptionLabel, XrefStyle,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef, ReferenceRef},
+    parse, parse_inline,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -18,7 +19,12 @@ fn cross_reference_syntax_classifies_punctuation_before_catalog_lookup() -> Resu
         ("xref:guide.adoc#topic:one[]", "guide.adoc#topic:one", false),
     ] {
         let parsed = parse_inline(source, &Options::default())?;
-        let [InlineNode::Macro(InlineMacro::CrossReference(xref))] = parsed.inlines() else {
+        let [InlineKind::CrossReference(xref)] = &*parsed
+            .content()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err(format!(
                 "expected cross-reference for {source}: {:?}",
                 parsed.inlines()
@@ -26,14 +32,14 @@ fn cross_reference_syntax_classifies_punctuation_before_catalog_lookup() -> Resu
             .into());
         };
         assert_eq!(
-            (xref.target, xref.target_is_local),
+            (xref.target(), xref.target_is_local()),
             (target, local),
             "{source}"
         );
-        assert_eq!(xref.location.absolute_start, 0, "{source}");
-        assert_eq!(xref.location.absolute_end, source.len() - 1, "{source}");
+        assert_eq!(xref.location().absolute_start(), 0, "{source}");
+        assert_eq!(xref.location().absolute_end(), source.len() - 1, "{source}");
         assert_eq!(
-            xref.location.end.column,
+            xref.location().end().column(),
             u32::try_from(source.chars().count())?,
             "{source}"
         );
@@ -49,18 +55,27 @@ fn passthrough_cross_reference_targets_keep_source_classification() -> Result<()
         ("xref:pass:[#a-b.c:d][]", "a-b.c:d", true),
     ] {
         let parsed = parse(source, &Options::default())?;
-        let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(paragraph)] = &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected paragraph".into());
         };
-        let [InlineNode::Macro(InlineMacro::CrossReference(xref))] = paragraph.content.as_slice()
+        let [InlineKind::CrossReference(xref)] = &*paragraph
+            .content()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
         else {
             return Err(format!("expected cross-reference for {source}").into());
         };
-        assert_eq!((xref.target, xref.target_is_local), (target, local));
-        assert_eq!(xref.location.absolute_start, 0);
-        assert_eq!(xref.location.absolute_end, source.len() - 1);
+        assert_eq!((xref.target(), xref.target_is_local()), (target, local));
+        assert_eq!(xref.location().absolute_start(), 0);
+        assert_eq!(xref.location().absolute_end(), source.len() - 1);
         assert_eq!(
-            xref.location.end.column,
+            xref.location().end().column(),
             u32::try_from(source.chars().count())?
         );
     }
@@ -73,16 +88,18 @@ fn compatibility_mode_keeps_the_entire_cross_reference_target_local() -> Result<
         ":compat-mode:\n\n<<topic:one>> xref:topic:one[] xref:a-b.c:d[] xref:#topic:one[] xref:guide.adoc[]\n",
         &Options::default(),
     )?;
-    let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Paragraph(paragraph)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("missing paragraph".into());
     };
     let targets = paragraph
-        .content
-        .iter()
+        .content()
+        .inlines()
         .filter_map(|inline| {
-            if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
-                assert!(xref.target_is_local);
-                Some(xref.target)
+            if let InlineKind::CrossReference(xref) = inline.kind() {
+                assert!(xref.target_is_local());
+                Some(xref.target())
             } else {
                 None
             }
@@ -114,13 +131,13 @@ fn unused_block_metadata_does_not_register_references_or_footnotes() -> Result<(
         include_str!("../fixtures/tests/block_metadata_eof_contexts.adoc"),
     ] {
         let parsed = parse(source, &Options::default())?;
-        assert_eq!(parsed.document().footnotes, []);
+        assert_eq!(parsed.document_ref().footnotes().count(), 0);
         assert!(
             parsed
-                .document()
-                .references
-                .keys()
-                .all(|id| !id.starts_with("unused-"))
+                .document_ref()
+                .references()
+                .iter()
+                .all(|(id, _)| !id.starts_with("unused-"))
         );
     }
     Ok(())
@@ -187,12 +204,12 @@ fn cross_reference_model_full_document_resolves_caption_label() -> Result<(), Er
         ":table-caption: ReferenceTable\n:xrefstyle: full\n\nSee <<table-target>>.\n\n:table-caption: TargetTable\n\n[[table-target]]\n.A table\n|===\n|Cell\n|===\n",
         &Options::default(),
     )?;
-    let Some(xref) = parsed.document().blocks.iter().find_map(|block| {
-        let Block::Paragraph(paragraph) = block else {
+    let Some(xref) = parsed.document_ref().blocks().find_map(|block| {
+        let BlockKind::Paragraph(paragraph) = block.kind() else {
             return None;
         };
-        paragraph.content.iter().find_map(|inline| {
-            let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+        paragraph.content().inlines().find_map(|inline| {
+            let InlineKind::CrossReference(xref) = inline.kind() else {
                 return None;
             };
             Some(xref)
@@ -201,10 +218,10 @@ fn cross_reference_model_full_document_resolves_caption_label() -> Result<(), Er
         return Err("expected a cross-reference in the full document".into());
     };
 
-    assert_eq!(xref.target, "table-target");
-    assert_eq!(xref.xrefstyle, XrefStyle::Full);
+    assert_eq!(xref.target(), "table-target");
+    assert_eq!(xref.xrefstyle(), XrefStyle::Full);
     assert_eq!(
-        xref.caption_label,
+        xref.caption_label(),
         XrefCaptionLabel::AtReference("ReferenceTable")
     );
     Ok(())
@@ -219,10 +236,10 @@ fn reference_catalog_covers_rendered_header_title_credits_and_footnotes() -> Res
         ),
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = parsed.document_ref();
 
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
-    assert!(!document.references.contains_key("unused-header-anchor"));
+    assert!(!document.references().contains("unused-header-anchor"));
     for id in [
         "document-header",
         "title-anchor",
@@ -230,21 +247,18 @@ fn reference_catalog_covers_rendered_header_title_credits_and_footnotes() -> Res
         "citation-anchor",
         "footnote-anchor",
     ] {
-        assert!(
-            document.references.contains_key(id),
-            "missing reference {id}"
-        );
+        assert!(document.references().contains(id), "missing reference {id}");
     }
 
     let title = document
-        .references
+        .references()
         .get("document-header")
-        .and_then(|reference| reference.title.as_ref())
+        .and_then(ReferenceRef::title)
         .ok_or("missing document-title reference text")?;
     assert!(
         title
-            .iter()
-            .any(|inline| matches!(inline, InlineNode::PlainText(text) if text.content == ": "))
+            .inlines()
+            .any(|inline| matches!(inline.kind(), InlineKind::Plain(text) if text.text() == ": "))
     );
     Ok(())
 }
