@@ -1,5 +1,5 @@
 use acdc_parser::{
-    ContentAttribute, InlineNode, Options, Symbol, SymbolKind,
+    ContentAttribute, InlineNode, Location, Options, Symbol, SymbolKind,
     ast::{ContentRef, InlineKind},
     parse,
 };
@@ -9,13 +9,14 @@ type Error = Box<dyn std::error::Error>;
 #[test]
 fn symbol_reads_and_native_json_project_one_semantic_value() -> Result<(), Error> {
     let parsed = parse("First\n\n(C)", &Options::default())?;
-    let location = parsed
-        .document()
-        .blocks
-        .last()
-        .ok_or("missing source block")?
-        .location()
-        .clone();
+    let location = Location::from(
+        parsed
+            .document_ref()
+            .blocks()
+            .last()
+            .ok_or("missing source block")?
+            .location(),
+    );
     let content = ContentAttribute::new(vec![InlineNode::Symbol(Symbol {
         kind: SymbolKind::Copyright,
         location: location.clone(),

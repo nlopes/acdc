@@ -1,4 +1,8 @@
-use acdc_parser::{Block, CompatibilityMode, InlineNode, Options, parse};
+use acdc_parser::{
+    CompatibilityMode, Options,
+    ast::{BlockKind, BlockRef, InlineKind},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -10,11 +14,16 @@ fn escaped_macros_keep_their_catalogs_inactive(
         include_str!("../fixtures/tests/compatibility_inline_escapes.adoc"),
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [note] = parsed.document().footnotes.as_slice() else {
+    let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
         return Err("expected only the active note".into());
     };
-    assert_eq!(note.id.as_deref(), Some("active"));
-    assert!(!parsed.document().references.contains_key("inactive-anchor"));
+    assert_eq!(note.id(), Some("active"));
+    assert!(
+        !parsed
+            .document_ref()
+            .references()
+            .contains("inactive-anchor")
+    );
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -36,17 +45,22 @@ fn constrained_boundaries_keep_the_shared_character_policy(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(paragraph)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected one paragraph".into());
     };
     let bold = paragraph
-        .content
-        .iter()
-        .find(|node| matches!(node, InlineNode::BoldText(_)));
+        .content()
+        .inlines()
+        .find(|node| matches!(node.kind(), InlineKind::Bold(_)));
     assert_eq!(bold.is_some(), expected);
     if let Some(bold) = bold {
         let authored = source
-            .get(bold.location().absolute_start..=bold.location().absolute_end)
+            .get(bold.location().absolute_start()..=bold.location().absolute_end())
             .ok_or("invalid bold source range")?;
         assert!(authored.starts_with('*') && authored.ends_with('*'));
     }
