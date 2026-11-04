@@ -1,8 +1,8 @@
 use std::{fs, path::Path};
 
 use acdc_parser::{
-    Block, CompatibilityMode, InlineNode, Options, SafeMode,
-    ast::{BlockKind, StructuralRef},
+    CompatibilityMode, Options, SafeMode,
+    ast::{BlockKind, BlockRef, FootnoteDefinitionRef, InlineKind, InlineRef, StructuralRef},
     parse, parse_file,
 };
 
@@ -16,19 +16,24 @@ fn draft_block_alt_is_literal_and_does_not_register_macros(
         "[alt='*Bold* footnote:alt[Note]']\nimage::photo.png[]\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Image(image)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Image(image)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected image".into());
     };
-    let alt = image.alt.as_ref().ok_or("missing alt")?;
+    let alt = image.alt().ok_or("missing alt")?;
     if mode == CompatibilityMode::Draft {
-        let [InlineNode::RawText(text)] = alt.as_ref() else {
+        let [InlineKind::Raw(text)] = &*alt.inlines().map(InlineRef::kind).collect::<Vec<_>>()
+        else {
             return Err("expected protected literal alt".into());
         };
-        assert_eq!(text.content, "*Bold* footnote:alt[Note]");
-        assert_eq!(parsed.document().footnotes.len(), 0);
+        assert_eq!(text.text(), "*Bold* footnote:alt[Note]");
+        assert_eq!(parsed.document_ref().footnotes().count(), 0);
     } else {
-        assert!(matches!(alt.first(), Some(InlineNode::BoldText(_))));
-        assert_eq!(parsed.document().footnotes.len(), 1);
+        assert!(matches!(
+            alt.inlines().next().map(InlineRef::kind),
+            Some(InlineKind::Bold(_))
+        ));
+        assert_eq!(parsed.document_ref().footnotes().count(), 1);
     }
     Ok(())
 }
@@ -42,25 +47,26 @@ fn an_expanded_alt_entry_points_back_to_its_authored_reference(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Image(image)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Image(image)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected image".into());
     };
     let first = image
-        .alt
-        .as_ref()
+        .alt()
         .ok_or("missing alt")?
-        .first()
+        .inlines()
+        .next()
         .ok_or("empty alt")?;
     assert!(matches!(
-        first,
-        InlineNode::PlainText(_) | InlineNode::RawText(_)
+        first.kind(),
+        InlineKind::Plain(_) | InlineKind::Raw(_)
     ));
     let location = first.location();
     let start = source.find("{media}").ok_or("missing reference")?;
-    assert_eq!(location.absolute_start, start);
-    assert_eq!(location.absolute_end, start + "{media}".len() - 1);
-    assert_eq!(location.start.line, 3);
-    assert_eq!(location.end.line, 3);
+    assert_eq!(location.absolute_start(), start);
+    assert_eq!(location.absolute_end(), start + "{media}".len() - 1);
+    assert_eq!(location.start().line(), 3);
+    assert_eq!(location.end().line(), 3);
     Ok(())
 }
 
@@ -74,26 +80,28 @@ fn image_alt_snapshots_and_selected_macro_registration(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let image = parsed
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .find_map(|block| {
-            if let Block::Image(image) = block {
+            if let BlockKind::Image(image) = block.kind() {
                 Some(image)
             } else {
                 None
             }
         })
         .ok_or("expected image")?;
-    let alt = image.alt.as_ref().ok_or("missing alt")?;
+    let alt = image.alt().ok_or("missing alt")?;
     if mode == CompatibilityMode::Draft {
-        assert!(matches!(alt.as_ref(), [InlineNode::RawText(text)] if text.content == "*Early*"));
+        assert!(
+            matches!(&*alt.inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Raw(text)] if text.text() == "*Early*")
+        );
     } else {
-        let [InlineNode::BoldText(bold)] = alt.as_ref() else {
+        let [InlineKind::Bold(bold)] = &*alt.inlines().map(InlineRef::kind).collect::<Vec<_>>()
+        else {
             return Err("expected early bold alt".into());
         };
         assert!(
-            matches!(bold.content.as_slice(), [InlineNode::PlainText(text)] if text.content == "Early")
+            matches!(&*bold.content().inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Plain(text)] if text.text() == "Early")
         );
     }
     let expected = if mode == CompatibilityMode::Draft {
@@ -109,10 +117,9 @@ fn image_alt_snapshots_and_selected_macro_registration(
     };
     assert_eq!(
         parsed
-            .document()
-            .footnotes
-            .iter()
-            .map(|note| note.id)
+            .document_ref()
+            .footnotes()
+            .map(FootnoteDefinitionRef::id)
             .collect::<Vec<_>>(),
         expected
     );
@@ -129,16 +136,16 @@ fn absent_and_empty_alt_do_not_gain_filename_fallback(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Image(image)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Image(image)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected image".into());
     };
     if attributes.is_empty() {
-        assert!(image.alt.is_none());
+        assert!(image.alt().is_none());
     } else {
         assert!(
             image
-                .alt
-                .as_ref()
+                .alt()
                 .ok_or("expected explicitly empty alt")?
                 .is_empty()
         );
@@ -266,22 +273,25 @@ fn preceding_alt_expansion_uses_its_declaration_snapshot(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let image = parsed
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .find_map(|block| {
-            if let Block::Image(image) = block {
+            if let BlockKind::Image(image) = block.kind() {
                 Some(image)
             } else {
                 None
             }
         })
         .ok_or("missing image")?;
-    let alt = image.alt.as_ref().ok_or("missing alt")?;
+    let alt = image.alt().ok_or("missing alt")?;
     if mode == CompatibilityMode::Draft {
-        assert!(matches!(alt.as_ref(), [InlineNode::RawText(text)] if text.content == "{other}"));
+        assert!(
+            matches!(&*alt.inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Raw(text)] if text.text() == "{other}")
+        );
     } else {
-        assert!(matches!(alt.as_ref(), [InlineNode::PlainText(text)] if text.content == "Before"));
+        assert!(
+            matches!(&*alt.inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Plain(text)] if text.text() == "Before")
+        );
     }
     Ok(())
 }
@@ -295,25 +305,32 @@ fn compatible_block_alt_resolves_replacements_without_enabling_markup(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Image(image)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Image(image)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected block image".into());
     };
-    assert_eq!(parsed.document().footnotes.len(), 0);
-    let alt = image.alt.as_ref().ok_or("missing alt")?;
+    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    let alt = image.alt().ok_or("missing alt")?;
     if mode == CompatibilityMode::Draft {
-        assert!(matches!(alt.as_ref(), [InlineNode::RawText(_)]));
+        assert!(matches!(
+            &*alt.inlines().map(InlineRef::kind).collect::<Vec<_>>(),
+            [InlineKind::Raw(_)]
+        ));
     } else {
-        assert!(alt.iter().any(|node| matches!(node, InlineNode::Symbol(_))));
         assert!(
-            alt.iter()
-                .all(|node| matches!(node, InlineNode::PlainText(_) | InlineNode::Symbol(_)))
+            alt.inlines()
+                .any(|node| matches!(node.kind(), InlineKind::Symbol(_)))
         );
-        for node in alt {
+        assert!(
+            alt.inlines()
+                .all(|node| matches!(node.kind(), InlineKind::Plain(_) | InlineKind::Symbol(_)))
+        );
+        for node in alt.inlines() {
             let location = node.location();
             let authored = source
-                .get(location.absolute_start..=location.absolute_end)
+                .get(location.absolute_start()..=location.absolute_end())
                 .ok_or("invalid source span")?;
-            if matches!(node, InlineNode::Symbol(_)) {
+            if matches!(node.kind(), InlineKind::Symbol(_)) {
                 assert!(
                     matches!(authored.trim(), "(C)" | "->" | "--"),
                     "{authored:?}"

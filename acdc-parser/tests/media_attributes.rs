@@ -1,4 +1,8 @@
-use acdc_parser::{Block, InlineMacro, InlineNode, Options, parse};
+use acdc_parser::{
+    Options,
+    ast::{AttributeValueRef, BlockKind, BlockRef, ContentRef, ElementIdRef, InlineKind},
+    parse,
+};
 use serde_json::Value;
 
 type Error = Box<dyn std::error::Error>;
@@ -17,7 +21,7 @@ fn inline_image_json_keeps_tooltips_separate_from_alt() -> Result<(), Error> {
     ] {
         let source = format!("image:thing.png[{attributes}]\n");
         let parsed = parse(&source, &Options::default())?;
-        let json = serde_json::to_value(parsed.document())?;
+        let json = serde_json::to_value(parsed.document_ref())?;
         let image = json.pointer("/blocks/0/inlines/0").ok_or("missing image")?;
         assert_eq!(json_text(image, "/tooltip/0/value"), Some("my title"));
         match alt {
@@ -51,7 +55,7 @@ fn media_and_named_blocks_serialize_content_separately_from_other_attributes() -
         (format!("[{attributes}]\n* Item"), false),
     ] {
         let parsed = parse(&source, &Options::default())?;
-        let json = serde_json::to_value(parsed.document())?;
+        let json = serde_json::to_value(parsed.document_ref())?;
         let node = json
             .pointer(if inline {
                 "/blocks/0/inlines/0"
@@ -122,29 +126,25 @@ fn media_attributes_select_named_values_and_keep_empty_slots() -> Result<(), Err
         for prefix in ["image::", "Inline image:"] {
             let source = format!("{prefix}sample.svg[{attributes},title=Tooltip]\n");
             let parsed = parse(&source, &Options::default())?;
-            match parsed.document().blocks.first() {
-                Some(Block::Image(image)) => assert_eq!(
-                    image.alt.as_ref().map(content_text).as_deref(),
-                    Some("Named")
-                ),
-                Some(Block::Paragraph(paragraph)) => {
+            match parsed.document_ref().blocks().next().map(BlockRef::kind) {
+                Some(BlockKind::Image(image)) => {
+                    assert_eq!(image.alt().map(content_text).as_deref(), Some("Named"));
+                }
+                Some(BlockKind::Paragraph(paragraph)) => {
                     let image = paragraph
-                        .content
-                        .iter()
+                        .content()
+                        .inlines()
                         .find_map(|node| {
-                            if let InlineNode::Macro(InlineMacro::Image(image)) = node {
+                            if let InlineKind::Image(image) = node.kind() {
                                 Some(image)
                             } else {
                                 None
                             }
                         })
                         .ok_or("missing inline image")?;
+                    assert_eq!(image.alt().map(content_text).as_deref(), Some("Named"));
                     assert_eq!(
-                        image.alt.as_ref().map(content_text).as_deref(),
-                        Some("Named")
-                    );
-                    assert_eq!(
-                        image.tooltip.as_ref().map(content_text).as_deref(),
+                        image.tooltip().map(content_text).as_deref(),
                         Some("Tooltip")
                     );
                 }
@@ -160,14 +160,16 @@ fn media_attributes_select_named_values_and_keep_empty_slots() -> Result<(), Err
     ] {
         let source = format!("Inline image:sample.svg[{attributes}].\n");
         let parsed = parse(&source, &Options::default())?;
-        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+        let Some(BlockKind::Paragraph(paragraph)) =
+            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        else {
             return Err("missing paragraph".into());
         };
         let image = paragraph
-            .content
-            .iter()
+            .content()
+            .inlines()
             .find_map(|node| {
-                if let InlineNode::Macro(InlineMacro::Image(image)) = node {
+                if let InlineKind::Image(image) = node.kind() {
                     Some(image)
                 } else {
                     None
@@ -175,18 +177,18 @@ fn media_attributes_select_named_values_and_keep_empty_slots() -> Result<(), Err
             })
             .ok_or("missing inline image")?;
         assert_eq!(
-            image.alt.as_ref().map(content_text).as_deref(),
+            image.alt().map(content_text).as_deref(),
             empty_alt.then_some(""),
             "{attributes}"
         );
         if attributes.contains("40") {
             assert_eq!(
-                image.attributes().get_string("width").as_deref(),
-                Some("40")
+                image.attributes().get("width"),
+                Some(AttributeValueRef::Text("40"))
             );
             assert_eq!(
-                image.attributes().get_string("height").as_deref(),
-                Some("20")
+                image.attributes().get("height"),
+                Some(AttributeValueRef::Text("20"))
             );
         }
     }
@@ -203,11 +205,11 @@ fn media_and_other_block_titles_register_only_the_selected_inline_content() -> R
     ] {
         let source = format!(".Discarded footnote:[Unused.]\n{block}\n");
         let parsed = parse(&source, &Options::default())?;
-        let [note] = parsed.document().footnotes.as_slice() else {
+        let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
             return Err(format!("unexpected footnotes: {source}").into());
         };
         assert_eq!(
-            source.get(note.location.absolute_start..=note.location.absolute_end),
+            source.get(note.location().absolute_start()..=note.location().absolute_end()),
             Some("footnote:[Chosen.]")
         );
     }
@@ -220,23 +222,28 @@ fn media_duplicate_attributes_use_last_value_except_accumulated_options() -> Res
         "image::sample.svg[alt=First,alt=Last,id=first,id=last,role=first,role=last,opts=nofollow,opts=noopener,width=90,width=80]\n\nvideo::clip.mp4[first.png,90,40,poster=last.png]\n",
         &Options::default(),
     )?;
-    let [Block::Image(image), Block::Video(video)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Image(image), BlockKind::Video(video)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("missing media blocks".into());
     };
+    assert_eq!(image.alt().map(content_text).as_deref(), Some("Last"));
     assert_eq!(
-        image.alt.as_ref().map(content_text).as_deref(),
-        Some("Last")
+        image.attributes().get("width"),
+        Some(AttributeValueRef::Text("80"))
+    );
+    assert_eq!(image.id().map(ElementIdRef::as_str), Some("last"));
+    assert_eq!(image.roles().iter().collect::<Vec<_>>(), ["last"]);
+    assert_eq!(
+        image.options().iter().collect::<Vec<_>>(),
+        ["nofollow", "noopener"]
     );
     assert_eq!(
-        image.metadata.attributes.get_string("width").as_deref(),
-        Some("80")
-    );
-    assert_eq!(image.metadata.id.as_ref().map(|id| id.id), Some("last"));
-    assert_eq!(image.metadata.roles, ["last"]);
-    assert_eq!(image.metadata.options, ["nofollow", "noopener"]);
-    assert_eq!(
-        video.metadata.attributes.get_string("poster").as_deref(),
-        Some("last.png")
+        video.attributes().get("poster"),
+        Some(AttributeValueRef::Text("last.png"))
     );
     Ok(())
 }
@@ -247,30 +254,32 @@ fn inline_image_unquoted_apostrophes_do_not_end_the_attribute_list() -> Result<(
         "Inline image:sample.svg[Bob's photo,40,20].",
         &Options::default(),
     )?;
-    let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Paragraph(paragraph)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("missing paragraph".into());
     };
     assert!(
         paragraph
-            .content
-            .iter()
-            .any(|node| matches!(node, InlineNode::Macro(InlineMacro::Image(_))))
+            .content()
+            .inlines()
+            .any(|node| matches!(node.kind(), InlineKind::Image(_)))
     );
     Ok(())
 }
 
-fn content_text(value: &acdc_parser::ContentAttribute<'_>) -> String {
+fn content_text(value: ContentRef<'_>) -> String {
     value
-        .iter()
+        .inlines()
         .map(|node| {
             assert!(matches!(
-                node,
-                InlineNode::PlainText(_) | InlineNode::RawText(_)
+                node.kind(),
+                InlineKind::Plain(_) | InlineKind::Raw(_)
             ));
-            if let InlineNode::PlainText(text) = node {
-                text.content
-            } else if let InlineNode::RawText(text) = node {
-                text.content
+            if let InlineKind::Plain(text) = node.kind() {
+                text.text()
+            } else if let InlineKind::Raw(text) = node.kind() {
+                text.text()
             } else {
                 ""
             }
