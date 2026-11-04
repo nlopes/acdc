@@ -2260,7 +2260,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "lists"
     },
     "src/model/inlines/text.rs::CalloutRefKind": {
       "shape": {
@@ -2282,7 +2282,7 @@
           "policy": "unsupported"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "lists"
     },
     "src/model/inlines/text.rs::CurvedApostrophe": {
       "shape": {
@@ -2733,7 +2733,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "lists"
     },
     "src/model/lists.rs::CalloutListItem": {
       "shape": {
@@ -2768,7 +2768,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "lists"
     },
     "src/model/lists.rs::DescriptionList": {
       "shape": {
@@ -2803,7 +2803,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "lists"
     },
     "src/model/lists.rs::DescriptionListItem": {
       "shape": {
@@ -2853,7 +2853,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "lists"
     },
     "src/model/lists.rs::ListItem": {
       "shape": {
@@ -2898,7 +2898,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "lists"
     },
     "src/model/lists.rs::ListItemCheckedStatus": {
       "shape": {
@@ -2920,7 +2920,7 @@
           "policy": "unsupported"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "lists"
     },
     "src/model/lists.rs::ListLevel": {
       "shape": {
@@ -2933,7 +2933,7 @@
         "upstream": "#/$defs/list"
       },
       "properties": {},
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "lists"
     },
     "src/model/lists.rs::OrderedList": {
       "shape": {
@@ -2973,7 +2973,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "lists"
     },
     "src/model/lists.rs::UnorderedList": {
       "shape": {
@@ -3013,7 +3013,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "lists"
     },
     "src/model/location.rs::LeveloffsetRange": {
       "shape": {
@@ -5667,6 +5667,10 @@
         {
           "file": "tests/asg_references.rs",
           "name": "reference_forms_preserve_targets_and_effective_labels"
+        },
+        {
+          "file": "tests/asg_lists.rs",
+          "name": "each_list_family_preserves_its_items_and_markers"
         }
       ]
     },
@@ -5815,6 +5819,43 @@
         {
           "file": "tests/asg_references.rs",
           "name": "target_classification_cannot_be_silently_changed"
+        }
+      ]
+    },
+    "lists": {
+      "handling": "Ordered/unordered/callout/description lists preserve marker spelling where retained, item order, terms, principal content, nesting and supported identity/metadata. Levels must follow retained markers. Explicit callout numbers are in markers; auto numbers follow item order. Empty lists, checklists, independent auto numbers, aliases and unsupported nested content are rejected. Inline callout references remain unsupported.",
+      "tests": [
+        {
+          "file": "tests/asg_lists.rs",
+          "name": "each_list_family_preserves_its_items_and_markers"
+        },
+        {
+          "file": "tests/asg_lists.rs",
+          "name": "list_topology_and_attached_blocks_are_preserved"
+        },
+        {
+          "file": "tests/asg_lists.rs",
+          "name": "list_metadata_and_formatted_description_terms_keep_their_meaning"
+        },
+        {
+          "file": "tests/asg_lists.rs",
+          "name": "invalid_list_state_fails_before_schema_projection"
+        },
+        {
+          "file": "tests/asg_lists.rs",
+          "name": "checklist_and_nested_unsupported_content_report_their_own_paths"
+        },
+        {
+          "file": "tests/asg_lists.rs",
+          "name": "callout_markers_preserve_kind_and_resolved_number"
+        },
+        {
+          "file": "tests/asg_lists.rs",
+          "name": "description_item_identities_are_preserved_or_explicitly_rejected"
+        },
+        {
+          "file": "tests/asg_lists.rs",
+          "name": "list_attachments_cannot_gain_sections"
         }
       ]
     }

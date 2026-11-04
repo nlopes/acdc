@@ -1,3 +1,5 @@
+mod lists;
+
 use std::collections::BTreeMap;
 
 use serde_json::{Map, Value};
@@ -270,9 +272,26 @@ pub(super) fn document(value: &Document<'_>) -> Result<Value, Error> {
 
 impl<'a, 'doc> Export<'a, 'doc> {
     fn blocks(&mut self, values: &'a [Block<'doc>], path: &str) -> Result<Value, Error> {
+        self.block_body(values, path, true)
+    }
+
+    fn nonsection_blocks(&mut self, values: &'a [Block<'doc>], path: &str) -> Result<Value, Error> {
+        self.block_body(values, path, false)
+    }
+
+    fn block_body(
+        &mut self,
+        values: &'a [Block<'doc>],
+        path: &str,
+        allow_sections: bool,
+    ) -> Result<Value, Error> {
         let mut result = Vec::new();
         for value in values {
             let at = pointer(path, &result.len().to_string());
+            if !allow_sections && matches!(value, Block::Section(_)) {
+                return Err(unsupported(&at, "this block body cannot contain a section")
+                    .with_context("section", value.location()));
+            }
             if let Some(projected) = self.block(value, &at).map_err(|error| {
                 error.with_context(diagnostics::block_construct(value), value.location())
             })? {
@@ -295,39 +314,19 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 self.target(&paragraph.metadata, &paragraph.title, None, at)?;
                 result
             }
-            Block::Section(section) => {
-                for (present, property) in [
-                    (section.kind != SectionKind::Normal, "kind"),
-                    (!section.numbering_is_disabled(), "numbering"),
-                ] {
-                    if present {
-                        return Err(unsupported(
-                            &pointer(at, property),
-                            "section category or numbering requires a defined semantic mapping",
-                        ));
-                    }
-                }
-                if !section.title.is_present() {
-                    return Err(unsupported(
-                        &pointer(at, "title"),
-                        "the upstream section requires a present title",
-                    ));
-                }
-                let mut result = node("section", "block");
-                metadata::apply(&mut result, &section.metadata, at)?;
-                result.insert("id".into(), Value::String(section.id().into_owned()));
-                result.insert(
-                    "title".into(),
-                    inlines(section.title.as_ref(), &pointer(at, "title"))?,
-                );
-                result.insert("level".into(), section.level.into());
-                self.target(&section.metadata, &section.title, Some(section), at)?;
-                result.insert(
-                    "blocks".into(),
-                    self.blocks(&section.content, &pointer(at, "blocks"))?,
-                );
+            Block::Section(section) => self.section(section, at)?,
+            Block::UnorderedList(list) => {
+                let mut result = self.list(&list.items, list.marker, "unordered", at)?;
+                self.list_metadata(&mut result, &list.metadata, &list.title, at)?;
                 result
             }
+            Block::OrderedList(list) => {
+                let mut result = self.list(&list.items, list.marker, "ordered", at)?;
+                self.list_metadata(&mut result, &list.metadata, &list.title, at)?;
+                result
+            }
+            Block::CalloutList(list) => self.callout_list(list, at)?,
+            Block::DescriptionList(list) => self.description_list(list, at)?,
             Block::Comment(_) => return Ok(None),
             Block::DelimitedBlock(block)
                 if matches!(&block.inner, DelimitedBlockType::DelimitedComment(_)) =>
@@ -347,10 +346,6 @@ impl<'a, 'doc> Export<'a, 'doc> {
             | Block::DocumentAttribute(_)
             | Block::ThematicBreak(_)
             | Block::PageBreak(_)
-            | Block::UnorderedList(_)
-            | Block::OrderedList(_)
-            | Block::CalloutList(_)
-            | Block::DescriptionList(_)
             | Block::DelimitedBlock(_)
             | Block::Image(_)
             | Block::Audio(_)
@@ -364,6 +359,40 @@ impl<'a, 'doc> Export<'a, 'doc> {
         let mut projected = projected;
         metadata::location(&mut projected, value.location(), at)?;
         Ok(Some(Value::Object(projected)))
+    }
+
+    fn section(&mut self, section: &'a Section<'doc>, at: &str) -> Result<Node, Error> {
+        for (present, property) in [
+            (section.kind != SectionKind::Normal, "kind"),
+            (!section.numbering_is_disabled(), "numbering"),
+        ] {
+            if present {
+                return Err(unsupported(
+                    &pointer(at, property),
+                    "section category or numbering requires a defined semantic mapping",
+                ));
+            }
+        }
+        if !section.title.is_present() {
+            return Err(unsupported(
+                &pointer(at, "title"),
+                "the upstream section requires a present title",
+            ));
+        }
+        let mut result = node("section", "block");
+        metadata::apply(&mut result, &section.metadata, at)?;
+        result.insert("id".into(), Value::String(section.id().into_owned()));
+        result.insert(
+            "title".into(),
+            inlines(section.title.as_ref(), &pointer(at, "title"))?,
+        );
+        result.insert("level".into(), section.level.into());
+        self.target(&section.metadata, &section.title, Some(section), at)?;
+        result.insert(
+            "blocks".into(),
+            self.blocks(&section.content, &pointer(at, "blocks"))?,
+        );
+        Ok(result)
     }
 
     fn target(
@@ -382,12 +411,22 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 label: metadata::label(metadata),
                 section,
             };
-            if self.targets.insert(id, target).is_some() {
-                return Err(unsupported(
-                    &pointer(path, "id"),
-                    "duplicate target identity cannot preserve first-registration semantics",
-                ));
-            }
+            self.insert_target(id, target, path)?;
+        }
+        Ok(())
+    }
+
+    fn insert_target(
+        &mut self,
+        id: String,
+        target: Target<'a, 'doc>,
+        path: &str,
+    ) -> Result<(), Error> {
+        if self.targets.insert(id, target).is_some() {
+            return Err(unsupported(
+                &pointer(path, "id"),
+                "duplicate target identity cannot preserve first-registration semantics",
+            ));
         }
         Ok(())
     }

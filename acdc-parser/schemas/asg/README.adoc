@@ -106,7 +106,8 @@ The initial subset includes document attributes, headers/authors, paragraphs,
 ordinary unnumbered sections, plain text, raw text without remaining
 operations, raw text with exactly one escaping stage, resolved typographic
 symbols, strong/emphasis/code/mark spans without inline IDs or roles, and supported
-links and cross-references.
+links and cross-references. Ordered, unordered, callout and description lists retain
+their item structure.
 Titles and reference labels retain their inline structure and empty presence.
 Document presence is an empty string, explicit unsets are null, and integers
 retain their attribute-reference spelling. Protected document values are rejected
@@ -120,7 +121,7 @@ scalar values, multiple IDs, bibliography meaning, and independent reference
 labels are rejected. A primary block ID and its selected reftext are promoted
 to the block. Source coordinates of the ID token have no upstream field.
 
-Unsupported values include lists, other block forms, other inline macros, missing span
+Unsupported values include other block forms, other inline macros, missing span
 variants, inline identities/controls, subtitles/header metadata, ordered body
 assignments, captions, attribution/citation, explicit block substitutions, and
 nondefault section category/numbering. Verbatim content requires a supported
@@ -167,7 +168,8 @@ The property inventory remains authoritative for each declaration.
 |`body-assignments` |2 |Reject ordered assignments and retained events.
 |`inline-controls` |4 |Reject identities/roles on supported spans and populated controls on unsupported macros.
 |`references` |11 |Preserve link/xref targets and effective labels; reject unsupported controls and ambiguous target classification.
-|`unsupported-owners` |56 |Reject the entire block, inline, macro or payload without inventing a form.
+|`lists` |11 |Preserve list families, markers, terms, principal and nested content; reject checklists and unrecoverable item state.
+|`unsupported-owners` |45 |Reject the entire block, inline, macro or payload without inventing a form.
 |===
 
 The evidence covers positive mappings, rejected owners/properties and permitted
@@ -194,3 +196,24 @@ caption labels and signifiers fail because upstream references have no fields fo
 them. Unchanged built-in signifier snapshots are default behavior and can be omitted. A target whose local/external classification cannot be recovered from its
 text also fails. Populated reference metadata and tooltips are rejected at their
 exact property, including explicitly empty values.
+
+== Lists
+
+Ordered and unordered lists preserve the list marker and each item's marker,
+principal text and attached blocks. An item's level can be omitted only when its
+marker gives the same level. Description-list terms stay inline arrays inside the
+required `terms` array. Each native item supplies one term; export does not merge
+adjacent definitions. A single ordinary item ID and reftext are supported; aliases
+and bibliography identity are rejected. Delimiter-token coordinates are source
+provenance without an upstream field; the item's full location is preserved.
+
+Callout markers describe the resolved tree: explicit markers contain the stored
+number; automatic markers use `<.>` and recover the number from item position.
+The list marker comes from its first item. Invalid authored numbers have already
+been diagnosed and normalized by the parser; export does not recreate their
+source spelling. An automatic number that disagrees with item position is rejected.
+Inline callout references and their associations remain unsupported.
+
+Empty lists, checklist state, independent levels, unsupported nested content and
+sections inside item attachments fail explicitly. Supported list metadata and
+catalog entries use the same rules as other supported blocks.
