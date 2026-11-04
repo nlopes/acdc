@@ -274,7 +274,7 @@ fn run_source_whitespace(emitter: &mut LintEmitter<'_>, context: &LintContext<'_
 }
 
 fn run_list_marker_spacing(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    lists::lint_list_marker_spacing(emitter, context.document(), context.lines);
+    lists::lint_list_marker_spacing(emitter, context.parsed.document_ref(), context.lines);
 }
 
 fn run_attribute_url_prefix(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
@@ -286,7 +286,7 @@ fn run_resources(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
 }
 
 fn run_nested_unordered_list_marker(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    lists::lint_nested_unordered_list_markers(emitter, &context.document().blocks, 0);
+    lists::lint_nested_unordered_list_markers(emitter, context.parsed.document_ref());
 }
 
 fn run_adjacent_list_separator(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {

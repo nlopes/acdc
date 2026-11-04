@@ -1,4 +1,4 @@
-use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Document, ListItem, UnorderedList};
+use acdc_parser::ast::{BlockKind, DocumentRef, ListItemRef, StructuralRef, UnorderedListRef};
 
 use crate::LintId;
 
@@ -61,114 +61,26 @@ pub(crate) fn lint_adjacent_list_separator(
 
 pub(crate) fn lint_list_marker_spacing(
     emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
+    document: DocumentRef<'_>,
     lines: &[SourceLine<'_>],
 ) {
-    lint_list_marker_spacing_blocks(emitter, &document.blocks, lines);
-}
-
-fn lint_list_marker_spacing_blocks(
-    emitter: &mut LintEmitter<'_>,
-    blocks: &[Block<'_>],
-    lines: &[SourceLine<'_>],
-) {
-    for block in blocks {
-        match block {
-            Block::Admonition(block) => {
-                lint_list_marker_spacing_blocks(emitter, &block.blocks, lines);
-            }
-            Block::CalloutList(list) => {
-                for item in &list.items {
-                    lint_list_marker_spacing_blocks(emitter, &item.blocks, lines);
-                }
-            }
-            Block::DescriptionList(list) => {
-                for item in &list.items {
-                    lint_list_marker_spacing_blocks(emitter, &item.description, lines);
-                }
-            }
-            Block::DelimitedBlock(block) => {
-                lint_list_marker_spacing_delimited_block(emitter, block, lines);
-            }
-            Block::OrderedList(list) => {
-                lint_list_marker_spacing_items(emitter, &list.items, lines);
-            }
-            Block::Section(section) => {
-                lint_list_marker_spacing_blocks(emitter, &section.content, lines);
-            }
-            Block::UnorderedList(list) => {
-                lint_list_marker_spacing_items(emitter, &list.items, lines);
-            }
-            Block::Audio(_)
-            | Block::Comment(_)
-            | Block::DiscreteHeader(_)
-            | Block::DocumentAttribute(_)
-            | Block::Image(_)
-            | Block::PageBreak(_)
-            | Block::Paragraph(_)
-            | Block::TableOfContents(_)
-            | Block::ThematicBreak(_)
-            | Block::Video(_)
-            | _ => {}
+    for node in document.descendants() {
+        if let StructuralRef::ListItem(item) = node {
+            lint_list_item_marker_spacing(emitter, item, lines);
         }
-    }
-}
-
-fn lint_list_marker_spacing_delimited_block(
-    emitter: &mut LintEmitter<'_>,
-    block: &DelimitedBlock<'_>,
-    lines: &[SourceLine<'_>],
-) {
-    match &block.inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks) => {
-            lint_list_marker_spacing_blocks(emitter, blocks, lines);
-        }
-        DelimitedBlockType::DelimitedTable(table) => {
-            for row in table
-                .header
-                .iter()
-                .chain(table.rows.iter())
-                .chain(table.footer.iter())
-            {
-                for column in &row.columns {
-                    lint_list_marker_spacing_blocks(emitter, &column.content, lines);
-                }
-            }
-        }
-        DelimitedBlockType::DelimitedComment(_)
-        | DelimitedBlockType::DelimitedListing(_)
-        | DelimitedBlockType::DelimitedLiteral(_)
-        | DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        | DelimitedBlockType::DelimitedVerse(_)
-        | _ => {}
-    }
-}
-
-fn lint_list_marker_spacing_items(
-    emitter: &mut LintEmitter<'_>,
-    items: &[ListItem<'_>],
-    lines: &[SourceLine<'_>],
-) {
-    for item in items {
-        lint_list_item_marker_spacing(emitter, item, lines);
-        lint_list_marker_spacing_blocks(emitter, &item.blocks, lines);
     }
 }
 
 fn lint_list_item_marker_spacing(
     emitter: &mut LintEmitter<'_>,
-    item: &ListItem<'_>,
+    item: ListItemRef<'_>,
     lines: &[SourceLine<'_>],
 ) {
-    let Some(line) = source_line_at(lines, item.location.start.line) else {
+    let Some(line) = source_line_at(lines, item.location().start().line()) else {
         return;
     };
     let trimmed = line.text.trim_start();
-    let Some(after_marker) = trimmed.strip_prefix(item.marker) else {
+    let Some(after_marker) = trimmed.strip_prefix(item.marker()) else {
         return;
     };
 
@@ -183,7 +95,7 @@ fn lint_list_item_marker_spacing(
             .take_while(|ch| ch.is_whitespace())
             .count();
         let column = leading_columns
-            .saturating_add(item.marker.chars().count())
+            .saturating_add(item.marker().chars().count())
             .saturating_add(1);
         emitter.emit(
             LintId::ListMarkerSpacing,
@@ -238,108 +150,47 @@ pub(crate) fn lint_description_list_bold_terms(
 
 pub(crate) fn lint_nested_unordered_list_markers(
     emitter: &mut LintEmitter<'_>,
-    blocks: &[Block<'_>],
-    list_depth: usize,
+    document: DocumentRef<'_>,
 ) {
-    for block in blocks {
-        match block {
-            Block::Admonition(block) => {
-                lint_nested_unordered_list_markers(emitter, &block.blocks, list_depth);
-            }
-            Block::CalloutList(list) => {
-                for item in &list.items {
-                    lint_nested_unordered_list_markers(
-                        emitter,
-                        &item.blocks,
-                        list_depth.saturating_add(1),
-                    );
-                }
-            }
-            Block::DescriptionList(list) => {
-                for item in &list.items {
-                    lint_nested_unordered_list_markers(
-                        emitter,
-                        &item.description,
-                        list_depth.saturating_add(1),
-                    );
-                }
-            }
-            Block::DelimitedBlock(block) => {
-                lint_nested_unordered_list_markers_delimited_block(emitter, block, list_depth);
-            }
-            Block::OrderedList(list) => {
-                for item in &list.items {
-                    lint_nested_unordered_list_markers(
-                        emitter,
-                        &item.blocks,
-                        list_depth.saturating_add(1),
-                    );
-                }
-            }
-            Block::Section(section) => {
-                lint_nested_unordered_list_markers(emitter, &section.content, list_depth);
-            }
-            Block::UnorderedList(list) => lint_unordered_list(emitter, list, list_depth),
-            Block::Audio(_)
-            | Block::Comment(_)
-            | Block::DiscreteHeader(_)
-            | Block::DocumentAttribute(_)
-            | Block::Image(_)
-            | Block::PageBreak(_)
-            | Block::Paragraph(_)
-            | Block::TableOfContents(_)
-            | Block::ThematicBreak(_)
-            | Block::Video(_)
-            | _ => {}
-        }
+    lint_nested_markers(emitter, StructuralRef::Document(document), 0);
+}
+
+fn lint_nested_markers(emitter: &mut LintEmitter<'_>, node: StructuralRef<'_>, list_depth: usize) {
+    if let StructuralRef::Block(block) = node
+        && let BlockKind::UnorderedList(list) = block.kind()
+    {
+        lint_unordered_list(emitter, list, list_depth);
+        return;
+    }
+    let child_depth = if matches!(node, StructuralRef::Block(block) if matches!(
+        block.kind(), BlockKind::OrderedList(_) | BlockKind::DescriptionList(_) | BlockKind::CalloutList(_)
+    )) {
+        list_depth.saturating_add(1)
+    } else {
+        list_depth
+    };
+    for child in node.children() {
+        lint_nested_markers(emitter, child, child_depth);
     }
 }
 
-fn lint_nested_unordered_list_markers_delimited_block(
+fn lint_unordered_list(
     emitter: &mut LintEmitter<'_>,
-    block: &DelimitedBlock<'_>,
+    list: UnorderedListRef<'_>,
     list_depth: usize,
 ) {
-    match &block.inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks) => {
-            lint_nested_unordered_list_markers(emitter, blocks, list_depth);
-        }
-        DelimitedBlockType::DelimitedTable(table) => {
-            for row in table
-                .header
-                .iter()
-                .chain(table.rows.iter())
-                .chain(table.footer.iter())
-            {
-                for column in &row.columns {
-                    lint_nested_unordered_list_markers(emitter, &column.content, list_depth);
-                }
-            }
-        }
-        DelimitedBlockType::DelimitedComment(_)
-        | DelimitedBlockType::DelimitedListing(_)
-        | DelimitedBlockType::DelimitedLiteral(_)
-        | DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        | DelimitedBlockType::DelimitedVerse(_)
-        | _ => {}
-    }
-}
-
-fn lint_unordered_list(emitter: &mut LintEmitter<'_>, list: &UnorderedList<'_>, list_depth: usize) {
-    for item in &list.items {
-        if list_depth > 0 && item.marker.trim_start().starts_with('-') {
+    for item in list.items() {
+        if list_depth > 0 && item.marker().trim_start().starts_with('-') {
             emitter.emit(
                 LintId::NestedUnorderedListMarker,
                 "nested unordered list item uses a hyphen marker",
                 None,
-                Some(emitter.source_location(&item.location)),
+                Some(emitter.source_location(item.location())),
             );
         }
-        lint_nested_unordered_list_markers(emitter, &item.blocks, list_depth.saturating_add(1));
+        for child in StructuralRef::ListItem(item).children() {
+            lint_nested_markers(emitter, child, list_depth.saturating_add(1));
+        }
     }
 }
 
