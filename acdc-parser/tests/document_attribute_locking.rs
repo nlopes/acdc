@@ -1,4 +1,8 @@
-use acdc_parser::{AttributeValue, Block, DocumentAttributeValue, Options, parse};
+use acdc_parser::{
+    AttributeValue, DocumentAttributeValue, Options,
+    ast::{BlockKind, BlockRef, TocEntryRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -12,13 +16,18 @@ fn trailing_document_attributes_respect_caller_locks() -> Result<(), Error> {
         &options,
     )?;
     assert!(matches!(
-        parsed.document().blocks.as_slice(),
-        [Block::Paragraph(_)]
+        parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+            .as_slice(),
+        [BlockKind::Paragraph(_)]
     ));
     assert_eq!(
         parsed
-            .document()
-            .attributes
+            .document_ref()
+            .attributes()
             .get("custom")
             .and_then(DocumentAttributeValue::text),
         Some("locked")
@@ -84,8 +93,8 @@ fn caller_attribute_cannot_be_replaced_or_unset_by_document_entries() -> Result<
 
     assert_eq!(
         parsed
-            .document()
-            .attributes
+            .document_ref()
+            .attributes()
             .get("locked")
             .and_then(|value| value.text()),
         Some("caller")
@@ -105,8 +114,13 @@ fn caller_unset_attribute_cannot_be_set_by_document_entries() -> Result<(), Erro
         &Options::with_attributes(attributes)?,
     )?;
 
-    assert!(parsed.document().attributes.is_explicit("experimental"));
-    assert_eq!(parsed.document().attributes.get("experimental"), None);
+    assert!(
+        parsed
+            .document_ref()
+            .attributes()
+            .is_explicit("experimental")
+    );
+    assert_eq!(parsed.document_ref().attributes().get("experimental"), None);
     Ok(())
 }
 
@@ -122,8 +136,8 @@ fn processor_defaults_are_document_overridable() -> Result<(), Error> {
 
     assert_eq!(
         parsed
-            .document()
-            .attributes
+            .document_ref()
+            .attributes()
             .get("default-name")
             .and_then(|value| value.text()),
         Some("document")
@@ -146,14 +160,14 @@ fn every_documented_attribute_from_options_is_locked() -> Result<(), Error> {
             .with_attribute(name.clone(), caller_value)
             .build()?;
         let baseline = parse("", &options)?;
-        let baseline_effective = baseline.document().attributes.get(&name);
+        let baseline_effective = baseline.document_ref().attributes().get(&name);
         let source = format!(
             ":{name}: header\n:{name}!:\n\nBefore.\n\n:{name}: body\n:{name}!:\n\nAfter.\n"
         );
         let parsed = parse(&source, &options)?;
 
         assert_eq!(
-            parsed.document().attributes.get(&name),
+            parsed.document_ref().attributes().get(&name),
             baseline_effective,
             "effective {name}"
         );
@@ -163,12 +177,12 @@ fn every_documented_attribute_from_options_is_locked() -> Result<(), Error> {
                 .with_attribute(name.clone(), ())
                 .build()?;
             let baseline = parse("", &options)?;
-            let baseline_effective = baseline.document().attributes.get(&name);
+            let baseline_effective = baseline.document_ref().attributes().get(&name);
             let source = format!(":{name}: header\n\n:{name}: body\n");
             let parsed = parse(&source, &options)?;
 
             assert_eq!(
-                parsed.document().attributes.get(&name),
+                parsed.document_ref().attributes().get(&name),
                 baseline_effective,
                 "effective hard unset {name}"
             );
@@ -185,8 +199,8 @@ fn documented_modifiable_attributes_accept_document_values() -> Result<(), Error
     {
         let baseline = parse("", &Options::default())?;
         let baseline_text = baseline
-            .document()
-            .attributes
+            .document_ref()
+            .attributes()
             .get(&name)
             .and_then(|value| value.text());
         let source = if policy == "header" {
@@ -199,16 +213,16 @@ fn documented_modifiable_attributes_accept_document_values() -> Result<(), Error
         if name == "toc" {
             assert!(
                 parsed
-                    .document()
-                    .attributes
+                    .document_ref()
+                    .attributes()
                     .get(&name)
                     .is_some_and(DocumentAttributeValue::is_presence)
             );
         } else {
             assert_eq!(
                 parsed
-                    .document()
-                    .attributes
+                    .document_ref()
+                    .attributes()
                     .get(&name)
                     .and_then(|value| value.text()),
                 if policy == "header" {
@@ -220,11 +234,11 @@ fn documented_modifiable_attributes_accept_document_values() -> Result<(), Error
             );
         }
         if policy == "body" {
-            assert!(parsed.document().blocks.iter().any(|block| {
+            assert!(parsed.document_ref().blocks().any(|block| {
                 matches!(
-                    block,
-                    Block::DocumentAttribute(attribute)
-                        if attribute.name == name && attribute.assignment().value().and_then(acdc_parser::DocumentAttributeValue::text) == Some("document")
+                    block.kind(),
+                    BlockKind::DocumentAttribute(attribute)
+                        if attribute.name() == name && attribute.assignment().value().and_then(acdc_parser::DocumentAttributeValue::text) == Some("document")
                 )
             }));
         }
@@ -238,24 +252,28 @@ fn documented_modifiable_attributes_accept_document_values() -> Result<(), Error
 
         if policy == "header" {
             assert!(
-                parsed.document().attributes.is_explicit(&name),
+                parsed.document_ref().attributes().is_explicit(&name),
                 "document unset {name}"
             );
-            assert_eq!(parsed.document().attributes.get(&name), None, "{name}");
+            assert_eq!(
+                parsed.document_ref().attributes().get(&name),
+                None,
+                "{name}"
+            );
         } else {
             assert_eq!(
                 parsed
-                    .document()
-                    .attributes
+                    .document_ref()
+                    .attributes()
                     .get(&name)
                     .and_then(|value| value.text()),
                 baseline_text,
                 "{name}"
             );
             assert!(matches!(
-                parsed.document().blocks.last(),
-                Some(Block::DocumentAttribute(attribute))
-                    if attribute.name == name
+                parsed.document_ref().blocks().last().map(BlockRef::kind),
+                Some(BlockKind::DocumentAttribute(attribute))
+                    if attribute.name() == name
                         && matches!(
                             attribute.assignment(),
                             acdc_parser::DocumentAttributeAssignment::Unset
@@ -278,16 +296,16 @@ fn documented_header_attributes_keep_the_header_snapshot_after_body_values() -> 
         if name == "toc" {
             assert!(
                 parsed
-                    .document()
-                    .attributes
+                    .document_ref()
+                    .attributes()
                     .get(&name)
                     .is_some_and(DocumentAttributeValue::is_presence)
             );
         } else {
             assert_eq!(
                 parsed
-                    .document()
-                    .attributes
+                    .document_ref()
+                    .attributes()
                     .get(&name)
                     .and_then(|value| value.text()),
                 Some("header"),
@@ -295,14 +313,13 @@ fn documented_header_attributes_keep_the_header_snapshot_after_body_values() -> 
             );
         }
         let events: Vec<_> = parsed
-            .document()
-            .blocks
-            .iter()
+            .document_ref()
+            .blocks()
             .filter_map(|block| {
-                let Block::DocumentAttribute(attribute) = block else {
+                let BlockKind::DocumentAttribute(attribute) = block.kind() else {
                     return None;
                 };
-                (attribute.name == name).then_some(attribute)
+                (attribute.name() == name).then_some(attribute)
             })
             .collect();
         assert!(
@@ -332,8 +349,8 @@ fn documented_read_only_and_api_only_attributes_ignore_document_values() -> Resu
 
         assert_ne!(
             parsed
-                .document()
-                .attributes
+                .document_ref()
+                .attributes()
                 .get(&name)
                 .and_then(|value| value.text()),
             Some("document"),
@@ -341,8 +358,8 @@ fn documented_read_only_and_api_only_attributes_ignore_document_values() -> Resu
         );
         assert_ne!(
             parsed
-                .document()
-                .attributes
+                .document_ref()
+                .attributes()
                 .get(&name)
                 .and_then(|value| value.text()),
             Some("body"),
@@ -362,10 +379,9 @@ fn caller_set_sectnums_is_flexible_after_the_header() -> Result<(), Error> {
         &options,
     )?;
     let numbers: Vec<_> = parsed
-        .document()
-        .toc_entries
-        .iter()
-        .map(acdc_parser::TocEntry::number)
+        .document_ref()
+        .toc_entries()
+        .map(TocEntryRef::number)
         .collect();
 
     assert_eq!(numbers, [Some("1"), None, Some("2")]);
@@ -379,10 +395,10 @@ fn caller_unset_sectnums_remains_locked() -> Result<(), Error> {
 
     assert_eq!(
         parsed
-            .document()
-            .toc_entries
-            .first()
-            .map(acdc_parser::TocEntry::number),
+            .document_ref()
+            .toc_entries()
+            .next()
+            .map(TocEntryRef::number),
         Some(None),
         "a hard caller unset remains locked"
     );

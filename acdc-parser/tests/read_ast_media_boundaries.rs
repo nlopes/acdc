@@ -40,7 +40,7 @@ fn media_reads_keep_complete_operands_controls_titles_and_captions(
          video::one.mp4,two.mp4[poster=thumb.png]\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let mut blocks = parsed.document_ref().blocks();
     let BlockKind::Audio(audio) = blocks.next().ok_or("audio")?.kind() else {
         return Err("audio".into());
@@ -89,7 +89,7 @@ fn media_reads_keep_complete_operands_controls_titles_and_captions(
         local.attributes().get("poster"),
         Some(AttributeValueRef::Text("thumb.png"))
     );
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 

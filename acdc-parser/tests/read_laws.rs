@@ -290,7 +290,7 @@ fn family_reads_obey_attribute_and_ownership_laws(
             .with_compatibility_mode(mode)
             .build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let document = parsed.document_ref();
     shared(document);
     let mut structures = 0;
@@ -328,7 +328,7 @@ fn family_reads_obey_attribute_and_ownership_laws(
             }
         }
     }
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 

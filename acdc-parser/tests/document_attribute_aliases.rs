@@ -1,10 +1,16 @@
-use acdc_parser::{Block, InlineNode, Options, parse};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
 fn first_section_number(source: &str, options: &Options<'_>) -> Result<Option<String>, Error> {
     let parsed = parse(source, options)?;
-    let Some(Block::Section(section)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Section(section)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected a section".into());
     };
     Ok(section.number().map(str::to_owned))
@@ -38,15 +44,17 @@ fn explicit_hardbreaks_option_unset_masks_hardbreaks_alias() -> Result<(), Error
         .with_attribute("hardbreaks", true)
         .build()?;
     let parsed = parse("= T\n:hardbreaks-option!:\n\nfirst\nsecond\n", &options)?;
-    let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Paragraph(paragraph)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected a paragraph".into());
     };
 
     assert!(
         paragraph
-            .content
-            .iter()
-            .all(|inline| !matches!(inline, InlineNode::LineBreak(_)))
+            .content()
+            .inlines()
+            .all(|inline| !matches!(inline.kind(), InlineKind::LineBreak(_)))
     );
     Ok(())
 }
@@ -54,13 +62,15 @@ fn explicit_hardbreaks_option_unset_masks_hardbreaks_alias() -> Result<(), Error
 #[test]
 fn literal_true_attribute_value_remains_text() -> Result<(), Error> {
     let parsed = parse("= T\n:a: true\n\nX{a}X\n", &Options::default())?;
-    let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Paragraph(paragraph)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected a paragraph".into());
     };
 
     assert!(matches!(
-        paragraph.content.as_slice(),
-        [InlineNode::PlainText(text)] if text.content == "XtrueX"
+        paragraph.content().inlines().map(InlineRef::kind).collect::<Vec<_>>().as_slice(),
+        [InlineKind::Plain(text)] if text.text() == "XtrueX"
     ));
     Ok(())
 }

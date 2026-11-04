@@ -33,7 +33,7 @@ fn list_item_iterators_clone_without_advancing_other_copies(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let mut kinds = Vec::new();
     for block in parsed.document_ref().blocks() {
         if let BlockKind::OrderedList(list) = block.kind() {
@@ -51,6 +51,6 @@ fn list_item_iterators_clone_without_advancing_other_copies(
         }
     }
     assert_eq!(kinds, ["ordered", "unordered", "description", "callout"]);
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }

@@ -34,7 +34,7 @@ fn text_reads_keep_escapes_and_character_reference_identity(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let mut text = String::new();
     let mut escaped = false;
     for inline in paragraph(parsed.document_ref())?.inlines() {
@@ -72,7 +72,7 @@ fn text_reads_keep_escapes_and_character_reference_identity(
         source.get(plain.location().absolute_start()..=plain.location().absolute_end()),
         Some("{value}")
     );
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 
@@ -91,7 +91,7 @@ fn document_passthroughs_expose_lowered_text_and_remaining_substitutions(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let nodes = paragraph(parsed.document_ref())?
         .inlines()
         .collect::<Vec<_>>();
@@ -109,7 +109,7 @@ fn document_passthroughs_expose_lowered_text_and_remaining_substitutions(
         source.get(raw.location().absolute_start()..=raw.location().absolute_end()),
         Some("<é> *raw*")
     );
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 
@@ -305,7 +305,7 @@ fn text_reads_preserve_includes_table_cells_and_listing_whitespace(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let raw = paragraph(parsed.document_ref())?
         .inlines()
         .find_map(|inline| {
@@ -363,6 +363,6 @@ fn text_reads_preserve_includes_table_cells_and_listing_whitespace(
         })
         .collect::<Result<String, _>>()?;
     assert_eq!(text, "  <literal> *code*");
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }

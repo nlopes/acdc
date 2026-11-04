@@ -104,7 +104,7 @@ fn compound_blocks_walk_in_preorder_without_inline_or_catalog_visits(
         "= Title footnote:[Header note.]\n\n== Section\n\nParent.\n\n====\nExample.\n\n--\nOpen.\n--\n\n****\nSidebar.\n****\n\n____\nQuote.\n____\n\nNOTE: Note.\n====\n\nTail.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let document = parsed.document_ref();
     assert_eq!(
         document.children().map(label).collect::<Vec<_>>(),
@@ -138,7 +138,7 @@ fn compound_blocks_walk_in_preorder_without_inline_or_catalog_visits(
         expected
     );
     assert_eq!(document.footnotes().count(), 1);
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 
@@ -156,7 +156,7 @@ fn lists_visit_items_before_their_attached_blocks(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     assert_eq!(
         parsed
             .document_ref()
@@ -165,7 +165,7 @@ fn lists_visit_items_before_their_attached_blocks(
             .collect::<Vec<_>>(),
         expected
     );
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 
@@ -294,7 +294,7 @@ fn included_and_cell_blocks_keep_original_source_locations(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let nodes = {
         let document = parsed.document_ref();
         document.descendants()
@@ -319,7 +319,7 @@ fn included_and_cell_blocks_keep_original_source_locations(
     assert_eq!(parsed.resolve_location(cell.location()).file, Some(main));
     assert_eq!(text(included.content()), "é Included.");
     assert_eq!(text(cell.content()), "é Cell.");
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 

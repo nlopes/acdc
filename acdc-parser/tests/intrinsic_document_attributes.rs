@@ -7,7 +7,10 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use acdc_parser::{DocumentAttributes, Options, SafeMode, parse, parse_file, parse_from_reader};
+use acdc_parser::{
+    DocumentAttributes, Options, SafeMode, ast::DocumentAttributesRef, parse, parse_file,
+    parse_from_reader,
+};
 use chrono::{DateTime, NaiveDate};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -34,11 +37,11 @@ impl Drop for TempDirectory {
     }
 }
 
-fn text<'a>(attributes: &'a DocumentAttributes<'_>, name: &str) -> Option<&'a str> {
+fn text<'a>(attributes: DocumentAttributesRef<'a>, name: &str) -> Option<&'a str> {
     attributes.get(name).and_then(|value| value.text())
 }
 
-fn assert_safe_mode(attributes: &DocumentAttributes<'_>, safe_mode: SafeMode) {
+fn assert_safe_mode(attributes: DocumentAttributesRef<'_>, safe_mode: SafeMode) {
     let expected_name = safe_mode.name();
     assert_eq!(
         text(attributes, "safe-mode-level"),
@@ -49,7 +52,7 @@ fn assert_safe_mode(attributes: &DocumentAttributes<'_>, safe_mode: SafeMode) {
     let conveniences = ["unsafe", "safe", "server", "secure"];
     for name in conveniences {
         assert_eq!(
-            attributes.contains_key(&format!("safe-mode-{name}")),
+            attributes.contains(&format!("safe-mode-{name}")),
             name == expected_name,
             "safe mode {expected_name}, convenience {name}"
         );
@@ -63,7 +66,7 @@ fn assert_safe_mode(attributes: &DocumentAttributes<'_>, safe_mode: SafeMode) {
     assert_eq!(text(attributes, "user-home"), Some(expected_home.as_str()));
 }
 
-fn assert_local_timestamp(attributes: &DocumentAttributes<'_>) -> TestResult {
+fn assert_local_timestamp(attributes: DocumentAttributesRef<'_>) -> TestResult {
     let localdate = text(attributes, "localdate").ok_or("missing localdate")?;
     let localdatetime = text(attributes, "localdatetime").ok_or("missing localdatetime")?;
     let localtime = text(attributes, "localtime").ok_or("missing localtime")?;
@@ -76,7 +79,7 @@ fn assert_local_timestamp(attributes: &DocumentAttributes<'_>) -> TestResult {
     Ok(())
 }
 
-fn assert_document_timestamp(attributes: &DocumentAttributes<'_>) -> TestResult {
+fn assert_document_timestamp(attributes: DocumentAttributesRef<'_>) -> TestResult {
     let docdate = text(attributes, "docdate").ok_or("missing docdate")?;
     let docdatetime = text(attributes, "docdatetime").ok_or("missing docdatetime")?;
     let doctime = text(attributes, "doctime").ok_or("missing doctime")?;
@@ -99,16 +102,16 @@ fn string_and_reader_inputs_initialize_intrinsics_in_all_safe_modes() -> TestRes
     ] {
         let options = Options::builder().with_safe_mode(safe_mode).build()?;
         let string = parse("", &options)?;
-        assert_safe_mode(&string.document().attributes, safe_mode);
-        assert_local_timestamp(&string.document().attributes)?;
-        assert_document_timestamp(&string.document().attributes)?;
+        assert_safe_mode(string.document_ref().attributes(), safe_mode);
+        assert_local_timestamp(string.document_ref().attributes())?;
+        assert_document_timestamp(string.document_ref().attributes())?;
 
         let reader = parse_from_reader(Cursor::new(""), &options)?;
-        assert_safe_mode(&reader.document().attributes, safe_mode);
-        assert_local_timestamp(&reader.document().attributes)?;
-        assert_document_timestamp(&reader.document().attributes)?;
+        assert_safe_mode(reader.document_ref().attributes(), safe_mode);
+        assert_local_timestamp(reader.document_ref().attributes())?;
+        assert_document_timestamp(reader.document_ref().attributes())?;
         for name in ["docdir", "docfile", "docfilesuffix", "docname"] {
-            assert!(!reader.document().attributes.contains_key(name), "{name}");
+            assert!(!reader.document_ref().attributes().contains(name), "{name}");
         }
     }
     Ok(())
@@ -122,8 +125,18 @@ fn intrinsic_initialization_does_not_restore_an_unset_universal_default() -> Tes
 
     let parsed = parse("", &options)?;
 
-    assert!(!parsed.document().attributes.contains_key("figure-caption"));
-    assert!(parsed.document().attributes.contains_key("safe-mode-name"));
+    assert!(
+        !parsed
+            .document_ref()
+            .attributes()
+            .contains("figure-caption")
+    );
+    assert!(
+        parsed
+            .document_ref()
+            .attributes()
+            .contains("safe-mode-name")
+    );
     Ok(())
 }
 
@@ -138,13 +151,13 @@ fn string_metadata_overrides_are_retained_but_reader_overrides_are_removed() -> 
 
     let string = parse("", &options)?;
     assert_eq!(
-        text(&string.document().attributes, "docdir"),
+        text(string.document_ref().attributes(), "docdir"),
         Some("/caller")
     );
 
     let reader = parse_from_reader(Cursor::new(""), &options)?;
     for name in ["docdir", "docfile", "docfilesuffix", "docname"] {
-        assert!(!reader.document().attributes.contains_key(name), "{name}");
+        assert!(!reader.document_ref().attributes().contains(name), "{name}");
     }
     Ok(())
 }
@@ -167,7 +180,7 @@ fn file_input_initializes_source_metadata_and_masks_sensitive_paths() -> TestRes
             .with_attribute("docfile", "spoof.adoc")
             .build()?;
         let parsed = parse_file(&path, &options)?;
-        let attributes = &parsed.document().attributes;
+        let attributes = parsed.document_ref().attributes();
         assert_safe_mode(attributes, safe_mode);
         assert_eq!(text(attributes, "docfilesuffix"), Some(".adoc"));
         assert_eq!(text(attributes, "docname"), Some("guide"));
@@ -184,7 +197,7 @@ fn file_input_initializes_source_metadata_and_masks_sensitive_paths() -> TestRes
         }
 
         for name in ["docdate", "docdatetime", "doctime", "docyear"] {
-            assert!(attributes.contains_key(name), "{name}");
+            assert!(attributes.contains(name), "{name}");
         }
     }
     Ok(())
@@ -206,24 +219,32 @@ fn filetype_override_only_applies_to_string_input() -> TestResult {
 
     let string = parse("", &options)?;
     assert_eq!(
-        text(&string.document().attributes, "filetype"),
+        text(string.document_ref().attributes(), "filetype"),
         Some("caller")
     );
-    assert!(string.document().attributes.contains_key("filetype-caller"));
-    assert!(!string.document().attributes.contains_key("filetype-html"));
+    assert!(
+        string
+            .document_ref()
+            .attributes()
+            .contains("filetype-caller")
+    );
+    assert!(!string.document_ref().attributes().contains("filetype-html"));
 
     let reader = parse_from_reader(Cursor::new(""), &options)?;
     assert_eq!(
-        text(&reader.document().attributes, "filetype"),
+        text(reader.document_ref().attributes(), "filetype"),
         Some("html")
     );
-    assert!(reader.document().attributes.contains_key("filetype-html"));
+    assert!(reader.document_ref().attributes().contains("filetype-html"));
 
     let directory = TempDirectory::new()?;
     let path = directory.0.join("input.adoc");
     fs::write(&path, "")?;
     let file = parse_file(path, &options)?;
-    assert_eq!(text(&file.document().attributes, "filetype"), Some("html"));
+    assert_eq!(
+        text(file.document_ref().attributes(), "filetype"),
+        Some("html")
+    );
     Ok(())
 }
 
@@ -234,15 +255,15 @@ fn intrinsic_assignments_drive_preprocessing_and_the_final_model_consistently() 
         &Options::default(),
     )?;
 
-    let attributes = &parsed.document().attributes;
+    let attributes = parsed.document_ref().attributes();
     assert_eq!(text(attributes, "localyear"), Some("1999"));
     assert_eq!(text(attributes, "conditional-year"), Some("1999"));
     assert_eq!(text(attributes, "outfilesuffix"), Some(".custom"));
     assert_eq!(text(attributes, "conditional-suffix"), Some(".custom"));
     assert_eq!(text(attributes, "backend"), Some("spoof"));
-    assert!(!attributes.contains_key("docname"));
-    assert!(!attributes.contains_key("outfile"));
-    assert!(!attributes.contains_key("post-conversion-visible"));
+    assert!(!attributes.contains("docname"));
+    assert!(!attributes.contains("outfile"));
+    assert!(!attributes.contains("post-conversion-visible"));
     Ok(())
 }
 
@@ -253,19 +274,19 @@ fn source_cannot_spoof_an_inactive_convenience_attribute() -> TestResult {
         &Options::default(),
     )?;
 
-    assert!(!parsed.document().attributes.contains_key("spoofed"));
-    assert!(parsed.document().attributes.contains_key("actual"));
+    assert!(!parsed.document_ref().attributes().contains("spoofed"));
+    assert!(parsed.document_ref().attributes().contains("actual"));
     assert!(
         parsed
-            .document()
-            .attributes
-            .contains_key("safe-mode-secure")
+            .document_ref()
+            .attributes()
+            .contains("safe-mode-secure")
     );
     assert!(
         !parsed
-            .document()
-            .attributes
-            .contains_key("safe-mode-unsafe")
+            .document_ref()
+            .attributes()
+            .contains("safe-mode-unsafe")
     );
     Ok(())
 }
@@ -286,7 +307,7 @@ fn header_only_intrinsics_reject_body_set_and_unset_entries() -> TestResult {
         let source = format!(":{name}: header-value\n\nText.\n\n:{name}: body-value\n:{name}!:\n");
         let parsed = parse(&source, &Options::default())?;
         assert_eq!(
-            text(&parsed.document().attributes, name),
+            text(parsed.document_ref().attributes(), name),
             Some("header-value"),
             "{name}"
         );
@@ -311,11 +332,11 @@ fn included_header_attribute_affects_following_conditionals() -> TestResult {
             .build()?,
     )?;
     assert_eq!(
-        text(&parsed.document().attributes, "localyear"),
+        text(parsed.document_ref().attributes(), "localyear"),
         Some("1999")
     );
     assert_eq!(
-        text(&parsed.document().attributes, "included-value"),
+        text(parsed.document_ref().attributes(), "included-value"),
         Some("1999")
     );
     Ok(())
@@ -332,9 +353,9 @@ fn post_conversion_attributes_are_not_parser_visible() -> TestResult {
         &options,
     )?;
 
-    assert!(!parsed.document().attributes.contains_key("outdir"));
-    assert!(!parsed.document().attributes.contains_key("outfile"));
-    assert!(!parsed.document().attributes.contains_key("visible"));
+    assert!(!parsed.document_ref().attributes().contains("outdir"));
+    assert!(!parsed.document_ref().attributes().contains("outfile"));
+    assert!(!parsed.document_ref().attributes().contains("visible"));
 
     let mut attributes = std::collections::HashMap::<
         std::borrow::Cow<'_, str>,
@@ -359,7 +380,7 @@ fn source_date_epoch_produces_utc_intrinsics() -> TestResult {
         let path = directory.0.join("epoch.adoc");
         fs::write(&path, "")?;
         let parsed = parse_file(path, &Options::default())?;
-        let attributes = &parsed.document().attributes;
+        let attributes = parsed.document_ref().attributes();
         for prefix in ["local", "doc"] {
             assert_eq!(
                 text(attributes, &format!("{prefix}date")),
@@ -396,13 +417,13 @@ fn intrinsic_values_do_not_change_json_shape() -> TestResult {
     let parsed = parse("", &Options::default())?;
 
     assert_eq!(
-        serde_json::to_value(&parsed.document().attributes)?,
+        serde_json::to_value(DocumentAttributes::from(parsed.document_ref().attributes()))?,
         serde_json::json!({})
     );
     assert_eq!(
         parsed
-            .document()
-            .attributes
+            .document_ref()
+            .attributes()
             .get("safe-mode-level")
             .and_then(|value| value.text()),
         Some("20")

@@ -47,7 +47,7 @@ fn ui_reads_preserve_structured_labels_and_source_ranges(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let content = paragraphs(parsed.document_ref())
         .next()
         .ok_or("paragraph")?;
@@ -113,7 +113,7 @@ fn ui_reads_preserve_structured_labels_and_source_ranges(
         }
     }
     assert_eq!(families, 3);
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 
@@ -175,7 +175,7 @@ fn formula_reads_preserve_protected_text_and_selected_notation(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let formula = paragraphs(parsed.document_ref())
         .next()
         .ok_or("paragraph")?
@@ -196,7 +196,7 @@ fn formula_reads_preserve_protected_text_and_selected_notation(
         source.get(formula.location().absolute_start()..=formula.location().absolute_end()),
         Some(format!("{prefix}:[{{value}} *x* + y,role=red]").as_str())
     );
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 

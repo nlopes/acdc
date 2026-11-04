@@ -42,7 +42,7 @@ fn unsupported_nested_content_keeps_its_own_source() -> Result<(), Error> {
                 .with_compatibility_mode(mode)
                 .build()?,
         )?;
-        let before = serde_json::to_value(parsed.document())?;
+        let before = serde_json::to_value(parsed.document_ref())?;
         let Err(asg::Error::Unsupported {
             path,
             construct,
@@ -59,7 +59,7 @@ fn unsupported_nested_content_keeps_its_own_source() -> Result<(), Error> {
             source.get(location.absolute_start..=location.absolute_end),
             Some("image:photo.png[Alt]")
         );
-        assert_eq!(serde_json::to_value(parsed.document())?, before);
+        assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     }
     Ok(())
 }

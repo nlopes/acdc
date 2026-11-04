@@ -45,7 +45,7 @@ fn real_delimited_blocks_preserve_names_and_delimiters() -> Result<(), Error> {
             ),
         ] {
             let parsed = parse(source, &options)?;
-            let before = serde_json::to_value(parsed.document())?;
+            let before = serde_json::to_value(parsed.document_ref())?;
             let value = asg::document(parsed.document_ref())?;
             assert_eq!(
                 value.pointer("/blocks/0/name"),
@@ -64,7 +64,7 @@ fn real_delimited_blocks_preserve_names_and_delimiters() -> Result<(), Error> {
                     .map(str::trim_end),
                 Some(text)
             );
-            assert_eq!(serde_json::to_value(parsed.document())?, before);
+            assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
         }
     }
     Ok(())

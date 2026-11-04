@@ -33,7 +33,7 @@ fn concrete_spans_keep_content_form_identity_and_tokens(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     assert_eq!(parsed.warnings(), []);
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let BlockKind::Paragraph(paragraph) = parsed
         .document_ref()
         .blocks()
@@ -105,7 +105,7 @@ fn concrete_spans_keep_content_form_identity_and_tokens(
     } else {
         return Err(format!("unexpected inline: {:?}", span.kind()).into());
     }
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 
