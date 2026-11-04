@@ -1,3 +1,5 @@
+mod attributes;
+mod block_attributes;
 mod caption_contexts;
 mod caption_snapshots;
 mod icons;
