@@ -1,10 +1,30 @@
 use acdc_parser::{
     CharacterReference, CharacterReferenceKind, InlineNode, Location,
-    ast::{CharacterReferenceRef, InlineKind, InlineRef},
+    ast::{BlockKind, BlockRef, CharacterReferenceRef, InlineKind, InlineRef},
 };
 use serde_json::json;
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
+
+fn is_macro(kind: InlineKind<'_>) -> bool {
+    matches!(
+        kind,
+        InlineKind::Footnote(_)
+            | InlineKind::Icon(_)
+            | InlineKind::Image(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Button(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Url(_)
+            | InlineKind::Link(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::CrossReference(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Stem(_)
+            | InlineKind::IndexTerm(_)
+    )
+}
 
 #[test]
 fn character_reference_keeps_identity_in_typed_reads_and_native_json() -> Result<(), Error> {
@@ -173,11 +193,12 @@ fn generated_section_ids_omit_character_references() -> Result<(), Error> {
             (r"== Heading \&copy;", "_heading_copy"),
         ] {
             let parsed = acdc_parser::parse(source, &options)?;
-            let Some(acdc_parser::Block::Section(section)) = parsed.document().blocks.first()
+            let Some(BlockKind::Section(section)) =
+                parsed.document_ref().blocks().next().map(BlockRef::kind)
             else {
                 return Err("missing section".into());
             };
-            assert_eq!(section.id(), expected);
+            assert_eq!(section.resolve_id(), expected);
         }
     }
     Ok(())
@@ -222,19 +243,20 @@ fn document_and_caller_character_references_expand_once() -> Result<(), Error> {
             .build()?;
         let source = ":reference: &copy;\n:encoded: &amp;copy;\n:escaped: \\&copy;\n\n{reference} {encoded} {escaped}";
         let parsed = acdc_parser::parse(source, &options)?;
-        let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed.document().blocks.first()
+        let Some(BlockKind::Paragraph(paragraph)) =
+            parsed.document_ref().blocks().next().map(BlockRef::kind)
         else {
             return Err("missing paragraph".into());
         };
         assert_eq!(
             paragraph
-                .content
-                .iter()
-                .filter(|node| matches!(node, InlineNode::CharacterReference(_)))
+                .content()
+                .inlines()
+                .filter(|node| matches!(node.kind(), InlineKind::CharacterReference(_)))
                 .count(),
             1
         );
-        assert_eq!(paragraph.content.iter().filter(|node| matches!(node, InlineNode::RawText(raw) if raw.content == "&copy;" && raw.subs == [acdc_parser::Substitution::SpecialChars])).count(), 2);
+        assert_eq!(paragraph.content().inlines().filter(|node| matches!(node.kind(), InlineKind::Raw(raw) if raw.text() == "&copy;" && raw.substitutions().collect::<Vec<_>>() == [acdc_parser::Substitution::SpecialChars])).count(), 2);
         let options = acdc_parser::Options::builder()
             .with_compatibility_mode(mode)
             .with_attributes([("encoded", "&amp;copy;")])
@@ -273,15 +295,16 @@ fn intrinsic_references_have_semantic_identity_and_authored_ranges() -> Result<(
         ] {
             let source = format!("{settings}é {{quot}} {{apos}} {{plus}} {{asterisk}} {{cpp}}.");
             let parsed = acdc_parser::parse(&source, &options)?;
-            let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed.document().blocks.first()
+            let Some(BlockKind::Paragraph(paragraph)) =
+                parsed.document_ref().blocks().next().map(BlockRef::kind)
             else {
                 return Err("missing paragraph".into());
             };
             let references: Vec<_> = paragraph
-                .content
-                .iter()
+                .content()
+                .inlines()
                 .filter_map(|node| {
-                    if let InlineNode::CharacterReference(reference) = node {
+                    if let InlineKind::CharacterReference(reference) = node.kind() {
                         Some(reference)
                     } else {
                         None
@@ -294,16 +317,15 @@ fn intrinsic_references_have_semantic_identity_and_authored_ranges() -> Result<(
             {
                 assert_eq!(reference.kind(), CharacterReferenceKind::Numeric(expected));
                 assert_eq!(
-                    &parsed.source()
-                        [reference.location.absolute_start..=reference.location.absolute_end],
+                    &parsed.source()[reference.location().absolute_start()
+                        ..=reference.location().absolute_end()],
                     token
                 );
             }
             assert!(
                 !paragraph
-                    .content
-                    .iter()
-                    .any(|node| matches!(node, InlineNode::BoldText(_) | InlineNode::Macro(_)))
+                    .content().inlines()
+                    .any(|node| matches!(node.kind(), InlineKind::Bold(_)) || is_macro(node.kind()))
             );
         }
     }
@@ -327,19 +349,20 @@ fn intrinsic_references_keep_a_later_escape_stage() -> Result<(), Error> {
             let source =
                 format!("[subs=\"{substitutions}\"]\n{{quot}} {{apos}} {{lt}} {{gt}} {{amp}}");
             let parsed = acdc_parser::parse(&source, &options)?;
-            let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed.document().blocks.first()
+            let Some(BlockKind::Paragraph(paragraph)) =
+                parsed.document_ref().blocks().next().map(BlockRef::kind)
             else {
                 return Err("missing paragraph".into());
             };
             assert!(
                 !paragraph
-                    .content
-                    .iter()
-                    .any(|node| matches!(node, InlineNode::CharacterReference(_))),
+                    .content()
+                    .inlines()
+                    .any(|node| matches!(node.kind(), InlineKind::CharacterReference(_))),
                 "{source} ({mode:?})"
             );
             for value in ["&#34;", "&#39;", "<", ">", "&"] {
-                assert!(paragraph.content.iter().any(|node| matches!(node, InlineNode::RawText(raw) if raw.content == value && raw.subs == [acdc_parser::Substitution::SpecialChars])), "missing {value}: {source} ({mode:?})");
+                assert!(paragraph.content().inlines().any(|node| matches!(node.kind(), InlineKind::Raw(raw) if raw.text() == value && raw.substitutions().collect::<Vec<_>>() == [acdc_parser::Substitution::SpecialChars])), "missing {value}: {source} ({mode:?})");
             }
         }
     }

@@ -225,10 +225,10 @@ fn traversal_excludes_catalogs_and_generated_bibliography_text(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = format!("{:?}", parsed.document());
-    assert_eq!(parsed.document().footnotes.len(), 1);
-    assert_eq!(parsed.document().toc_entries.len(), 1);
-    assert!(!parsed.document().references.is_empty());
+    let before = format!("{:?}", parsed.document_ref());
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document_ref().toc_entries().count(), 1);
+    assert!(parsed.document_ref().references().iter().next().is_some());
     let fields = parsed.document_ref().content_occurrences();
     shared(&fields);
     fused(&fields);
@@ -262,7 +262,7 @@ fn traversal_excludes_catalogs_and_generated_bibliography_text(
             .count(),
         1
     );
-    assert_eq!(format!("{:?}", parsed.document()), before);
+    assert_eq!(format!("{:?}", parsed.document_ref()), before);
     Ok(())
 }
 
