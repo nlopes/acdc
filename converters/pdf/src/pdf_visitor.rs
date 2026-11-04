@@ -3,8 +3,6 @@ use std::{
     rc::Rc,
 };
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::{SubsFlags, apply_replacements, effective_subs_flags};
 use acdc_converters_core::{
     Diagnostics, Doctype, InlineTextTransform, TraversalContext,
     code::{
@@ -56,12 +54,10 @@ struct CodeText {
     source: String,
     indexes: Vec<(usize, usize)>,
     links: Vec<CodeSpan>,
-    protected: Vec<Range<usize>>,
 }
 
 impl CodeText {
     fn push_inline_text(&mut self, node: InlineRef<'_>, boundaries: TextBoundaries) {
-        let start = self.source.len();
         let decode =
             matches!(node.kind(), InlineKind::Raw(raw) if raw.substitutions().next().is_none());
         let _ = InlineTextTransform::default()
@@ -70,10 +66,6 @@ impl CodeText {
             .text_boundaries(boundaries)
             .decode_char_refs(decode)
             .write_inlines(&mut self.source, std::iter::once(node));
-        if matches!(node.kind(), InlineKind::Raw(_)) {
-            // Raw fragments have already followed their own profile.
-            self.protected.push(start..self.source.len());
-        }
     }
 
     fn wrap_span(&mut self, mut outer: CodeSpan) {
@@ -122,12 +114,6 @@ impl CodeText {
             link.range = link.range.start + offset..link.range.end + offset;
             link
         }));
-        self.protected.extend(
-            child
-                .protected
-                .into_iter()
-                .map(|range| range.start + offset..range.end + offset),
-        );
     }
 }
 
@@ -835,16 +821,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let Some(title) = title else {
             return Ok(());
         };
-        // A title keeps normal substitutions independently of its block's body.
-        #[cfg(feature = "pre-spec-subs")]
-        let previous_subs = self
-            .processor
-            .current_subs
-            .replace(effective_subs_flags(None, false));
-        let result = self.write_content(traversal, title);
-        #[cfg(feature = "pre-spec-subs")]
-        self.processor.current_subs.set(previous_subs);
-        result
+        self.write_content(traversal, title)
     }
 
     fn write_title_copy(
@@ -874,14 +851,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
     ) -> Result<(), Error> {
         let previous_boundaries = self.text_boundaries;
-        #[cfg(feature = "pre-spec-subs")]
-        let replacements = self
-            .processor
-            .current_subs
-            .get()
-            .contains(SubsFlags::REPLACEMENTS);
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let replacements = true;
         let siblings = nodes.clone();
         let result = (|| {
             let mut previous_plain_space = false;
@@ -895,7 +864,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     previous_boundaries
                 };
                 self.text_boundaries = boundaries
-                    .with_ordinary_replacements(replacements)
+                    .with_ordinary_replacements(false)
                     .for_inline_refs(
                         Some(node),
                         siblings.clone().take(index).rev(),
@@ -1231,16 +1200,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     pub(crate) fn write_plain(&mut self, text: &str) {
-        #[cfg(feature = "pre-spec-subs")]
-        let text = apply_replacements(
-            text,
-            self.processor.current_subs.get(),
-            &Replacements::unicode(),
-            self.text_boundaries,
-        );
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let text = Cow::Owned(Replacements::unicode().transform(text, self.text_boundaries));
-        let text = self.normalize_prose_whitespace(&text);
+        let text = self.normalize_prose_whitespace(text);
         self.write_text_expr(&acdc_converters_core::decode_numeric_char_refs(&text));
     }
 
@@ -1362,8 +1322,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    /// Write a paragraph's title with normal substitutions and its content with
-    /// the paragraph's effective substitutions.
+    /// Render a paragraph's selected title and body.
     ///
     /// `write_title` is false for the synthetic paragraph inside a simple
     /// admonition, whose title the admonition wrapper already wrote.
@@ -1378,56 +1337,35 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.write_passthrough_block(para.content());
             return Ok(());
         }
-        #[cfg(feature = "pre-spec-subs")]
-        let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-            attribute_substitutions(Some(para.attributes())),
-            matches!(para.style(), Some("literal" | "listing" | "source")),
-        ));
+        if para.style() == Some("sidebar") {
+            return self.write_sidebar_content(traversal, para.title(), |visitor, traversal| {
+                visitor.write_paragraph_alignment(Some(para.attributes()), |visitor| {
+                    visitor.write_content(traversal, para.content())
+                })
+            });
+        }
 
-        let result = (|| {
-            if para.style() == Some("sidebar") {
-                return self.write_sidebar_content(
-                    traversal,
-                    para.title(),
-                    |visitor, traversal| {
-                        visitor.write_paragraph_alignment(Some(para.attributes()), |visitor| {
-                            visitor.write_content(traversal, para.content())
-                        })
-                    },
-                );
-            }
-
-            let fallback = CaptionKind::for_style(para.style());
-            if is_collapsible_example(Some(para.attributes()), fallback) {
-                return self.write_disclosure(traversal, para.title(), |visitor, traversal| {
-                    visitor.write_paragraph_alignment(Some(para.attributes()), |visitor| {
-                        visitor.write_content(traversal, para.content())
-                    })
-                });
-            }
-            if para.style() == Some("abstract") {
-                return self.write_abstract(
-                    traversal,
-                    para.title(),
-                    write_title,
-                    Some(para.attributes()),
-                    |visitor, traversal| visitor.write_content(traversal, para.content()),
-                );
-            }
-            if write_title {
-                self.write_block_heading(
-                    traversal,
-                    para.title(),
-                    Some(para.attributes()),
-                    fallback,
-                )?;
-            }
-            self.write_paragraph_body(traversal, para, automatic_lead)
-        })();
-
-        #[cfg(feature = "pre-spec-subs")]
-        self.processor.current_subs.set(previous_subs);
-        result
+        let fallback = CaptionKind::for_style(para.style());
+        if is_collapsible_example(Some(para.attributes()), fallback) {
+            return self.write_disclosure(traversal, para.title(), |visitor, traversal| {
+                visitor.write_paragraph_alignment(Some(para.attributes()), |visitor| {
+                    visitor.write_content(traversal, para.content())
+                })
+            });
+        }
+        if para.style() == Some("abstract") {
+            return self.write_abstract(
+                traversal,
+                para.title(),
+                write_title,
+                Some(para.attributes()),
+                |visitor, traversal| visitor.write_content(traversal, para.content()),
+            );
+        }
+        if write_title {
+            self.write_block_heading(traversal, para.title(), Some(para.attributes()), fallback)?;
+        }
+        self.write_paragraph_body(traversal, para, automatic_lead)
     }
 
     pub(crate) fn write_abstract_title(
@@ -2078,8 +2016,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_verbatim_string(&mut self, content: ContentRef<'_>) {
         let text = InlineTextTransform::default()
             .line_break("\n")
+            .rendered_replacements(false)
             .content_to_string(content);
-        self.write_verbatim_text(&text);
+        self.writer.string_literal(&text);
     }
 
     fn code_text<'inline>(
@@ -2096,7 +2035,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             source: mut text,
             indexes: mut positions,
             mut links,
-            protected,
         } = self.collect_code_text(
             traversal,
             nodes,
@@ -2131,29 +2069,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         for link in &links {
             positions.extend([(link.range.start, 0), (link.range.end, 0)]);
         }
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let _ = traversal;
-        #[cfg(feature = "pre-spec-subs")]
-        {
-            if self
-                .processor
-                .current_subs
-                .get()
-                .contains(SubsFlags::REPLACEMENTS)
-            {
-                transform_code_substitutions(
-                    &mut text,
-                    &mut positions,
-                    index_count,
-                    &protected,
-                    |text, boundaries| {
-                        Cow::Owned(Replacements::unicode().transform_verbatim(text, boundaries))
-                    },
-                );
-            }
-        }
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let _ = protected;
         transform_code_text(&mut text, &mut positions, |text| {
             expand_code_tabs(text, tab_size)
         });
@@ -2167,7 +2082,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             source: text,
             indexes: positions,
             links,
-            ..CodeText::default()
         })
     }
 
@@ -2570,21 +2484,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
         }
         lines
-    }
-
-    fn write_verbatim_text(&mut self, text: &str) {
-        #[cfg(feature = "pre-spec-subs")]
-        {
-            let text = apply_replacements(
-                text,
-                self.processor.current_subs.get(),
-                &Replacements::unicode(),
-                TextBoundaries::BOTH,
-            );
-            self.writer.string_literal(&text);
-        }
-        #[cfg(not(feature = "pre-spec-subs"))]
-        self.writer.string_literal(text);
     }
 
     pub(crate) fn write_page_layout_change(&mut self, br: PageBreakRef<'_>) {
@@ -5184,73 +5083,6 @@ fn code_character_width(character: char, column: usize, tab_size: usize) -> usiz
     }
 }
 
-#[cfg(feature = "pre-spec-subs")]
-fn transform_code_substitutions(
-    text: &mut String,
-    positions: &mut [(usize, usize)],
-    index_count: usize,
-    protected: &[Range<usize>],
-    transform: impl Fn(&str, TextBoundaries) -> Cow<'_, str>,
-) {
-    // Nonempty spans and passthroughs separate replacement runs. An empty
-    // anchor has no text and must not split a word-bounded dash.
-    let mut boundaries = positions
-        .get(index_count..)
-        .unwrap_or_default()
-        .as_chunks::<2>()
-        .0
-        .iter()
-        .filter(|[start, end]| start.0 != end.0)
-        .flat_map(|[start, end]| [start.0, end.0])
-        .chain(protected.iter().flat_map(|range| [range.start, range.end]))
-        .collect::<Vec<_>>();
-    boundaries.sort_unstable();
-    boundaries.dedup();
-    let original = text.clone();
-    transform_code_text(text, positions, |fragment| {
-        if boundaries.is_empty() {
-            return transform(
-                fragment,
-                TextBoundaries::BOTH.with_following_text(&original[fragment.len()..]),
-            );
-        }
-        let mut transformed = String::with_capacity(fragment.len());
-        let mut start = 0;
-        for end in boundaries
-            .iter()
-            .copied()
-            .filter(|end| *end < fragment.len())
-            .chain(std::iter::once(fragment.len()))
-        {
-            if let Some(part) = fragment.get(start..end) {
-                if protected.iter().any(|range| range.contains(&start)) {
-                    transformed.push_str(part);
-                } else {
-                    // Measure ownership against the complete replacement run.
-                    // A destination beside a consumed space or dash half must
-                    // move with its source owner, without crossing a span.
-                    let run_end = boundaries
-                        .iter()
-                        .copied()
-                        .find(|cut| *cut >= end)
-                        .unwrap_or(original.len());
-                    transformed.push_str(&transform(
-                        part,
-                        TextBoundaries::new(start == 0, run_end == original.len())
-                            .with_following_text(&original[end..run_end]),
-                    ));
-                }
-            }
-            start = end;
-        }
-        if transformed == fragment {
-            Cow::Borrowed(fragment)
-        } else {
-            Cow::Owned(transformed)
-        }
-    });
-}
-
 fn transform_code_text(
     text: &mut String,
     positions: &mut [(usize, usize)],
@@ -5352,16 +5184,6 @@ fn attribute_content<'doc>(
 ) -> Option<ContentRef<'doc>> {
     match attributes.and_then(|attributes| attributes.get(name)) {
         Some(AttributeValueRef::Content(content)) => Some(content),
-        _ => None,
-    }
-}
-
-#[cfg(feature = "pre-spec-subs")]
-fn attribute_substitutions(
-    attributes: Option<AttributesRef<'_>>,
-) -> Option<acdc_parser::ast::SubstitutionSpecRef<'_>> {
-    match attributes.and_then(|attributes| attributes.get("subs")) {
-        Some(AttributeValueRef::Substitutions(spec)) => Some(spec),
         _ => None,
     }
 }

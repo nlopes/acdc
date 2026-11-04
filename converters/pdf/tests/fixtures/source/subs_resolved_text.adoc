@@ -1,0 +1,37 @@
+= Selected text
+:revdate: 2026-01-01
+
+R01 X \*word* \(C) \->.
+
+[subs=none]
+R02 X \*word* (C) -> *literal*.
+
+[subs=attributes]
+R03 X \*word* (C) -> *literal*.
+
+[subs=+replacements]
+----
+R04 tail (C) -> --
+----
+
+[subs=none]
+----
+R05 X \*word* (C) ->
+----
+
+R06 pass:c,r[\*word* (C) ->].
+
+.Title (C) *bold*
+[quote,subs=none]
+R07 Body (C) *literal*.
+
+R08 Normal (C) -> -- end.
+
+R09 pass:c,r[\*literal* \'word\' (C) ->].
+
+[source,text,subs="+macros,+replacements",tabsize=4]
+----
+R10	(C) anchor:here[]link:https://example.org[Next]
+----
+
+After <<here>>.

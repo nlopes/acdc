@@ -20,8 +20,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration,
     TraversalContext, Warning, document_attribute_text,
@@ -338,8 +336,6 @@ pub struct Processor<'a> {
     /// Fallback counter for table captions the parser did not number.
     pub(crate) table_counter: Rc<Cell<u32>>,
     pdf_options: PdfOptions,
-    #[cfg(feature = "pre-spec-subs")]
-    pub(crate) current_subs: Rc<Cell<SubsFlags>>,
 }
 
 impl Processor<'_> {

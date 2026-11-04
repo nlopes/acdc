@@ -1,4 +1,4 @@
-use acdc_parser::{Document, Options, ParseResult, parse, parse_file};
+use acdc_parser::{CompatibilityMode, Document, Options, ParseResult, parse, parse_file};
 use lopdf::{Document as PdfDocument, Object, ObjectId, decode_text_string};
 use std::{
     collections::HashMap,
@@ -12,6 +12,59 @@ use acdc_converters_core::{
 use acdc_converters_pdf::{PageLayout, PageMargins, PageSize, PdfOptions, Processor, ThemeFormat};
 
 type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn resolved_pdf_text_and_code_links_work_in_every_build() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/subs_resolved_text.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let pdf = render_parsed(&parsed)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf
+            .extract_text(&pages)?
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        for expected in [
+            r"R02 X \*word* (C) -> *literal*.",
+            r"R03 X \*word* (C) -> *literal*.",
+            "R04 tail © → —",
+            r"R05 X \*word* (C) ->",
+            "Title © bold",
+            "R07 Body (C) *literal*.",
+            "R08 Normal © → — end.",
+            r"R09 \*literal* \'word\' © →.",
+            "R10 © Next",
+        ] {
+            assert!(text.contains(expected), "missing {expected}: {text}");
+        }
+        let page = *pdf.get_pages().get(&1).ok_or("missing page")?;
+        let targets = named_destinations(&pdf)?;
+        let mut internal = Vec::new();
+        let mut external = Vec::new();
+        for annotation in pdf.get_page_annotations(page)? {
+            if let Ok(action) = annotation.get(b"A").and_then(Object::as_dict)
+                && let Ok(uri) = action.get(b"URI")
+            {
+                external.push(String::from_utf8(uri.as_str()?.to_vec())?);
+                continue;
+            }
+            let destination = annotation
+                .get(b"Dest")
+                .or_else(|_| annotation.get(b"A")?.as_dict()?.get(b"D"))?;
+            internal.push(destination_page_id(
+                &pdf,
+                resolve_destination(&pdf, &targets, destination)?,
+            )?);
+        }
+        assert_eq!(internal, [page]);
+        assert_eq!(external, ["https://example.org"]);
+    }
+    Ok(())
+}
 
 #[test]
 fn unresolved_tables_preserve_body_and_nested_cell_decoration() -> Result<(), Error> {
@@ -667,7 +720,6 @@ fn assert_pdf_page_layouts(
 #[rstest::rstest]
 #[case::plain("")]
 #[case::highlighted(":source-highlighter: rouge\n")]
-#[cfg(feature = "pre-spec-subs")]
 fn callout_comment_prefixes_keep_pdf_link_and_anchor_positions(
     #[case] highlighter: &str,
 ) -> Result<(), Error> {
@@ -815,7 +867,6 @@ fn nested_styles_use_combined_pdf_fonts_and_restore_outer_styles() -> Result<(),
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn nested_styles_preserve_enabled_and_disabled_code_quotes() -> Result<(), Error> {
     let pdf = render_input(include_str!("fixtures/source/subs_nested_font_styles.adoc"))?;
@@ -1034,7 +1085,6 @@ fn verse_keeps_pdf_line_positions_and_macro_targets(
 }
 
 #[test]
-#[cfg(feature = "pre-spec-subs")]
 fn title_substitutions_keep_pdf_links_and_footnotes() -> Result<(), Error> {
     let source = "= Titles\n\n.Title link:https://example.org/title[Link (C)] footnote:note[Note (R).]\n[#target]\n[subs=\"none\"]\nBody (C) footnote:[Inactive note.].\n\nReuse footnote:note[] and see <<target,Target>>.\n";
     let parsed = parse(source, &Options::default())?;
@@ -1106,7 +1156,6 @@ fn plain_table_paragraph_linebreaks_keep_pdf_text_positions() -> Result<(), Erro
 }
 
 #[test]
-#[cfg(feature = "pre-spec-subs")]
 fn code_typography_preserves_escapes_and_pdf_navigation() -> Result<(), Error> {
     let actual = render_input(
         "= Code\n\n[subs=\"+replacements,+macros\"]\n----\n(C) \\(R) \\*literal\\* pass:r[\\(TM)] anchor:target[]https://example.org/type[Next \\*label\\*]\n----",
@@ -1168,7 +1217,6 @@ fn code_typography_preserves_escapes_and_pdf_navigation() -> Result<(), Error> {
 fn deferred_typography_keeps_pdf_link_and_anchor_positions() -> Result<(), Error> {
     for body in [
         "`{value}anchor:target[]https://example.org/type[Next]`.",
-        #[cfg(feature = "pre-spec-subs")]
         "[subs=\"+attributes,+macros\"]\n----\n{value}anchor:target[]https://example.org/type[Next]\n----",
     ] {
         let actual = render_input(&format!("= Type\n:value: pass:r[(C)]\n\n{body}\n"))?;
@@ -1281,7 +1329,6 @@ fn inline_code_spaces_keep_their_width_across_formatting_boundaries() -> Result<
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn disabled_passthrough_attributes_do_not_create_pdf_links() -> Result<(), Error> {
     let pdf = render_input(
@@ -1419,7 +1466,6 @@ fn inline_verbatim_links_preserve_local_reference_navigation() -> Result<(), Err
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn inline_verbatim_links_honor_context_and_copied_title_ownership() -> Result<(), Error> {
     let pdf = render_input(include_str!(
@@ -1715,7 +1761,6 @@ fn named_pdf_destinations_preserve_positions_and_first_ownership() -> Result<(),
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn named_pdf_destinations_omit_unrendered_targets_and_copied_titles() -> Result<(), Error> {
     let source = include_str!("fixtures/source/subs_named_destinations.adoc");
@@ -1784,7 +1829,6 @@ fn unused_attribute_footnotes_do_not_add_an_empty_pdf_page() -> Result<(), Error
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn formatted_attributes_keep_pdf_code_formatting_and_links() -> Result<(), Error> {
     let source = include_str!("fixtures/source/subs_document_attribute_formatted.adoc");
@@ -1821,7 +1865,6 @@ fn formatted_attributes_keep_pdf_code_formatting_and_links() -> Result<(), Error
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn passthrough_character_references_preserve_visible_pdf_code() -> Result<(), Error> {
     let source =
@@ -1849,7 +1892,6 @@ fn passthrough_character_references_preserve_visible_pdf_code() -> Result<(), Er
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_quotes_use_bold_and_italic_pdf_fonts() -> Result<(), Error> {
     let pdf =
@@ -1877,7 +1919,6 @@ fn verbatim_quotes_use_bold_and_italic_pdf_fonts() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_quotes_preserve_pdf_destinations_and_notes() -> Result<(), Error> {
     let source = include_str!("fixtures/source/subs_verbatim_quotes_nested.adoc");
@@ -1984,7 +2025,6 @@ fn inline_verbatim_targets_keep_glyph_positions() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn inline_verbatim_targets_keep_duplicate_and_copied_title_ownership() -> Result<(), Error> {
     let pdf = render_input(include_str!(
@@ -2108,7 +2148,6 @@ fn inline_anchor_spacing_keeps_glyph_positions() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn inline_anchor_spacing_in_code_keeps_pdf_destinations() -> Result<(), Error> {
     let source = include_str!("fixtures/source/subs_inline_anchor_spacing.adoc");
@@ -2158,7 +2197,6 @@ fn index_dash_context_keeps_catalog_labels_independent_of_body_context() -> Resu
 }
 
 #[test]
-#[cfg(feature = "pre-spec-subs")]
 fn index_dash_context_preserves_code_destinations_and_link_positions() -> Result<(), Error> {
     let input = "= Context\n\n[source,text,subs=\"specialchars,macros,replacements\"]\n----\n\
         12anchor:before[]indexterm2:[--]anchor:after[]34 link:https://next.example/context[Next]\n----\n";
@@ -2207,7 +2245,6 @@ fn index_dash_context_preserves_code_destinations_and_link_positions() -> Result
 }
 
 #[test]
-#[cfg(feature = "pre-spec-subs")]
 fn index_replacement_context_keeps_code_anchor_ownership() -> Result<(), Error> {
     for (body, control) in [
         (
@@ -2563,7 +2600,6 @@ fn anchor_macros_keep_their_pdf_destinations() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn anchor_macros_in_code_keep_pdf_destinations() -> Result<(), Error> {
     for highlighting in ["", ":source-highlighter: rouge\n"] {
@@ -2584,7 +2620,6 @@ fn anchor_macros_in_code_keep_pdf_destinations() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn anchor_macros_in_code_target_the_occurrence_page() -> Result<(), Error> {
     for target_line in [1, 50, 70] {
@@ -2662,7 +2697,6 @@ fn xref_nested_footnotes_keep_their_own_page_destination() -> Result<(), Error> 
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_xref_nested_footnotes_keep_their_own_page_destination() -> Result<(), Error> {
     for highlighter in ["", ":source-highlighter: rouge\n"] {
@@ -2682,7 +2716,6 @@ fn verbatim_xref_nested_footnotes_keep_their_own_page_destination() -> Result<()
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn index_catalog_labels_do_not_create_extra_pdf_footnotes() -> Result<(), Error> {
     let pdf = render_input(include_str!("fixtures/source/subs_index_stage_labels.adoc"))?;
@@ -2796,7 +2829,6 @@ fn inline_code_footnotes_survive_table_wrapping() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_footnotes_keep_clickable_markers_and_reuse_definitions() -> Result<(), Error> {
     for highlighter in ["", ":source-highlighter: rouge\n"] {
@@ -2819,7 +2851,6 @@ fn verbatim_footnotes_keep_clickable_markers_and_reuse_definitions() -> Result<(
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_footnotes_inside_link_labels_keep_their_own_destination() -> Result<(), Error> {
     for highlighter in ["", ":source-highlighter: rouge\n"] {
@@ -2856,7 +2887,6 @@ fn verbatim_footnotes_inside_link_labels_keep_their_own_destination() -> Result<
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn wrapped_verbatim_footnotes_render_once() -> Result<(), Error> {
     for prefix in 60..=100 {
@@ -2872,7 +2902,6 @@ fn wrapped_verbatim_footnotes_render_once() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn named_footnotes_do_not_insert_spaces_in_code() -> Result<(), Error> {
     for highlighter in ["", ":source-highlighter: rouge\n"] {
@@ -2887,7 +2916,6 @@ fn named_footnotes_do_not_insert_spaces_in_code() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_links_preserve_clickable_labels_and_spacing() -> Result<(), Error> {
     for highlighter in ["", ":source-highlighter: rouge\n"] {
@@ -2916,7 +2944,6 @@ fn verbatim_links_preserve_clickable_labels_and_spacing() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_cross_references_reach_the_target_page() -> Result<(), Error> {
     for highlighter in ["", ":source-highlighter: rouge\n"] {
@@ -2931,7 +2958,6 @@ fn verbatim_cross_references_reach_the_target_page() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_link_ids_and_wrapped_links_compile() -> Result<(), Error> {
     let parsed = parse(
@@ -3040,7 +3066,6 @@ fn multiple_index_catalogs_compile_with_relationship_links() -> Result<(), Error
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_index_locators_follow_the_rendered_code_pages() -> Result<(), Error> {
     use std::fmt::Write as _;
@@ -3097,7 +3122,6 @@ fn verbatim_index_locators_follow_the_rendered_code_pages() -> Result<(), Error>
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_index_anchors_preserve_numbered_code_alignment() -> Result<(), Error> {
     for autofit in ["", ",options=autofit"] {
@@ -3118,7 +3142,6 @@ fn verbatim_index_anchors_preserve_numbered_code_alignment() -> Result<(), Error
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_index_locators_match_occurrences_at_page_boundaries() -> Result<(), Error> {
     use std::fmt::Write as _;
@@ -3643,11 +3666,6 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
         .file_stem()
         .and_then(|name| name.to_str())
         .ok_or("invalid fixture file name")?;
-
-    #[cfg(not(feature = "pre-spec-subs"))]
-    if file_name.contains("subs") {
-        return Ok(());
-    }
 
     let expected_path = Path::new("tests/fixtures/expected")
         .join(file_name)

@@ -6,8 +6,6 @@ use std::{
     time::Instant,
 };
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     ConversionResult, Converter, Diagnostics, Options, PrettyDuration, WarningSource,
 };
@@ -35,8 +33,6 @@ impl<'a> Converter<'a> for Processor<'a> {
             listing_counter: Rc::new(Cell::new(0)),
             table_counter: Rc::new(Cell::new(0)),
             pdf_options: PdfOptions::default(),
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: Rc::new(Cell::new(SubsFlags::all())),
         })
     }
 

@@ -1,7 +1,5 @@
 use std::fmt::Write as _;
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{
     Doctype, TraversalContext, document_attribute_text,
     icon::IconMode,
@@ -381,28 +379,12 @@ impl<'a> PdfVisitor<'a, '_, '_> {
             self.writer.raw("]\n");
         }
 
-        #[cfg(feature = "pre-spec-subs")]
-        let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-            block
-                .attributes()
-                .and_then(|attributes| match attributes.get("subs") {
-                    Some(acdc_parser::ast::AttributeValueRef::Substitutions(spec)) => Some(spec),
-                    _ => None,
-                }),
-            matches!(
-                block.kind(),
-                BlockKind::Listing(_) | BlockKind::Literal(_) | BlockKind::Passthrough(_)
-            ),
-        ));
-
         let result = self.write_delimited_block_content(traversal, block);
 
         if unbreakable {
             self.writer.raw("]\n\n");
         }
 
-        #[cfg(feature = "pre-spec-subs")]
-        self.processor.current_subs.set(previous_subs);
         result
     }
 
