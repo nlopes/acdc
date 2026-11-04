@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render attributed plus passthroughs without leaking their ID and role prefixes into the text.
+
 - Audio/video fallback labels use characters from resolved references and keep escaped references literal. Index collation uses displayed text.
 
 - Parsed named and numeric character references render as character values when known, including multi-codepoint names. Unlike Asciidoctor manpages, known named references such as `&copy;` become their displayed characters.

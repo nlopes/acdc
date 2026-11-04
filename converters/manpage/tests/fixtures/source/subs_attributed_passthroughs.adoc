@@ -1,0 +1,26 @@
+= attributed-passthroughs(1)
+:doctype: manpage
+:revdate: 2026-01-01
+
+== Name
+
+attributed-passthroughs - passthrough metadata
+
+== Description
+
+P01 [.red]++<b>*protected*</b>++.
+
+P02 [#raw.red.blue]+++<em>raw</em>+++.
+
+P03 [.underline]+*protected*+.
+
+P04 [.red]pass:[<i>macro</i>].
+
+P05 \[.red]++protected++.
+
+P06 x[.red]+word+. x[.red]++word++y.
+
+P07 <<raw>>.
+
+[subs=macros]
+P08 [.red]++<b>protected</b>++.

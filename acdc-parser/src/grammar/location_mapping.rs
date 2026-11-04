@@ -199,9 +199,18 @@ pub(crate) fn map_inner_content_locations<'a>(
             InlineNode::Symbol(symbol) => {
                 symbol.location = ctx.map_symbol_location(&symbol.location)?;
             }
+            InlineNode::RawText(raw) => {
+                raw.location = ctx.map_location(&raw.location)?;
+                if let Some(id) = raw
+                    .metadata
+                    .as_mut()
+                    .and_then(|metadata| metadata.id.as_mut())
+                {
+                    id.location = ctx.map_location(&id.location)?;
+                }
+            }
             // Invisible nodes and resolved escapes still use the enclosing text's local coordinates.
-            InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
+            InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
             | InlineNode::CalloutRef(_) => {
@@ -329,6 +338,7 @@ fn map_locations<'a>(
                         for node in &mut nodes {
                             if let InlineNode::PlainText(plain) = node {
                                 *node = InlineNode::RawText(crate::Raw {
+                                    metadata: None,
                                     content: plain.content,
                                     location: plain.location.clone(),
                                     subs: raw.subs.clone(),
@@ -339,6 +349,13 @@ fn map_locations<'a>(
                     }));
                 }
                 raw.location = ctx.map_location(&raw.location)?;
+                if let Some(id) = raw
+                    .metadata
+                    .as_mut()
+                    .and_then(|metadata| metadata.id.as_mut())
+                {
+                    id.location = ctx.map_location(&id.location)?;
+                }
             }
             InlineNode::VerbatimText(verbatim) => {
                 verbatim.location = ctx.map_location(&verbatim.location)?;
@@ -881,6 +898,7 @@ fn attribute_fragment<'a>(
     reference.map_or_else(
         || {
             InlineNode::RawText(crate::Raw {
+                metadata: None,
                 content,
                 location,
                 subs,

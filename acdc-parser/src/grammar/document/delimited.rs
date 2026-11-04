@@ -394,6 +394,7 @@ fn pass_inner<'input>(
         DelimitedBlockType::DelimitedPass(
             super::super::passthrough_processing::process_block_passthrough(
                 Raw {
+                    metadata: None,
                     content: p.content,
                     location: content_location,
                     subs: Vec::new(),

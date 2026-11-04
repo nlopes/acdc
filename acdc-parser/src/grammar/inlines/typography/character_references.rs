@@ -128,6 +128,7 @@ fn resolve_text<'a>(
     let fragment = |range: Range<usize>| {
         if let Some(subs) = raw_subs {
             InlineNode::RawText(Raw {
+                metadata: None,
                 content: &text[range.clone()],
                 location: locate(range),
                 subs: subs.to_vec(),
@@ -162,6 +163,7 @@ fn resolve_text<'a>(
                 }
             }
             Value::Literal(content, escaping) => result.push(InlineNode::RawText(Raw {
+                metadata: None,
                 content,
                 location,
                 subs: if escaping {

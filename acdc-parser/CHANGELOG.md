@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Preserve IDs and roles on single-, double-, and triple-plus passthroughs in Asciidoctor mode. Protected text stays escaped; raw content stays raw. Draft keeps these prefixes literal until its span syntax is defined.
+
 - Explained how semantic regression checks complement ASG validation in both compatibility modes.
 
 - Documented a proposed upstream ASG representation for formatted attributes and images, with a migration path from acdc's caption format. Existing export formats are unchanged.
@@ -50,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Block image alt text now contains resolved replacement symbols in Asciidoctor mode. Draft alt text stays literal. JSON consumers must accept symbol nodes in alternative text.
 
 ### Breaking changes
+
+- `Raw` now has optional `metadata` for passthrough IDs and roles. Set it to `None` when constructing undecorated raw text. Native JSON includes the metadata only when present.
 
 - Parsed references now use `InlineNode::CharacterReference` / `InlineKind::CharacterReference` instead of plain or raw text. Native JSON readers must accept `charref` nodes; numeric references use decimal spelling.
 

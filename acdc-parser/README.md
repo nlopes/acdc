@@ -187,6 +187,14 @@ repeated entries. These replace the enclosing block's rules. The reads do not
 decode character references; source locations still identify authored input.
 Curved quotes, standalone apostrophes, and line breaks retain their own kinds.
 
+Attributed `+text+`, `++text++`, and `+++text+++` passthroughs retain IDs and roles
+in Asciidoctor mode. Read them with `RawRef::id()`, `roles()`, or `attributes()`.
+Draft currently keeps these attribute prefixes literal; the draft does not define
+this prefix syntax. Protected and raw text keep their output behavior. Native
+JSON includes `metadata` only on attributed passthroughs. Set `Raw::metadata` to
+`None` when constructing undecorated text.
+
+
 `CharacterReferenceRef::kind()` distinguishes named and numeric references without
 converting them to display characters. For example, `&#xA9;` becomes
 `CharacterReferenceKind::Numeric(169)`. Asciidoctor mode follows Asciidoctor's

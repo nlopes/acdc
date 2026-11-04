@@ -344,6 +344,7 @@ mod tests {
                 escaped: true,
             }),
             InlineNode::RawText(Raw {
+                metadata: None,
                 content: "  α\n    ",
                 location: location.clone(),
                 subs: vec![

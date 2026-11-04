@@ -2,8 +2,8 @@ use crate::{
     Admonition, Audio, BlockMetadata, Bold, CalloutList, CrossReference, CurvedApostrophe,
     CurvedQuotation, DelimitedBlock, DescriptionList, DiscreteHeader, ElementAttributes, Header,
     Highlight, Icon, Image, IndexTerm, IndexTermRelationship, InlineImage, Italic, Link, Mailto,
-    Monospace, OrderedList, PageBreak, Paragraph, Section, Subscript, Superscript, TableOfContents,
-    ThematicBreak, UnorderedList, Url, Video,
+    Monospace, OrderedList, PageBreak, Paragraph, Raw, Section, Subscript, Superscript,
+    TableOfContents, ThematicBreak, UnorderedList, Url, Video,
 };
 
 use super::{
@@ -52,6 +52,7 @@ pub struct AttributesRef<'doc> {
 
 #[derive(Clone, Copy, Debug)]
 enum Owner<'doc> {
+    Raw(&'doc Raw<'doc>),
     Bold(&'doc Bold<'doc>),
     Italic(&'doc Italic<'doc>),
     Monospace(&'doc Monospace<'doc>),
@@ -166,6 +167,12 @@ impl<'doc> AttributesRef<'doc> {
     pub(super) fn mailto(owner: &'doc Mailto<'doc>) -> Self {
         Self {
             owner: Owner::Mailto(owner),
+        }
+    }
+
+    pub(super) fn raw(owner: &'doc Raw<'doc>) -> Self {
+        Self {
+            owner: Owner::Raw(owner),
         }
     }
 
@@ -382,7 +389,8 @@ impl<'doc> AttributesRef<'doc> {
             Substitutions, Title,
         };
         match self.owner {
-            Owner::Bold(_)
+            Owner::Raw(_)
+            | Owner::Bold(_)
             | Owner::Italic(_)
             | Owner::Monospace(_)
             | Owner::Highlight(_)
@@ -540,7 +548,8 @@ impl<'doc> AttributesRef<'doc> {
             Owner::TableOfContents(node) => Some(&node.metadata),
             Owner::DiscreteHeader(node) => Some(&node.metadata),
             Owner::PageBreak(node) => Some(&node.metadata),
-            Owner::CrossReference(_)
+            Owner::Raw(_)
+            | Owner::CrossReference(_)
             | Owner::IndexTerm(_)
             | Owner::InlineImage(_)
             | Owner::Icon(_)
@@ -596,7 +605,8 @@ impl<'doc> AttributesRef<'doc> {
             Owner::DiscreteHeader(node) => &node.title,
             Owner::PageBreak(node) => &node.title,
             Owner::ThematicBreak(node) => &node.title,
-            Owner::CrossReference(_)
+            Owner::Raw(_)
+            | Owner::CrossReference(_)
             | Owner::IndexTerm(_)
             | Owner::TableOfContents(_)
             | Owner::Bold(_)
@@ -630,6 +640,11 @@ impl<'doc> AttributesRef<'doc> {
 
     pub(super) fn id(self) -> Option<ElementIdRef<'doc>> {
         match self.owner {
+            Owner::Raw(node) => node
+                .metadata
+                .as_ref()
+                .and_then(|metadata| metadata.id.as_ref())
+                .map(ElementIdRef::from),
             Owner::Bold(node) => node.id.as_ref().map(ElementIdRef::from),
             Owner::Italic(node) => node.id.as_ref().map(ElementIdRef::from),
             Owner::Monospace(node) => node.id.as_ref().map(ElementIdRef::from),
@@ -705,6 +720,12 @@ impl<'doc> AttributesRef<'doc> {
 
     pub(super) fn roles(self) -> TokensRef<'doc> {
         match self.owner {
+            Owner::Raw(node) => TokensRef::new(
+                node.metadata
+                    .as_ref()
+                    .map(|metadata| metadata.roles.as_slice())
+                    .unwrap_or_default(),
+            ),
             Owner::Bold(node) => TokensRef::from_text(node.role.unwrap_or_default()),
             Owner::Italic(node) => TokensRef::from_text(node.role.unwrap_or_default()),
             Owner::Monospace(node) => TokensRef::from_text(node.role.unwrap_or_default()),

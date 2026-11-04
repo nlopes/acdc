@@ -202,6 +202,7 @@ fn literal_attribute_inlines<'a>(
         Vec::new()
     } else {
         vec![InlineNode::RawText(crate::Raw {
+            metadata: None,
             content: source.text,
             location: state.create_block_location(
                 source.source_range.start,

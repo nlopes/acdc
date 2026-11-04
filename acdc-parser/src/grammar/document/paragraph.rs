@@ -138,6 +138,7 @@ pub(super) fn build_paragraph<'a>(
     let content = if selected_style == Some("pass") {
         process_block_passthrough(
             Raw {
+                metadata: None,
                 content,
                 location: state.create_block_location(content_start, end, offset),
                 subs: Vec::new(),

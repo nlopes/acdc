@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render attributed plus passthroughs without leaking their ID and role prefixes into the text.
+
 - Audio/video labels, captions, and index labels use displayed characters for resolved references while escaped references stay literal.
 
 - Parsed named and numeric character references render as character values when known; escaped references remain literal text.

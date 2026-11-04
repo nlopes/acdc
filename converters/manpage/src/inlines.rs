@@ -410,6 +410,13 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     }
 
     fn render_raw_inline(&mut self, text: RawRef<'_>) -> Result<(), Error> {
+        let roles = role_from_tokens(text.roles());
+        self.render_with_role(roles.as_deref(), RoleDefault::Plain, false, |visitor| {
+            visitor.render_raw_content(text)
+        })
+    }
+
+    fn render_raw_content(&mut self, text: RawRef<'_>) -> Result<(), Error> {
         let mut replaced = apply_passthrough_replacements_iter(
             text.text(),
             text.substitutions(),

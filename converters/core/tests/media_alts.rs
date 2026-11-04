@@ -139,6 +139,7 @@ fn raw_alternatives_decode_only_unescaped_numeric_references() {
         (vec![Substitution::SpecialChars], "Bird &#38;"),
     ] {
         let alt = ContentAttribute::new(vec![InlineNode::RawText(Raw {
+            metadata: None,
             content: "Bird &#38;",
             location: Location::default(),
             subs,

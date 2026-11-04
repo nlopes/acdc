@@ -26,8 +26,7 @@ pub(crate) fn replace_text<'inline>(
     } else if let InlineKind::Raw(raw) = node.kind() {
         Some(InlineNode::RawText(Raw {
             content,
-            location: Location::from(node.location()),
-            subs: raw.substitutions().collect(),
+            ..Raw::from(raw)
         }))
     } else {
         None
@@ -107,6 +106,7 @@ mod tests {
                         location: Location::default(),
                     }),
                     InlineNode::RawText(Raw {
+                        metadata: None,
                         content: "",
                         location: Location::default(),
                         subs: vec![],

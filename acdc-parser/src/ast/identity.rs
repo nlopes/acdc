@@ -190,6 +190,7 @@ impl<'doc> InlineRef<'doc> {
     #[must_use]
     pub fn id(self) -> Option<ElementIdRef<'doc>> {
         match self.kind() {
+            InlineKind::Raw(node) => node.id(),
             InlineKind::Bold(node) => node.id(),
             InlineKind::Italic(node) => node.id(),
             InlineKind::Monospace(node) => node.id(),
@@ -207,7 +208,6 @@ impl<'doc> InlineRef<'doc> {
             InlineKind::IndexTerm(node) => node.id(),
             InlineKind::Anchor(node) => Some(node.element_id()),
             InlineKind::Plain(_)
-            | InlineKind::Raw(_)
             | InlineKind::Verbatim(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
             | InlineKind::Symbol(_)

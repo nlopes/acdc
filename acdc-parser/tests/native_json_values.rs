@@ -156,6 +156,7 @@ fn raw_json_retains_its_independent_substitution_policy(
     #[case] substitutions: Vec<Substitution>,
 ) -> Result<(), TestError> {
     let raw = Raw {
+        metadata: None,
         content: "<literal> &copy;",
         location: acdc_parser::Location::default(),
         subs: substitutions.clone(),

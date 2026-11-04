@@ -116,6 +116,7 @@ fn raw_capture_owns_text_even_when_writing_its_placeholder_fails() -> Result<(),
     {
         let text = String::from("temporary <raw>");
         let raw = Raw {
+            metadata: None,
             content: &text,
             location: Location::default(),
             subs: Vec::new(),

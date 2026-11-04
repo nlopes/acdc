@@ -85,6 +85,7 @@ fn raw_context_keeps_adjacent_spaces_and_outlives_its_inputs() {
                     location: Location::default(),
                 }),
                 InlineNode::RawText(Raw {
+                    metadata: None,
                     content: &text,
                     subs: vec![Substitution::Replacements],
                     location: Location::default(),

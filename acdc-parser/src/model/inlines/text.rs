@@ -157,6 +157,8 @@ impl Serialize for Plain<'_> {
 /// output behavior.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Raw<'a> {
+    /// Identity on an attributed passthrough; absent on ordinary raw text.
+    pub metadata: Option<Box<crate::InlineMetadata<'a>>>,
     pub content: &'a str,
     pub location: Location,
     /// The passthrough substitutions that the converter applies to this text, in order.

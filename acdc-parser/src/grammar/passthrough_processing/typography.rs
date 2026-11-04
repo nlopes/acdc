@@ -53,6 +53,7 @@ pub(super) fn finish_replacement_stage<'a>(
                 let stop = offset.min(range.end);
                 if begin < stop {
                     destination.push(Raw {
+                        metadata: None,
                         content: &raw.content[begin - start..stop - start],
                         location: super::raw_segment_location(
                             &raw,
@@ -205,6 +206,7 @@ fn append_encoded_literal<'a>(
         append_fragments(result, text, fragments, range, Some(original.start), state);
     } else {
         result.push(InlineNode::RawText(Raw {
+            metadata: None,
             content: decoded,
             location: locate(text, fragments, original, state),
             subs: vec![Substitution::SpecialChars],
@@ -243,6 +245,7 @@ fn append_fragments<'a>(
         };
         first = false;
         result.push(InlineNode::RawText(Raw {
+            metadata: None,
             content: &text[left..right],
             location: locate(text, fragments, start..right, state),
             subs: raw

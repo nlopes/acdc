@@ -586,7 +586,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     }
 
     fn render_raw(&mut self, r: RawRef<'_>) -> Result<(), Error> {
-        let text = passthrough_substitution_text(r, self.text_boundaries());
+        let mut text = passthrough_substitution_text(r, self.text_boundaries());
+        if r.id().is_some() || !r.roles().is_empty() {
+            text = format!(
+                "<span{}{}>{text}</span>",
+                link_id_attr(r.id()),
+                link_class_attr(r.roles(), false)
+            );
+        }
         if let Some(captured) = self.captured_raw_fragments.as_mut() {
             let index = captured.len();
             captured.push(text);

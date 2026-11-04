@@ -74,9 +74,40 @@ peg::parser! {
         / nodes:verbatim_inline()+ {? expand_escaped_index_terms(nodes, state) }
 
         rule verbatim_inline() -> InlineNode<'input>
-        = node:(verbatim_index_term() / verbatim_footnote() / verbatim_anchor() / verbatim_link() / quotes_non_plain_text() / verbatim_plain_text()) {
+        = node:(escaped_passthrough_attributes() / attributed_passthrough() / verbatim_index_term() / verbatim_footnote() / verbatim_anchor() / verbatim_link() / quotes_non_plain_text() / verbatim_plain_text()) {
             record_url_boundary(state, &node, span_end, &Substitution::Quotes);
             node
+        }
+
+        rule check_passthrough_attributes()
+        = {? (state.options.compatibility_mode == crate::CompatibilityMode::Asciidoctor && !state.attribute_passthroughs.is_empty()).then_some(()).ok_or("literal passthrough prefix") }
+        rule attributed_passthrough_index(start: usize) -> usize
+        = check_passthrough_attributes() "\u{FFFD}\u{FFFD}\u{FFFD}" index:$(['0'..='9']+) "\u{FFFD}\u{FFFD}\u{FFFD}"
+          {? index.parse::<usize>().ok().filter(|index| state.attribute_passthroughs.get(*index).is_some_and(|pass| matches!(pass.kind, PassthroughKind::Single | PassthroughKind::Double | PassthroughKind::Triple) && (pass.kind != PassthroughKind::Single || check_constrained_opening_boundary(start, state.input.as_bytes(), state.outer_constrained_delimiter, b'+')))).ok_or("plus passthrough") }
+
+        rule check_passthrough_prefix(start: usize)
+        = {? (start == 0 || state.input.as_bytes().get(start - 1) != Some(&b'\\')).then_some(()).ok_or("escaped passthrough prefix") }
+
+        rule escaped_passthrough_attributes_match()
+        = check_macros() check_passthrough_attributes() "\\" inline_attributes() &attributed_passthrough_index(0)
+
+        rule escaped_passthrough_attributes() -> InlineNode<'input>
+        = check_macros() check_passthrough_attributes() "\\" content:$(inline_attributes()) &attributed_passthrough_index(0) {
+            InlineNode::PlainText(Plain { content, escaped: true, location: state.create_block_location(span_start, span_end, state.inline_ctx.offset) })
+        }
+
+        rule attributed_passthrough_match()
+        = check_macros() check_passthrough_attributes() start:position!() inline_attributes() check_passthrough_prefix(start) attributed_passthrough_index(start)
+
+        rule attributed_passthrough() -> InlineNode<'input>
+        = check_macros() check_passthrough_attributes() start:position!() attrs:inline_attributes() check_passthrough_prefix(start) index:attributed_passthrough_index(start) {?
+            let pass = state.attribute_passthroughs.get(index).ok_or("plus passthrough")?;
+            Ok(InlineNode::RawText(Raw {
+                metadata: Some(Box::new(crate::InlineMetadata { roles: attrs.0, id: attrs.1 })),
+                content: pass.text.unwrap_or_default(),
+                subs: pass.substitutions.clone(),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+            }))
         }
 
         rule check_attribute_profiles()
@@ -172,11 +203,17 @@ peg::parser! {
             !(check_index_terms() (
                 &("\\"+ index_term_match()) escaped_syntax_match() / index_term_match()
             ))
+            !escaped_passthrough_attributes_match()
+            !attributed_passthrough_match()
             !(check_macros() ("\\"? footnote_match()))
+            !escaped_passthrough_attributes_match()
+            !attributed_passthrough_match()
             !(check_macros() (
                 "\\"? anchor_macro_pattern() / inline_anchor_match()
                 / &("\\"+ "[[") escaped_syntax_match()
             ))
+            !escaped_passthrough_attributes_match()
+            !attributed_passthrough_match()
             !(check_macros() (
                 verbatim_link_match(false)
                 / &("\\"+ verbatim_link_match(true)) escaped_syntax_match()
@@ -282,12 +319,14 @@ peg::parser! {
             / check_macros() &['\\'] anchor:escaped_anchor_macro() { anchor }
             / &['\\'] bracket:index_label_bracket() { bracket }
             / &['\\'] bracket:escaped_label_character() { bracket }
+            / &['\\'] passthrough:escaped_passthrough_attributes() { passthrough }
             / &['\\'] escaped_syntax:escaped_syntax() { escaped_syntax }
             // Index terms: concealed (triple parens) must come before flow (double parens)
             / check_index_terms() &['('] index_term:index_term_concealed() { index_term }
             / check_index_terms() &['('] index_term:index_term_flow() { index_term }
             / check_index_terms() &['i'] indexterm:indexterm_macro() { indexterm }
             / check_index_terms() &['i'] indexterm2:indexterm2_macro() { indexterm2 }
+            / &['['] passthrough:attributed_passthrough() { passthrough }
             / check_macros() &['['] invalid_bibliography_anchor:invalid_bibliography_anchor() { invalid_bibliography_anchor }
             / check_macros() &['[' | 'a'] inline_anchor:inline_anchor() { inline_anchor }
             / check_macros() &['<'] cross_reference_shorthand:cross_reference_shorthand() { cross_reference_shorthand }
@@ -364,6 +403,7 @@ peg::parser! {
                 state, &Substitution::Macros, span_start, content.len(),
             ));
             InlineNode::RawText(Raw {
+                metadata: None,
                 content: &content[escapes..],
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 subs: vec![Substitution::SpecialChars],
@@ -393,6 +433,7 @@ peg::parser! {
                 0
             };
             InlineNode::RawText(Raw {
+                metadata: None,
                 content: &content[escapes.min(content.len() - 1)..],
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 subs: vec![Substitution::SpecialChars],
@@ -2254,6 +2295,8 @@ peg::parser! {
                     // plain text absorb it when post replacements cannot handle it.
                     check_post_replacements() paragraph_break()
                     / profiled_attribute_match()
+                    / escaped_passthrough_attributes_match()
+                    / &['['] attributed_passthrough_match()
                     / check_hardbreaks() line_break_eol()
                     / ![_]
                     / &['\\'] (check_macros() "\\" anchor_macro_pattern() / index_label_bracket_match() / escaped_label_character_match() / escaped_syntax_match())

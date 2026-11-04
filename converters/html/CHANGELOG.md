@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render attributed plus passthroughs without leaking their ID and role prefixes into the text. Apply the supported inline roles and retain link destinations.
+
 - Document titles and subtitles keep escaped references literal in the HTML head. Literal markup cannot close the title element or introduce head elements.
 
 - Reference characters in source-code link labels now use their display text, including labels taken from referenced headings. Literal escaped references remain unchanged.

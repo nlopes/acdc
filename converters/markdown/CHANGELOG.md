@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render attributed plus passthroughs without leaking their ID and role prefixes into the text. Apply the supported inline roles and retain link destinations.
+
 - Audio/video links, image alternatives, and tooltips preserve escaped reference text. Code and passthrough blocks use resolved references consistently.
 
 - Parsed character references retain their meaning in prose and code. Literal ampersands are escaped so Markdown readers do not interpret them as references.

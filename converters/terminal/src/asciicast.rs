@@ -386,6 +386,7 @@ mod tests {
                     location: Location::default(),
                 }),
                 InlineNode::RawText(Raw {
+                    metadata: None,
                     content: "[0,\"o\",\"&#60;λ&#62;\"]\n[60,\"o\",\"done\"]\n",
                     location: Location::default(),
                     subs: Vec::new(),

@@ -186,7 +186,21 @@ fn write_raw_text<W: Write + ?Sized>(
     } else {
         decode_numeric_char_refs(&replaced)
     };
+    let underline = raw.roles().iter().any(|role| role == "underline");
+    let strike = raw.roles().iter().any(|role| role == "line-through");
+    if underline {
+        w.queue(SetAttribute(Attribute::Underlined))?;
+    }
+    if strike {
+        w.queue(SetAttribute(Attribute::CrossedOut))?;
+    }
     write!(w, "{text}")?;
+    if strike {
+        w.queue(SetAttribute(Attribute::NotCrossedOut))?;
+    }
+    if underline {
+        w.queue(SetAttribute(Attribute::NoUnderline))?;
+    }
     Ok(())
 }
 

@@ -477,6 +477,7 @@ fn append_resolved<'a>(
     let plain = |range: Range<usize>| {
         if let Some(subs) = raw_subs {
             InlineNode::RawText(Raw {
+                metadata: None,
                 content: &text[range.clone()],
                 location: locate(range),
                 subs: subs.to_vec(),
@@ -514,12 +515,14 @@ fn append_resolved<'a>(
                             .enabled(&Substitution::SpecialChars)
                 {
                     InlineNode::RawText(Raw {
+                        metadata: None,
                         content: &text[range],
                         location: node_location,
                         subs: vec![Substitution::SpecialChars],
                     })
                 } else {
                     InlineNode::RawText(Raw {
+                        metadata: None,
                         content: decoded,
                         location: node_location,
                         subs: vec![Substitution::SpecialChars],
@@ -557,6 +560,7 @@ fn protected_literal<'a>(
         literal
     };
     InlineNode::RawText(Raw {
+        metadata: None,
         content,
         location,
         subs: raw_subs.map_or_else(

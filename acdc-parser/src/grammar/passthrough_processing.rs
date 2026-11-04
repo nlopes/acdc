@@ -167,6 +167,7 @@ pub(super) fn prepare_index_catalog<'a>(term: &mut IndexTerm<'a>, state: &Parser
             crate::grammar::location_walk::walk_inline_nodes_mut(node, &mut |node| {
                 if let InlineNode::PlainText(plain) = node {
                     *node = InlineNode::RawText(Raw {
+                        metadata: None,
                         content: plain.content,
                         location: plain.location.clone(),
                         subs: if plain.escaped {
@@ -347,6 +348,7 @@ fn process_passthrough_stages<'a>(
     attribute_substitutions: SubstitutionPlan,
 ) -> Vec<InlineNode<'a>> {
     let raw = Raw {
+        metadata: None,
         content,
         location: passthrough_content_location(passthrough, content, state),
         subs: Vec::new(),
@@ -365,6 +367,7 @@ fn process_passthrough_stages<'a>(
             if cursor < fragment.range.start {
                 nodes.extend(process_raw_substitutions(
                     Raw {
+                        metadata: None,
                         content: &content[cursor..fragment.range.start],
                         ..raw.clone()
                     },
@@ -374,6 +377,7 @@ fn process_passthrough_stages<'a>(
             }
             nodes.extend(process_attribute_fragment(
                 Raw {
+                    metadata: None,
                     content: &content[fragment.range.clone()],
                     ..raw.clone()
                 },
@@ -385,6 +389,7 @@ fn process_passthrough_stages<'a>(
         if cursor < content.len() {
             nodes.extend(process_raw_substitutions(
                 Raw {
+                    metadata: None,
                     content: &content[cursor..],
                     ..raw.clone()
                 },
@@ -413,6 +418,7 @@ fn process_passthrough_stages<'a>(
     for (start, _) in content.match_indices(r"\]") {
         push_raw_segment(&mut fragments, &raw, cursor, start, Vec::new(), state);
         fragments.push(InlineNode::RawText(Raw {
+            metadata: None,
             content: &content[start + 1..start + 2],
             location: raw_segment_location(&raw, start, start + 2, state),
             subs: Vec::new(),
@@ -464,6 +470,7 @@ fn process_attribute_fragment<'a>(
     }
     process_raw_substitutions(
         Raw {
+            metadata: None,
             content: text,
             location: child.create_block_location(0, text.len(), 0),
             subs: Vec::new(),
@@ -643,6 +650,7 @@ fn restore_raw_character_references<'a>(
         }
         push_raw_segment(&mut fragments, raw, cursor, start, subs.clone(), state);
         fragments.push(InlineNode::RawText(Raw {
+            metadata: None,
             content: state.intern_str(&prepared),
             location,
             subs: reference_subs,
@@ -705,6 +713,7 @@ fn apply_inline_stage<'a>(
             if let InlineNode::Symbol(symbol) = node {
                 fragments.push(TextFragment::Symbol {
                     text: Raw {
+                        metadata: None,
                         content: symbol.kind.text(),
                         location: symbol.location,
                         subs: Vec::new(),
@@ -716,6 +725,7 @@ fn apply_inline_stage<'a>(
             if let InlineNode::CharacterReference(reference) = node {
                 fragments.push(TextFragment::Reference {
                     text: Raw {
+                        metadata: None,
                         content: state.intern_fmt(format_args!("{}", reference.kind())),
                         location: reference.location.clone(),
                         subs: Vec::new(),
@@ -1028,9 +1038,9 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
             continue;
         }
         if name.is_empty()
-            || !name
+            || name
                 .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+                .any(|byte| !(byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')))
         {
             cursor = end;
             continue;
@@ -1069,31 +1079,12 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
             ));
             continue;
         }
-        let mut value_cursor = 0;
-        // Prepared ranges have already undergone definition-time substitutions.
-        // Only ordinary attribute text still needs its header escaping here.
-        for range in resolved.passthrough_ranges() {
-            if value_cursor < range.start {
-                result.push(InlineNode::RawText(Raw {
-                    content: state.intern_str(&value[value_cursor..range.start]),
-                    location: reference_location.clone(),
-                    subs: vec![Substitution::SpecialChars],
-                }));
-            }
-            result.push(InlineNode::RawText(Raw {
-                content: state.intern_str(&value[range.clone()]),
-                location: reference_location.clone(),
-                subs: Vec::new(),
-            }));
-            value_cursor = range.end;
-        }
-        if value_cursor < value.len() {
-            result.push(InlineNode::RawText(Raw {
-                content: state.intern_str(&value[value_cursor..]),
-                location: reference_location,
-                subs: vec![Substitution::SpecialChars],
-            }));
-        }
+        result.extend(expand_prepared_attribute(
+            &value,
+            resolved,
+            reference_location,
+            state,
+        ));
     }
     push_raw_segment(
         &mut result,
@@ -1103,6 +1094,44 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
         raw.subs.clone(),
         state,
     );
+    result
+}
+
+fn expand_prepared_attribute<'a>(
+    value: &str,
+    resolved: &crate::DocumentAttributeValue<'_>,
+    location: crate::Location,
+    state: &ParserState<'a>,
+) -> Vec<InlineNode<'a>> {
+    let mut result = Vec::new();
+    let mut value_cursor = 0;
+    // Prepared ranges have already undergone definition-time substitutions.
+    // Only ordinary attribute text still needs its header escaping here.
+    for range in resolved.passthrough_ranges() {
+        if value_cursor < range.start {
+            result.push(InlineNode::RawText(Raw {
+                metadata: None,
+                content: state.intern_str(&value[value_cursor..range.start]),
+                location: location.clone(),
+                subs: vec![Substitution::SpecialChars],
+            }));
+        }
+        result.push(InlineNode::RawText(Raw {
+            metadata: None,
+            content: state.intern_str(&value[range.clone()]),
+            location: location.clone(),
+            subs: Vec::new(),
+        }));
+        value_cursor = range.end;
+    }
+    if value_cursor < value.len() {
+        result.push(InlineNode::RawText(Raw {
+            metadata: None,
+            content: state.intern_str(&value[value_cursor..]),
+            location: location,
+            subs: vec![Substitution::SpecialChars],
+        }));
+    }
     result
 }
 
@@ -1130,6 +1159,7 @@ fn escaped_raw_attribute_reference<'a>(
     Some((
         source_start,
         InlineNode::RawText(Raw {
+            metadata: None,
             content: state.intern_str(&literal),
             location: raw_segment_location(raw, source_start, end, state),
             subs: raw.subs.clone(),
@@ -1147,6 +1177,7 @@ fn push_raw_segment<'a>(
 ) {
     if start < end {
         result.push(InlineNode::RawText(Raw {
+            metadata: None,
             content: &raw.content[start..end],
             location: raw_segment_location(raw, start, end, state),
             subs,
@@ -1402,6 +1433,7 @@ fn restore_fragment_substitutions<'a>(
                         && right == span.end
                     {
                         let text = Raw {
+                            metadata: None,
                             content: fragment.content,
                             location: Location {
                                 absolute_start: span.start,
@@ -1413,6 +1445,7 @@ fn restore_fragment_substitutions<'a>(
                         result.push(TextFragment::Reference { text, kind: *kind }.into_node());
                     } else {
                         result.push(InlineNode::RawText(Raw {
+                            metadata: None,
                             content: &raw.content[left - start..right - start],
                             location: Location {
                                 absolute_start: if left == start { original_start } else { left },
@@ -1452,6 +1485,7 @@ fn convert_plain_to_raw_with_source(
             }
         }
         *node = InlineNode::RawText(Raw {
+            metadata: None,
             content: plain.content,
             location: plain.location.clone(),
             subs: subs.to_vec(),

@@ -2420,7 +2420,11 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             }
             InlineKind::LineBreak(_) => writeln!(self.writer, "  ")?,
             InlineKind::Raw(text) => {
+                self.write_inline_anchor(text.id().map(ElementIdRef::as_str))?;
+                let roles = text.roles().iter().collect::<Vec<_>>().join(" ");
+                let role = self.write_role_start(Some(&roles))?;
                 self.write_passthrough(text.text(), || text.substitutions())?;
+                self.write_role_end(role)?;
             }
             InlineKind::Verbatim(text) => self.write_code_span(text.text())?,
             InlineKind::StandaloneCurvedApostrophe(_) => {

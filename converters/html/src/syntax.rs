@@ -538,6 +538,7 @@ mod tests {
                 escaped: false,
             }),
             InlineNode::RawText(Raw {
+                metadata: None,
                 content: "(C)",
                 location: Location::default(),
                 subs: vec![Substitution::Replacements],

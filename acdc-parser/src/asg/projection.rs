@@ -98,16 +98,7 @@ fn inline_value(value: &InlineNode<'_>, path: &str, profile: Profile) -> Result<
             result
         }
         InlineNode::StandaloneCurvedApostrophe(_) => literal("text", "\u{2019}"),
-        InlineNode::RawText(raw) => match raw.subs.as_slice() {
-            [] => literal("raw", raw.content),
-            [Substitution::SpecialChars] => literal("text", raw.content),
-            _ => {
-                return Err(unsupported(
-                    &pointer(path, "substitutions"),
-                    "remaining passthrough operations are not resolved ASG content",
-                ));
-            }
-        },
+        InlineNode::RawText(raw) => raw_literal(raw, path)?,
         InlineNode::BoldText(span) => span_node(
             "strong",
             &span.form,
@@ -605,6 +596,33 @@ impl<'a, 'doc> Export<'a, 'doc> {
         }
         Ok(())
     }
+}
+
+fn raw_literal(raw: &crate::Raw<'_>, path: &str) -> Result<Node, Error> {
+    if let Some(metadata) = &raw.metadata {
+        if metadata.id.is_some() {
+            return Err(unsupported(
+                &pointer(&pointer(path, "metadata"), "id"),
+                "passthrough identity is not representable in this ASG profile",
+            ));
+        }
+        if !metadata.roles.is_empty() {
+            return Err(unsupported(
+                &pointer(&pointer(path, "metadata"), "roles"),
+                "passthrough roles are not representable in this ASG profile",
+            ));
+        }
+    }
+    Ok(match raw.subs.as_slice() {
+        [] => literal("raw", raw.content),
+        [Substitution::SpecialChars] => literal("text", raw.content),
+        _ => {
+            return Err(unsupported(
+                &pointer(path, "substitutions"),
+                "remaining passthrough operations are not resolved ASG content",
+            ));
+        }
+    })
 }
 
 #[cfg(test)]

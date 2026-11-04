@@ -330,8 +330,16 @@ where
                     self.inlines(&mut label.content)?;
                 }
             }
+            InlineNode::RawText(raw) => {
+                if let Some(id) = raw
+                    .metadata
+                    .as_mut()
+                    .and_then(|metadata| metadata.id.as_mut())
+                {
+                    (self.visit_location)(&mut id.location)?;
+                }
+            }
             InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::Symbol(_)

@@ -153,6 +153,7 @@ pub(super) fn resolve<'a>(
         )?
     } else {
         vec![InlineNode::RawText(Raw {
+            metadata: None,
             content: value.text,
             location: state.create_location(
                 value.source_map.map_position(0)?,

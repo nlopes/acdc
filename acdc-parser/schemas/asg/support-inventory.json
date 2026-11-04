@@ -2556,6 +2556,7 @@
       "shape": {
         "kind": "struct",
         "fields": [
+          "metadata",
           "content",
           "location",
           "subs"
@@ -2577,6 +2578,10 @@
         },
         "subs": {
           "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineLiteral"
+        },
+        "metadata": {
+          "policy": "the-pinned-inline-span-reference-forms-have",
           "upstream": "#/$defs/inlineLiteral"
         }
       },

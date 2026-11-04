@@ -23,6 +23,24 @@ impl<'doc> PlainRef<'doc> {
 }
 
 impl<'doc> RawRef<'doc> {
+    /// The passthrough's retained identity and role tokens.
+    #[must_use]
+    pub fn attributes(self) -> super::super::AttributesRef<'doc> {
+        super::super::AttributesRef::raw(self.node)
+    }
+
+    /// The retained element ID.
+    #[must_use]
+    pub fn id(self) -> Option<super::super::ElementIdRef<'doc>> {
+        self.attributes().id()
+    }
+
+    /// The retained role tokens, in order.
+    #[must_use]
+    pub fn roles(self) -> super::super::TokensRef<'doc> {
+        self.attributes().roles()
+    }
+
     /// The passthrough text, without rendering.
     #[must_use]
     pub fn text(self) -> &'doc str {
@@ -69,6 +87,12 @@ impl<'doc> PassRef<'doc> {
 impl<'doc> From<&'doc Plain<'doc>> for PlainRef<'doc> {
     fn from(owner: &'doc Plain<'doc>) -> Self {
         Self::new(owner)
+    }
+}
+
+impl<'doc> From<RawRef<'doc>> for Raw<'doc> {
+    fn from(owner: RawRef<'doc>) -> Self {
+        owner.node.clone()
     }
 }
 

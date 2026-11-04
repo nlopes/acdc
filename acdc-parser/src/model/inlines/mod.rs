@@ -527,6 +527,13 @@ fn serialize_raw<S: Serializer>(raw: &Raw<'_>, map: &mut S::SerializeMap) -> Res
     map.serialize_entry("name", "raw")?;
     map.serialize_entry("type", "string")?;
     map.serialize_entry("value", raw.content)?;
+    if let Some(metadata) = raw
+        .metadata
+        .as_ref()
+        .filter(|metadata| !metadata.is_empty())
+    {
+        map.serialize_entry("metadata", metadata)?;
+    }
     if !raw.subs.is_empty() {
         map.serialize_entry("substitutions", &raw.subs)?;
     }

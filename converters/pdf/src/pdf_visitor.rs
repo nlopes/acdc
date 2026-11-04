@@ -1207,6 +1207,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     pub(crate) fn write_raw(&mut self, raw: RawRef<'_>) {
+        let roles = raw.roles().iter().collect::<Vec<_>>().join(" ");
+        let span = self.write_inline_span_start(raw.id().map(ElementIdRef::as_str), Some(&roles));
         let mut text = raw.text().to_string();
         let mut applied_special_chars = false;
         for substitution in raw.substitutions() {
@@ -1246,6 +1248,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         } else {
             self.write_text_expr(&acdc_converters_core::decode_numeric_char_refs(&text));
         }
+        self.write_inline_span_end(span);
     }
 
     pub(crate) fn write_quoted_span<'inline>(

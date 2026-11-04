@@ -861,8 +861,16 @@ pub(super) fn collect_inline_references<'a>(
             InlineNode::CurvedApostropheText(t) => {
                 collect_formatted_references(state, t, refs, xrefs);
             }
+            InlineNode::RawText(raw) => {
+                if let Some(id) = raw
+                    .metadata
+                    .as_ref()
+                    .and_then(|metadata| metadata.id.as_ref())
+                {
+                    insert_untitled_reference(state, refs, id.id, &raw.location);
+                }
+            }
             InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::Symbol(_)

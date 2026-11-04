@@ -1,0 +1,41 @@
+{
+  "recovery": null,
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 459,
+        "absolute_start": 453,
+        "file": "inline_passthrough_metadata.adoc",
+        "location": [
+          {
+            "col": 5,
+            "line": 28
+          },
+          {
+            "col": 11,
+            "line": 28
+          }
+        ]
+      },
+      "message": "invalid reference: raw"
+    },
+    {
+      "location": {
+        "absolute_end": 472,
+        "absolute_start": 465,
+        "file": "inline_passthrough_metadata.adoc",
+        "location": [
+          {
+            "col": 17,
+            "line": 28
+          },
+          {
+            "col": 24,
+            "line": 28
+          }
+        ]
+      },
+      "message": "invalid reference: cell"
+    }
+  ]
+}

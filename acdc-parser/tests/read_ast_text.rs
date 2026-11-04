@@ -249,6 +249,7 @@ fn owner_reads_keep_distinct_text_policies_and_ordered_substitutions() {
         escaped: true,
     };
     let raw = Raw {
+        metadata: None,
         content: "*x*",
         location: location.clone(),
         subs: vec![

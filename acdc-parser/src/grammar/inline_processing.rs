@@ -423,6 +423,8 @@ fn parse_processed_inlines<'a>(
             .passthroughs
             .iter()
             .any(|pass| !pass.attribute_fragments.is_empty())
+            || (state.options.compatibility_mode == crate::CompatibilityMode::Asciidoctor
+                && text.contains("]���"))
         {
             processed.passthroughs.clone().into()
         } else {
@@ -677,6 +679,7 @@ pub(crate) fn process_verbatim_inlines<'a>(
             };
             if text.escaped {
                 InlineNode::RawText(crate::Raw {
+                    metadata: None,
                     content: text.content,
                     location: text.location,
                     subs: vec![Substitution::SpecialChars],
