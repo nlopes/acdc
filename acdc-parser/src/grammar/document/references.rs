@@ -55,7 +55,11 @@ pub(super) fn insert_reference<'a>(
     if refs.duplicate(state, anchor.id, &anchor.location) {
         return;
     }
-    let mut xreflabel = displayed_reference_label(label);
+    let mut xreflabel = if anchor.is_bibliography() {
+        label.filter(|content| !content.is_empty()).cloned()
+    } else {
+        displayed_reference_label(label)
+    };
     if !anchor.is_bibliography()
         && let Some(label) = natural_label.filter(|label| !label.trim().is_empty())
     {
@@ -709,8 +713,11 @@ fn promote_bibliography_anchor<'a>(state: &ParserState<'a>, principal: &mut Vec<
             let after_comma = anchor.location.absolute_start + anchor.id.len() + 3;
             let whitespace = state
                 .input
-                .get(after_comma..)
-                .map_or(0, |tail| tail.len() - tail.trim_start().len());
+                .get(after_comma..anchor.location.absolute_end.saturating_sub(1))
+                .map_or(0, |authored| {
+                    authored.len()
+                        - crate::grammar::inline_processing::trim_bibliography_label(authored).len()
+                });
             crate::grammar::reference_text::capture_inline(
                 state,
                 text,

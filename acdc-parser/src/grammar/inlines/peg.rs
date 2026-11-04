@@ -2198,7 +2198,7 @@ peg::parser! {
         rule anchor_reftext(start: usize) -> &'input str
         // Reserve the last three closing brackets for the bibliography delimiter.
         = bibliography_anchor_start(start)
-          label:$((!("]]]" !"]") [^'\n' | '\r'])+) { label }
+          label:$((!("]]]" !"]") [^'\n' | '\r'])*) { label }
         / !bibliography_anchor_start(start) label:$((!"]]" [_])+) { label }
 
         rule invalid_bibliography_anchor() -> InlineNode<'input>

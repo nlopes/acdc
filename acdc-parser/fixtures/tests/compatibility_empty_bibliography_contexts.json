@@ -1,0 +1,612 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Empty bibliography contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 29
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 29
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "unordered",
+      "marker": "*",
+      "metadata": {
+        "style": "bibliography"
+      },
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "included-empty",
+              "xreflabel": [],
+              "bibliography": true,
+              "bibliography_label": [],
+              "location": [
+                {
+                  "line": 3,
+                  "col": 7,
+                  "file": [
+                    "includes/empty_bibliography_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 27,
+                  "file": [
+                    "includes/empty_bibliography_selected.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " Empty included label.",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 28,
+                  "file": [
+                    "includes/empty_bibliography_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 49,
+                  "file": [
+                    "includes/empty_bibliography_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 5,
+              "file": [
+                "includes/empty_bibliography_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 49,
+              "file": [
+                "includes/empty_bibliography_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "included-spaces",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 27,
+                      "file": [
+                        "includes/empty_bibliography_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 4,
+                      "col": 27,
+                      "file": [
+                        "includes/empty_bibliography_selected.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "bibliography": true,
+              "bibliography_label": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 27,
+                      "file": [
+                        "includes/empty_bibliography_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 4,
+                      "col": 27,
+                      "file": [
+                        "includes/empty_bibliography_selected.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 4,
+                  "col": 7,
+                  "file": [
+                    "includes/empty_bibliography_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 4,
+                  "col": 30,
+                  "file": [
+                    "includes/empty_bibliography_selected.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " Whitespace included label.",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 31,
+                  "file": [
+                    "includes/empty_bibliography_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 4,
+                  "col": 57,
+                  "file": [
+                    "includes/empty_bibliography_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 5,
+              "file": [
+                "includes/empty_bibliography_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 57,
+              "file": [
+                "includes/empty_bibliography_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 5,
+          "file": [
+            "includes/empty_bibliography_selected.adoc"
+          ]
+        },
+        {
+          "line": 4,
+          "col": 57,
+          "file": [
+            "includes/empty_bibliography_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "list",
+                    "type": "block",
+                    "variant": "unordered",
+                    "marker": "*",
+                    "metadata": {
+                      "style": "bibliography"
+                    },
+                    "items": [
+                      {
+                        "name": "listItem",
+                        "type": "block",
+                        "marker": "*",
+                        "principal": [
+                          {
+                            "name": "anchor",
+                            "type": "inline",
+                            "id": "cell-empty",
+                            "xreflabel": [],
+                            "bibliography": true,
+                            "bibliography_label": [],
+                            "location": [
+                              {
+                                "line": 9,
+                                "col": 3
+                              },
+                              {
+                                "line": 9,
+                                "col": 19
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": " Empty in a cell.",
+                            "location": [
+                              {
+                                "line": 9,
+                                "col": 20
+                              },
+                              {
+                                "line": 9,
+                                "col": 36
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 1
+                          },
+                          {
+                            "line": 9,
+                            "col": 36
+                          }
+                        ]
+                      },
+                      {
+                        "name": "listItem",
+                        "type": "block",
+                        "marker": "*",
+                        "principal": [
+                          {
+                            "name": "anchor",
+                            "type": "inline",
+                            "id": "cell-unicode",
+                            "xreflabel": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "café ",
+                                "location": [
+                                  {
+                                    "line": 10,
+                                    "col": 20
+                                  },
+                                  {
+                                    "line": 10,
+                                    "col": 24
+                                  }
+                                ]
+                              }
+                            ],
+                            "bibliography": true,
+                            "bibliography_label": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "café ",
+                                "location": [
+                                  {
+                                    "line": 10,
+                                    "col": 20
+                                  },
+                                  {
+                                    "line": 10,
+                                    "col": 24
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 10,
+                                "col": 3
+                              },
+                              {
+                                "line": 10,
+                                "col": 27
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": " Padded in a cell.",
+                            "location": [
+                              {
+                                "line": 10,
+                                "col": 28
+                              },
+                              {
+                                "line": 10,
+                                "col": 45
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 10,
+                            "col": 1
+                          },
+                          {
+                            "line": 10,
+                            "col": 45
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 8,
+                        "col": 1
+                      },
+                      {
+                        "line": 10,
+                        "col": 45
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 6,
+            "col": 1
+          },
+          {
+            "line": 11,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "See ",
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "included-empty",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 13,
+              "col": 5
+            },
+            {
+              "line": 13,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 13,
+              "col": 23
+            },
+            {
+              "line": 13,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "included-spaces",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 13,
+              "col": 25
+            },
+            {
+              "line": 13,
+              "col": 43
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 13,
+              "col": 44
+            },
+            {
+              "line": 13,
+              "col": 45
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "cell-empty",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 13,
+              "col": 46
+            },
+            {
+              "line": 13,
+              "col": 59
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", and ",
+          "location": [
+            {
+              "line": 13,
+              "col": 60
+            },
+            {
+              "line": 13,
+              "col": 65
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "cell-unicode",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 13,
+              "col": 66
+            },
+            {
+              "line": 13,
+              "col": 81
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 13,
+              "col": 82
+            },
+            {
+              "line": 13,
+              "col": 82
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 82
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 13,
+      "col": 82
+    }
+  ]
+}

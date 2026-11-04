@@ -504,6 +504,13 @@ fn late_attribute_sources<'a>(
     sources
 }
 
+pub(super) fn trim_bibliography_label(text: &str) -> &str {
+    // Asciidoctor strips leading ASCII spaces but keeps one supplied character.
+    let spaces = text.len() - text.trim_start_matches(' ').len();
+    text.get(spaces.min(text.len().saturating_sub(1))..)
+        .unwrap_or_default()
+}
+
 fn parse_bibliography_label<'a>(
     state: &ParserState<'a>,
     location: &Location,
@@ -523,7 +530,7 @@ fn parse_bibliography_label<'a>(
     let Some((_, label)) = body.split_once(',') else {
         return Ok(None);
     };
-    let label = label.trim_start();
+    let label = trim_bibliography_label(label);
     let offset = start + anchor.len() - 3 - label.len();
     let mut inline_ctx = state.inline_ctx;
     inline_ctx.offset = 0;
@@ -540,7 +547,11 @@ fn parse_bibliography_label<'a>(
         .collect();
     // Passthroughs and attributes were already processed with the list item.
     // Keep their placeholders and ranges until the enclosing location mapping.
-    let parsed = inline_parser::inlines(label, &mut child);
+    let parsed = if label.is_empty() {
+        Ok(Vec::new())
+    } else {
+        inline_parser::inlines(label, &mut child)
+    };
     for mut warning in child.take_inline_warnings() {
         if let Some(source) = &mut warning.location {
             let location = state.create_location(

@@ -124,6 +124,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bibliography entries now render explicitly empty labels as `[]` in both HTML
+  variants instead of literal anchor syntax. Whitespace-only labels and citations
+  follow Asciidoctor's leading-space rules. acdc keeps the closing bracket that
+  Asciidoctor omits for a zero-character label.
+
 - Plain text, tooltips, and highlighted code keep the parser's resolved
   typography and escapes. Highlighted and plain XML code preserve comment
   delimiters around callouts with `subs=+replacements`. Callout comment guards

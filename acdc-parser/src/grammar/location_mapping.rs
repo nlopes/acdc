@@ -408,7 +408,11 @@ fn map_anchor_locations<'a>(
             .and_then(|start| state.input.get(start..anchor.location.absolute_end + 2))
             .and_then(|source| source.strip_prefix("[[["))
             .and_then(|source| source.split_once("]]]").map(|(label, _)| label))
-            .and_then(|source| source.split_once(',').map(|(_, label)| label.trim_start()))
+            .and_then(|source| {
+                source
+                    .split_once(',')
+                    .map(|(_, label)| super::inline_processing::trim_bibliography_label(label))
+            })
             .filter(|source| !source.contains(['\n', '\r']));
     }
     if let Some(content) = &mut anchor.xreflabel {

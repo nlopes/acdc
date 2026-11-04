@@ -1,0 +1,13 @@
+= Empty bibliography contexts
+
+include::includes/empty_bibliography_selected.adoc[lines=2..4,indent=0]
+
+[cols="a"]
+|===
+|
+[bibliography]
+* [[[cell-empty,]]] Empty in a cell.
+* [[[cell-unicode, café ]]] Padded in a cell.
+|===
+
+See <<included-empty>>, <<included-spaces>>, <<cell-empty>>, and <<cell-unicode>>.

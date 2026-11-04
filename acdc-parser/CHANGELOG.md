@@ -341,6 +341,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bibliography anchors now accept empty and whitespace-only labels, including
+  labels in includes and AsciiDoc table cells. Supplied ASCII spaces follow
+  Asciidoctor's leading-space rules and remain visible in citations. Empty labels
+  stay present as `[]` in native JSON. HTML keeps a complete `[]` display envelope
+  instead of Asciidoctor's unmatched bracket for a zero-character label.
+
 - Visible bibliography labels resolve typography with the surrounding block's
   substitution profile and retain authored symbol locations.
 
