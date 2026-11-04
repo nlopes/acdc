@@ -272,7 +272,7 @@ fn write_block_helpers(out: &mut String, theme: &Theme) {
     let caption_color = caption.font_color.as_deref().unwrap_or(&palette.body_text);
     let _ = writeln!(
         out,
-        "#let captiontext(body) = {{\n  show strong: set text(fill: {color}, weight: {strong_weight}, style: \"normal\")\n  text(size: {size}em, weight: {weight}, style: \"{style}\", fill: {color}, body)\n}}\n#let blocktitle(body) = {{\n  block(width: 100%, above: {outside}pt, below: 0pt, align({align}, captiontext(body)))\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n}}\n#let imagecaption(body) = {{\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n  block(width: 100%, above: 0pt, below: {outside}pt, align({align}, captiontext(body)))\n}}",
+        "#let captiontext(body) = {{\n  show strong: set text(fill: {color}, weight: {strong_weight}, style: \"normal\")\n  show emph: it => text(style: \"italic\", it.body)\n  text(size: {size}em, weight: {weight}, style: \"{style}\", fill: {color}, body)\n}}\n#let blocktitle(body) = {{\n  block(width: 100%, above: {outside}pt, below: 0pt, align({align}, captiontext(body)))\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n}}\n#let imagecaption(body) = {{\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n  block(width: 100%, above: 0pt, below: {outside}pt, align({align}, captiontext(body)))\n}}",
         outside = typst_block_spacing(theme) + caption.margin_outside_pt,
         inside = caption.margin_inside_pt,
         align = caption_align,
@@ -853,6 +853,7 @@ mod tests {
             "#let captiontext(body) = {\n",
             "  show strong: set text(fill: rgb(\"#123456\"), weight: 700, ",
             "style: \"normal\")\n",
+            "  show emph: it => text(style: \"italic\", it.body)\n",
             "  text(size: 1.2em, weight: 600, style: \"normal\", ",
             "fill: rgb(\"#123456\"), body)\n",
             "}\n",

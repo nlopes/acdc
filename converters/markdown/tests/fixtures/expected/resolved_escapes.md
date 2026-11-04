@@ -2,7 +2,7 @@ R01 X \*word\*.
 
 R03 X \*\*word\*\*.
 
-R05 X \\\*word\* \\\[link\] \\(C) \\->.
+R05 X \\\*word\* \\\[link\] \\(C) \\-\>.
 
 R06 \\\*word\*
 

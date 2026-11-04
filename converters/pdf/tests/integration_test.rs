@@ -14,6 +14,89 @@ use acdc_converters_pdf::{PageLayout, PageMargins, PageSize, PdfOptions, Process
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn caption_families_preserve_text_styles_links_and_numbering() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/caption_families.adoc").replace(
+        "missing-caption-image.png",
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/source/inline-image-dimensions.svg"
+        ),
+    );
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            &source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let processor = cli_fixture_processor(
+            Options::builder()
+                .with_compatibility_mode(mode)
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let source = WarningSource::new("pdf");
+        processor.write_to(
+            parsed.document(),
+            &mut output,
+            None,
+            None,
+            &mut Diagnostics::new(&source, &mut warnings),
+        )?;
+        assert_eq!(warnings, []);
+        let pdf = PdfDocument::load_mem(&output)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf
+            .extract_text(&pages)?
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        for (family, label) in [
+            ("image", "Figure"),
+            ("table", "Table"),
+            ("listing", "Listing"),
+            ("example", "Example"),
+        ] {
+            for expected in [
+                format!("{label} 1. {family} default"),
+                format!("{label} π prefix Link & <tag> #[x]"),
+                format!("*Literal* & <tag> #[x] {family} literal"),
+                format!("{family} empty"),
+                format!("{family} disabled"),
+                format!("{label} 2. {family} after"),
+            ] {
+                assert!(
+                    text.contains(&expected),
+                    "{mode:?}: missing {expected:?} in {text}"
+                );
+            }
+            assert!(!text.contains(&format!("{label} 3.")), "{text}");
+        }
+        assert_text_font(&pdf_text_fonts(&pdf)?, "prefix", "Italic");
+        let mut links = Vec::new();
+        for page in pdf.get_pages().values() {
+            for annotation in pdf.get_page_annotations(*page)? {
+                if let Ok(action) = annotation.get(b"A").and_then(Object::as_dict)
+                    && let Ok(uri) = action.get(b"URI")
+                {
+                    links.push(String::from_utf8(uri.as_str()?.to_vec())?);
+                }
+            }
+        }
+        links.sort();
+        assert_eq!(
+            links,
+            [
+                "https://example.org/example?a=1&b=2",
+                "https://example.org/image?a=1&b=2",
+                "https://example.org/listing?a=1&b=2",
+                "https://example.org/table?a=1&b=2",
+            ]
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn resolved_pdf_text_and_code_links_work_in_every_build() -> Result<(), Error> {
     let source = include_str!("fixtures/source/subs_resolved_text.adoc");
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {

@@ -50,6 +50,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Italic text in custom captions stays italic when the caption theme already uses italic text, matching Asciidoctor PDF.
+
 - Block `subs=` settings work in every build. Literal text and escaped
   punctuation retain the parser-selected values. Code anchors and links use
   those values directly, including after tabs and typography symbols.

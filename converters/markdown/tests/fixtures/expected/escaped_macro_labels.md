@@ -46,7 +46,7 @@ E18 [Repeated \\\] label](https://example.org)
 
 E19 [<a id="_indexterm_2"></a>Nested active \] term](https://example.org)
 
-E20 \[\[escaped-target\]\] and <<escaped-target>>.
+E20 \[\[escaped-target\]\] and \<\<escaped-target\>\>.
 
 E21 \*literal\* \\\] text and <em>raw HTML</em>.
 

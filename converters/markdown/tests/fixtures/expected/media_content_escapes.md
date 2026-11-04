@@ -1,6 +1,6 @@
 # Media escapes and registration
 
-![\*Literal\* \] & < >](photo.png "A \"quote\"")
+![\*Literal\* \] & \< \>](photo.png "A \"quote\"")
 
 [A "quote"]
 

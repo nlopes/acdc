@@ -1,0 +1,206 @@
+'\" t
+.\"     Title: caption-families
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-11-04
+.\"    Manual: Caption tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "CAPTION\-FAMILIES" "1" "2026-11-04" "acdc" "Caption tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+caption\-families \- caption content and numbering
+.SH "DESCRIPTION"
+.sp
+[Caption alternative]
+.sp
+\fBFigure 1. image default\fR
+.br
+[Caption alternative]
+.sp
+\fB\fBFigure π\fB \fIprefix\fB \c
+.URL "https://example.org/image?a=1&b=2" "\fBLink" "\fB\c"
+ & <tag> #[x] \e\e image custom\fR
+.br
+[Caption alternative]
+.sp
+\fB*Literal* & <tag> #[x] image literal\fR
+.br
+[Caption alternative]
+.sp
+\fBimage empty\fR
+.br
+[Caption alternative]
+.sp
+\fBimage disabled\fR
+.br
+[Caption alternative]
+.sp
+\fBFigure 2. image after\fR
+.br
+[Caption alternative]
+.TS
+allbox tab(:);
+ltx ltx.
+A:B
+.TE
+.sp
+\fBTable 1. table default\fR
+.br
+.TS
+allbox tab(:);
+ltx ltx.
+A:B
+.TE
+.sp
+\fB\fBTable π\fB \fIprefix\fB \c
+.URL "https://example.org/table?a=1&b=2" "\fBLink" "\fB\c"
+ & <tag> #[x] \e\e table custom\fR
+.br
+.TS
+allbox tab(:);
+ltx ltx.
+A:B
+.TE
+.sp
+\fB*Literal* & <tag> #[x] table literal\fR
+.br
+.TS
+allbox tab(:);
+ltx ltx.
+A:B
+.TE
+.sp
+\fBtable empty\fR
+.br
+.TS
+allbox tab(:);
+ltx ltx.
+A:B
+.TE
+.sp
+\fBtable disabled\fR
+.br
+.TS
+allbox tab(:);
+ltx ltx.
+A:B
+.TE
+.sp
+\fBTable 2. table after\fR
+.br
+.TS
+allbox tab(:);
+ltx ltx.
+A:B
+.TE
+.EX
+let value = 1;
+.EE
+.sp
+\fBListing 1. listing default\fR
+.br
+.EX
+let value = 1;
+.EE
+.sp
+\fB\fBListing π\fB \fIprefix\fB \c
+.URL "https://example.org/listing?a=1&b=2" "\fBLink" "\fB\c"
+ & <tag> #[x] \e\e listing custom\fR
+.br
+.EX
+let value = 1;
+.EE
+.sp
+\fB*Literal* & <tag> #[x] listing literal\fR
+.br
+.EX
+let value = 1;
+.EE
+.sp
+\fBlisting empty\fR
+.br
+.EX
+let value = 1;
+.EE
+.sp
+\fBlisting disabled\fR
+.br
+.EX
+let value = 1;
+.EE
+.sp
+\fBListing 2. listing after\fR
+.br
+.EX
+let value = 1;
+.EE
+.RS 4
+.sp
+Example body.
+.RE
+.sp
+\fBExample 1. example default\fR
+.br
+.RS 4
+.sp
+Example body.
+.RE
+.sp
+\fB\fBExample π\fB \fIprefix\fB \c
+.URL "https://example.org/example?a=1&b=2" "\fBLink" "\fB\c"
+ & <tag> #[x] \e\e example custom\fR
+.br
+.RS 4
+.sp
+Example body.
+.RE
+.sp
+\fB*Literal* & <tag> #[x] example literal\fR
+.br
+.RS 4
+.sp
+Example body.
+.RE
+.sp
+\fBexample empty\fR
+.br
+.RS 4
+.sp
+Example body.
+.RE
+.sp
+\fBexample disabled\fR
+.br
+.RS 4
+.sp
+Example body.
+.RE
+.sp
+\fBExample 2. example after\fR
+.br
+.RS 4
+.sp
+Example body.
+.RE
+.sp
+References: Figure 1, \(lqimage default\(rq / Figure 2, Table 1, \(lqtable default\(rq / Table 2, Listing 1, \(lqlisting default\(rq / Listing 2, Example 1, \(lqexample default\(rq / Example 2\&.

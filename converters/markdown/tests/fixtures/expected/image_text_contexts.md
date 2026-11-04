@@ -4,7 +4,7 @@
 
 ![© → --](bird.png "© → --").
 
-![\*Literal\* footnote:unused\[Note\] & <tag> — ](bird.png)
+![\*Literal\* footnote:unused\[Note\] & \<tag\> — ](bird.png)
 
 ![Formatted → — ](bird.png)
 

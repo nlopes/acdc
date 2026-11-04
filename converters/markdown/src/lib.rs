@@ -276,10 +276,7 @@ impl Processor<'_> {
                 Some(format!("{label} {number}. "))
             }
             CaptionRef::Custom(prefix) => Some(prefix.to_owned()),
-            CaptionRef::CustomContent(content) => Some(
-                acdc_converters_core::InlineTextTransform::default().content_to_string(content),
-            ),
-            CaptionRef::Unnumbered | _ => None,
+            CaptionRef::CustomContent(_) | CaptionRef::Unnumbered | _ => None,
         }
     }
 

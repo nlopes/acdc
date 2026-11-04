@@ -16,6 +16,6 @@
 
 [].
 
-[**Bold** & <tag>].
+[**Bold** & \<tag\>].
 
 [Raw](https://example.org "© -> — ").

@@ -18,6 +18,58 @@ mod support;
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn literal_caption_markup_stays_text_in_both_markdown_variants() -> Result<(), Error> {
+    let input = format!(
+        "{}\nExtra <span>literal</span> and &lt;encoded&gt;.\n\npass:[<b>Raw</b>].\n",
+        include_str!("fixtures/source/caption_families.adoc")
+    );
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            &input,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&WarningSource::new("markdown"), &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let mut text = String::new();
+            let mut markup = String::new();
+            for event in parse_markdown(&output, variant) {
+                if let Event::Text(value) = event {
+                    text.push_str(&value);
+                } else if let Event::Html(value) | Event::InlineHtml(value) = event {
+                    markup.push_str(&value);
+                }
+            }
+            assert_eq!(text.matches("<tag>").count(), 8, "{output}");
+            assert!(
+                text.contains("Extra <span>literal</span> and <encoded>."),
+                "{output}"
+            );
+            assert!(
+                markup.contains("<b>") && markup.contains("</b>"),
+                "{output}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn link_tooltips_preserve_parser_selected_text() -> Result<(), Error> {
     let input = include_str!("fixtures/source/inline_text_projections.adoc");
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {

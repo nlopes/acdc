@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Italic text in custom captions stays italic when the caption theme already uses italic text, matching Asciidoctor PDF.
+
 - Literal backticks and spacing acute accents no longer attach to the preceding
   letter in IBM Plex Serif. Combining accents remain enabled.
 

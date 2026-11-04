@@ -51,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Literal angle brackets in prose and formatted captions remain visible text instead of becoming HTML tags, links, or blockquotes in Markdown. Explicit raw passthroughs keep their markup.
+
 - Generated indexes sort and combine entries by their resolved labels. Catalog
   typography uses each label's own boundaries and registration-time substitutions.
 
@@ -61,7 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   citations keep their `<cite></cite>` element. Absent values stay omitted.
 
 - Image and link tooltips retain their plain text. Icon alternatives, UI labels,
-  custom captions, and admonition labels retain formatting. Custom admonition
+  custom captions, and admonition labels retain formatting. Figure, table, listing,
+  and example captions preserve links and literal delimiters; empty or disabled
+  prefixes do not advance their numbered sequence. Custom admonition
   labels use a blockquote in both variants because GitHub Alerts fix their labels.
 - Literal quote attribution/citation text retains dashes, and static video links
   preserve complete local targets and provider playlists.

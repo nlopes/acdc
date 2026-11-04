@@ -1604,11 +1604,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let Some(title) = title else {
             return Ok(());
         };
-        let prefix = self.caption_prefix(attributes, fallback);
         let _ = write!(self.writer, "#{wrapper}[");
         if let Some(content) = attribute_content(attributes, "caption") {
             self.write_content(traversal, content)?;
-        } else if let Some(prefix) = prefix {
+        } else if let Some(prefix) = self.caption_prefix(attributes, fallback) {
             self.write_text_expr(&prefix);
         }
         self.write_title(traversal, Some(title))?;
@@ -1616,8 +1615,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    /// The caption prefix for a titled block, e.g. `Example 2. `, or `None` when the caption
-    /// carries no prefix.
+    /// Format numbered and plain-text caption prefixes.
     ///
     /// The parser resolves the label from the document attributes in effect at the block's
     /// source position and assigns the ordinal, so a caption change part-way through a document
@@ -1638,10 +1636,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 number.map_or_else(|| self.next_caption_number(kind), NonZeroU32::get),
             )),
             CaptionRef::Custom(prefix) => Some(prefix.to_owned()),
-            CaptionRef::CustomContent(content) => {
-                Some(InlineTextTransform::default().content_to_string(content))
-            }
-            CaptionRef::Unnumbered | _ => None,
+            CaptionRef::CustomContent(_) | CaptionRef::Unnumbered | _ => None,
         }
     }
 

@@ -41,7 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   use the same raw-content path as delimited passthrough blocks.
 
 - Visible image/icon alternatives, UI labels, and custom `caption=` values retain
-  supported formatting. Literal quote attributions and citation titles retain
+  supported formatting, including links in figure, table, listing, and example
+  captions. Empty or disabled prefixes do not advance their numbered sequence.
+  Literal quote attributions and citation titles retain
   their dashes; single-quoted values still apply normal substitutions.
 - Static video links preserve complete local targets and provider playlists.
 

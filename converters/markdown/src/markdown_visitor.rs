@@ -481,11 +481,10 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         if title.is_none() {
             return Ok(());
         }
-        let caption = self.processor.caption_prefix(attributes, fallback);
         write!(self.writer, "<strong>")?;
         if let Some(content) = attribute_content(attributes, "caption") {
             self.write_content(traversal, content)?;
-        } else if let Some(caption) = caption {
+        } else if let Some(caption) = self.processor.caption_prefix(attributes, fallback) {
             write!(self.writer, "{}", Self::escape_markdown(&caption))?;
         }
         if let Some(title) = title {
@@ -2981,17 +2980,12 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         Ok(())
     }
 
-    /// Escape special Markdown characters.
-    ///
-    /// Only escapes characters that actually need escaping in prose context.
-    /// Most special characters only need escaping in specific positions.
+    /// Preserve literal text in Markdown prose.
     fn escape_markdown(text: &str) -> String {
-        // Characters that ALWAYS need escaping: \ ` * _ [ ] |
-        // Characters that only need escaping in specific contexts are not escaped
         let mut result = String::with_capacity(text.len());
         for ch in text.chars() {
             match ch {
-                '\\' | '`' | '*' | '_' | '[' | ']' | '|' => {
+                '\\' | '`' | '*' | '_' | '[' | ']' | '|' | '<' | '>' => {
                     result.push('\\');
                     result.push(ch);
                 }
