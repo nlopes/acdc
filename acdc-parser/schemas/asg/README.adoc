@@ -95,7 +95,7 @@ schema to make native JSON pass.
 == Checked upstream export
 
 Enable the `asg` Cargo feature and call `asg::document(parsed.document())` or
-`asg::inlines(parsed.inlines())`. Export reads the AST directly, then validates
+`asg::inlines(parsed.content())`. Export reads the AST directly, then validates
 against this pin. It returns a complete JSON value or a typed error with a
 JSON Pointer path. Unsupported-value and invalid-location errors identify the
 nearest semantic owner and retain its coordinates when known. An unknown inner

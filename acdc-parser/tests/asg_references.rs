@@ -2,8 +2,10 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    AttributeValue, Block, CompatibilityMode, CrossReference, InlineMacro, InlineNode, Link,
-    Location, Options, Source, XrefSignifier, XrefStyle, asg, parse, parse_inline,
+    AttributeValue, Block, CompatibilityMode, ContentAttribute, CrossReference, InlineMacro,
+    InlineNode, Link, Location, Options, Source, XrefSignifier, XrefStyle, asg,
+    ast::{ContentRef, ParagraphRef},
+    parse, parse_inline,
 };
 use serde_json::{Value, json};
 
@@ -78,7 +80,7 @@ fn reference_forms_preserve_targets_and_effective_labels() -> Result<(), Error> 
         ] {
             let parsed = parse_inline(source, &options)?;
             let before = serde_json::to_value(parsed.inlines())?;
-            let value = asg::inlines(parsed.inlines())?;
+            let value = asg::inlines(parsed.content())?;
             let reference = value
                 .as_array()
                 .and_then(|nodes| nodes.first())
@@ -100,7 +102,7 @@ fn formatted_and_nested_labels_remain_inline_trees() -> Result<(), Error> {
         "link:page.html[Read *bold _nested_* &amp;]",
         &Options::default(),
     )?;
-    let value = asg::inlines(parsed.inlines())?;
+    let value = asg::inlines(parsed.content())?;
     assert_eq!(
         value.pointer("/0/inlines/1/variant"),
         Some(&json!("strong"))
@@ -115,7 +117,7 @@ fn formatted_and_nested_labels_remain_inline_trees() -> Result<(), Error> {
         &Options::default(),
     )?;
     assert!(
-        matches!(asg::inlines(parsed.inlines()), Err(asg::Error::Unsupported {path, construct: Some("inline image"), ..})
+        matches!(asg::inlines(parsed.content()), Err(asg::Error::Unsupported {path, construct: Some("inline image"), ..})
         if path == "/0/inlines/1")
     );
     Ok(())
@@ -124,7 +126,7 @@ fn formatted_and_nested_labels_remain_inline_trees() -> Result<(), Error> {
 #[test]
 fn bracketed_email_keeps_brackets_outside_the_reference() -> Result<(), Error> {
     let parsed = parse_inline("<person@example.org>", &Options::default())?;
-    let value = asg::inlines(parsed.inlines())?;
+    let value = asg::inlines(parsed.content())?;
     assert_eq!(value.as_array().ok_or("array")?.len(), 3);
     assert_eq!(value.pointer("/0/value"), Some(&json!("<")));
     assert_eq!(value.pointer("/1/name"), Some(&json!("ref")));
@@ -186,7 +188,7 @@ fn mailto_queries_keep_unrelated_headers_and_encode_values() -> Result<(), Error
         ),
     ] {
         let parsed = parse_inline(source, &Options::default())?;
-        let value = asg::inlines(parsed.inlines())?;
+        let value = asg::inlines(parsed.content())?;
         assert_eq!(
             value.pointer("/0/target"),
             Some(&json!(expected)),
@@ -196,7 +198,9 @@ fn mailto_queries_keep_unrelated_headers_and_encode_values() -> Result<(), Error
     let mut mail = acdc_parser::Mailto::new(Source::Name("a@example.org"), Location::default());
     mail.subject = Some("Subject");
     mail.body = Some("First\nsecond\rthird\r\nfourth");
-    let value = asg::inlines(&[InlineNode::Macro(InlineMacro::Mailto(Box::new(mail)))])?;
+    let value = asg::inlines(ContentRef::from(&ContentAttribute::new(vec![
+        InlineNode::Macro(InlineMacro::Mailto(Box::new(mail))),
+    ])))?;
     assert_eq!(
         value.pointer("/0/target"),
         Some(&json!(
@@ -215,7 +219,7 @@ fn scheme_hiding_changes_only_automatic_display_text() -> Result<(), Error> {
     let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
         return Err("paragraph".into());
     };
-    let value = asg::inlines(&paragraph.content)?;
+    let value = asg::inlines(ParagraphRef::from(paragraph).content())?;
     assert_eq!(
         value.pointer("/0/target"),
         Some(&json!("https://example.org"))
@@ -247,7 +251,7 @@ fn unsupported_reference_properties_fail_at_the_property() -> Result<(), Error> 
     ] {
         let parsed = parse_inline(source, &Options::default())?;
         assert!(
-            matches!(asg::inlines(parsed.inlines()), Err(asg::Error::Unsupported {path, ..})
+            matches!(asg::inlines(parsed.content()), Err(asg::Error::Unsupported {path, ..})
             if path == format!("/0/{suffix}")),
             "{source}"
         );
@@ -255,13 +259,13 @@ fn unsupported_reference_properties_fail_at_the_property() -> Result<(), Error> 
     let mut link = Link::new(Source::Name("target"), Location::default());
     link.set_attribute("custom/~".into(), AttributeValue::Bool(false))?;
     assert!(
-        matches!(asg::inlines(&[InlineNode::Macro(InlineMacro::Link(Box::new(link)))]), Err(asg::Error::Unsupported {path, ..})
+        matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::Link(Box::new(link)))]))), Err(asg::Error::Unsupported {path, ..})
         if path == "/0/metadata/attributes/custom~1~0")
     );
     let mut xref = CrossReference::new("target", Location::default());
     xref.set_signifier(XrefSignifier::Omitted);
     assert!(
-        matches!(asg::inlines(&[InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref)))]), Err(asg::Error::Unsupported {path, ..})
+        matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref)))]))), Err(asg::Error::Unsupported {path, ..})
         if path == "/0/signifier")
     );
     Ok(())
@@ -273,7 +277,7 @@ fn target_classification_cannot_be_silently_changed() {
     xref.target_is_local = true;
     xref.xrefstyle = XrefStyle::Default;
     assert!(
-        matches!(asg::inlines(&[InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref)))]), Err(asg::Error::Unsupported {path, ..})
+        matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref)))]))), Err(asg::Error::Unsupported {path, ..})
         if path == "/0/target_is_local")
     );
 }
@@ -298,7 +302,7 @@ fn non_utf8_reference_targets_are_not_lossily_stringified() {
     let source = Source::Path(PathBuf::from(OsString::from_vec(vec![b'x', 0xff])));
     let link = Link::new(source, Location::default());
     assert!(
-        matches!(asg::inlines(&[InlineNode::Macro(InlineMacro::Link(Box::new(link)))]),
+        matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::Link(Box::new(link)))]))),
         Err(asg::Error::Unsupported {path, ..}) if path == "/0/target")
     );
 }
@@ -310,7 +314,7 @@ fn email_bracket_expansion_preserves_error_indices() -> Result<(), Error> {
         &Options::default(),
     )?;
     assert!(
-        matches!(asg::inlines(parsed.inlines()), Err(asg::Error::Unsupported {path, ..})
+        matches!(asg::inlines(parsed.content()), Err(asg::Error::Unsupported {path, ..})
         if path == "/4")
     );
     Ok(())

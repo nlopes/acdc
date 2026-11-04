@@ -15,7 +15,10 @@ use std::sync::OnceLock;
 
 use serde_json::{Map, Value};
 
-use crate::{InlineNode, Location, Source, ast::DocumentRef};
+use crate::{
+    Location, Source,
+    ast::{ContentRef, DocumentRef},
+};
 
 /// Schema identifier used by this exporter.
 pub const SCHEMA_ID: &str = "https://schemas.asciidoc.org/asg/1-0-0/draft-01";
@@ -112,10 +115,19 @@ pub fn document_with_profile(document: DocumentRef<'_>, profile: Profile) -> Res
 
 /// Export resolved inline content as an array, using the document export rules.
 ///
+/// ```
+/// use acdc_parser::{Options, asg, parse_inline};
+///
+/// let parsed = parse_inline("*A label*", &Options::default())?;
+/// let value = asg::inlines(parsed.content())?;
+/// assert_eq!(value.pointer("/0/variant").and_then(serde_json::Value::as_str), Some("strong"));
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
 /// # Errors
 /// Returns an error for unsupported content or locations, including unresolved
 /// passthrough operations and unsupported identity or controls on inline spans.
-pub fn inlines(inlines: &[InlineNode<'_>]) -> Result<Value, Error> {
+pub fn inlines(inlines: ContentRef<'_>) -> Result<Value, Error> {
     inlines_with_profile(inlines, Profile::Upstream)
 }
 
@@ -124,8 +136,8 @@ pub fn inlines(inlines: &[InlineNode<'_>]) -> Result<Value, Error> {
 /// # Errors
 /// Returns an error for unsupported nested values or invalid locations. The
 /// returned array validates as inline content under the selected profile.
-pub fn inlines_with_profile(inlines: &[InlineNode<'_>], profile: Profile) -> Result<Value, Error> {
-    let value = projection::inlines(inlines, "", profile)?;
+pub fn inlines_with_profile(inlines: ContentRef<'_>, profile: Profile) -> Result<Value, Error> {
+    let value = projection::inlines(inlines.as_inlines(), "", profile)?;
     let paragraph = Map::from_iter([
         ("name".into(), "paragraph".into()),
         ("type".into(), "block".into()),

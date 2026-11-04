@@ -2,7 +2,7 @@
 
 use acdc_parser::{
     Block, Caption, CompatibilityMode, InlineNode, Options, asg,
-    ast::{AttributeValueRef, BlockKind, BlockRef, InlineKind, InlineRef},
+    ast::{AttributeValueRef, BlockKind, BlockRef, ContentRef, InlineKind, InlineRef},
     parse,
 };
 use serde_json::{Value, json};
@@ -132,7 +132,7 @@ fn snapshot_and_selected_content_survive_projection_without_side_effects() -> Re
             })
             .ok_or("quote")?;
         let attribution = quote.metadata.attribution.as_ref().ok_or("attribution")?;
-        let value = asg::inlines(attribution)?;
+        let value = asg::inlines(ContentRef::from(attribution))?;
         assert_eq!(
             value.pointer("/0/value"),
             Some(&json!(if mode == CompatibilityMode::Asciidoctor {

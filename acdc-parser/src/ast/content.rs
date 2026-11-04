@@ -30,6 +30,11 @@ impl<'doc> ContentRef<'doc> {
         Self { nodes }
     }
 
+    #[cfg(feature = "asg")]
+    pub(crate) fn as_inlines(self) -> &'doc [InlineNode<'doc>] {
+        self.nodes
+    }
+
     /// Read direct inline children in content order.
     pub fn inlines(
         self,

@@ -70,7 +70,7 @@ pub fn run(_args: &Args) -> Result<(), Error> {
         "inline" => {
             let parsed = acdc_parser::parse_inline(&tck_input.contents, &parser_options)?;
             json::warnings(parsed.warnings())?;
-            json::inlines(parsed.inlines(), Format::UpstreamAsg)?
+            json::inlines(&parsed, Format::UpstreamAsg)?
         }
         other => {
             return Err(Error::UnsupportedType(other.to_owned()));

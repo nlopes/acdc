@@ -2,7 +2,7 @@
 
 use acdc_parser::{
     Block, Caption, CaptionKind, CompatibilityMode, ContentAttribute, Document, Location, Options,
-    Paragraph, Plain, Title, asg, parse,
+    Paragraph, Plain, Title, asg, ast::ContentRef, parse,
 };
 use serde_json::{Value, json};
 
@@ -48,14 +48,14 @@ fn resolved_content_fields_preserve_their_inline_trees() -> Result<(), Error> {
                 if let Some(content) = content {
                     assert_eq!(
                         value.pointer(&format!("/blocks/0/{name}")),
-                        Some(&asg::inlines(content)?)
+                        Some(&asg::inlines(ContentRef::from(content))?)
                     );
                 }
             }
             if let Some(Caption::CustomContent(content)) = &metadata.caption {
                 assert_eq!(
                     value.pointer("/blocks/0/caption/prefix"),
-                    Some(&asg::inlines(content)?)
+                    Some(&asg::inlines(ContentRef::from(content))?)
                 );
             }
             assert_eq!(serde_json::to_value(parsed.document())?, before);

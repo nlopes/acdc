@@ -86,7 +86,9 @@ fn asg_character_references_are_checked_values() -> Result<(), Error> {
             CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
         )];
         assert_eq!(
-            acdc_parser::asg::inlines(&nodes)?,
+            acdc_parser::asg::inlines(acdc_parser::ast::ContentRef::from(
+                &acdc_parser::ContentAttribute::new(nodes.to_vec())
+            ))?,
             json!([{
                 "name": "charref", "type": "string", "value": expected
             }])
@@ -98,7 +100,7 @@ fn asg_character_references_are_checked_values() -> Result<(), Error> {
                 .ok_or("invalid reference")?,
         )];
         assert!(
-            matches!(acdc_parser::asg::inlines(&nodes), Err(acdc_parser::asg::Error::Unsupported { path, .. }) if path == "/0")
+            matches!(acdc_parser::asg::inlines(acdc_parser::ast::ContentRef::from(&acdc_parser::ContentAttribute::new(nodes.to_vec()))), Err(acdc_parser::asg::Error::Unsupported { path, .. }) if path == "/0")
         );
     }
     Ok(())

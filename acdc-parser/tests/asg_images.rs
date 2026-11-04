@@ -2,7 +2,9 @@
 
 use acdc_parser::{
     AttributeValue, Block, Caption, CompatibilityMode, ContentAttribute, Document, Header,
-    InlineImage, InlineMacro, InlineNode, Location, Options, Paragraph, Source, Title, asg, parse,
+    InlineImage, InlineMacro, InlineNode, Location, Options, Paragraph, Source, Title, asg,
+    ast::{ContentRef, ParagraphRef},
+    parse,
 };
 use serde_json::{Value, json};
 
@@ -56,11 +58,15 @@ fn inline_image_metadata_and_content_are_preserved() -> Result<(), Error> {
         };
         assert_eq!(
             value.pointer("/blocks/0/inlines/0/alt"),
-            Some(&asg::inlines(image.alt.as_ref().ok_or("alt")?)?)
+            Some(&asg::inlines(ContentRef::from(
+                image.alt.as_ref().ok_or("alt")?
+            ))?)
         );
         assert_eq!(
             value.pointer("/blocks/0/inlines/0/tooltip"),
-            Some(&asg::inlines(image.tooltip.as_ref().ok_or("tooltip")?)?)
+            Some(&asg::inlines(ContentRef::from(
+                image.tooltip.as_ref().ok_or("tooltip")?
+            ))?)
         );
         assert!(value.pointer("/blocks/0/inlines/0/location").is_some());
         assert_eq!(serde_json::to_value(parsed.document())?, before);
@@ -117,7 +123,9 @@ fn block_image_alternative_content_stays_separate_from_its_caption() -> Result<(
         };
         assert_eq!(
             value.pointer("/blocks/0/alt"),
-            Some(&asg::inlines(image.alt.as_ref().ok_or("alt")?)?)
+            Some(&asg::inlines(ContentRef::from(
+                image.alt.as_ref().ok_or("alt")?
+            ))?)
         );
         assert!(
             matches!(asg::document(parsed.document_ref()),Err(asg::Error::Unsupported {path,..}) if path=="/blocks/0/alt")
@@ -239,19 +247,22 @@ fn standalone_image_export_checks_the_selected_profile() -> Result<(), Error> {
     let Block::Paragraph(paragraph) = parsed.document().blocks.first().ok_or("paragraph")? else {
         return Err("paragraph".into());
     };
-    let value = asg::inlines_with_profile(&paragraph.content, asg::Profile::Acdc)?;
+    let value =
+        asg::inlines_with_profile(ParagraphRef::from(paragraph).content(), asg::Profile::Acdc)?;
     assert_eq!(
         Some(&value),
         export(parsed.document())?.pointer("/blocks/0/inlines")
     );
     assert!(
-        matches!(asg::inlines(&paragraph.content),Err(asg::Error::Unsupported {path,..}) if path=="/0")
+        matches!(asg::inlines(ParagraphRef::from(paragraph).content()),Err(asg::Error::Unsupported {path,..}) if path=="/0")
     );
     let mut image = InlineImage::new(Source::Name("photo.png"), Location::default());
     image.set_attribute("flag".into(), AttributeValue::Bool(true))?;
     image.set_attribute("width".into(), AttributeValue::String("003".into()))?;
     let value = asg::inlines_with_profile(
-        &[InlineNode::Macro(InlineMacro::Image(Box::new(image)))],
+        ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(
+            InlineMacro::Image(Box::new(image)),
+        )])),
         asg::Profile::Acdc,
     )?;
     assert!(value.pointer("/0/location").is_none());

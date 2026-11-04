@@ -3,7 +3,7 @@
 
 use acdc_parser::{
     Anchor, AttributeValue, Block, Caption, CompatibilityMode, ContentAttribute, Document,
-    Location, Options, Paragraph, SubstitutionSpec, asg, parse,
+    Location, Options, Paragraph, SubstitutionSpec, asg, ast::ParagraphRef, parse,
 };
 use serde_json::json;
 
@@ -61,7 +61,7 @@ fn unsupported_inline_owners_are_rejected_inside_supported_paragraphs() -> Resul
                 return Err(format!("missing paragraph: {source}").into());
             };
             assert!(
-                matches!(asg::inlines(&paragraph.content), Err(asg::Error::Unsupported {
+                matches!(asg::inlines(ParagraphRef::from(paragraph).content()), Err(asg::Error::Unsupported {
                 construct: Some(actual), ..
             }) if actual == owner),
                 "{mode:?}: {owner}: {source}"

@@ -61,6 +61,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- `asg::inlines` and `asg::inlines_with_profile` now accept `ast::ContentRef`.
+  Pass `parsed.content()` for standalone inline parses, or pass title, alt, and
+  other content reads directly. For caller-built content, use
+  `ContentRef::from(&content_attribute)`. Exported JSON and validation are unchanged.
+
 - `Raw` now has optional `metadata` for passthrough IDs and roles. Set it to `None` when constructing undecorated raw text. Native JSON includes the metadata only when present.
 
 - Parsed references now use `InlineNode::CharacterReference` / `InlineKind::CharacterReference` instead of plain or raw text. Native JSON readers must accept `charref` nodes; numeric references use decimal spelling.

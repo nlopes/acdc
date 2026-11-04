@@ -3,7 +3,7 @@ use std::{
     path::Path,
 };
 
-use acdc_parser::{InlineNode, Warning, ast::DocumentRef};
+use acdc_parser::{ParseInlineResult, Warning, ast::DocumentRef};
 use serde_json::{Value, json};
 
 #[derive(Debug, thiserror::Error)]
@@ -55,14 +55,14 @@ pub fn document(value: DocumentRef<'_>, format: Format) -> Result<Value, Error> 
     }
 }
 
-pub fn inlines(value: &[InlineNode<'_>], format: Format) -> Result<Value, Error> {
+pub fn inlines(parsed: &ParseInlineResult, format: Format) -> Result<Value, Error> {
     match format {
-        Format::NativeJson => Ok(serde_json::to_value(value)?),
+        Format::NativeJson => Ok(serde_json::to_value(parsed.inlines())?),
         #[cfg(feature = "asg")]
-        Format::UpstreamAsg => Ok(acdc_parser::asg::inlines(value)?),
+        Format::UpstreamAsg => Ok(acdc_parser::asg::inlines(parsed.content())?),
         #[cfg(feature = "asg")]
         Format::AcdcAsgV1 => Ok(acdc_parser::asg::inlines_with_profile(
-            value,
+            parsed.content(),
             acdc_parser::asg::Profile::Acdc,
         )?),
         #[cfg(not(feature = "asg"))]

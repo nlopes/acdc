@@ -1,8 +1,8 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, CompatibilityMode, Document, Header, Location, Options, OptionsBuilder, Paragraph,
-    Title, asg, parse,
+    Block, CompatibilityMode, ContentAttribute, Document, Header, Location, Options,
+    OptionsBuilder, Paragraph, Title, asg, ast::ContentRef, parse,
 };
 use serde_json::{Value, json};
 
@@ -212,7 +212,7 @@ fn asg_does_not_run_pending_passthrough_operations() {
         subs: vec![acdc_parser::Substitution::Attributes],
     })];
     assert!(
-        matches!(asg::inlines(&nodes), Err(asg::Error::Unsupported { path, .. }) if path == "/0/substitutions")
+        matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))), Err(asg::Error::Unsupported { path, .. }) if path == "/0/substitutions")
     );
 }
 
@@ -251,7 +251,7 @@ fn asg_preserves_endpoint_include_chains_and_unicode_columns() -> Result<(), Err
         escaped: true,
         location: source.clone(),
     })];
-    let value = asg::inlines(&nodes)?;
+    let value = asg::inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec())))?;
     assert_eq!(
         value.pointer("/0/location/0/file"),
         Some(&json!(["outer.adoc", "α.adoc"]))
@@ -268,7 +268,7 @@ fn asg_preserves_endpoint_include_chains_and_unicode_columns() -> Result<(), Err
         location: source,
     })];
     assert!(matches!(
-        asg::inlines(&nodes),
+        asg::inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))),
         Err(asg::Error::InvalidLocation { .. })
     ));
     Ok(())
@@ -410,7 +410,7 @@ fn asg_rejects_verbatim_without_a_literal_block_mapping() {
         },
     )];
     assert!(
-        matches!(asg::inlines(&nodes), Err(asg::Error::Unsupported { path, .. }) if path == "/0")
+        matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))), Err(asg::Error::Unsupported { path, .. }) if path == "/0")
     );
     let mut document = Document::default();
     document.blocks.push(Block::Paragraph(Paragraph::new(

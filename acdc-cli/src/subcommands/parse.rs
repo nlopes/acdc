@@ -65,7 +65,7 @@ pub fn run(args: &Args) -> Result<(), Error> {
             }
             let parsed = acdc_parser::parse_inline(&source, &options)?;
             json::warnings(parsed.warnings())?;
-            json::inlines(parsed.inlines(), args.format)?
+            json::inlines(&parsed, args.format)?
         }
     };
     json::write(&value, &args.output)
