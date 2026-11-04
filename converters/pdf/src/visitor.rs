@@ -29,19 +29,18 @@ fn poster_image<'a>(
     poster: &'a str,
     target: &str,
 ) -> Result<Image<'a>, Error> {
-    let video = Video::from(video);
-    let mut metadata = video.metadata;
+    let location = acdc_parser::Location::from(video.location());
+    let mut video = Video::from(video);
+    let mut metadata = video.take_metadata();
     metadata.caption = Some(Caption::Unnumbered);
     // Video alt is an extension value, not parsed image alternative content.
     metadata.attributes.remove("alt");
     metadata
         .attributes
         .set("link".into(), target.to_owned().into());
-    Ok(
-        Image::new(Source::from_str_borrowed(poster)?, video.location)
-            .with_title(video.title)
-            .with_metadata(metadata)?,
-    )
+    Ok(Image::new(Source::from_str_borrowed(poster)?, location)
+        .with_title(video.take_title())
+        .with_metadata(metadata)?)
 }
 
 fn revision_text(attributes: &TraversalContext<'_>) -> Option<String> {
@@ -867,42 +866,45 @@ mod poster_tests {
         let before = video.clone();
         let image = poster_image(VideoRef::from(&video), "poster.svg", "clip.mp4#t=2")?;
         assert_eq!(video, before);
-        assert_eq!(image.title, video.title);
-        assert_eq!(image.metadata.id, video.metadata.id);
-        assert_eq!(image.metadata.roles, video.metadata.roles);
-        assert_eq!(image.metadata.options, video.metadata.options);
-        assert_eq!(image.metadata.caption, Some(Caption::Unnumbered));
+        assert_eq!(image.clone().take_title(), video.clone().take_title());
+        let image_metadata = image.clone_metadata();
+        let video_metadata = video.clone_metadata();
+        assert_eq!(image_metadata.id, video_metadata.id);
+        assert_eq!(image_metadata.roles, video_metadata.roles);
+        assert_eq!(image_metadata.options, video_metadata.options);
+        assert_eq!(image_metadata.caption, Some(Caption::Unnumbered));
         assert_eq!(
-            image.metadata.attributes.get_string("link").as_deref(),
+            image_metadata.attributes.get_string("link").as_deref(),
             Some("clip.mp4#t=2")
         );
         assert_eq!(
-            image.metadata.attributes.get_string("width").as_deref(),
+            image_metadata.attributes.get_string("width").as_deref(),
             Some("120")
         );
         assert_eq!(
-            image.metadata.attributes.get_string("custom").as_deref(),
+            image_metadata.attributes.get_string("custom").as_deref(),
             Some("")
         );
-        assert!(image.alt.is_none());
-        assert!(!image.metadata.attributes.contains_key("alt"));
+        assert!(ImageRef::from(&image).alt().is_none());
+        assert!(!image_metadata.attributes.contains_key("alt"));
         Ok(())
     }
 
     #[test]
-    fn poster_transfer_reports_conflicting_caller_metadata()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn poster_input_rejects_conflicting_caller_metadata() -> Result<(), Box<dyn std::error::Error>>
+    {
         let mut video = Video::new(Source::Name("clip"), Location::default());
-        video
-            .metadata
-            .attributes
-            .set("roles".into(), "shadow".into());
+        let mut metadata = video.clone_metadata();
+        metadata.attributes.set("roles".into(), "shadow".into());
         let before = video.clone();
-        let error = poster_image(VideoRef::from(&video), "poster.svg", "clip.mp4")
+        let error = video
+            .set_metadata(metadata)
+            .map_err(Error::from)
             .err()
             .ok_or("invalid metadata accepted")?;
         assert!(matches!(error, Error::ReservedAttribute(error) if error.name == "roles"));
         assert_eq!(video, before);
+        poster_image(VideoRef::from(&video), "poster.svg", "clip.mp4")?;
         Ok(())
     }
 }

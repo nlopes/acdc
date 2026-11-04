@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 
 use acdc_parser::{
-    AttributeValue, CompatibilityMode, ContentAttribute, ElementId, Image, InlineImage, Location,
-    Options, Paragraph, Source, Title,
+    AttributeValue, CompatibilityMode, ContentAttribute, ElementId, InlineImage, Location, Options,
+    Paragraph, Source,
     ast::{
-        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, ImageRef,
-        InlineImageRef, InlineKind, InlineRef, ParagraphRef, TokensRef,
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, InlineImageRef,
+        InlineKind, InlineRef, ParagraphRef, TokensRef,
     },
     parse,
 };
@@ -156,17 +156,6 @@ fn scalar_values_and_owned_names_are_read_without_cloning_or_stripping_quotes() 
 
 #[test]
 fn image_fields_keep_absent_empty_and_contextual_names_distinct() -> Result<(), Error> {
-    let mut block = Image::new(Source::Name("bird"), Location::default());
-    block.metadata.attributes.set("alt".into(), "stale".into());
-    assert!(ImageRef::from(&block).attributes().is_empty());
-    block.alt = Some(ContentAttribute::default());
-    block.title = Title::new(Vec::new());
-    let image = ImageRef::from(&block);
-    assert_inventory(image.attributes());
-    assert_content(image.attributes(), "alt", image.alt());
-    assert_content(image.attributes(), "title", image.title());
-    assert_eq!(image.attributes().iter().count(), 2);
-
     let mut inline = InlineImage::new(Source::Name("bird"), Location::default());
     assert!(InlineImageRef::from(&inline).attributes().is_empty());
     inline.tooltip = Some(ContentAttribute::default());

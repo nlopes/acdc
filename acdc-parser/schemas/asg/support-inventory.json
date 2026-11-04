@@ -5966,7 +5966,7 @@
             "../src/ast/tests/asg_image_storage.rs::unsupported_image_content_and_scalar_states_fail_by_property",
             "asg_images.rs::image_schema_rejects_unknown_fields_and_malformed_nested_values",
             "asg_images.rs::standalone_image_export_checks_the_selected_profile",
-            "asg_images.rs::block_image_metadata_cannot_shadow_promoted_content"
+            "../src/ast/tests/asg_image_storage.rs::block_image_metadata_cannot_shadow_promoted_content"
           ]
         }
       }

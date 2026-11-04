@@ -1,8 +1,8 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    AttributeValue, Block, CompatibilityMode, ContentAttribute, Document, InlineImage, InlineMacro,
-    InlineNode, Location, Options, Source, asg,
+    AttributeValue, CompatibilityMode, ContentAttribute, InlineImage, InlineMacro, InlineNode,
+    Location, Options, Source, asg,
     ast::{BlockKind, ContentRef, DocumentRef},
     parse,
 };
@@ -194,22 +194,4 @@ fn standalone_image_export_checks_the_selected_profile() -> Result<(), Error> {
         Some(&json!(""))
     );
     Ok(())
-}
-
-#[test]
-fn block_image_metadata_cannot_shadow_promoted_content() {
-    for name in ["alt", "title"] {
-        let mut image = acdc_parser::Image::new(Source::Name("photo.png"), Location::default());
-        image
-            .metadata
-            .attributes
-            .set(name.into(), AttributeValue::String("shadow".into()));
-        let mut document = Document::default();
-        document.push_block(Block::Image(image));
-        for profile in [asg::Profile::Upstream, asg::Profile::Acdc] {
-            assert!(
-                matches!(asg::document_with_profile((&document).into(),profile),Err(asg::Error::Unsupported {path,..}) if path==format!("/blocks/0/metadata/attributes/{name}"))
-            );
-        }
-    }
 }

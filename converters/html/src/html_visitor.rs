@@ -1698,12 +1698,12 @@ mod title_media_tests {
             document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
             let mut blocks: Vec<_> = document.take_blocks().collect();
             for block in &mut blocks {
-                let metadata = if let Block::Image(image) = block {
-                    &mut image.metadata
+                let mut metadata = if let Block::Image(image) = block {
+                    image.clone_metadata()
                 } else if let Block::Audio(audio) = block {
-                    &mut audio.metadata
+                    audio.clone_metadata()
                 } else if let Block::Video(video) = block {
-                    &mut video.metadata
+                    video.clone_metadata()
                 } else {
                     return Err("expected media".into());
                 };
@@ -1722,6 +1722,15 @@ mod title_media_tests {
                 metadata
                     .attributes
                     .set("link".into(), AttributeValue::Bool(false));
+                if let Block::Image(image) = block {
+                    image.set_metadata(metadata)?;
+                } else if let Block::Audio(audio) = block {
+                    audio.set_metadata(metadata)?;
+                } else if let Block::Video(video) = block {
+                    video.set_metadata(metadata)?;
+                } else {
+                    return Err("expected media".into());
+                }
             }
             document.set_blocks(blocks);
             for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {

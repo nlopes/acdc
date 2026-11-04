@@ -59,7 +59,8 @@ fn link_attributes_keep_empty_nontext_and_quoted_values_after_owner_edits() -> R
 }
 
 #[test]
-fn media_link_controls_keep_their_own_window_and_option_rules() {
+fn media_link_controls_keep_their_own_window_and_option_rules()
+-> Result<(), Box<dyn std::error::Error>> {
     for (window, expected) in [
         (None, " rel=\"nofollow\""),
         (Some(AttributeValue::Bool(false)), " rel=\"nofollow\""),
@@ -79,13 +80,14 @@ fn media_link_controls_keep_their_own_window_and_option_rules() {
         ),
     ] {
         let mut image = Image::new(Source::Name("sample"), Location::default());
-        image
-            .metadata
-            .attributes
-            .set("target".into(), "alias".into());
-        image.metadata.options = vec!["nofollow", "noopener"];
+        let mut metadata = image.take_metadata();
+        metadata.attributes.set("target".into(), "alias".into());
+        metadata.options = vec!["nofollow", "noopener"];
+        image.set_metadata(metadata)?;
         if let Some(window) = window {
-            image.metadata.attributes.set("window".into(), window);
+            let mut metadata = image.take_metadata();
+            metadata.attributes.set("window".into(), window);
+            image.set_metadata(metadata)?;
         }
         assert_eq!(
             image_link_control_attributes(
@@ -94,7 +96,9 @@ fn media_link_controls_keep_their_own_window_and_option_rules() {
             ),
             expected
         );
-        image.metadata.options = vec!["noopener"];
+        let mut metadata = image.take_metadata();
+        metadata.options = vec!["noopener"];
+        image.set_metadata(metadata)?;
         if expected == " rel=\"nofollow\"" {
             assert_eq!(
                 image_link_control_attributes(
@@ -105,6 +109,7 @@ fn media_link_controls_keep_their_own_window_and_option_rules() {
             );
         }
     }
+    Ok(())
 }
 
 #[test]
@@ -163,7 +168,7 @@ fn hyperlink_options_control_rel_without_changing_window_fallbacks() -> Result<(
 }
 
 #[test]
-fn shared_scalar_reads_preserve_decoded_text() {
+fn shared_scalar_reads_preserve_decoded_text() -> Result<(), Box<dyn std::error::Error>> {
     for value in [
         "",
         "'",
@@ -174,10 +179,13 @@ fn shared_scalar_reads_preserve_decoded_text() {
         "é😀 & <pane>",
     ] {
         let mut image = Image::new(Source::Name("sample"), Location::default());
-        image.metadata.attributes.set("align".into(), value.into());
+        let mut metadata = image.take_metadata();
+        metadata.attributes.set("align".into(), value.into());
+        image.set_metadata(metadata)?;
         assert_eq!(
             crate::image_helpers::attribute_text(ImageRef::from(&image).attributes(), "align"),
             Some(value)
         );
     }
+    Ok(())
 }

@@ -21,7 +21,7 @@ fn caption<'a>(block: &Block<'a>) -> Option<Caption<'a>> {
         return delimited.metadata.caption.clone();
     }
     if let Block::Image(image) = block {
-        return image.metadata.caption.clone();
+        return image.clone_metadata().caption;
     }
     None
 }

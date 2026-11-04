@@ -142,6 +142,14 @@ collision suffixes; changing the selected authored ID clears the local assignmen
 Setters leave document catalogs unchanged. Call `renumber_sections()` to update
 numbers after changing levels, styles, numbering policy or the section tree.
 
+Block images, audio and video also use checked metadata and prepared title edits.
+Read them through `ImageRef`, `AudioRef`, and `VideoRef`. `replace_source` returns
+an owned previous target with its original source lifetime; it keeps complete
+YouTube playlists and does not resolve paths. Image `set_alt` and `take_alt` retain
+absent versus empty content. Audio and video retain scalar `alt` as an extension
+attribute. Images reject it in scalar metadata because they have dedicated
+content for it.
+
 `IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
 option tokens. An icon ID is retained even when a converter does not emit it.
 To construct an icon, use `Icon::new(target, location)` and edit its content and

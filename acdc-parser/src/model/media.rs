@@ -210,10 +210,10 @@ impl Serialize for Source<'_> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Audio<'a> {
-    pub title: Title<'a>,
-    pub source: Source<'a>,
-    pub metadata: BlockMetadata<'a>,
-    pub location: Location,
+    pub(crate) title: Title<'a>,
+    pub(crate) source: Source<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) location: Location,
 }
 
 impl<'a> Audio<'a> {
@@ -231,7 +231,7 @@ impl<'a> Audio<'a> {
     /// Set the title.
     #[must_use]
     pub fn with_title(mut self, title: Title<'a>) -> Self {
-        self.title = title;
+        self.set_title(title);
         self
     }
 
@@ -243,8 +243,7 @@ impl<'a> Audio<'a> {
         mut self,
         metadata: BlockMetadata<'a>,
     ) -> Result<Self, crate::ReservedAttribute> {
-        metadata.validate_attributes(&["title"])?;
-        self.metadata = metadata;
+        self.set_metadata(metadata)?;
         Ok(self)
     }
 }
@@ -253,10 +252,10 @@ impl<'a> Audio<'a> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Video<'a> {
-    pub title: Title<'a>,
-    pub source: Source<'a>,
-    pub metadata: BlockMetadata<'a>,
-    pub location: Location,
+    pub(crate) title: Title<'a>,
+    pub(crate) source: Source<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) location: Location,
 }
 
 impl<'a> Video<'a> {
@@ -274,7 +273,7 @@ impl<'a> Video<'a> {
     /// Set the title.
     #[must_use]
     pub fn with_title(mut self, title: Title<'a>) -> Self {
-        self.title = title;
+        self.set_title(title);
         self
     }
 
@@ -286,8 +285,7 @@ impl<'a> Video<'a> {
         mut self,
         metadata: BlockMetadata<'a>,
     ) -> Result<Self, crate::ReservedAttribute> {
-        metadata.validate_attributes(&["title"])?;
-        self.metadata = metadata;
+        self.set_metadata(metadata)?;
         Ok(self)
     }
 }
@@ -297,12 +295,12 @@ impl<'a> Video<'a> {
 #[non_exhaustive]
 pub struct Image<'a> {
     /// Explicit alternative content. `None` selects the filename fallback.
-    pub alt: Option<ContentAttribute<'a>>,
+    pub(crate) alt: Option<ContentAttribute<'a>>,
     /// The block caption title, independent of alternative text.
-    pub title: Title<'a>,
-    pub source: Source<'a>,
-    pub metadata: BlockMetadata<'a>,
-    pub location: Location,
+    pub(crate) title: Title<'a>,
+    pub(crate) source: Source<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) location: Location,
 }
 
 impl<'a> Image<'a> {
@@ -321,7 +319,7 @@ impl<'a> Image<'a> {
     /// Set the title.
     #[must_use]
     pub fn with_title(mut self, title: Title<'a>) -> Self {
-        self.title = title;
+        self.set_title(title);
         self
     }
 
@@ -333,11 +331,77 @@ impl<'a> Image<'a> {
         mut self,
         metadata: BlockMetadata<'a>,
     ) -> Result<Self, crate::ReservedAttribute> {
-        metadata.validate_attributes(&["title", "alt"])?;
-        self.metadata = metadata;
+        self.set_metadata(metadata)?;
         Ok(self)
     }
+
+    /// Replace explicit alternative content. `None` selects the filename fallback.
+    pub fn set_alt(&mut self, alt: Option<ContentAttribute<'a>>) {
+        self.alt = alt;
+    }
+
+    /// Remove and return explicit alternative content without realizing its fallback.
+    #[must_use]
+    pub fn take_alt(&mut self) -> Option<ContentAttribute<'a>> {
+        self.alt.take()
+    }
 }
+
+macro_rules! block_media_edits {
+    ($($name:ident => [$($dedicated:literal),*]),+ $(,)?) => {
+        $(
+            impl<'a> $name<'a> {
+                /// Replace metadata without shadowing dedicated fields.
+                ///
+                /// # Errors
+                /// Rejects scalar keys for dedicated metadata or content fields,
+                /// leaving the media block unchanged.
+                pub fn set_metadata(&mut self, metadata: BlockMetadata<'a>) -> Result<(), ReservedAttribute> {
+                    metadata.validate_attributes(&[$($dedicated),*])?;
+                    self.metadata = metadata;
+                    Ok(())
+                }
+
+                /// Copy metadata to prepare a checked replacement, retaining its source lifetime.
+                #[must_use]
+                pub fn clone_metadata(&self) -> BlockMetadata<'a> {
+                    self.metadata.clone()
+                }
+
+                /// Remove metadata without changing the target or prepared content.
+                #[must_use]
+                pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
+                    std::mem::take(&mut self.metadata)
+                }
+
+                /// Replace prepared title content without rebuilding captions or registrations.
+                pub fn set_title(&mut self, title: Title<'a>) {
+                    self.title = title;
+                }
+
+                /// Remove the title, leaving it absent.
+                #[must_use]
+                pub fn take_title(&mut self) -> Title<'a> {
+                    std::mem::take(&mut self.title)
+                }
+
+                /// Replace the complete target and return its previous prepared value.
+                ///
+                /// Does not resolve paths, split playlists or update document registrations.
+                pub fn replace_source(&mut self, source: Source<'a>) -> Source<'a> {
+                    std::mem::replace(&mut self.source, source)
+                }
+
+                /// Replace the media span without relocating content or metadata.
+                pub fn set_location(&mut self, location: Location) {
+                    self.location = location;
+                }
+            }
+        )+
+    };
+}
+
+block_media_edits!(Audio => ["title"], Video => ["title"], Image => ["title", "alt"]);
 
 /// An inline image with distinct alternative text and hover text.
 #[derive(Clone, Debug, PartialEq)]

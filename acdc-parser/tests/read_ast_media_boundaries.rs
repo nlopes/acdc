@@ -294,18 +294,20 @@ fn constructed_owners_preserve_empty_content_and_scalar_controls() -> Result<(),
         Source::Url(SourceUrl::new("https://EXAMPLE.org:443/music")?),
         Location::default(),
     );
-    audio.title = Title::new(Vec::new());
-    audio.metadata.caption = Some(Caption::CustomContent(ContentAttribute::default()));
-    audio.metadata.attributes.set("custom".into(), false.into());
-    audio
-        .metadata
+    audio.set_title(Title::new(Vec::new()));
+    let mut metadata = audio.take_metadata();
+    metadata.caption = Some(Caption::CustomContent(ContentAttribute::default()));
+    metadata.attributes.set("custom".into(), false.into());
+    metadata
         .attributes
         .set("title".into(), "stale title".into());
-    audio.metadata.id = Some(Anchor::new("primary", Location::default()));
-    audio
-        .metadata
+    metadata.id = Some(Anchor::new("primary", Location::default()));
+    metadata
         .anchors
         .push(Anchor::new("alias", Location::default()));
+    assert!(audio.set_metadata(metadata.clone()).is_err());
+    metadata.attributes.remove("title");
+    audio.set_metadata(metadata)?;
     let read = AudioRef::from(&audio);
     assert_eq!(
         read.source().kind(),

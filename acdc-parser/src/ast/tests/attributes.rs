@@ -1,6 +1,8 @@
 use crate::{
-    Block, CompatibilityMode, Location, Options, Paragraph, Title,
-    ast::{AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, ParagraphRef},
+    Block, CompatibilityMode, ContentAttribute, Image, Location, Options, Paragraph, Source, Title,
+    ast::{
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, ImageRef, ParagraphRef,
+    },
     parse,
 };
 
@@ -141,4 +143,35 @@ fn assert_content(attributes: AttributesRef<'_>, name: &str, content: Option<Con
         content.map(AttributeValueRef::Content)
     );
     assert_eq!(attributes.contains(name), content.is_some());
+}
+
+#[test]
+fn block_image_fields_keep_absent_empty_and_contextual_names_distinct() {
+    let mut block = Image::new(Source::Name("bird"), Location::default());
+    block.metadata.attributes.set("alt".into(), "stale".into());
+    assert!(ImageRef::from(&block).attributes().is_empty());
+    block.alt = Some(ContentAttribute::default());
+    block.title = Title::new(Vec::new());
+    let image = ImageRef::from(&block);
+    assert_inventory(image.attributes());
+    assert_content(image.attributes(), "alt", image.alt());
+    assert_content(image.attributes(), "title", image.title());
+    assert_eq!(image.attributes().iter().count(), 2);
+}
+
+#[test]
+fn block_audio_title_content_suppresses_stale_scalar_metadata() -> Result<(), Error> {
+    let mut audio = crate::Audio::new(
+        Source::Url(crate::SourceUrl::new("https://EXAMPLE.org:443/music")?),
+        Location::default(),
+    );
+    audio.title = Title::new(Vec::new());
+    audio
+        .metadata
+        .attributes
+        .set("title".into(), "stale title".into());
+    let read = crate::ast::AudioRef::from(&audio);
+    assert!(read.title().is_some_and(ContentRef::is_empty));
+    assert_content(read.attributes(), "title", read.title());
+    Ok(())
 }

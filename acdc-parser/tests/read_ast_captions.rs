@@ -104,8 +104,10 @@ fn highest_caption_numbers_use_stored_tree_values_without_allocating(
                 }
             })
             .ok_or("image")?;
-        image.title = acdc_parser::Title::default();
-        image.metadata.caption = caption;
+        image.set_title(acdc_parser::Title::default());
+        let mut metadata = image.take_metadata();
+        metadata.caption = caption;
+        image.set_metadata(metadata)?;
         document.set_blocks(blocks);
         let before = serde_json::to_value(&document)?;
         let region = Region::new(ALLOCATOR);
@@ -218,7 +220,9 @@ fn caption_reads_preserve_registered_snapshots_after_owner_edits() -> Result<(),
             }
         })
         .ok_or("image")?;
-    image.metadata.caption = Some(Caption::Custom("Changed tree".into()));
+    let mut metadata = image.take_metadata();
+    metadata.caption = Some(Caption::Custom("Changed tree".into()));
+    image.set_metadata(metadata)?;
     document.set_blocks(blocks);
     assert!(
         matches!(DocumentRef::from(&document).references().get("figure").ok_or("figure")?.caption(), Some(CaptionRef::Numbered { number: Some(number), .. }) if number.get() == 1)

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** block `Image`, `Audio`, and `Video` fields are private. Use their
+  `ast` readers and owned edit methods. `replace_source` transfers the complete
+  previous target without splitting playlists. Image alt content stays separate
+  from its caption; audio and video retain scalar `alt` extension attributes.
+
 - **Breaking:** `Section` fields are private. Read through `ast::SectionRef` and
   use owned setters and `take_*` methods to edit prepared content. Metadata edits
   classify special sections from their style and preserve assigned IDs unless the

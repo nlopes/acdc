@@ -103,7 +103,7 @@ fn image_alt_is_reserved_with_absent_empty_and_present_content(
     let mut metadata = BlockMetadata::new();
     metadata.attributes.set("alt".into(), "shadow".into());
     let mut image = Image::new(Source::Name("image"), Location::default());
-    image.alt = alt;
+    image.set_alt(alt);
     let error = image
         .with_metadata(metadata)
         .err()
@@ -127,18 +127,18 @@ fn extensions_stay_contextual_and_typed_values_are_preserved() -> Result<(), Err
         Video::new(Source::Name("video"), Location::default()).with_metadata(metadata.clone())?;
     let audio =
         Audio::new(Source::Name("audio"), Location::default()).with_metadata(metadata.clone())?;
-    assert_eq!(video.metadata, metadata);
-    assert_eq!(audio.metadata, metadata);
+    assert_eq!(video.clone_metadata(), metadata);
+    assert_eq!(audio.clone_metadata(), metadata);
     let image =
         Image::new(Source::Name("image"), Location::default()).with_metadata(metadata.clone());
     assert_eq!(image.err().ok_or("image alt accepted")?.name, "alt");
     metadata.attributes.remove("alt");
     let mut image = Image::new(Source::Name("image"), Location::default());
-    image.alt = Some(ContentAttribute::default());
-    image.title = Title::new(Vec::new());
+    image.set_alt(Some(ContentAttribute::default()));
+    image.set_title(Title::new(Vec::new()));
     let image = image.with_metadata(metadata.clone())?;
-    assert_eq!(image.metadata, metadata);
-    assert!(image.alt.is_some());
-    assert!(image.title.is_present());
+    assert_eq!(image.clone_metadata(), metadata);
+    assert!(acdc_parser::ast::ImageRef::from(&image).alt().is_some());
+    assert!(acdc_parser::ast::ImageRef::from(&image).title().is_some());
     Ok(())
 }

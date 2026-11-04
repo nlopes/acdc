@@ -150,32 +150,39 @@ fn ranges_keep_absent_empty_nontext_and_quoted_values() -> Result<(), Box<dyn st
         ),
     ] {
         let mut audio = Audio::new(Source::Name("clip,audio.ogg?x=1#part"), Location::default());
-        audio
-            .metadata
+        let mut metadata = audio.take_metadata();
+        metadata
             .attributes
             .insert("start".into(), AttributeValue::Bool(true));
-        audio
-            .metadata
+        metadata
             .attributes
             .insert("end".into(), AttributeValue::None);
+        audio.set_metadata(metadata)?;
         for (key, value) in [("start", start), ("end", end)] {
             if let Some(value) = value {
-                audio.metadata.attributes.set(key.into(), value.into());
+                let mut metadata = audio.take_metadata();
+                metadata.attributes.set(key.into(), value.into());
+                audio.set_metadata(metadata)?;
             }
         }
         assert_eq!(
-            with_time_range(&audio.source.to_string(), &audio.metadata.attributes),
+            with_time_range(
+                &AudioRef::from(&audio).source().to_string(),
+                &audio.clone_metadata().attributes
+            ),
             expected
         );
         assert_eq!(
             with_time_range_from_attributes(
-                &audio.source.to_string(),
+                &AudioRef::from(&audio).source().to_string(),
                 AudioRef::from(&audio).attributes()
             ),
             expected
         );
         let mut video = video("clip,audio.ogg?x=1#part", &[], vec![])?;
-        video.metadata.attributes = audio.metadata.attributes;
+        let mut metadata = video.take_metadata();
+        metadata.attributes = audio.take_metadata().attributes;
+        video.set_metadata(metadata)?;
         assert_eq!(video.try_url(false)?, expected);
         assert_eq!(video.try_url(true)?, expected);
         assert_eq!(VideoRef::from(&video).try_url(false)?, expected);
@@ -193,11 +200,12 @@ fn playback_results_outlive_temporary_targets_and_edited_controls()
         let mut video = video(&target, &[("poster", "youtube"), ("start", &start)], vec![])?;
         let before = VideoRef::from(&video).try_url(true)?;
         assert_eq!(video.try_url(true)?, before);
-        video
-            .metadata
+        let mut metadata = video.take_metadata();
+        metadata
             .attributes
             .set("start".into(), String::from("9").into());
-        video.metadata.options.push("muted");
+        metadata.options.push("muted");
+        video.set_metadata(metadata)?;
         let after = VideoRef::from(&video).try_url(true)?;
         assert_eq!(video.try_url(true)?, after);
         (before, after)
@@ -230,19 +238,21 @@ fn empty_targets_fail_before_provider_specific_controls() -> Result<(), Box<dyn 
 }
 
 #[test]
-fn range_results_outlive_temporary_attribute_values() {
+fn range_results_outlive_temporary_attribute_values() -> Result<(), Box<dyn std::error::Error>> {
     let range = {
         let source = String::from("track.ogg");
         let start = String::from("\"5\"");
         let mut audio = Audio::new(Source::Name(&source), Location::default());
-        audio
-            .metadata
+        let mut metadata = audio.take_metadata();
+        metadata
             .attributes
             .set("start".into(), start.as_str().into());
+        audio.set_metadata(metadata)?;
         let audio = AudioRef::from(&audio);
         with_time_range_from_attributes(&audio.source().to_string(), audio.attributes())
     };
     assert_eq!(range, "track.ogg#t=\"5\"");
+    Ok(())
 }
 
 #[test]
@@ -254,7 +264,9 @@ fn nontext_controls_keep_a_complete_local_target() -> Result<(), Box<dyn std::er
     ] {
         let mut video = video("one,two,three", &[], vec!["loop", "related"])?;
         for key in ["poster", "start", "end"] {
-            video.metadata.attributes.set(key.into(), value.clone());
+            let mut metadata = video.take_metadata();
+            metadata.attributes.set(key.into(), value.clone());
+            video.set_metadata(metadata)?;
         }
         assert_urls(&video, "one,two,three", "one,two,three")?;
     }

@@ -25,17 +25,28 @@ fn video_copies_keep_empty_values_extensions_and_unresolved_metadata() -> Result
         .with_metadata(metadata)?;
     let mut copy = Video::from(VideoRef::from(&video));
     assert_eq!(copy, video);
-    assert!(copy.title.is_present());
-    assert!(copy.title.is_empty());
-    copy.metadata.id = None;
-    copy.metadata.anchors.clear();
-    copy.metadata.attributes.remove("alt");
-    copy.metadata.caption = None;
-    assert!(video.metadata.id.is_some());
-    assert_eq!(video.metadata.anchors.len(), 1);
-    assert!(video.metadata.attributes.contains_key("alt"));
-    assert!(video.metadata.caption.is_some());
+    assert!(VideoRef::from(&copy).title().is_some());
+    assert!(
+        VideoRef::from(&copy)
+            .title()
+            .is_some_and(acdc_parser::ast::ContentRef::is_empty)
+    );
+    let mut copy_metadata = copy.take_metadata();
+    copy_metadata.id = None;
+    copy_metadata.anchors.clear();
+    copy_metadata.attributes.remove("alt");
+    copy_metadata.caption = None;
+    copy.set_metadata(copy_metadata)?;
+    let metadata = video.clone_metadata();
+    assert!(metadata.id.is_some());
+    assert_eq!(metadata.anchors.len(), 1);
+    assert!(metadata.attributes.contains_key("alt"));
+    assert!(metadata.caption.is_some());
     let absent = Video::new(Source::Name("untitled"), Location::default());
-    assert!(!Video::from(VideoRef::from(&absent)).title.is_present());
+    assert!(
+        !Video::from(VideoRef::from(&absent))
+            .take_title()
+            .is_present()
+    );
     Ok(())
 }

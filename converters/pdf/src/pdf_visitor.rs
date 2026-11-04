@@ -5412,16 +5412,19 @@ mod tests {
     };
     use acdc_parser::{AttributeValue, Image, Location, Source, ast::ImageRef};
 
-    fn image_with_width(width: &'static str) -> acdc_parser::Image<'static> {
+    fn image_with_width(
+        width: &'static str,
+    ) -> Result<acdc_parser::Image<'static>, Box<dyn std::error::Error>> {
         let mut image = acdc_parser::Image::new(
             acdc_parser::Source::Name("bird"),
             acdc_parser::Location::default(),
         );
-        image
-            .metadata
+        let mut metadata = image.take_metadata();
+        metadata
             .attributes
             .set("width".into(), AttributeValue::String(width.into()));
-        image
+        image.set_metadata(metadata)?;
+        Ok(image)
     }
 
     fn assert_measurement(input: &str, expected: f64) {
@@ -5433,23 +5436,26 @@ mod tests {
     }
 
     #[test]
-    fn image_width_matches_asciidoctor_pdf_units() {
+    fn image_width_matches_asciidoctor_pdf_units() -> Result<(), Box<dyn std::error::Error>> {
         assert_eq!(
-            image_width(ImageRef::from(&image_with_width("120")).attributes(), true),
+            image_width(ImageRef::from(&image_with_width("120")?).attributes(), true),
             Some(ImageWidth::Points {
                 value: 90.0,
                 constrain_to_bounds: true,
             })
         );
         assert_eq!(
-            image_width(ImageRef::from(&image_with_width("40%")).attributes(), true),
+            image_width(ImageRef::from(&image_with_width("40%")?).attributes(), true),
             Some(ImageWidth::ContainerRatio {
                 value: 0.4,
                 constrain_to_bounds: true,
             })
         );
         assert_eq!(
-            image_width(ImageRef::from(&image_with_width("150%")).attributes(), true),
+            image_width(
+                ImageRef::from(&image_with_width("150%")?).attributes(),
+                true
+            ),
             Some(ImageWidth::ContainerRatio {
                 value: 1.0,
                 constrain_to_bounds: true,
@@ -5458,12 +5464,13 @@ mod tests {
         for ignored in ["120px", "12.5", "-1", "invalid%"] {
             assert_eq!(
                 image_width(
-                    ImageRef::from(&image_with_width(ignored)).attributes(),
+                    ImageRef::from(&image_with_width(ignored)?).attributes(),
                     true
                 ),
                 None
             );
         }
+        Ok(())
     }
 
     #[test]
@@ -5479,12 +5486,14 @@ mod tests {
     }
 
     #[test]
-    fn pdfwidth_overrides_width_and_uses_pdf_measurements() {
-        let mut image = image_with_width("40");
-        image
-            .metadata
+    fn pdfwidth_overrides_width_and_uses_pdf_measurements() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let mut image = image_with_width("40")?;
+        let mut metadata = image.take_metadata();
+        metadata
             .attributes
             .set("pdfwidth".into(), AttributeValue::String("60".into()));
+        image.set_metadata(metadata)?;
         assert_eq!(
             image_width(ImageRef::from(&image).attributes(), true),
             Some(ImageWidth::Points {
@@ -5506,23 +5515,24 @@ mod tests {
         ] {
             assert_measurement(input, expected);
         }
+        Ok(())
     }
 
     #[test]
-    fn pdf_image_scale_attributes_follow_reference_precedence() {
-        let mut image = image_with_width("120");
-        image
-            .metadata
+    fn pdf_image_scale_attributes_follow_reference_precedence()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut image = image_with_width("120")?;
+        let mut metadata = image.take_metadata();
+        metadata
             .attributes
             .set("scaledwidth".into(), AttributeValue::String("40%".into()));
-        image
-            .metadata
+        metadata
             .attributes
             .set("scale".into(), AttributeValue::String("25".into()));
-        image
-            .metadata
+        metadata
             .attributes
             .set("pdfwidth".into(), AttributeValue::String("72pt".into()));
+        image.set_metadata(metadata)?;
 
         assert_eq!(
             image_width(ImageRef::from(&image).attributes(), true),
@@ -5531,12 +5541,16 @@ mod tests {
                 constrain_to_bounds: false,
             })
         );
-        image.metadata.attributes.remove("pdfwidth");
+        let mut metadata = image.take_metadata();
+        metadata.attributes.remove("pdfwidth");
+        image.set_metadata(metadata)?;
         assert_eq!(
             image_width(ImageRef::from(&image).attributes(), true),
             Some(ImageWidth::IntrinsicRatio(0.25))
         );
-        image.metadata.attributes.remove("scale");
+        let mut metadata = image.take_metadata();
+        metadata.attributes.remove("scale");
+        image.set_metadata(metadata)?;
         assert_eq!(
             image_width(ImageRef::from(&image).attributes(), true),
             Some(ImageWidth::ContainerRatio {
@@ -5544,10 +5558,11 @@ mod tests {
                 constrain_to_bounds: false,
             })
         );
-        image
-            .metadata
+        let mut metadata = image.take_metadata();
+        metadata
             .attributes
             .set("scaledwidth".into(), AttributeValue::String("1in".into()));
+        image.set_metadata(metadata)?;
         assert_eq!(
             image_width(ImageRef::from(&image).attributes(), true),
             Some(ImageWidth::Points {
@@ -5555,25 +5570,31 @@ mod tests {
                 constrain_to_bounds: false,
             })
         );
+        Ok(())
     }
 
     #[test]
-    fn pdfwidth_supports_container_intrinsic_and_block_viewport_units() {
-        let image_with_pdfwidth = |width: &'static str| {
+    fn pdfwidth_supports_container_intrinsic_and_block_viewport_units()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let image_with_pdfwidth = |width: &'static str| -> Result<
+            acdc_parser::Image<'static>,
+            Box<dyn std::error::Error>,
+        > {
             let mut image = acdc_parser::Image::new(
                 acdc_parser::Source::Name("bird"),
                 acdc_parser::Location::default(),
             );
-            image
-                .metadata
+            let mut metadata = image.take_metadata();
+            metadata
                 .attributes
                 .set("pdfwidth".into(), AttributeValue::String(width.into()));
-            image
+            image.set_metadata(metadata)?;
+            Ok(image)
         };
 
         assert_eq!(
             image_width(
-                ImageRef::from(&image_with_pdfwidth("200%")).attributes(),
+                ImageRef::from(&image_with_pdfwidth("200%")?).attributes(),
                 true
             ),
             Some(ImageWidth::ContainerRatio {
@@ -5583,21 +5604,21 @@ mod tests {
         );
         assert_eq!(
             image_width(
-                ImageRef::from(&image_with_pdfwidth("50iw")).attributes(),
+                ImageRef::from(&image_with_pdfwidth("50iw")?).attributes(),
                 true
             ),
             Some(ImageWidth::IntrinsicRatio(0.5))
         );
         assert_eq!(
             image_width(
-                ImageRef::from(&image_with_pdfwidth("50vw")).attributes(),
+                ImageRef::from(&image_with_pdfwidth("50vw")?).attributes(),
                 true
             ),
             Some(ImageWidth::ViewportRatio(0.5))
         );
         assert_eq!(
             image_width(
-                ImageRef::from(&image_with_pdfwidth("50vw")).attributes(),
+                ImageRef::from(&image_with_pdfwidth("50vw")?).attributes(),
                 false
             ),
             Some(ImageWidth::Points {
@@ -5605,61 +5626,69 @@ mod tests {
                 constrain_to_bounds: false,
             })
         );
+        Ok(())
     }
 
     #[test]
-    fn block_image_alignment_follows_float_attribute_and_role_precedence() {
+    fn block_image_alignment_follows_float_attribute_and_role_precedence()
+    -> Result<(), Box<dyn std::error::Error>> {
         let mut image = Image::new(Source::Name("example"), Location::default());
         assert_eq!(
             block_image_alignment(Some(ImageRef::from(&image).attributes())),
             BlockImageAlignment::Left
         );
 
-        image.metadata.roles = vec!["left", "unrelated", "right"];
+        let mut metadata = image.take_metadata();
+        metadata.roles = vec!["left", "unrelated", "right"];
+        image.set_metadata(metadata)?;
         assert_eq!(
             block_image_alignment(Some(ImageRef::from(&image).attributes())),
             BlockImageAlignment::Right
         );
 
-        image
-            .metadata
+        let mut metadata = image.take_metadata();
+        metadata
             .attributes
             .set("align".into(), AttributeValue::String("center".into()));
+        image.set_metadata(metadata)?;
         assert_eq!(
             block_image_alignment(Some(ImageRef::from(&image).attributes())),
             BlockImageAlignment::Center
         );
 
-        image
-            .metadata
+        let mut metadata = image.take_metadata();
+        metadata
             .attributes
             .set("align".into(), AttributeValue::String("invalid".into()));
+        image.set_metadata(metadata)?;
         assert_eq!(
             block_image_alignment(Some(ImageRef::from(&image).attributes())),
             BlockImageAlignment::Left
         );
 
-        image
-            .metadata
+        let mut metadata = image.take_metadata();
+        metadata
             .attributes
             .set("float".into(), AttributeValue::String("right".into()));
+        image.set_metadata(metadata)?;
         assert_eq!(
             block_image_alignment(Some(ImageRef::from(&image).attributes())),
             BlockImageAlignment::Right
         );
 
-        image
-            .metadata
+        let mut metadata = image.take_metadata();
+        metadata
             .attributes
             .set("float".into(), AttributeValue::String("invalid".into()));
-        image
-            .metadata
+        metadata
             .attributes
             .set("align".into(), AttributeValue::String("center".into()));
+        image.set_metadata(metadata)?;
         assert_eq!(
             block_image_alignment(Some(ImageRef::from(&image).attributes())),
             BlockImageAlignment::Center
         );
+        Ok(())
     }
 
     #[test]
