@@ -5,18 +5,15 @@ use std::{convert::Infallible, io::Write, path::Path, rc::Rc};
 use acdc_converters_core::{
     Diagnostics, TraversalContext, document_attribute_text,
     substitutions::{TextBoundaries, effective_subs},
-    visitor::{BlockVisitor, Visitor},
+    visitor::BlockVisitor,
 };
 
 use acdc_parser::{
-    Admonition, Audio, Block, CalloutList, CaptionKind, ColumnStyle, DelimitedBlock,
-    DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, NORMAL,
-    OrderedList, PageBreak, Paragraph, Section, Substitution, TableOfContents, ThematicBreak,
-    UnorderedList, Video,
+    CaptionKind, ColumnStyle, NORMAL, Substitution,
     ast::{
         AttributeValueRef, AttributesRef, BlockKind, BlockRef, CaptionRef, ColumnFormatRef,
         ContentRef, DocumentAttributesRef, DocumentRef, FootnoteDefinitionRef, HeaderRef,
-        InlineRef, ParagraphRef, SectionRef, StructuralRef, TableRef, ThematicBreakRef,
+        ParagraphRef, SectionRef, StructuralRef, TableRef,
     },
 };
 
@@ -772,10 +769,7 @@ impl<'a, W: Write> BlockVisitor<'a> for HtmlVisitor<'a, '_, W> {
             | BlockKind::Table(_)
             | BlockKind::DelimitedComment(_) => self.visit_delimited_block_ref(context, block),
             _ => {
-                self.diagnostics.warn_with_advice(
-                    "an unsupported parser block variant was omitted from HTML output",
-                    "Use another backend for this document and report the unsupported construct.",
-                );
+                self.warn_unhandled_block();
                 Ok(())
             }
         }
@@ -1197,285 +1191,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     }
 }
 
-impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
-    type Error = Error;
-    fn visit_document(
-        &mut self,
-        context: &mut TraversalContext<'a>,
-        doc: &'a Document<'a>,
-    ) -> Result<(), Self::Error> {
-        acdc_converters_core::visitor::DocumentVisitor::visit_document(self, context, doc.into())
-    }
-    fn visit_unhandled_block(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        _block: &'a Block<'a>,
-    ) -> Result<(), Self::Error> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
+    fn warn_unhandled_block(&mut self) {
         self.diagnostics.warn_with_advice(
             "an unsupported parser block variant was omitted from HTML output",
             "Use another backend for this document and report the unsupported construct.",
         );
-        Ok(())
     }
 
-    fn before_block(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        _block: &'a Block<'a>,
-    ) -> Result<(), Self::Error> {
-        // Cell headers initialize their scope without an attribute callback.
-        if traversal.is_nested_document() {
-            self.warn_deprecated_highlight_attributes(traversal);
-        }
-        Ok(())
-    }
-
-    fn visit_document_attribute(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        _attribute: &'a acdc_parser::DocumentAttribute<'a>,
-    ) -> Result<(), Self::Error> {
-        self.warn_deprecated_highlight_attributes(traversal);
-        Ok(())
-    }
-
-    fn visit_document_start(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        doc: &'a Document<'a>,
-    ) -> Result<(), Self::Error> {
-        acdc_converters_core::visitor::DocumentVisitor::visit_document_start(
-            self,
-            traversal,
-            doc.into(),
-        )
-    }
-    fn visit_preamble_end(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        doc: &'a Document<'a>,
-    ) -> Result<(), Self::Error> {
-        acdc_converters_core::visitor::DocumentVisitor::visit_preamble_end(
-            self,
-            traversal,
-            doc.into(),
-        )
-    }
-    fn visit_document_supplements(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        doc: &'a Document<'a>,
-    ) -> Result<(), Self::Error> {
-        acdc_converters_core::visitor::DocumentVisitor::visit_document_supplements(
-            self,
-            traversal,
-            doc.into(),
-        )
-    }
-    fn visit_document_end(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        doc: &'a Document<'a>,
-    ) -> Result<(), Self::Error> {
-        acdc_converters_core::visitor::DocumentVisitor::visit_document_end(
-            self,
-            traversal,
-            doc.into(),
-        )
-    }
-    fn visit_header(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        header: &Header,
-    ) -> Result<(), Self::Error> {
-        self.render_header(traversal, header.into())
-    }
-
-    fn visit_body_content_start(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        doc: &'a Document<'a>,
-    ) -> Result<(), Self::Error> {
-        acdc_converters_core::visitor::DocumentVisitor::visit_body_content_start(
-            self,
-            traversal,
-            doc.into(),
-        )
-    }
-    fn visit_preamble_start(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        doc: &'a Document<'a>,
-    ) -> Result<(), Self::Error> {
-        acdc_converters_core::visitor::DocumentVisitor::visit_preamble_start(
-            self,
-            traversal,
-            doc.into(),
-        )
-    }
-    fn visit_section(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        section: &'a Section<'a>,
-    ) -> Result<(), Self::Error> {
-        self.visit_section_ref(traversal, section.into())
-    }
-    fn visit_paragraph(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
-    ) -> Result<(), Self::Error> {
-        self.visit_paragraph_ref(traversal, para.into())
-    }
-    fn visit_delimited_block(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        block: &'a DelimitedBlock<'a>,
-    ) -> Result<(), Self::Error> {
-        self.visit_delimited_block_ref(traversal, block.into())
-    }
-    fn visit_ordered_list(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        list: &'a OrderedList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.render_ordered_list(traversal, list.into())
-    }
-
-    fn visit_unordered_list(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        list: &'a UnorderedList<'a>,
-    ) -> Result<(), Self::Error> {
-        let section_style = self.section_style.clone();
-        self.render_unordered_list(traversal, list.into(), section_style.as_deref())
-    }
-
-    fn visit_description_list(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        list: &'a DescriptionList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.render_description_list(traversal, list.into())
-    }
-
-    fn visit_callout_list(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        list: &'a CalloutList<'a>,
-    ) -> Result<(), Self::Error> {
-        self.render_callout_list(traversal, list.into())
-    }
-
-    fn visit_list_item(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        _item: &'a ListItem<'a>,
-    ) -> Result<(), Self::Error> {
-        // List items are handled by their parent list visitors
-        Ok(())
-    }
-
-    fn visit_admonition(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        admon: &'a Admonition<'a>,
-    ) -> Result<(), Self::Error> {
-        self.render_admonition(traversal, admon.into())
-    }
-
-    fn visit_image(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        img: &Image,
-    ) -> Result<(), Self::Error> {
-        self.render_image(traversal, img.into())
-    }
-
-    fn visit_video(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        video: &Video,
-    ) -> Result<(), Self::Error> {
-        self.render_video(traversal, video.into())
-    }
-
-    fn visit_audio(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        audio: &Audio,
-    ) -> Result<(), Self::Error> {
-        self.render_audio(traversal, audio.into())
-    }
-
-    fn visit_thematic_break(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        br: &ThematicBreak,
-    ) -> Result<(), Self::Error> {
-        write!(self.writer, "<hr")?;
-        if let Some(id) = ThematicBreakRef::from(br).id() {
-            crate::write_element_id(&mut self.writer, Some(id))?;
-        }
-        writeln!(self.writer, ">")?;
-        Ok(())
-    }
-
-    fn visit_page_break(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        _br: &PageBreak,
-    ) -> Result<(), Self::Error> {
-        writeln!(
-            self.writer,
-            "<div style=\"page-break-after: always;\"></div>"
-        )?;
-        Ok(())
-    }
-
-    fn visit_table_of_contents(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        toc: &TableOfContents,
-    ) -> Result<(), Self::Error> {
-        self.render_toc(traversal, Some(toc.into()), "macro")
-    }
-
-    fn visit_discrete_header(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        header: &DiscreteHeader,
-    ) -> Result<(), Self::Error> {
-        crate::section::visit_discrete_header(traversal, header.into(), self)
-    }
-
-    fn visit_inline_node(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        node: &InlineNode,
-    ) -> Result<(), Self::Error> {
-        self.visit_inline_ref(traversal, node.into())
-    }
-
-    fn visit_inline_nodes(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode],
-    ) -> Result<(), Self::Error> {
-        self.visit_inline_refs(traversal, nodes.iter().map(InlineRef::from))
-    }
-
-    fn visit_text(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        text: &str,
-    ) -> Result<(), Self::Error> {
-        write!(self.writer, "{text}")?;
-        Ok(())
-    }
-}
-
-impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
     }
@@ -1484,10 +1207,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 #[cfg(test)]
 mod title_media_tests {
     use super::*;
-    use acdc_converters_core::{Converter, Options as ConverterOptions, WarningSource};
+    use acdc_converters_core::{
+        Converter, Options as ConverterOptions, WarningSource, visitor::DocumentVisitor,
+    };
     use acdc_parser::{
-        Anchor, AttributeValue, CompatibilityMode, Location, Options as ParserOptions, Title,
-        parse, parse_inline,
+        Anchor, AttributeValue, Block, CompatibilityMode, Document, Location,
+        Options as ParserOptions, Section, Title, parse, parse_inline,
     };
 
     type TestError = Box<dyn std::error::Error>;
@@ -1588,7 +1313,7 @@ mod title_media_tests {
                 Diagnostics::new(&source, &mut warnings),
             );
             let mut context = TraversalContext::new(&document.attributes);
-            visitor.visit_document_supplements(&mut context, &document)?;
+            visitor.visit_document_supplements(&mut context, DocumentRef::from(&document))?;
             let output = String::from_utf8(output)?;
             assert!(
                 output.find("SECOND").ok_or("second definition")?
@@ -1609,7 +1334,7 @@ mod title_media_tests {
             );
             assert!(
                 visitor
-                    .visit_document_supplements(&mut context, &document)
+                    .visit_document_supplements(&mut context, DocumentRef::from(&document))
                     .is_err()
             );
         }
@@ -2167,6 +1892,46 @@ mod title_media_tests {
         )?;
         assert_eq!(std::str::from_utf8(&visitor.writer)?, "Figure 2. ");
         assert_eq!(processor.figure_counter.get(), 2);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod unhandled_block_tests {
+    use super::*;
+    use acdc_converters_core::{Options as ConverterOptions, WarningSource};
+    use acdc_parser::{Options as ParserOptions, parse};
+
+    type TestError = Box<dyn std::error::Error>;
+
+    #[test]
+    fn unhandled_parser_block_warning_is_structured() -> Result<(), TestError> {
+        let parsed = parse("text", &ParserOptions::default())?;
+        let processor = Processor::new_with_variant(
+            ConverterOptions::default(),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
+            HtmlVariant::Standard,
+        )?;
+        let source = WarningSource::new("html").with_variant("standard");
+        let mut warnings = Vec::new();
+        {
+            let diagnostics = Diagnostics::new(&source, &mut warnings);
+            let mut visitor = HtmlVisitor::new(
+                Vec::new(),
+                std::rc::Rc::new(processor),
+                RenderOptions::default(),
+                diagnostics,
+            );
+            visitor.warn_unhandled_block();
+        }
+
+        let warning = warnings.first().ok_or("missing unhandled block warning")?;
+        assert_eq!(warning.source.converter, "html");
+        assert_eq!(warning.source.variant.as_deref(), Some("standard"));
+        assert!(warning.message.contains("omitted from HTML output"));
+        assert!(warning.advice().is_some());
         Ok(())
     }
 }

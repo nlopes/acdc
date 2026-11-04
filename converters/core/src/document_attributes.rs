@@ -70,8 +70,8 @@ impl<'doc> TraversalContext<'doc> {
         blocks: impl IntoIterator<Item = B>,
     ) -> Result<(), V::Error>
     where
-        V: crate::visitor::BlockVisitor<'doc, B> + ?Sized,
-        B: Copy + Into<BlockRef<'doc>>,
+        V: crate::visitor::BlockVisitor<'doc> + ?Sized,
+        B: Into<BlockRef<'doc>>,
     {
         for block in blocks {
             self.visit_block(visitor, block)?;
@@ -86,11 +86,12 @@ impl<'doc> TraversalContext<'doc> {
     /// Returns the first callback error.
     pub fn visit_block<V, B>(&mut self, visitor: &mut V, block: B) -> Result<(), V::Error>
     where
-        V: crate::visitor::BlockVisitor<'doc, B> + ?Sized,
-        B: Copy + Into<BlockRef<'doc>>,
+        V: crate::visitor::BlockVisitor<'doc> + ?Sized,
+        B: Into<BlockRef<'doc>>,
     {
+        let block = block.into();
         visitor.before_block(self, block)?;
-        if let BlockKind::DocumentAttribute(event) = block.into().kind() {
+        if let BlockKind::DocumentAttribute(event) = block.kind() {
             self.apply(event);
         }
         visitor.visit_block(self, block)
@@ -203,10 +204,10 @@ impl<'doc> TraversalContext<'doc> {
 mod tests {
     use std::{convert::Infallible, fmt, ptr::eq};
 
-    use acdc_parser::{Block, DocumentAttribute, DocumentAttributes, Options, parse};
+    use acdc_parser::{Block, DocumentAttributes, Options, ast::BlockRef, parse};
 
     use super::*;
-    use crate::{document_attribute_text, visitor::Visitor};
+    use crate::{document_attribute_text, visitor::BlockVisitor};
 
     type Error = Box<dyn std::error::Error>;
 
@@ -320,17 +321,20 @@ mod tests {
         values: Vec<Option<String>>,
     }
 
-    impl<'doc> Visitor<'doc> for Observer {
+    impl<'doc> BlockVisitor<'doc> for Observer {
         type Error = Infallible;
 
-        fn visit_document_attribute(
+        fn visit_block(
             &mut self,
             context: &mut TraversalContext<'doc>,
-            event: &'doc DocumentAttribute<'doc>,
+            block: BlockRef<'doc>,
         ) -> Result<(), Self::Error> {
+            let BlockKind::DocumentAttribute(event) = block.kind() else {
+                return Ok(());
+            };
             assert!(
                 context
-                    .attribute_assignment(&event.name)
+                    .attribute_assignment(event.name())
                     .is_some_and(|applied| eq(applied, event.assignment()))
             );
             self.values.push(

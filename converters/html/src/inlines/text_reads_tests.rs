@@ -1,7 +1,8 @@
 use std::{io, rc::Rc};
 
 use acdc_converters_core::{
-    Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource, visitor::Visitor,
+    Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource,
+    visitor::InlineVisitor,
 };
 use acdc_parser::{
     CalloutRef, Document, Form, Highlight, InlineMacro, InlineNode, Location, Options, Plain, Raw,
@@ -198,7 +199,7 @@ fn span_warning_order_and_inline_state_survive_a_write_error() -> Result<(), Tes
                 location: Location::default(),
             });
             assert!(matches!(
-                visitor.visit_inline_node(&mut traversal, &node),
+                visitor.visit_inline_node(&mut traversal, (&node).into()),
                 Err(Error::Io(_))
             ));
         }

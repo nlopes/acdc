@@ -2,7 +2,7 @@
 
 use acdc_converters_core::{
     TraversalContext,
-    visitor::{BlockVisitor, DocumentVisitor, InlineVisitor, Visitor, is_formatting_span},
+    visitor::{BlockVisitor, DocumentVisitor, InlineVisitor, is_formatting_span},
 };
 use acdc_parser::{
     CompatibilityMode, ContentAttribute, InlineNode, Location, Options, Plain,
@@ -49,28 +49,31 @@ impl<'doc> Trace<'doc> {
 }
 
 #[derive(Default)]
-struct OwnerTrace<'doc>(Trace<'doc>);
+struct ConstructedTrace<'doc>(Trace<'doc>);
 
-impl<'doc> Visitor<'doc> for OwnerTrace<'doc> {
+impl<'doc> InlineVisitor<'doc> for ConstructedTrace<'doc> {
     type Error = &'static str;
 
     fn visit_inline_node(
         &mut self,
         context: &mut TraversalContext<'doc>,
-        node: &InlineNode<'_>,
+        node: InlineRef<'_>,
     ) -> Result<(), Self::Error> {
-        self.0.record(context, node.into())
+        self.0.record(context, node)
     }
 }
 
 #[test]
-fn owner_inline_sequence_visits_only_selected_direct_nodes() -> Result<(), Error> {
+fn constructed_inline_sequence_visits_only_selected_direct_nodes() -> Result<(), Error> {
     let document = parse("= Doc\n:marker: retained\n\nBody.\n", &Options::default())?;
     let mut context = TraversalContext::new(document.document().attributes());
-    let mut visitor = OwnerTrace::default();
+    let mut visitor = ConstructedTrace::default();
     {
         let fragment = parse_inline(SOURCE, &Options::default())?;
-        visitor.visit_inline_nodes(&mut context, fragment.inlines())?;
+        visitor.visit_inline_nodes(
+            &mut context,
+            ContentRef::from(&ContentAttribute::new(fragment.inlines().to_vec())),
+        )?;
     }
     assert_eq!(
         visitor.0.entries,
@@ -85,18 +88,21 @@ fn owner_inline_sequence_visits_only_selected_direct_nodes() -> Result<(), Error
 }
 
 #[test]
-fn owner_inline_errors_stop_the_sequence_and_retain_attribute_borrows() -> Result<(), Error> {
+fn constructed_inline_errors_stop_the_sequence_and_retain_attribute_borrows() -> Result<(), Error> {
     let document = parse("= Doc\n:marker: retained\n\nBody.\n", &Options::default())?;
     let mut context = TraversalContext::new(document.document().attributes());
     for fail_at in 0..3 {
-        let mut visitor = OwnerTrace(Trace {
+        let mut visitor = ConstructedTrace(Trace {
             fail_at: Some(fail_at),
             ..Trace::default()
         });
         {
             let fragment = parse_inline(SOURCE, &Options::default())?;
             assert_eq!(
-                visitor.visit_inline_nodes(&mut context, fragment.inlines()),
+                visitor.visit_inline_nodes(
+                    &mut context,
+                    ContentRef::from(&ContentAttribute::new(fragment.inlines().to_vec()))
+                ),
                 Err("stop")
             );
         }
@@ -222,7 +228,7 @@ impl<'doc> InlineVisitor<'doc> for TypedTrace<'doc> {
 }
 
 #[test]
-fn typed_and_owner_inline_sequences_agree_after_temporary_fragments_are_dropped()
+fn typed_and_constructed_inline_sequences_agree_after_temporary_fragments_are_dropped()
 -> Result<(), Error> {
     let document = parse("= Doc\n:marker: retained\n\nBody.\n", &Options::default())?;
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
@@ -232,13 +238,16 @@ fn typed_and_owner_inline_sequences_agree_after_temporary_fragments_are_dropped(
                 fail_at,
                 ..Trace::default()
             };
-            let mut owner = OwnerTrace(trace());
+            let mut owner = ConstructedTrace(trace());
             let mut typed = TypedTrace(trace());
             let mut context = TraversalContext::new(document.document().attributes());
             {
                 let source = String::from(SOURCE);
                 let fragment = parse_inline(&source, &options)?;
-                let expected = owner.visit_inline_nodes(&mut context, fragment.inlines());
+                let expected = owner.visit_inline_nodes(
+                    &mut context,
+                    ContentRef::from(&ContentAttribute::new(fragment.inlines().to_vec())),
+                );
                 let actual = typed.visit_inline_nodes(&mut context, fragment.content());
                 assert_eq!(actual, expected);
             }

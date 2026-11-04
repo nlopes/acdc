@@ -225,7 +225,7 @@ acdc/
 ├── acdc-mcp/          # Model Context Protocol document navigation
 ├── acdc-parser/       # Parser library (PEG grammar, preprocessor, AST)
 └── converters/
-    ├── core/          # Shared converter infrastructure (Processable, Visitor traits)
+    ├── core/          # Shared converter helpers and callbacks
     ├── dev/           # Development utilities (unpublished)
     ├── html/          # HTML5 output (standard + html5s semantic variant)
     ├── manpage/       # Native roff/troff manpage output

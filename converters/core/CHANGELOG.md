@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** replace `visitor::Visitor` and `WritableVisitor` implementations
+  with `DocumentVisitor`, `BlockVisitor`, and `InlineVisitor`. Block callbacks
+  always receive `BlockRef`; dispatch still accepts constructed blocks through
+  `Into<BlockRef>`. Callbacks select their children, and attribute replay and
+  error stopping remain unchanged.
+
 - Rust callers pass `ReferencesRef` to `InlineTextTransform::references` and `resolve_code_link`, and `ReferenceRef` to `reference_text`. Use `document.references()` or `ReferencesRef::from(&catalog)`; `reference_text` returns `ContentRef`. Label precedence and rendered output are unchanged.
 
 - Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
@@ -81,9 +87,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   preserve the complete local target and interpret provider playlists separately.
   Replace `video::watch_urls` with `TryUrl::try_url(false)` for the single target.
 
-- `WritableVisitor::render_title_with_wrapper` now takes `&Title`; it renders
-  explicitly empty titles and skips absent ones.
-
 ### Performance
 
 - Copied cross-reference catalogs use less memory for numbered sections.
@@ -152,13 +155,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Library converters can render typed inline content through `visitor::InlineVisitor`,
   including temporary text and parsed fragments whose lifetime is shorter than the
   document's. Callbacks keep content selection, sibling handling, and rendering
-  policy under converter control. Existing inline visitor overrides stay supported.
+  policy under converter control.
   Formatting-span checks accept typed reads alongside existing owner inputs.
 
 - Library converters can use `visitor::DocumentVisitor` with typed document and
   header reads. Its default traversal preserves the existing document hook order,
   preamble wrappers, attribute replay, and first-error stopping. Hooks select the
-  header and inline content to render; existing converter visitors remain supported.
+  header and inline content to render.
 
 - Library visitors can handle typed blocks through `visitor::BlockVisitor`, with
   source-order attribute replay and the existing nested cell scopes. The before

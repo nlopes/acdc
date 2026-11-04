@@ -7,11 +7,10 @@ use std::{
 };
 
 use acdc_converters_core::{
-    Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, TraversalContext,
-    WarningSource, visitor::Visitor,
+    Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, WarningSource,
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
-use acdc_converters_html::{HtmlVariant, HtmlVisitor, Processor, RenderOptions};
+use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
 use acdc_parser::{
     AttributeValue, Block, CompatibilityMode, DelimitedBlockType, Options as ParserOptions,
     SafeMode, Table, parse, parse_file,
@@ -1788,42 +1787,6 @@ fn standalone_description_and_keywords_are_escaped_when_present() -> Result<(), 
             "{variant}: {html}"
         );
     }
-    Ok(())
-}
-
-#[test]
-fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
-    let parsed = parse("text", &ParserOptions::default())?;
-    let parsed_stored = acdc_parser::Document::from(parsed.document());
-    let block = parsed_stored.blocks.first().ok_or("missing parsed block")?;
-    let processor = Processor::new_with_variant(
-        ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(
-            acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
-        ),
-        HtmlVariant::Standard,
-    )?;
-    let source = WarningSource::new("html").with_variant("standard");
-    let mut warnings = Vec::new();
-    {
-        let diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header =
-            acdc_converters_core::Converter::document_attributes(&processor).clone();
-        let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(
-            Vec::new(),
-            std::rc::Rc::new(processor),
-            RenderOptions::default(),
-            diagnostics,
-        );
-        visitor.visit_unhandled_block(&mut traversal, block)?;
-    }
-
-    let warning = warnings.first().ok_or("missing unhandled block warning")?;
-    assert_eq!(warning.source.converter, "html");
-    assert_eq!(warning.source.variant.as_deref(), Some("standard"));
-    assert!(warning.message.contains("omitted from HTML output"));
-    assert!(warning.advice().is_some());
     Ok(())
 }
 

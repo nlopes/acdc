@@ -1,7 +1,8 @@
 use std::{io, rc::Rc};
 
 use acdc_converters_core::{
-    Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource, visitor::Visitor,
+    Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource,
+    visitor::DocumentVisitor,
 };
 use acdc_parser::{Document, Header, Location, Options, parse};
 
@@ -63,7 +64,7 @@ fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
                 Diagnostics::new(&source, &mut warnings),
             );
             let mut traversal = TraversalContext::new(replay.document().attributes());
-            visitor.visit_document_start(&mut traversal, &document)?;
+            visitor.visit_document_start(&mut traversal, (&document).into())?;
             visitor.render_footer_version()?;
             let output = String::from_utf8(visitor.into_writer())?;
             assert!(output.contains("<html lang=\"fr\">"), "{output}");
@@ -105,7 +106,7 @@ fn frame_keeps_embedded_return_and_css_signature_error_after_alias_warnings()
                 Diagnostics::new(&source, &mut warnings),
             );
             let mut traversal = TraversalContext::new(parsed.document().attributes());
-            let result = visitor.visit_document_start(&mut traversal, &parsed_stored);
+            let result = visitor.visit_document_start(&mut traversal, (&parsed_stored).into());
             let output = String::from_utf8(visitor.into_writer())?;
             if embedded {
                 result?;
@@ -156,7 +157,7 @@ fn frame_propagates_writer_failure_before_css_signature_validation() -> Result<(
         Diagnostics::new(&source, &mut warnings),
     );
     let mut traversal = TraversalContext::new(parsed.document().attributes());
-    let result = visitor.visit_document_start(&mut traversal, &parsed_stored);
+    let result = visitor.visit_document_start(&mut traversal, (&parsed_stored).into());
     assert!(matches!(result, Err(Error::Io(error)) if error.to_string() == "closed"));
     Ok(())
 }
@@ -198,7 +199,7 @@ fn headerless_frame_uses_processor_toc_placement_for_its_wrapper() -> Result<(),
                 Diagnostics::new(&source, &mut warnings),
             );
             let mut traversal = TraversalContext::new(replay.document().attributes());
-            visitor.visit_body_content_start(&mut traversal, &parsed_stored)?;
+            visitor.visit_body_content_start(&mut traversal, (&parsed_stored).into())?;
             let output = String::from_utf8(visitor.into_writer())?;
             let opener = if variant == HtmlVariant::Standard {
                 "<div id=\"header\">"

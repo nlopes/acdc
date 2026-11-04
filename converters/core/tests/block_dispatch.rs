@@ -1,11 +1,8 @@
 //! Block callbacks observe attribute events and stop on the first error.
 
-use acdc_converters_core::{
-    TraversalContext,
-    visitor::{BlockVisitor, Visitor},
-};
+use acdc_converters_core::{TraversalContext, visitor::BlockVisitor};
 use acdc_parser::{
-    Block, DocumentAttribute, Options, Paragraph,
+    Options,
     ast::{BlockKind, BlockRef},
     parse,
 };
@@ -16,59 +13,54 @@ const SOURCE: &str =
     "= Doc\n:value: header\n\nBefore.\n\n:value: first\n\nAfter.\n\n:value!:\n\nUnset.\n";
 
 #[derive(Default)]
-struct OwnerTrace<'doc> {
+struct ConstructedTrace<'doc> {
     entries: Vec<(&'static str, Option<&'doc str>)>,
     fail_before: bool,
     fail_dispatch: bool,
 }
 
-impl<'doc> Visitor<'doc> for OwnerTrace<'doc> {
+impl<'doc> BlockVisitor<'doc> for ConstructedTrace<'doc> {
     type Error = &'static str;
 
     fn before_block(
         &mut self,
         context: &mut TraversalContext<'doc>,
-        block: &'doc Block<'doc>,
+        block: BlockRef<'doc>,
     ) -> Result<(), Self::Error> {
         self.entries.push((
             "before",
             context.get("value").and_then(|value| value.text()),
         ));
-        if self.fail_before && matches!(block, Block::DocumentAttribute(_)) {
+        if self.fail_before && matches!(block.kind(), BlockKind::DocumentAttribute(_)) {
             return Err("before");
         }
         Ok(())
     }
 
-    fn visit_document_attribute(
+    fn visit_block(
         &mut self,
         context: &mut TraversalContext<'doc>,
-        _: &'doc DocumentAttribute<'doc>,
+        block: BlockRef<'doc>,
     ) -> Result<(), Self::Error> {
+        let phase = if matches!(block.kind(), BlockKind::DocumentAttribute(_)) {
+            "event"
+        } else if matches!(block.kind(), BlockKind::Paragraph(_)) {
+            "paragraph"
+        } else {
+            "container"
+        };
         self.entries
-            .push(("event", context.get("value").and_then(|value| value.text())));
-        if self.fail_dispatch {
+            .push((phase, context.get("value").and_then(|value| value.text())));
+        if self.fail_dispatch && phase == "event" {
             Err("dispatch")
         } else {
             Ok(())
         }
     }
-
-    fn visit_paragraph(
-        &mut self,
-        context: &mut TraversalContext<'doc>,
-        _: &Paragraph<'_>,
-    ) -> Result<(), Self::Error> {
-        self.entries.push((
-            "paragraph",
-            context.get("value").and_then(|value| value.text()),
-        ));
-        Ok(())
-    }
 }
 
 #[test]
-fn owner_callbacks_see_events_after_before_hooks() -> Result<(), Error> {
+fn constructed_callbacks_see_events_after_before_hooks() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
     let parsed_blocks: Vec<_> = parsed
         .document()
@@ -76,7 +68,7 @@ fn owner_callbacks_see_events_after_before_hooks() -> Result<(), Error> {
         .map(acdc_parser::Block::from)
         .collect();
     let mut context = TraversalContext::new(parsed.document().attributes());
-    let mut trace = OwnerTrace::default();
+    let mut trace = ConstructedTrace::default();
     context.visit_blocks(&mut trace, &parsed_blocks)?;
     assert_eq!(
         trace.entries,
@@ -97,7 +89,7 @@ fn owner_callbacks_see_events_after_before_hooks() -> Result<(), Error> {
 }
 
 #[test]
-fn owner_callback_errors_stop_before_later_blocks() -> Result<(), Error> {
+fn constructed_callback_errors_stop_before_later_blocks() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
     let parsed_blocks: Vec<_> = parsed
         .document()
@@ -106,10 +98,10 @@ fn owner_callback_errors_stop_before_later_blocks() -> Result<(), Error> {
         .collect();
     for fail_before in [false, true] {
         let mut context = TraversalContext::new(parsed.document().attributes());
-        let mut trace = OwnerTrace {
+        let mut trace = ConstructedTrace {
             fail_before,
             fail_dispatch: true,
-            ..OwnerTrace::default()
+            ..ConstructedTrace::default()
         };
         assert_eq!(
             context.visit_blocks(&mut trace, &parsed_blocks),
@@ -125,7 +117,7 @@ fn owner_callback_errors_stop_before_later_blocks() -> Result<(), Error> {
 }
 
 #[derive(Default)]
-struct TypedTrace<'doc>(OwnerTrace<'doc>);
+struct TypedTrace<'doc>(ConstructedTrace<'doc>);
 
 impl<'doc> BlockVisitor<'doc> for TypedTrace<'doc> {
     type Error = &'static str;
@@ -169,7 +161,7 @@ impl<'doc> BlockVisitor<'doc> for TypedTrace<'doc> {
 }
 
 #[test]
-fn typed_and_owner_inputs_share_hook_order_and_error_behavior() -> Result<(), Error> {
+fn typed_and_constructed_inputs_share_hook_order_and_error_behavior() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
     let parsed_blocks: Vec<_> = parsed
         .document()
@@ -177,15 +169,15 @@ fn typed_and_owner_inputs_share_hook_order_and_error_behavior() -> Result<(), Er
         .map(acdc_parser::Block::from)
         .collect();
     for (fail_before, fail_dispatch) in [(false, false), (true, false), (false, true)] {
-        let mut owner = OwnerTrace {
+        let mut owner = ConstructedTrace {
             fail_before,
             fail_dispatch,
-            ..OwnerTrace::default()
+            ..ConstructedTrace::default()
         };
-        let mut typed = TypedTrace(OwnerTrace {
+        let mut typed = TypedTrace(ConstructedTrace {
             fail_before,
             fail_dispatch,
-            ..OwnerTrace::default()
+            ..ConstructedTrace::default()
         });
         let mut owner_context = TraversalContext::new(parsed.document().attributes());
         let mut typed_context = TraversalContext::new(parsed.document().attributes());
@@ -256,9 +248,9 @@ fn typed_cell_callback_errors_restore_the_parent_scope() -> Result<(), Error> {
         .and_then(|row| row.cells().next())
         .ok_or("cell")?;
     let mut context = TraversalContext::new(parsed.document().attributes());
-    let mut trace = TypedTrace(OwnerTrace {
+    let mut trace = TypedTrace(ConstructedTrace {
         fail_dispatch: true,
-        ..OwnerTrace::default()
+        ..ConstructedTrace::default()
     });
     let result = context.with_table_cell(cell, |context| {
         context.visit_blocks(&mut trace, cell.blocks())

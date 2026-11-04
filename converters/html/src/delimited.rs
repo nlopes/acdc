@@ -1098,9 +1098,7 @@ mod tests {
 
     use std::{cell::Cell, rc::Rc};
 
-    use acdc_converters_core::{
-        Converter, Diagnostics, Doctype, Options, WarningSource, visitor::Visitor,
-    };
+    use acdc_converters_core::{Converter, Diagnostics, Doctype, Options, WarningSource};
     use acdc_parser::{
         BlockMetadata, DocumentAttributes, InlineNode, Location, Plain, SafeMode, Title,
     };
@@ -1160,7 +1158,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1188,7 +1186,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1227,7 +1225,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1266,7 +1264,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1307,7 +1305,7 @@ mod tests {
         let mut visitor =
             HtmlVisitor::new(output, processor.clone(), options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1380,7 +1378,7 @@ mod tests {
         );
 
         // Render first block
-        visitor.visit_delimited_block(&mut traversal, &block1)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block1))?;
         let html1 = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1402,7 +1400,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor2 =
             HtmlVisitor::new(output2, processor.clone(), options, diagnostics.reborrow());
-        visitor2.visit_delimited_block(&mut traversal, &block2)?;
+        traversal.visit_block(&mut visitor2, acdc_parser::ast::BlockRef::from(&block2))?;
         let html2 = String::from_utf8(visitor2.into_writer())?;
 
         assert!(
@@ -1442,7 +1440,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1477,7 +1475,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1512,7 +1510,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1547,7 +1545,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1582,7 +1580,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1620,7 +1618,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1670,7 +1668,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1701,7 +1699,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1736,7 +1734,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(

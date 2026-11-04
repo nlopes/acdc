@@ -2,10 +2,10 @@
 
 use acdc_converters_core::{
     TraversalContext,
-    visitor::{BlockVisitor, DocumentVisitor, Visitor},
+    visitor::{BlockVisitor, DocumentVisitor},
 };
 use acdc_parser::{
-    Block, CompatibilityMode, Document, DocumentAttribute, Header, Options, Paragraph, Section,
+    Block, CompatibilityMode, Document, Header, Options,
     ast::{BlockKind, BlockRef, ContentRef, DocumentRef, HeaderRef},
     parse,
 };
@@ -97,62 +97,56 @@ macro_rules! frame_hooks {
 }
 
 #[derive(Default)]
-struct OwnerTrace(Trace);
+struct ConstructedTrace(Trace);
 
-impl<'doc> Visitor<'doc> for OwnerTrace {
+impl<'doc> BlockVisitor<'doc> for ConstructedTrace {
     type Error = &'static str;
-
-    frame_hooks!(&'doc Document<'doc>);
-
-    fn visit_header(
-        &mut self,
-        context: &mut TraversalContext<'doc>,
-        _: &Header<'_>,
-    ) -> Result<(), Self::Error> {
-        self.0.record("header", context)
-    }
 
     fn before_block(
         &mut self,
         context: &mut TraversalContext<'doc>,
-        _: &'doc Block<'doc>,
+        _: BlockRef<'doc>,
     ) -> Result<(), Self::Error> {
         self.0.record("before", context)
     }
 
-    fn visit_document_attribute(
+    fn visit_block(
         &mut self,
         context: &mut TraversalContext<'doc>,
-        _: &'doc DocumentAttribute<'doc>,
+        block: BlockRef<'doc>,
     ) -> Result<(), Self::Error> {
-        self.0.record("attribute", context)
+        if matches!(block.kind(), BlockKind::DocumentAttribute(_)) {
+            self.0.record("attribute", context)
+        } else if matches!(block.kind(), BlockKind::Paragraph(_)) {
+            self.0.record("paragraph", context)
+        } else if let BlockKind::Section(section) = block.kind() {
+            self.0.record("section", context)?;
+            context.visit_blocks(self, section.blocks())
+        } else {
+            Ok(())
+        }
     }
+}
 
-    fn visit_paragraph(
+impl<'doc> DocumentVisitor<'doc> for ConstructedTrace {
+    frame_hooks!(DocumentRef<'doc>);
+
+    fn visit_header(
         &mut self,
         context: &mut TraversalContext<'doc>,
-        _: &Paragraph<'_>,
+        _: HeaderRef<'doc>,
     ) -> Result<(), Self::Error> {
-        self.0.record("paragraph", context)
-    }
-
-    fn visit_section(
-        &mut self,
-        context: &mut TraversalContext<'doc>,
-        section: &'doc Section<'doc>,
-    ) -> Result<(), Self::Error> {
-        self.0.record("section", context)?;
-        context.visit_blocks(self, &section.content)
+        self.0.record("header", context)
     }
 }
 
 #[test]
-fn owner_lifecycle_orders_framing_around_attribute_replay() -> Result<(), Error> {
+fn constructed_lifecycle_orders_framing_around_attribute_replay() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
     let parsed_document = acdc_parser::Document::from(parsed.document());
     let mut context = TraversalContext::new(parsed.document().attributes());
-    let mut visitor = OwnerTrace::default();
-    visitor.visit_document(&mut context, &parsed_document)?;
+    let mut visitor = ConstructedTrace::default();
+    visitor.visit_document(&mut context, DocumentRef::from(&parsed_document))?;
     let expected = [
         ("start", Some("header")),
         ("header", Some("header")),
@@ -194,13 +188,13 @@ const PREAMBLES: &[(&str, bool)] = &[
 ];
 
 #[test]
-fn owner_preamble_requires_a_header_section_and_substantive_content() -> Result<(), Error> {
+fn constructed_preamble_requires_a_header_section_and_substantive_content() -> Result<(), Error> {
     for (source, wrapped) in PREAMBLES {
         let parsed = parse(source, &Options::default())?;
         let parsed_document = acdc_parser::Document::from(parsed.document());
         let mut context = TraversalContext::new(parsed.document().attributes());
-        let mut visitor = OwnerTrace::default();
-        visitor.visit_document(&mut context, &parsed_document)?;
+        let mut visitor = ConstructedTrace::default();
+        visitor.visit_document(&mut context, DocumentRef::from(&parsed_document))?;
         for phase in ["preamble-start", "preamble-end"] {
             assert_eq!(
                 visitor
@@ -219,22 +213,22 @@ fn owner_preamble_requires_a_header_section_and_substantive_content() -> Result<
 }
 
 #[test]
-fn owner_errors_stop_all_later_document_hooks() -> Result<(), Error> {
+fn constructed_errors_stop_all_later_document_hooks() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
     let parsed_document = acdc_parser::Document::from(parsed.document());
-    let mut complete = OwnerTrace::default();
+    let mut complete = ConstructedTrace::default();
     complete.visit_document(
         &mut TraversalContext::new(parsed.document().attributes()),
-        &parsed_document,
+        DocumentRef::from(&parsed_document),
     )?;
     for fail_at in 0..complete.0.entries.len() {
-        let mut visitor = OwnerTrace(Trace {
+        let mut visitor = ConstructedTrace(Trace {
             fail_at: Some(fail_at),
             ..Trace::default()
         });
         let mut context = TraversalContext::new(parsed.document().attributes());
         assert_eq!(
-            visitor.visit_document(&mut context, &parsed_document),
+            visitor.visit_document(&mut context, DocumentRef::from(&parsed_document)),
             Err("stop")
         );
         assert_eq!(
@@ -291,17 +285,17 @@ impl<'doc> DocumentVisitor<'doc> for TypedTrace<'doc> {
 }
 
 #[test]
-fn typed_and_owner_lifecycles_agree_in_both_modes() -> Result<(), Error> {
+fn typed_and_constructed_lifecycles_agree_in_both_modes() -> Result<(), Error> {
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         for source in PREAMBLES.iter().map(|case| case.0).chain([SOURCE]) {
             let parsed = parse(source, &options)?;
             let parsed_document = acdc_parser::Document::from(parsed.document());
-            let mut owner = OwnerTrace::default();
+            let mut owner = ConstructedTrace::default();
             let mut typed = TypedTrace::default();
             let mut owner_context = TraversalContext::new(parsed.document().attributes());
             let mut typed_context = TraversalContext::new(parsed.document().attributes());
-            owner.visit_document(&mut owner_context, &parsed_document)?;
+            owner.visit_document(&mut owner_context, DocumentRef::from(&parsed_document))?;
             typed.visit_document(&mut typed_context, parsed.document())?;
             assert_eq!(typed.0.entries, owner.0.entries, "{mode:?}: {source:?}");
             assert_eq!(typed.1, parsed.document().title());
@@ -323,9 +317,12 @@ fn attribute_only_preambles_remain_unwrapped_after_owner_edits() -> Result<(), E
         .blocks
         .retain(|block| !matches!(block, Block::Paragraph(_)));
     let read = DocumentRef::from(&document);
-    let mut owner = OwnerTrace::default();
+    let mut owner = ConstructedTrace::default();
     let mut typed = TypedTrace::default();
-    owner.visit_document(&mut TraversalContext::new(read.attributes()), &document)?;
+    owner.visit_document(
+        &mut TraversalContext::new(read.attributes()),
+        DocumentRef::from(&document),
+    )?;
     typed.visit_document(&mut TraversalContext::new(read.attributes()), read)?;
     assert_eq!(typed.0.entries, owner.0.entries);
     assert!(typed.0.entries.iter().any(|entry| entry.0 == "attribute"));
@@ -340,27 +337,28 @@ fn attribute_only_preambles_remain_unwrapped_after_owner_edits() -> Result<(), E
 }
 
 #[test]
-fn typed_and_owner_errors_preserve_the_same_assignment_and_hook_prefix() -> Result<(), Error> {
+fn typed_and_constructed_errors_preserve_the_same_assignment_and_hook_prefix() -> Result<(), Error>
+{
     let parsed = parse(SOURCE, &Options::default())?;
     let parsed_document = acdc_parser::Document::from(parsed.document());
-    let mut complete = OwnerTrace::default();
+    let mut complete = ConstructedTrace::default();
     complete.visit_document(
         &mut TraversalContext::new(DocumentRef::from(&parsed_document).attributes()),
-        &parsed_document,
+        DocumentRef::from(&parsed_document),
     )?;
     for fail_at in 0..complete.0.entries.len() {
         let trace = || Trace {
             fail_at: Some(fail_at),
             ..Trace::default()
         };
-        let mut owner = OwnerTrace(trace());
+        let mut owner = ConstructedTrace(trace());
         let mut typed = TypedTrace(trace(), None);
         let mut owner_context =
             TraversalContext::new(DocumentRef::from(&parsed_document).attributes());
         let mut typed_context =
             TraversalContext::new(DocumentRef::from(&parsed_document).attributes());
         assert_eq!(
-            owner.visit_document(&mut owner_context, &parsed_document),
+            owner.visit_document(&mut owner_context, DocumentRef::from(&parsed_document)),
             Err("stop")
         );
         assert_eq!(

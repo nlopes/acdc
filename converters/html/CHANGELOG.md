@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** library callers use converter-core’s document, block, and inline
+  visitor traits with typed AST handles. The old owner visitor implementation
+  is removed; HTML output and diagnostics are unchanged.
+
 - Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
 
 - Rust callers must now pass `parsed.document()` to `uses_stem`. Math detection still includes header, body, and nested table-cell settings.

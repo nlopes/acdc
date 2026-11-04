@@ -4,7 +4,7 @@
 //! (HTML, terminal, manpage, etc.):
 //!
 //! - [`Converter`] - trait that all converters implement
-//! - [`Visitor`](visitor::Visitor) - visitor pattern for AST traversal
+//! - [`visitor`] - document, block, and inline callbacks
 //! - [`Options`] - configuration for conversion
 //!
 //! # Example
