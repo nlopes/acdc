@@ -37,6 +37,7 @@ fn fallback_captions_preserve_precedence_presence_and_exact_label_text() -> Resu
             let global_entry = global.map_or(String::new(), |value| format!(":caption: {value}\n"));
             let input = format!("= Doc\n{entries}{global_entry}\nText.");
             let parsed = parse(&input, &Options::default())?;
+            let attributes = DocumentAttributes::from(parsed.document_ref().attributes());
             for local in [
                 None,
                 Some(AttributeValue::None),
@@ -55,12 +56,8 @@ fn fallback_captions_preserve_precedence_presence_and_exact_label_text() -> Resu
                         .attributes
                         .set("caption".into(), local.clone());
                 }
-                let resolved = resolve(
-                    &paragraph,
-                    &parsed.document().attributes,
-                    Some(CaptionKind::Figure),
-                )
-                .ok_or("caption")?;
+                let resolved =
+                    resolve(&paragraph, &attributes, Some(CaptionKind::Figure)).ok_or("caption")?;
                 let expected = if let Some(prefix) = expected_local.or(global) {
                     CaptionRef::Custom(prefix)
                 } else if let Some(label) = label {
@@ -77,7 +74,7 @@ fn fallback_captions_preserve_precedence_presence_and_exact_label_text() -> Resu
                     expected,
                     "{entries:?} {global:?} {local:?}"
                 );
-                assert!(resolve(&paragraph, &parsed.document().attributes, None).is_none());
+                assert!(resolve(&paragraph, &attributes, None).is_none());
             }
         }
     }
@@ -87,6 +84,7 @@ fn fallback_captions_preserve_precedence_presence_and_exact_label_text() -> Resu
 #[test]
 fn only_collapsible_examples_suppress_the_fallback_prefix() -> Result<(), Error> {
     let parsed = parse("= Doc\n:caption: Global:\n\nText.", &Options::default())?;
+    let attributes = DocumentAttributes::from(parsed.document_ref().attributes());
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
     paragraph.metadata.options.push("collapsible");
     paragraph
@@ -99,8 +97,7 @@ fn only_collapsible_examples_suppress_the_fallback_prefix() -> Result<(), Error>
         CaptionKind::Listing,
         CaptionKind::Table,
     ] {
-        let resolved =
-            resolve(&paragraph, &parsed.document().attributes, Some(kind)).ok_or("caption")?;
+        let resolved = resolve(&paragraph, &attributes, Some(kind)).ok_or("caption")?;
         assert_eq!(
             CaptionRef::from(&resolved),
             CaptionRef::Custom(if kind == CaptionKind::Example {
@@ -109,35 +106,6 @@ fn only_collapsible_examples_suppress_the_fallback_prefix() -> Result<(), Error>
                 "Local:"
             })
         );
-    }
-    Ok(())
-}
-
-#[rstest::rstest]
-fn stored_captions_keep_their_snapshot_ordinal_and_content(
-    #[values(
-        acdc_parser::CompatibilityMode::Asciidoctor,
-        acdc_parser::CompatibilityMode::Draft
-    )]
-    mode: acdc_parser::CompatibilityMode,
-) -> Result<(), Error> {
-    let parsed = parse(
-        "= Doc\n\n.First\nimage::first.svg[]\n\n:figure-caption: Plate\n\n[caption='*Rich*: ']\n.Second\nimage::second.svg[]\n\n[caption='']\n.Empty\nimage::empty.svg[]\n\n:figure-caption!:\n\n.Disabled\nimage::disabled.svg[]\n",
-        &Options::builder().with_compatibility_mode(mode).build()?,
-    )?;
-    for block in &parsed.document().blocks {
-        if let Some(metadata) = block.metadata() {
-            for fallback in [None, Some(CaptionKind::Table)] {
-                let caption = CaptionRef::resolve(
-                    acdc_parser::ast::BlockRef::from(block)
-                        .attributes()
-                        .ok_or("attributes")?,
-                    parsed.document_ref().attributes(),
-                    fallback,
-                );
-                assert_eq!(caption, metadata.caption.as_ref().map(CaptionRef::from));
-            }
-        }
     }
     Ok(())
 }

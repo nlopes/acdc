@@ -1,4 +1,4 @@
-use acdc_parser::{Block, CompatibilityMode, InlineNode, Options, parse};
+use crate::{Block, CompatibilityMode, InlineNode, Options, parse};
 use serde_json::{Value, json};
 
 type TestError = Box<dyn std::error::Error>;
