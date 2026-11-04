@@ -1,24 +1,27 @@
 use std::io::Cursor;
 
 use acdc_parser::{
-    Block, CrossReference, InlineMacro, InlineNode, Options, WarningKind, parse, parse_file,
-    parse_from_reader,
+    Options, WarningKind,
+    ast::{BlockKind, BlockRef, CrossReferenceRef, InlineKind},
+    parse, parse_file, parse_from_reader,
 };
 
 type Error = Box<dyn std::error::Error>;
 
-// Fixture JSON omits target classification, reference catalogs, and diagnostics.
-fn cross_references<'d, 'a>(blocks: &'d [Block<'a>]) -> Vec<&'d CrossReference<'a>> {
+// Reference catalogs and diagnostics are not part of fixture JSON.
+fn cross_references<'doc>(
+    blocks: impl IntoIterator<Item = BlockRef<'doc>>,
+) -> Vec<CrossReferenceRef<'doc>> {
     let mut found = Vec::new();
     for block in blocks {
-        if let Block::Paragraph(paragraph) = block {
-            for inline in &paragraph.content {
-                if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
-                    found.push(xref.as_ref());
+        if let BlockKind::Paragraph(paragraph) = block.kind() {
+            for inline in paragraph.content().inlines() {
+                if let InlineKind::CrossReference(xref) = inline.kind() {
+                    found.push(xref);
                 }
             }
-        } else if let Block::Section(section) = block {
-            found.extend(cross_references(&section.content));
+        } else if let BlockKind::Section(section) = block.kind() {
+            found.extend(cross_references(section.blocks()));
         }
     }
     found
@@ -53,9 +56,9 @@ fn colon_references_warn_only_for_missing_local_targets() -> Result<(), Error> {
             "missing.id"
         ]
     );
-    for xref in cross_references(&parsed.document().blocks) {
-        if [":colon", "topic:one", "http:local"].contains(&xref.target) {
-            assert!(xref.target_is_local, "{xref:?}");
+    for xref in cross_references(parsed.document_ref().blocks()) {
+        if [":colon", "topic:one", "http:local"].contains(&xref.target()) {
+            assert!(xref.target_is_local(), "{xref:?}");
         }
     }
     Ok(())
@@ -69,9 +72,9 @@ fn included_references_report_only_missing_local_fragments() -> Result<(), Error
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
             .build()?,
     )?;
-    let targets = cross_references(&parsed.document().blocks);
+    let targets = cross_references(parsed.document_ref().blocks());
     assert_eq!(
-        targets.iter().filter(|xref| xref.target_is_local).count(),
+        targets.iter().filter(|xref| xref.target_is_local()).count(),
         7
     );
     let [warning] = parsed.warnings() else {
@@ -96,13 +99,13 @@ fn qualified_references_do_not_load_other_sources() -> Result<(), Error> {
         parse(source, &options)?,
         parse_from_reader(Cursor::new(source), &options)?,
     ] {
-        assert!(parsed.document().references.is_empty());
+        assert!(parsed.document_ref().references().iter().next().is_none());
         assert_eq!(parsed.warnings(), []);
-        let targets = cross_references(&parsed.document().blocks);
+        let targets = cross_references(parsed.document_ref().blocks());
         let [xref] = targets.as_slice() else {
             return Err("missing xref".into());
         };
-        assert!(!xref.target_is_local);
+        assert!(!xref.target_is_local());
     }
     Ok(())
 }
@@ -117,11 +120,11 @@ fn included_reference_classification_preserves_punctuation_and_syntax() -> Resul
         "<<chapter.adoc#missing.id>> xref:chapter.adoc#missing:id[]\n\n<<chapter.txt#catalog-target>> xref:chapter.txt#catalog-target[]\n\ninclude::chapter.adoc[]\n",
         &options,
     )?;
-    let targets = cross_references(&parsed.document().blocks);
+    let targets = cross_references(parsed.document_ref().blocks());
     assert_eq!(
         targets
             .iter()
-            .map(|xref| (xref.target, xref.target_is_local))
+            .map(|xref| (xref.target(), xref.target_is_local()))
             .collect::<Vec<_>>(),
         [
             ("missing.id", true),
@@ -157,9 +160,9 @@ fn partial_sources_keep_qualified_references_external() -> Result<(), Error> {
         let parsed = parse(&source, &options)?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
         assert!(
-            cross_references(&parsed.document().blocks)
+            cross_references(parsed.document_ref().blocks())
                 .iter()
-                .all(|xref| !xref.target_is_local)
+                .all(|xref| !xref.target_is_local())
         );
     }
     Ok(())
@@ -183,22 +186,22 @@ fn document_top_references_work_with_empty_includes() -> Result<(), Error> {
         let parsed = parse(&source, &options)?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
         assert!(
-            cross_references(&parsed.document().blocks)
+            cross_references(parsed.document_ref().blocks())
                 .iter()
-                .all(|xref| xref.target_is_local && xref.target.is_empty())
+                .all(|xref| xref.target_is_local() && xref.target().is_empty())
         );
         let top = parsed
-            .document()
-            .references
+            .document_ref()
+            .references()
             .get("")
             .ok_or("missing document top")?;
-        assert_eq!(top.title.is_some(), header.contains("= Main"));
-        assert_eq!(top.xreflabel.is_some(), header.contains("reftext"));
+        assert_eq!(top.title().is_some(), header.contains("= Main"));
+        assert_eq!(top.xreflabel().is_some(), header.contains("reftext"));
         if header.contains("*Custom*") {
-            assert!(top.xreflabel.as_ref().is_some_and(|label| {
+            assert!(top.xreflabel().is_some_and(|label| {
                 label
-                    .iter()
-                    .any(|inline| matches!(inline, InlineNode::BoldText(_)))
+                    .inlines()
+                    .any(|inline| matches!(inline.kind(), InlineKind::Bold(_)))
             }));
         }
     }
@@ -215,11 +218,11 @@ fn restored_source_targets_keep_their_destination_classification() -> Result<(),
         "xref:++chapter.adoc++#catalog-target[] xref:++other.adoc++#catalog-target[]\n\ninclude::chapter.adoc[]\n",
         &options,
     )?;
-    let targets = cross_references(&parsed.document().blocks);
+    let targets = cross_references(parsed.document_ref().blocks());
     assert_eq!(
         targets
             .iter()
-            .map(|xref| (xref.target, xref.target_is_local))
+            .map(|xref| (xref.target(), xref.target_is_local()))
             .collect::<Vec<_>>(),
         [
             ("catalog-target", true),
