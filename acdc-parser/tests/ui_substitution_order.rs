@@ -1,18 +1,20 @@
 use acdc_parser::{
-    Block, CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, Options, parse,
+    CompatibilityMode, Options,
+    ast::{BlockKind, ContentRef, InlineKind},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
 
-fn text(content: &ContentAttribute<'_>) -> String {
+fn text(content: ContentRef<'_>) -> String {
     content
-        .iter()
+        .inlines()
         .filter_map(|node| {
-            if let InlineNode::PlainText(node) = node {
-                Some(node.content.to_owned())
-            } else if let InlineNode::RawText(node) = node {
-                Some(node.content.to_owned())
-            } else if let InlineNode::CharacterReference(node) = node {
+            if let InlineKind::Plain(node) = node.kind() {
+                Some(node.text().to_owned())
+            } else if let InlineKind::Raw(node) = node.kind() {
+                Some(node.text().to_owned())
+            } else if let InlineKind::CharacterReference(node) = node.kind() {
                 Some(node.kind().to_string())
             } else {
                 None
@@ -41,13 +43,12 @@ fn keyboard_boundaries_follow_attribute_substitution_order(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let keyboard = parsed
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .find_map(|block| {
-            if let Block::Paragraph(paragraph) = block {
-                paragraph.content.iter().find_map(|node| {
-                    if let InlineNode::Macro(InlineMacro::Keyboard(keyboard)) = node {
+            if let BlockKind::Paragraph(paragraph) = block.kind() {
+                paragraph.content().inlines().find_map(|node| {
+                    if let InlineKind::Keyboard(keyboard) = node.kind() {
                         Some(keyboard)
                     } else {
                         None
@@ -58,7 +59,7 @@ fn keyboard_boundaries_follow_attribute_substitution_order(
             }
         })
         .ok_or("missing keyboard")?;
-    assert_eq!(keyboard.keys.iter().map(text).collect::<Vec<_>>(), expected);
+    assert_eq!(keyboard.keys().map(text).collect::<Vec<_>>(), expected);
     Ok(())
 }
 
@@ -79,13 +80,12 @@ fn menu_boundaries_follow_attribute_substitution_order(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let menu = parsed
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .find_map(|block| {
-            if let Block::Paragraph(paragraph) = block {
-                paragraph.content.iter().find_map(|node| {
-                    if let InlineNode::Macro(InlineMacro::Menu(menu)) = node {
+            if let BlockKind::Paragraph(paragraph) = block.kind() {
+                paragraph.content().inlines().find_map(|node| {
+                    if let InlineKind::Menu(menu) = node.kind() {
                         Some(menu)
                     } else {
                         None
@@ -96,7 +96,7 @@ fn menu_boundaries_follow_attribute_substitution_order(
             }
         })
         .ok_or("missing menu")?;
-    assert_eq!(menu.items.iter().map(text).collect::<Vec<_>>(), expected);
+    assert_eq!(menu.items().map(text).collect::<Vec<_>>(), expected);
     Ok(())
 }
 
@@ -110,20 +110,19 @@ fn keyboard_passthroughs_stay_within_one_macro(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let keys = parsed
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .filter_map(|block| {
-            if let Block::Paragraph(paragraph) = block {
-                Some(paragraph.content.iter())
+            if let BlockKind::Paragraph(paragraph) = block.kind() {
+                Some(paragraph.content().inlines())
             } else {
                 None
             }
         })
         .flatten()
         .filter_map(|node| {
-            if let InlineNode::Macro(InlineMacro::Keyboard(keyboard)) = node {
-                Some(keyboard.keys.iter().map(text).collect::<Vec<_>>())
+            if let InlineKind::Keyboard(keyboard) = node.kind() {
+                Some(keyboard.keys().map(text).collect::<Vec<_>>())
             } else {
                 None
             }
@@ -144,15 +143,15 @@ fn expanded_keys_keep_the_authored_reference_location(
     )?;
     let start = source.rfind("{keys}").ok_or("missing source reference")?;
     let mut locations = Vec::new();
-    for block in &parsed.document().blocks {
-        if let Block::Paragraph(paragraph) = block {
-            for node in &paragraph.content {
-                if let InlineNode::Macro(InlineMacro::Keyboard(keyboard)) = node {
-                    for key in &keyboard.keys {
-                        for node in key {
+    for block in parsed.document_ref().blocks() {
+        if let BlockKind::Paragraph(paragraph) = block.kind() {
+            for node in paragraph.content().inlines() {
+                if let InlineKind::Keyboard(keyboard) = node.kind() {
+                    for key in keyboard.keys() {
+                        for node in key.inlines() {
                             locations.push((
-                                node.location().absolute_start,
-                                node.location().absolute_end,
+                                node.location().absolute_start(),
+                                node.location().absolute_end(),
                             ));
                         }
                     }
@@ -174,13 +173,12 @@ fn retained_attribute_profiles_keep_rich_keys_together(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let keyboard = parsed
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .find_map(|block| {
-            if let Block::Paragraph(paragraph) = block {
-                paragraph.content.iter().find_map(|node| {
-                    if let InlineNode::Macro(InlineMacro::Keyboard(keyboard)) = node {
+            if let BlockKind::Paragraph(paragraph) = block.kind() {
+                paragraph.content().inlines().find_map(|node| {
+                    if let InlineKind::Keyboard(keyboard) = node.kind() {
                         Some(keyboard)
                     } else {
                         None
@@ -191,16 +189,16 @@ fn retained_attribute_profiles_keep_rich_keys_together(
             }
         })
         .ok_or("missing keyboard")?;
-    let [key] = keyboard.keys.as_slice() else {
+    let [key] = &*keyboard.keys().collect::<Vec<_>>() else {
         return Err("expected one retained key".into());
     };
     assert!(
-        key.iter()
-            .any(|node| matches!(node, InlineNode::BoldText(_)))
+        key.inlines()
+            .any(|node| matches!(node.kind(), InlineKind::Bold(_)))
     );
     assert!(
-        key.iter()
-            .any(|node| matches!(node, InlineNode::RawText(raw) if raw.content == "+Alt"))
+        key.inlines()
+            .any(|node| matches!(node.kind(), InlineKind::Raw(raw) if raw.text() == "+Alt"))
     );
     Ok(())
 }
@@ -220,6 +218,6 @@ fn introduced_ui_content_registers_only_at_its_macro_stage(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document().footnotes.len(), count);
+    assert_eq!(parsed.document_ref().footnotes().count(), count);
     Ok(())
 }

@@ -1,17 +1,19 @@
 use acdc_parser::{
-    Block, CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, Options, parse,
+    CompatibilityMode, Options,
+    ast::{BlockKind, ContentRef, InlineKind},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
 
-fn text(content: &ContentAttribute<'_>) -> String {
+fn text(content: ContentRef<'_>) -> String {
     content
-        .iter()
+        .inlines()
         .filter_map(|node| {
-            if let InlineNode::PlainText(node) = node {
-                Some(node.content)
-            } else if let InlineNode::RawText(node) = node {
-                Some(node.content)
+            if let InlineKind::Plain(node) = node.kind() {
+                Some(node.text())
+            } else if let InlineKind::Raw(node) = node.kind() {
+                Some(node.text())
             } else {
                 None
             }
@@ -59,22 +61,21 @@ fn quoted_menus_follow_the_macro_stage(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let actual = parsed
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .filter_map(|block| {
-            if let Block::Paragraph(paragraph) = block {
-                Some(paragraph.content.iter())
+            if let BlockKind::Paragraph(paragraph) = block.kind() {
+                Some(paragraph.content().inlines())
             } else {
                 None
             }
         })
         .flatten()
         .filter_map(|node| {
-            if let InlineNode::Macro(InlineMacro::Menu(menu)) = node {
+            if let InlineKind::Menu(menu) = node.kind() {
                 Some(
-                    std::iter::once(text(&menu.target))
-                        .chain(menu.items.iter().map(text))
+                    std::iter::once(text(menu.target()))
+                        .chain(menu.items().map(text))
                         .collect::<Vec<_>>(),
                 )
             } else {
@@ -105,12 +106,12 @@ fn later_attributes_cannot_create_the_quoted_menu_form(
             &source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let found = parsed.document().blocks.iter().any(|block| {
-            if let Block::Paragraph(paragraph) = block {
+        let found = parsed.document_ref().blocks().any(|block| {
+            if let BlockKind::Paragraph(paragraph) = block.kind() {
                 paragraph
-                    .content
-                    .iter()
-                    .any(|node| matches!(node, InlineNode::Macro(InlineMacro::Menu(_))))
+                    .content()
+                    .inlines()
+                    .any(|node| matches!(node.kind(), InlineKind::Menu(_)))
             } else {
                 false
             }
@@ -128,15 +129,20 @@ fn quoted_menus_share_the_existing_ui_availability(
         "\"File > Open\"",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Block::Paragraph(paragraph) = parsed.document().blocks.first().ok_or("missing block")?
+    let BlockKind::Paragraph(paragraph) = parsed
+        .document_ref()
+        .blocks()
+        .next()
+        .ok_or("missing block")?
+        .kind()
     else {
         return Err("missing paragraph".into());
     };
     assert_eq!(
         paragraph
-            .content
-            .iter()
-            .any(|node| matches!(node, InlineNode::Macro(InlineMacro::Menu(_)))),
+            .content()
+            .inlines()
+            .any(|node| matches!(node.kind(), InlineKind::Menu(_))),
         mode == CompatibilityMode::Draft
     );
     Ok(())
@@ -151,16 +157,21 @@ fn quoted_menu_labels_keep_rich_content_and_source_locations(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
-    let Block::Paragraph(paragraph) = parsed.document().blocks.first().ok_or("missing block")?
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    let BlockKind::Paragraph(paragraph) = parsed
+        .document_ref()
+        .blocks()
+        .next()
+        .ok_or("missing block")?
+        .kind()
     else {
         return Err("missing paragraph".into());
     };
     let menu = paragraph
-        .content
-        .iter()
+        .content()
+        .inlines()
         .find_map(|node| {
-            if let InlineNode::Macro(InlineMacro::Menu(menu)) = node {
+            if let InlineKind::Menu(menu) = node.kind() {
                 Some(menu)
             } else {
                 None
@@ -168,31 +179,37 @@ fn quoted_menu_labels_keep_rich_content_and_source_locations(
         })
         .ok_or("missing menu")?;
     assert!(
-        menu.target
-            .iter()
-            .any(|node| matches!(node, InlineNode::BoldText(_)))
+        menu.target()
+            .inlines()
+            .any(|node| matches!(node.kind(), InlineKind::Bold(_)))
     );
     assert!(
-        menu.items
-            .first()
+        menu.items()
+            .next()
             .ok_or("missing menu item")?
-            .iter()
-            .any(|node| matches!(node, InlineNode::BoldText(_)))
+            .inlines()
+            .any(|node| matches!(node.kind(), InlineKind::Bold(_)))
     );
     let start = source.find('"').ok_or("missing opening quote")?;
     let end = source.rfind('"').ok_or("missing closing quote")?;
     assert_eq!(
-        (menu.location.absolute_start, menu.location.absolute_end),
+        (
+            menu.location().absolute_start(),
+            menu.location().absolute_end()
+        ),
         (start, end)
     );
     let note = parsed
-        .document()
-        .footnotes
-        .first()
+        .document_ref()
+        .footnotes()
+        .next()
         .ok_or("missing footnote")?;
     let start = source.find("footnote:").ok_or("missing note")?;
     assert_eq!(
-        (note.location.absolute_start, note.location.absolute_end),
+        (
+            note.location().absolute_start(),
+            note.location().absolute_end()
+        ),
         (start, start + "footnote:n[Note.]".len() - 1)
     );
     Ok(())

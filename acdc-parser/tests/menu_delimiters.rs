@@ -1,18 +1,20 @@
 use acdc_parser::{
-    Block, CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, Options, parse,
+    CompatibilityMode, Options,
+    ast::{BlockKind, ContentRef, InlineKind},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
 
-fn text(content: &ContentAttribute<'_>) -> String {
+fn text(content: ContentRef<'_>) -> String {
     content
-        .iter()
+        .inlines()
         .filter_map(|node| {
-            if let InlineNode::PlainText(node) = node {
-                Some(node.content.to_owned())
-            } else if let InlineNode::RawText(node) = node {
-                Some(node.content.to_owned())
-            } else if let InlineNode::CharacterReference(node) = node {
+            if let InlineKind::Plain(node) = node.kind() {
+                Some(node.text().to_owned())
+            } else if let InlineKind::Raw(node) = node.kind() {
+                Some(node.text().to_owned())
+            } else if let InlineKind::CharacterReference(node) = node.kind() {
                 Some(node.kind().to_string())
             } else {
                 None
@@ -48,13 +50,12 @@ fn menu_separators_follow_the_macro_stage(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let menu = parsed
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .find_map(|block| {
-            if let Block::Paragraph(paragraph) = block {
-                paragraph.content.iter().find_map(|node| {
-                    if let InlineNode::Macro(InlineMacro::Menu(menu)) = node {
+            if let BlockKind::Paragraph(paragraph) = block.kind() {
+                paragraph.content().inlines().find_map(|node| {
+                    if let InlineKind::Menu(menu) = node.kind() {
                         Some(menu)
                     } else {
                         None
@@ -65,7 +66,7 @@ fn menu_separators_follow_the_macro_stage(
             }
         })
         .ok_or("missing menu")?;
-    assert_eq!(menu.items.iter().map(text).collect::<Vec<_>>(), expected);
+    assert_eq!(menu.items().map(text).collect::<Vec<_>>(), expected);
     Ok(())
 }
 
@@ -78,22 +79,28 @@ fn entity_width_does_not_shift_unicode_labels_or_registered_content(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
-    let note = parsed.document().footnotes.first().ok_or("missing note")?;
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    let note = parsed
+        .document_ref()
+        .footnotes()
+        .next()
+        .ok_or("missing note")?;
     let authored = "footnote:n[Note.]";
     let start = source.find(authored).ok_or("missing source")?;
     assert_eq!(
-        (note.location.absolute_start, note.location.absolute_end),
+        (
+            note.location().absolute_start(),
+            note.location().absolute_end()
+        ),
         (start, start + authored.len() - 1)
     );
     let menu = parsed
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .find_map(|block| {
-            if let Block::Paragraph(paragraph) = block {
-                paragraph.content.iter().find_map(|node| {
-                    if let InlineNode::Macro(InlineMacro::Menu(menu)) = node {
+            if let BlockKind::Paragraph(paragraph) = block.kind() {
+                paragraph.content().inlines().find_map(|node| {
+                    if let InlineKind::Menu(menu) = node.kind() {
                         Some(menu)
                     } else {
                         None
@@ -104,17 +111,20 @@ fn entity_width_does_not_shift_unicode_labels_or_registered_content(
             }
         })
         .ok_or("missing menu")?;
-    let [open, close] = menu.items.as_slice() else {
+    let [open, close] = &*menu.items().collect::<Vec<_>>() else {
         return Err("expected two items".into());
     };
     let start = source.find("Öpen").ok_or("missing first item")?;
-    let node = open.first().ok_or("missing first item node")?;
+    let node = open.inlines().next().ok_or("missing first item node")?;
     assert_eq!(
-        (node.location().absolute_start, node.location().absolute_end),
+        (
+            node.location().absolute_start(),
+            node.location().absolute_end()
+        ),
         (start, start + "Öpen".len() - 1)
     );
     let start = source.find("Closé").ok_or("missing second item")?;
-    let node = close.first().ok_or("missing second item node")?;
-    assert_eq!(node.location().absolute_start, start);
+    let node = close.inlines().next().ok_or("missing second item node")?;
+    assert_eq!(node.location().absolute_start(), start);
     Ok(())
 }

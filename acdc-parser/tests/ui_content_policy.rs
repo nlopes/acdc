@@ -1,17 +1,18 @@
 use acdc_parser::{
-    Block, CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, Options, parse,
+    CompatibilityMode, Options,
+    ast::{BlockKind, ContentRef, FootnoteDefinitionRef, InlineKind, InlineRef},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
 
-fn paragraph(parsed: &acdc_parser::ParseResult) -> Result<&[InlineNode<'_>], Error> {
+fn paragraph(parsed: &acdc_parser::ParseResult) -> Result<ContentRef<'_>, Error> {
     parsed
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .find_map(|block| {
-            if let Block::Paragraph(paragraph) = block {
-                Some(paragraph.content.as_slice())
+            if let BlockKind::Paragraph(paragraph) = block.kind() {
+                Some(paragraph.content())
             } else {
                 None
             }
@@ -19,14 +20,14 @@ fn paragraph(parsed: &acdc_parser::ParseResult) -> Result<&[InlineNode<'_>], Err
         .ok_or_else(|| "missing paragraph".into())
 }
 
-fn text(content: &ContentAttribute<'_>) -> Result<String, Error> {
+fn text(content: ContentRef<'_>) -> Result<String, Error> {
     content
-        .iter()
+        .inlines()
         .map(|node| {
-            if let InlineNode::PlainText(text) = node {
-                Ok(text.content)
-            } else if let InlineNode::RawText(text) = node {
-                Ok(text.content)
+            if let InlineKind::Plain(text) = node.kind() {
+                Ok(text.text())
+            } else if let InlineKind::Raw(text) = node.kind() {
+                Ok(text.text())
             } else {
                 Err(format!("expected text: {node:?}").into())
             }
@@ -58,27 +59,27 @@ fn keyboard_key_boundaries_match_the_selected_separator(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(InlineNode::Macro(InlineMacro::Keyboard(keyboard))) = paragraph(&parsed)?.first()
+    let Some(InlineKind::Keyboard(keyboard)) =
+        paragraph(&parsed)?.inlines().next().map(InlineRef::kind)
     else {
         return Err("missing keyboard".into());
     };
     assert_eq!(
-        keyboard
-            .keys
-            .iter()
-            .map(text)
-            .collect::<Result<Vec<_>, _>>()?,
+        keyboard.keys().map(text).collect::<Result<Vec<_>, _>>()?,
         expected
     );
     if keys == "Ctrl+\\]" {
         let node = keyboard
-            .keys
+            .keys()
             .last()
-            .and_then(|key| key.first())
+            .and_then(|key| key.inlines().next())
             .ok_or("missing bracket key")?;
         let start = source.find("\\]").ok_or("missing authored bracket")?;
         assert_eq!(
-            (node.location().absolute_start, node.location().absolute_end),
+            (
+                node.location().absolute_start(),
+                node.location().absolute_end()
+            ),
             (start, start + 1)
         );
     }
@@ -104,12 +105,13 @@ fn menu_items_keep_nested_and_escaped_boundaries(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(InlineNode::Macro(InlineMacro::Menu(menu))) = paragraph(&parsed)?.first() else {
+    let Some(InlineKind::Menu(menu)) = paragraph(&parsed)?.inlines().next().map(InlineRef::kind)
+    else {
         return Err("missing menu".into());
     };
-    assert_eq!(text(&menu.target)?, "File");
+    assert_eq!(text(menu.target())?, "File");
     assert_eq!(
-        menu.items.iter().map(text).collect::<Result<Vec<_>, _>>()?,
+        menu.items().map(text).collect::<Result<Vec<_>, _>>()?,
         expected
     );
     Ok(())
@@ -126,21 +128,20 @@ fn nested_ui_macros_register_their_content_once(
     )?;
     assert_eq!(
         parsed
-            .document()
-            .footnotes
-            .iter()
-            .map(|note| note.id)
+            .document_ref()
+            .footnotes()
+            .map(FootnoteDefinitionRef::id)
             .collect::<Vec<_>>(),
         [Some("key"), Some("menu")]
     );
-    let notes = &parsed.document().footnotes;
-    for (note, authored) in notes
-        .iter()
-        .zip(["footnote:key[A+B]", "footnote:menu[A > B]"])
-    {
+    let notes = parsed.document_ref().footnotes();
+    for (note, authored) in notes.zip(["footnote:key[A+B]", "footnote:menu[A > B]"]) {
         let start = source.find(authored).ok_or("missing authored note")?;
         assert_eq!(
-            (note.location.absolute_start, note.location.absolute_end),
+            (
+                note.location().absolute_start(),
+                note.location().absolute_end()
+            ),
             (start, start + authored.len() - 1)
         );
     }
@@ -156,11 +157,13 @@ fn button_labels_keep_escaped_brackets_inside_the_macro(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(InlineNode::Macro(InlineMacro::Button(button))) = paragraph(&parsed)?.first() else {
+    let Some(InlineKind::Button(button)) =
+        paragraph(&parsed)?.inlines().next().map(InlineRef::kind)
+    else {
         return Err("missing button".into());
     };
-    assert_eq!(text(&button.label)?, "Save ] Close");
-    assert_eq!(button.location.absolute_end, source.len() - 1);
+    assert_eq!(text(button.label())?, "Save ] Close");
+    assert_eq!(button.location().absolute_end(), source.len() - 1);
     Ok(())
 }
 
@@ -173,13 +176,14 @@ fn menu_separators_do_not_split_nested_reference_syntax(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(InlineNode::Macro(InlineMacro::Menu(menu))) = paragraph(&parsed)?.first() else {
+    let Some(InlineKind::Menu(menu)) = paragraph(&parsed)?.inlines().next().map(InlineRef::kind)
+    else {
         return Err("missing menu".into());
     };
-    let [item, close] = menu.items.as_slice() else {
+    let [item, close] = &*menu.items().collect::<Vec<_>>() else {
         return Err("expected two menu items".into());
     };
-    assert!(item.iter().any(|node| matches!(node, InlineNode::Macro(InlineMacro::CrossReference(reference)) if reference.target == "target")));
-    assert_eq!(text(close)?, "Close");
+    assert!(item.inlines().any(|node| matches!(node.kind(), InlineKind::CrossReference(reference) if reference.target() == "target")));
+    assert_eq!(text(*close)?, "Close");
     Ok(())
 }
