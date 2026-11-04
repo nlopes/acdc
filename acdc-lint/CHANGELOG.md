@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Heading checks retain formatting-aware capitalization, separate monospace advice, and their existing table-cell exclusion in both compatibility modes.
+
 - List-marker checks retain nesting context and diagnostic order through all list families, attached containers, and table cells in both compatibility modes.
 
 - URL-attribute and source-block whitespace checks retain diagnostic order and authored source ranges in both compatibility modes, including list continuations and table cells.

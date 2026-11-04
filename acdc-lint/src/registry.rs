@@ -231,13 +231,17 @@ fn run_prose(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
 }
 
 fn run_section_title_style(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    headings::lint_section_title_symmetric_marker(emitter, context.document(), context.lines);
+    headings::lint_section_title_symmetric_marker(
+        emitter,
+        context.parsed.document_ref(),
+        context.lines,
+    );
     headings::lint_section_title_setext_style(emitter, context.lines, context.skipped_lines);
 }
 
 fn run_document_header(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    headings::lint_document_title_author(emitter, context.document(), context.lines);
-    headings::lint_document_title_revision(emitter, context.document(), context.lines);
+    headings::lint_document_title_author(emitter, context.parsed.document_ref(), context.lines);
+    headings::lint_document_title_revision(emitter, context.parsed.document_ref(), context.lines);
 }
 
 fn run_parser_warnings(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
@@ -262,7 +266,7 @@ fn run_section_title_marker_spacing(emitter: &mut LintEmitter<'_>, context: &Lin
 }
 
 fn run_section_title_capitalization(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    headings::lint_section_title_capitalization(emitter, context.document());
+    headings::lint_section_title_capitalization(emitter, context.parsed.document_ref());
 }
 
 fn run_delimited_block_layout(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
