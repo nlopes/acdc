@@ -190,8 +190,8 @@ pub use model::{
     SubstitutionOp, SubstitutionSpec, Subtitle, Superscript, Symbol, SymbolKind, Table,
     TableColumn, TableFrame, TableGrid, TableOfContents, TablePresentation, TableRow, TableStripes,
     ThematicBreak, Title, TocEntry, UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM,
-    Verbatim, VerticalAlignment, Video, XrefCaptionLabel, XrefSignifier, XrefStyle, strip_quotes,
-    substitute, substitute_attributes,
+    Verbatim, VerticalAlignment, Video, XrefCaptionLabel, XrefSignifier, XrefStyle, substitute,
+    substitute_attributes,
 };
 pub use options::{CompatibilityMode, Options, OptionsBuilder, SafeMode};
 pub use parsed::{OwnedSource, ParseInlineResult, ParseResult};

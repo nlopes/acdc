@@ -35,10 +35,7 @@ impl Drop for TempDirectory {
 }
 
 fn text<'a>(attributes: &'a DocumentAttributes<'_>, name: &str) -> Option<&'a str> {
-    attributes
-        .get(name)
-        .and_then(|value| value.text())
-        .map(acdc_parser::strip_quotes)
+    attributes.get(name).and_then(|value| value.text())
 }
 
 fn assert_safe_mode(attributes: &DocumentAttributes<'_>, safe_mode: SafeMode) {

@@ -251,7 +251,6 @@ fn image_target_path(
     let imagesdir = attributes
         .get("imagesdir")
         .and_then(|value| value.text())
-        .map(acdc_parser::strip_quotes)
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_default();
     if imagesdir.contains("://") || imagesdir.starts_with("//") {
@@ -387,7 +386,7 @@ mod tests {
 
         assert_eq!(
             image_target_path(&attributes, &image.source, Some(source)),
-            Some(PathBuf::from("/tmp/media files/photo.png"))
+            Some(PathBuf::from("/tmp/'media files'/photo.png"))
         );
         Ok(())
     }

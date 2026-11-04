@@ -33,7 +33,7 @@ pub(crate) use attributes::{
 };
 pub use attributes::{
     AttributeName, AttributeValue, DocumentAttributeAssignment, DocumentAttributeValue,
-    DocumentAttributes, ElementAttributes, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, strip_quotes,
+    DocumentAttributes, ElementAttributes, MAX_SECTION_LEVELS, MAX_TOC_LEVELS,
 };
 pub use attribution::{Attribution, CiteTitle};
 pub use caption::{Caption, CaptionKind};

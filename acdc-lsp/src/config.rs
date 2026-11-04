@@ -342,8 +342,7 @@ mod tests {
             options
                 .document_attributes()
                 .get("backend")
-                .and_then(|value| value.text())
-                .map(acdc_parser::strip_quotes),
+                .and_then(|value| value.text()),
             Some("html5")
         );
         assert!(options.document_attributes().contains_key("backend-html5"));

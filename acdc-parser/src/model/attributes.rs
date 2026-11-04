@@ -28,16 +28,6 @@ pub(crate) type RawAttributes<'a> = FxHashMap<AttributeName<'a>, AttributeValue<
 pub const MAX_TOC_LEVELS: u8 = 5;
 pub const MAX_SECTION_LEVELS: u8 = 5;
 
-/// Strip surrounding single or double quotes from a string.
-///
-/// Attribute values in `AsciiDoc` can be quoted with either single or double quotes.
-/// This function strips the outermost matching quotes from both ends.
-#[must_use]
-pub fn strip_quotes(s: &str) -> &str {
-    s.trim_start_matches(['"', '\''])
-        .trim_end_matches(['"', '\''])
-}
-
 /// A defined document attribute, including its retained text representation.
 ///
 /// Numeric values use attribute-specific validation. Text is not inferred to be

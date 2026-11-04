@@ -1,6 +1,6 @@
 use acdc_parser::{
     Block, DelimitedBlock, DelimitedBlockType, Document, DocumentAttribute, DocumentAttributeValue,
-    SourceLocation, Table, TableRow, strip_quotes,
+    SourceLocation, Table, TableRow,
 };
 
 use crate::LintId;
@@ -153,7 +153,7 @@ fn lint_url_attribute(
     value: &str,
     location: SourceLocation,
 ) {
-    let value = strip_quotes(value.trim());
+    let value = value.trim();
     if !is_url_value(value) || name.starts_with("url-") || name.starts_with("uri-") {
         return;
     }
@@ -200,6 +200,22 @@ mod tests {
     use crate::{Error, LintId};
 
     use super::super::test_support::{has_lint, report_for};
+
+    #[test]
+    fn literal_quotes_do_not_make_document_text_a_url() -> Result<(), Error> {
+        for value in [
+            "'https://example.com'",
+            "\"https://example.com\"",
+            "'https://example.com",
+        ] {
+            for separator in ["\n", "\n\n"] {
+                let source = format!("= Title{separator}:docs: {value}\n\nContent.\n");
+                let report = report_for(&source)?;
+                assert!(!has_lint(&report, LintId::AttributeUrlPrefix), "{source}");
+            }
+        }
+        Ok(())
+    }
 
     #[test]
     fn attribute_url_prefix_flags_url_values_without_prefix() -> Result<(), Error> {

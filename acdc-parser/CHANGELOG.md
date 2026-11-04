@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Removed `strip_quotes`. Read parsed attribute values directly: attribute-list delimiters are already removed, and remaining quote characters are literal text.
+
 - Native JSON now identifies bibliography anchors with `bibliography: true` and
   retains an explicitly supplied `bibliography_label` as parsed inline content,
   including `[]` for an empty label. An omitted label uses the entry ID. Citation

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Image navigation retains literal quote characters in `imagesdir`, matching generated output.
+
 ### Added
 
 - Set `compatibilityMode` to `asciidoctor` (the default) or `draft` in initialization

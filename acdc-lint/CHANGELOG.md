@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Image checks retain literal quotes in `imagesdir`. Quoted document text that is not a URL no longer triggers URL-prefix advice.
+
 ### Changed
 
 - Library linting now defaults to Secure and does not read include targets.

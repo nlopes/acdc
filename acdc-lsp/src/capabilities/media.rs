@@ -209,7 +209,6 @@ fn resolve_source(source: SourceRef<'_>, context: &TraversalContext<'_>) -> Owne
     let Some(directory) = context
         .get("imagesdir")
         .and_then(|value| value.text())
-        .map(acdc_parser::strip_quotes)
         .filter(|directory| !directory.is_empty())
     else {
         return OwnedSource::Path(path.to_path_buf());
@@ -222,5 +221,35 @@ fn resolve_source(source: SourceRef<'_>, context: &TraversalContext<'_>) -> Owne
         ))
     } else {
         OwnedSource::Path(std::path::Path::new(directory).join(path))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{OwnedSource, collect_media_sources};
+
+    #[test]
+    fn media_index_retains_literal_quotes_in_image_directories()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for mode in [
+            acdc_parser::CompatibilityMode::Asciidoctor,
+            acdc_parser::CompatibilityMode::Draft,
+        ] {
+            let parsed = acdc_parser::parse(
+                ":imagesdir: 'media files'\n\nimage::photo.svg[Photo]\n",
+                &acdc_parser::Options::builder()
+                    .with_compatibility_mode(mode)
+                    .build()?,
+            )?;
+            let sources = collect_media_sources(parsed.document_ref());
+            let [(source, _)] = sources.as_slice() else {
+                return Err("one media source".into());
+            };
+            assert_eq!(
+                source,
+                &OwnedSource::Path(std::path::PathBuf::from("'media files'/photo.svg"))
+            );
+        }
+        Ok(())
     }
 }

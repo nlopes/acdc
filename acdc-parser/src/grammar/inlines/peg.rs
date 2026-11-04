@@ -1,22 +1,20 @@
 use crate::{
-    Anchor, AttributeValue, Autolink, BlockMetadata, Bold, Button, CurvedApostrophe,
-    CurvedQuotation, Footnote, Form, Highlight, Icon, InlineMacro, InlineNode, Italic, Keyboard,
-    LineBreak, Link, Mailto, Menu, Monospace, Pass, PassthroughKind, Plain, Raw, Source,
-    StandaloneCurvedApostrophe, Stem, StemNotation, Subscript, Superscript, Url,
+    Anchor, Autolink, Bold, Button, CurvedApostrophe, CurvedQuotation, Footnote, Form, Highlight,
+    Icon, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Mailto, Menu, Monospace,
+    Pass, PassthroughKind, Plain, Raw, Source, StandaloneCurvedApostrophe, Stem, StemNotation,
+    Subscript, Superscript, Url,
     grammar::{
         ParserState,
         attributes::AttributeQuote,
         helpers::{
-            BlockParsingMetadata, MacroAttributeContext, PositionWithOffset,
-            RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
-            RESERVED_NAMED_ATTRIBUTE_ROLE, is_valid_bibliography_id, restore_url_path,
+            BlockParsingMetadata, PositionWithOffset, is_valid_bibliography_id, restore_url_path,
         },
         inline_boundaries::{check_constrained_closing_at_end, check_constrained_opening_boundary},
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
         inline_processing::process_inlines,
         inlines::{
-            attributes::{Shorthand, parse_content, process_attribute_list, process_media_content},
+            attributes::{Shorthand, parse_content, process_media_content},
             index_terms::{
                 IndexTermForm, IndexTermSegment, expand_escaped_index_terms, parse_index_term,
                 trimmed_index_term_segment,
@@ -43,7 +41,7 @@ use crate::{
         },
         state::{InlineRules, InlineUrlBoundary, ParserScope},
     },
-    model::{strip_quotes, substitution::HEADER},
+    model::substitution::HEADER,
 };
 use std::ops::Range;
 
@@ -1167,9 +1165,7 @@ peg::parser! {
             }))))
         }
 
-        /// Match inline icon without consuming - for use in negative lookaheads.
-        /// Uses source()/macro_attributes() for correctness; avoids the heavy
-        /// action-block processing (metadata manipulation, attribute copying).
+        /// Match an icon without building its metadata.
         rule inline_icon_match()
         = "icon:" source() "[" (!"]" [_])* "]"
 
@@ -2334,121 +2330,13 @@ peg::parser! {
         rule inline_id_subsequent_char()
         = ['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-' | ':' | '%'] / non_ascii_id_char()
 
-        /// Macro attribute parsing - simpler than block attributes.
-        ///
-        /// Does NOT support shorthand syntax (.role, #id, %option).
-        /// Shorthands are only valid in block-level attributes, not inside macro brackets.
-        ///
-        /// Asciidoctor behavior:
-        /// - `image::photo.jpg[.role]` -> alt=".role" (literal text, NOT a role)
-        /// - `image::photo.jpg[Diablo 4 picture of Lilith.]` -> alt="Diablo 4 picture of Lilith."
-        pub(crate) rule macro_attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
-            = open_square_bracket()
-              attrs:(att:macro_attribute() comma()? { att })*
-              close_square_bracket()
-        {
-            let mut metadata = BlockMetadata::default();
-            let title_position = process_attribute_list(
-                attrs,
-                &mut metadata,
-                state,
-                span_start,
-                span_end,
-                MacroAttributeContext::General,
-            );
-            // macro_attributes never sets discrete flag (that's block-level only)
-            (false, metadata, title_position)
-        }
-
-        /// Positional value in macro attributes - allows . # % as literal characters
-        /// This is the key difference from block attributes.
-        rule macro_positional_value() -> Option<Cow<'input, str>>
-            = quoted:inner_attribute_value() {
-                let trimmed = strip_quotes(quoted);
-                if trimmed.is_empty() { None } else { Some(trimmed.into()) }
-            }
-            / s:$([^('"' | ',' | ']' | '=')]+) {
-                let trimmed = s.trim();
-                if trimmed.is_empty() { None } else { Some(trimmed.into()) }
-            }
-
-        /// Named attribute or additional positional in macro context
-        rule macro_attribute() -> Option<(Cow<'input, str>, AttributeValue<'input>, Option<(usize, usize)>)>
-            = whitespace()* att:named_attribute() { att }
-            / val:macro_positional_value() {
-                val.map(|v| (v, AttributeValue::None, None))
-            }
-
         rule open_square_bracket() = "["
         rule close_square_bracket() = "]"
         rule double_open_square_bracket() = "[["
         rule double_close_square_bracket() = "]]"
         rule comma() = ","
-        rule period() = "."
-        rule empty_style() = ""
-        rule role() -> &'input str = $([^(',' | ']' | '#' | '.' | '%')]+)
-
-        rule attribute_name() -> &'input str = $((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+)
-
-        rule attribute() -> Option<(Cow<'input, str>, AttributeValue<'input>, Option<(usize, usize)>)>
-            = whitespace()* att:named_attribute() { att }
-              / whitespace()* start:position!() att:positional_attribute_value() end:position!() {
-                  let substituted = substitute(att, &[Substitution::Attributes], &state.document_attributes);
-                  Some((substituted, AttributeValue::None, Some((start, end))))
-              }
-
         rule id() -> &'input str
             = id:$((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+) { id }
-
-        rule id_start_char() = ['A'..='Z' | 'a'..='z' | '_']
-
-        rule block_style_id() -> &'input str = $(id_start_char() block_style_id_subsequent_char()*)
-
-        rule block_style_id_subsequent_char() =
-            ['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-']
-
-        rule named_attribute() -> Option<(Cow<'input, str>, AttributeValue<'input>, Option<(usize, usize)>)>
-            = "id" "=" start:position!() id:id() end:position!()
-                { Some((Cow::Borrowed(RESERVED_NAMED_ATTRIBUTE_ID), id.into(), Some((start, end)))) }
-              / ("role" / "roles") "=" value:named_attribute_value()
-                { Some((Cow::Borrowed(RESERVED_NAMED_ATTRIBUTE_ROLE), value.into(), None)) }
-              / ("options" / "opts") "=" value:named_attribute_value()
-                { Some((Cow::Borrowed(RESERVED_NAMED_ATTRIBUTE_OPTIONS), value.into(), None)) }
-              / name:attribute_name() "=" start:position!() value:named_attribute_value() end:position!()
-                {
-                    let substituted_value = substitute(value, &[Substitution::Attributes], &state.document_attributes);
-                    Some((Cow::Borrowed(name), AttributeValue::String(substituted_value), Some((start, end))))
-                }
-
-        rule named_attribute_value() -> &'input str
-        = &("\"" / "'") inner:inner_attribute_value()
-        {
-            let trimmed = strip_quotes(inner);
-            tracing::debug!("Found named attribute value (inner)");
-            trimmed
-        }
-        / s:$([^(',' | '"' | '\'' | ']')]+)
-        {
-            tracing::debug!("Found named attribute value");
-            s
-        }
-
-        rule positional_attribute_value() -> &'input str
-        = quoted:inner_attribute_value() {
-            let trimmed = strip_quotes(quoted);
-            tracing::debug!("Found quoted positional attribute value");
-            trimmed
-        }
-        / s:$([^('"' | ',' | ']' | '#' | '.' | '%')] [^(',' | ']' | '#' | '.' | '%' | '=')]*)
-        {
-            let trimmed = s.trim();
-            tracing::debug!("Found unquoted positional attribute value");
-            trimmed
-        }
-
-        rule inner_attribute_value() -> &'input str
-        = s:$("\"" [^'"']* "\"") { s }
-        / s:$("'" [^'\'']* "'") { s }
 
         /// URL rule matches both web URLs (proto://) and mailto: URLs
         pub rule url() -> Cow<'input, str> =

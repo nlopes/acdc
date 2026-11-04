@@ -12,12 +12,6 @@ pub(crate) struct PositionWithOffset {
     pub(crate) position: crate::Position,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum MacroAttributeContext {
-    General,
-    Image,
-}
-
 // Used purely in the grammar to represent the parsed block details
 #[derive(Debug, Default)]
 pub(crate) struct BlockParsingMetadata<'input> {
@@ -96,14 +90,7 @@ pub(crate) fn restore_url_path(processed: ProcessedContent<'_>) -> String {
     strip_url_backslash_escapes(&text).into_owned()
 }
 
-/// Parse a comma-separated list of values, interning each into the state's arena.
-///
-/// Used for `role=` and `options=` attributes which can be either:
-/// - A single value: `role=thumbnail`
-/// - A comma-separated list: `role="thumbnail, responsive"` or `role='thumbnail, responsive'`
-///
-/// Quotes are already stripped by `named_attribute_value()` / `strip_quotes()` upstream,
-/// so this function only needs to split on commas.
+/// Split decoded comma-separated option values and intern each nonempty entry.
 pub(crate) fn parse_comma_separated_values<'a>(
     state: &ParserState<'a>,
     value: &str,

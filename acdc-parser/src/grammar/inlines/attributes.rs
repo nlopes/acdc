@@ -3,15 +3,11 @@
 use std::{borrow::Cow, ops::Range};
 
 use crate::{
-    Anchor, AttributeValue, BlockMetadata, ContentAttribute, ElementId, Error, InlineMetadata,
+    Anchor, BlockMetadata, ContentAttribute, ElementId, Error, InlineMetadata,
     grammar::{
         ParserState,
-        attributes::{AttributeQuote, scan_attribute_list},
-        helpers::{
-            BlockParsingMetadata, MacroAttributeContext, RESERVED_NAMED_ATTRIBUTE_ID,
-            RESERVED_NAMED_ATTRIBUTE_OPTIONS, RESERVED_NAMED_ATTRIBUTE_ROLE,
-            RESERVED_NAMED_ATTRIBUTE_SUBS, parse_comma_separated_values,
-        },
+        attributes::{AttributeQuote, ScannedAttribute, scan_attribute_list},
+        helpers::{BlockParsingMetadata, parse_comma_separated_values},
         inline_preprocessor::{ProcessedKind, SourceMap},
     },
     model::{MacroAttributes, PositionalAttribute},
@@ -24,158 +20,60 @@ pub(super) enum Shorthand<'input> {
     Role(Cow<'input, str>),
 }
 
-/// Store parsed inline macro attributes in `BlockMetadata`.
-///
-/// Returns the title position if a `title=` attribute was found.
-pub(super) fn process_attribute_list<'input>(
-    attrs: impl IntoIterator<
-        Item = Option<(
-            Cow<'input, str>,
-            AttributeValue<'input>,
-            Option<(usize, usize)>,
-        )>,
-    >,
-    metadata: &mut BlockMetadata<'input>,
-    state: &ParserState<'input>,
-    fallback_start: usize,
-    fallback_end: usize,
-    context: MacroAttributeContext,
-) -> Option<(usize, usize)> {
-    let mut title_position = None;
-    let mut first_positional = true;
-
-    for (key, value, pos) in attrs.into_iter().flatten() {
-        match key.as_ref() {
-            k if k == RESERVED_NAMED_ATTRIBUTE_ID
-                && (metadata.id.is_none() || context == MacroAttributeContext::Image) =>
-            {
-                let (id_start, id_end) = pos.unwrap_or((fallback_start, fallback_end));
-                let id: &'input str = match value {
-                    AttributeValue::String(s) => state.intern_cow(s),
-                    AttributeValue::Bool(_) | AttributeValue::None => {
-                        state.intern_fmt(format_args!("{value}"))
-                    }
-                };
-                metadata.id = Some(Anchor {
-                    reftext_source: None,
-                    bibliography_label: None,
-                    id,
-                    xreflabel: None,
-                    location: state.create_location(id_start, id_end),
-                    bibliography: false,
-                });
-            }
-            k if k == RESERVED_NAMED_ATTRIBUTE_ROLE => {
-                if let AttributeValue::String(ref s) = value {
-                    if context == MacroAttributeContext::Image {
-                        metadata.roles.clear();
-                    }
-                    // Roles are space-separated (not comma-separated) per asciidoctor behavior.
-                    // `role='a b'` → two roles; `role='a,b'` → one role containing a comma.
-                    for role in s.split_whitespace() {
-                        if !role.is_empty() {
-                            metadata.roles.push(state.intern_str(role));
-                        }
-                    }
-                }
-            }
-            k if k == RESERVED_NAMED_ATTRIBUTE_OPTIONS => {
-                if let AttributeValue::String(ref s) = value {
-                    metadata
-                        .options
-                        .extend(parse_comma_separated_values(state, s));
-                }
-            }
-            // Inline macro attributes do not set the block's substitution plan.
-            k if k == RESERVED_NAMED_ATTRIBUTE_SUBS => {}
-            "title" => {
-                if let AttributeValue::String(ref s) = value {
-                    if pos.is_some() {
-                        title_position = pos;
-                    }
-                    metadata
-                        .attributes
-                        .set(key, AttributeValue::String(s.clone()));
-                }
-            }
-            _ => {
-                if let AttributeValue::String(ref s) = value {
-                    if context == MacroAttributeContext::Image {
-                        metadata
-                            .attributes
-                            .set(key, AttributeValue::String(s.clone()));
-                    } else {
-                        metadata
-                            .attributes
-                            .insert(key, AttributeValue::String(s.clone()));
-                    }
-                } else if value == AttributeValue::None {
-                    // Positional attribute
-                    let key_str: &'input str = state.intern_cow(key);
-                    if first_positional {
-                        metadata.style = Some(key_str);
-                        first_positional = false;
-                    } else {
-                        metadata.positional_attributes.push(PositionalAttribute {
-                            position: None,
-                            value: key_str,
-                            quoted_empty: false,
-                            location: None,
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    title_position
-}
-
-/// Image attributes keep empty positional slots and let named values override them.
-pub(super) fn process_image_attribute_list<'input>(
-    source: &str,
-    protected: &[std::ops::Range<usize>],
+fn media_metadata<'input>(
+    attributes: &[ScannedAttribute],
     state: &ParserState<'input>,
     start: usize,
-    end: usize,
 ) -> BlockMetadata<'input> {
     let mut metadata = BlockMetadata::default();
-    let mut named = Vec::new();
-    for (slot, attribute) in scan_attribute_list(source, protected)
-        .into_iter()
-        .enumerate()
-    {
+    for (slot, attribute) in attributes.iter().enumerate() {
         if attribute.is_ignored(state.options.compatibility_mode) {
             continue;
         }
-        let value = state.intern_str(&attribute.value);
-        if let Some(name) = attribute.canonical_name() {
-            named.push(Some((
-                Cow::Borrowed(state.intern_str(name)),
-                AttributeValue::String(Cow::Borrowed(value)),
-                Some((start + attribute.value_start, start + attribute.value_end)),
-            )));
-        } else if slot == 0 {
-            if !value.is_empty() || attribute.quote != AttributeQuote::Unquoted {
-                metadata.style = Some(value);
+        let value = attribute.value.as_str();
+        match attribute.canonical_name() {
+            Some("id") => {
+                metadata.id = Some(Anchor {
+                    reftext_source: None,
+                    bibliography_label: None,
+                    id: state.intern_str(value),
+                    xreflabel: None,
+                    location: state.create_location(
+                        start + attribute.value_start,
+                        start + attribute.value_end,
+                    ),
+                    bibliography: false,
+                });
             }
-        } else {
-            metadata
-                .positional_attributes
-                .resize(slot, PositionalAttribute::default());
-            if let Some(positional) = metadata.positional_attributes.get_mut(slot - 1) {
-                positional.value = value;
+            Some("role") => {
+                metadata.roles = value
+                    .split_whitespace()
+                    .map(|role| state.intern_str(role))
+                    .collect();
+            }
+            Some("opts") => metadata
+                .options
+                .extend(parse_comma_separated_values(state, value)),
+            Some("subs" | "alt" | "title") => {}
+            Some(name) => metadata.attributes.set(
+                state.intern_str(name).into(),
+                state.intern_str(value).into(),
+            ),
+            None if slot == 0 => {
+                if !value.is_empty() || attribute.quote != AttributeQuote::Unquoted {
+                    metadata.style = Some(state.intern_str(value));
+                }
+            }
+            None => {
+                metadata
+                    .positional_attributes
+                    .resize(slot, PositionalAttribute::default());
+                if let Some(positional) = metadata.positional_attributes.get_mut(slot - 1) {
+                    positional.value = state.intern_str(value);
+                }
             }
         }
     }
-    process_attribute_list(
-        named,
-        &mut metadata,
-        state,
-        start,
-        end,
-        MacroAttributeContext::Image,
-    );
     metadata
 }
 
@@ -215,16 +113,10 @@ pub(super) fn process_media_content<'a>(
     start: usize,
     icon: bool,
 ) -> Result<MediaContent<'a>, Error> {
-    let mut metadata = process_image_attribute_list(
-        content.raw,
-        &content.protected,
-        state,
-        start,
-        start + content.raw.len(),
-    );
+    let attributes = scan_attribute_list(content.raw, &content.protected);
+    let mut metadata = media_metadata(&attributes, state, start);
     let mut alt = None;
     let mut tooltip = None;
-    let attributes = scan_attribute_list(content.raw, &content.protected);
     for (slot, attribute) in attributes.iter().enumerate() {
         if attribute.is_ignored(state.options.compatibility_mode) {
             continue;
@@ -257,8 +149,6 @@ pub(super) fn process_media_content<'a>(
         let alt = alt.map(&mut parse).transpose()?;
         (alt, tooltip.map(parse).transpose()?)
     };
-    metadata.attributes.remove("alt");
-    metadata.attributes.remove("title");
     if let Some(id) = &mut metadata.id {
         // Attribute scanning uses an exclusive end; locations use an inclusive end.
         id.location = state.create_location(
