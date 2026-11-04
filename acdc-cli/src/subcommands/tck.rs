@@ -15,7 +15,9 @@
 //!
 //! ## Output format:
 //!
-//! Serialized AST as JSON to stdout, matching the spec's JSON representation.
+//! JSON validated against the pinned ASG draft schema. Unsupported constructs
+//! return an error before writing output. Passing the TCK does not imply full
+//! language conformance.
 //!
 //! ## Usage:
 //!
@@ -23,24 +25,14 @@
 //! echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' | acdc tck
 //! ```
 
-use std::io::{self, BufReader, Write};
+use std::{
+    io::{self, BufReader},
+    path::Path,
+};
 
 use serde::Deserialize;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error(transparent)]
-    Deserialize(#[from] serde_json::Error),
-
-    #[error(transparent)]
-    Io(#[from] io::Error),
-
-    #[error("Parsing error: {0}")]
-    Parse(#[from] acdc_parser::Error),
-
-    #[error("unsupported TCK type `{0}`; expected `block` or `inline`")]
-    UnsupportedType(String),
-}
+use super::json::{self, Error, Format};
 
 #[derive(Debug, Deserialize)]
 struct TckInput {
@@ -64,26 +56,25 @@ pub fn run(_args: &Args) -> Result<(), Error> {
         "processing TCK input",
     );
 
-    // Parse the AsciiDoc content based on type
     let parser_options = acdc_parser::Options::builder()
+        .with_compatibility_mode(acdc_parser::CompatibilityMode::Draft)
         .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .build()?;
 
-    let mut stdout = io::stdout();
-    match tck_input.r#type.as_str() {
+    let asg = match tck_input.r#type.as_str() {
         "block" => {
             let parsed = acdc_parser::parse(&tck_input.contents, &parser_options)?;
-            serde_json::to_writer(&stdout, parsed.document())?;
+            json::warnings(parsed.warnings())?;
+            json::document(parsed.document(), Format::UpstreamAsg)?
         }
         "inline" => {
             let parsed = acdc_parser::parse_inline(&tck_input.contents, &parser_options)?;
-            serde_json::to_writer(&stdout, parsed.inlines())?;
+            json::warnings(parsed.warnings())?;
+            json::inlines(parsed.inlines(), Format::UpstreamAsg)?
         }
         other => {
             return Err(Error::UnsupportedType(other.to_owned()));
         }
-    }
-    stdout.flush()?;
-
-    Ok(())
+    };
+    json::write(&asg, Path::new("-"))
 }

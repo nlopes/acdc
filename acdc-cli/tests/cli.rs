@@ -212,13 +212,12 @@ fn include_budget_resets_for_each_file_in_a_conversion_batch() -> Result<(), Box
     feature = "tck",
 )))]
 #[test]
-fn no_command_features_return_a_clear_diagnostic() -> Result<(), Box<dyn Error>> {
+fn minimal_build_still_exposes_native_json_parsing() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(&[], None)?;
     let stderr = output_text(&output.stderr);
 
     assert_eq!(output.status.code(), Some(2));
-    assert!(stderr.contains("built without any subcommand features"));
-    assert!(stderr.contains("pdf"));
+    assert!(stderr.contains("parse"));
     Ok(())
 }
 
@@ -492,6 +491,70 @@ fn invalid_tck_type_returns_a_failure() -> Result<(), Box<dyn Error>> {
 
     assert_eq!(output.status.code(), Some(1));
     assert!(stderr.contains("unsupported TCK type `document`"));
+    Ok(())
+}
+
+#[cfg(feature = "tck")]
+#[test]
+fn tck_rejects_unsupported_content_without_partial_json() -> Result<(), Box<dyn Error>> {
+    for (kind, contents) in [
+        ("block", "Before.\n\nInline image:photo.png[Alt]."),
+        ("inline", "Before image:photo.png[Alt]."),
+    ] {
+        let input = serde_json::json!({"contents": contents, "path": "test.adoc", "type": kind})
+            .to_string();
+        let output = run_acdc(&["tck"], Some(&input))?;
+        assert!(!output.status.success());
+        assert_eq!(output.stdout, [] as [u8; 0]);
+        let diagnostic: serde_json::Value = serde_json::from_slice(&output.stderr)?;
+        assert_eq!(
+            diagnostic.get("kind"),
+            Some(&serde_json::json!("unsupported-asg"))
+        );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "tck")]
+#[test]
+fn tck_uses_draft_attributes_and_checked_media_targets() -> Result<(), Box<dyn Error>> {
+    let input = serde_json::json!({
+        "contents": "[#photo]\n[role=one,role=two]\naudio::photo.ogg[title=\"*Literal*\"]",
+        "path": "test.adoc", "type": "block",
+    })
+    .to_string();
+    let output = run_acdc(&["tck"], Some(&input))?;
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    let image = &json
+        .pointer("/blocks/0")
+        .cloned()
+        .ok_or("missing JSON value")?;
+    assert_eq!(
+        image
+            .pointer("/target")
+            .cloned()
+            .ok_or("missing JSON value")?,
+        "photo.ogg"
+    );
+    assert_eq!(
+        image.pointer("/id").cloned().ok_or("missing JSON value")?,
+        "photo"
+    );
+    assert_eq!(
+        image
+            .pointer("/metadata/roles")
+            .cloned()
+            .ok_or("missing JSON value")?,
+        serde_json::json!(["one", "two"])
+    );
+    assert_eq!(
+        image
+            .pointer("/title/0/value")
+            .cloned()
+            .ok_or("missing JSON value")?,
+        "*Literal*"
+    );
     Ok(())
 }
 

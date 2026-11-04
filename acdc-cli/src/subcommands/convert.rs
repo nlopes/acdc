@@ -815,6 +815,7 @@ mod tests {
     fn parse_pdf_args<const N: usize>(raw: [&str; N]) -> MietteResult<Args> {
         let cli = crate::Cli::try_parse_from(raw).map_err(|error| miette::miette!(error))?;
         match cli.command {
+            Commands::Parse(_) => Err(miette::miette!("test command selected parse")),
             Commands::Convert(args) => Ok(args),
             #[cfg(feature = "execute")]
             Commands::Execute(_) => Err(miette::miette!("test command selected execute")),

@@ -73,7 +73,8 @@ terminal-emulator = [
 # Development tools
 execute = ["dep:acdc-execute", "dep:regex"]  # Run command blocks from AsciiDoc documents
 inspect = []  # AST inspection tool for debugging parser output
-tck = []      # Technology Compatibility Kit for spec compliance testing
+asg = ["acdc-parser/asg"]                  # Checked upstream and acdc ASG export
+tck = ["asg"]                             # AsciiDoc Test Compatibility Kit adapter
 
 # Network access
 network = ["acdc-parser/network", "acdc-execute?/network", "acdc-lint?/network", "acdc-converters-pdf?/network", "acdc-converters-html?/network"]  # Enable remote includes and embedded HTML/PDF images

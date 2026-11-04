@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `acdc parse` exports native JSON from files or stdin in every build. `--format upstream-asg` and `--format acdc-asg-v1` select checked export when built with `asg`; `--compatibility-mode` selects language rules independently. `--type inline` parses a fragment. Parser/export diagnostics are JSON lines on stderr, and semantic failures do not replace output files.
+
 - `convert`, `inspect`, `lint`, and `execute` accept `--compatibility-mode
   asciidoctor|draft`. Asciidoctor remains the default. The selected rules apply
   to every input and nested include/table cell; safety and resource limits
@@ -57,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--failure-level WARN`.
 
 ### Changed
+
+- The `tck` adapter now validates output against the pinned ASG draft schema
+  and rejects unsupported constructs before writing JSON. It always uses Draft
+  mode and strict upstream ASG. Diagnostics go to stderr as JSON lines.
 
 - Explicit `toc2` settings now warn once per input document. Use `:toc: left`
   or `-a toc=left`. TOC output is unchanged. With `--fail-on-warnings`, this

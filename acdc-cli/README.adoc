@@ -1,7 +1,7 @@
 = `acdc` command-line interface
 
 `acdc` is the command-line entry point for the acdc AsciiDoc toolchain.
-It converts documents, runs project lints and command blocks, displays a structural parser outline, and provides the AsciiDoc TCK adapter.
+It converts documents, exports parsed JSON, runs project lints and command blocks, displays a structural parser outline, and provides the AsciiDoc TCK adapter.
 
 Use `acdc <command> --help` for the exhaustive option reference.
 This guide focuses on common workflows and build-time features.
@@ -420,9 +420,49 @@ These options leave the calling process unchanged.
 A build with the `execute` feature only is available via `cargo build -p acdc-cli --no-default-features --features execute`.
 Command attribute substitution follows each block's `subs=` setting in every build.
 
+=== `parse`
+
+`parse` exports native AST JSON by default. It is available in every build.
+A file argument uses the file's directory for includes; `-` or no argument reads
+stdin. `--type inline` parses an inline fragment instead of a document.
+
+[source,console]
+....
+acdc parse guide.adoc
+printf '*Bold*' | acdc parse --type inline
+acdc parse --format upstream-asg --compatibility-mode draft guide.adoc
+acdc parse --format acdc-asg-v1 -o guide.json guide.adoc
+....
+
+The three `--format` values have separate contracts:
+
+* `native-json` preserves the parser's native model.
+* `upstream-asg` validates against the pinned upstream subset and rejects
+  unsupported semantics.
+* `acdc-asg-v1` uses the named `urn:acdc:asg:1` extension. Document output includes
+  its `profile` identifier; standalone inline output is an array under that contract.
+
+The ASG formats require the `asg` build feature. An unavailable format fails
+explicitly. Neither format selects language rules: `--compatibility-mode` defaults
+to `asciidoctor` and also accepts `draft`. Safety and include limits remain separate;
+`-S`/`--safe-mode` defaults to `unsafe`, and `--max-total-include-bytes` sets the
+selected include budget.
+
+Stdout contains one JSON value followed by a newline. `-o`/`--output` selects a
+file instead. Parsing and export finish before output is written, so an unsupported
+value leaves an existing output file intact. Parser warnings and processing errors
+are JSON lines on stderr. ASG errors include their kind, property path, semantic
+owner and known location. Unavailable coordinates stay null. Argument usage errors
+use the normal CLI help format. Explicit `ACDC_LOG` tracing adds separate stderr logs.
+
 === `tck`
 
 The `tck` feature provides the JSON stdin/stdout adapter used by the AsciiDoc Test Compatibility Kit.
+It includes the `asg` capability and always selects Draft mode and strict upstream
+ASG. Output is validated before writing; unsupported constructs fail without a
+partial document. Parser/export diagnostics are JSON lines on stderr. Native and
+extension output belong to `parse`; the TCK command accepts no format or mode override.
+A passing subset does not establish full language or upstream schema conformance.
 
 [source,console]
 ....
@@ -468,13 +508,17 @@ echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' \
 | no
 | `acdc execute` command: run command blocks defined in AsciiDoc documents.
 
+| `asg`
+| no
+| Checked upstream ASG and acdc ASG v1 export for `parse`.
+
 | `inspect`, `tck`
 | no
 | Developer/specification commands.
 |===
 
 Convenience groups are `all-backends`, `dev-tools` (`execute`, `inspect`), and `test-tools` (`tck`).
-A build with no command-enabling features exits with a diagnostic that lists the available command features.
+A build with no optional command features still provides `parse --format native-json`.
 
 == Diagnostics and exit status
 
