@@ -18,6 +18,54 @@ mod support;
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn remaining_passthrough_profiles_keep_disabled_formatting_escapes() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/resolved_passthrough_profiles.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            input,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let source = WarningSource::new("markdown");
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&source, &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let events = parse_markdown(&output, variant);
+            let text = parsed_text(&events);
+            for expected in [
+                r"P03 (C) (R) (TM) ....",
+                r"P04 \*literal* \'word\' © →.",
+                r"P05 \*literal* \'word\' © ->.",
+                r"P06 \*literal* \'word\' (C) ->.",
+            ] {
+                assert!(text.contains(expected), "missing {expected}: {text}");
+            }
+            assert!(
+                output.contains(r"P02 \*literal* \_literal_ \`literal` \#literal#."),
+                "{output}"
+            );
+            assert!(output.contains(r#"<i data-label="_keep*">"#), "{output}");
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn resolved_escapes_survive_markdown_parsing_in_both_modes() -> Result<(), Error> {
     let input = include_str!("fixtures/source/resolved_escapes.adoc");
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {

@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Replacement-only passthroughs (`pass:r[...]`) preserve escapes for disabled
+  formatting.
+  Explicit character-escaping profiles keep those backslashes visible after
+  Markdown rendering, and raw HTML attributes stay unchanged.
+
 - Preserve parser-selected backslashes in ordinary text, quotes, and verse,
   including `subs=none` and attribute-only content. Markdown no longer removes
   them a second time or emits internal placeholders for escaped typography.

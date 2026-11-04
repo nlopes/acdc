@@ -14,7 +14,7 @@ use acdc_converters_core::{
         appendix_number_prefix, book_chapter_signifier, effective_section_level,
         part_number_prefix, section_number_prefix,
     },
-    substitutions::{Replacements, TextBoundaries},
+    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
     table::{CellKind, GridRow, column_count, grid_rows, has_spans},
     toc::{Config as TocConfig, NumberingConfig, entry_level, has_parts, number_prefixes},
     visitor::{BlockVisitor, DocumentVisitor},
@@ -552,7 +552,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 }
                 InlineKind::Raw(text) => {
                     self.write_blockquote_text(
-                        &Self::passthrough_content(text.text(), text.substitutions()),
+                        &Self::passthrough_content(text.text(), || text.substitutions()),
                         false,
                     )?;
                 }
@@ -788,20 +788,26 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(())
     }
 
-    fn passthrough_content(
+    fn passthrough_content<I: Iterator<Item = Substitution>>(
         text: &str,
-        substitutions: impl Iterator<Item = Substitution>,
+        substitutions: impl Fn() -> I,
     ) -> String {
         let mut output = text.to_owned();
         let mut special_chars = false;
-        for substitution in substitutions {
+        for substitution in substitutions() {
             match substitution {
                 Substitution::SpecialChars => {
                     special_chars = true;
                     output = escape_html_text(&output);
                 }
                 Substitution::Replacements => {
-                    output = Replacements::unicode().transform(&output, TextBoundaries::BOTH);
+                    output = apply_passthrough_replacements_iter(
+                        &output,
+                        substitutions(),
+                        &Replacements::unicode(),
+                        TextBoundaries::BOTH,
+                    )
+                    .into_owned();
                 }
                 Substitution::Attributes
                 | Substitution::Macros
@@ -822,10 +828,10 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         }
     }
 
-    fn write_passthrough(
+    fn write_passthrough<I: Iterator<Item = Substitution>>(
         &mut self,
         text: &str,
-        substitutions: impl Iterator<Item = Substitution>,
+        substitutions: impl Fn() -> I,
     ) -> Result<(), Error> {
         write!(
             self.writer,
@@ -2383,7 +2389,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             InlineKind::Symbol(symbol) => self.write_escaped_text(symbol.text())?,
             InlineKind::LineBreak(_) => writeln!(self.writer, "  ")?,
             InlineKind::Raw(text) => {
-                self.write_passthrough(text.text(), text.substitutions())?;
+                self.write_passthrough(text.text(), || text.substitutions())?;
             }
             InlineKind::Verbatim(text) => self.write_code_span(text.text())?,
             InlineKind::StandaloneCurvedApostrophe(_) => {
@@ -2445,7 +2451,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             InlineKind::IndexTerm(term) => self.visit_index_term(traversal, term)?,
             InlineKind::Pass(pass) => {
                 if let Some(text) = pass.text() {
-                    self.write_passthrough(text, pass.substitutions())?;
+                    self.write_passthrough(text, || pass.substitutions())?;
                 }
             }
             InlineKind::Stem(stem) => {
