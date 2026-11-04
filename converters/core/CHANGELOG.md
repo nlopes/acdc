@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Converters can resolve explicit block substitution settings in every build.
+  The list-based `effective_subs` helper no longer requires `pre-spec-subs`.
+
 - Text reads now return parser-resolved copyright and trademark signs,
   ellipses, word-internal apostrophes, and em dashes. Replacement escapes return their
   literal value, including when rendered replacements are disabled.
@@ -30,7 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `effective_subs` and `effective_subs_flags` now accept
   `Option<SubstitutionSpecRef>`; convert existing optional owner references with
-  `.map(Into::into)`. Block defaults, ordering, and feature behavior are unchanged.
+  `.map(Into::into)`. Block defaults and ordering are unchanged. List-based
+  resolution is available in every build.
 
 - Boxed cross-reference macros passed to `resolve_xref` now need `.as_ref()`.
   Direct `&CrossReference` references and typed `CrossReferenceRef` handles are accepted.

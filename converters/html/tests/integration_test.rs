@@ -22,6 +22,50 @@ mod support;
 type Error = Box<dyn StdError>;
 
 #[test]
+fn block_substitutions_are_honored_in_every_build() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/html/embedded/subs_runtime_builds.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        assert_eq!(parsed.document().footnotes.len(), 0);
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Processor::new_with_variant(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+                variant,
+            )?;
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let warning_source = WarningSource::new("html");
+            let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
+            processor.convert_to_writer(
+                parsed.document(),
+                &mut output,
+                &RenderOptions::default(),
+                &mut diagnostics,
+            )?;
+            let output = String::from_utf8(output)?;
+            for expected in [
+                "<em>raw paragraph</em> & *literal* footnote:[Unregistered.]",
+                "&lt;em&gt;escaped paragraph&lt;/em&gt; &amp; *literal*",
+                "<em>raw listing</em> & literal",
+                "&lt;em&gt;escaped listing&lt;/em&gt; &amp; literal",
+                "alpha < beta & raw",
+                "alpha &lt; beta &amp; escaped",
+            ] {
+                assert!(output.contains(expected), "missing {expected}: {output}");
+            }
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn decoded_attribute_values_keep_literal_quotes() -> Result<(), Error> {
     let source = include_str!("fixtures/source/html/embedded/decoded_attribute_values.adoc");
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
@@ -274,10 +318,10 @@ fn resolved_xml_delimiters_survive_plain_and_highlighted_rendering() -> Result<(
 #[case("callout_icon_guards")]
 #[case("callout_xml_line_comment")]
 #[case("callout_prefix_spaces")]
-#[cfg_attr(feature = "pre-spec-subs", case("subs_highlighted_callout_positions"))]
-#[cfg_attr(feature = "pre-spec-subs", case("subs_callout_icon_guards"))]
-#[cfg_attr(feature = "pre-spec-subs", case("subs_callout_xml_line_comment"))]
-#[cfg_attr(feature = "pre-spec-subs", case("subs_callout_prefix_spaces"))]
+#[case("subs_highlighted_callout_positions")]
+#[case("subs_callout_icon_guards")]
+#[case("subs_callout_xml_line_comment")]
+#[case("subs_callout_prefix_spaces")]
 fn highlighted_callouts_preserve_plain_code_text_and_targets(
     #[case] stem: &str,
 ) -> Result<(), Error> {
@@ -444,7 +488,7 @@ fn plain_source_keeps_text_callouts_and_wrap_options() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", not(feature = "highlighting")))]
+#[cfg(not(feature = "highlighting"))]
 #[test]
 fn plain_code_keeps_enabled_macros_and_literal_controls() -> Result<(), Error> {
     for (directory, variant) in [
@@ -482,12 +526,12 @@ fn plain_code_keeps_enabled_macros_and_literal_controls() -> Result<(), Error> {
 fn formatted_attribute_footnotes_keep_unique_link_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("document_attribute_formatted")?;
     check_link_label_footnote_targets("document_attribute_profile_edges")?;
-    #[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+    #[cfg(feature = "highlighting")]
     check_link_label_footnote_targets("subs_document_attribute_formatted")?;
     Ok(())
 }
 
-#[cfg(all(feature = "highlighting", feature = "pre-spec-subs"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn document_attribute_pass_raw_tags_remain_nested_under_highlighting() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -624,7 +668,6 @@ fn link_label_brackets_keep_footnote_links_separate() -> Result<(), Error> {
 #[test]
 fn passthrough_brackets_keep_unique_link_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("passthrough_brackets")?;
-    #[cfg(feature = "pre-spec-subs")]
     check_link_label_footnote_targets("subs_passthrough_brackets")?;
     Ok(())
 }
@@ -632,7 +675,7 @@ fn passthrough_brackets_keep_unique_link_targets() -> Result<(), Error> {
 #[test]
 fn anchor_macros_keep_unique_targets_without_nested_links() -> Result<(), Error> {
     check_link_label_footnote_targets("anchor_macro")?;
-    #[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+    #[cfg(feature = "highlighting")]
     check_link_label_footnote_targets("subs_anchor_macro_highlighting")?;
     Ok(())
 }
@@ -650,9 +693,8 @@ fn callout_nested_lists_keep_unique_link_targets() -> Result<(), Error> {
 #[test]
 fn xref_nested_footnotes_have_separate_unique_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("xref_nested_footnotes")?;
-    #[cfg(feature = "pre-spec-subs")]
     check_link_label_footnote_targets("subs_xref_nested_footnotes")?;
-    #[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+    #[cfg(feature = "highlighting")]
     check_link_label_footnote_targets("subs_xref_nested_footnotes_highlighting")?;
     Ok(())
 }
@@ -662,13 +704,12 @@ fn footnotes_in_link_labels_have_separate_unique_targets() -> Result<(), Error> 
     check_link_label_footnote_targets("footnotes_in_link_labels")
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_footnotes_in_link_labels_have_separate_unique_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("subs_footnotes_in_link_labels")
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn highlighted_footnotes_in_link_labels_have_separate_unique_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("subs_footnotes_in_link_labels_highlighting")
@@ -755,7 +796,7 @@ fn index_relationships_target_their_own_catalog() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn highlighted_index_links_resolve_inside_code() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -780,7 +821,7 @@ fn highlighted_index_links_resolve_inside_code() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn index_dash_context_keeps_highlighted_link_offsets_and_catalog_targets() -> Result<(), Error> {
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
@@ -874,7 +915,7 @@ fn index_dash_context_keeps_highlighted_link_offsets_and_catalog_targets() -> Re
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[rstest::rstest]
 #[case::link_labels("subs_footnotes_in_link_labels_highlighting")]
 #[case::cross_references("subs_xref_nested_footnotes_highlighting")]
@@ -901,7 +942,7 @@ fn class_highlighting_fixtures_select_class_spans(#[case] stem: &str) -> Result<
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[rstest::rstest]
 #[case::primary("subs_highlight_attributes", true)]
 #[case::deprecated("subs_highlight_attributes_legacy", true)]
@@ -933,7 +974,7 @@ fn highlight_attribute_fixtures_preserve_mode_and_targets(
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn visible_index_typography_keeps_following_links_and_unique_targets() -> Result<(), Error> {
     for stem in [
@@ -968,7 +1009,6 @@ fn visible_index_typography_keeps_following_links_and_unique_targets() -> Result
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn highlighted_index_catalog_follows_source_occurrences() -> Result<(), Error> {
     let input = include_str!("fixtures/source/html/embedded/subs_index_occurrence_order.adoc");
@@ -1059,7 +1099,7 @@ fn highlighted_index_catalog_follows_source_occurrences() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn visible_index_typography_keeps_registration_labels_and_source_order() -> Result<(), Error> {
     let input = ":source-highlighter: syntect\n:acdc-index:\n\n\
@@ -1109,7 +1149,7 @@ fn visible_index_typography_keeps_registration_labels_and_source_order() -> Resu
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn visible_index_typography_survives_missing_theme_fallback() -> Result<(), Error> {
     let input = read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(
@@ -1263,10 +1303,6 @@ fn run_fixture_test(
         .file_stem()
         .and_then(|s| s.to_str())
         .ok_or("Invalid fixture file name")?;
-
-    if support::skip_fixture(file_name) {
-        return Ok(());
-    }
 
     let parsed = parse_file(
         path,
@@ -1615,7 +1651,6 @@ fn stem_formulas_are_literal_text_in_both_html_variants() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn stem_attribute_substitutions_do_not_turn_formula_text_into_html() -> Result<(), Error> {
     let source = ":formula: x < y & z\n\n[stem,subs=\"+attributes\"]\n++++\n{formula}\n++++";
@@ -1626,7 +1661,6 @@ fn stem_attribute_substitutions_do_not_turn_formula_text_into_html() -> Result<(
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn stem_block_substitution_none_retains_authored_html() -> Result<(), Error> {
     let source = "[stem,subs=none]\n++++\n<i>x</i>\n++++";
@@ -2455,7 +2489,6 @@ fn main() {
     }
 
     #[test]
-    #[cfg(feature = "pre-spec-subs")]
     fn attribute_substitution_applied_with_highlighting() -> Result<(), Error> {
         let input = r#":source-highlighter: syntect
 :version: 1.0
@@ -3345,7 +3378,6 @@ fn table_paragraphs_keep_boundaries_in_both_variants() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn asciidoc_table_paragraphs_keep_unique_link_targets() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))

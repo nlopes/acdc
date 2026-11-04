@@ -39,9 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .file_stem()
                     .and_then(|stem| stem.to_str())
                     .ok_or("invalid HTML fixture stem")?;
-                if fixture_support::skip_fixture(stem)
-                    || (!names.is_empty() && !names.iter().any(|name| name == stem))
-                {
+                if !names.is_empty() && !names.iter().any(|name| name == stem) {
                     continue;
                 }
                 let parsed = parse_file(

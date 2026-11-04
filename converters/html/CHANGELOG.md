@@ -124,6 +124,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Honor block `subs=` settings in every build, including HTML escaping for
+  paragraphs, listings, and STEM blocks. Disabling `pre-spec-subs` no longer
+  changes HTML output. Syntax highlighting remains a separate capability.
+
 - Preserve literal quotes in link IDs, roles, and window targets, image link
   targets and alignment, and other decoded HTML controls. Quotes inside quoted
   AsciiDoc values stay in the output, matching Asciidoctor. Empty controls keep

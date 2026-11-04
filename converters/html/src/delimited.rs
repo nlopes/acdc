@@ -1,22 +1,16 @@
 use std::{borrow::Cow, io::Write};
 
-use acdc_converters_core::{TraversalContext, code::source_language};
-
-#[cfg(not(feature = "pre-spec-subs"))]
-use acdc_converters_core::substitutions::baseline_subs;
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::effective_subs;
+use acdc_converters_core::{
+    TraversalContext, code::source_language, substitutions::effective_subs,
+};
 
 use acdc_parser::{
-    CaptionKind, StemNotation,
+    CaptionKind, StemNotation, Substitution,
     ast::{
         AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, ExampleRef, ListingRef,
         LiteralRef, StemBlockRef, TokensRef, VerseRef,
     },
 };
-
-#[cfg(feature = "pre-spec-subs")]
-use acdc_parser::Substitution;
 
 #[cfg(feature = "terminal")]
 use crate::terminal::{is_terminal_session, render_listing, render_session};
@@ -511,7 +505,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             });
         let source_indent =
             crate::source_indent::resolve(attributes, traversal, &mut self.diagnostics);
-        #[cfg(feature = "pre-spec-subs")]
         let subs = effective_subs(
             match attributes.and_then(|attributes| attributes.get("subs")) {
                 Some(AttributeValueRef::Substitutions(spec)) => Some(spec),
@@ -519,8 +512,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             },
             true,
         );
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let subs = baseline_subs(true);
 
         crate::render_pre_code(
             traversal,
@@ -990,15 +981,12 @@ fn render_stem_content_semantic<W: Write + ?Sized>(
 }
 
 fn stem_html(stem: StemBlockRef<'_>) -> Cow<'_, str> {
-    #[cfg(feature = "pre-spec-subs")]
     let special_chars = match stem.attributes().get("subs") {
         Some(AttributeValueRef::Substitutions(spec)) => spec
             .resolve(&[Substitution::SpecialChars])
             .contains(&Substitution::SpecialChars),
         _ => true,
     };
-    #[cfg(not(feature = "pre-spec-subs"))]
-    let special_chars = true;
     if special_chars {
         Cow::Owned(escape_pcdata(stem.text()))
     } else {

@@ -7,13 +7,10 @@ use std::borrow::Cow;
 
 use acdc_parser::{
     InlineNode, NORMAL, Substitution, SymbolKind, VERBATIM,
-    ast::{InlineKind, InlineRef},
+    ast::{InlineKind, InlineRef, SubstitutionSpecRef},
 };
 
 use crate::TraversalContext;
-
-#[cfg(feature = "pre-spec-subs")]
-use acdc_parser::ast::SubstitutionSpecRef;
 
 #[cfg(feature = "pre-spec-subs")]
 use bitflags::bitflags;
@@ -116,9 +113,6 @@ impl SubsFlags {
 /// Absence keeps the defaults. An empty explicit list disables substitutions;
 /// an empty modifier list keeps the defaults. Source entries retain the parser's
 /// group, ordering, and modifier rules.
-///
-/// Only available with `pre-spec-subs`. Otherwise use [`baseline_subs`].
-#[cfg(feature = "pre-spec-subs")]
 #[must_use]
 pub fn effective_subs(
     spec: Option<SubstitutionSpecRef<'_>>,
@@ -132,8 +126,7 @@ pub fn effective_subs(
 }
 
 /// Return the block-kind baseline substitution list, ignoring any `[subs="…"]`
-/// override. Always available — when `pre-spec-subs` is on, callers usually
-/// prefer [`effective_subs`] which folds the override in.
+/// override. Use [`effective_subs`] to include explicit block settings.
 #[must_use]
 pub fn baseline_subs(is_verbatim: bool) -> Vec<Substitution> {
     let baseline = if is_verbatim { VERBATIM } else { NORMAL };
@@ -1282,7 +1275,6 @@ fn replace_contextual_apostrophes(
 mod tests {
     use super::*;
 
-    #[cfg(feature = "pre-spec-subs")]
     #[test]
     fn typed_block_settings_keep_defaults_empty_values_and_flags() {
         use acdc_parser::SubstitutionSpec;
@@ -1290,6 +1282,7 @@ mod tests {
         for is_verbatim in [false, true] {
             let defaults = if is_verbatim { VERBATIM } else { NORMAL };
             assert_eq!(effective_subs(None, is_verbatim), defaults);
+            #[cfg(feature = "pre-spec-subs")]
             assert_eq!(
                 effective_subs_flags(None, is_verbatim),
                 SubsFlags::from_resolved(defaults)
@@ -1307,6 +1300,7 @@ mod tests {
                 ),
             ] {
                 assert_eq!(effective_subs(Some((&spec).into()), is_verbatim), expected);
+                #[cfg(feature = "pre-spec-subs")]
                 assert_eq!(
                     effective_subs_flags(Some((&spec).into()), is_verbatim),
                     SubsFlags::from_resolved(&expected)

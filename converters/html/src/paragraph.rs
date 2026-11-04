@@ -1,10 +1,8 @@
 use std::io::Write;
 
-#[cfg(not(feature = "pre-spec-subs"))]
-use acdc_converters_core::substitutions::baseline_subs;
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::effective_subs;
-use acdc_converters_core::{TraversalContext, code::source_language};
+use acdc_converters_core::{
+    TraversalContext, code::source_language, substitutions::effective_subs,
+};
 use acdc_parser::{
     CaptionKind,
     ast::{AttributeValueRef, ParagraphRef},
@@ -328,7 +326,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         });
         let source_indent =
             crate::source_indent::resolve(Some(attributes), traversal, &mut self.diagnostics);
-        #[cfg(feature = "pre-spec-subs")]
         let subs = effective_subs(
             match attributes.get("subs") {
                 Some(AttributeValueRef::Substitutions(spec)) => Some(spec),
@@ -336,8 +333,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             },
             true,
         );
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let subs = baseline_subs(true);
 
         if self.processor.variant() == HtmlVariant::Semantic {
             if data.title().is_some() {

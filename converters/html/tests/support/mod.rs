@@ -2,10 +2,6 @@ use std::path::{Path, PathBuf};
 
 use acdc_parser::Document;
 
-pub(crate) fn skip_fixture(stem: &str) -> bool {
-    !cfg!(feature = "pre-spec-subs") && stem.contains("subs")
-}
-
 pub(crate) fn has_highlighter(document: &Document<'_>) -> bool {
     document.attributes.get("source-highlighter").is_some()
 }

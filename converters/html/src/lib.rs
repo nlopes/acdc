@@ -15,8 +15,8 @@ use acdc_converters_core::{
 };
 
 use acdc_parser::{
-    AttributeValue, CaptionKind, Document, DocumentAttributes, InlineNode,
-    Options as ParserOptions, Reference, Substitution, TocEntry,
+    AttributeValue, CaptionKind, Document, DocumentAttributes, Options as ParserOptions, Reference,
+    Substitution, TocEntry,
     ast::{
         AttributeValueRef, AttributesRef, ContentRef, DocumentAttributesRef, DocumentRef,
         ElementIdRef,
@@ -24,7 +24,10 @@ use acdc_parser::{
 };
 
 #[cfg(feature = "highlighting")]
-use acdc_parser::ast::{InlineKind, InlineRef};
+use acdc_parser::{
+    InlineNode,
+    ast::{InlineKind, InlineRef},
+};
 
 mod admonition;
 mod audio;

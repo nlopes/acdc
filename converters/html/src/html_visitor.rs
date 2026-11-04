@@ -4,14 +4,9 @@ use std::{convert::Infallible, io::Write, path::Path, rc::Rc};
 
 use acdc_converters_core::{
     Diagnostics, TraversalContext, document_attribute_text,
-    substitutions::TextBoundaries,
+    substitutions::{TextBoundaries, effective_subs},
     visitor::{BlockVisitor, Visitor},
 };
-
-#[cfg(not(feature = "pre-spec-subs"))]
-use acdc_converters_core::substitutions::baseline_subs;
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::effective_subs;
 
 use acdc_parser::{
     Admonition, Audio, Block, CalloutList, CaptionKind, ColumnStyle, DelimitedBlock,
@@ -1138,7 +1133,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             .is_some_and(|s| matches!(s, "literal" | "listing" | "source"));
 
         // Compute effective substitutions for this paragraph
-        #[cfg(feature = "pre-spec-subs")]
         let new_subs = effective_subs(
             match data.attributes().get("subs") {
                 Some(AttributeValueRef::Substitutions(spec)) => Some(spec),
@@ -1146,8 +1140,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             },
             is_verbatim,
         );
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let new_subs = baseline_subs(is_verbatim);
         let original_subs = std::mem::replace(&mut self.current_subs, new_subs);
 
         let result = self.render_paragraph(traversal, para);
@@ -1166,7 +1158,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let is_verbatim = matches!(data.kind(), BlockKind::Listing(_) | BlockKind::Literal(_));
 
         // Compute effective substitutions for this block
-        #[cfg(feature = "pre-spec-subs")]
         let new_subs = effective_subs(
             match data
                 .attributes()
@@ -1177,8 +1168,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             },
             is_verbatim,
         );
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let new_subs = baseline_subs(is_verbatim);
         let original_subs = std::mem::replace(&mut self.current_subs, new_subs);
 
         // Toggle verbatim mode for verbatim blocks
