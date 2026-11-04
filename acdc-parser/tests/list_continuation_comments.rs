@@ -20,7 +20,7 @@ fn comments_do_not_consume_a_list_attachment_or_register_hidden_macros() -> Resu
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let Some(BlockKind::UnorderedList(list)) =
-                parsed.document_ref().blocks().next().map(BlockRef::kind)
+                parsed.document().blocks().next().map(BlockRef::kind)
             else {
                 return Err("expected list".into());
             };
@@ -43,8 +43,8 @@ fn comments_do_not_consume_a_list_attachment_or_register_hidden_macros() -> Resu
                     .count(),
                 1
             );
-            assert_eq!(parsed.document_ref().footnotes().count(), 1);
-            assert_eq!(parsed.document_ref().blocks().count(), 1);
+            assert_eq!(parsed.document().footnotes().count(), 1);
+            assert_eq!(parsed.document().blocks().count(), 1);
         }
     }
     Ok(())
@@ -70,7 +70,7 @@ fn attached_selected_include_content_keeps_original_ranges() -> Result<(), Error
                 .build()?,
         )?;
         let Some(BlockKind::UnorderedList(list)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected list".into());
         };
@@ -95,7 +95,7 @@ fn attached_selected_include_content_keeps_original_ranges() -> Result<(), Error
             source.find("body.").ok_or("source end")? + "body".len()
         );
         assert_eq!(list.items().count(), 2);
-        assert_eq!(parsed.document_ref().blocks().count(), 1);
+        assert_eq!(parsed.document().blocks().count(), 1);
     }
     Ok(())
 }
@@ -109,9 +109,9 @@ fn a_blank_line_after_the_comment_ends_the_attachment() -> Result<(), Error> {
                 &source,
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
-            assert_eq!(parsed.document_ref().blocks().count(), 3);
+            assert_eq!(parsed.document().blocks().count(), 3);
             assert!(matches!(
-                parsed.document_ref().blocks().nth(1).map(BlockRef::kind),
+                parsed.document().blocks().nth(1).map(BlockRef::kind),
                 Some(BlockKind::Paragraph(_))
             ));
         }

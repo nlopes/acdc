@@ -19,7 +19,7 @@ fn passthrough_character_references_preserve_complete_source_spans() -> Result<(
     ] {
         let parsed = parse(source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -73,7 +73,7 @@ fn passthrough_character_references_map_generated_values_to_the_reference() -> R
     let options = Options::with_attributes([("value", "&#169;&#174;")])?;
     let parsed = parse(source, &options)?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()

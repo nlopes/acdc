@@ -33,7 +33,7 @@ fn link_label_brackets_remove_one_escape_and_keep_source_spans() -> Result<(), E
             let source = format!("α {prefix}[é {escapes}] café] ω.\n");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -99,7 +99,7 @@ fn link_label_brackets_keep_quoted_source_spans() -> Result<(), Error> {
         let source = format!("α link:https://example.org[{quote}é \\] café{quote},role=test] ω.\n");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -154,7 +154,7 @@ fn link_label_brackets_keep_multiline_passthrough_source_spans() -> Result<(), E
         };
         let parsed = parse(source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()

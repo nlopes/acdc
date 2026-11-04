@@ -29,7 +29,7 @@ fn verbatim_profiles_expose_resolved_symbols(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -107,7 +107,7 @@ fn verbatim_only_replacements_preserve_other_escapes(
     )?;
     assert!(
         parsed
-            .document_ref()
+            .document()
             .content_occurrences()
             .flat_map(|field| field.content().inlines())
             .all(|node| !matches!(node.kind(), InlineKind::Symbol(_))),

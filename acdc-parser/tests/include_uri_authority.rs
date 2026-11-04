@@ -133,14 +133,14 @@ impl Drop for TestServer {
 
 fn assert_single_paragraph(result: &ParseResult, expected: &str) -> TestResult {
     let [BlockKind::Paragraph(paragraph)] = &*result
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(format!(
             "expected one paragraph, got {:?}",
-            result.document_ref().blocks().collect::<Vec<_>>()
+            result.document().blocks().collect::<Vec<_>>()
         )
         .into());
     };
@@ -176,14 +176,14 @@ fn paragraph_source_text(block: BlockKind<'_>) -> Result<String, Box<dyn Error>>
 
 fn assert_include_fallback(result: &ParseResult, target: &str) -> TestResult {
     let [BlockKind::Paragraph(paragraph)] = &*result
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(format!(
             "expected one fallback paragraph, got {:?}",
-            result.document_ref().blocks().collect::<Vec<_>>()
+            result.document().blocks().collect::<Vec<_>>()
         )
         .into());
     };
@@ -264,14 +264,14 @@ fn authorized_uri_with_internal_spaces_uses_ureq_recovery() -> TestResult {
     let result = parse_file(&document.path, &options)?;
 
     let [before, unresolved, after] = &*result
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(format!(
             "expected before, unresolved directive, and after, got {:?}",
-            result.document_ref().blocks().collect::<Vec<_>>()
+            result.document().blocks().collect::<Vec<_>>()
         )
         .into());
     };
@@ -340,12 +340,7 @@ fn document_cannot_revoke_caller_uri_read_authority() -> TestResult {
     let result = parse_file(&document.path, &options)?;
 
     assert_single_paragraph(&result, "Remote content.")?;
-    assert!(
-        result
-            .document_ref()
-            .attributes()
-            .contains("allow-uri-read")
-    );
+    assert!(result.document().attributes().contains("allow-uri-read"));
     assert_eq!(result.warnings(), []);
     assert!(server.finish()?);
 

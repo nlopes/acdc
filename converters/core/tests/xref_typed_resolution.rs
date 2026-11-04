@@ -91,7 +91,7 @@ fn check_mode(mode: CompatibilityMode) -> Result<(), Error> {
         SOURCE,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let document = &acdc_parser::Document::from(parsed.document_ref());
+    let document = &acdc_parser::Document::from(parsed.document());
     let outer = CrossReference::new("labelled", Location::default());
     let outer_reference = document.references.get("labelled").ok_or("labelled")?;
     for target in [
@@ -155,7 +155,7 @@ fn check_mode(mode: CompatibilityMode) -> Result<(), Error> {
 #[test]
 fn typed_xrefs_preserve_empty_titles_labels_and_temporary_overrides() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
-    let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+    let parsed_references = std::collections::HashMap::from(parsed.document().references());
     let original = parsed_references.get("figure").ok_or("figure")?;
     for title in [
         None,
@@ -199,7 +199,7 @@ fn typed_xrefs_preserve_empty_titles_labels_and_temporary_overrides() -> Result<
 fn typed_xref_label_borrows_the_catalog_text() -> Result<(), Error> {
     let parsed = parse("[[target,A label]]Text.\n", &Options::default())?;
     let reference = parsed
-        .document_ref()
+        .document()
         .references()
         .get("target")
         .ok_or("target")?;

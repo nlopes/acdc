@@ -204,7 +204,7 @@ fn convert<'a>(
     let source = processor.warning_source();
     processor
         .write_to(
-            parsed.document_ref(),
+            parsed.document(),
             &mut bytes,
             source_file,
             None,

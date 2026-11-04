@@ -27,7 +27,7 @@ fn indented_styles_select_content_once(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let [BlockKind::Paragraph(block)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -38,7 +38,7 @@ fn indented_styles_select_content_once(
     assert_eq!(block.title().ok_or("missing title")?.inlines().len(), 1);
     assert_eq!(block.id().map(ElementIdRef::as_str), Some("identity"));
     assert_eq!(
-        parsed.document_ref().footnotes().count(),
+        parsed.document().footnotes().count(),
         usize::from(formatted)
     );
     assert_eq!(
@@ -67,7 +67,7 @@ fn indented_normal_retains_nested_source_locations(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let [BlockKind::Paragraph(block)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -86,12 +86,8 @@ fn indented_normal_retains_nested_source_locations(
         &source[bold.location().absolute_start()..=bold.location().absolute_end()],
         "*Bold*"
     );
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
-    let note = parsed
-        .document_ref()
-        .footnotes()
-        .next()
-        .ok_or("missing note")?;
+    assert_eq!(parsed.document().footnotes().count(), 1);
+    let note = parsed.document().footnotes().next().ok_or("missing note")?;
     assert_eq!(
         &source[note.location().absolute_start()..=note.location().absolute_end()],
         "footnote:n[Note]"
@@ -108,7 +104,7 @@ fn paragraph_alias_depends_on_compatibility_mode(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let [BlockKind::Paragraph(block)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -120,10 +116,7 @@ fn paragraph_alias_depends_on_compatibility_mode(
         block.style(),
         Some(if draft { "normal" } else { "literal" })
     );
-    assert_eq!(
-        parsed.document_ref().footnotes().count(),
-        usize::from(draft)
-    );
+    assert_eq!(parsed.document().footnotes().count(), usize::from(draft));
     Ok(())
 }
 
@@ -137,7 +130,7 @@ fn indented_admonitions_keep_one_body_and_registration(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let [BlockKind::Admonition(block)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -145,7 +138,7 @@ fn indented_admonitions_keep_one_body_and_registration(
         return Err("expected admonition".into());
     };
     assert_eq!(block.blocks().count(), 1);
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     assert_eq!(block.location().absolute_end() + 1, source.len());
     Ok(())
 }

@@ -40,15 +40,10 @@ fn read_sections_titles_and_bodies_after_the_input_is_dropped(
         )?
     };
     assert_eq!(
-        plain(
-            parsed
-                .document_ref()
-                .title()
-                .ok_or("missing document title")?
-        )?,
+        plain(parsed.document().title().ok_or("missing document title")?)?,
         "Views"
     );
-    let mut roots = parsed.document_ref().blocks();
+    let mut roots = parsed.document().blocks();
     let Some(BlockKind::Section(first)) = roots.next().map(BlockRef::kind) else {
         return Err("missing first section".into());
     };
@@ -115,13 +110,13 @@ fn borrowed_nodes_and_direct_iterators_support_shared_reads() -> Result<(), Erro
     handle::<ParagraphRef<'_>>();
     handle::<ContentRef<'_>>();
     let parsed = parse("A paragraph.", &Options::default())?;
-    let blocks = iterator(parsed.document_ref().blocks());
+    let blocks = iterator(parsed.document().blocks());
     std::thread::scope(|scope| {
         scope.spawn(move || assert_eq!(blocks.count(), 1));
-        assert_eq!(parsed.document_ref().blocks().count(), 1);
+        assert_eq!(parsed.document().blocks().count(), 1);
     });
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };
@@ -138,7 +133,7 @@ fn semantic_kinds_flatten_tables_and_macros() -> Result<(), Error> {
         "|===\n|Cell\n|===\n\nimage::block.png[Block]\n\nimage:inline.png[Inline]\n",
         &Options::default(),
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let table = blocks.next().ok_or("missing table")?;
     let BlockKind::Table(table_view) = table.kind() else {
         return Err("expected table kind".into());
@@ -167,7 +162,7 @@ fn semantic_kinds_flatten_tables_and_macros() -> Result<(), Error> {
 fn locations_retain_unicode_coordinates() -> Result<(), Error> {
     let parsed = parse("é *猫*", &Options::default())?;
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };
@@ -202,7 +197,7 @@ fn included_nodes_resolve_to_the_original_file() -> Result<(), Error> {
             .build()?,
     )?;
     let selected = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -227,7 +222,7 @@ fn included_nodes_resolve_to_the_original_file() -> Result<(), Error> {
         Some("include_tag_diagnostics_target.adoc")
     );
     let first = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .ok_or("missing primary block")?;
@@ -244,16 +239,16 @@ fn reads_preserve_json_catalogs_and_diagnostics() -> Result<(), Error> {
         "= Views\n:toc:\n\n[[one]]\n== One\n\nText footnote:[Note] and <<one>>.\n",
         &Options::default(),
     )?;
-    let json = serde_json::to_value(parsed.document_ref())?;
+    let json = serde_json::to_value(parsed.document())?;
     let warnings = format!("{:?}", parsed.warnings());
-    let footnotes = parsed.document_ref().footnotes().count();
-    let references = parsed.document_ref().references().iter().count();
-    let toc_entries = parsed.document_ref().toc_entries().count();
+    let footnotes = parsed.document().footnotes().count();
+    let references = parsed.document().references().iter().count();
+    let toc_entries = parsed.document().toc_entries().count();
     assert_eq!(footnotes, 1);
     assert!(references > 0);
     assert_eq!(toc_entries, 1);
     for _ in 0..2 {
-        for block in parsed.document_ref().blocks() {
+        for block in parsed.document().blocks() {
             if let BlockKind::Section(section) = block.kind() {
                 assert_eq!(plain(section.title().ok_or("missing title")?)?, "One");
                 for child in section.blocks() {
@@ -269,14 +264,11 @@ fn reads_preserve_json_catalogs_and_diagnostics() -> Result<(), Error> {
             }
         }
     }
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, json);
+    assert_eq!(serde_json::to_value(parsed.document())?, json);
     assert_eq!(format!("{:?}", parsed.warnings()), warnings);
-    assert_eq!(parsed.document_ref().footnotes().count(), footnotes);
-    assert_eq!(
-        parsed.document_ref().references().iter().count(),
-        references
-    );
-    assert_eq!(parsed.document_ref().toc_entries().count(), toc_entries);
+    assert_eq!(parsed.document().footnotes().count(), footnotes);
+    assert_eq!(parsed.document().references().iter().count(), references);
+    assert_eq!(parsed.document().toc_entries().count(), toc_entries);
     Ok(())
 }
 

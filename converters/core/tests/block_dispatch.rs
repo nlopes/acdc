@@ -71,11 +71,11 @@ impl<'doc> Visitor<'doc> for OwnerTrace<'doc> {
 fn owner_callbacks_see_events_after_before_hooks() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
     let parsed_blocks: Vec<_> = parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(acdc_parser::Block::from)
         .collect();
-    let mut context = TraversalContext::new(parsed.document_ref().attributes());
+    let mut context = TraversalContext::new(parsed.document().attributes());
     let mut trace = OwnerTrace::default();
     context.visit_blocks(&mut trace, &parsed_blocks)?;
     assert_eq!(
@@ -100,12 +100,12 @@ fn owner_callbacks_see_events_after_before_hooks() -> Result<(), Error> {
 fn owner_callback_errors_stop_before_later_blocks() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
     let parsed_blocks: Vec<_> = parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(acdc_parser::Block::from)
         .collect();
     for fail_before in [false, true] {
-        let mut context = TraversalContext::new(parsed.document_ref().attributes());
+        let mut context = TraversalContext::new(parsed.document().attributes());
         let mut trace = OwnerTrace {
             fail_before,
             fail_dispatch: true,
@@ -172,7 +172,7 @@ impl<'doc> BlockVisitor<'doc> for TypedTrace<'doc> {
 fn typed_and_owner_inputs_share_hook_order_and_error_behavior() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
     let parsed_blocks: Vec<_> = parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(acdc_parser::Block::from)
         .collect();
@@ -187,8 +187,8 @@ fn typed_and_owner_inputs_share_hook_order_and_error_behavior() -> Result<(), Er
             fail_dispatch,
             ..OwnerTrace::default()
         });
-        let mut owner_context = TraversalContext::new(parsed.document_ref().attributes());
-        let mut typed_context = TraversalContext::new(parsed.document_ref().attributes());
+        let mut owner_context = TraversalContext::new(parsed.document().attributes());
+        let mut typed_context = TraversalContext::new(parsed.document().attributes());
         let expected = owner_context.visit_blocks(&mut owner, &parsed_blocks);
         let actual = typed_context
             .visit_blocks::<_, _>(&mut typed, parsed_blocks.iter().map(BlockRef::from));
@@ -212,10 +212,10 @@ fn typed_callbacks_control_recursion_and_support_trait_objects() -> Result<(), E
         "= Doc\n:value: header\n\n== Section\n\n:value: nested\n\nBody.\n",
         &Options::default(),
     )?;
-    let mut context = TraversalContext::new(parsed.document_ref().attributes());
+    let mut context = TraversalContext::new(parsed.document().attributes());
     let mut trace = TypedTrace::default();
     let visitor: &mut dyn BlockVisitor<'_, Error = &'static str> = &mut trace;
-    let block = parsed.document_ref().blocks().next().ok_or("section")?;
+    let block = parsed.document().blocks().next().ok_or("section")?;
     context.visit_block::<_, _>(visitor, block)?;
     assert_eq!(
         trace.0.entries,
@@ -240,7 +240,7 @@ fn typed_cell_callback_errors_restore_the_parent_scope() -> Result<(), Error> {
         &Options::default(),
     )?;
     let table = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Table(table) = block.kind() {
@@ -255,7 +255,7 @@ fn typed_cell_callback_errors_restore_the_parent_scope() -> Result<(), Error> {
         .next()
         .and_then(|row| row.cells().next())
         .ok_or("cell")?;
-    let mut context = TraversalContext::new(parsed.document_ref().attributes());
+    let mut context = TraversalContext::new(parsed.document().attributes());
     let mut trace = TypedTrace(OwnerTrace {
         fail_dispatch: true,
         ..OwnerTrace::default()

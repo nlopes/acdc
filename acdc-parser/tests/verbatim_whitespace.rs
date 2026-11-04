@@ -24,7 +24,7 @@ fn inline_text(nodes: ContentRef<'_>) -> String {
 #[test]
 fn callout_processing_preserves_terminal_newlines() -> Result<(), Error> {
     let parsed = parse("----\none <1>\n\n----\n", &Options::default())?;
-    let Some(BlockKind::Listing(block)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Listing(block)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected a listing block".into());
     };
@@ -40,7 +40,7 @@ fn explicit_verbatim_paragraph_styles_preserve_indentation() -> Result<(), Error
         let source = format!("[{style}]\n  indented\n");
         let parsed = parse(&source, &Options::default())?;
         let Some(BlockKind::Paragraph(paragraph)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err(format!("expected a {style} paragraph").into());
         };
@@ -59,7 +59,7 @@ fn styled_paragraph_comment_callouts_retain_source_spans() -> Result<(), Error> 
         let parsed = parse(&source, &Options::default())?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
         let [BlockKind::Paragraph(paragraph), BlockKind::CalloutList(_)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -112,7 +112,7 @@ fn explicit_verbatim_styles_override_block_syntax() -> Result<(), Error> {
             let source = format!("[{style}]\n{content}\n");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -140,13 +140,13 @@ fn styled_paragraph_boundaries_preserve_source_and_macro_ownership() -> Result<(
         );
         let parsed = parse(&source, &Options::default())?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
-        assert!(parsed.document_ref().footnotes().next().is_none());
+        assert!(parsed.document().footnotes().next().is_none());
         let [
             BlockKind::Paragraph(paragraph),
             BlockKind::CalloutList(_),
             BlockKind::Paragraph(after),
         ] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -175,7 +175,7 @@ fn styled_paragraph_boundaries_preserve_source_and_macro_ownership() -> Result<(
 fn styled_paragraph_precedence_registers_enabled_footnotes_once() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/subs_verbatim_precedence.adoc");
     let parsed = parse(source, &Options::default())?;
-    let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+    let [note] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
         return Err("expected only the enabled footnote".into());
     };
     assert_eq!(
@@ -202,7 +202,7 @@ fn indented_callouts_keep_source_spans_after_dedenting() -> Result<(), Error> {
                 let parsed = parse(&source, &Options::default())?;
                 assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
                 let [BlockKind::Paragraph(paragraph), BlockKind::CalloutList(_)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -288,7 +288,7 @@ fn indented_callouts_respect_disabled_substitutions() -> Result<(), Error> {
         let source = format!("[subs={subs}]\n é \\<1>\n xml <!--1-->\n\n<1> Unmatched.\n");
         let parsed = parse(&source, &Options::default())?;
         let Some(BlockKind::Paragraph(paragraph)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected a literal paragraph".into());
         };
@@ -310,11 +310,7 @@ fn delimiter_scanning_preserves_unicode_and_nonclosing_runs() -> Result<(), Erro
         let source = format!("{delimiter}\n{content}\n{delimiter}\n\nAfter.\n");
         let parsed = parse(&source, &Options::default())?;
         assert_eq!(parsed.warnings(), []);
-        let block = parsed
-            .document_ref()
-            .blocks()
-            .next()
-            .ok_or("missing block")?;
+        let block = parsed.document().blocks().next().ok_or("missing block")?;
         let (nodes, closing) = if let BlockKind::Listing(block) = block.kind() {
             (block.content(), block.close_delimiter_location())
         } else if let BlockKind::Literal(block) = block.kind() {
@@ -329,7 +325,7 @@ fn delimiter_scanning_preserves_unicode_and_nonclosing_runs() -> Result<(), Erro
             delimiter.len() + content.len() + 2
         );
         let Some(BlockKind::Paragraph(after)) =
-            parsed.document_ref().blocks().nth(1).map(BlockRef::kind)
+            parsed.document().blocks().nth(1).map(BlockRef::kind)
         else {
             return Err("expected the following paragraph".into());
         };

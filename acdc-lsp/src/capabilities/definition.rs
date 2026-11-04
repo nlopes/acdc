@@ -51,7 +51,7 @@ pub(crate) fn find_definition_at_position(
 ) -> Option<(Uri, Location)> {
     let source_position = crate::convert::position_to_scalar_position(doc_state.text(), position)?;
     let ast_guard = doc_state.ast()?;
-    let ast = ast_guard.document_ref();
+    let ast = ast_guard.document();
     tracing::info!(
         ?position,
         ?source_position,
@@ -194,7 +194,7 @@ Some content.
 More content.
 ";
         let parsed = parse(content, &Options::default())?;
-        let anchors = collect_anchors(parsed.document_ref());
+        let anchors = collect_anchors(parsed.document());
 
         // Should have both explicit and generated IDs
         assert!(anchors.contains_key("explicit-id"));
@@ -216,7 +216,7 @@ See xref:section-two[Section Two].
 Content.
 ";
         let parsed = parse(content, &Options::default())?;
-        let xrefs = collect_xrefs(parsed.document_ref());
+        let xrefs = collect_xrefs(parsed.document());
 
         assert_eq!(xrefs.len(), 1);
         let xref = xrefs.first();
@@ -259,7 +259,7 @@ Content.
         // Drop the AST guard before go-to-definition acquires it again.
         {
             let ast_guard = a_doc.ast().ok_or("a.adoc should have AST")?;
-            let ast = ast_guard.document_ref();
+            let ast = ast_guard.document();
             let source_position =
                 crate::convert::position_to_scalar_position(a_content, Position::new(4, 20))
                     .ok_or("source position")?;
@@ -415,7 +415,7 @@ Content.
     fn test_collect_media_sources_block_image() -> Result<(), Error> {
         let content = "= Document\n\nimage::photo.png[Alt text]\n";
         let parsed = parse(content, &Options::default())?;
-        let sources = collect_media_sources(parsed.document_ref());
+        let sources = collect_media_sources(parsed.document());
 
         assert_eq!(sources.len(), 1);
         assert!(sources.first().is_some_and(|(s, _)| {
@@ -428,7 +428,7 @@ Content.
     fn test_collect_media_sources_inline_image() -> Result<(), Error> {
         let content = "= Document\n\n== Section\n\nSee image:icon.png[] here.\n";
         let parsed = parse(content, &Options::default())?;
-        let sources = collect_media_sources(parsed.document_ref());
+        let sources = collect_media_sources(parsed.document());
 
         assert_eq!(sources.len(), 1);
         assert!(sources.first().is_some_and(|(s, _)| {
@@ -441,7 +441,7 @@ Content.
     fn content_attributes_participate_in_definition_lookup() -> Result<(), Error> {
         let source = "[alt='image:nested.svg[] <<target>>']\nimage::outer.svg[]\n\nimage:other.svg[title=\"anchor:target[Target]\"]";
         let parsed = parse(source, &Options::default())?;
-        let document = parsed.document_ref();
+        let document = parsed.document();
         assert!(collect_anchors(document).contains_key("target"));
         assert_eq!(
             collect_xrefs(document)
@@ -462,7 +462,7 @@ Content.
     fn test_collect_media_sources_multiple() -> Result<(), Error> {
         let content = "= Document\n\nimage::a.png[]\n\n== Section\n\nimage::b.jpg[]\n\nText with image:c.svg[] inline.\n";
         let parsed = parse(content, &Options::default())?;
-        let sources = collect_media_sources(parsed.document_ref());
+        let sources = collect_media_sources(parsed.document());
 
         assert_eq!(sources.len(), 3);
         Ok(())
@@ -481,7 +481,7 @@ Content.
             ),
         ] {
             let parsed = parse(source, &Options::default())?;
-            let actual = collect_media_sources(parsed.document_ref())
+            let actual = collect_media_sources(parsed.document())
                 .into_iter()
                 .filter_map(|(source, _)| {
                     if let OwnedSource::Path(path) = source {
@@ -499,7 +499,7 @@ Content.
     fn media_sources_preserve_selected_field_order() -> Result<(), Box<dyn StdError>> {
         let source = "[caption='image:caption.svg[]',alt='image:alt.svg[]']\n.Image title image:title.svg[]\nimage::outer.svg[]\n\nimage:host.svg[alt='image:inline-alt.svg[]',title='image:tooltip.svg[]']\n\nfootnote:[image:footnote.svg[]]\n\n\"`image:curved.svg[]`\"\n";
         let parsed = parse(source, &Options::default())?;
-        let media = collect_media_sources(parsed.document_ref());
+        let media = collect_media_sources(parsed.document());
         let paths = media
             .iter()
             .filter_map(|(source, _)| {
@@ -538,7 +538,7 @@ Content.
     {
         let source = "= Doc\n\n[cols=\"a,a\"]\n|===\n|\n:imagesdir: one\n\nimage::first.svg[]\n|\n:imagesdir: two\n\nimage::second.svg[]\n|===\n\nimage::after.svg[]\n\n:imagesdir: https://cdn.example.org/assets\n\nimage::remote.svg[]\n\n:imagesdir!:\n\nimage::last.svg[]\n";
         let parsed = parse(source, &Options::default())?;
-        let sources = collect_media_sources(parsed.document_ref())
+        let sources = collect_media_sources(parsed.document())
             .into_iter()
             .map(|(source, _)| source)
             .collect::<Vec<_>>();

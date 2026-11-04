@@ -237,7 +237,7 @@ impl Workspace {
 
         // Keep all declarations; the per-document lookup selects one per ID.
         if let Some(ast) = state.ast() {
-            for id in crate::capabilities::identity::occurrences(ast.document_ref()) {
+            for id in crate::capabilities::identity::occurrences(ast.document()) {
                 self.anchor_index
                     .entry(id.id.to_owned())
                     .or_default()
@@ -403,7 +403,7 @@ impl Workspace {
         // Compute section level diagnostics (skipped heading levels)
         if let Some(ast) = state.ast() {
             source_diagnostics.extend(
-                diagnostics::compute_section_level_diagnostics(ast.document_ref())
+                diagnostics::compute_section_level_diagnostics(ast.document())
                     .into_iter()
                     .map(|(location, diagnostic)| (ast.source_location(&location), diagnostic)),
             );
@@ -545,7 +545,7 @@ impl Workspace {
         tracing::info!(?path, anchor_id, "reading file from disk for anchor lookup");
         let text = read_bounded(path.as_ref())?;
         let parsed = parse(&text, self.parser_options_for(uri)).ok()?;
-        let anchors = definition::collect_anchors(parsed.document_ref());
+        let anchors = definition::collect_anchors(parsed.document());
         let result = anchors.get(anchor_id).cloned();
         tracing::info!(
             ?path,
@@ -594,7 +594,7 @@ impl Workspace {
             if let Some(text) = read_bounded(&path)
                 && let Ok(parsed) = parse(&text, self.parser_options_for(&uri))
             {
-                let symbols = extract_workspace_symbols(parsed.document_ref());
+                let symbols = extract_workspace_symbols(parsed.document());
                 self.symbol_index.insert(uri, symbols);
             }
         }
@@ -619,7 +619,7 @@ impl Workspace {
         for entry in &self.documents {
             let uri = entry.key();
             if let Some(ast) = entry.value().ast() {
-                let symbols = extract_workspace_symbols(ast.document_ref());
+                let symbols = extract_workspace_symbols(ast.document());
                 for symbol in symbols {
                     if (query.is_empty() || symbol.name.to_lowercase().contains(&query_lower))
                         && let Some(source_uri) =
@@ -700,7 +700,7 @@ impl Workspace {
             && let Some(text) = read_bounded(path.as_ref())
         {
             if let Ok(parsed) = parse(&text, self.parser_options_for(uri)) {
-                let symbols = extract_workspace_symbols(parsed.document_ref());
+                let symbols = extract_workspace_symbols(parsed.document());
                 self.symbol_index.insert(uri.clone(), symbols);
             }
         }
@@ -772,7 +772,7 @@ impl Workspace {
             match parse(&text, options) {
                 Ok(mut parse_result) => {
                     {
-                        let doc = parse_result.document_ref();
+                        let doc = parse_result.document();
                         anchors = definition::collect_anchors(doc)
                             .into_iter()
                             .map(|(id, location)| (id, parse_result.source_location(&location)))
@@ -1022,7 +1022,7 @@ mod tests {
             .ok_or("document should be indexed")?;
         let ast = document.ast().ok_or("document should parse")?;
         assert_eq!(
-            ast.document_ref()
+            ast.document()
                 .attributes()
                 .get("backend")
                 .and_then(|value| value.text()),
@@ -1062,13 +1062,13 @@ mod tests {
             .ok_or("document should be indexed")?;
         let ast = document.ast().ok_or("document should parse")?;
         assert_eq!(
-            ast.document_ref()
+            ast.document()
                 .attributes()
                 .get("backend")
                 .and_then(|value| value.text()),
             Some("pdf")
         );
-        assert!(ast.document_ref().attributes().contains("title-page"));
+        assert!(ast.document().attributes().contains("title-page"));
         drop(ast);
         assert!(document.anchors.contains_key("pdf-or-docbook"));
         assert!(
@@ -1279,7 +1279,7 @@ mod tests {
             "= Doc Two\n\n== TLS Configuration\n\nStuff.\n",
             &acdc_parser::Options::default(),
         )?;
-        let symbols = extract_workspace_symbols(parsed2.document_ref());
+        let symbols = extract_workspace_symbols(parsed2.document());
         workspace.symbol_index.insert(uri2.clone(), symbols);
 
         // Query for "tls" (case-insensitive)

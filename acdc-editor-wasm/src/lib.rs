@@ -134,7 +134,7 @@ fn render_parsed(
         })
         .collect();
 
-    let document = parsed.document_ref();
+    let document = parsed.document();
     let highlight_html = ast_highlight::highlight_from_ast(input, document);
 
     let render_options = RenderOptions {
@@ -317,7 +317,7 @@ mod tests {
             &test_sources::options(&[("part.adoc", "π 😀 <<missing>>\n")])?,
         )?;
         let location = parsed
-            .document_ref()
+            .document()
             .blocks()
             .next()
             .ok_or("missing block")?

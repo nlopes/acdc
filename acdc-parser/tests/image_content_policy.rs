@@ -16,7 +16,7 @@ fn draft_block_alt_is_literal_and_does_not_register_macros(
         "[alt='*Bold* footnote:alt[Note]']\nimage::photo.png[]\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Image(image)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Image(image)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected image".into());
     };
@@ -27,13 +27,13 @@ fn draft_block_alt_is_literal_and_does_not_register_macros(
             return Err("expected protected literal alt".into());
         };
         assert_eq!(text.text(), "*Bold* footnote:alt[Note]");
-        assert_eq!(parsed.document_ref().footnotes().count(), 0);
+        assert_eq!(parsed.document().footnotes().count(), 0);
     } else {
         assert!(matches!(
             alt.inlines().next().map(InlineRef::kind),
             Some(InlineKind::Bold(_))
         ));
-        assert_eq!(parsed.document_ref().footnotes().count(), 1);
+        assert_eq!(parsed.document().footnotes().count(), 1);
     }
     Ok(())
 }
@@ -47,7 +47,7 @@ fn an_expanded_alt_entry_points_back_to_its_authored_reference(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Image(image)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Image(image)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected image".into());
     };
@@ -80,7 +80,7 @@ fn image_alt_snapshots_and_selected_macro_registration(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let image = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Image(image) = block.kind() {
@@ -117,7 +117,7 @@ fn image_alt_snapshots_and_selected_macro_registration(
     };
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .footnotes()
             .map(FootnoteDefinitionRef::id)
             .collect::<Vec<_>>(),
@@ -136,7 +136,7 @@ fn absent_and_empty_alt_do_not_gain_filename_fallback(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Image(image)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Image(image)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected image".into());
     };
@@ -170,7 +170,7 @@ fn included_and_nested_alt_locations_use_the_authored_value(
             .build()?,
     )?;
     let images = parsed
-        .document_ref()
+        .document()
         .descendants()
         .filter_map(|node| {
             let StructuralRef::Block(block) = node else {
@@ -273,7 +273,7 @@ fn preceding_alt_expansion_uses_its_declaration_snapshot(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let image = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Image(image) = block.kind() {
@@ -305,11 +305,11 @@ fn compatible_block_alt_resolves_replacements_without_enabling_markup(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Image(image)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Image(image)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected block image".into());
     };
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert_eq!(parsed.document().footnotes().count(), 0);
     let alt = image.alt().ok_or("missing alt")?;
     if mode == CompatibilityMode::Draft {
         assert!(matches!(

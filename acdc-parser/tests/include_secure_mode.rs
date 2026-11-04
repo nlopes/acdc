@@ -17,15 +17,9 @@ fn secure_mode_preserves_local_and_uri_includes_without_reading_them()
         "include_quote_part.adoc",
         "https://example.invalid/secret.adoc",
     ];
-    assert_eq!(
-        result.document_ref().blocks().count(),
-        expected_targets.len()
-    );
-    for ((block, expected_target), expected_line) in result
-        .document_ref()
-        .blocks()
-        .zip(expected_targets)
-        .zip([3, 5])
+    assert_eq!(result.document().blocks().count(), expected_targets.len());
+    for ((block, expected_target), expected_line) in
+        result.document().blocks().zip(expected_targets).zip([3, 5])
     {
         let BlockKind::Paragraph(paragraph) = block.kind() else {
             return Err(std::io::Error::other(format!(

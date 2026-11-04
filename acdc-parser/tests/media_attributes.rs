@@ -21,7 +21,7 @@ fn inline_image_json_keeps_tooltips_separate_from_alt() -> Result<(), Error> {
     ] {
         let source = format!("image:thing.png[{attributes}]\n");
         let parsed = parse(&source, &Options::default())?;
-        let json = serde_json::to_value(parsed.document_ref())?;
+        let json = serde_json::to_value(parsed.document())?;
         let image = json.pointer("/blocks/0/inlines/0").ok_or("missing image")?;
         assert_eq!(json_text(image, "/tooltip/0/value"), Some("my title"));
         match alt {
@@ -55,7 +55,7 @@ fn media_and_named_blocks_serialize_content_separately_from_other_attributes() -
         (format!("[{attributes}]\n* Item"), false),
     ] {
         let parsed = parse(&source, &Options::default())?;
-        let json = serde_json::to_value(parsed.document_ref())?;
+        let json = serde_json::to_value(parsed.document())?;
         let node = json
             .pointer(if inline {
                 "/blocks/0/inlines/0"
@@ -126,7 +126,7 @@ fn media_attributes_select_named_values_and_keep_empty_slots() -> Result<(), Err
         for prefix in ["image::", "Inline image:"] {
             let source = format!("{prefix}sample.svg[{attributes},title=Tooltip]\n");
             let parsed = parse(&source, &Options::default())?;
-            match parsed.document_ref().blocks().next().map(BlockRef::kind) {
+            match parsed.document().blocks().next().map(BlockRef::kind) {
                 Some(BlockKind::Image(image)) => {
                     assert_eq!(image.alt().map(content_text).as_deref(), Some("Named"));
                 }
@@ -161,7 +161,7 @@ fn media_attributes_select_named_values_and_keep_empty_slots() -> Result<(), Err
         let source = format!("Inline image:sample.svg[{attributes}].\n");
         let parsed = parse(&source, &Options::default())?;
         let Some(BlockKind::Paragraph(paragraph)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("missing paragraph".into());
         };
@@ -205,7 +205,7 @@ fn media_and_other_block_titles_register_only_the_selected_inline_content() -> R
     ] {
         let source = format!(".Discarded footnote:[Unused.]\n{block}\n");
         let parsed = parse(&source, &Options::default())?;
-        let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+        let [note] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
             return Err(format!("unexpected footnotes: {source}").into());
         };
         assert_eq!(
@@ -223,7 +223,7 @@ fn media_duplicate_attributes_use_last_value_except_accumulated_options() -> Res
         &Options::default(),
     )?;
     let [BlockKind::Image(image), BlockKind::Video(video)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -255,7 +255,7 @@ fn inline_image_unquoted_apostrophes_do_not_end_the_attribute_list() -> Result<(
         &Options::default(),
     )?;
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };

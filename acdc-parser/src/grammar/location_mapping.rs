@@ -1057,7 +1057,7 @@ mod tests {
             &Options::default(),
         )?;
         let image = parsed
-            .document()
+            .document_storage()
             .blocks
             .iter()
             .filter_map(|block| {
@@ -1089,7 +1089,7 @@ mod tests {
     fn check_monotonic(input: &str) -> Result<(), String> {
         let parsed = parse(input, &Options::default()).map_err(|e| format!("parse failed: {e}"))?;
         let first_block = parsed
-            .document()
+            .document_storage()
             .blocks
             .first()
             .ok_or("expected at least one block")?;
@@ -1155,7 +1155,8 @@ mod tests {
             for character in ["a", "é", "😀"] {
                 let source = format!("{prefix}+0+\t \\#{character}");
                 let parsed = parse(&source, &Options::default())?;
-                let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.last() else {
+                let Some(Block::Paragraph(paragraph)) = parsed.document_storage().blocks.last()
+                else {
                     return Err("expected a paragraph".into());
                 };
                 let Some(InlineNode::PlainText(plain)) = paragraph.content.last() else {

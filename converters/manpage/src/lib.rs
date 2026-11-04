@@ -17,7 +17,7 @@
 //!     "= cmd(1)\n\n== Name\n\ncmd - run a command\n",
 //!     processor.parser_options(),
 //! )?;
-//! processor.convert(parsed.document_ref(), Some(Path::new("cmd.adoc")))?;
+//! processor.convert(parsed.document(), Some(Path::new("cmd.adoc")))?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -293,8 +293,7 @@ mod tests {
         let processor = Processor::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
-                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
-                    .into_inputs(),
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
             ),
         )?;
         let source = processor.warning_source();
@@ -302,13 +301,7 @@ mod tests {
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
 
-        processor.write_to(
-            parsed.document_ref(),
-            &mut output,
-            None,
-            None,
-            &mut diagnostics,
-        )?;
+        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
 
         let manpage = String::from_utf8(output)?;
         assert!(manpage.contains("images/header/before.mp3"));

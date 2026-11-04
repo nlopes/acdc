@@ -10,7 +10,7 @@ type Error = Box<dyn std::error::Error>;
 fn content_attribute_preservation_registers_only_selected_footnotes() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/content_attribute_preservation.adoc");
     let parsed = parse(source, &Options::default())?;
-    let [selected, body] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+    let [selected, body] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
         return Err("expected only the selected caption and body footnotes".into());
     };
     assert_eq!((selected.number(), body.number()), (1, 2));
@@ -41,7 +41,7 @@ fn title_presence_is_independent_of_inline_content() -> Result<(), Error> {
             "image::photo.png[title=\"\"]\n\nimage::photo.png[]",
             &options,
         )?;
-        let json = serde_json::to_value(parsed.document_ref())?;
+        let json = serde_json::to_value(parsed.document())?;
         assert_eq!(
             json.pointer("/blocks/0/title")
                 .cloned()
@@ -73,7 +73,7 @@ fn named_titles_use_the_attributes_at_their_declaration() -> Result<(), Error> {
             );
             let parsed = parse(&source, &options)?;
             let block = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .find_map(|block| {
                     if let BlockKind::Paragraph(block) = block.kind() {
@@ -99,16 +99,16 @@ fn named_titles_use_the_attributes_at_their_declaration() -> Result<(), Error> {
                 matches!(block.content().inlines().next().map(InlineRef::kind), Some(InlineKind::Plain(text)) if text.text() == "After.")
             );
             assert_eq!(
-                parsed.document_ref().footnotes().count(),
+                parsed.document().footnotes().count(),
                 usize::from(quote == "'" || mode == CompatibilityMode::Asciidoctor)
             );
-            for note in parsed.document_ref().footnotes() {
+            for note in parsed.document().footnotes() {
                 assert_eq!(
                     source.get(note.location().absolute_start()..=note.location().absolute_end()),
                     Some("footnote:[Selected.]")
                 );
             }
-            let json = serde_json::to_value(parsed.document_ref())?;
+            let json = serde_json::to_value(parsed.document())?;
             assert!(
                 json.get("blocks")
                     .and_then(serde_json::Value::as_array)

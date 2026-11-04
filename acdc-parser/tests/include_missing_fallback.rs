@@ -67,7 +67,7 @@ impl Drop for IncludeTree {
 
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<&str>, Box<dyn Error>> {
     result
-        .document_ref()
+        .document()
         .blocks()
         .map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -133,7 +133,7 @@ fn missing_top_level_include_inserts_fallback_and_continues() -> TestResult {
         6,
     )?;
     let Some(BlockKind::Paragraph(fallback)) =
-        result.document_ref().blocks().nth(1).map(BlockRef::kind)
+        result.document().blocks().nth(1).map(BlockRef::kind)
     else {
         return Err("expected the fallback paragraph".into());
     };
@@ -178,7 +178,7 @@ fn missing_nested_include_is_attributed_to_its_including_source() -> TestResult 
         3,
     )?;
     let Some(BlockKind::Paragraph(fallback)) =
-        result.document_ref().blocks().nth(2).map(BlockRef::kind)
+        result.document().blocks().nth(2).map(BlockRef::kind)
     else {
         return Err("expected the fallback paragraph".into());
     };

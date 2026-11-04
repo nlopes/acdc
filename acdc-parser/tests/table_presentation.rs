@@ -65,7 +65,7 @@ fn table_presentation_uses_local_values_and_reference_fallbacks() -> Result<(), 
     )?;
 
     assert_presentations(
-        &tables(parsed.document_ref()),
+        &tables(parsed.document()),
         &[
             (TableFrame::Ends, TableGrid::Rows, TableStripes::Odd),
             (TableFrame::Ends, TableGrid::Columns, TableStripes::Even),
@@ -109,7 +109,7 @@ fn table_presentation_follows_document_attributes_in_source_order() -> Result<()
     )?;
 
     assert_presentations(
-        &tables(parsed.document_ref()),
+        &tables(parsed.document()),
         &[
             (TableFrame::Sides, TableGrid::Rows, TableStripes::Odd),
             (TableFrame::Ends, TableGrid::Columns, TableStripes::Hover),

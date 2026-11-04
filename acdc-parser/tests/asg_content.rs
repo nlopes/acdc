@@ -90,12 +90,12 @@ fn programmatic_literal_content_is_not_parsed_again() -> Result<(), Error> {
 #[test]
 fn strict_export_is_unchanged_and_profiles_are_explicit() -> Result<(), Error> {
     let parsed = parse("[reftext='*Label*']\n.Title\nText.", &Options::default())?;
-    let strict = asg::document(parsed.document_ref())?;
+    let strict = asg::document(parsed.document())?;
     assert_eq!(
         strict,
-        asg::document_with_profile(parsed.document_ref(), asg::Profile::Upstream)?
+        asg::document_with_profile(parsed.document(), asg::Profile::Upstream)?
     );
-    let mut extended = export(parsed.document_ref())?;
+    let mut extended = export(parsed.document())?;
     assert_eq!(extended.get("profile"), Some(&json!(asg::ACDC_SCHEMA_ID)));
     extended
         .as_object_mut()
@@ -107,10 +107,10 @@ fn strict_export_is_unchanged_and_profiles_are_explicit() -> Result<(), Error> {
         &Options::default(),
     )?;
     assert!(
-        matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/metadata/attribution")
+        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/metadata/attribution")
     );
     assert_eq!(
-        export(parsed.document_ref())?.pointer("/blocks/0/attribution"),
+        export(parsed.document())?.pointer("/blocks/0/attribution"),
         Some(&json!([]))
     );
     Ok(())
@@ -213,7 +213,7 @@ fn captioned_leaf_bodies_and_absent_content_retain_their_meaning() -> Result<(),
         "[source,rust]\n----\nlet x = \"*literal*\";\n----",
         &Options::default(),
     )?;
-    let value = export(parsed.document_ref())?;
+    let value = export(parsed.document())?;
     assert_eq!(
         value.pointer("/blocks/0/caption"),
         Some(&json!({"kind":"unnumbered"}))
@@ -224,7 +224,7 @@ fn captioned_leaf_bodies_and_absent_content_retain_their_meaning() -> Result<(),
         Some(&json!("let x = \"*literal*\";"))
     );
     let parsed = parse("Text.", &Options::default())?;
-    let value = export(parsed.document_ref())?;
+    let value = export(parsed.document())?;
     for name in ["title", "reftext", "caption", "attribution", "citetitle"] {
         assert!(value.pointer(&format!("/blocks/0/{name}")).is_none());
     }

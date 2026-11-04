@@ -14,7 +14,7 @@ use super::InlineRef;
 ///
 /// let content = {
 ///     let parsed = parse("A paragraph.", &Options::default()).unwrap();
-///     let BlockKind::Paragraph(paragraph) = parsed.document_ref().blocks().next().unwrap().kind()
+///     let BlockKind::Paragraph(paragraph) = parsed.document().blocks().next().unwrap().kind()
 ///         else { panic!("expected paragraph") };
 ///     paragraph.content()
 /// };

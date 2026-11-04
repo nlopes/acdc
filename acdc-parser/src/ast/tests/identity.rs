@@ -12,7 +12,7 @@ fn retained_id_origin_survives_direct_metadata_edits() -> Result<(), Error> {
         "[id=explicit]\n== Heading\n\n== Generated\n",
         &Options::default(),
     )?;
-    let mut owners = parsed.document().blocks.iter();
+    let mut owners = parsed.document_storage().blocks.iter();
     let crate::Block::Section(explicit) = owners.next().ok_or("explicit")? else {
         return Err("section".into());
     };

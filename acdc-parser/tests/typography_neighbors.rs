@@ -35,7 +35,7 @@ fn neighbors_supply_word_context_without_moving_owned_text(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -66,7 +66,7 @@ fn neighbors_supply_word_context_without_moving_owned_text(
         );
     }
     assert_eq!(
-        parsed.document_ref().footnotes().count(),
+        parsed.document().footnotes().count(),
         usize::from(context.starts_with("footnote:"))
     );
     assert_eq!(parsed.warnings(), []);
@@ -84,7 +84,7 @@ fn resolved_visible_labels_preserve_the_registration_snapshot(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let term = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .find_map(|node| {
@@ -140,7 +140,7 @@ fn neighboring_attribute_values_obey_the_parent_stage_order(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let kinds = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -155,7 +155,7 @@ fn neighboring_attribute_values_obey_the_parent_stage_order(
         assert_eq!(kinds, [kind], "{source}");
     } else {
         assert_eq!(kinds, [], "{source}");
-        assert!(parsed.document_ref().content_occurrences().flat_map(|field|field.content().inlines())
+        assert!(parsed.document().content_occurrences().flat_map(|field|field.content().inlines())
             .any(|node| matches!(node.kind(),InlineKind::Raw(raw) if raw.text()==token && !raw.substitutions().any(|sub|sub==Substitution::Replacements))),"{source}");
     }
     assert_eq!(parsed.warnings(), []);

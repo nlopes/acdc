@@ -10,7 +10,7 @@ type Error = Box<dyn std::error::Error>;
 fn named_index_delimiters_register_notes_and_anchors_once() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/named_index_delimiters.adoc");
     let parsed = parse(source, &Options::default())?;
-    let mut definitions = parsed.document_ref().footnotes();
+    let mut definitions = parsed.document().footnotes();
     let (Some(note), None) = (definitions.next(), definitions.next()) else {
         return Err("expected one footnote definition".into());
     };
@@ -20,7 +20,7 @@ fn named_index_delimiters_register_notes_and_anchors_once() -> Result<(), Error>
         return Err("expected complete footnote body".into());
     };
     assert_eq!(body.text(), "Only note.");
-    assert!(parsed.document_ref().references().contains("inner"));
+    assert!(parsed.document().references().contains("inner"));
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -50,8 +50,8 @@ fn named_index_delimiters_register_only_visible_targets() -> Result<(), Error> {
     let source =
         "indexterm2:[anchor:visible[]Shown] indexterm:[anchor:hidden[]Hidden]\n\n<<visible>>.";
     let parsed = parse(source, &Options::default())?;
-    assert!(parsed.document_ref().references().contains("visible"));
-    assert!(!parsed.document_ref().references().contains("hidden"));
+    assert!(parsed.document().references().contains("visible"));
+    assert!(!parsed.document().references().contains("hidden"));
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }

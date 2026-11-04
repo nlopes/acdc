@@ -41,7 +41,7 @@ fn explicit_resolution_preserves_stored_source_position_and_unresolved_tables(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let tables = parsed
-        .document()
+        .document_storage()
         .blocks
         .iter()
         .filter_map(|block| {
@@ -63,7 +63,7 @@ fn explicit_resolution_preserves_stored_source_position_and_unresolved_tables(
         let stored = table.presentation().ok_or("missing stored presentation")?;
         assert_eq!(decoration(stored), expected);
         assert_eq!(
-            decoration(resolve(block, &parsed.document().attributes)),
+            decoration(resolve(block, &parsed.document_storage().attributes)),
             (TableFrame::Sides, TableGrid::Rows, TableStripes::Odd)
         );
         assert_eq!(table.presentation(), Some(stored));
@@ -74,7 +74,7 @@ fn explicit_resolution_preserves_stored_source_position_and_unresolved_tables(
     };
     assert_eq!(table.presentation(), None);
     assert_eq!(
-        decoration(resolve(&constructed, &parsed.document().attributes)),
+        decoration(resolve(&constructed, &parsed.document_storage().attributes)),
         (TableFrame::Sides, TableGrid::Rows, TableStripes::Odd)
     );
     assert_eq!(table.presentation(), None);

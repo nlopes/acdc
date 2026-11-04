@@ -17,7 +17,7 @@ fn document_copies_keep_catalogs_and_allow_independent_edits(
         SOURCE,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let original = parsed.document_ref();
+    let original = parsed.document();
     let before = serde_json::to_value(original)?;
     let mut copy = Document::from(original);
     assert_eq!(serde_json::to_value(&copy)?, before);
@@ -47,7 +47,7 @@ fn block_copies_keep_source_position_table_defaults_and_edit_isolation(
         SOURCE,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let tables = parsed.document_ref().descendants().filter_map(|node| {
+    let tables = parsed.document().descendants().filter_map(|node| {
         if let StructuralRef::Block(block) = node
             && matches!(block.kind(), BlockKind::Table(_))
         {
@@ -117,7 +117,7 @@ fn copies_preserve_selected_include_source_and_declaration_ranges(
             .with_compatibility_mode(mode)
             .build()?,
     )?;
-    let block = parsed.document_ref().blocks().next().ok_or("listing")?;
+    let block = parsed.document().blocks().next().ok_or("listing")?;
     let BlockKind::Listing(original) = block.kind() else {
         return Err("listing".into());
     };
@@ -142,10 +142,10 @@ fn copies_preserve_selected_include_source_and_declaration_ranges(
         parsed.resolve_location(copied.location()).file,
         Some(included)
     );
-    let document = Document::from(parsed.document_ref());
+    let document = Document::from(parsed.document());
     assert_eq!(
         serde_json::to_value(DocumentRef::from(&document))?,
-        serde_json::to_value(parsed.document_ref())?
+        serde_json::to_value(parsed.document())?
     );
     Ok(())
 }

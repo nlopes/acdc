@@ -48,12 +48,8 @@ fn icon_reads_preserve_identity_content_and_controls(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     assert_eq!(parsed.warnings(), []);
-    let BlockKind::Paragraph(paragraph) = parsed
-        .document_ref()
-        .blocks()
-        .next()
-        .ok_or("paragraph")?
-        .kind()
+    let BlockKind::Paragraph(paragraph) =
+        parsed.document().blocks().next().ok_or("paragraph")?.kind()
     else {
         return Err("paragraph".into());
     };
@@ -129,7 +125,7 @@ fn icon_reads_preserve_identity_content_and_controls(
     for (name, value) in attributes.iter() {
         assert_eq!(attributes.get(name), Some(value));
     }
-    let owner = first_owner(parsed.document())?;
+    let owner = first_owner(parsed.document_storage())?;
     let json = serde_json::to_value(owner)?;
     assert_eq!(
         json,

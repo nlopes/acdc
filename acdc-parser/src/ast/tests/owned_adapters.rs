@@ -27,7 +27,7 @@ fn owner_conversions_preserve_typed_content_and_locations() -> Result<(), Error>
         "== Section\n\nimage:bird.png[Bird]\n\n|===\n|Cell\n|===\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = parsed.document_storage();
     assert_eq!(DocumentRef::from(document).blocks().count(), 1);
     let block = document.blocks.first().ok_or("missing section")?;
     assert!(matches!(

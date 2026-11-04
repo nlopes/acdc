@@ -26,7 +26,7 @@ fn other_block_kinds_do_not_gain_a_caption_context(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let block = parsed.document_ref().blocks().last().ok_or("block")?;
+    let block = parsed.document().blocks().last().ok_or("block")?;
     assert_eq!(CaptionKind::for_block(block), None);
     Ok(())
 }

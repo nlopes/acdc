@@ -102,7 +102,7 @@ fn typed_grids_preserve_row_roles_combined_spans_and_source_cells() -> TestResul
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let parsed_blocks: Vec<_> = parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(acdc_parser::Block::from)
             .collect();
@@ -179,7 +179,7 @@ fn typed_grids_preserve_empty_rows_and_column_fallbacks() -> TestResult {
 fn typed_grids_preserve_truncation_padding_and_constructed_spans() -> TestResult {
     let parsed = parse("|===\n|Seed\n|===\n", &Options::default())?;
     let parsed_blocks: Vec<_> = parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(acdc_parser::Block::from)
         .collect();

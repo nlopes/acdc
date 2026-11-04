@@ -99,7 +99,7 @@ fn block_substitutions_are_available_in_both_modes_and_every_build() -> Result<(
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let [BlockKind::Paragraph(block)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()

@@ -33,7 +33,7 @@ pub(crate) fn compute_selection_ranges(
             .map(|p| fallback_range(normalize_position(doc.text(), *p).unwrap_or(*p)))
             .collect();
     };
-    let ast = ast.document_ref();
+    let ast = ast.document();
 
     let Some(doc_range) = byte_range_to_utf16_range(doc.text(), 0..doc.text().len()) else {
         return positions

@@ -230,7 +230,7 @@ impl<'doc> DocumentRef<'doc> {
     ///
     /// let blocks = {
     ///     let parsed = parse("A paragraph.", &Options::default()).unwrap();
-    ///     parsed.document_ref().blocks()
+    ///     parsed.document().blocks()
     /// };
     /// println!("{}", blocks.count());
     /// ```
@@ -484,7 +484,7 @@ impl<'doc> From<&'doc crate::DelimitedBlock<'doc>> for BlockRef<'doc> {
 ///
 /// let copy = {
 ///     let parsed = parse("Text.", &Options::default()).unwrap();
-///     Document::from(parsed.document_ref())
+///     Document::from(parsed.document())
 /// };
 /// println!("{copy:?}");
 /// ```

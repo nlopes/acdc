@@ -24,8 +24,7 @@ fn quoted_ifeval_keeps_locations_after_nested_conditions(
         .with_base_dir(&fixtures)
         .build()?;
     let parsed = parse(input, &options)?;
-    let Some(BlockKind::Section(section)) =
-        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    let Some(BlockKind::Section(section)) = parsed.document().blocks().last().map(BlockRef::kind)
     else {
         return Err("expected final section".into());
     };
@@ -95,14 +94,14 @@ fn quoted_ifeval_keeps_caller_attribute_precedence(
     let parsed = parse(source, &options)?;
     // The blank line before the conditional ends the header; the accepted
     // assignment belongs to the body, even though its name says "header".
-    assert!(!parsed.document_ref().attributes().contains("header-result"));
-    assert!(parsed.document_ref().blocks().any(|block| matches!(
+    assert!(!parsed.document().attributes().contains("header-result"));
+    assert!(parsed.document().blocks().any(|block| matches!(
         block.kind(), BlockKind::DocumentAttribute(attribute) if attribute.name() == "header-result"
             && matches!(attribute.assignment(), acdc_parser::DocumentAttributeAssignment::Set(value)
                 if value.text() == Some("accepted"))
     )));
     let old_value_matches = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(|block| {
             if let BlockKind::Section(section) = block.kind() {

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Rust callers pass `ReferencesRef` to `InlineTextTransform::references` and `resolve_code_link`, and `ReferenceRef` to `reference_text`. Use `document.references()` or `ReferencesRef::from(&catalog)`; `reference_text` returns `ContentRef`. Label precedence and rendered output are unchanged.
 
-- Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document_ref()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
+- Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
 
 - Code-link labels and index occurrence offsets use the display characters of parsed references. Escaped references remain literal, and offsets count UTF-8 bytes in the decoded text.
 

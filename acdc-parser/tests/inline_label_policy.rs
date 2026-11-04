@@ -8,7 +8,7 @@ type Error = Box<dyn std::error::Error>;
 
 fn paragraph(parsed: &acdc_parser::ParseResult) -> Result<ContentRef<'_>, Error> {
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected paragraph".into());
     };
@@ -164,7 +164,7 @@ fn selected_tooltips_register_macros_once_and_controls_stay_scalar(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let ids = parsed
-        .document_ref()
+        .document()
         .footnotes()
         .map(FootnoteDefinitionRef::id)
         .collect::<Vec<_>>();
@@ -203,7 +203,7 @@ fn quoted_xref_footnotes_keep_their_mapped_catalog_locations(
         })
         .ok_or("missing footnote occurrence")?;
     let note = parsed
-        .document_ref()
+        .document()
         .footnotes()
         .next()
         .ok_or("missing catalog footnote")?;

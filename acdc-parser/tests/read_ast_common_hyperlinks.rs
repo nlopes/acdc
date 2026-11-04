@@ -138,7 +138,7 @@ fn display_policy_is_captured_per_occurrence_without_changing_the_target(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let mut groups = Vec::new();
-    for block in parsed.document_ref().blocks() {
+    for block in parsed.document().blocks() {
         let BlockKind::Paragraph(paragraph) = block.kind() else {
             continue;
         };
@@ -239,7 +239,7 @@ fn shared_reads_keep_unicode_include_and_table_locations(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let BlockKind::Paragraph(paragraph) = blocks.next().ok_or("paragraph")?.kind() else {
         return Err("paragraph".into());
     };

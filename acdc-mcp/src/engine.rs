@@ -207,7 +207,7 @@ impl Engine {
     pub(super) fn metadata(&self, request: &FileRequest) -> Result<String> {
         let document = self.load(&request.path, &request.common)?;
         let mut items = document.warnings();
-        let header = document.parsed().document_ref().header();
+        let header = document.parsed().document().header();
         items.push(json!({
             "kind":"document", "path":document.path(), "title":document.title(),
             "subtitle":header.and_then(HeaderRef::subtitle).map(|s| render::inline_text(s, Format::Plain)),
@@ -215,7 +215,7 @@ impl Engine {
         }));
         let mut attributes = document
             .parsed()
-            .document_ref()
+            .document()
             .attributes()
             .iter()
             .collect::<Vec<_>>();
@@ -256,7 +256,7 @@ impl Engine {
                 };
                 items.push(json!({"kind":"content", "format":request.format, "text":format!("{heading}\n\n")}));
             }
-            for block in document.parsed().document_ref().blocks() {
+            for block in document.parsed().document().blocks() {
                 if request.selector == "@preamble" && matches!(block.kind(), BlockKind::Section(_))
                 {
                     break;
@@ -373,7 +373,7 @@ impl Engine {
             };
             revision.extend_from_slice(document.revision());
             warnings.extend(document.warnings());
-            let attributes = document.parsed().document_ref().attributes();
+            let attributes = document.parsed().document().attributes();
             let tags = ["tags", "keywords", "description"]
                 .iter()
                 .filter_map(|name| attributes.get(name).and_then(|v| v.as_str()))
@@ -424,7 +424,7 @@ impl Engine {
         // Apply the same depth and block limits as the other navigation tools.
         document.entries()?;
         let mut items = document.warnings();
-        for node in document.parsed().document_ref().descendants() {
+        for node in document.parsed().document().descendants() {
             if let StructuralRef::Block(block) = node
                 && let Some(attributes) = block.attributes()
                 && let Some(AttributeValueRef::Text(link)) = attributes.get("link")
@@ -460,11 +460,7 @@ impl Engine {
         {
             items.push(json!({"kind":"external", "target":target}));
         } else if target.starts_with('#')
-            || document
-                .parsed()
-                .document_ref()
-                .references()
-                .contains(target)
+            || document.parsed().document().references().contains(target)
         {
             resolve_anchor(&document, target.trim_start_matches('#'), &mut items)?;
         } else {
@@ -548,7 +544,7 @@ fn emit_content(
 }
 
 fn resolve_anchor(document: &Document, id: &str, items: &mut Vec<Value>) -> Result<()> {
-    if let Some(reference) = document.parsed().document_ref().references().get(id) {
+    if let Some(reference) = document.parsed().document().references().get(id) {
         let entries = document.entries()?;
         let matching = entries
             .iter()

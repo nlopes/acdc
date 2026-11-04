@@ -17,7 +17,7 @@ fn document_json_keeps_semantic_types_and_body_order(
             .with_attribute("max-include-depth", "03")
             .build()?,
     )?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     assert_eq!(
         doc.attributes()
             .get("max-include-depth")

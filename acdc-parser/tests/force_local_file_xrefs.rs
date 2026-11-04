@@ -194,7 +194,7 @@ fn protected_urls_are_preserved_before_filename_removal() -> Result<(), Error> {
     let options = Options::builder().with_force_local_file_xrefs().build()?;
     let parsed = parse(source, &options)?;
     let targets = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -247,7 +247,7 @@ fn forced_fragments_use_local_diagnostics_and_natural_labels() -> Result<(), Err
     let options = Options::builder().with_force_local_file_xrefs().build()?;
     let source = "xref:other.adoc#rule.1[Explicit] <<other.adoc#rule.1>> <<other.adoc#Rule>>\n\nxref:other.adoc#missing.id[] <<other.adoc#missing:id,Missing>>\n\nxref:other.adoc#++rule.1++[Protected]\n\n[[rule.1]]\n== Rule\n";
     let parsed = parse(source, &options)?;
-    let xrefs = paragraph_xrefs(parsed.document_ref().blocks());
+    let xrefs = paragraph_xrefs(parsed.document().blocks());
     assert_eq!(
         xrefs
             .iter()
@@ -294,13 +294,13 @@ fn forced_fragments_are_not_reinterpreted_as_source_paths() -> Result<(), Error>
         "xref:other.adoc#chapter.adoc[Literal ID]\n\ninclude::chapter.adoc[]\n",
         &options,
     )?;
-    let xrefs = paragraph_xrefs(parsed.document_ref().blocks());
+    let xrefs = paragraph_xrefs(parsed.document().blocks());
     let [xref] = xrefs.as_slice() else {
         return Err("missing xref".into());
     };
     assert_eq!(xref.target(), "chapter.adoc");
     assert!(xref.target_is_local());
-    assert!(!parsed.document_ref().references().contains(""));
+    assert!(!parsed.document().references().contains(""));
     assert!(
         matches!(parsed.warnings(), [warning] if matches!(&warning.kind, WarningKind::UnresolvedReference { target } if target == "chapter.adoc"))
     );
@@ -315,7 +315,7 @@ fn forcing_a_fragment_does_not_load_the_named_file() -> Result<(), Error> {
         .with_force_local_file_xrefs()
         .build()?;
     let parsed = parse("xref:xref_include_target.adoc#included-target[]", &options)?;
-    assert!(parsed.document_ref().references().iter().next().is_none());
+    assert!(parsed.document().references().iter().next().is_none());
     assert!(
         matches!(parsed.warnings(), [warning] if matches!(&warning.kind, WarningKind::UnresolvedReference { target } if target == "included-target"))
     );
@@ -333,14 +333,9 @@ fn forcing_partial_sources_also_redirects_external_file_references() -> Result<(
             builder = builder.with_force_local_file_xrefs();
         }
         let parsed = parse(source, &builder.build()?)?;
-        assert!(
-            parsed
-                .document_ref()
-                .references()
-                .contains("catalog-target")
-        );
+        assert!(parsed.document().references().contains("catalog-target"));
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
-        let targets = paragraph_xrefs(parsed.document_ref().blocks())
+        let targets = paragraph_xrefs(parsed.document().blocks())
             .iter()
             .map(|xref| (xref.target(), xref.target_is_local()))
             .collect::<Vec<_>>();
@@ -386,7 +381,7 @@ fn scoped_assembly_anchors_work_without_forcing_file_references() -> Result<(), 
         }
         let parsed = parse(source, &builder.build()?)?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
-        let targets = paragraph_xrefs(parsed.document_ref().blocks())
+        let targets = paragraph_xrefs(parsed.document().blocks())
             .iter()
             .map(|xref| (xref.target(), xref.target_is_local()))
             .collect::<Vec<_>>();

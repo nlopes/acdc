@@ -18,8 +18,7 @@ fn pass_paragraphs_retain_raw_source_without_registering_macros(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Paragraph(block)) =
-        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    let Some(BlockKind::Paragraph(block)) = parsed.document().blocks().last().map(BlockRef::kind)
     else {
         return Err("expected paragraph source form".into());
     };
@@ -42,7 +41,7 @@ fn pass_paragraphs_retain_raw_source_without_registering_macros(
         &source[raw.location().absolute_start()..=raw.location().absolute_end()],
         expected
     );
-    assert!(parsed.document_ref().footnotes().next().is_none());
+    assert!(parsed.document().footnotes().next().is_none());
     assert_eq!(block.source_text(), Some(expected));
     Ok(())
 }
@@ -62,7 +61,7 @@ fn simple_admonition_metadata_has_one_owner(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let [BlockKind::Admonition(block)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -103,11 +102,7 @@ fn admonition_reads_distinguish_simple_and_compound_bodies(
             source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let block = parsed
-            .document_ref()
-            .blocks()
-            .next()
-            .ok_or("missing block")?;
+        let block = parsed.document().blocks().next().ok_or("missing block")?;
         let BlockKind::Admonition(admonition) = block.kind() else {
             return Err("expected admonition".into());
         };

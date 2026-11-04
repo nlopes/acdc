@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .with_safe_mode(acdc_parser::SafeMode::Unsafe)
                         .build()?,
                 )?;
-                let doc = parsed.document_ref();
+                let doc = parsed.document();
                 if !cfg!(feature = "highlighting") && !fixture_support::has_highlighter(doc) {
                     continue;
                 }

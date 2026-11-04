@@ -1323,7 +1323,7 @@ mod tests {
     ) -> Result<(String, Vec<Warning>), Box<dyn Error>> {
         let parser_options = ParserOptions::default();
         let parsed = acdc_parser::parse(input, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .safe_mode(safe_mode)

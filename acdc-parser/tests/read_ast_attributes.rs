@@ -51,8 +51,7 @@ fn nested_callers_read_typed_and_generic_content_consistently(
          .Paragraph title\nimage:bird.png[alt='*Bird*',title='*Hover*',width=120,role='one two',opts='nofollow,noopener',id=bird]\n|===\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Section(section)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Section(section)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected section".into());
     };
@@ -283,7 +282,7 @@ fn attribute_locations_keep_recorded_spans_and_absence(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     assert!(
         blocks
             .next()
@@ -346,7 +345,7 @@ fn attribute_locations_keep_include_provenance(
             .build()?,
     )?;
     let note = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Admonition(note) = block.kind() {

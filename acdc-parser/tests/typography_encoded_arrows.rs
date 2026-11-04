@@ -30,7 +30,7 @@ fn encoded_arrows_have_semantic_values_and_authored_spans(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -76,7 +76,7 @@ fn encoded_arrows_cannot_use_later_attribute_fragments(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let kinds = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -97,7 +97,7 @@ fn encoded_arrows_cannot_use_later_attribute_fragments(
         "{source}"
     );
     if !enabled {
-        assert!(parsed.document_ref().content_occurrences().flat_map(|field| field.content().inlines()).any(|node|matches!(node.kind(),InlineKind::Raw(raw) if raw.text().contains('&') && !raw.substitutions().any(|sub|sub==Substitution::Replacements))));
+        assert!(parsed.document().content_occurrences().flat_map(|field| field.content().inlines()).any(|node|matches!(node.kind(),InlineKind::Raw(raw) if raw.text().contains('&') && !raw.substitutions().any(|sub|sub==Substitution::Replacements))));
     }
     assert_eq!(parsed.warnings(), []);
     Ok(())
@@ -121,7 +121,7 @@ fn encoded_arrows_are_resolved_in_block_profiles(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let kinds = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -160,7 +160,7 @@ fn ordinary_encoded_arrows_preserve_literal_characters(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let text = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .map(|node| {

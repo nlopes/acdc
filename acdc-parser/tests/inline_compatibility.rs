@@ -31,7 +31,7 @@ fn index_registration_boundaries_survive_later_substitutions() -> Result<(), Err
                         "= Boundaries\n:close: ))\n:bracket: ]\n:empty:\n\n{block}\n{index}"
                     );
                     let parsed = parse(&source, &Options::default())?;
-                    assert_ne!(parsed.document_ref().blocks().count(), 0);
+                    assert_ne!(parsed.document().blocks().count(), 0);
                 }
             }
         }
@@ -43,7 +43,7 @@ fn index_registration_boundaries_survive_later_substitutions() -> Result<(), Err
 fn index_catalog_snapshots_do_not_register_footnotes_twice() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/subs_index_registration_order.adoc");
     let parsed = parse(source, &Options::default())?;
-    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
+    let notes = parsed.document().footnotes().collect::<Vec<_>>();
     assert_eq!(notes.len(), 2);
     for (note, expected) in notes
         .iter()
@@ -69,7 +69,7 @@ fn index_catalog_snapshots_do_not_register_footnotes_twice() -> Result<(), Error
 fn ordered_index_footnotes_keep_one_definition_and_original_locations() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/subs_index_stage_labels.adoc");
     let parsed = parse(source, &Options::default())?;
-    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
+    let notes = parsed.document().footnotes().collect::<Vec<_>>();
     assert_eq!(notes.len(), 4);
     for (note, expected) in notes.iter().zip([
         "footnote:[One]",
@@ -92,7 +92,7 @@ fn passthrough_index_attribute_values_point_to_their_reference() -> Result<(), E
             let source = format!(":name: {value}\n\npass:{stages}[((Term {{name}}))]\n");
             let parsed = parse(&source, &Options::default())?;
             let Some(BlockKind::Paragraph(paragraph)) =
-                parsed.document_ref().blocks().next().map(BlockRef::kind)
+                parsed.document().blocks().next().map(BlockRef::kind)
             else {
                 return Err("missing paragraph".into());
             };
@@ -146,7 +146,7 @@ fn disabled_attribute_substitutions_do_not_warn_about_counters() -> Result<(), E
 fn bibliography_footnotes_keep_their_source_and_catalog_entry() -> Result<(), Error> {
     let source = "[bibliography]\n* [[[note,footnote:[A note.] +]]] Footnote label.\n";
     let parsed = parse(source, &Options::default())?;
-    let [footnote] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+    let [footnote] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
         return Err("expected one bibliography footnote".into());
     };
     assert_eq!(footnote.number(), 1);
@@ -167,7 +167,7 @@ fn bibliography_counter_citations_remain_literal() -> Result<(), Error> {
         &Options::default(),
     )?;
     let label = parsed
-        .document_ref()
+        .document()
         .references()
         .get("literal-counter")
         .and_then(ReferenceRef::xreflabel)

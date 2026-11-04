@@ -44,8 +44,8 @@ fn highest_caption_numbers_include_nested_blocks(
             &source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let before = serde_json::to_value(parsed.document())?;
-        let document = parsed.document_ref();
+        let before = serde_json::to_value(parsed.document_storage())?;
+        let document = parsed.document();
         assert_eq!(
             document.highest_caption_number(CaptionKind::Figure),
             expected,
@@ -54,10 +54,10 @@ fn highest_caption_numbers_include_nested_blocks(
         assert_eq!(
             document.highest_caption_number(CaptionKind::Figure),
             parsed
-                .document()
+                .document_storage()
                 .highest_caption_number(CaptionKind::Figure)
         );
-        assert_eq!(serde_json::to_value(parsed.document())?, before);
+        assert_eq!(serde_json::to_value(parsed.document_storage())?, before);
     }
     Ok(())
 }
@@ -70,9 +70,9 @@ fn registered_captions_preserve_values_and_json(
         SOURCE,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let owner = parsed.document();
+    let owner = parsed.document_storage();
     let before = serde_json::to_value(owner)?;
-    let catalog = parsed.document_ref().references();
+    let catalog = parsed.document().references();
     for (id, category) in [
         ("figure", CaptionKind::Figure),
         ("table", CaptionKind::Table),
@@ -152,7 +152,7 @@ fn registered_caption_content_preserves_include_locations(
             .build()?,
     )?;
     let Some(CaptionRef::CustomContent(content)) = parsed
-        .document_ref()
+        .document()
         .references()
         .get("included")
         .ok_or("included target")?
@@ -160,11 +160,11 @@ fn registered_caption_content_preserves_include_locations(
     else {
         return Err("included caption".into());
     };
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     let node = content.inlines().next().ok_or("caption prefix")?;
     assert!(matches!(node.kind(), InlineKind::Bold(_)));
     let original = parsed
-        .document()
+        .document_storage()
         .references
         .get("included")
         .and_then(|reference| reference.caption.as_ref())

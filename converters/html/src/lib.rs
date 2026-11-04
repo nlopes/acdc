@@ -1281,13 +1281,13 @@ mod tests {
             let processor = Processor::new(
                 Options::default(),
                 ParserOptions::builder().with_attributes(
-                    acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    acdc_parser::DocumentAttributes::from(parsed.document().attributes())
                         .into_inputs(),
                 ),
             )?
             .with_variant(variant)?;
             let html = processor.convert_to_string(
-                parsed.document_ref(),
+                parsed.document(),
                 &RenderOptions {
                     embedded: true,
                     ..RenderOptions::default()
@@ -1321,11 +1321,10 @@ mod tests {
         let processor = Processor::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
-                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
-                    .into_inputs(),
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
             ),
         )?;
-        let html = processor.convert_to_string(parsed.document_ref(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(parsed.document(), &RenderOptions::default())?;
 
         assert!(html.contains("images/header/before.png"));
         assert!(html.contains("images/body/after.png"));
@@ -1349,7 +1348,7 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1426,7 +1425,7 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1456,7 +1455,7 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1498,7 +1497,7 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1545,7 +1544,7 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1585,7 +1584,7 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1627,7 +1626,7 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1661,7 +1660,7 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1702,7 +1701,7 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1744,7 +1743,7 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1778,7 +1777,7 @@ This is a paragraph.
         let content = "= Title\n:dark-mode:\n\nHello world.\n";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1809,7 +1808,7 @@ This is a paragraph.
 
     fn convert(content: &str, embedded: bool) -> Result<String, Box<dyn StdError>> {
         let parsed = parse(content, &ParserOptions::default())?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let processor = Processor::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
@@ -1895,7 +1894,7 @@ This is a paragraph.
         let content = "= Title\n:light-mode:\n\nHello world.\n";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1925,7 +1924,7 @@ This is a paragraph.
         let content = "= Title\n\nHello world.\n";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1951,7 +1950,7 @@ This is a paragraph.
         let content = "= Title\n:!dark-mode:\n\nHello world.\n";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -1973,7 +1972,7 @@ This is a paragraph.
         let content = "= Book Title\n:doctype: book\n\nSome content.\n";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -2003,7 +2002,7 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -2048,7 +2047,7 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -2087,7 +2086,7 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -2130,7 +2129,7 @@ More appendix content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -2193,7 +2192,7 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -2247,7 +2246,7 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -2303,7 +2302,7 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),
@@ -2334,7 +2333,7 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let processor = Processor::new(
             Options::default(),

@@ -22,14 +22,14 @@ fn inline_bracket_anchors_keep_inner_closing_brackets_in_the_label(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let reference = parsed
-        .document_ref()
+        .document()
         .references()
         .get("target")
         .ok_or("recognized anchor")?;
     assert!(reference.xreflabel().is_some());
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert_eq!(parsed.document().footnotes().count(), 0);
     let anchor = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .find_map(|node| {
@@ -44,7 +44,7 @@ fn inline_bracket_anchors_keep_inner_closing_brackets_in_the_label(
         source.get(anchor.location().absolute_start()..=anchor.location().absolute_end()),
         Some(format!("[[target,{label}]]").as_str())
     );
-    assert_eq!(parsed.document_ref().references().len(), 1);
+    assert_eq!(parsed.document().references().len(), 1);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -62,7 +62,7 @@ fn escaped_or_incomplete_anchors_do_not_create_targets(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document_ref().references().len(), 0);
+    assert_eq!(parsed.document().references().len(), 0);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -81,11 +81,11 @@ fn nested_anchor_labels_keep_source_coordinates_in_includes_and_cells(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let references = parsed.document_ref().references();
+    let references = parsed.document().references();
     assert!(references.contains("included-label"));
     assert!(references.contains("cell-label"));
     let anchor = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .find_map(|node| {
@@ -110,7 +110,7 @@ fn nested_anchor_labels_keep_source_coordinates_in_includes_and_cells(
         parsed.resolve_location(anchor.location()).file,
         Some(included.canonicalize()?)
     );
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert_eq!(parsed.document().footnotes().count(), 0);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -124,7 +124,7 @@ fn nested_anchor_labels_support_natural_reference_targets(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let target = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .find_map(|node| {

@@ -49,7 +49,7 @@ fn profiles_do_not_run_replacements_after_later_attributes(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let kinds = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -86,7 +86,7 @@ fn resolved_symbols_keep_later_macro_and_formatting_structure(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let kinds = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .map(acdc_parser::ast::InlineRef::kind)
@@ -113,7 +113,7 @@ fn resolved_symbols_keep_later_macro_and_formatting_structure(
             .count(),
         usize::from(bold)
     );
-    assert_eq!(parsed.document_ref().footnotes().count(), usize::from(note));
+    assert_eq!(parsed.document().footnotes().count(), usize::from(note));
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }

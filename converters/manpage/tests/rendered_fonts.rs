@@ -149,13 +149,7 @@ fn nested_fonts_restore_the_enclosing_style(#[case] fixture: &str) -> Result<(),
     let mut warnings = Vec::new();
     let warning_source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
-    processor.write_to(
-        parsed.document_ref(),
-        &mut output,
-        None,
-        None,
-        &mut diagnostics,
-    )?;
+    processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
     check_groff(
         &render("groff", &["-Kutf8", "-Z", "-Tps", "-t", "-man"], &output)?,
         &expected,

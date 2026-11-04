@@ -7,7 +7,7 @@ type TestResult = Result<(), Box<dyn StdError>>;
 fn assert_parses(input: &str) -> TestResult {
     let result = parse(input, &Options::default())?;
     assert!(
-        result.document_ref().blocks().next().is_some(),
+        result.document().blocks().next().is_some(),
         "expected the table to produce a document block"
     );
     Ok(())

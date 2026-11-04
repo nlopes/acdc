@@ -240,7 +240,7 @@ impl Reference<'_> {
     /// use acdc_parser::{Options, parse};
     ///
     /// let parsed = parse("= Guide\n:sectnums:\n\n[#intro]\n== Introduction\n", &Options::default())?;
-    /// let reference = parsed.document().references.get("intro").ok_or("missing section")?;
+    /// let reference = parsed.document().references().get("intro").ok_or("missing section")?;
     /// assert_eq!(reference.section_name(), Some("section"));
     /// assert_eq!(reference.section_number(), Some("1"));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -278,7 +278,7 @@ mod tests {
             include_str!("../../fixtures/tests/section_reference_metadata.adoc"),
             &crate::Options::default(),
         )?;
-        let document = parsed.document();
+        let document = parsed.document_storage();
         for id in ["part", "chapter", "section", "appendix"] {
             let reference = document.references.get(id).ok_or("missing reference")?;
             let cloned = reference.clone();

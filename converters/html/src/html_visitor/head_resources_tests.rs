@@ -9,9 +9,9 @@ type Flags = (bool, bool, bool);
 
 fn flags(source: &str, options: &Options<'_>) -> Result<Flags, Error> {
     let parsed = parse(source, options)?;
-    let resources = HeadResources::collect(parsed.document_ref());
+    let resources = HeadResources::collect(parsed.document());
     assert_eq!(
-        super::uses_stem(parsed.document_ref()),
+        super::uses_stem(parsed.document()),
         resources.stem || resources.nested_stem
     );
     Ok((resources.stem, resources.font_icons, resources.nested_stem))
@@ -112,10 +112,9 @@ fn head_resources_keep_cell_overrides_and_column_defaults_after_owner_edits() ->
         (ColumnStyle::Default, None, (true, true, false)),
     ] {
         let mut document = Document::default();
-        document.attributes =
-            acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
+        document.attributes = acdc_parser::DocumentAttributes::from(parsed.document().attributes());
         document.blocks = parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(acdc_parser::Block::from)
             .collect();
@@ -155,7 +154,7 @@ fn head_resources_use_stored_cell_order_for_spanning_column_defaults() -> Result
     )?;
     let mut document = Document::default();
     document.blocks = parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(acdc_parser::Block::from)
         .collect();

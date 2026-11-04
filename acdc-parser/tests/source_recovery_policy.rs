@@ -22,7 +22,7 @@ fn trailing_macro_text_remains_a_literal_paragraph(
     assert!(parsed.source_recovery().is_none());
     assert_eq!(parsed.warnings(), []);
     let parsed_block = parsed
-        .document_ref()
+        .document()
         .blocks()
         .nth(1)
         .ok_or("missing second block")?;
@@ -63,7 +63,7 @@ fn whitespace_after_complete_macros_remains_valid(
     assert!(parsed.source_recovery().is_none());
     assert_eq!(parsed.warnings(), []);
     let block = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .ok_or("missing complete macro")?;

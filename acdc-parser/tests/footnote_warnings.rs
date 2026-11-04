@@ -84,10 +84,10 @@ fn conflicting_footnote_definitions_warn_at_each_changed_body() -> Result<(), Er
         assert!(warning.to_string().contains("keeping the first definition"));
         assert!(warning.advice().is_some());
     }
-    assert_eq!(parsed.document_ref().footnotes().count(), 5);
+    assert_eq!(parsed.document().footnotes().count(), 5);
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .footnotes()
             .map(acdc_parser::ast::FootnoteDefinitionRef::number)
             .collect::<Vec<_>>(),
@@ -105,7 +105,7 @@ fn footnote_conflict_comparison_respects_macro_registration_order() -> Result<()
         return Err(format!("expected one conflict: {:?}", parsed.warnings()).into());
     };
     assert!(matches!(&warning.kind, WarningKind::ConflictingFootnote { id, .. } if id == "early"));
-    assert_eq!(parsed.document_ref().footnotes().count(), 2);
+    assert_eq!(parsed.document().footnotes().count(), 2);
     Ok(())
 }
 

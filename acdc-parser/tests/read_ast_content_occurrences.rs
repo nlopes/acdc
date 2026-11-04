@@ -93,7 +93,7 @@ fn inline_field_inventory_is_ordered_and_shallow(
         &format!(":experimental:\n\nBefore {markup} after."),
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let block = parsed.document_ref().blocks().next().ok_or("paragraph")?;
+    let block = parsed.document().blocks().next().ok_or("paragraph")?;
     let BlockKind::Paragraph(paragraph) = block.kind() else {
         return Err("paragraph".into());
     };
@@ -157,7 +157,7 @@ fn block_fields_have_one_metadata_owner_and_no_child_content(
         &format!("{markup}\n"),
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let block = parsed.document_ref().blocks().next().ok_or("block")?;
+    let block = parsed.document().blocks().next().ok_or("block")?;
     let actual = StructuralRef::from(block)
         .content_fields()
         .map(ContentFieldRef::role)
@@ -180,7 +180,7 @@ fn titles_metadata_and_items_have_stable_semantic_order(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     let header = StructuralRef::from(doc.header().ok_or("header")?);
     assert_eq!(
         header
@@ -225,11 +225,11 @@ fn traversal_excludes_catalogs_and_generated_bibliography_text(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = format!("{:?}", parsed.document_ref());
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
-    assert_eq!(parsed.document_ref().toc_entries().count(), 1);
-    assert!(parsed.document_ref().references().iter().next().is_some());
-    let fields = parsed.document_ref().content_occurrences();
+    let before = format!("{:?}", parsed.document());
+    assert_eq!(parsed.document().footnotes().count(), 1);
+    assert_eq!(parsed.document().toc_entries().count(), 1);
+    assert!(parsed.document().references().iter().next().is_some());
+    let fields = parsed.document().content_occurrences();
     shared(&fields);
     fused(&fields);
     let words = words(fields);
@@ -256,13 +256,13 @@ fn traversal_excludes_catalogs_and_generated_bibliography_text(
     );
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .content_occurrences()
             .filter(|field| field.role() == BibliographyLabel)
             .count(),
         1
     );
-    assert_eq!(format!("{:?}", parsed.document_ref()), before);
+    assert_eq!(format!("{:?}", parsed.document()), before);
     Ok(())
 }
 
@@ -272,7 +272,7 @@ fn empty_fields_survive_and_subtree_skipping_keeps_siblings() -> TestResult {
         "image:x[alt='',title='*Tip*'] image:y[alt='*Bird*',title=''] link:z[]",
         &Options::default(),
     )?;
-    let mut walk = parsed.document_ref().content_occurrences();
+    let mut walk = parsed.document().content_occurrences();
     let mut roles = Vec::new();
     while let Some(field) = walk.next() {
         roles.push((field.role(), field.content().is_empty()));
@@ -296,7 +296,7 @@ fn empty_fields_survive_and_subtree_skipping_keeps_siblings() -> TestResult {
     assert!(walk.next().is_none());
     walk.skip_descendants();
     assert!(walk.next().is_none());
-    let block = parsed.document_ref().blocks().next().ok_or("paragraph")?;
+    let block = parsed.document().blocks().next().ok_or("paragraph")?;
     assert_eq!(block.content_occurrences().count(), 8);
     let BlockKind::Paragraph(paragraph) = block.kind() else {
         return Err("paragraph".into());
@@ -331,7 +331,7 @@ fn content_locations_keep_selected_include_and_table_origins(
             .build()?,
     )?;
     let mut found = BTreeMap::new();
-    for field in parsed.document_ref().content_occurrences() {
+    for field in parsed.document().content_occurrences() {
         for inline in field.content().inlines() {
             if let InlineKind::Plain(text) = inline.kind()
                 && ["Included", "Tip", "Cell", "Expanded"].contains(&text.text())
@@ -386,7 +386,7 @@ fn retained_anchor_labels_have_their_own_typed_owner(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let labels = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .filter(|field| field.role() == ReferenceText)
         .collect::<Vec<_>>();

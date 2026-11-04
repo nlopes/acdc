@@ -422,8 +422,7 @@ mod backend_tests {
         let processor = Processor::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
-                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
-                    .into_inputs(),
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
             ),
         )?
         .with_terminal_width(120);
@@ -432,13 +431,7 @@ mod backend_tests {
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
 
-        processor.write_to(
-            parsed.document_ref(),
-            &mut output,
-            None,
-            None,
-            &mut diagnostics,
-        )?;
+        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
 
         let terminal = String::from_utf8(output)?;
         assert!(terminal.contains("images/header/before.png"));
@@ -455,8 +448,7 @@ mod backend_tests {
         let processor = Processor::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
-                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
-                    .into_inputs(),
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
             ),
         )?;
         let source = processor.warning_source();
@@ -464,13 +456,7 @@ mod backend_tests {
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
 
-        processor.write_to(
-            parsed.document_ref(),
-            &mut output,
-            None,
-            None,
-            &mut diagnostics,
-        )?;
+        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
 
         let terminal = String::from_utf8(output)?;
         assert!(terminal.contains("[Run]"), "{terminal:?}");

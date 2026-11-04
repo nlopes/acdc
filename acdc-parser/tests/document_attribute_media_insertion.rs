@@ -30,7 +30,7 @@ fn scalar_media_values_expand_once(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let images: Vec<ImageRef<'_>> = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(|block| {
             if let BlockKind::Image(image) = block.kind() {
@@ -81,7 +81,7 @@ fn scalar_media_values_expand_once(
             .alt()
             .is_some_and(ContentRef::is_empty)
     );
-    assert!(parsed.document_ref().footnotes().next().is_none());
+    assert!(parsed.document().footnotes().next().is_none());
     Ok(())
 }
 
@@ -99,7 +99,7 @@ fn scalar_media_values_keep_single_expansion_in_nested_contexts(
             .build()?,
     )?;
     let actual: Vec<_> = parsed
-        .document_ref()
+        .document()
         .descendants()
         .filter_map(|node| {
             let StructuralRef::Block(block) = node else {

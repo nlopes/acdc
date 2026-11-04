@@ -23,7 +23,7 @@ pub(crate) struct LintContext<'context, 'source> {
 
 impl LintContext<'_, '_> {
     pub(crate) fn document(&self) -> DocumentRef<'_> {
-        self.parsed.document_ref()
+        self.parsed.document()
     }
 }
 

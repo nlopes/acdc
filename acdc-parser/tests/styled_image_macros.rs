@@ -21,7 +21,7 @@ fn verbatim_styles_keep_block_image_macros_literal() -> Result<(), Error> {
         );
         let parsed = parse(&source, &Options::default())?;
         let Some(BlockKind::Paragraph(paragraph)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err(format!("expected a paragraph for [{attributes}]").into());
         };
@@ -33,11 +33,7 @@ fn verbatim_styles_keep_block_image_macros_literal() -> Result<(), Error> {
         ));
 
         match (
-            CaptionRef::resolve(
-                paragraph.attributes(),
-                parsed.document_ref().attributes(),
-                None,
-            ),
+            CaptionRef::resolve(paragraph.attributes(), parsed.document().attributes(), None),
             caption_kind,
         ) {
             (
@@ -69,8 +65,7 @@ fn non_verbatim_styles_still_produce_images() -> Result<(), Error> {
     for style in ["example", "quote", "custom"] {
         let source = format!("= T\n\n.Title\n[{style}]\nimage::sample.png[Alt]\n");
         let parsed = parse(&source, &Options::default())?;
-        let Some(BlockKind::Image(image)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        let Some(BlockKind::Image(image)) = parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err(format!("expected an image for [{style}]").into());
         };
@@ -79,12 +74,12 @@ fn non_verbatim_styles_still_produce_images() -> Result<(), Error> {
             matches!(image.alt().map(|alt| alt.inlines().map(InlineRef::kind).collect::<Vec<_>>()).as_deref(), Some([InlineKind::Plain(text)]) if text.text() == "Alt")
         );
         assert!(
-            serde_json::to_value(parsed.document_ref())?
+            serde_json::to_value(parsed.document())?
                 .pointer("/blocks/0/metadata/attributes/alt")
                 .is_none()
         );
         assert!(matches!(
-            CaptionRef::resolve(image.attributes(), parsed.document_ref().attributes(), None),
+            CaptionRef::resolve(image.attributes(), parsed.document().attributes(), None),
             Some(CaptionRef::Numbered {
                 kind: CaptionKind::Figure,
                 number: Some(number),

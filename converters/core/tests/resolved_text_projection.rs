@@ -22,7 +22,7 @@ fn projection_preserves_text_when_replacements_are_disabled_or_already_finished(
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let Some(BlockKind::Paragraph(paragraph)) =
-                parsed.document_ref().blocks().next().map(BlockRef::kind)
+                parsed.document().blocks().next().map(BlockRef::kind)
             else {
                 return Err("paragraph".into());
             };

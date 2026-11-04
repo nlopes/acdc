@@ -152,7 +152,7 @@ impl Document {
 
     pub(super) fn title(&self) -> String {
         self.parsed
-            .document_ref()
+            .document()
             .title()
             .map(|title| render::inline_text(title, Format::Plain))
             .unwrap_or_default()
@@ -184,7 +184,7 @@ impl Document {
 
     pub(super) fn entries(&self) -> Result<Vec<Entry<'_>>> {
         let mut entries = Vec::new();
-        for (index, block) in self.parsed.document_ref().blocks().enumerate() {
+        for (index, block) in self.parsed.document().blocks().enumerate() {
             walk(block, &index.to_string(), &[], 0, &mut entries)?;
         }
         Ok(entries)

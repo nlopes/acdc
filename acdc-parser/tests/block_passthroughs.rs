@@ -51,7 +51,7 @@ fn block_passthroughs_resolve_order_and_register_selected_macros_once(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let nodes = body(parsed.document_ref())?;
+    let nodes = body(parsed.document())?;
     let bold = nodes
         .inlines()
         .filter(|node| matches!(node.kind(), InlineKind::Bold(_)))
@@ -70,9 +70,9 @@ fn block_passthroughs_resolve_order_and_register_selected_macros_once(
         source.get(location.absolute_start()..=location.absolute_end()),
         Some("(C)")
     );
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     let note = parsed
-        .document_ref()
+        .document()
         .footnotes()
         .next()
         .ok_or("missing footnote")?;
@@ -80,7 +80,7 @@ fn block_passthroughs_resolve_order_and_register_selected_macros_once(
         source.get(note.location().absolute_start()..=note.location().absolute_end()),
         Some("footnote:one[Note.]")
     );
-    assert!(parsed.document_ref().references().contains("target"));
+    assert!(parsed.document().references().contains("target"));
     assert_eq!(
         nodes
             .inlines()
@@ -117,7 +117,7 @@ fn block_passthroughs_keep_default_and_none_content_raw(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [InlineKind::Raw(raw)] = &*body(parsed.document_ref())?
+    let [InlineKind::Raw(raw)] = &*body(parsed.document())?
         .inlines()
         .map(InlineRef::kind)
         .collect::<Vec<_>>()
@@ -126,8 +126,8 @@ fn block_passthroughs_keep_default_and_none_content_raw(
     };
     assert_eq!(raw.text().trim_end_matches('\n'), input);
     assert_eq!(raw.substitutions().collect::<Vec<_>>(), []);
-    assert!(parsed.document_ref().footnotes().next().is_none());
-    assert!(!parsed.document_ref().references().contains("unused"));
+    assert!(parsed.document().footnotes().next().is_none());
+    assert!(!parsed.document().references().contains("unused"));
     Ok(())
 }
 
@@ -148,7 +148,7 @@ fn block_passthroughs_keep_snapshots_and_included_or_cell_locations(
             .build()?,
     )?;
     let mut selected = Vec::new();
-    for node in parsed.document_ref().descendants() {
+    for node in parsed.document().descendants() {
         let StructuralRef::Block(block) = node else {
             continue;
         };
@@ -225,7 +225,7 @@ fn block_passthroughs_keep_snapshots_and_included_or_cell_locations(
         selected.push(label);
     }
     assert_eq!(selected, ["Included", "Cell", "Later"]);
-    assert_eq!(parsed.document_ref().footnotes().count(), 2);
+    assert_eq!(parsed.document().footnotes().count(), 2);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }

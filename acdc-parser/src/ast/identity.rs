@@ -25,7 +25,7 @@ impl<'doc> BlockRef<'doc> {
     /// use acdc_parser::{Options, parse, ast::IdOrigin};
     ///
     /// let parsed = parse("== Introduction\n", &Options::default())?;
-    /// let block = parsed.document_ref().blocks().next().ok_or("section")?;
+    /// let block = parsed.document().blocks().next().ok_or("section")?;
     /// let id = block.id().ok_or("assigned ID")?;
     /// assert_eq!(id.as_str(), "_introduction");
     /// assert_eq!(id.origin(), IdOrigin::Generated);

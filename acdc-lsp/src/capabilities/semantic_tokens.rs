@@ -428,7 +428,7 @@ mod tests {
     fn tokens_use_utf16_columns_and_stop_at_line_end() -> Result<(), Box<dyn std::error::Error>> {
         let text = "😀 *bold*\n*multi\nline*\n";
         let parsed = acdc_parser::parse(text, &Options::default())?;
-        let tokens = compute_semantic_tokens(parsed.document_ref(), &[], text);
+        let tokens = compute_semantic_tokens(parsed.document(), &[], text);
         let first = tokens.data.first().ok_or("missing token")?;
         assert_eq!(first.delta_start, 3);
         assert_eq!(first.length, 6);
@@ -491,7 +491,7 @@ mod tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let text = "Text.\r\n\r\n:!name:\r\n:name!:\r\n:other: value\r\n";
         let parsed = acdc_parser::parse(text, &Options::default())?;
-        let tokens = compute_semantic_tokens(parsed.document_ref(), &[], text);
+        let tokens = compute_semantic_tokens(parsed.document(), &[], text);
         let actual: Vec<_> = tokens
             .data
             .iter()
@@ -519,7 +519,7 @@ Some content.
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
 
-        let tokens = compute_semantic_tokens(parsed.document_ref(), &[], content);
+        let tokens = compute_semantic_tokens(parsed.document(), &[], content);
         // Should have at least tokens for section titles
         assert_ne!(tokens.data, []);
         Ok(())
@@ -537,7 +537,7 @@ See <<target>> for more.
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
 
-        let tokens = compute_semantic_tokens(parsed.document_ref(), &[], content);
+        let tokens = compute_semantic_tokens(parsed.document(), &[], content);
         // Should have tokens for section, anchor, and xref
         assert!(tokens.data.len() >= 2);
         Ok(())
@@ -563,7 +563,7 @@ See <<target>> for more.
         let content = "ifdef::missing[]\ninactive content\nendif::[]";
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let conditionals = vec![ConditionalBlock {
             kind: ConditionalDirectiveKind::Ifdef,
@@ -626,7 +626,7 @@ See <<target>> for more.
         let content = "ifdef::present[]\nactive content\nendif::[]";
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
 
         let conditionals = vec![ConditionalBlock {
             kind: ConditionalDirectiveKind::Ifdef,

@@ -78,7 +78,7 @@ fn options(safe_mode: SafeMode) -> Result<Options<'static>, acdc_parser::Error> 
 
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<&str>, Box<dyn Error>> {
     result
-        .document_ref()
+        .document()
         .blocks()
         .map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -215,7 +215,7 @@ fn optional_missing_recovered_target_keeps_only_the_recovery_warning() -> TestRe
 
     for safe_mode in [SafeMode::Safe, SafeMode::Server] {
         let result = parse_file(&tree.main, &options(safe_mode)?)?;
-        assert!(result.document_ref().blocks().next().is_none());
+        assert!(result.document().blocks().next().is_none());
         assert_single_recovery_warning(&result, ANCESTOR_RECOVERY_WARNING, &tree.main, 1)?;
     }
 

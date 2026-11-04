@@ -26,7 +26,7 @@ pub(crate) fn compute_hover(
 ) -> Option<Hover> {
     let position = position_to_scalar_position(doc.text(), position)?;
     let ast_guard = doc.ast()?;
-    let ast = ast_guard.document_ref();
+    let ast = ast_guard.document();
 
     // Check for xref at this position
     if let Some((target, xref_loc)) = find_xref_at_position(ast, &position) {
@@ -273,7 +273,7 @@ mod tests {
             "== Top\n\n=== Child\n\n[cols=a]\n|===\n|== Cell\n|===\n",
             &acdc_parser::Options::default(),
         )?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let sections = doc
             .descendants()
             .filter_map(|node| {

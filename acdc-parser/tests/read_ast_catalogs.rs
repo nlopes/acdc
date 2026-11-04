@@ -33,7 +33,7 @@ fn catalog_labels_keep_absent_and_empty_values_separate() -> Result<(), Error> {
         "[#plain]\n== Title\n\n[#label,reftext='*Chosen*']\n== Other\n\n[#empty,reftext='']\n== Empty\n\n[#untitled]\nBody.\n",
         &Options::default(),
     )?;
-    let references = parsed.document_ref().references();
+    let references = parsed.document().references();
     let plain = references.get("plain").ok_or("plain")?;
     assert_eq!(plain.title().map(text).as_deref(), Some("Title"));
     assert!(plain.xreflabel().is_none());
@@ -48,7 +48,7 @@ fn catalog_labels_keep_absent_and_empty_values_separate() -> Result<(), Error> {
     assert!(references.get("missing").is_none());
     let mut owned = Reference::from(
         parsed
-            .document_ref()
+            .document()
             .references()
             .get("plain")
             .ok_or("plain owner")?,
@@ -68,7 +68,7 @@ fn catalog_handles_are_shared_and_do_not_allocate_on_reads() -> Result<(), Error
     shared::<ReferenceRef<'_>>();
     shared::<TocEntryRef<'_>>();
     let parsed = parse("[#target]\n== Title\n", &Options::default())?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     let region = Region::new(ALLOCATOR);
     let references = doc.references();
     black_box(references.get("target"));
@@ -121,7 +121,7 @@ fn catalog_locations_resolve_to_the_included_source() -> Result<(), Error> {
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     let reference = doc
         .references()
         .get("included-target")
@@ -156,8 +156,8 @@ fn caller_constructed_catalog_reads_do_not_allocate_or_copy_entries() -> Result<
         "[#target,reftext='*Chosen*']\n== Title\n",
         &Options::default(),
     )?;
-    let catalog: std::collections::HashMap<_, _> = parsed.document_ref().references().into();
-    let before = serde_json::to_value(parsed.document_ref())?;
+    let catalog: std::collections::HashMap<_, _> = parsed.document().references().into();
+    let before = serde_json::to_value(parsed.document())?;
     let region = Region::new(ALLOCATOR);
     let references = ReferencesRef::from(&catalog);
     let reference = references.get("target").ok_or("target")?;
@@ -169,6 +169,6 @@ fn caller_constructed_catalog_reads_do_not_allocate_or_copy_entries() -> Result<
     assert_eq!(stats.allocations, 0);
     assert_eq!(stats.reallocations, 0);
     assert_eq!(references.len(), catalog.len());
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }

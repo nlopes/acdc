@@ -161,7 +161,7 @@ mod tests {
         let content =
             "= Document Title\n\n== Section One\n\nContent.\n\n== Section Two\n\n=== Subsection\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let symbols = extract_workspace_symbols(doc);
 
         // Document title + 3 sections + generated anchors
@@ -180,7 +180,7 @@ mod tests {
     fn test_extract_symbols_anchors() -> Result<(), Error> {
         let content = "= Doc\n\n[[my-anchor]]\n== Section\n\nContent.\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let symbols = extract_workspace_symbols(doc);
 
         assert!(
@@ -195,7 +195,7 @@ mod tests {
     fn test_extract_symbols_discrete_header() -> Result<(), Error> {
         let content = "= Doc\n\n[discrete]\n== Discrete Title\n\nContent.\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let symbols = extract_workspace_symbols(doc);
 
         assert!(
@@ -212,7 +212,7 @@ mod tests {
         // Body document attributes produce Block::DocumentAttribute
         let content = "= Doc\n\n== Section\n\n:my-attr: some value\n\nContent.\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let symbols = extract_workspace_symbols(doc);
 
         assert!(

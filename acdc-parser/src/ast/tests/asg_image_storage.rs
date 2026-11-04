@@ -13,7 +13,12 @@ fn export(document: &Document<'_>) -> Result<Value, asg::Error> {
 #[test]
 fn image_support_composes_through_every_supported_content_owner() -> Result<(), Error> {
     let parsed = parse("*image:photo.png[Alt]*", &Options::default())?;
-    let Block::Paragraph(source) = parsed.document().blocks.first().ok_or("paragraph")? else {
+    let Block::Paragraph(source) = parsed
+        .document_storage()
+        .blocks
+        .first()
+        .ok_or("paragraph")?
+    else {
         return Err("paragraph".into());
     };
     assert!(matches!(
@@ -56,7 +61,12 @@ fn image_support_composes_through_every_supported_content_owner() -> Result<(), 
 #[test]
 fn unsupported_image_content_and_scalar_states_fail_by_property() -> Result<(), Error> {
     let parsed = parse("= Title\n:experimental:\n\nbtn:[Save]", &Options::default())?;
-    let Block::Paragraph(source) = parsed.document().blocks.first().ok_or("paragraph")? else {
+    let Block::Paragraph(source) = parsed
+        .document_storage()
+        .blocks
+        .first()
+        .ok_or("paragraph")?
+    else {
         return Err("paragraph".into());
     };
     for property in ["alt", "tooltip"] {

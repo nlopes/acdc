@@ -73,7 +73,7 @@ fn options(max_depth: &str) -> Result<Options<'_>, acdc_parser::Error> {
 
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<&str>, Box<dyn Error>> {
     result
-        .document_ref()
+        .document()
         .blocks()
         .map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -124,7 +124,7 @@ fn assert_chain(result: &ParseResult, depth: &str, expansion: Expansion) -> Test
 fn assert_max_depth(result: &ParseResult, expected: &str) -> TestResult {
     let mut actual = String::new();
     let value = result
-        .document_ref()
+        .document()
         .attributes()
         .get("max-include-depth")
         .ok_or("depth has a default")?;
@@ -334,7 +334,7 @@ fn boolean_true_disables_includes_without_crashing() -> TestResult {
 
     assert_eq!(
         result
-            .document_ref()
+            .document()
             .attributes()
             .get("max-include-depth")
             .and_then(acdc_parser::DocumentAttributeValue::as_integer),
@@ -393,14 +393,14 @@ fn ignored_body_depth_declarations_are_absent_from_the_ast() -> TestResult {
 
     assert_max_depth(&result, "1")?;
     let [BlockKind::Paragraph(before), BlockKind::Section(section)] = &*result
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(format!(
             "unexpected document blocks: {:?}",
-            result.document_ref().blocks().collect::<Vec<_>>()
+            result.document().blocks().collect::<Vec<_>>()
         )
         .into());
     };

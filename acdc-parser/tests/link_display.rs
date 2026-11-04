@@ -32,7 +32,7 @@ fn hide_uri_scheme_is_resolved_at_each_links_source_position() -> Result<(), Err
     )?;
 
     let actual = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {

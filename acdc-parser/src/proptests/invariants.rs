@@ -51,7 +51,7 @@ proptest! {
     #[test]
     fn all_locations_in_bounds(input in ascii_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             let input_len = input.len();
             walk_document_locations(doc, &mut |loc, ctx| {
                 assert!(
@@ -112,7 +112,7 @@ proptest! {
     #[test]
     fn positions_are_monotonic(input in structured_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             verify_monotonic_positions("Block", &doc.blocks);
         }
     }
@@ -126,7 +126,7 @@ proptest! {
     #[test]
     fn table_locations_in_bounds(input in table_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             let input_len = input.len();
             walk_document_locations(doc, &mut |loc, ctx| {
                 assert!(
@@ -165,7 +165,7 @@ proptest! {
     #[test]
     fn description_list_positions_monotonic(input in description_list_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             verify_monotonic_positions("DescriptionList", &doc.blocks);
         }
     }
@@ -175,7 +175,7 @@ proptest! {
     #[test]
     fn rich_document_positions_monotonic(input in rich_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             verify_monotonic_positions("RichDocument", &doc.blocks);
         }
     }
@@ -185,7 +185,7 @@ proptest! {
     #[test]
     fn nested_list_locations_in_bounds(input in nested_list_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             let input_len = input.len();
             walk_document_locations(doc, &mut |loc, ctx| {
                 assert!(
@@ -207,7 +207,7 @@ proptest! {
     #[test]
     fn delimited_block_positions_monotonic(input in delimited_block_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             verify_monotonic_positions("DelimitedBlock", &doc.blocks);
         }
     }

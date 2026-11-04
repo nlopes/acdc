@@ -25,7 +25,7 @@ fn named_reference_text_has_one_parsed_owner(
         "[id=target,reftext='*Label*']\nBody.\n\n<<target>>.",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let document_json = serde_json::to_value(parsed.document_ref())?;
+    let document_json = serde_json::to_value(parsed.document())?;
     let json = document_json
         .pointer("/blocks/0/metadata")
         .ok_or("missing metadata")?;
@@ -61,7 +61,7 @@ fn reference_label_nodes_point_to_the_authored_value(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let label = parsed
-        .document_ref()
+        .document()
         .references()
         .get("target")
         .and_then(ReferenceRef::xreflabel)
@@ -94,7 +94,7 @@ fn draft_literal_reference_text_is_distinct_from_formatted_text(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let label = parsed
-        .document_ref()
+        .document()
         .references()
         .get("target")
         .and_then(ReferenceRef::xreflabel)
@@ -123,7 +123,7 @@ fn only_the_selected_draft_label_registers_content_before_the_body(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
+    let notes = parsed.document().footnotes().collect::<Vec<_>>();
     let expected = if mode == CompatibilityMode::Draft {
         vec![Some("selected"), Some("body")]
     } else {
@@ -150,7 +150,7 @@ fn only_the_selected_draft_label_registers_content_before_the_body(
         }
     );
     let metadata = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .and_then(BlockRef::attributes)
@@ -158,7 +158,7 @@ fn only_the_selected_draft_label_registers_content_before_the_body(
     assert_eq!(
         reftext(metadata),
         parsed
-            .document_ref()
+            .document()
             .references()
             .get("target")
             .and_then(ReferenceRef::xreflabel)
@@ -176,7 +176,7 @@ fn natural_reference_targets_keep_markup_and_the_first_id_owner(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let BlockKind::Paragraph(last) = parsed
-        .document_ref()
+        .document()
         .blocks()
         .last()
         .map(BlockRef::kind)
@@ -216,7 +216,7 @@ fn explicit_empty_reference_text_stays_present_but_uses_title_fallback(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let BlockKind::Section(section) = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .map(BlockRef::kind)
@@ -227,14 +227,14 @@ fn explicit_empty_reference_text_stays_present_but_uses_title_fallback(
     assert!(reftext(section.attributes()).is_some_and(ContentRef::is_empty));
     assert!(
         parsed
-            .document_ref()
+            .document()
             .references()
             .get("target")
             .is_some_and(|reference| reference.xreflabel().is_none() && reference.title().is_some())
     );
     assert!(
         parsed
-            .document_ref()
+            .document()
             .toc_entries()
             .next()
             .and_then(TocEntryRef::xreflabel)
@@ -291,7 +291,7 @@ fn labels_on_generated_sections_remain_in_native_json(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let json = serde_json::to_value(parsed.document_ref())?;
+    let json = serde_json::to_value(parsed.document())?;
     assert!(
         json.pointer("/blocks/0/metadata/reftext")
             .is_some_and(serde_json::Value::is_array),
@@ -310,7 +310,7 @@ fn expanded_reference_labels_map_to_the_full_authored_reference(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let label = parsed
-        .document_ref()
+        .document()
         .references()
         .get("target")
         .and_then(ReferenceRef::xreflabel)
@@ -346,7 +346,7 @@ fn a_block_anchor_uses_its_declaration_snapshot(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let label = parsed
-        .document_ref()
+        .document()
         .references()
         .get("target")
         .and_then(ReferenceRef::xreflabel)
@@ -376,7 +376,7 @@ fn nested_blocks_keep_reference_label_locations_and_natural_lookup(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let label = parsed
-        .document_ref()
+        .document()
         .references()
         .get("cell")
         .and_then(ReferenceRef::xreflabel)
@@ -396,7 +396,7 @@ fn nested_blocks_keep_reference_label_locations_and_natural_lookup(
         Some("*label*")
     );
     let BlockKind::Paragraph(last) = parsed
-        .document_ref()
+        .document()
         .blocks()
         .last()
         .map(BlockRef::kind)
@@ -428,7 +428,7 @@ fn included_reference_labels_keep_the_selected_file_and_line(
             .build()?,
     )?;
     let label = parsed
-        .document_ref()
+        .document()
         .references()
         .get("included")
         .and_then(ReferenceRef::xreflabel)
@@ -454,7 +454,7 @@ fn included_reference_labels_keep_the_selected_file_and_line(
         (32, 34)
     );
     let owner = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(BlockRef::attributes)
         .find_map(reftext)
@@ -477,7 +477,7 @@ fn nested_inline_labels_follow_the_same_location_mapping_as_their_anchor(
     let source = format!("Before.\n\n{source}");
     let parsed = parse(&source, &Options::default())?;
     let label = parsed
-        .document_ref()
+        .document()
         .references()
         .get("target")
         .and_then(ReferenceRef::xreflabel)

@@ -44,7 +44,7 @@ type Overlay<'doc> = FxHashMap<&'doc str, &'doc DocumentAttributeAssignment<'doc
 ///     "= Title\n:imagesdir: first\n\nOne.\n\n:imagesdir: second\n\nTwo.\n",
 ///     &Options::default(),
 /// )?;
-/// let document = parsed.document_ref();
+/// let document = parsed.document();
 /// let mut context = TraversalContext::new(document.attributes());
 /// let mut directories = Directories::default();
 /// directories.visit_document(&mut context, document)?;
@@ -235,7 +235,7 @@ mod tests {
             "= Header\n:present:\n:name: \"quoted\"\n:removed!:\n\nBody.\n",
             &options,
         )?;
-        let header = parsed.document_ref().attributes();
+        let header = parsed.document().attributes();
         let context = TraversalContext::new(header);
         let depth = context.get("max-include-depth").ok_or("missing depth")?;
         assert_eq!(depth.as_integer(), Some(3));
@@ -349,7 +349,7 @@ mod tests {
             "= Header\n:name: header\n\nBody.\n\n:name: first\n:name: second\n:name!:\n:name: false\n",
             &Options::default(),
         )?;
-        let document = &acdc_parser::Document::from(parsed.document_ref());
+        let document = &acdc_parser::Document::from(parsed.document());
         let mut context = TraversalContext::new(&document.attributes);
         let mut observer = Observer::default();
         context.visit_blocks(&mut observer, &document.blocks)?;
@@ -378,10 +378,10 @@ mod tests {
             "= Header\n:name: header\n\nBody.\n\n:name: parent\n",
             &Options::default(),
         )?;
-        let parent_document = acdc_parser::Document::from(parent.document_ref());
+        let parent_document = acdc_parser::Document::from(parent.document());
         let child = parse("Body.\n\n:name: child\n", &Options::default())?;
         let child_blocks: Vec<_> = child
-            .document_ref()
+            .document()
             .blocks()
             .map(acdc_parser::Block::from)
             .collect();
@@ -412,7 +412,7 @@ mod tests {
             "= T\n:doctype: book\n:toc: left\n\n[cols=a]\n|===\n|\nCell.\n|===\n",
             &Options::default(),
         )?;
-        let parsed_document = acdc_parser::Document::from(parsed.document_ref());
+        let parsed_document = acdc_parser::Document::from(parsed.document());
         let Block::DelimitedBlock(block) = parsed_document
             .blocks
             .first()

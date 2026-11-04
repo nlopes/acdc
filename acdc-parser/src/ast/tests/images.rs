@@ -52,7 +52,7 @@ fn images_preserve_independent_content_and_identity(
          .Table title\n[#table]\n|===\n|Cell\n|===\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let Some(BlockKind::Image(image)) = blocks.next().map(BlockRef::kind) else {
         return Err("missing block image".into());
     };
@@ -90,7 +90,7 @@ fn images_preserve_independent_content_and_identity(
     assert!(inline.alt().is_some_and(ContentRef::is_empty));
     assert!(inline.tooltip().is_some_and(ContentRef::is_empty));
     assert_eq!(inline.id().ok_or("missing inline ID")?.as_str(), "inline");
-    let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.get(1) else {
+    let Some(Block::Paragraph(paragraph)) = parsed.document_storage().blocks.get(1) else {
         return Err("missing owner paragraph".into());
     };
     let Some(InlineNode::Macro(InlineMacro::Image(owner))) = paragraph.content.first() else {

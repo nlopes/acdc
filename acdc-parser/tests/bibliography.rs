@@ -13,7 +13,7 @@ fn bibliography_citation_keeps_attribute_escape() -> Result<(), Error> {
         &Options::default(),
     )?;
     let label = parsed
-        .document_ref()
+        .document()
         .references()
         .get("ref")
         .and_then(ReferenceRef::xreflabel)
@@ -70,13 +70,7 @@ fn bibliography_labels_keep_parent_safe_mode_and_original_citation_text() -> Res
     ] {
         let options = Options::builder().with_safe_mode(mode).build()?;
         let parsed = parse(source, &options)?;
-        let list = unordered_list(
-            parsed
-                .document_ref()
-                .blocks()
-                .next()
-                .ok_or("missing list")?,
-        )?;
+        let list = unordered_list(parsed.document().blocks().next().ok_or("missing list")?)?;
         let [InlineKind::Anchor(anchor), ..] = &*list
             .items()
             .next()
@@ -112,13 +106,7 @@ fn bibliography_attribute_values_do_not_become_new_passthroughs() -> Result<(), 
         "= T\n:raw: +++<mark>raw</mark>+++\n\n[bibliography]\n* [[[ref,{raw}]]] Entry.\n",
         &Options::default(),
     )?;
-    let list = unordered_list(
-        parsed
-            .document_ref()
-            .blocks()
-            .next()
-            .ok_or("missing list")?,
-    )?;
+    let list = unordered_list(parsed.document().blocks().next().ok_or("missing list")?)?;
     let [InlineKind::Anchor(anchor), ..] = &*list
         .items()
         .next()
@@ -160,7 +148,7 @@ fn bibliography_sections_promote_only_direct_unstyled_lists() -> Result<(), Erro
         &Options::default(),
     )?;
     let BlockKind::Section(section) = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .ok_or("missing section")?
@@ -230,7 +218,7 @@ fn bibliography_sections_warn_for_each_direct_child_section() -> Result<(), Erro
     );
 
     let BlockKind::Section(bibliography) = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .ok_or("missing bibliography")?
@@ -257,7 +245,7 @@ fn bibliography_sections_warn_for_each_direct_child_section() -> Result<(), Erro
         Some(BlockKind::Section(_))
     ));
     assert!(matches!(
-        parsed.document_ref().blocks().nth(1).map(BlockRef::kind),
+        parsed.document().blocks().nth(1).map(BlockRef::kind),
         Some(BlockKind::Section(_))
     ));
     Ok(())
@@ -285,7 +273,7 @@ fn bibliography_sections_warn_for_setext_child_sections() -> Result<(), Error> {
         5
     );
     let BlockKind::Section(bibliography) = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .ok_or("missing bibliography")?
@@ -325,13 +313,7 @@ fn explicit_bibliography_lists_work_outside_bibliography_sections() -> Result<()
         "See <<ref>>.\n\n[bibliography]\n* [[[ref]]] Reference\n",
         &Options::default(),
     )?;
-    let list = unordered_list(
-        parsed
-            .document_ref()
-            .blocks()
-            .last()
-            .ok_or("missing list")?,
-    )?;
+    let list = unordered_list(parsed.document().blocks().last().ok_or("missing list")?)?;
     let Some(first_item) = list.items().next() else {
         return Err("missing bibliography item".into());
     };
@@ -345,7 +327,7 @@ fn explicit_bibliography_lists_work_outside_bibliography_sections() -> Result<()
 
     assert!(anchor.is_bibliography());
     let reference = parsed
-        .document_ref()
+        .document()
         .references()
         .get("ref")
         .ok_or("missing bibliography reference")?;
@@ -360,13 +342,7 @@ fn bibliography_anchors_require_valid_leading_triple_syntax() -> Result<(), Erro
         "[bibliography]\n* [[[id.with.dot,Short label]]] Valid\n* [[[numbered,1]]] Numbered label\n* [\\[[escaped]]] Escaped\n* [[ordinary]] Ordinary\n* Before [[[late]]] Late\n* [[[9numeric]]] Numeric ID\n* [[[]]] Empty\n",
         &Options::default(),
     )?;
-    let list = unordered_list(
-        parsed
-            .document_ref()
-            .blocks()
-            .next()
-            .ok_or("missing list")?,
-    )?;
+    let list = unordered_list(parsed.document().blocks().next().ok_or("missing list")?)?;
     let [
         valid_item,
         _,
@@ -391,7 +367,7 @@ fn bibliography_anchors_require_valid_leading_triple_syntax() -> Result<(), Erro
     assert!(valid.is_bibliography());
 
     let numbered_label = parsed
-        .document_ref()
+        .document()
         .references()
         .get("numbered")
         .ok_or("missing numbered bibliography reference")?
@@ -418,7 +394,7 @@ fn bibliography_anchors_require_valid_leading_triple_syntax() -> Result<(), Erro
             .inlines()
             .all(|inline| !matches!(inline.kind(), InlineKind::Anchor(_)))
     );
-    assert!(!parsed.document_ref().references().contains("escaped"));
+    assert!(!parsed.document().references().contains("escaped"));
 
     let [InlineKind::Anchor(ordinary), ..] = &*kinds(ordinary_item.principal()) else {
         return Err("expected an ordinary anchor".into());
@@ -442,7 +418,7 @@ fn bibliography_anchors_require_valid_leading_triple_syntax() -> Result<(), Erro
     );
 
     let reference = parsed
-        .document_ref()
+        .document()
         .references()
         .get("id.with.dot")
         .ok_or("missing dotted bibliography reference")?;
@@ -454,7 +430,7 @@ fn bibliography_anchors_require_valid_leading_triple_syntax() -> Result<(), Erro
     assert!(
         matches!(label.inlines().next_back().map(InlineRef::kind), Some(InlineKind::Plain(text)) if text.text() == "]")
     );
-    assert!(!parsed.document_ref().references().contains("9numeric"));
+    assert!(!parsed.document().references().contains("9numeric"));
     Ok(())
 }
 

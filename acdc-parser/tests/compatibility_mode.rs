@@ -60,11 +60,11 @@ fn entry_points_keep_modes_local_to_each_parse() -> Result<(), Error> {
             parse_file(&path, &options)?,
             Parser::new(source).with_options(options.clone()).parse()?,
         ] {
-            let [BlockKind::Paragraph(block)] = &*blocks(parsed.document_ref()) else {
+            let [BlockKind::Paragraph(block)] = &*blocks(parsed.document()) else {
                 return Err("missing paragraph".into());
             };
             assert_named_title(block.title().ok_or("missing title")?, mode, "Title")?;
-            let header = parsed.document_ref().header().ok_or("missing header")?;
+            let header = parsed.document().header().ok_or("missing header")?;
             assert_eq!(
                 header
                     .authors()
@@ -101,11 +101,11 @@ fn includes_and_cells_inherit_mode_without_leaking_local_attributes() -> Result<
                 BlockKind::Table(table),
                 BlockKind::Image(image),
                 BlockKind::Paragraph(link),
-            ] = &*blocks(parsed.document_ref())
+            ] = &*blocks(parsed.document())
             else {
                 return Err(format!(
                     "unexpected blocks: {:?}",
-                    parsed.document_ref().blocks().collect::<Vec<_>>()
+                    parsed.document().blocks().collect::<Vec<_>>()
                 )
                 .into());
             };
@@ -147,7 +147,7 @@ fn includes_and_cells_inherit_mode_without_leaking_local_attributes() -> Result<
             assert!(
                 matches!(kinds(paragraph.content()).as_slice(), [InlineKind::Plain(text)] if text.text() == "Cell two: {cell-word}.")
             );
-            assert!(!parsed.document_ref().attributes().contains("cell-word"));
+            assert!(!parsed.document().attributes().contains("cell-word"));
             assert_named_title(image.title().ok_or("missing title")?, mode, "Outer")?;
             let alt = kinds(image.alt().ok_or("missing alt")?);
             if mode == CompatibilityMode::Draft {
@@ -193,7 +193,7 @@ fn inline_entry_points_keep_content_attribute_and_macro_label_context() -> Resul
             .with_options(options.clone())
             .parse_inline()?;
         let block = parse(source, &options)?;
-        let [BlockKind::Paragraph(paragraph)] = &*blocks(block.document_ref()) else {
+        let [BlockKind::Paragraph(paragraph)] = &*blocks(block.document()) else {
             return Err("missing paragraph".into());
         };
         assert_eq!(direct.content(), fluent.content());
@@ -231,7 +231,7 @@ fn named_title_quoting_follows_compatibility_mode() -> Result<(), Error> {
         ] {
             let source = format!("[{attribute}]\n----\nx\n----");
             let parsed = parse(&source, &options)?;
-            let [BlockKind::Listing(block)] = &*blocks(parsed.document_ref()) else {
+            let [BlockKind::Listing(block)] = &*blocks(parsed.document()) else {
                 return Err("missing listing".into());
             };
             assert_eq!(
@@ -266,7 +266,7 @@ fn draft_roles_and_options_accumulate_once_in_source_order() -> Result<(), Error
         "[role=a,opts=one]\n[roles=b,options='two,three']\n[role=a,opts=two]\nText.",
     ] {
         let parsed = parse(source, &options)?;
-        let [BlockKind::Paragraph(block)] = &*blocks(parsed.document_ref()) else {
+        let [BlockKind::Paragraph(block)] = &*blocks(parsed.document()) else {
             return Err("missing paragraph".into());
         };
         assert_eq!(block.roles().iter().collect::<Vec<_>>(), ["a", "b"]);
@@ -276,8 +276,7 @@ fn draft_roles_and_options_accumulate_once_in_source_order() -> Result<(), Error
         );
     }
     let parsed = parse("[role=a,role=b]\nText.", &Options::default())?;
-    let Some(BlockKind::Paragraph(block)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Paragraph(block)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };
@@ -294,13 +293,13 @@ fn draft_literal_titles_expand_attributes_without_registering_macros() -> Result
         "= T\n:word: expanded\n\n[title=\"{word} footnote:[Literal]\"]\nText.",
         &options,
     )?;
-    let [BlockKind::Paragraph(block)] = &*blocks(parsed.document_ref()) else {
+    let [BlockKind::Paragraph(block)] = &*blocks(parsed.document()) else {
         return Err("missing paragraph".into());
     };
     assert!(
         matches!(kinds(block.title().ok_or("missing title")?).as_slice(), [InlineKind::Raw(text)] if text.text() == "expanded footnote:[Literal]" && text.substitutions().collect::<Vec<_>>() == [Substitution::SpecialChars])
     );
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert_eq!(parsed.document().footnotes().count(), 0);
     let rebuilt = options.into_static().into_builder().build()?;
     assert_eq!(rebuilt.compatibility_mode, CompatibilityMode::Draft);
     Ok(())
@@ -314,11 +313,7 @@ fn draft_media_macro_attributes_accumulate_with_block_metadata() -> Result<(), E
     for media in ["image::photo.svg", "audio::sound.ogg", "video::clip.mp4"] {
         let source = format!("[role=a,opts=one]\n{media}[role=b,role=a,opts='two one']");
         let parsed = parse(&source, &options)?;
-        let block = parsed
-            .document_ref()
-            .blocks()
-            .next()
-            .ok_or("missing block")?;
+        let block = parsed.document().blocks().next().ok_or("missing block")?;
         let (roles, options) = if let BlockKind::Image(image) = block.kind() {
             (image.roles(), image.options())
         } else if let BlockKind::Audio(audio) = block.kind() {
@@ -347,7 +342,7 @@ fn draft_literal_titles_protect_typography_passthroughs_and_entities() -> Result
     ] {
         let parsed = parse(&source, &options)?;
         let block = parsed
-            .document_ref()
+            .document()
             .blocks()
             .next()
             .map(BlockRef::kind)
@@ -363,7 +358,7 @@ fn draft_literal_titles_protect_typography_passthroughs_and_entities() -> Result
         };
         assert!(matches!(kinds(title).as_slice(), [InlineKind::Raw(text)]
             if text.text() == value && text.substitutions().collect::<Vec<_>>() == [Substitution::SpecialChars]));
-        assert_eq!(parsed.document_ref().footnotes().count(), 0);
+        assert_eq!(parsed.document().footnotes().count(), 0);
     }
     Ok(())
 }
@@ -378,7 +373,7 @@ fn named_titles_keep_mode_specific_expansion_and_the_declaration_snapshot() -> R
             );
             let parsed = parse(&source, &options)?;
             let BlockKind::Paragraph(block) = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .last()
                 .map(BlockRef::kind)
@@ -416,7 +411,7 @@ fn draft_dot_titles_still_parse_inline_content() -> Result<(), Error> {
         .with_compatibility_mode(CompatibilityMode::Draft)
         .build()?;
     let parsed = parse(".*Title*\nText.", &options)?;
-    let [BlockKind::Paragraph(block)] = &*blocks(parsed.document_ref()) else {
+    let [BlockKind::Paragraph(block)] = &*blocks(parsed.document()) else {
         return Err("missing paragraph".into());
     };
     assert!(matches!(
@@ -459,7 +454,7 @@ fn document_attributes_cannot_select_the_compatibility_mode() -> Result<(), Erro
     ] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse(source, &options)?;
-        let [BlockKind::Paragraph(block)] = &*blocks(parsed.document_ref()) else {
+        let [BlockKind::Paragraph(block)] = &*blocks(parsed.document()) else {
             return Err("missing paragraph".into());
         };
         assert_eq!(

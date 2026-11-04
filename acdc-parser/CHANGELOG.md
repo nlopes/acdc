@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `ParseResult::document()` now returns `ast::DocumentRef`.
+  Read fields through typed methods such as `blocks()` and `attributes()`.
+  The temporary `document_ref()` method is removed. For independent edits,
+  use `Document::from(parsed.document())`; source text still borrows from the
+  parse result. Native JSON and checked ASG output are unchanged.
+
 - Copy a typed document or block for independent edits with `Document::from` or
   `Block::from`. Copies preserve registered catalogs, source locations, captions,
   and table presentation. Text can still borrow from the parse result.
@@ -15,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use `ast::ReferencesRef::from(&catalog)` to read a caller-constructed reference catalog through the typed API without copying its entries.
 
-- Serialize `ast::DocumentRef` as native AST JSON with Serde. Checked ASG document export now accepts the same typed document: pass `parsed.document_ref()` or `DocumentRef::from(&document)` for a constructed tree. JSON shapes, schema profiles, and validation rules are unchanged.
+- Serialize `ast::DocumentRef` as native AST JSON with Serde. Checked ASG document export now accepts the same typed document: pass `parsed.document()` or `DocumentRef::from(&document)` for a constructed tree. JSON shapes, schema profiles, and validation rules are unchanged.
 
 - Library callers can read table delimiter spelling and opening/closing source ranges through typed table reads, including nested tables and selected includes.
 
@@ -334,7 +340,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   captions, alt/tooltips, labels, and list content. Callers can skip nested fields;
   derived reference, footnote, TOC, and index copies are excluded.
 
-- `ParseResult::document_ref()` provides typed reads of documents, headers, authors,
+- `ParseResult::document()` provides typed reads of documents, headers, authors,
   sections, paragraphs, delimited blocks, admonitions, lists, tables, media,
   discrete headings, TOC blocks, breaks, and comments, with lazy child and inline
   iterators. Read nested bodies, formula text and notation, source delimiters,

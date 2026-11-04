@@ -8,8 +8,7 @@ type Error = Box<dyn std::error::Error>;
 
 fn first_section_number(source: &str, options: &Options<'_>) -> Result<Option<String>, Error> {
     let parsed = parse(source, options)?;
-    let Some(BlockKind::Section(section)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Section(section)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected a section".into());
     };
@@ -45,7 +44,7 @@ fn explicit_hardbreaks_option_unset_masks_hardbreaks_alias() -> Result<(), Error
         .build()?;
     let parsed = parse("= T\n:hardbreaks-option!:\n\nfirst\nsecond\n", &options)?;
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected a paragraph".into());
     };
@@ -63,7 +62,7 @@ fn explicit_hardbreaks_option_unset_masks_hardbreaks_alias() -> Result<(), Error
 fn literal_true_attribute_value_remains_text() -> Result<(), Error> {
     let parsed = parse("= T\n:a: true\n\nX{a}X\n", &Options::default())?;
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected a paragraph".into());
     };

@@ -18,7 +18,7 @@ fn unsupported_passthroughs_keep_source_without_registering_macros(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     assert_eq!(document.footnotes().count(), 0);
     assert!(!document.references().contains("unused"));
     let Some(BlockKind::Paragraph(paragraph)) = document.blocks().last().map(BlockRef::kind) else {
@@ -59,7 +59,7 @@ fn passthrough_recovery_keeps_bracket_escapes_and_later_macro_locations(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().last().map(BlockRef::kind)
+        parsed.document().blocks().last().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };
@@ -78,7 +78,7 @@ fn passthrough_recovery_keeps_bracket_escapes_and_later_macro_locations(
         source.get(raw.location().absolute_start()..=raw.location().absolute_end()),
         Some(raw.text())
     );
-    let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+    let [note] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
         return Err("expected only the later footnote".into());
     };
     assert_eq!(
@@ -97,8 +97,8 @@ fn unsupported_attribute_values_use_the_same_recovery_category(
         include_str!("../fixtures/tests/compatibility_passthrough_recovery.adoc"),
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
-    assert!(!parsed.document_ref().references().contains("unused"));
+    assert_eq!(parsed.document().footnotes().count(), 1);
+    assert!(!parsed.document().references().contains("unused"));
     assert_eq!(parsed.warnings().len(), 10);
     assert!(
         parsed

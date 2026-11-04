@@ -22,7 +22,7 @@ fn block_image_title_attributes_follow_authored_precedence() -> Result<(), Error
         let source = format!("{metadata}image::sample.svg[Alt,{attributes}]\n");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Image(image)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -39,7 +39,7 @@ fn block_image_title_attributes_follow_authored_precedence() -> Result<(), Error
             "{source}: {title:?}"
         );
         assert!(
-            matches!(CaptionRef::resolve(image.attributes(), parsed.document_ref().attributes(), None),
+            matches!(CaptionRef::resolve(image.attributes(), parsed.document().attributes(), None),
             Some(CaptionRef::Numbered { number: Some(number), .. }) if number.get() == 1)
         );
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
@@ -64,10 +64,10 @@ fn selected_image_title_macros_register_once_with_source_locations() -> Result<(
                 "= T\n:word: expanded\n\n{container}.Discarded footnote:[Unused.]\n[title=\"Also discarded footnote:[Unused too.]\"]\nimage::{target}[Alt,title=\"Éva {{word}} footnote:[Selected.]\"]{closing}\n\nBody footnote:[Body.]\n"
             );
             let parsed = parse(&source, &Options::default())?;
-            let [selected, body] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+            let [selected, body] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
                 return Err(format!(
                     "expected two notes: {:?}",
-                    parsed.document_ref().footnotes().collect::<Vec<_>>()
+                    parsed.document().footnotes().collect::<Vec<_>>()
                 )
                 .into());
             };
@@ -87,7 +87,7 @@ fn selected_image_title_macros_register_once_with_source_locations() -> Result<(
 fn metadata_image_title_keeps_attribute_expansion_source_locations() -> Result<(), Error> {
     let source = "= T\n:word: expanded\n\n.Discarded footnote:[Unused.]\n[title=\"Éva {word} footnote:[Selected.]\"]\nimage::sample.svg[Alt]\n";
     let parsed = parse(source, &Options::default())?;
-    let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+    let [note] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
         return Err("expected only the selected title's footnote".into());
     };
     assert_eq!(
@@ -104,7 +104,7 @@ fn verbatim_image_syntax_keeps_the_preceding_title() -> Result<(), Error> {
         let source = format!(".Line\n[{style}]\nimage::sample.svg[Alt,title=Macro]\n");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -125,7 +125,7 @@ fn inline_image_title_remains_a_tooltip() -> Result<(), Error> {
         &Options::default(),
     )?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()

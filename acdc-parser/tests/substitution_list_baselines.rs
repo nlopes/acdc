@@ -37,7 +37,7 @@ fn parsed_substitution_entries_preserve_source_spelling() -> Result<(), Error> {
         let source = format!(":chosen: verbatim,-macros\n\n[subs=\"{value}\"]\nContent.\n");
         let parsed = parse(&source, &Options::default())?;
         let Some(BlockKind::Paragraph(paragraph)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected a paragraph".into());
         };
@@ -60,7 +60,7 @@ fn parsed_substitution_entries_preserve_source_spelling() -> Result<(), Error> {
             .collect::<Result<Vec<_>, _>>()?;
         assert_eq!(entries, expected, "{value}");
         assert_eq!(
-            serde_json::to_value(parsed.document_ref())?
+            serde_json::to_value(parsed.document())?
                 .pointer("/blocks/0/metadata/substitutions")
                 .ok_or("missing native substitution list")?,
             &serde_json::to_value(&expected)?,
@@ -70,7 +70,7 @@ fn parsed_substitution_entries_preserve_source_spelling() -> Result<(), Error> {
             let _ = spec.resolve(baseline);
         }
         assert_eq!(
-            serde_json::to_value(parsed.document_ref())?
+            serde_json::to_value(parsed.document())?
                 .pointer("/blocks/0/metadata/substitutions")
                 .ok_or("missing native substitution list")?,
             &serde_json::to_value(&expected)?,
@@ -102,11 +102,11 @@ fn empty_substitution_specs_remain_distinct_from_block_defaults() -> Result<(), 
             );
             let parsed = parse(&source, &Options::default())?;
             let Some(BlockKind::Paragraph(paragraph)) =
-                parsed.document_ref().blocks().next().map(BlockRef::kind)
+                parsed.document().blocks().next().map(BlockRef::kind)
             else {
                 return Err("expected a paragraph".into());
             };
-            let json = serde_json::to_value(parsed.document_ref())?;
+            let json = serde_json::to_value(parsed.document())?;
             if metadata.is_empty() {
                 assert!(paragraph.attributes().get("subs").is_none());
                 assert!(json.pointer("/blocks/0/metadata/substitutions").is_none());
@@ -176,16 +176,8 @@ fn plain_first_substitution_lists_do_not_register_disabled_macros() -> Result<()
             );
             let parsed = parse(&source, &Options::default())?;
             let expected = 0;
-            assert_eq!(
-                parsed.document_ref().footnotes().count(),
-                expected,
-                "{source}"
-            );
-            assert_eq!(
-                parsed.document_ref().references().len(),
-                expected,
-                "{source}"
-            );
+            assert_eq!(parsed.document().footnotes().count(), expected, "{source}");
+            assert_eq!(parsed.document().references().len(), expected, "{source}");
         }
     }
     Ok(())
@@ -206,18 +198,11 @@ fn mixed_substitution_lists_keep_enabled_macro_order() -> Result<(), Error> {
              {{value}} anchor:direct[]footnote:[Direct note.]\n"
         );
         let parsed = parse(&source, &Options::default())?;
+        assert_eq!(parsed.document().footnotes().count(), expected, "{subs}");
+        assert_eq!(parsed.document().references().len(), expected, "{subs}");
+        assert!(parsed.document().references().contains("direct"), "{subs}");
         assert_eq!(
-            parsed.document_ref().footnotes().count(),
-            expected,
-            "{subs}"
-        );
-        assert_eq!(parsed.document_ref().references().len(), expected, "{subs}");
-        assert!(
-            parsed.document_ref().references().contains("direct"),
-            "{subs}"
-        );
-        assert_eq!(
-            parsed.document_ref().references().contains("from-value"),
+            parsed.document().references().contains("from-value"),
             expected == 2,
             "{subs}"
         );

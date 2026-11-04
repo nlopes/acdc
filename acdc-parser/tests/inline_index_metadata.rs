@@ -99,7 +99,7 @@ fn index_controls_restore_protected_values_without_registering_content() -> Resu
         &Options::default(),
     )?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -136,7 +136,7 @@ fn index_controls_freeze_at_macro_recognition_without_duplicating_catalog_metada
         &Options::default(),
     )?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -155,7 +155,7 @@ fn index_controls_freeze_at_macro_recognition_without_duplicating_catalog_metada
         node.attributes().get("custom"),
         Some(AttributeValueRef::Text("{control}"))
     );
-    let native = serde_json::to_value(parsed.document_ref())?;
+    let native = serde_json::to_value(parsed.document())?;
     let json = native
         .pointer("/blocks/0/inlines/0")
         .ok_or("native index term")?;
@@ -200,7 +200,7 @@ fn index_ids_follow_expansion_includes_and_table_cells(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     blocks.next().ok_or("first paragraph")?;
     let BlockKind::Paragraph(paragraph) = blocks.next().ok_or("paragraph")?.kind() else {
         return Err("paragraph".into());

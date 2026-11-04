@@ -53,7 +53,7 @@ fn content_ids<'a>(content: ContentRef<'a>, ids: &mut Vec<ElementIdRef<'a>>) {
 
 fn ids(parsed: &ParseResult) -> Vec<ElementIdRef<'_>> {
     let mut ids = Vec::new();
-    for node in parsed.document_ref().descendants() {
+    for node in parsed.document().descendants() {
         if let StructuralRef::Block(block) = node {
             if let Some(title) = block.title() {
                 content_ids(title, &mut ids);

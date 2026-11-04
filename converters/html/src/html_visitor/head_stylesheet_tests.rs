@@ -32,11 +32,8 @@ fn custom_stylesheet_paths_respect_the_source_directory_and_absolute_paths() -> 
         let parsed = parse("Body.\n", &options)?;
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let actual = resolve_custom_css(
-            parsed.document_ref().attributes(),
-            source_dir,
-            &mut diagnostics,
-        );
+        let actual =
+            resolve_custom_css(parsed.document().attributes(), source_dir, &mut diagnostics);
         assert_eq!(actual.as_deref(), Some(contents));
         assert!(warnings.is_empty(), "{warnings:?}");
     }
@@ -56,7 +53,7 @@ fn missing_custom_stylesheet_returns_a_structured_fallback_warning() -> Result<(
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     assert!(
         resolve_custom_css(
-            parsed.document_ref().attributes(),
+            parsed.document().attributes(),
             Some(temp.path()),
             &mut diagnostics,
         )
@@ -95,8 +92,7 @@ fn absent_empty_and_unset_stylesheets_do_not_attempt_a_custom_file_read() -> Res
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         assert!(
-            resolve_custom_css(parsed.document_ref().attributes(), None, &mut diagnostics)
-                .is_none()
+            resolve_custom_css(parsed.document().attributes(), None, &mut diagnostics).is_none()
         );
         assert!(warnings.is_empty(), "{warnings:?}");
     }

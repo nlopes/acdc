@@ -1079,9 +1079,9 @@ mod tests {
             &Options::default(),
         )?;
         let mut document = Document {
-            attributes: parsed.document().attributes.clone(),
-            blocks: parsed.document().blocks.clone(),
-            references: parsed.document().references.clone(),
+            attributes: parsed.document_storage().attributes.clone(),
+            blocks: parsed.document_storage().blocks.clone(),
+            references: parsed.document_storage().references.clone(),
             ..Document::default()
         };
         let outer = document
@@ -1151,16 +1151,16 @@ mod tests {
             &Options::default(),
         )?;
         let mut document = Document {
-            attributes: parsed.document().attributes.clone(),
-            blocks: parsed.document().blocks.clone(),
-            toc_entries: parsed.document().toc_entries.clone(),
-            references: parsed.document().references.clone(),
+            attributes: parsed.document_storage().attributes.clone(),
+            blocks: parsed.document_storage().blocks.clone(),
+            toc_entries: parsed.document_storage().toc_entries.clone(),
+            references: parsed.document_storage().references.clone(),
             ..Document::default()
         };
         document.renumber_sections();
         for (id, reference) in &document.references {
             let original = parsed
-                .document()
+                .document_storage()
                 .references
                 .get(id)
                 .ok_or("missing reference")?;

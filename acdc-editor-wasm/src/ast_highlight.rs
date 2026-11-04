@@ -1082,7 +1082,7 @@ mod tests {
         sources: &[(&str, &str)],
     ) -> Result<String, Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(input, &crate::test_sources::options(sources)?)?;
-        Ok(highlight_from_ast(input, parsed.document_ref()))
+        Ok(highlight_from_ast(input, parsed.document()))
     }
 
     fn source_text(html: &str) -> String {
@@ -1179,17 +1179,13 @@ mod tests {
             input,
             &crate::test_sources::options(&[("part.adoc", "_included italic_\n")])?,
         )?;
-        let block = parsed
-            .document_ref()
-            .blocks()
-            .next()
-            .ok_or("missing block")?;
+        let block = parsed.document().blocks().next().ok_or("missing block")?;
         let BlockKind::Section(section) = block.kind() else {
             return Err("missing section".into());
         };
         assert!(section.location().start().include_chain().is_none());
         assert!(section.location().end().include_chain().is_some());
-        let html = highlight_from_ast(input, parsed.document_ref());
+        let html = highlight_from_ast(input, parsed.document());
         assert!(html.contains("adoc-heading"), "{html}");
         assert!(!html.contains("adoc-italic"), "{html}");
         assert_eq!(source_text(&html), input);
@@ -1199,7 +1195,7 @@ mod tests {
     fn highlight(input: &str) -> String {
         let options = acdc_parser::Options::default();
         if let Ok(parsed) = acdc_parser::parse(input, &options) {
-            highlight_from_ast(input, parsed.document_ref())
+            highlight_from_ast(input, parsed.document())
         } else {
             let mut out = String::new();
             escape_into(input, &mut out);
@@ -1595,7 +1591,7 @@ mod tests {
         let input = "Setext Header\n-------------";
         let options = acdc_parser::Options::builder().build()?;
         let parsed = acdc_parser::parse(input, &options).expect("failed to parse setext");
-        let result = highlight_from_ast(input, parsed.document_ref());
+        let result = highlight_from_ast(input, parsed.document());
 
         // Should contain two adoc-heading spans (one for title, one for underline)
         let matches: Vec<_> = result.matches("adoc-heading").collect();

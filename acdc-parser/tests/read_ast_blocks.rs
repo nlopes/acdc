@@ -37,18 +37,18 @@ fn typed_section_numbers_follow_article_depth_and_catalog_order(
     ] {
         let source = format!("= Manual\n{attributes}\n== First\n\n=== Nested\n");
         let parsed = parse(&source, &options)?;
-        let before = serde_json::to_value(parsed.document_ref())?;
-        let numbers = section_numbers(parsed.document_ref());
+        let before = serde_json::to_value(parsed.document())?;
+        let numbers = section_numbers(parsed.document());
         assert_eq!(numbers, expected);
         assert_eq!(
             numbers,
             parsed
-                .document_ref()
+                .document()
                 .toc_entries()
                 .map(TocEntryRef::number)
                 .collect::<Vec<_>>()
         );
-        assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+        assert_eq!(serde_json::to_value(parsed.document())?, before);
     }
     Ok(())
 }
@@ -61,7 +61,7 @@ fn typed_section_numbers_keep_book_parts_chapters_and_appendices_distinct(
         "= Book\n:doctype: book\n:sectnums:\n:partnums:\n\n[preface]\n= Preface\n\n=== Preface Topic\n\n= Part\n\n== Chapter\n\n=== Topic\n\n[appendix]\n== Appendix Material\n\n=== Appendix Topic\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let numbers = section_numbers(parsed.document_ref());
+    let numbers = section_numbers(parsed.document());
     assert_eq!(
         numbers,
         [
@@ -77,7 +77,7 @@ fn typed_section_numbers_keep_book_parts_chapters_and_appendices_distinct(
     assert_eq!(
         numbers,
         parsed
-            .document_ref()
+            .document()
             .toc_entries()
             .map(TocEntryRef::number)
             .collect::<Vec<_>>()
@@ -113,13 +113,8 @@ fn compound_blocks_expose_nested_content_and_distinct_metadata(
          --\n****\n[quote,'*Ada*','*Notes*']\n____\nA *quote*.\n____\n****\n--\n====\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
-    let BlockKind::Example(example) = parsed
-        .document_ref()
-        .blocks()
-        .next()
-        .ok_or("example")?
-        .kind()
+    let before = serde_json::to_value(parsed.document())?;
+    let BlockKind::Example(example) = parsed.document().blocks().next().ok_or("example")?.kind()
     else {
         return Err("example".into());
     };
@@ -150,7 +145,7 @@ fn compound_blocks_expose_nested_content_and_distinct_metadata(
         return Err("paragraph".into());
     };
     assert_eq!(text(body.content())?, "A quote.");
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }
@@ -168,7 +163,7 @@ fn inline_and_math_bodies_keep_their_content_kinds(
          ////\nHidden\n////\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let BlockKind::Listing(listing) = blocks.next().ok_or("listing")?.kind() else {
         return Err("listing".into());
     };
@@ -242,8 +237,8 @@ fn reads_preserve_mode_policy_and_explicit_body_substitutions(
          [verse,attribution='',citetitle='',subs=none]\n____\n*Literal*\n____\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
-    let mut blocks = parsed.document_ref().blocks();
+    let before = serde_json::to_value(parsed.document())?;
+    let mut blocks = parsed.document().blocks();
     let BlockKind::Listing(listing) = blocks.next().ok_or("listing")?.kind() else {
         return Err("listing".into());
     };
@@ -274,7 +269,7 @@ fn reads_preserve_mode_policy_and_explicit_body_substitutions(
     assert!(verse.citetitle().ok_or("empty citation")?.is_empty());
     assert_eq!(text(verse.content())?, "*Literal*");
     assert!(verse.title().is_none());
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 
@@ -284,7 +279,7 @@ fn admonitions_expose_kind_metadata_and_children() -> Result<(), Error> {
         ".Careful\n[#warning,role=alert]\n[WARNING]\n====\nFirst.\n\nSecond.\n====\n\nNOTE: Inline note.\n",
         &Options::default(),
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let BlockKind::Admonition(warning) = blocks.next().ok_or("warning")?.kind() else {
         return Err("warning".into());
     };
@@ -350,12 +345,7 @@ fn included_delimiters_resolve_to_the_authored_file() -> Result<(), Error> {
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let BlockKind::Listing(listing) = parsed
-        .document_ref()
-        .blocks()
-        .next()
-        .ok_or("listing")?
-        .kind()
+    let BlockKind::Listing(listing) = parsed.document().blocks().next().ok_or("listing")?.kind()
     else {
         return Err("listing".into());
     };
@@ -367,7 +357,7 @@ fn included_delimiters_resolve_to_the_authored_file() -> Result<(), Error> {
     assert_eq!(closing.location.start.line, 3);
     assert_eq!(text(listing.content())?, "λ code");
     assert!(matches!(
-        parsed.document_ref().blocks().next().map(BlockRef::kind),
+        parsed.document().blocks().next().map(BlockRef::kind),
         Some(BlockKind::Listing(_))
     ));
     Ok(())
@@ -382,7 +372,7 @@ fn typed_heading_ids_can_be_owned_past_temporary_sources(
         let source = String::from("= Manual\n\n== *Héading*\n\n[discrete]\n=== Other\n");
         let parsed = parse(&source, &options)?;
         parsed
-            .document_ref()
+            .document()
             .descendants()
             .filter_map(|node| {
                 let StructuralRef::Block(block) = node else {

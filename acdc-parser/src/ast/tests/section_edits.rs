@@ -16,10 +16,10 @@ fn renumbering_the_sections_refreshes_the_catalog() -> Result<(), Error> {
     let source = "= A\n:sectnums:\n\n[[first]]\n== First\n\nx\n\n[[second]]\n== Second\n\nx\n";
     let parsed = parse(source, &Options::default())?;
     let mut document = Document::default();
-    document.attributes = parsed.document().attributes.clone();
-    document.blocks = parsed.document().blocks.clone();
-    document.toc_entries = parsed.document().toc_entries.clone();
-    document.references = parsed.document().references.clone();
+    document.attributes = parsed.document_storage().attributes.clone();
+    document.blocks = parsed.document_storage().blocks.clone();
+    document.toc_entries = parsed.document_storage().toc_entries.clone();
+    document.references = parsed.document_storage().references.clone();
     assert_eq!(
         section_reference(&document.references, "second")?.section_number(),
         Some("2")

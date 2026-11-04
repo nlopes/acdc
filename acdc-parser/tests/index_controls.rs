@@ -91,11 +91,11 @@ fn discarded_index_controls_and_relationships_do_not_register_footnotes() -> Res
          indexterm2:[Selected footnote:used[Only note.],custom=kept]",
         &Options::default(),
     )?;
-    let mut definitions = parsed.document_ref().footnotes();
+    let mut definitions = parsed.document().footnotes();
     let (Some(note), None) = (definitions.next(), definitions.next()) else {
         return Err(format!(
             "expected one selected note: {:?}",
-            parsed.document_ref().footnotes().collect::<Vec<_>>()
+            parsed.document().footnotes().collect::<Vec<_>>()
         )
         .into());
     };

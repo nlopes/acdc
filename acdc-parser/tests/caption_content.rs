@@ -37,7 +37,7 @@ fn nested_caption_references_use_the_declaration_snapshot(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let node = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(BlockRef::attributes)
         .find_map(|metadata| caption_content(metadata).and_then(|content| content.inlines().next()))
@@ -63,7 +63,7 @@ fn introduced_caption_markup_is_parsed_independently_of_body_substitutions(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let node = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .and_then(BlockRef::attributes)
@@ -91,7 +91,7 @@ fn a_single_character_caption_keeps_its_authored_byte_span(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let node = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .and_then(BlockRef::attributes)
@@ -118,7 +118,7 @@ fn included_caption_nodes_keep_the_authored_reference_and_file(
             .build()?,
     )?;
     let node = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(BlockRef::attributes)
         .filter_map(caption_content)
@@ -149,7 +149,7 @@ fn included_caption_nodes_keep_the_authored_reference_and_file(
             (11, 18)
         );
     }
-    assert_eq!(parsed.document_ref().footnotes().count(), 2);
+    assert_eq!(parsed.document().footnotes().count(), 2);
     Ok(())
 }
 
@@ -181,7 +181,7 @@ fn selected_caption_and_alt_content_registers_footnotes_in_source_order(
     };
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .footnotes()
             .map(FootnoteDefinitionRef::id)
             .collect::<Vec<_>>(),
@@ -209,9 +209,9 @@ fn custom_and_empty_captions_leave_each_kind_numbering_unchanged(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     let captions = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(BlockRef::attributes)
         .filter_map(|metadata| CaptionRef::resolve(metadata, document.attributes(), None))
@@ -226,7 +226,7 @@ fn custom_and_empty_captions_leave_each_kind_numbering_unchanged(
             matches!(caption, CaptionRef::Numbered {kind, number:Some(number), ..} if *kind == expected && number.get() == ordinal)
         );
     }
-    assert_eq!(parsed.document_ref().highest_caption_number(expected), 2);
+    assert_eq!(parsed.document().highest_caption_number(expected), 2);
     Ok(())
 }
 
@@ -239,7 +239,7 @@ fn cross_reference_targets_retain_the_selected_caption_content(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     let metadata = document
         .blocks()
         .next()
@@ -294,14 +294,14 @@ fn expanded_caption_and_alt_keep_attribute_order_when_source_spans_coincide(
     };
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .footnotes()
             .map(FootnoteDefinitionRef::id)
             .collect::<Vec<_>>(),
         expected
     );
     let content = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .and_then(BlockRef::attributes)

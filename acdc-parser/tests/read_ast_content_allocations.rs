@@ -16,15 +16,11 @@ fn direct_field_reads_do_not_allocate() -> Result<(), Box<dyn Error>> {
         ":experimental:\n\n.Title\n[attribution='Credit',citetitle='Cite',caption='Prefix',reftext='Reference']\nimage:bird[Alt,title=Tip] kbd:[Ctrl+A] menu:File[Open > Recent] indexterm:[One,Two,Three,see-also=\"Four,Five\"]\n\n[[anchor,Label]]\nParagraph.\n",
         &Options::default(),
     )?;
-    let block = parsed.document_ref().blocks().next().ok_or("block")?;
+    let block = parsed.document().blocks().next().ok_or("block")?;
     let BlockKind::Paragraph(paragraph) = block.kind() else {
         return Err("paragraph".into());
     };
-    let anchor_block = parsed
-        .document_ref()
-        .blocks()
-        .nth(1)
-        .ok_or("anchor block")?;
+    let anchor_block = parsed.document().blocks().nth(1).ok_or("anchor block")?;
     let anchor = anchor_block.primary_anchor().ok_or("anchor")?;
     let region = Region::new(ALLOCATOR);
     for _ in 0..32 {

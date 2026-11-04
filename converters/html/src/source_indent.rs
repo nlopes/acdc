@@ -230,7 +230,7 @@ mod tests {
         use acdc_converters_core::WarningSource;
         use acdc_parser::{AttributeValue, Location, Options, Paragraph, ast::ParagraphRef, parse};
         let parsed = parse(":source-indent: 4\n\nText.", &Options::default())?;
-        let traversal = TraversalContext::new(parsed.document_ref().attributes());
+        let traversal = TraversalContext::new(parsed.document().attributes());
         let source = WarningSource::new("html");
         for style in [None, Some("source"), Some("literal")] {
             for (local, expected, warning) in [

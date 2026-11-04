@@ -31,7 +31,7 @@ fn cell_initial_assignments_are_ordered_and_stay_in_the_cell_scope(
         "= T\n:doctype: book\n:toc:\n:showtitle:\n\n[cols=a]\n|===\n|\n:local: cell\n\n{doctype}\n|===\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     let BlockKind::Table(table) = document.blocks().next().ok_or("table")?.kind() else {
         return Err("table".into());
     };
@@ -76,7 +76,11 @@ fn cell_initial_assignments_are_ordered_and_stay_in_the_cell_scope(
     );
     assert!(document.attributes().contains("toc"));
     assert!(document.attributes().get("local").is_none());
-    let owner_table = parsed.document().blocks.first().ok_or("owner table")?;
+    let owner_table = parsed
+        .document_storage()
+        .blocks
+        .first()
+        .ok_or("owner table")?;
     let crate::Block::DelimitedBlock(block) = owner_table else {
         return Err("delimited table".into());
     };
@@ -107,9 +111,9 @@ fn document_attribute_snapshots_preserve_values_provenance_and_input_policy(
         .with_default_attribute("processor", "fallback")
         .build()?;
     let parsed = parse(":flag:\n:removed!:\n:figure-caption!:\n\nBody.\n", &options)?;
-    let original = &parsed.document().attributes;
+    let original = &parsed.document_storage().attributes;
     let before = serde_json::to_value(original)?;
-    let copied = DocumentAttributes::from(parsed.document_ref().attributes());
+    let copied = DocumentAttributes::from(parsed.document().attributes());
     assert_eq!(&copied, original);
     assert_eq!(serde_json::to_value(&copied)?, before);
     assert!(
@@ -147,8 +151,11 @@ fn document_attribute_snapshots_preserve_values_provenance_and_input_policy(
         input,
         &Options::default().with_document_attributes(original.clone()),
     )?;
-    assert_eq!(replay.document().attributes, expected.document().attributes);
-    let values = replay.document_ref().attributes();
+    assert_eq!(
+        replay.document_storage().attributes,
+        expected.document_storage().attributes
+    );
+    let values = replay.document().attributes();
     assert_eq!(
         values.get("locked").and_then(DocumentAttributeValue::text),
         Some("caller")

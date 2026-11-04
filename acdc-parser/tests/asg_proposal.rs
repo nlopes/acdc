@@ -167,8 +167,8 @@ fn migration_preserves_real_semantic_content_without_changing_native_values() ->
             include_str!("../fixtures/tests/asg_content_images.adoc"),
             &options,
         )?;
-        let before = serde_json::to_value(parsed.document_ref())?;
-        let mut value = asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc)?;
+        let before = serde_json::to_value(parsed.document())?;
+        let mut value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         let prefix = value
             .pointer("/blocks/1/caption/prefix")
             .ok_or("caption prefix")?
@@ -187,7 +187,7 @@ fn migration_preserves_real_semantic_content_without_changing_native_values() ->
             value.pointer("/blocks/2/captioning/counter"),
             Some(&json!("figure"))
         );
-        assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+        assert_eq!(serde_json::to_value(parsed.document())?, before);
     }
     Ok(())
 }

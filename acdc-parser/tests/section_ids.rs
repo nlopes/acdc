@@ -18,14 +18,14 @@ fn generated_section_ids_include_preceding_included_sections() -> Result<(), Err
     )?;
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .toc_entries()
             .map(TocEntryRef::id)
             .collect::<Vec<_>>(),
         ["_same", "_same_2"]
     );
     let first = parsed
-        .document_ref()
+        .document()
         .references()
         .get("_same")
         .ok_or("missing first section")?;
@@ -42,7 +42,7 @@ fn generated_section_ids_include_setext_headings() -> Result<(), Error> {
     )?;
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .toc_entries()
             .map(TocEntryRef::id)
             .collect::<Vec<_>>(),
@@ -57,7 +57,7 @@ fn generated_section_ids_skip_occupied_suffixes_and_keep_toc_targets() -> Result
         "= T\n\n[[_same_2]]\nReserved.\n\n== Same\n\n== Same\n\n=== Same\n\nSee <<_same_3>> and <<_same_4>>.\n",
         &Options::default(),
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     let ids: Vec<_> = document.toc_entries().map(TocEntryRef::id).collect();
     assert_eq!(ids, ["_same", "_same_3", "_same_4"]);
     for id in ids {
@@ -83,7 +83,7 @@ fn natural_section_references_follow_unique_ids_after_slug_collisions() -> Resul
         &Options::default(),
     )?;
     let BlockKind::Section(section) = parsed
-        .document_ref()
+        .document()
         .blocks()
         .nth(1)
         .ok_or("missing section")?
@@ -117,7 +117,7 @@ fn generated_section_ids_are_shared_across_asciidoc_table_cells() -> Result<(), 
         "= T\n\n== Same\n\n[cols=\"a\"]\n|===\n|== Same\n\ncell\n|===\n\n== Same\n",
         &Options::default(),
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     assert_eq!(
         document
             .toc_entries()

@@ -35,7 +35,7 @@ fn complete_tokens_use_profile_text_as_word_context(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -69,7 +69,7 @@ fn complete_tokens_use_profile_text_as_word_context(
         );
     }
     assert_eq!(
-        parsed.document_ref().footnotes().count(),
+        parsed.document().footnotes().count(),
         usize::from(context.starts_with("footnote:"))
     );
     assert_eq!(parsed.warnings(), []);
@@ -94,7 +94,7 @@ fn active_profiles_keep_their_own_replacement_setting(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let kinds = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -124,7 +124,7 @@ fn later_outer_expansion_cannot_supply_word_context(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let count = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter(|node| matches!(node.kind(), InlineKind::Symbol(_)))

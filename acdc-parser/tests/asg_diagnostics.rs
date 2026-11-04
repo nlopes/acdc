@@ -42,13 +42,13 @@ fn unsupported_nested_content_keeps_its_own_source() -> Result<(), Error> {
                 .with_compatibility_mode(mode)
                 .build()?,
         )?;
-        let before = serde_json::to_value(parsed.document_ref())?;
+        let before = serde_json::to_value(parsed.document())?;
         let Err(asg::Error::Unsupported {
             path,
             construct,
             location,
             ..
-        }) = asg::document(parsed.document_ref())
+        }) = asg::document(parsed.document())
         else {
             return Err("wrong error category".into());
         };
@@ -59,7 +59,7 @@ fn unsupported_nested_content_keeps_its_own_source() -> Result<(), Error> {
             source.get(location.absolute_start..=location.absolute_end),
             Some("image:photo.png[Alt]")
         );
-        assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+        assert_eq!(serde_json::to_value(parsed.document())?, before);
     }
     Ok(())
 }
@@ -112,7 +112,7 @@ fn omitted_comments_do_not_shift_error_paths() -> Result<(), Error> {
         &acdc_parser::Options::default(),
     )?;
     assert!(
-        matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {
+        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {
         path, construct: Some("block image"), location: Some(_), ..
     }) if path == "/blocks/0/alt")
     );
@@ -136,7 +136,7 @@ fn unsupported_source_keeps_include_chains() -> Result<(), Error> {
         construct,
         location,
         ..
-    }) = asg::document(parsed.document_ref())
+    }) = asg::document(parsed.document())
     else {
         return Err("wrong error category".into());
     };
@@ -160,7 +160,7 @@ fn protected_document_values_have_no_invented_declaration_range() -> Result<(), 
         &acdc_parser::Options::default(),
     )?;
     assert!(
-        matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {
+        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {
         path, construct: Some("document attribute"), location: None, ..
     }) if path == "/attributes/protected")
     );

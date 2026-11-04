@@ -11,7 +11,7 @@ fn default_literal_paragraph_keeps_formatting_escapes() -> Result<(), Error> {
     let text = r"\*literal\* \^up^ \~down~ \__italic__";
     let parsed = parse(&format!("[literal]\n{text}\n"), &Options::default())?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -38,7 +38,7 @@ fn quotes_disabled_preserves_formatting_escapes_and_source_spans() -> Result<(),
             let source = format!("[{style}subs=\"+macros,-quotes\"]\n{body}\n");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -83,7 +83,7 @@ fn verbatim_quotes_keep_indented_multiline_source_spans() -> Result<(), Error> {
     let source = "[subs=+quotes]\n *First\n   café* after.\n";
     let parsed = parse(source, &Options::default())?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()

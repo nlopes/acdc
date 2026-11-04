@@ -23,7 +23,7 @@ fn modes() -> Result<[Options<'static>; 2], Error> {
 fn asg_preserves_present_empty_header_titles() -> Result<(), Error> {
     let parsed = parse("Text.", &Options::default())?;
     let mut document = Document::default();
-    document.location = Location::from(parsed.document_ref().location());
+    document.location = Location::from(parsed.document().location());
     document.header = Some(Header::new(
         Title::new(Vec::new()),
         document.location.clone(),
@@ -40,7 +40,7 @@ fn asg_preserves_explicit_unsets_and_numeric_spelling() -> Result<(), Error> {
             "= Title\n:flag!:\n:toclevels: 03\n:text: 001\n\nText.\n",
             &options,
         )?;
-        let value = asg::document(parsed.document_ref())?;
+        let value = asg::document(parsed.document())?;
         assert_eq!(value.pointer("/attributes/flag"), Some(&Value::Null));
         assert_eq!(value.pointer("/attributes/toclevels"), Some(&json!("03")));
         assert_eq!(value.pointer("/attributes/text"), Some(&json!("001")));
@@ -54,7 +54,7 @@ fn asg_preserves_literal_text_raw_text_and_resolved_typography() -> Result<(), E
         "Text +<literal>+ and +++<b>raw</b>+++ ... (C).",
         &Options::default(),
     )?;
-    let value = asg::document(parsed.document_ref())?;
+    let value = asg::document(parsed.document())?;
     let content = value
         .pointer("/blocks/0/inlines")
         .and_then(Value::as_array)
@@ -102,15 +102,15 @@ fn asg_rejects_unsupported_meaning_at_any_depth() -> Result<(), Error> {
             ("[#inline]*Bold*", "/blocks/0/inlines/0/id"),
         ] {
             let parsed = parse(source, &options)?;
-            let before = serde_json::to_value(parsed.document_ref())?;
-            let Err(error) = asg::document(parsed.document_ref()) else {
+            let before = serde_json::to_value(parsed.document())?;
+            let Err(error) = asg::document(parsed.document()) else {
                 return Err(format!("unsupported source was accepted: {source}").into());
             };
             let asg::Error::Unsupported { path, .. } = error else {
                 return Err(format!("wrong error for {source}: {error}").into());
             };
             assert!(path.starts_with(prefix), "{source}: {path}");
-            assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+            assert_eq!(serde_json::to_value(parsed.document())?, before);
         }
     }
     Ok(())
@@ -194,13 +194,13 @@ fn asg_rejects_attribute_protection_and_preserves_literal_quotes() -> Result<(),
         &Options::default(),
     )?;
     assert!(
-        matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported { path, .. }) if path == "/attributes/protected")
+        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported { path, .. }) if path == "/attributes/protected")
     );
     let parsed = parse(
         "= Title\n:quoted: \"literal\"\n:enabled:\n\nText.",
         &Options::default(),
     )?;
-    let value = asg::document(parsed.document_ref())?;
+    let value = asg::document(parsed.document())?;
     assert_eq!(
         value.pointer("/attributes/quoted"),
         Some(&json!("\"literal\""))
@@ -219,7 +219,7 @@ fn asg_reads_classified_references_and_literal_ampersands() -> Result<(), Error>
             (r"\&copy;", "text", "&copy;"),
         ] {
             let parsed = parse(source, &options)?;
-            let exported = asg::document(parsed.document_ref())?;
+            let exported = asg::document(parsed.document())?;
             assert_eq!(
                 exported.pointer("/blocks/0/inlines/0/name"),
                 Some(&json!(name))
@@ -232,7 +232,7 @@ fn asg_reads_classified_references_and_literal_ampersands() -> Result<(), Error>
     }
     let parsed = parse("[custom,alpha]\nText.", &Options::default())?;
     assert!(matches!(
-        asg::document(parsed.document_ref()),
+        asg::document(parsed.document()),
         Err(asg::Error::Unsupported { .. })
     ));
     Ok(())

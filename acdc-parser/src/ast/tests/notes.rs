@@ -60,10 +60,10 @@ fn footnote_occurrences_and_definitions_remain_separate(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
-    let catalog_before = parsed.document().footnotes.clone();
+    let before = serde_json::to_value(parsed.document_storage())?;
+    let catalog_before = parsed.document_storage().footnotes.clone();
     let warnings_before = format!("{:?}", parsed.warnings());
-    let occurrences: Vec<_> = notes(paragraph(parsed.document_ref())?).collect();
+    let occurrences: Vec<_> = notes(paragraph(parsed.document())?).collect();
     let &[first, reference, repeated, anonymous] = occurrences.as_slice() else {
         return Err("four footnote occurrences".into());
     };
@@ -88,7 +88,7 @@ fn footnote_occurrences_and_definitions_remain_separate(
     );
     assert_eq!(slice(source, reference.location()), Some("footnote:n[]"));
     let definitions = {
-        let document = parsed.document_ref();
+        let document = parsed.document();
         document.footnotes()
     };
     let definitions: Vec<FootnoteDefinitionRef<'_>> = definitions.collect();
@@ -110,8 +110,8 @@ fn footnote_occurrences_and_definitions_remain_separate(
         .find(|inline| matches!(inline.kind(), InlineKind::Bold(_)))
         .ok_or("bold")?;
     assert_eq!(slice(source, bold.location()), Some("*bold*"));
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
-    assert_eq!(parsed.document().footnotes, catalog_before);
+    assert_eq!(serde_json::to_value(parsed.document_storage())?, before);
+    assert_eq!(parsed.document_storage().footnotes, catalog_before);
     assert_eq!(format!("{:?}", parsed.warnings()), warnings_before);
     Ok(())
 }

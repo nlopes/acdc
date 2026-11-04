@@ -24,7 +24,7 @@ fn removed_profiles_keep_typography_in_the_parser(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -78,7 +78,7 @@ fn symbols_after_empty_profiles_keep_their_source_owner(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -114,7 +114,7 @@ fn empty_profiles_do_not_enable_disabled_replacements(
     )?;
     assert!(
         !parsed
-            .document_ref()
+            .document()
             .content_occurrences()
             .flat_map(|field| field.content().inlines())
             .any(|node| matches!(node.kind(), InlineKind::Symbol(_)))

@@ -31,8 +31,7 @@ fn unordered_items_keep_principal_blocks_markers_and_checklist_states(
         ".Tasks\n[#tasks,role=todo,options=custom]\n* [ ] *First*\n+\nAttached.\n+\n** [x] Nested\n* Plain\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let BlockKind::UnorderedList(list) =
-        parsed.document_ref().blocks().next().ok_or("list")?.kind()
+    let BlockKind::UnorderedList(list) = parsed.document().blocks().next().ok_or("list")?.kind()
     else {
         return Err("unordered list".into());
     };
@@ -79,7 +78,7 @@ fn ordered_lists_preserve_numbering_controls_without_rendering_numbers(
         "[loweralpha,start=3]\n. First\n. [x] Literal checkbox\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let BlockKind::OrderedList(list) = parsed.document_ref().blocks().next().ok_or("list")?.kind()
+    let BlockKind::OrderedList(list) = parsed.document().blocks().next().ok_or("list")?.kind()
     else {
         return Err("ordered list".into());
     };
@@ -105,8 +104,7 @@ fn description_entries_keep_terms_principal_text_and_attached_blocks(
         "[horizontal]\n*First*::\nSecond:: Principal\n+\nAttached.\n\nThird:: Last\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let BlockKind::DescriptionList(list) =
-        parsed.document_ref().blocks().next().ok_or("list")?.kind()
+    let BlockKind::DescriptionList(list) = parsed.document().blocks().next().ok_or("list")?.kind()
     else {
         return Err("description list".into());
     };
@@ -137,8 +135,8 @@ fn callout_items_preserve_marker_kinds_numbers_and_continuations(
         "----\nfirst <.>\nsecond <2>\n----\n<.> First *explanation*\n+\nAttached.\n<2> Second\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
-    let mut blocks = parsed.document_ref().blocks();
+    let before = serde_json::to_value(parsed.document())?;
+    let mut blocks = parsed.document().blocks();
     let BlockKind::Listing(listing) = blocks.next().ok_or("listing")?.kind() else {
         return Err("listing".into());
     };
@@ -168,7 +166,7 @@ fn callout_items_preserve_marker_kinds_numbers_and_continuations(
     );
     assert_eq!(second.callout().kind(), CalloutRefKind::Explicit);
     assert_eq!(second.callout().number(), 2);
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 
@@ -185,8 +183,7 @@ fn included_description_delimiters_keep_unicode_source_coordinates() -> Result<(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let BlockKind::DescriptionList(list) =
-        parsed.document_ref().blocks().next().ok_or("list")?.kind()
+    let BlockKind::DescriptionList(list) = parsed.document().blocks().next().ok_or("list")?.kind()
     else {
         return Err("description list".into());
     };

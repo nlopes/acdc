@@ -10,7 +10,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<&str>, Box<dyn Error>> {
     result
-        .document_ref()
+        .document()
         .blocks()
         .map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -124,7 +124,7 @@ fn tag_selection_happens_before_nested_preprocessing() -> TestResult {
     assert_eq!(location.location.start.line, 10);
 
     let inner = result
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {

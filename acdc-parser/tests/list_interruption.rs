@@ -19,7 +19,7 @@ fn only_matching_sibling_or_ancestor_items_interrupt_asciidoctor_attachments(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let items = parsed
-        .document_ref()
+        .document()
         .descendants()
         .filter(|node| {
             matches!(
@@ -36,7 +36,7 @@ fn only_matching_sibling_or_ancestor_items_interrupt_asciidoctor_attachments(
             1
         }
     );
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     Ok(())
 }
 
@@ -54,7 +54,7 @@ fn nested_or_other_family_markers_stay_in_an_attached_paragraph(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let Some(BlockKind::UnorderedList(list)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected unordered list".into());
     };
@@ -75,15 +75,15 @@ fn list_markers_do_not_interrupt_ordinary_text_but_standalone_plus_does() -> Res
             "Paragraph\n* Wrapped\n. Wrapped too\n+\nNext paragraph.\n",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        assert_eq!(parsed.document_ref().blocks().count(), 2);
+        assert_eq!(parsed.document().blocks().count(), 2);
         let Some(BlockKind::Paragraph(first)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected ordinary paragraph".into());
         };
         assert_eq!(first.location().end().line(), 3);
         let Some(BlockKind::Paragraph(second)) =
-            parsed.document_ref().blocks().nth(1).map(BlockRef::kind)
+            parsed.document().blocks().nth(1).map(BlockRef::kind)
         else {
             return Err("expected paragraph after plus".into());
         };
@@ -109,7 +109,7 @@ fn attached_selected_include_keeps_each_modes_original_text_range() -> Result<()
                 .build()?,
         )?;
         let Some(BlockKind::UnorderedList(list)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected list".into());
         };
@@ -140,9 +140,9 @@ fn attached_selected_include_keeps_each_modes_original_text_range() -> Result<()
             source.find("]\n").ok_or("missing note end")?
         };
         assert_eq!(paragraph.location().absolute_end(), end);
-        assert_eq!(parsed.document_ref().footnotes().count(), 1);
+        assert_eq!(parsed.document().footnotes().count(), 1);
         let text = parsed
-            .document_ref()
+            .document()
             .descendants()
             .find_map(|node| {
                 let StructuralRef::Block(block) = node else {
@@ -179,7 +179,7 @@ fn a_blank_line_after_plus_does_not_turn_a_sibling_into_paragraph_text() -> Resu
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let Some(BlockKind::UnorderedList(list)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected list".into());
         };
@@ -203,8 +203,7 @@ fn explicit_and_implicit_ordered_markers_do_not_interrupt_each_others_attachment
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::OrderedList(list)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::OrderedList(list)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected ordered list".into());
     };
@@ -231,7 +230,7 @@ fn an_ancestor_can_interrupt_an_asciidoctor_attachment() -> Result<(), Error> {
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let items = parsed
-            .document_ref()
+            .document()
             .descendants()
             .filter(|node| matches!(node, StructuralRef::ListItem(_)))
             .count();
@@ -258,8 +257,8 @@ fn metadata_after_an_attachment_keeps_the_nested_list_in_its_parent(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document_ref().blocks().count(), 1);
-    let blocks = match parsed.document_ref().blocks().next().map(BlockRef::kind) {
+    assert_eq!(parsed.document().blocks().count(), 1);
+    let blocks = match parsed.document().blocks().next().map(BlockRef::kind) {
         Some(BlockKind::UnorderedList(list)) => list
             .items()
             .next()
@@ -282,6 +281,6 @@ fn metadata_after_an_attachment_keeps_the_nested_list_in_its_parent(
         blocks.get(1),
         Some(BlockKind::UnorderedList(_) | BlockKind::OrderedList(_))
     ));
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     Ok(())
 }

@@ -42,8 +42,8 @@ fn structural_copies_preserve_complete_backing_values(
         "[stem]\n++++\nx^2\n++++",
     ] {
         let parsed = parse(source, &options)?;
-        let original = parsed.document();
-        let copy = Document::from(parsed.document_ref());
+        let original = parsed.document_storage();
+        let copy = Document::from(parsed.document());
         assert_eq!(&copy, original, "{source}");
         assert_eq!(format!("{copy:?}"), format!("{original:?}"), "{source}");
         for block in &original.blocks {

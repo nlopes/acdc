@@ -536,7 +536,7 @@ mod tests {
         #[case] source: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let parsed = parse(source, &Options::default())?;
-        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+        let Some(Block::Paragraph(paragraph)) = parsed.document_storage().blocks.first() else {
             return Err("expected a paragraph".into());
         };
         let original = paragraph.content.first().ok_or("missing inline")?;

@@ -375,7 +375,7 @@ mod tests {
                     &Options::builder().with_compatibility_mode(mode).build()?,
                 )?;
                 let parsed_blocks: Vec<_> = parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(acdc_parser::Block::from)
                     .collect();
@@ -391,7 +391,7 @@ mod tests {
                     );
                     assert_eq!(
                         {
-                            let block = parsed.document_ref().blocks().next().ok_or("paragraph")?;
+                            let block = parsed.document().blocks().next().ok_or("paragraph")?;
                             let acdc_parser::ast::BlockKind::Paragraph(paragraph) = block.kind()
                             else {
                                 return Err("expected paragraph".into());
@@ -413,7 +413,7 @@ mod tests {
             "A *bold* image:bird.png[alt='Bird',title='Tooltip'] indexterm2:[--] end.",
             &Options::default(),
         )?;
-        let paragraph = parsed.document_ref().blocks().next().ok_or("paragraph")?;
+        let paragraph = parsed.document().blocks().next().ok_or("paragraph")?;
         let acdc_parser::ast::BlockKind::Paragraph(paragraph) = paragraph.kind() else {
             return Err("expected paragraph".into());
         };
@@ -442,7 +442,7 @@ mod tests {
             }
         }
         let parsed = parse("First *nested* last.", &Options::default())?;
-        let paragraph = parsed.document_ref().blocks().next().ok_or("paragraph")?;
+        let paragraph = parsed.document().blocks().next().ok_or("paragraph")?;
         let acdc_parser::ast::BlockKind::Paragraph(paragraph) = paragraph.kind() else {
             return Err("expected paragraph".into());
         };
@@ -468,7 +468,7 @@ mod tests {
         ] {
             let parsed = parse(source, &Options::default())?;
             let parsed_blocks: Vec<_> = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(acdc_parser::Block::from)
                 .collect();
@@ -511,7 +511,7 @@ mod tests {
                         let input = format!("{prefix}{gap}indexterm2:[{label}]{gap}{suffix}");
                         let parsed = parse(&input, &Options::default())?;
                         let parsed_blocks: Vec<_> = parsed
-                            .document_ref()
+                            .document()
                             .blocks()
                             .map(acdc_parser::Block::from)
                             .collect();
@@ -555,7 +555,7 @@ mod tests {
         ] {
             let parsed = parse(input, &Options::default())?;
             let parsed_blocks: Vec<_> = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(acdc_parser::Block::from)
                 .collect();
@@ -622,7 +622,7 @@ mod tests {
         ] {
             let parsed = parse(input, &Options::default())?;
             let parsed_blocks: Vec<_> = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(acdc_parser::Block::from)
                 .collect();
@@ -722,7 +722,7 @@ mod tests {
         ] {
             let parsed = parse(input, &Options::default())?;
             let parsed_blocks: Vec<_> = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(acdc_parser::Block::from)
                 .collect();
@@ -759,7 +759,7 @@ mod tests {
         ] {
             let parsed = parse(source, &Options::default())?;
             let parsed_blocks: Vec<_> = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(acdc_parser::Block::from)
                 .collect();
@@ -795,7 +795,7 @@ mod tests {
             let source = format!("pass:{profile}[-> => <- <=]");
             let parsed = parse(&source, &Options::default())?;
             let parsed_blocks: Vec<_> = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(acdc_parser::Block::from)
                 .collect();
@@ -835,7 +835,7 @@ mod tests {
             let source = format!("α pass:r[{content}] ω");
             let parsed = parse(&source, &Options::default())?;
             let parsed_blocks: Vec<_> = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(acdc_parser::Block::from)
                 .collect();
@@ -862,7 +862,7 @@ mod tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let parsed = parse(r"pass:r[\(C)] (R) pass:[(TM)]", &Options::default())?;
         let parsed_blocks: Vec<_> = parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(acdc_parser::Block::from)
             .collect();
@@ -950,7 +950,7 @@ mod tests {
     fn a_cross_reference_without_a_catalog_reads_as_its_target() -> Result<(), acdc_parser::Error> {
         // All an inter-document reference has is its target.
         let parsed = document("See <<titled>>.")?;
-        let doc = &acdc_parser::Document::from(parsed.document_ref());
+        let doc = &acdc_parser::Document::from(parsed.document());
         assert_eq!(inlines_to_string(body_inlines(doc)), "See titled.");
         Ok(())
     }
@@ -958,7 +958,7 @@ mod tests {
     #[test]
     fn a_cross_reference_reads_as_its_target_reference_text() -> Result<(), acdc_parser::Error> {
         let parsed = document("See <<titled>>, <<labelled>>, <<untitled>>, and <<missing>>.")?;
-        let doc = &acdc_parser::Document::from(parsed.document_ref());
+        let doc = &acdc_parser::Document::from(parsed.document());
         assert_eq!(
             InlineTextTransform::default()
                 .references((&doc.references).into())
@@ -974,7 +974,7 @@ mod tests {
             "Named: <<Custom Label>>. Explicit: <<Custom Label,Chosen text>>. Title: <<Actual Title>>. ID: <<id>>.\n\n[#id,reftext=\"Custom Label\"]\n== Actual Title\n",
             &acdc_parser::Options::default(),
         )?;
-        let doc = &acdc_parser::Document::from(parsed.document_ref());
+        let doc = &acdc_parser::Document::from(parsed.document());
 
         assert_eq!(
             InlineTextTransform::default()
@@ -988,7 +988,7 @@ mod tests {
     #[test]
     fn a_cross_reference_inside_reference_text_reads_as_its_id() -> Result<(), acdc_parser::Error> {
         let parsed = document("See <<recursive>>.")?;
-        let doc = &acdc_parser::Document::from(parsed.document_ref());
+        let doc = &acdc_parser::Document::from(parsed.document());
         assert_eq!(
             InlineTextTransform::default()
                 .references((&doc.references).into())
@@ -1001,7 +1001,7 @@ mod tests {
     #[test]
     fn a_link_reads_as_its_text_then_its_target() -> Result<(), acdc_parser::Error> {
         let parsed = document("See https://example.com[the site] and https://bare.example[].")?;
-        let doc = &acdc_parser::Document::from(parsed.document_ref());
+        let doc = &acdc_parser::Document::from(parsed.document());
         assert_eq!(
             inlines_to_string(body_inlines(doc)),
             "See the site and https://bare.example."
@@ -1012,7 +1012,7 @@ mod tests {
     #[test]
     fn a_menu_reads_as_its_target_then_its_items() -> Result<(), acdc_parser::Error> {
         let parsed = document("Choose menu:File[Open > Recent].")?;
-        let doc = &acdc_parser::Document::from(parsed.document_ref());
+        let doc = &acdc_parser::Document::from(parsed.document());
         assert_eq!(
             inlines_to_string(body_inlines(doc)),
             "Choose File > Open > Recent."
@@ -1023,7 +1023,7 @@ mod tests {
     #[test]
     fn character_references_decode_only_when_asked() -> Result<(), acdc_parser::Error> {
         let parsed = document("It{apos}s here.")?;
-        let doc = &acdc_parser::Document::from(parsed.document_ref());
+        let doc = &acdc_parser::Document::from(parsed.document());
         let inlines = body_inlines(doc);
         assert_eq!(inlines_to_string(inlines), "It&#39;s here.");
         assert_eq!(

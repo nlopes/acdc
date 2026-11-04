@@ -55,7 +55,7 @@ fn render_index_image_probe() -> Result<(), Error> {
     let mut warnings = Vec::new();
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.write_to(
-        parsed.document_ref(),
+        parsed.document(),
         &mut Vec::new(),
         None,
         None,

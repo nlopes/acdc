@@ -71,7 +71,7 @@ fn passthrough_fragments_have_exact_inclusive_source_spans() -> Result<(), Error
     ] {
         let parsed = parse(source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -88,7 +88,7 @@ fn passthrough_newline_ends_before_the_next_delimiter() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/passthrough_at_line_start.adoc");
     let parsed = parse(source, &Options::default())?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -123,7 +123,7 @@ fn passthrough_hardbreak_maps_to_its_marker_without_the_newline() -> Result<(), 
         let source = format!(":plus: +\n\npass:a,p[{body}]");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -151,7 +151,7 @@ fn passthrough_formatted_attribute_maps_to_the_complete_reference() -> Result<()
             let source = format!(":value: {value}\n\npass:{stages}[((Term {{value}}))]");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -198,7 +198,7 @@ fn passthrough_escape_does_not_shift_a_following_attribute_span() -> Result<(), 
         let source = format!(":name: {value}\n\npass:a,m[\\((Literal {{name}}))]");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()

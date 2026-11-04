@@ -40,7 +40,7 @@ fn named_roles_replace_in_compatible_mode_and_accumulate_in_draft() -> Result<()
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let metadata = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .next()
                 .and_then(BlockRef::attributes)
@@ -73,7 +73,7 @@ fn media_options_keep_preceding_options_in_both_modes() -> Result<(), Error> {
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let metadata = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .next()
                 .and_then(BlockRef::attributes)
@@ -93,8 +93,8 @@ fn ignored_duplicates_do_not_replace_selected_caption_content() -> Result<(), Er
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let expected = usize::from(mode == CompatibilityMode::Asciidoctor);
-        assert_eq!(parsed.document_ref().footnotes().count(), expected);
-        if let Some(note) = parsed.document_ref().footnotes().next() {
+        assert_eq!(parsed.document().footnotes().count(), expected);
+        if let Some(note) = parsed.document().footnotes().next() {
             assert_eq!(
                 source.get(note.location().absolute_start()..=note.location().absolute_end()),
                 Some("footnote:[Selected.]")
@@ -113,7 +113,7 @@ fn selected_style_controls_heading_recognition() -> Result<(), Error> {
         )?;
         assert_eq!(
             matches!(
-                parsed.document_ref().blocks().next().map(BlockRef::kind),
+                parsed.document().blocks().next().map(BlockRef::kind),
                 Some(BlockKind::DiscreteHeader(_))
             ),
             mode == CompatibilityMode::Asciidoctor
@@ -144,7 +144,7 @@ fn option_splitting_follows_the_selected_mode() -> Result<(), Error> {
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let metadata = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .next()
                 .and_then(BlockRef::attributes)
@@ -171,7 +171,7 @@ fn only_selected_content_registers_footnotes() -> Result<(), Error> {
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let selected: Vec<_> = parsed
-            .document_ref()
+            .document()
             .footnotes()
             .map(|note| {
                 source.get(note.location().absolute_start()..=note.location().absolute_end())

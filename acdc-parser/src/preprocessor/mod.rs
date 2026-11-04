@@ -1924,9 +1924,9 @@ endif::backend-pdf,backend-docbook5[]
 == Visible
 Body";
         let parsed = crate::parse(input, &Options::default())?;
-        assert!(parsed.document().header.is_some());
+        assert!(parsed.document_storage().header.is_some());
         assert!(matches!(
-            parsed.document().blocks.as_slice(),
+            parsed.document_storage().blocks.as_slice(),
             [crate::Block::Section(_)]
         ));
         Ok(())

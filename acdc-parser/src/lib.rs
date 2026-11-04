@@ -22,7 +22,7 @@
 //!
 //! let parsed = parse(content, &Options::default())?;
 //! let document = parsed.document();
-//! assert!(!document.blocks.is_empty());
+//! assert!(document.blocks().next().is_some());
 //!
 //! for warning in parsed.warnings() {
 //!     eprintln!("{warning}");
@@ -352,7 +352,7 @@ impl<'input> Parser<'input> {
 ///     .build()?;
 /// let reader = Cursor::new("= Example\n\nContent.\n");
 /// let parsed = parse_from_reader(reader, &options)?;
-/// assert!(!parsed.document().blocks.is_empty());
+/// assert!(parsed.document().blocks().next().is_some());
 /// # Ok::<(), acdc_parser::Error>(())
 /// ```
 ///
@@ -717,8 +717,13 @@ mod tests {
                 ..Options::default()
             },
         )?;
-        assert_eq!(parsed.document().footnotes, []);
-        assert!(!parsed.document().references.contains_key("hidden-table"));
+        assert_eq!(parsed.document_storage().footnotes, []);
+        assert!(
+            !parsed
+                .document_storage()
+                .references
+                .contains_key("hidden-table")
+        );
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
         Ok(())
     }
@@ -729,7 +734,7 @@ mod tests {
             "fixtures/tests/header_comment_attributes.adoc",
             &Options::default(),
         )?;
-        let doc = parsed.document();
+        let doc = parsed.document_storage();
         assert_eq!(doc.attributes.text("kept"), Some("original"));
         assert_eq!(doc.attributes.text("author"), Some("Correct Author"));
         assert_eq!(doc.attributes.text("revnumber"), Some("1.0"));
@@ -765,7 +770,10 @@ mod tests {
                 parse(input, &options)?,
                 parse_from_reader(input.as_bytes(), &options)?,
             ] {
-                assert_eq!(parsed.document().attributes.text("kept"), Some("caller"));
+                assert_eq!(
+                    parsed.document_storage().attributes.text("kept"),
+                    Some("caller")
+                );
                 assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
             }
         }
@@ -778,7 +786,7 @@ mod tests {
             "fixtures/tests/header_comment_boundaries.adoc",
             &Options::default(),
         )?;
-        let doc = parsed.document();
+        let doc = parsed.document_storage();
         assert_eq!(doc.attributes.text("kept"), Some("header"));
         assert!(!doc.attributes.contains_key("body"));
         assert!(!doc.attributes.contains_key("source-highlighter"));
@@ -818,7 +826,10 @@ mod tests {
             "fixtures/tests/header_comment_unterminated.adoc",
             &Options::default(),
         )?;
-        assert_eq!(parsed.document().attributes.text("kept"), Some("original"));
+        assert_eq!(
+            parsed.document_storage().attributes.text("kept"),
+            Some("original")
+        );
         assert_eq!(parsed.warnings().len(), 1, "{:?}", parsed.warnings());
         let warning = parsed
             .warnings()
@@ -840,14 +851,17 @@ mod tests {
             "= T\n:kept: value\n\n////\n////\n\nBody.\n",
         ] {
             let parsed = parse(input, &Options::default())?;
-            assert!(parsed.document().header.is_some(), "{input}");
-            assert_eq!(parsed.document().attributes.text("kept"), Some("value"));
+            assert!(parsed.document_storage().header.is_some(), "{input}");
+            assert_eq!(
+                parsed.document_storage().attributes.text("kept"),
+                Some("value")
+            );
             assert!(
                 parsed.warnings().is_empty(),
                 "{input}: {:?}",
                 parsed.warnings()
             );
-            assert!(parsed.document().blocks.iter().any(|block| matches!(
+            assert!(parsed.document_storage().blocks.iter().any(|block| matches!(
                 block, Block::Paragraph(paragraph) if paragraph.content.iter().any(|inline| matches!(inline,
                     InlineNode::PlainText(text) if text.content == "Body."))
             )));
@@ -865,7 +879,7 @@ mod tests {
             let source = format!("= T\n\n{body}");
             let parsed = parse(&source, &Options::default())?;
             let attribute = parsed
-                .document()
+                .document_storage()
                 .blocks
                 .iter()
                 .find_map(|block| {
@@ -896,7 +910,7 @@ mod tests {
             let parsed = parse("First line\nSecond line\n", &options)
                 .expect("parse paragraph with caller hard breaks");
             let paragraph = parsed
-                .document()
+                .document_storage()
                 .blocks
                 .first()
                 .and_then(|block| {
@@ -963,7 +977,7 @@ mod tests {
             .build()?;
         let result = parse_file("fixtures/preprocessor/include_indent_main.adoc", &opts)
             .expect("parse indented include");
-        let doc = result.document();
+        let doc = result.document_storage();
         let inlines = doc
             .blocks
             .iter()
@@ -1020,7 +1034,7 @@ mod tests {
             .build()?;
         let result = parse_file("fixtures/preprocessor/include_quote_main.adoc", &opts)
             .expect("parse included quote block");
-        let doc = result.document();
+        let doc = result.document_storage();
         let metadata = doc
             .blocks
             .iter()
@@ -1121,7 +1135,7 @@ mod tests {
             .build()?;
         let result = parse_file("fixtures/preprocessor/include_refs_main.adoc", &opts)
             .expect("parse included section");
-        let doc = result.document();
+        let doc = result.document_storage();
         let part = Some("include_refs_part.adoc");
 
         let entry = doc
@@ -1152,7 +1166,7 @@ mod tests {
         // line (5 here), not the line a byte-offset-into-the-paragraph would fall on.
         let input = "= Title\n\nPara one.\n\nPara two with a note.footnote:[The note.]\n";
         let result = parse(input, &Options::default()).expect("parse footnote doc");
-        let doc = result.document();
+        let doc = result.document_storage();
         let footnote = doc.footnotes.first().expect("one footnote");
         assert_eq!(
             footnote.location.start.line, 5,
@@ -1173,7 +1187,7 @@ mod tests {
             .build()?;
         let result = parse_file("fixtures/preprocessor/include_footnote_main.adoc", &opts)
             .expect("parse included footnote");
-        let doc = result.document();
+        let doc = result.document_storage();
         let footnote = doc.footnotes.first().expect("one footnote");
         assert_eq!(footnote.location.start.line, 3, "footnote origin line");
         assert_eq!(
@@ -1197,7 +1211,7 @@ mod tests {
         let input =
             "= Title\n\nFirst ref.footnote:fn[The definition.]\n\nSecond ref.footnote:fn[]\n";
         let result = parse(input, &Options::default()).expect("parse named footnote doc");
-        let doc = result.document();
+        let doc = result.document_storage();
         assert_eq!(doc.footnotes.len(), 1, "one distinct footnote");
         let footnote = doc.footnotes.first().expect("the distinct footnote");
         assert_eq!(footnote.location.start.line, 3, "defining occurrence line");
@@ -1219,7 +1233,7 @@ mod tests {
             .build()?;
         let result =
             parse_file("fixtures/include_chain/main.adoc", &opts).expect("parse include chain");
-        let location = &result.document().location;
+        let location = &result.document_storage().location;
 
         assert!(
             location.start.file.is_none(),
@@ -1287,7 +1301,7 @@ mod tests {
     ) -> Result<(), Box<dyn StdError>> {
         let parsed = parse_file(path, &Options::default())?;
         let metadata: Vec<_> = parsed
-            .document()
+            .document_storage()
             .blocks
             .iter()
             .filter_map(Block::metadata)
@@ -1361,7 +1375,7 @@ mod tests {
             (r"xref:target['\'',role=hot]", r"\'"),
         ] {
             let parsed = parse(source, &Options::default())?;
-            let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+            let Some(Block::Paragraph(paragraph)) = parsed.document_storage().blocks.first() else {
                 panic!("expected a paragraph");
             };
             let Some(InlineNode::Macro(InlineMacro::CrossReference(xref))) =
@@ -1388,7 +1402,7 @@ mod tests {
             "= Doc\n\nfirst para\n// dropped comment\nsecond para\n\n== Section\n\nbody text\n";
         let result = parse(input, &Options::builder().build()?).expect("parse");
         let section = result
-            .document()
+            .document_storage()
             .blocks
             .iter()
             .find_map(|b| {
@@ -1431,7 +1445,7 @@ mod tests {
         let result = parse_file(&path, &options).expect("parse");
         // The first section comes from the included file, at its own line 1.
         let section = result
-            .document()
+            .document_storage()
             .blocks
             .iter()
             .find_map(|b| {
@@ -1468,7 +1482,7 @@ mod tests {
         let result = parse_file(&path, &options).expect("parse");
 
         let paragraphs = result
-            .document()
+            .document_storage()
             .blocks
             .iter()
             .filter_map(|block| {
@@ -1531,7 +1545,7 @@ mod tests {
 
                 match result {
                     Ok(parsed) => {
-                        let doc = parsed.document();
+                        let doc = parsed.document_storage();
                         // Validate the invariant using absolute offsets
                         assert!(
                             doc.location.absolute_start <= doc.location.absolute_end,
@@ -1560,7 +1574,7 @@ mod tests {
                 let options = Options::default();
                 let parsed =
                     parse(input, &options).unwrap_or_else(|_| panic!("Should parse {input:?}"));
-                let doc = parsed.document();
+                let doc = parsed.document_storage();
 
                 assert!(
                     doc.location.absolute_start <= doc.location.absolute_end,
@@ -1592,7 +1606,7 @@ mod tests {
 
                 match result {
                     Ok(parsed) => {
-                        let doc = parsed.document();
+                        let doc = parsed.document_storage();
                         // All offsets should be on UTF-8 boundaries
                         assert!(
                             input.is_char_boundary(doc.location.absolute_start),
@@ -1801,7 +1815,7 @@ mod tests {
 ";
             let options = Options::default();
             let parsed = parse(input, &options).expect("should parse");
-            let doc = parsed.document();
+            let doc = parsed.document_storage();
 
             // foo should have bar's value expanded at definition time
             assert_eq!(doc.attributes.text("foo"), Some("resolved-bar"));
@@ -1817,7 +1831,7 @@ mod tests {
 ";
             let options = Options::default();
             let parsed = parse(input, &options).expect("should parse");
-            let doc = parsed.document();
+            let doc = parsed.document_storage();
 
             // foo should keep {bar} as literal since bar wasn't defined yet
             assert_eq!(doc.attributes.text("foo"), Some("{bar}"));
@@ -1835,7 +1849,7 @@ mod tests {
 ";
             let options = Options::default();
             let parsed = parse(input, &options).expect("should parse");
-            let doc = parsed.document();
+            let doc = parsed.document_storage();
 
             // c is defined first, so b gets "final-value", then a gets "final-value"
             assert_eq!(doc.attributes.text("c"), Some("final-value"));

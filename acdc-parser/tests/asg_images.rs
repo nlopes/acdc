@@ -22,8 +22,8 @@ fn inline_image_metadata_and_content_are_preserved() -> Result<(), Error> {
             "image:photo.png[alt='*Bird*',title='_Tip_',width=120,height=80,link=https://example.org/view,window=_blank,role=one,opts=interactive,id=img,custom=keep]",
             &options,
         )?;
-        let before = serde_json::to_value(parsed.document_ref())?;
-        let value = export(parsed.document_ref())?;
+        let before = serde_json::to_value(parsed.document())?;
+        let value = export(parsed.document())?;
         for (path, expected) in [
             ("name", json!("image")),
             ("type", json!("inline")),
@@ -47,12 +47,8 @@ fn inline_image_metadata_and_content_are_preserved() -> Result<(), Error> {
                 "{mode:?}: {path}"
             );
         }
-        let BlockKind::Paragraph(paragraph) = parsed
-            .document_ref()
-            .blocks()
-            .next()
-            .ok_or("paragraph")?
-            .kind()
+        let BlockKind::Paragraph(paragraph) =
+            parsed.document().blocks().next().ok_or("paragraph")?.kind()
         else {
             return Err("paragraph".into());
         };
@@ -70,9 +66,9 @@ fn inline_image_metadata_and_content_are_preserved() -> Result<(), Error> {
             Some(&asg::inlines(image.tooltip().ok_or("tooltip")?)?)
         );
         assert!(value.pointer("/blocks/0/inlines/0/location").is_some());
-        assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+        assert_eq!(serde_json::to_value(parsed.document())?, before);
         assert!(
-            matches!(asg::document(parsed.document_ref()),Err(asg::Error::Unsupported {path,construct:Some("inline image"),..}) if path=="/blocks/0/inlines/0")
+            matches!(asg::document(parsed.document()),Err(asg::Error::Unsupported {path,construct:Some("inline image"),..}) if path=="/blocks/0/inlines/0")
         );
     }
     Ok(())
@@ -89,7 +85,7 @@ fn image_text_presence_does_not_create_a_filename_fallback() -> Result<(), Error
         ),
     ] {
         let parsed = parse(source, &Options::default())?;
-        let value = export(parsed.document_ref())?;
+        let value = export(parsed.document())?;
         assert_eq!(value.pointer("/blocks/0/inlines/0/alt"), alt.as_ref());
         assert_eq!(
             value.pointer("/blocks/0/inlines/0/tooltip"),
@@ -107,7 +103,7 @@ fn block_image_alternative_content_stays_separate_from_its_caption() -> Result<(
             ".Caption\nimage::photo.png[alt='*Bird*',width=120,height=80]",
             &options,
         )?;
-        let value = export(parsed.document_ref())?;
+        let value = export(parsed.document())?;
         assert_eq!(value.pointer("/blocks/0/form"), Some(&json!("macro")));
         assert_eq!(
             value.pointer("/blocks/0/title/0/value"),
@@ -119,7 +115,7 @@ fn block_image_alternative_content_stays_separate_from_its_caption() -> Result<(
         );
         assert_eq!(value.pointer("/blocks/0/caption/number"), Some(&json!(1)));
         assert!(value.pointer("/blocks/0/tooltip").is_none());
-        let BlockKind::Image(image) = parsed.document_ref().blocks().next().ok_or("image")?.kind()
+        let BlockKind::Image(image) = parsed.document().blocks().next().ok_or("image")?.kind()
         else {
             return Err("image".into());
         };
@@ -128,7 +124,7 @@ fn block_image_alternative_content_stays_separate_from_its_caption() -> Result<(
             Some(&asg::inlines(image.alt().ok_or("alt")?)?)
         );
         assert!(
-            matches!(asg::document(parsed.document_ref()),Err(asg::Error::Unsupported {path,..}) if path=="/blocks/0/alt")
+            matches!(asg::document(parsed.document()),Err(asg::Error::Unsupported {path,..}) if path=="/blocks/0/alt")
         );
     }
     Ok(())
@@ -164,19 +160,15 @@ fn image_schema_rejects_unknown_fields_and_malformed_nested_values() -> Result<(
 #[test]
 fn standalone_image_export_checks_the_selected_profile() -> Result<(), Error> {
     let parsed = parse("image:photo.png[alt=\"\",title=\"\"]", &Options::default())?;
-    let BlockKind::Paragraph(paragraph) = parsed
-        .document_ref()
-        .blocks()
-        .next()
-        .ok_or("paragraph")?
-        .kind()
+    let BlockKind::Paragraph(paragraph) =
+        parsed.document().blocks().next().ok_or("paragraph")?.kind()
     else {
         return Err("paragraph".into());
     };
     let value = asg::inlines_with_profile(paragraph.content(), asg::Profile::Acdc)?;
     assert_eq!(
         Some(&value),
-        export(parsed.document_ref())?.pointer("/blocks/0/inlines")
+        export(parsed.document())?.pointer("/blocks/0/inlines")
     );
     assert!(
         matches!(asg::inlines(paragraph.content()),Err(asg::Error::Unsupported {path,..}) if path=="/0")

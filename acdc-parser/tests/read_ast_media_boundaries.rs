@@ -40,8 +40,8 @@ fn media_reads_keep_complete_operands_controls_titles_and_captions(
          video::one.mp4,two.mp4[poster=thumb.png]\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
-    let mut blocks = parsed.document_ref().blocks();
+    let before = serde_json::to_value(parsed.document())?;
+    let mut blocks = parsed.document().blocks();
     let BlockKind::Audio(audio) = blocks.next().ok_or("audio")?.kind() else {
         return Err("audio".into());
     };
@@ -89,7 +89,7 @@ fn media_reads_keep_complete_operands_controls_titles_and_captions(
         local.attributes().get("poster"),
         Some(AttributeValueRef::Text("thumb.png"))
     );
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 
@@ -103,7 +103,7 @@ fn toc_discrete_and_page_break_reads_keep_ids_and_aliases(
          .New page\n[[page-alias]]\n[#page.print,options=custom]\n<<<\n\nAfter.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let BlockKind::TableOfContents(toc) = blocks.next().ok_or("toc")?.kind() else {
         return Err("toc".into());
     };
@@ -160,8 +160,7 @@ fn thematic_break_inventory_contains_only_retained_title_and_identity(
         ".Pause\n[[first]]\n[[alias,Label]]\n[role=not-retained,width=50]\n'''\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let BlockKind::ThematicBreak(rule) =
-        parsed.document_ref().blocks().next().ok_or("rule")?.kind()
+    let BlockKind::ThematicBreak(rule) = parsed.document().blocks().next().ok_or("rule")?.kind()
     else {
         return Err("thematic break".into());
     };
@@ -205,7 +204,7 @@ fn comment_reads_preserve_the_retained_form_and_literal_text(
     let options = Options::builder().with_compatibility_mode(mode).build()?;
     let line = parse("// retained", &options)?;
     let BlockKind::Comment(comment) = line
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .ok_or("line comment")?
@@ -219,7 +218,7 @@ fn comment_reads_preserve_the_retained_form_and_literal_text(
         "[comment]\n*literal* {name}\n\n[comment]\n--\nMore *literal*.\n--\n",
         &options,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let BlockKind::Comment(comment) = blocks.next().ok_or("paragraph comment")?.kind() else {
         return Err("paragraph comment".into());
     };
@@ -256,7 +255,7 @@ fn included_media_and_cell_blocks_keep_source_scope(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let BlockKind::Audio(audio) = blocks.next().ok_or("audio")?.kind() else {
         return Err("audio".into());
     };

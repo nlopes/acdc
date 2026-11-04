@@ -39,7 +39,7 @@ fn duplicate_sections_keep_the_first_reference_text() -> Result<(), Error> {
         &Options::default(),
     )?;
     let title = parsed
-        .document_ref()
+        .document()
         .references()
         .get("same")
         .and_then(acdc_parser::ast::ReferenceRef::title)
@@ -69,7 +69,7 @@ fn duplicate_section_does_not_replace_an_earlier_block() -> Result<(), Error> {
         &Options::default(),
     )?;
     let title = parsed
-        .document_ref()
+        .document()
         .references()
         .get("same")
         .and_then(acdc_parser::ast::ReferenceRef::title)

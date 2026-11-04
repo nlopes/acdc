@@ -18,7 +18,7 @@ fn nested_tables_retain_delimiters_and_unicode_source_offsets(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let tables = parsed
-        .document_ref()
+        .document()
         .descendants()
         .filter_map(|node| {
             if let StructuralRef::Block(block) = node
@@ -65,8 +65,7 @@ fn selected_table_delimiters_resolve_to_original_include_ranges(
             .with_compatibility_mode(mode)
             .build()?,
     )?;
-    let BlockKind::Table(table) = parsed.document_ref().blocks().next().ok_or("block")?.kind()
-    else {
+    let BlockKind::Table(table) = parsed.document().blocks().next().ok_or("block")?.kind() else {
         return Err("table".into());
     };
     for (location, line) in [

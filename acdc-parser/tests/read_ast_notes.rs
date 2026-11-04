@@ -58,14 +58,14 @@ fn footnote_catalog_reads_preserve_registration_snapshots() -> Result<(), Error>
         ":word: Expanded\n\n[subs=\"specialcharacters,macros,attributes\"]\nfootnote:n[{word}] footnote:n[]",
         &Options::default(),
     )?;
-    let mut occurrences = notes(paragraph(parsed.document_ref())?);
+    let mut occurrences = notes(paragraph(parsed.document())?);
     assert_eq!(
         text(occurrences.next().ok_or("definition")?.content())?,
         "{word}"
     );
     assert!(occurrences.next().ok_or("reference")?.content().is_empty());
     let definition = parsed
-        .document_ref()
+        .document()
         .footnotes()
         .next()
         .ok_or("catalog definition")?;
@@ -95,7 +95,7 @@ fn footnote_owner_reads_do_not_resolve_or_register_content() -> Result<(), Error
     assert!(FootnoteRef::from(reference).content().is_empty());
     assert!(
         parse("No notes.", &Options::default())?
-            .document_ref()
+            .document()
             .footnotes()
             .next()
             .is_none()
@@ -112,9 +112,8 @@ fn bibliography_reads_separate_citation_from_display_content(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
-    let BlockKind::UnorderedList(list) =
-        parsed.document_ref().blocks().next().ok_or("list")?.kind()
+    let before = serde_json::to_value(parsed.document())?;
+    let BlockKind::UnorderedList(list) = parsed.document().blocks().next().ok_or("list")?.kind()
     else {
         return Err("bibliography".into());
     };
@@ -150,7 +149,7 @@ fn bibliography_reads_separate_citation_from_display_content(
     assert!(fallback.is_bibliography());
     assert_eq!(fallback.id(), "fallback");
     assert!(fallback.bibliography_label().is_none());
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 
@@ -165,7 +164,7 @@ fn ordinary_anchor_reads_preserve_absent_and_empty_labels() -> Result<(), Error>
     assert!(read.bibliography_label().is_none());
     let source = "é [[inline,Label]] here.";
     let parsed = parse(source, &Options::default())?;
-    let anchor = paragraph(parsed.document_ref())?
+    let anchor = paragraph(parsed.document())?
         .inlines()
         .find_map(|inline| {
             if let InlineKind::Anchor(anchor) = inline.kind() {
@@ -190,8 +189,7 @@ fn bibliography_display_reads_do_not_replace_reference_text() -> Result<(), Erro
             .with_safe_mode(SafeMode::Secure)
             .build()?,
     )?;
-    let BlockKind::UnorderedList(list) =
-        parsed.document_ref().blocks().next().ok_or("list")?.kind()
+    let BlockKind::UnorderedList(list) = parsed.document().blocks().next().ok_or("list")?.kind()
     else {
         return Err("bibliography".into());
     };
@@ -222,9 +220,9 @@ fn bibliography_display_reads_do_not_replace_reference_text() -> Result<(), Erro
 fn callout_leaves_keep_local_numbers_and_marker_locations() -> Result<(), Error> {
     let source = "----\nfirst <.>\nsecond <2>\n----\n<.> First\n<2> Second\n\n----\nnew sequence <.>\n----\n<.> Again\n";
     let parsed = parse(source, &Options::default())?;
-    let before = serde_json::to_value(parsed.document_ref())?;
+    let before = serde_json::to_value(parsed.document())?;
     let mut found = Vec::new();
-    for block in parsed.document_ref().blocks() {
+    for block in parsed.document().blocks() {
         if let BlockKind::Listing(listing) = block.kind() {
             for inline in listing.content().inlines() {
                 if let InlineKind::Callout(callout) = inline.kind() {
@@ -248,7 +246,7 @@ fn callout_leaves_keep_local_numbers_and_marker_locations() -> Result<(), Error>
     );
     let owner = acdc_parser::CalloutRef::explicit(9, Location::default());
     assert_eq!(CalloutRef::from(&owner).number(), 9);
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 
@@ -272,7 +270,7 @@ fn footnote_reads_preserve_included_and_table_cell_locations(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let first = notes(paragraph(parsed.document_ref())?)
+    let first = notes(paragraph(parsed.document())?)
         .next()
         .ok_or("included footnote")?;
     let resolved = parsed.resolve_location(first.location());
@@ -283,17 +281,12 @@ fn footnote_reads_preserve_included_and_table_cell_locations(
         slice(source, first.location()),
         Some("footnote:n[Included *body*.]")
     );
-    let definition = parsed
-        .document_ref()
-        .footnotes()
-        .next()
-        .ok_or("definition")?;
+    let definition = parsed.document().footnotes().next().ok_or("definition")?;
     assert_eq!(
         parsed.resolve_location(definition.location()).file,
         Some(include)
     );
-    let BlockKind::Table(table) = parsed.document_ref().blocks().nth(1).ok_or("table")?.kind()
-    else {
+    let BlockKind::Table(table) = parsed.document().blocks().nth(1).ok_or("table")?.kind() else {
         return Err("table".into());
     };
     let cell = table
@@ -318,6 +311,6 @@ fn footnote_reads_preserve_included_and_table_cell_locations(
         parsed.resolve_location(definition.location()).file,
         Some(main)
     );
-    assert_eq!(parsed.document_ref().footnotes().count(), 2);
+    assert_eq!(parsed.document().footnotes().count(), 2);
     Ok(())
 }

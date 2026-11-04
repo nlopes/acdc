@@ -40,7 +40,7 @@ fn label_text<'doc>(nodes: impl IntoIterator<Item = InlineRef<'doc>>) -> Result<
 fn outer_macro_escapes_preserve_registration_time_anchor_text() -> Result<(), Error> {
     let parsed = parse(r"((Escaped \[[id]] anchor))", &Options::default())?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -53,7 +53,7 @@ fn outer_macro_escapes_preserve_registration_time_anchor_text() -> Result<(), Er
         label_text(term.catalog().term().inlines())?,
         r"Escaped \[[id]] anchor"
     );
-    assert!(parsed.document_ref().references().is_empty());
+    assert!(parsed.document().references().is_empty());
     Ok(())
 }
 
@@ -80,7 +80,7 @@ fn index_bracket_escapes_follow_delimiters_and_keep_source_spans() -> Result<(),
                     let parsed = parse(&source, &Options::default())
                         .map_err(|error| format!("{source}: {error}"))?;
                     let [BlockKind::Paragraph(paragraph)] = &*parsed
-                        .document_ref()
+                        .document()
                         .blocks()
                         .map(BlockRef::kind)
                         .collect::<Vec<_>>()
@@ -147,7 +147,7 @@ fn index_bracket_escapes_ignore_values_introduced_after_macros() -> Result<(), E
             let source = format!(":label: Value \\] label\n\n[subs=\"{subs}\"]\n{syntax}\n");
             let parsed = parse(&source, &Options::default())?;
             let Some(BlockKind::Paragraph(paragraph)) =
-                parsed.document_ref().blocks().last().map(BlockRef::kind)
+                parsed.document().blocks().last().map(BlockRef::kind)
             else {
                 return Err("expected paragraph".into());
             };

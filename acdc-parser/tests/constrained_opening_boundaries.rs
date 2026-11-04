@@ -17,7 +17,7 @@ fn constrained_opening_punctuation_keeps_formatting_and_source_spans() -> Result
             let source = format!("P {prefix}{quoted} Q.\n");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -58,7 +58,7 @@ fn constrained_opening_barriers_stay_literal() -> Result<(), Error> {
             let source = format!("P {prefix}{marker}word{marker} Q.\n");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -79,7 +79,7 @@ fn constrained_opening_barriers_stay_literal() -> Result<(), Error> {
     }
     let parsed = parse("P &#word# Q.\n", &Options::default())?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -101,7 +101,7 @@ fn constrained_opening_after_raw_tags_keeps_nested_source_spans() -> Result<(), 
         let source = format!("P pass:q[<del>*bold _café_*</del>] Q.{newline}");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()

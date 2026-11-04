@@ -366,7 +366,7 @@ mod tests {
         let parsed = crate::parse("= cmd(7)\n\n== Name\n\ncmd - test\n", &options)?;
 
         assert_eq!(
-            parsed.document().attributes.text("outfilesuffix"),
+            parsed.document_storage().attributes.text("outfilesuffix"),
             Some(".7")
         );
         Ok(())

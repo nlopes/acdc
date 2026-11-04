@@ -8,7 +8,7 @@ fn header_metadata_attributes_follow_source_order() -> Result<(), Error> {
         include_str!("../fixtures/tests/header_metadata_attributes.adoc"),
         &Options::default(),
     )?;
-    let attributes = &parsed.document_ref().attributes();
+    let attributes = &parsed.document().attributes();
     for (name, expected) in [
         ("author", "Alice Smith"),
         ("email", "updated@example.org"),
@@ -26,7 +26,7 @@ fn header_metadata_attributes_follow_source_order() -> Result<(), Error> {
             "{name}"
         );
     }
-    let header = parsed.document_ref().header().ok_or("missing header")?;
+    let header = parsed.document().header().ok_or("missing header")?;
     let author = header.authors().next().ok_or("missing author")?;
     assert_eq!(author.first_name(), "Alice");
     assert_eq!(author.last_name(), "Smith");
@@ -37,7 +37,7 @@ fn header_metadata_attributes_follow_source_order() -> Result<(), Error> {
     )?;
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("author")
             .and_then(DocumentAttributeValue::text),
@@ -53,9 +53,9 @@ fn header_metadata_multiple_authors_survive_interleaved_entries() -> Result<(), 
             "= T\n:kept: header\nÉlodie Durand <elodie@example.org>; José García <jose@example.org>\n:captured: {{author_2}}\n////\n\n:kept: hidden\n////\nv1.0, 2026-10-04{ending}"
         );
         let parsed = parse(&source, &Options::default())?;
-        let header = parsed.document_ref().header().ok_or("missing header")?;
+        let header = parsed.document().header().ok_or("missing header")?;
         assert_eq!(header.authors().count(), 2);
-        let attributes = &parsed.document_ref().attributes();
+        let attributes = &parsed.document().attributes();
         for (name, expected) in [
             ("captured", "José García"),
             ("authorcount", "2"),
@@ -78,7 +78,7 @@ fn header_metadata_multiple_authors_survive_interleaved_entries() -> Result<(), 
 fn header_metadata_explicit_fields_override_derived_values() -> Result<(), Error> {
     let source = "= T\n:kept: header\nAlice Smith\n:captured: {author}\n:author: Explicit Writer\n:firstname: Chosen\nv1.0, 2026-10-04\n\nBody";
     let parsed = parse(source, &Options::default())?;
-    let attributes = &parsed.document_ref().attributes();
+    let attributes = &parsed.document().attributes();
     for (name, expected) in [
         ("captured", "Alice Smith"),
         ("author", "Explicit Writer"),
@@ -92,7 +92,7 @@ fn header_metadata_explicit_fields_override_derived_values() -> Result<(), Error
             "{name}"
         );
     }
-    let header = parsed.document_ref().header().ok_or("missing header")?;
+    let header = parsed.document().header().ok_or("missing header")?;
     let author = header.authors().next().ok_or("missing author")?;
     assert_eq!(author.first_name(), "Explicit");
     assert_eq!(author.last_name(), "Writer");
@@ -118,7 +118,7 @@ fn header_metadata_entries_respect_locked_and_soft_caller_values() -> Result<(),
                 .build()?
         };
         let parsed = parse(source, &options)?;
-        let attributes = &parsed.document_ref().attributes();
+        let attributes = &parsed.document().attributes();
         for (name, expected) in [
             ("captured-author", "Caller Writer"),
             ("captured-firstname", "Caller"),
@@ -150,7 +150,7 @@ fn header_metadata_entries_respect_locked_and_soft_caller_values() -> Result<(),
     for name in ["firstname", "capture"] {
         assert_eq!(
             parsed
-                .document_ref()
+                .document()
                 .attributes()
                 .get(name)
                 .and_then(DocumentAttributeValue::text),
@@ -171,10 +171,10 @@ fn header_metadata_blank_lines_end_optional_slots() -> Result<(), Error> {
         ("= T\nCorrect Author\n:kept: header\n\nv1.0, 2026-10-04", 1),
     ] {
         let parsed = parse(source, &Options::default())?;
-        let header = parsed.document_ref().header().ok_or("missing header")?;
+        let header = parsed.document().header().ok_or("missing header")?;
         assert_eq!(header.authors().count(), authors);
-        assert_eq!(parsed.document_ref().attributes().get("revnumber"), None);
-        assert_ne!(parsed.document_ref().blocks().count(), 0);
+        assert_eq!(parsed.document().attributes().get("revnumber"), None);
+        assert_ne!(parsed.document().blocks().count(), 0);
     }
     Ok(())
 }
@@ -186,18 +186,18 @@ fn header_metadata_without_optional_lines_applies_entries_once() -> Result<(), E
         let parsed = parse(&source, &Options::default())?;
         assert_eq!(
             parsed
-                .document_ref()
+                .document()
                 .attributes()
                 .get("chain")
                 .and_then(DocumentAttributeValue::text),
             Some("root-next")
         );
-        let header = parsed.document_ref().header().ok_or("missing header")?;
+        let header = parsed.document().header().ok_or("missing header")?;
         assert_eq!(header.authors().count(), 0);
     }
     let source = "= T\n:kept: café";
     let parsed = parse(source, &Options::default())?;
-    let header = parsed.document_ref().header().ok_or("missing header")?;
+    let header = parsed.document().header().ok_or("missing header")?;
     assert_eq!(header.location().end().line(), 2);
     assert_eq!(header.location().end().column(), 11);
     assert_eq!(
@@ -219,7 +219,7 @@ fn header_metadata_setext_titles_keep_interleaved_slots() -> Result<(), Error> {
     ] {
         assert_eq!(
             parsed
-                .document_ref()
+                .document()
                 .attributes()
                 .get(name)
                 .and_then(DocumentAttributeValue::text),
@@ -234,7 +234,7 @@ fn header_metadata_setext_titles_keep_interleaved_slots() -> Result<(), Error> {
 fn header_metadata_same_author_retains_email_overrides() -> Result<(), Error> {
     let source = ":author: Alice Smith\n= T\nAlice Smith <before@example.org>\n:email: after@example.org\nv1.0, 2026-10-04";
     let parsed = parse(source, &Options::default())?;
-    let header = parsed.document_ref().header().ok_or("missing header")?;
+    let header = parsed.document().header().ok_or("missing header")?;
     let author = header.authors().next().ok_or("missing author")?;
     assert_eq!(author.email(), Some("after@example.org"));
     Ok(())

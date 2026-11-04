@@ -54,7 +54,7 @@ pub enum ContentOwnerRef<'doc> {
 /// use acdc_parser::{Options, parse};
 /// let field = {
 ///     let parsed = parse("Paragraph.", &Options::default()).unwrap();
-///     parsed.document_ref().content_occurrences().next().unwrap()
+///     parsed.document().content_occurrences().next().unwrap()
 /// };
 /// let _ = field.content();
 /// ```

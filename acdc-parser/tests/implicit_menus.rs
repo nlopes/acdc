@@ -61,7 +61,7 @@ fn quoted_menus_follow_the_macro_stage(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let actual = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
@@ -106,7 +106,7 @@ fn later_attributes_cannot_create_the_quoted_menu_form(
             &source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let found = parsed.document_ref().blocks().any(|block| {
+        let found = parsed.document().blocks().any(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
                 paragraph
                     .content()
@@ -130,7 +130,7 @@ fn quoted_menus_share_the_existing_ui_availability(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let BlockKind::Paragraph(paragraph) = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .ok_or("missing block")?
@@ -157,9 +157,9 @@ fn quoted_menu_labels_keep_rich_content_and_source_locations(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     let BlockKind::Paragraph(paragraph) = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .ok_or("missing block")?
@@ -200,7 +200,7 @@ fn quoted_menu_labels_keep_rich_content_and_source_locations(
         (start, end)
     );
     let note = parsed
-        .document_ref()
+        .document()
         .footnotes()
         .next()
         .ok_or("missing footnote")?;

@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build()?;
         let parsed = acdc_parser::parse_file(&input_path, &parser_options)?;
         let output_path = expected_dir.join(format!("{stem}.md"));
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let variant = if stem.starts_with("commonmark_") {
             MarkdownVariant::CommonMark
         } else {

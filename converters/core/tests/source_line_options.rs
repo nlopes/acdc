@@ -160,15 +160,11 @@ fn parsed_source_line_options_keep_modes_and_block_forms() -> Result<(), Box<dyn
                     &Options::builder().with_compatibility_mode(mode).build()?,
                 )?;
                 let parsed_blocks: Vec<_> = parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(acdc_parser::Block::from)
                     .collect();
-                let block = parsed
-                    .document_ref()
-                    .blocks()
-                    .next()
-                    .ok_or("source block")?;
+                let block = parsed.document().blocks().next().ok_or("source block")?;
                 let attributes = block.attributes().ok_or("attributes")?;
                 let options = SourceLineOptions::from_attributes(attributes, "one\ntwo\nthree");
                 assert_eq!(

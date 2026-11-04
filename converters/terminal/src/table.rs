@@ -909,7 +909,7 @@ mod tests {
             .expect("Failed to parse AsciiDoc");
         let parsed = Box::leak(Box::new(parsed));
         parsed
-            .document_ref()
+            .document()
             .blocks()
             .find_map(|block| {
                 if let acdc_parser::ast::BlockKind::Table(table) = block.kind() {

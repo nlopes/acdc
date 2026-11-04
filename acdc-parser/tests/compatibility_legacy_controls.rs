@@ -54,7 +54,7 @@ fn draft_preserves_legacy_control_and_warns_without_recovery() -> Result<(), Err
     let parsed = parse(source, &options)?;
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("compat-mode")
             .and_then(|value| value.text()),
@@ -93,7 +93,7 @@ fn caller_legacy_control_warns_once_and_document_locks_still_apply() -> Result<(
             .collect::<Vec<_>>();
         assert_eq!(warnings.len(), usize::from(enabled));
         assert_eq!(
-            parsed.document_ref().attributes().contains("compat-mode"),
+            parsed.document().attributes().contains("compat-mode"),
             enabled
         );
         if let Some(warning) = warnings.first() {
@@ -152,7 +152,7 @@ fn uri_fallback_roles_follow_the_fixed_mode() -> Result<(), Error> {
             &options,
         )?;
         let Some(BlockKind::Paragraph(paragraph)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected fallback paragraph".into());
         };

@@ -25,7 +25,7 @@ fn malformed_column_records_do_not_contribute_controls(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Table(table)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Table(table)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("table".into());
     };
@@ -47,7 +47,7 @@ fn all_invalid_column_records_leave_column_inference_enabled(
         "[cols=\"'1a','2a'\"]\n|===\n|*First* |*Second*\n|===\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Table(table)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Table(table)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("table".into());
     };
@@ -72,7 +72,7 @@ fn column_count_and_record_boundaries_follow_the_complete_value(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Table(table)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Table(table)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("table".into());
     };
@@ -111,7 +111,7 @@ fn complete_alignment_width_and_style_survive_repetition(
         "[cols=\"2*<.>3a,~m\"]\n|===\n|One |Two |Three\n|===\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Table(table)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Table(table)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("table".into());
     };

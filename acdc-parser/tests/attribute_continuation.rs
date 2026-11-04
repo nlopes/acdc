@@ -40,7 +40,7 @@ fn attribute_continuation_preserves_literal_backslashes_and_following_source() -
                 let parsed = parse(&source, &Options::default())?;
                 assert_eq!(
                     parsed
-                        .document_ref()
+                        .document()
                         .attributes()
                         .get("value")
                         .and_then(DocumentAttributeValue::text),
@@ -48,14 +48,14 @@ fn attribute_continuation_preserves_literal_backslashes_and_following_source() -
                     "{source:?}"
                 );
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
                 else {
                     return Err(format!(
                         "unexpected blocks: {:?}",
-                        parsed.document_ref().blocks().collect::<Vec<_>>()
+                        parsed.document().blocks().collect::<Vec<_>>()
                     )
                     .into());
                 };
@@ -77,13 +77,13 @@ fn attribute_continuation_preserves_a_literal_backslash_at_eof() -> Result<(), E
         let parsed = parse(&source, &Options::default())?;
         assert_eq!(
             parsed
-                .document_ref()
+                .document()
                 .attributes()
                 .get("value")
                 .and_then(DocumentAttributeValue::text),
             Some("\\")
         );
-        assert!(parsed.document_ref().blocks().next().is_none());
+        assert!(parsed.document().blocks().next().is_none());
     }
     Ok(())
 }
@@ -103,7 +103,7 @@ fn attribute_continuation_preserves_caller_locks_and_does_not_swallow_body_text(
     ] {
         let parsed = parse(source, &options)?;
         let [BlockKind::Paragraph(first), BlockKind::Paragraph(second)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -124,15 +124,15 @@ fn attribute_continuation_keeps_colon_prefixed_lines_in_the_value() -> Result<()
     let parsed = parse(source, &Options::default())?;
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("value")
             .and_then(DocumentAttributeValue::text),
         Some("First :other: Still value text")
     );
-    assert!(!parsed.document_ref().attributes().contains("other"));
+    assert!(!parsed.document().attributes().contains("other"));
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()

@@ -744,7 +744,7 @@ fn test_setext_disabled_in_draft() -> Result<(), Error> {
         .with_compatibility_mode(CompatibilityMode::Draft)
         .build()?;
     let parsed = parse(input, &options)?;
-    assert!(parsed.document().header.is_none());
+    assert!(parsed.document_storage().header.is_none());
     Ok(())
 }
 
@@ -1007,7 +1007,7 @@ References.
 ";
     let options = Options::builder().build()?;
     let parsed = parse(input, &options)?;
-    let result = parsed.document();
+    let result = parsed.document_storage();
 
     let header = result.header.as_ref().expect("document has a header");
     assert!(

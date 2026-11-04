@@ -16,8 +16,7 @@ fn title_passthroughs_keep_the_authored_line(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Paragraph(block)) =
-        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    let Some(BlockKind::Paragraph(block)) = parsed.document().blocks().last().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };
@@ -39,8 +38,7 @@ fn explicit_passthrough_expansion_keeps_the_title_snapshot(
         ":inner: Before\n:outer: \\{inner}\n\n[title='pass:a[{outer}]']\n:inner: After\nText.",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Paragraph(block)) =
-        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    let Some(BlockKind::Paragraph(block)) = parsed.document().blocks().last().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };
@@ -60,8 +58,7 @@ fn authored_single_character_title_content_excludes_its_delimiters(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Paragraph(block)) =
-        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    let Some(BlockKind::Paragraph(block)) = parsed.document().blocks().last().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };
@@ -98,8 +95,7 @@ fn named_titles_interpret_the_expanded_value(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Paragraph(block)) =
-        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    let Some(BlockKind::Paragraph(block)) = parsed.document().blocks().last().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };
@@ -131,8 +127,7 @@ fn expanded_title_nodes_keep_the_full_authored_reference(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Paragraph(block)) =
-        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    let Some(BlockKind::Paragraph(block)) = parsed.document().blocks().last().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };
@@ -165,8 +160,7 @@ fn passthroughs_protect_the_value_after_list_expansion(
         ":word: *Bold*\n\n[title='++{word}++']\nText.",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Paragraph(block)) =
-        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    let Some(BlockKind::Paragraph(block)) = parsed.document().blocks().last().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };
@@ -185,7 +179,7 @@ fn only_selected_named_titles_register_footnotes(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     assert_eq!(
-        parsed.document_ref().footnotes().count(),
+        parsed.document().footnotes().count(),
         if mode == CompatibilityMode::Asciidoctor {
             4
         } else {
@@ -208,7 +202,7 @@ fn selected_include_titles_keep_their_source_file(
             .build()?,
     )?;
     let title = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
@@ -235,7 +229,7 @@ fn selected_include_titles_keep_their_source_file(
     assert_eq!(origin.location.start.line, 2);
     assert_eq!(origin.location.end.line, 2);
     assert_eq!(origin.location.end.column - origin.location.start.column, 5);
-    assert_eq!(parsed.document_ref().footnotes().count(), 2);
+    assert_eq!(parsed.document().footnotes().count(), 2);
     Ok(())
 }
 
@@ -248,7 +242,7 @@ fn expanded_title_notes_keep_the_first_definition_and_authored_warnings(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+    let [note] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
         return Err("expected one selected note".into());
     };
     assert_eq!(note.number(), 1);

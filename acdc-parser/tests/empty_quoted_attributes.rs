@@ -18,7 +18,7 @@ fn empty_quoted_attributes_preserve_original_source_spans() -> Result<(), Error>
                     format!("= Empty{newline}:blank:{newline}{newline}α {quoted} ω.{newline}");
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()

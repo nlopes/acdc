@@ -10,7 +10,7 @@ fn ordinary_index_labels_do_not_need_an_additional_catalog_snapshot(
 ) -> Result<(), Error> {
     let parsed = parse(&format!("indexterm2:[{label}]"), &Options::default())?;
     let owner = parsed
-        .document()
+        .document_storage()
         .blocks
         .iter()
         .find_map(|block| {

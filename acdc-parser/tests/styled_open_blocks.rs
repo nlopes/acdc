@@ -24,7 +24,7 @@ fn styled_open_blocks_select_one_content_model(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [block] = &*parsed.document_ref().blocks().collect::<Vec<_>>() else {
+    let [block] = &*parsed.document().blocks().collect::<Vec<_>>() else {
         return Err("expected one delimited block".into());
     };
     let (actual, retained_delimiter, open, close) = if let BlockKind::Example(node) = block.kind() {
@@ -94,7 +94,7 @@ fn styled_open_blocks_select_one_content_model(
                 .contains("citetitle")
         );
     }
-    assert_eq!(parsed.document_ref().footnotes().count(), footnotes);
+    assert_eq!(parsed.document().footnotes().count(), footnotes);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }
@@ -116,7 +116,7 @@ fn styled_open_admonitions_register_body_once(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let [BlockKind::Admonition(block)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -127,7 +127,7 @@ fn styled_open_admonitions_register_body_once(
     assert_eq!(block.blocks().count(), 1);
     assert_eq!(block.location().absolute_start(), 0);
     assert_eq!(block.location().absolute_end() + 1, source.len());
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }

@@ -21,7 +21,7 @@ fn combined_spans_preserve_source_column_styles() -> Result<(), Error> {
     )?;
     let table = table(
         parsed
-            .document_ref()
+            .document()
             .blocks()
             .next()
             .ok_or("expected a table")?,
@@ -62,7 +62,7 @@ fn duplicated_cells_resolve_each_generated_column_style() -> Result<(), Error> {
     )?;
     let table = table(
         parsed
-            .document_ref()
+            .document()
             .blocks()
             .next()
             .ok_or("expected a table")?,

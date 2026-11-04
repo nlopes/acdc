@@ -417,7 +417,7 @@ mod tests {
             &acdc_parser::Options::default(),
         )?;
         let image = parsed
-            .document_ref()
+            .document()
             .blocks()
             .find_map(|block| {
                 if let BlockKind::Image(image) = block.kind() {
@@ -428,7 +428,7 @@ mod tests {
             })
             .ok_or("missing image")?;
         let source = Path::new("/tmp/attributes.adoc");
-        let attributes = TraversalContext::new(parsed.document_ref().attributes());
+        let attributes = TraversalContext::new(parsed.document().attributes());
 
         assert_eq!(
             image_target_path(&attributes, image.source(), Some(source)),

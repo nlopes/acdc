@@ -29,7 +29,7 @@ fn reserved_writes_and_removals_leave_the_image_unchanged(
         "image:photo.png[Alt,title=Tooltip,id=picture,role=wide,opts=inline]",
         &Options::default(),
     )?;
-    let mut image = first_image(parsed.document())?.clone();
+    let mut image = first_image(parsed.document_storage())?.clone();
     let before = json(image.clone())?;
     let error = image
         .set_attribute(name.to_owned().into(), "Shadow".into())
@@ -54,7 +54,7 @@ fn replacing_or_removing_content_keeps_one_serialized_owner() -> Result<(), Erro
         "image:photo.png[Old alt,title=Old tooltip]",
         &Options::default(),
     )?;
-    let mut image = first_image(parsed.document())?.clone();
+    let mut image = first_image(parsed.document_storage())?.clone();
     image.alt = Some(ContentAttribute::default());
     image.tooltip = None;
     let value = json(image)?;
@@ -70,7 +70,7 @@ fn unpromoted_attributes_remain_mutable_without_changing_content() -> Result<(),
         "image:photo.png[Alt,title=Tooltip,custom=original]",
         &Options::default(),
     )?;
-    let mut image = first_image(parsed.document())?.clone();
+    let mut image = first_image(parsed.document_storage())?.clone();
     let alt = image.alt.clone();
     let tooltip = image.tooltip.clone();
     image.set_attribute("width".into(), "120".into())?;
@@ -92,7 +92,7 @@ fn replacing_metadata_preserves_content_and_macro_attributes() -> Result<(), Err
         "image:photo.png[Alt,title=Tooltip,id=old,role=old,opts=inline,custom=kept]",
         &Options::default(),
     )?;
-    let mut image = first_image(parsed.document())?.clone();
+    let mut image = first_image(parsed.document_storage())?.clone();
     let alt = image.alt.clone();
     let tooltip = image.tooltip.clone();
     let mut metadata = InlineMetadata::default();

@@ -399,7 +399,7 @@ mod tests {
         let parsed = acdc_parser::parse(input, &Options::default())
             .map_err(|error| miette::miette!(error.to_string()))?;
         let Some(acdc_parser::ast::BlockKind::Listing(block)) = parsed
-            .document_ref()
+            .document()
             .blocks()
             .next()
             .map(acdc_parser::ast::BlockRef::kind)

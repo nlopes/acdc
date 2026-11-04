@@ -149,8 +149,8 @@ impl<'doc> Visitor<'doc> for OwnerTrace {
 #[test]
 fn owner_lifecycle_orders_framing_around_attribute_replay() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
-    let parsed_document = acdc_parser::Document::from(parsed.document_ref());
-    let mut context = TraversalContext::new(parsed.document_ref().attributes());
+    let parsed_document = acdc_parser::Document::from(parsed.document());
+    let mut context = TraversalContext::new(parsed.document().attributes());
     let mut visitor = OwnerTrace::default();
     visitor.visit_document(&mut context, &parsed_document)?;
     let expected = [
@@ -197,8 +197,8 @@ const PREAMBLES: &[(&str, bool)] = &[
 fn owner_preamble_requires_a_header_section_and_substantive_content() -> Result<(), Error> {
     for (source, wrapped) in PREAMBLES {
         let parsed = parse(source, &Options::default())?;
-        let parsed_document = acdc_parser::Document::from(parsed.document_ref());
-        let mut context = TraversalContext::new(parsed.document_ref().attributes());
+        let parsed_document = acdc_parser::Document::from(parsed.document());
+        let mut context = TraversalContext::new(parsed.document().attributes());
         let mut visitor = OwnerTrace::default();
         visitor.visit_document(&mut context, &parsed_document)?;
         for phase in ["preamble-start", "preamble-end"] {
@@ -221,10 +221,10 @@ fn owner_preamble_requires_a_header_section_and_substantive_content() -> Result<
 #[test]
 fn owner_errors_stop_all_later_document_hooks() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
-    let parsed_document = acdc_parser::Document::from(parsed.document_ref());
+    let parsed_document = acdc_parser::Document::from(parsed.document());
     let mut complete = OwnerTrace::default();
     complete.visit_document(
-        &mut TraversalContext::new(parsed.document_ref().attributes()),
+        &mut TraversalContext::new(parsed.document().attributes()),
         &parsed_document,
     )?;
     for fail_at in 0..complete.0.entries.len() {
@@ -232,7 +232,7 @@ fn owner_errors_stop_all_later_document_hooks() -> Result<(), Error> {
             fail_at: Some(fail_at),
             ..Trace::default()
         });
-        let mut context = TraversalContext::new(parsed.document_ref().attributes());
+        let mut context = TraversalContext::new(parsed.document().attributes());
         assert_eq!(
             visitor.visit_document(&mut context, &parsed_document),
             Err("stop")
@@ -296,15 +296,15 @@ fn typed_and_owner_lifecycles_agree_in_both_modes() -> Result<(), Error> {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         for source in PREAMBLES.iter().map(|case| case.0).chain([SOURCE]) {
             let parsed = parse(source, &options)?;
-            let parsed_document = acdc_parser::Document::from(parsed.document_ref());
+            let parsed_document = acdc_parser::Document::from(parsed.document());
             let mut owner = OwnerTrace::default();
             let mut typed = TypedTrace::default();
-            let mut owner_context = TraversalContext::new(parsed.document_ref().attributes());
-            let mut typed_context = TraversalContext::new(parsed.document_ref().attributes());
+            let mut owner_context = TraversalContext::new(parsed.document().attributes());
+            let mut typed_context = TraversalContext::new(parsed.document().attributes());
             owner.visit_document(&mut owner_context, &parsed_document)?;
-            typed.visit_document(&mut typed_context, parsed.document_ref())?;
+            typed.visit_document(&mut typed_context, parsed.document())?;
             assert_eq!(typed.0.entries, owner.0.entries, "{mode:?}: {source:?}");
-            assert_eq!(typed.1, parsed.document_ref().title());
+            assert_eq!(typed.1, parsed.document().title());
         }
     }
     Ok(())
@@ -313,7 +313,7 @@ fn typed_and_owner_lifecycles_agree_in_both_modes() -> Result<(), Error> {
 #[test]
 fn attribute_only_preambles_remain_unwrapped_after_owner_edits() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
-    let parsed_document = acdc_parser::Document::from(parsed.document_ref());
+    let parsed_document = acdc_parser::Document::from(parsed.document());
     let mut document = Document::default();
     let header = parsed_document.header.as_ref().ok_or("header")?;
     document.header = Some(Header::new(header.title.clone(), header.location.clone()));
@@ -342,7 +342,7 @@ fn attribute_only_preambles_remain_unwrapped_after_owner_edits() -> Result<(), E
 #[test]
 fn typed_and_owner_errors_preserve_the_same_assignment_and_hook_prefix() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
-    let parsed_document = acdc_parser::Document::from(parsed.document_ref());
+    let parsed_document = acdc_parser::Document::from(parsed.document());
     let mut complete = OwnerTrace::default();
     complete.visit_document(
         &mut TraversalContext::new(DocumentRef::from(&parsed_document).attributes()),
@@ -385,7 +385,7 @@ fn typed_document_trait_objects_restore_parent_scopes_after_success_and_errors()
 {
     let parent = parse("= Parent\n:value: parent\n\nBody.\n", &Options::default())?;
     let child = parse(SOURCE, &Options::default())?;
-    let mut context = TraversalContext::new(parent.document_ref().attributes());
+    let mut context = TraversalContext::new(parent.document().attributes());
     for fail_at in [None, Some(8)] {
         let mut trace = TypedTrace(
             Trace {
@@ -396,7 +396,7 @@ fn typed_document_trait_objects_restore_parent_scopes_after_success_and_errors()
         );
         let visitor: &mut dyn DocumentVisitor<'_, Error = &'static str> = &mut trace;
         let result = context.with_scope(|context| {
-            let result = visitor.visit_document(context, child.document_ref());
+            let result = visitor.visit_document(context, child.document());
             assert!(context.is_nested_document());
             assert_eq!(
                 context.get("value").and_then(|value| value.text()),

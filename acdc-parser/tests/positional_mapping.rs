@@ -15,8 +15,7 @@ fn role_only_lists_do_not_move_an_earlier_positional_value() -> Result<(), Error
             "[Old]\n[alt=Named]\n[.role]\nimage::photo.png[]",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let Some(BlockKind::Image(image)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        let Some(BlockKind::Image(image)) = parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("missing image".into());
         };
@@ -42,7 +41,7 @@ fn mapped_image_alt_points_to_the_authored_reference() -> Result<(), Error> {
             .with_compatibility_mode(CompatibilityMode::Draft)
             .build()?,
     )?;
-    let Some(BlockKind::Image(image)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Image(image)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("missing image".into());
     };
@@ -70,9 +69,9 @@ fn includes_and_table_cells_keep_selected_content_and_locations() -> Result<(), 
                 .with_safe_mode(SafeMode::Unsafe)
                 .build()?,
         )?;
-        assert_eq!(parsed.document_ref().footnotes().count(), 4);
+        assert_eq!(parsed.document().footnotes().count(), 4);
         let included = parsed
-            .document_ref()
+            .document()
             .blocks()
             .nth(2)
             .and_then(BlockRef::attributes)
@@ -93,8 +92,7 @@ fn includes_and_table_cells_keep_selected_content_and_locations() -> Result<(), 
             }
         );
 
-        let Some(BlockKind::Table(table)) =
-            parsed.document_ref().blocks().last().map(BlockRef::kind)
+        let Some(BlockKind::Table(table)) = parsed.document().blocks().last().map(BlockRef::kind)
         else {
             return Err("missing table".into());
         };
@@ -130,7 +128,7 @@ fn quoted_empty_media_dimensions_clear_only_in_compatible_mode() -> Result<(), E
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let metadata = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .next()
                 .and_then(BlockRef::attributes)
@@ -160,7 +158,7 @@ fn delimiter_supplies_the_mapping_when_style_is_absent() -> Result<(), Error> {
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let metadata = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .next()
                 .and_then(BlockRef::attributes)
@@ -189,7 +187,7 @@ fn macro_dimensions_follow_the_last_authored_value() -> Result<(), Error> {
                     &Options::builder().with_compatibility_mode(mode).build()?,
                 )?;
                 let metadata = parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .next()
                     .and_then(BlockRef::attributes)
@@ -209,7 +207,7 @@ fn compatible_video_does_not_map_preceding_style_to_poster() -> Result<(), Error
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let metadata = parsed
-            .document_ref()
+            .document()
             .blocks()
             .next()
             .and_then(BlockRef::attributes)
@@ -235,7 +233,7 @@ fn only_the_selected_attribution_registers_before_body_content() -> Result<(), E
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let selected = parsed
-            .document_ref()
+            .document()
             .footnotes()
             .map(|note| {
                 source.get(note.location().absolute_start()..=note.location().absolute_end())

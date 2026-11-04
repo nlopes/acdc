@@ -241,7 +241,7 @@ mod tests {
                     .with_compatibility_mode(mode)
                     .build()?,
             )?;
-            let sources = collect_media_sources(parsed.document_ref());
+            let sources = collect_media_sources(parsed.document());
             let [(source, _)] = sources.as_slice() else {
                 return Err("one media source".into());
             };

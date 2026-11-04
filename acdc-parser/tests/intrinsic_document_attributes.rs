@@ -102,16 +102,16 @@ fn string_and_reader_inputs_initialize_intrinsics_in_all_safe_modes() -> TestRes
     ] {
         let options = Options::builder().with_safe_mode(safe_mode).build()?;
         let string = parse("", &options)?;
-        assert_safe_mode(string.document_ref().attributes(), safe_mode);
-        assert_local_timestamp(string.document_ref().attributes())?;
-        assert_document_timestamp(string.document_ref().attributes())?;
+        assert_safe_mode(string.document().attributes(), safe_mode);
+        assert_local_timestamp(string.document().attributes())?;
+        assert_document_timestamp(string.document().attributes())?;
 
         let reader = parse_from_reader(Cursor::new(""), &options)?;
-        assert_safe_mode(reader.document_ref().attributes(), safe_mode);
-        assert_local_timestamp(reader.document_ref().attributes())?;
-        assert_document_timestamp(reader.document_ref().attributes())?;
+        assert_safe_mode(reader.document().attributes(), safe_mode);
+        assert_local_timestamp(reader.document().attributes())?;
+        assert_document_timestamp(reader.document().attributes())?;
         for name in ["docdir", "docfile", "docfilesuffix", "docname"] {
-            assert!(!reader.document_ref().attributes().contains(name), "{name}");
+            assert!(!reader.document().attributes().contains(name), "{name}");
         }
     }
     Ok(())
@@ -125,18 +125,8 @@ fn intrinsic_initialization_does_not_restore_an_unset_universal_default() -> Tes
 
     let parsed = parse("", &options)?;
 
-    assert!(
-        !parsed
-            .document_ref()
-            .attributes()
-            .contains("figure-caption")
-    );
-    assert!(
-        parsed
-            .document_ref()
-            .attributes()
-            .contains("safe-mode-name")
-    );
+    assert!(!parsed.document().attributes().contains("figure-caption"));
+    assert!(parsed.document().attributes().contains("safe-mode-name"));
     Ok(())
 }
 
@@ -151,13 +141,13 @@ fn string_metadata_overrides_are_retained_but_reader_overrides_are_removed() -> 
 
     let string = parse("", &options)?;
     assert_eq!(
-        text(string.document_ref().attributes(), "docdir"),
+        text(string.document().attributes(), "docdir"),
         Some("/caller")
     );
 
     let reader = parse_from_reader(Cursor::new(""), &options)?;
     for name in ["docdir", "docfile", "docfilesuffix", "docname"] {
-        assert!(!reader.document_ref().attributes().contains(name), "{name}");
+        assert!(!reader.document().attributes().contains(name), "{name}");
     }
     Ok(())
 }
@@ -180,7 +170,7 @@ fn file_input_initializes_source_metadata_and_masks_sensitive_paths() -> TestRes
             .with_attribute("docfile", "spoof.adoc")
             .build()?;
         let parsed = parse_file(&path, &options)?;
-        let attributes = parsed.document_ref().attributes();
+        let attributes = parsed.document().attributes();
         assert_safe_mode(attributes, safe_mode);
         assert_eq!(text(attributes, "docfilesuffix"), Some(".adoc"));
         assert_eq!(text(attributes, "docname"), Some("guide"));
@@ -219,32 +209,24 @@ fn filetype_override_only_applies_to_string_input() -> TestResult {
 
     let string = parse("", &options)?;
     assert_eq!(
-        text(string.document_ref().attributes(), "filetype"),
+        text(string.document().attributes(), "filetype"),
         Some("caller")
     );
-    assert!(
-        string
-            .document_ref()
-            .attributes()
-            .contains("filetype-caller")
-    );
-    assert!(!string.document_ref().attributes().contains("filetype-html"));
+    assert!(string.document().attributes().contains("filetype-caller"));
+    assert!(!string.document().attributes().contains("filetype-html"));
 
     let reader = parse_from_reader(Cursor::new(""), &options)?;
     assert_eq!(
-        text(reader.document_ref().attributes(), "filetype"),
+        text(reader.document().attributes(), "filetype"),
         Some("html")
     );
-    assert!(reader.document_ref().attributes().contains("filetype-html"));
+    assert!(reader.document().attributes().contains("filetype-html"));
 
     let directory = TempDirectory::new()?;
     let path = directory.0.join("input.adoc");
     fs::write(&path, "")?;
     let file = parse_file(path, &options)?;
-    assert_eq!(
-        text(file.document_ref().attributes(), "filetype"),
-        Some("html")
-    );
+    assert_eq!(text(file.document().attributes(), "filetype"), Some("html"));
     Ok(())
 }
 
@@ -255,7 +237,7 @@ fn intrinsic_assignments_drive_preprocessing_and_the_final_model_consistently() 
         &Options::default(),
     )?;
 
-    let attributes = parsed.document_ref().attributes();
+    let attributes = parsed.document().attributes();
     assert_eq!(text(attributes, "localyear"), Some("1999"));
     assert_eq!(text(attributes, "conditional-year"), Some("1999"));
     assert_eq!(text(attributes, "outfilesuffix"), Some(".custom"));
@@ -274,20 +256,10 @@ fn source_cannot_spoof_an_inactive_convenience_attribute() -> TestResult {
         &Options::default(),
     )?;
 
-    assert!(!parsed.document_ref().attributes().contains("spoofed"));
-    assert!(parsed.document_ref().attributes().contains("actual"));
-    assert!(
-        parsed
-            .document_ref()
-            .attributes()
-            .contains("safe-mode-secure")
-    );
-    assert!(
-        !parsed
-            .document_ref()
-            .attributes()
-            .contains("safe-mode-unsafe")
-    );
+    assert!(!parsed.document().attributes().contains("spoofed"));
+    assert!(parsed.document().attributes().contains("actual"));
+    assert!(parsed.document().attributes().contains("safe-mode-secure"));
+    assert!(!parsed.document().attributes().contains("safe-mode-unsafe"));
     Ok(())
 }
 
@@ -307,7 +279,7 @@ fn header_only_intrinsics_reject_body_set_and_unset_entries() -> TestResult {
         let source = format!(":{name}: header-value\n\nText.\n\n:{name}: body-value\n:{name}!:\n");
         let parsed = parse(&source, &Options::default())?;
         assert_eq!(
-            text(parsed.document_ref().attributes(), name),
+            text(parsed.document().attributes(), name),
             Some("header-value"),
             "{name}"
         );
@@ -332,11 +304,11 @@ fn included_header_attribute_affects_following_conditionals() -> TestResult {
             .build()?,
     )?;
     assert_eq!(
-        text(parsed.document_ref().attributes(), "localyear"),
+        text(parsed.document().attributes(), "localyear"),
         Some("1999")
     );
     assert_eq!(
-        text(parsed.document_ref().attributes(), "included-value"),
+        text(parsed.document().attributes(), "included-value"),
         Some("1999")
     );
     Ok(())
@@ -353,9 +325,9 @@ fn post_conversion_attributes_are_not_parser_visible() -> TestResult {
         &options,
     )?;
 
-    assert!(!parsed.document_ref().attributes().contains("outdir"));
-    assert!(!parsed.document_ref().attributes().contains("outfile"));
-    assert!(!parsed.document_ref().attributes().contains("visible"));
+    assert!(!parsed.document().attributes().contains("outdir"));
+    assert!(!parsed.document().attributes().contains("outfile"));
+    assert!(!parsed.document().attributes().contains("visible"));
 
     let mut attributes = std::collections::HashMap::<
         std::borrow::Cow<'_, str>,
@@ -380,7 +352,7 @@ fn source_date_epoch_produces_utc_intrinsics() -> TestResult {
         let path = directory.0.join("epoch.adoc");
         fs::write(&path, "")?;
         let parsed = parse_file(path, &Options::default())?;
-        let attributes = parsed.document_ref().attributes();
+        let attributes = parsed.document().attributes();
         for prefix in ["local", "doc"] {
             assert_eq!(
                 text(attributes, &format!("{prefix}date")),
@@ -417,12 +389,12 @@ fn intrinsic_values_do_not_change_json_shape() -> TestResult {
     let parsed = parse("", &Options::default())?;
 
     assert_eq!(
-        serde_json::to_value(DocumentAttributes::from(parsed.document_ref().attributes()))?,
+        serde_json::to_value(DocumentAttributes::from(parsed.document().attributes()))?,
         serde_json::json!({})
     );
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("safe-mode-level")
             .and_then(|value| value.text()),

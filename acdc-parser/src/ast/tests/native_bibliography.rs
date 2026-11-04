@@ -23,7 +23,7 @@ fn native_anchor_fields_preserve_bibliography_kind_and_label_presence(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let block = parsed.document().blocks.first().ok_or("block")?;
+    let block = parsed.document_storage().blocks.first().ok_or("block")?;
     let content = if let Block::Paragraph(paragraph) = block {
         &paragraph.content
     } else if let Block::UnorderedList(list) = block {
@@ -75,7 +75,7 @@ fn bibliography_display_and_citation_keep_distinct_profiles_in_json(
         "[bibliography,subs=\"specialcharacters,quotes,macros\"]\n* [[[target,café (C)]]] Entry.",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::UnorderedList(list)) = parsed.document().blocks.first() else {
+    let Some(Block::UnorderedList(list)) = parsed.document_storage().blocks.first() else {
         return Err("bibliography".into());
     };
     let anchor = list

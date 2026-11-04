@@ -52,7 +52,7 @@ fn nested_reads_preserve_structure_content_and_declarations(
         )?
     };
     let [BlockKind::Section(section)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -94,7 +94,7 @@ fn nested_reads_preserve_structure_content_and_declarations(
         image.attributes().get("width"),
         Some(AttributeValueRef::Text("120"))
     );
-    let native = serde_json::to_value(parsed.document_ref())?;
+    let native = serde_json::to_value(parsed.document())?;
     let stored = native
         .pointer(
             "/blocks/0/blocks/1/content/rows/0/columns/0/content/0/inlines/0/metadata/attributes",
@@ -156,7 +156,7 @@ fn callers_can_share_immutable_document_reads() -> Result<(), Error> {
     assert_send_sync::<Document<'_>>();
 
     let parsed = parse("A paragraph.", &Options::default())?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     std::thread::scope(|scope| {
         scope.spawn(move || assert_eq!(document.blocks().count(), 1));
         assert_eq!(document.blocks().count(), 1);
@@ -167,7 +167,7 @@ fn callers_can_share_immutable_document_reads() -> Result<(), Error> {
 #[test]
 fn content_iteration_keeps_independent_front_and_back_cursors() -> Result<(), Error> {
     let parsed = parse("First *bold* last.", &Options::default())?;
-    let paragraph = parsed.document_ref().blocks().next().ok_or("paragraph")?;
+    let paragraph = parsed.document().blocks().next().ok_or("paragraph")?;
     let BlockKind::Paragraph(paragraph) = paragraph.kind() else {
         return Err("expected paragraph".into());
     };

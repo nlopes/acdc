@@ -28,8 +28,8 @@ fn headings_select_the_same_primary_id_as_reference_resolution(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
-    let doc = parsed.document_ref();
+    let before = serde_json::to_value(parsed.document())?;
+    let doc = parsed.document();
     let header = doc.header().ok_or("header")?;
     assert_eq!(doc.id().ok_or("document ID")?.as_str(), "header-last");
     assert_eq!(header.id().ok_or("header ID")?.as_str(), "header-last");
@@ -63,7 +63,7 @@ fn headings_select_the_same_primary_id_as_reference_resolution(
     for block in &blocks {
         if let Some(id) = block.id() {
             assert_eq!(id.origin(), IdOrigin::Explicit);
-            assert!(parsed.document_ref().references().contains(id.as_str()));
+            assert!(parsed.document().references().contains(id.as_str()));
             assert_eq!(block.primary_anchor().map(AnchorRef::id), Some(id.as_str()));
         }
     }
@@ -96,9 +96,9 @@ fn headings_select_the_same_primary_id_as_reference_resolution(
         ["dedicated", "alias"]
     );
     for unregistered in ["header-first", "section-first", "paragraph-last", "alias"] {
-        assert!(!parsed.document_ref().references().contains(unregistered));
+        assert!(!parsed.document().references().contains(unregistered));
     }
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 
@@ -110,11 +110,7 @@ fn generated_section_ids_are_retained_collision_checked_and_not_authored_anchors
         "== Repeated\n\nOne.\n\n== Repeated\n\nTwo.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    for (block, expected) in parsed
-        .document_ref()
-        .blocks()
-        .zip(["_repeated", "_repeated_2"])
-    {
+    for (block, expected) in parsed.document().blocks().zip(["_repeated", "_repeated_2"]) {
         let BlockKind::Section(section) = block.kind() else {
             return Err("section".into());
         };
@@ -134,7 +130,7 @@ fn generated_section_ids_are_retained_collision_checked_and_not_authored_anchors
         assert!(block.anchors().next().is_none());
         assert_eq!(
             parsed
-                .document_ref()
+                .document()
                 .references()
                 .get(expected)
                 .ok_or("reference")?
@@ -179,7 +175,7 @@ fn common_block_reads_cover_all_metadata_owners(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let block = parsed.document_ref().blocks().next().ok_or("block")?;
+    let block = parsed.document().blocks().next().ok_or("block")?;
     assert_eq!(
         block.id().ok_or("primary ID")?.as_str(),
         "primary",
@@ -207,7 +203,7 @@ fn restricted_and_absent_owners_do_not_synthesize_metadata() -> Result<(), Error
         ".Rule\n[[first]]\n[[second]]\n'''\n\n// Comment\n\n:attribute: value\n",
         &Options::default(),
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let rule = blocks.next().ok_or("rule")?;
     assert_eq!(rule.id().ok_or("rule ID")?.as_str(), "first");
     assert_eq!(
@@ -222,10 +218,10 @@ fn restricted_and_absent_owners_do_not_synthesize_metadata() -> Result<(), Error
         assert!(block.anchors().next().is_none());
     }
     let parsed = parse("Text.", &Options::default())?;
-    assert!(parsed.document_ref().id().is_none());
-    assert!(parsed.document_ref().title().is_none());
-    assert!(parsed.document_ref().primary_anchor().is_none());
-    assert!(parsed.document_ref().anchors().next().is_none());
+    assert!(parsed.document().id().is_none());
+    assert!(parsed.document().title().is_none());
+    assert!(parsed.document().primary_anchor().is_none());
+    assert!(parsed.document().anchors().next().is_none());
     Ok(())
 }
 
@@ -237,12 +233,8 @@ fn inline_identity_is_separate_from_reference_targets_and_footnote_keys(
         "Text image:bird.png[Alt,id=image] icon:heart[id=icon] [#span]*bold* anchor:anchor[Label] link:https://example.org[Link,id=link] https://example.org[URL,id=url] mailto:a@example.org[Mail,id=mail] xref:span[Label,id=xref] indexterm2:[Term,id=index] footnote:key[Note.] footnote:key[]",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let BlockKind::Paragraph(paragraph) = parsed
-        .document_ref()
-        .blocks()
-        .next()
-        .ok_or("paragraph")?
-        .kind()
+    let BlockKind::Paragraph(paragraph) =
+        parsed.document().blocks().next().ok_or("paragraph")?.kind()
     else {
         return Err("paragraph".into());
     };
@@ -280,10 +272,10 @@ fn inline_identity_is_separate_from_reference_targets_and_footnote_keys(
         }
     }
     for target in ["span", "anchor", "link", "url", "mail"] {
-        assert!(parsed.document_ref().references().contains(target));
+        assert!(parsed.document().references().contains(target));
     }
     for retained_only in ["image", "icon", "xref", "index", "key"] {
-        assert!(!parsed.document_ref().references().contains(retained_only));
+        assert!(!parsed.document().references().contains(retained_only));
     }
     Ok(())
 }
@@ -330,7 +322,7 @@ fn expanded_unicode_ids_keep_include_and_table_source_provenance(
             .build()?,
     )?;
     let blocks = parsed
-        .document_ref()
+        .document()
         .descendants()
         .filter_map(|node| {
             if let StructuralRef::Block(block) = node {
@@ -384,7 +376,7 @@ fn identity_and_title_reads_do_not_allocate_or_rebuild_catalogs() -> Result<(), 
         "[[alias]]\n[id=primary]\n== Heading\n\nText [#span]*bold*.\n\n== Generated\n",
         &Options::default(),
     )?;
-    let blocks = parsed.document_ref().blocks().collect::<Vec<_>>();
+    let blocks = parsed.document().blocks().collect::<Vec<_>>();
     let region = Region::new(ALLOCATOR);
     for _ in 0..100 {
         for block in &blocks {
@@ -405,7 +397,7 @@ fn identity_and_title_reads_do_not_allocate_or_rebuild_catalogs() -> Result<(), 
 #[test]
 fn explicit_underscore_ids_are_not_mistaken_for_generated_ids() -> Result<(), Error> {
     let parsed = parse("[id=_same]\n== Same\n\n== Same\n", &Options::default())?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let explicit = blocks
         .next()
         .ok_or("explicit section")?

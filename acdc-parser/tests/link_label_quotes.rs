@@ -49,7 +49,7 @@ fn link_label_quotes_keep_literal_quotes_without_attribute_parsing() -> Result<(
             let source = format!("α {prefix}[{quote}é \\] café{quote}] ω.\n");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -80,7 +80,7 @@ fn link_label_quotes_remove_one_escape_and_keep_source_spans() -> Result<(), Err
                 );
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -129,7 +129,7 @@ fn link_label_quotes_keep_multiline_passthrough_source_spans() -> Result<(), Err
     ] {
         let parsed = parse(source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -175,7 +175,7 @@ fn link_label_quotes_keep_index_and_footnote_registration_text() -> Result<(), E
         );
         let parsed = parse(&source, &Options::default())?;
         let Some(BlockKind::Paragraph(paragraph)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected paragraph".into());
         };
@@ -195,7 +195,7 @@ fn link_label_quotes_keep_index_and_footnote_registration_text() -> Result<(), E
             label_text(term.catalog().term().inlines())?,
             r#"One \"quote\""#
         );
-        let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+        let [note] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
             return Err("expected one registered footnote".into());
         };
         assert_eq!(label_text(note.content().inlines())?, r#"Note \"quote\"."#);
@@ -209,7 +209,7 @@ fn link_label_quotes_keep_nested_macro_delimiters() -> Result<(), Error> {
         "link:https://example.org[Label (((term,sub))) and <<target,Display>> tail,role=green]";
     let parsed = parse(source, &Options::default())?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()

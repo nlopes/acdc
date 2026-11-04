@@ -15,15 +15,17 @@ fn modes() -> Result<[Options<'static>; 2], Error> {
 }
 fn owned_blocks(parsed: &crate::ParseResult) -> Document<'_> {
     let mut document = Document::default();
-    document.location = parsed.document().location.clone();
-    document.attributes = parsed.document().attributes.clone();
-    document.blocks.clone_from(&parsed.document().blocks);
+    document.location = parsed.document_storage().location.clone();
+    document.attributes = parsed.document_storage().attributes.clone();
+    document
+        .blocks
+        .clone_from(&parsed.document_storage().blocks);
     document
         .references
-        .clone_from(&parsed.document().references);
+        .clone_from(&parsed.document_storage().references);
     document
         .toc_entries
-        .clone_from(&parsed.document().toc_entries);
+        .clone_from(&parsed.document_storage().toc_entries);
     document
 }
 
@@ -66,10 +68,10 @@ fn asg_preserves_formatted_titles_reftext_and_ids() -> Result<(), Error> {
             include_str!("../../../fixtures/tests/asg_core_content.adoc"),
             &options,
         )?;
-        let before = serde_json::to_value(parsed.document())?;
-        let references = parsed.document().references.clone();
-        let toc = parsed.document().toc_entries.clone();
-        let value = asg::document(parsed.document_ref())?;
+        let before = serde_json::to_value(parsed.document_storage())?;
+        let references = parsed.document_storage().references.clone();
+        let toc = parsed.document_storage().toc_entries.clone();
+        let value = asg::document(parsed.document())?;
         assert_eq!(
             value.pointer("/header/title/0/variant"),
             Some(&json!("strong"))
@@ -92,10 +94,10 @@ fn asg_preserves_formatted_titles_reftext_and_ids() -> Result<(), Error> {
                 .pointer("/blocks/0/blocks/0/metadata/attributes/title")
                 .is_none()
         );
-        assert_eq!(asg::document(parsed.document_ref())?, value);
-        assert_eq!(serde_json::to_value(parsed.document())?, before);
-        assert_eq!(parsed.document().references, references);
-        assert_eq!(parsed.document().toc_entries, toc);
+        assert_eq!(asg::document(parsed.document())?, value);
+        assert_eq!(serde_json::to_value(parsed.document_storage())?, before);
+        assert_eq!(parsed.document_storage().references, references);
+        assert_eq!(parsed.document_storage().toc_entries, toc);
     }
     Ok(())
 }
@@ -110,7 +112,7 @@ fn asg_rejects_independent_header_and_catalog_values() -> Result<(), Error> {
         let parsed = parse(source, &Options::default())?;
         assert!(
             matches!(
-                asg::document(parsed.document_ref()),
+                asg::document(parsed.document()),
                 Err(asg::Error::Unsupported { .. })
             ),
             "{source}"

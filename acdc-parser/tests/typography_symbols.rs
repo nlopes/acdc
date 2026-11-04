@@ -11,7 +11,7 @@ fn symbol_reads_and_native_json_project_one_semantic_value() -> Result<(), Error
     let parsed = parse("First\n\n(C)", &Options::default())?;
     let location = Location::from(
         parsed
-            .document_ref()
+            .document()
             .blocks()
             .last()
             .ok_or("missing source block")?

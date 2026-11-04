@@ -69,7 +69,7 @@ fn single_plus_empty_and_unmatched_candidates_remain_literal() -> Result<(), Err
     for source in ["++", "Text'+", "Text +unfinished"] {
         let parsed = parse(source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -113,7 +113,7 @@ fn single_plus_invalid_candidates_keep_references_and_later_openers_visible() ->
             let source = format!(":word: café\n\nα {body} ω.").replace('\n', newline);
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -129,8 +129,8 @@ fn single_plus_invalid_candidates_keep_references_and_later_openers_visible() ->
                 assert_eq!(content, expected_raw, "{source:?}");
                 assert_source_span(parsed.source(), *location, expected_raw)?;
             }
-            assert_eq!(parsed.document_ref().footnotes().count(), 0);
-            assert!(parsed.document_ref().references().iter().next().is_none());
+            assert_eq!(parsed.document().footnotes().count(), 0);
+            assert!(parsed.document().references().iter().next().is_none());
         }
     }
     Ok(())
@@ -145,7 +145,7 @@ fn single_plus_content_edges_distinguish_ascii_whitespace_from_nbsp() -> Result<
                     format!(":word: café\n\nα +{left}{{word}}{right}+ ω.").replace('\n', newline);
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -193,7 +193,7 @@ fn escaped_single_plus_and_wrappers_use_the_same_closing_rules() -> Result<(), E
         let source = format!(":word: café\n\nα {body} ω.");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -218,7 +218,7 @@ fn disabled_single_plus_stages_remain_disabled() -> Result<(), Error> {
         let source = format!(":word: café\n\n[subs=\"{subs}\"]\n{body}");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -238,7 +238,7 @@ fn disabled_single_plus_stages_remain_disabled() -> Result<(), Error> {
     let source = ":word: café\n\n[subs=\"-attributes\"]\nA+{word}+B | +{word}+.";
     let parsed = parse(source, &Options::default())?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -263,7 +263,7 @@ fn single_plus_source_spans_retain_include_origins() -> Result<(), Error> {
     )?;
     let included_source = include_str!("../fixtures/tests/includes/single-plus.adoc");
     let mut checked = 0;
-    for block in parsed.document_ref().blocks() {
+    for block in parsed.document().blocks() {
         let BlockKind::Section(section) = block.kind() else {
             continue;
         };
@@ -330,7 +330,7 @@ fn single_plus_boundaries_accept_punctuation_and_reject_words() -> Result<(), Er
         let source = format!(":word: café\n\nα {before}+{{word}}+{after} ω.");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -373,7 +373,7 @@ fn single_plus_unicode_word_boundaries_preserve_references() -> Result<(), Error
             let source = format!(":word: café\n\nα {before}+{{word}}+{after} ω.");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -404,7 +404,7 @@ fn plus_prefixed_text_does_not_split_an_ordinary_paragraph() -> Result<(), Error
         let source = "Before.\n+ text\nAfter.".replace('\n', newline);
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -428,7 +428,7 @@ fn standalone_plus_still_attaches_list_continuations() -> Result<(), Error> {
             .replace('\n', newline);
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::UnorderedList(list)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -461,7 +461,7 @@ fn single_plus_protected_macros_do_not_register_catalog_entries() -> Result<(), 
     let source = format!("α `+{content}+`B.");
     let parsed = parse(&source, &Options::default())?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -473,7 +473,7 @@ fn single_plus_protected_macros_do_not_register_catalog_entries() -> Result<(), 
     collect_text(paragraph.content(), &mut text, &mut protected)?;
     assert_eq!(text, format!("α `{content}`B."));
     assert_eq!(protected.len(), 1);
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
-    assert!(parsed.document_ref().references().iter().next().is_none());
+    assert_eq!(parsed.document().footnotes().count(), 0);
+    assert!(parsed.document().references().iter().next().is_none());
     Ok(())
 }

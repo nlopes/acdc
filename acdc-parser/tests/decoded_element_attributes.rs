@@ -18,7 +18,7 @@ fn hyperlink_ids_and_reference_catalog_keep_the_same_literal_value(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let BlockKind::Paragraph(paragraph) = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .map(BlockRef::kind)
@@ -34,7 +34,7 @@ fn hyperlink_ids_and_reference_catalog_keep_the_same_literal_value(
         ) {
             let id = node.id().ok_or("ID")?.as_str();
             let reference = parsed
-                .document_ref()
+                .document()
                 .references()
                 .get(id)
                 .ok_or_else(|| format!("missing exact ID {id:?}"))?;
@@ -44,7 +44,7 @@ fn hyperlink_ids_and_reference_catalog_keep_the_same_literal_value(
             );
             assert!(
                 !parsed
-                    .document_ref()
+                    .document()
                     .references()
                     .contains(id.trim_matches('\''))
             );

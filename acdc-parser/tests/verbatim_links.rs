@@ -11,7 +11,7 @@ fn verbatim_link_locations_retain_the_original_macro_spans() -> Result<(), Error
     let source = include_str!("../fixtures/tests/subs_verbatim_links.adoc");
     let parsed = parse(source, &Options::default())?;
     let mut spans = Vec::new();
-    for block in parsed.document_ref().blocks() {
+    for block in parsed.document().blocks() {
         if let BlockKind::Listing(block) = block.kind() {
             for node in block.content().inlines() {
                 if matches!(node.kind(), InlineKind::Link(_)) {

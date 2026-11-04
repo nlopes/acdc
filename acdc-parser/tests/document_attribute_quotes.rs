@@ -21,7 +21,7 @@ fn reference_snapshots_preserve_document_quote_characters(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let BlockKind::Paragraph(paragraph) = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .map(BlockRef::kind)
@@ -63,7 +63,7 @@ fn xref_styles_do_not_reinterpret_literal_quotes(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let BlockKind::Paragraph(paragraph) = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .map(BlockRef::kind)

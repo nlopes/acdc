@@ -56,14 +56,14 @@ fn repeated_block_image_link_uses_the_last_value() -> TestResult {
         &Options::default(),
     )?;
     let [BlockKind::Image(image)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(format!(
             "expected one block image, got {:?}",
-            parsed.document_ref().blocks().collect::<Vec<_>>()
+            parsed.document().blocks().collect::<Vec<_>>()
         )
         .into());
     };

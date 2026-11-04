@@ -605,7 +605,7 @@ mod tests {
             &Options::default(),
         )?;
         let mut document = Document {
-            blocks: parsed.document().blocks.clone(),
+            blocks: parsed.document_storage().blocks.clone(),
             ..Document::default()
         };
         let mut xrefs = Vec::new();

@@ -44,7 +44,7 @@ impl Drop for TempDocument {
 
 fn paragraph_texts(result: &ParseResult) -> TestResult<Vec<String>> {
     result
-        .document_ref()
+        .document()
         .blocks()
         .map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -100,7 +100,7 @@ fn authorized_uri_is_preserved_when_network_support_is_disabled() -> TestResult 
     assert_warning(&result, uri, &document.path)?;
 
     let Some(BlockKind::Paragraph(fallback)) =
-        result.document_ref().blocks().nth(1).map(BlockRef::kind)
+        result.document().blocks().nth(1).map(BlockRef::kind)
     else {
         return Err("expected the fallback paragraph".into());
     };

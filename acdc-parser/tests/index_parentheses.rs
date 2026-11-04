@@ -35,7 +35,7 @@ fn index_parentheses_keep_complete_catalog_labels_and_source_spans() -> Result<(
                 let source = format!("{prefix}{markup}{suffix}");
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -100,7 +100,7 @@ fn index_parentheses_preserve_adjacent_terms_and_unbalanced_prose() -> Result<()
     ] {
         let parsed = parse(source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -132,7 +132,7 @@ fn index_parentheses_keep_registration_time_attribute_values() -> Result<(), Err
         let source = format!(":symbol: (R)\n\n[subs=\"{subs}\"]\n((Late {{symbol}})) after.");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()

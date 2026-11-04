@@ -8,7 +8,7 @@ type Error = Box<dyn std::error::Error>;
 
 fn paragraph(parsed: &acdc_parser::ParseResult) -> Result<ContentRef<'_>, Error> {
     parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
@@ -128,13 +128,13 @@ fn nested_ui_macros_register_their_content_once(
     )?;
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .footnotes()
             .map(FootnoteDefinitionRef::id)
             .collect::<Vec<_>>(),
         [Some("key"), Some("menu")]
     );
-    let notes = parsed.document_ref().footnotes();
+    let notes = parsed.document().footnotes();
     for (note, authored) in notes.zip(["footnote:key[A+B]", "footnote:menu[A > B]"]) {
         let start = source.find(authored).ok_or("missing authored note")?;
         assert_eq!(

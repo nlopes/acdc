@@ -17,12 +17,9 @@ fn prepend_modifiers_register_attribute_macros_once() -> Result<(), Error> {
             ":value: anchor:target[]footnote:[Only note.]\n\n[subs=\"{subs}\"]\n{{value}}\n"
         );
         let parsed = parse(&source, &Options::default())?;
-        assert_eq!(parsed.document_ref().footnotes().count(), 1, "{subs}");
-        assert_eq!(parsed.document_ref().references().len(), 1, "{subs}");
-        assert!(
-            parsed.document_ref().references().contains("target"),
-            "{subs}"
-        );
+        assert_eq!(parsed.document().footnotes().count(), 1, "{subs}");
+        assert_eq!(parsed.document().references().len(), 1, "{subs}");
+        assert!(parsed.document().references().contains("target"), "{subs}");
     }
     Ok(())
 }
@@ -51,7 +48,7 @@ fn attribute_first_code_checks_expanded_content_and_keeps_default_order() -> Res
                 );
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -117,7 +114,7 @@ fn attribute_first_code_uses_a_later_valid_closer_with_complete_locations() -> R
             );
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -171,7 +168,7 @@ fn attribute_first_code_expands_references_when_quotes_are_disabled() -> Result<
         let source = format!("= Code\n:word: café\n\n[subs=\"{subs}\"]\nP `{{word}}`.\n");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -202,7 +199,7 @@ fn attribute_first_code_preserves_passthrough_and_macro_locations() -> Result<()
                 "= Code{newline}:word: café{newline}{newline}[subs=\"attributes,quotes,macros\"]{newline}α pass:[before] {quote} pass:[after] ω.{newline}"
             );
             let parsed = parse(&source, &Options::default())?;
-            let document = parsed.document_ref();
+            let document = parsed.document();
             let [BlockKind::Paragraph(paragraph)] =
                 &*document.blocks().map(BlockRef::kind).collect::<Vec<_>>()
             else {

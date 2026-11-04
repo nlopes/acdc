@@ -19,7 +19,7 @@ fn mode_selects_underlined_headings_for_every_input_entry_point() -> Result<(), 
             parse_from_reader(source.as_bytes(), &options)?,
             parse_file(&path, &options)?,
         ] {
-            let document = parsed.document_ref();
+            let document = parsed.document();
             assert_eq!(
                 document.header().is_some(),
                 mode == CompatibilityMode::Asciidoctor
@@ -46,7 +46,7 @@ fn document_controls_do_not_select_underlined_heading_rules() -> Result<(), Erro
             let parsed = parse(&source, &options)?;
             assert_eq!(
                 matches!(
-                    parsed.document_ref().blocks().next().map(BlockRef::kind),
+                    parsed.document().blocks().next().map(BlockRef::kind),
                     Some(BlockKind::Section(_))
                 ),
                 mode == CompatibilityMode::Asciidoctor,
@@ -74,10 +74,10 @@ fn selected_includes_keep_underlined_heading_source_ranges() -> Result<(), Error
             .build()?;
         let parsed = parse_file(&main, &options)?;
         assert_eq!(
-            parsed.document_ref().toc_entries().count(),
+            parsed.document().toc_entries().count(),
             usize::from(mode == CompatibilityMode::Asciidoctor)
         );
-        if let Some(entry) = parsed.document_ref().toc_entries().next() {
+        if let Some(entry) = parsed.document().toc_entries().next() {
             assert_eq!(entry.location().start().line(), 2);
             assert_eq!(entry.location().end().line(), 2);
             assert_eq!(entry.location().absolute_start(), "Excluded\n".len());
@@ -96,7 +96,7 @@ fn underline_width_matches_asciidoctor_character_tolerance() -> Result<(), Error
         let source = format!("= Guide\n\nRésumé\n{}\n\nBody.\n", "-".repeat(width));
         let parsed = parse(&source, &Options::default())?;
         assert_eq!(
-            parsed.document_ref().toc_entries().count(),
+            parsed.document().toc_entries().count(),
             usize::from((5..=7).contains(&width)),
             "width {width}"
         );

@@ -85,14 +85,14 @@ fn denied_non_http_uri_uses_link_fallback_instead_of_local_file_handling() -> Te
             BlockKind::Paragraph(fallback),
             BlockKind::Paragraph(after),
         ] = &*result
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
         else {
             return Err(format!(
                 "unexpected blocks: {:?}",
-                result.document_ref().blocks().collect::<Vec<_>>()
+                result.document().blocks().collect::<Vec<_>>()
             )
             .into());
         };
@@ -145,14 +145,14 @@ fn authorized_unsupported_uri_recovers_without_reading_a_local_file() -> TestRes
         BlockKind::Paragraph(fallback),
         BlockKind::Paragraph(after),
     ] = &*result
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(format!(
             "unexpected blocks: {:?}",
-            result.document_ref().blocks().collect::<Vec<_>>()
+            result.document().blocks().collect::<Vec<_>>()
         )
         .into());
     };

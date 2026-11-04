@@ -37,17 +37,17 @@ fn parser_tokens_and_identity_follow_existing_mode_semantics(
          [#image,role=first,opts=first]\nimage::bird.png[Bird,role=second,opts=second]\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_storage())?;
     let warnings = format!("{:?}", parsed.warnings());
-    let footnotes = parsed.document().footnotes.len();
-    let references = parsed.document().references.len();
+    let footnotes = parsed.document_storage().footnotes.len();
+    let references = parsed.document_storage().references.len();
     assert_eq!(footnotes, 1);
     assert!(references > 0);
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let Some(BlockKind::Paragraph(paragraph)) = blocks.next().map(BlockRef::kind) else {
         return Err("missing paragraph".into());
     };
-    let Some(Block::Paragraph(owner)) = parsed.document().blocks.first() else {
+    let Some(Block::Paragraph(owner)) = parsed.document_storage().blocks.first() else {
         return Err("missing paragraph owner".into());
     };
     assert_eq!(
@@ -70,7 +70,7 @@ fn parser_tokens_and_identity_follow_existing_mode_semantics(
     let Some(BlockKind::Image(image)) = blocks.next().map(BlockRef::kind) else {
         return Err("missing image".into());
     };
-    let Some(Block::Image(owner)) = parsed.document().blocks.get(1) else {
+    let Some(Block::Image(owner)) = parsed.document_storage().blocks.get(1) else {
         return Err("missing image owner".into());
     };
     assert_eq!(
@@ -82,9 +82,9 @@ fn parser_tokens_and_identity_follow_existing_mode_semantics(
         owner.metadata.options
     );
     assert_inventory(image.attributes());
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_storage())?, before);
     assert_eq!(format!("{:?}", parsed.warnings()), warnings);
-    assert_eq!(parsed.document().footnotes.len(), footnotes);
-    assert_eq!(parsed.document().references.len(), references);
+    assert_eq!(parsed.document_storage().footnotes.len(), footnotes);
+    assert_eq!(parsed.document_storage().references.len(), references);
     Ok(())
 }

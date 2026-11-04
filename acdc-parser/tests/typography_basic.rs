@@ -35,7 +35,7 @@ fn typography_is_resolved_before_a_converter_reads_the_tree(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -65,7 +65,7 @@ fn late_attribute_text_cannot_create_a_symbol(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -98,7 +98,7 @@ fn typography_does_not_register_a_note_twice(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let mut definitions = parsed.document_ref().footnotes();
+    let mut definitions = parsed.document().footnotes();
     let (Some(note), None) = (definitions.next(), definitions.next()) else {
         return Err("expected one registered note".into());
     };
@@ -122,7 +122,7 @@ fn symbols_retain_authored_ranges(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {

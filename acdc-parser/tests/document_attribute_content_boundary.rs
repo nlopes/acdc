@@ -19,7 +19,7 @@ fn document_value_inputs_preserve_text_presence_unsets_and_integer_spelling() ->
             "= T\n:toclevels: 0003\n:present:\n:empty: pass:[]\n:unset!:\n:formatted: pass:q[*Early*]\n:raw: pass:[<raw> &]\n:alias: {formatted} / {raw}\n\nBody.\n",
             &options,
         )?;
-        let attributes = parsed.document_ref().attributes();
+        let attributes = parsed.document().attributes();
         for (name, expected) in [
             ("toclevels", "0003"),
             ("max-include-depth", "0003"),
@@ -69,7 +69,7 @@ fn parsed_snapshots_retain_prepared_fragments_and_definition_time_references() -
                 "= T\n:name: Early\n:formatted: pass:a,q[*{name}*]\n:raw: pass:[<raw> &]\n:alias: {formatted} / {raw}\n\n:name: Late\n\nBody.\n",
                 &options,
             )?;
-            DocumentAttributes::from(parsed.document_ref().attributes()).into_static()
+            DocumentAttributes::from(parsed.document().attributes()).into_static()
         };
         assert_eq!(
             snapshot.get("name").and_then(DocumentAttributeValue::text),
@@ -78,7 +78,7 @@ fn parsed_snapshots_retain_prepared_fragments_and_definition_time_references() -
         let options = options.with_document_attributes(snapshot);
         let parsed = parse(".Title {alias}\nBody.\n\n{alias}\n", &options)?;
         let [BlockKind::Paragraph(titled), BlockKind::Paragraph(body)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -89,7 +89,7 @@ fn parsed_snapshots_retain_prepared_fragments_and_definition_time_references() -
             assert!(nodes.inlines().any(|node| matches!(node.kind(), InlineKind::Bold(bold) if matches!(&*bold.content().inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Raw(text)] if text.text() == "Early"))));
             assert!(nodes.inlines().any(|node| matches!(node.kind(), InlineKind::Raw(text) if text.text() == "<raw> &" && text.substitutions().next().is_none())));
         }
-        assert!(parsed.document_ref().footnotes().next().is_none());
+        assert!(parsed.document().footnotes().next().is_none());
     }
     Ok(())
 }

@@ -228,7 +228,7 @@ impl FixtureGenerator {
 
             // Convert using the provided function
             let mut output = Vec::new();
-            if let Err(e) = convert_fn(parsed.document_ref(), &mut output) {
+            if let Err(e) = convert_fn(parsed.document(), &mut output) {
                 println!(
                     "{} Error converting {} to {}: {e}",
                     PrintStyledContent("❌".red()),

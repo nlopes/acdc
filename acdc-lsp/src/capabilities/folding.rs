@@ -149,7 +149,7 @@ Different content.
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
 
-        let ranges = compute_folding_ranges(parsed.document_ref(), content);
+        let ranges = compute_folding_ranges(parsed.document(), content);
         // Should have 2 folding ranges for the two sections
         assert_eq!(ranges.len(), 2);
         Ok(())
@@ -169,7 +169,7 @@ fn main() {
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
 
-        let ranges = compute_folding_ranges(parsed.document_ref(), content);
+        let ranges = compute_folding_ranges(parsed.document(), content);
         // Should have 1 folding range for the listing block
         assert_eq!(ranges.len(), 1);
         assert_eq!(
@@ -194,7 +194,7 @@ block
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
 
-        let ranges = compute_folding_ranges(parsed.document_ref(), content);
+        let ranges = compute_folding_ranges(parsed.document(), content);
         // Should have 1 folding range for the open block
         assert_eq!(ranges.len(), 1);
         assert_eq!(

@@ -34,7 +34,7 @@ fn inline_roles_preserve_the_complete_first_positional_value() -> Result<(), Err
                 );
                 let parsed = parse(&source, &Options::default())?;
                 let Some(BlockKind::Paragraph(paragraph)) =
-                    parsed.document_ref().blocks().next().map(BlockRef::kind)
+                    parsed.document().blocks().next().map(BlockRef::kind)
                 else {
                     return Err("missing paragraph".into());
                 };
@@ -87,7 +87,7 @@ fn inline_unicode_ids_keep_their_full_target_and_roles() -> Result<(), Error> {
             let source = format!(":target: {id}\n\nα [{attribute}]**End** tail.");
             let parsed = parse(&source, &Options::default())?;
             let Some(BlockKind::Paragraph(paragraph)) =
-                parsed.document_ref().blocks().next().map(BlockRef::kind)
+                parsed.document().blocks().next().map(BlockRef::kind)
             else {
                 return Err("missing paragraph".into());
             };
@@ -105,11 +105,7 @@ fn inline_unicode_ids_keep_their_full_target_and_roles() -> Result<(), Error> {
                 attribute.contains("résumé").then_some("résumé"),
                 "{source:?}"
             );
-            let reference = parsed
-                .document_ref()
-                .references()
-                .get(id)
-                .ok_or("missing ID")?;
+            let reference = parsed.document().references().get(id).ok_or("missing ID")?;
             assert_eq!(reference.location(), bold.location(), "{source:?}");
             let start = parsed.source().find("**End**").ok_or("missing source")?;
             assert_eq!(bold.location().absolute_start(), start, "{source:?}");

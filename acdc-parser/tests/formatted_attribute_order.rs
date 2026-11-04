@@ -23,7 +23,7 @@ fn formatted_values_keep_missing_and_escaped_references_literal(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().last().map(BlockRef::kind)
+        parsed.document().blocks().last().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };
@@ -88,7 +88,7 @@ fn formatted_values_apply_stages_in_declared_order(
             .build()?,
     )?;
     let paragraphs: Vec<_> = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -120,7 +120,7 @@ fn formatted_values_apply_stages_in_declared_order(
     );
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("first")
             .and_then(acdc_parser::DocumentAttributeValue::text),
@@ -138,7 +138,7 @@ fn formatted_values_preserve_macro_stage_bodies_without_unused_registrations(
         include_str!("../fixtures/tests/compatibility_formatted_attribute_snapshots.adoc"),
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+    let [note] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
         return Err("expected only the used named note".into());
     };
     let text = note
@@ -155,7 +155,7 @@ fn formatted_values_preserve_macro_stage_bodies_without_unused_registrations(
         })
         .collect::<String>();
     assert_eq!(text, "{name}");
-    assert!(!parsed.document_ref().references().contains("unused"));
+    assert!(!parsed.document().references().contains("unused"));
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }

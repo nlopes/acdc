@@ -65,7 +65,7 @@ pub fn run(_args: &Args) -> Result<(), Error> {
         "block" => {
             let parsed = acdc_parser::parse(&tck_input.contents, &parser_options)?;
             json::warnings(parsed.warnings())?;
-            json::document(parsed.document_ref(), Format::UpstreamAsg)?
+            json::document(parsed.document(), Format::UpstreamAsg)?
         }
         "inline" => {
             let parsed = acdc_parser::parse_inline(&tck_input.contents, &parser_options)?;

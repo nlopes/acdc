@@ -20,8 +20,8 @@ fn attribute_meaning_agrees_across_reads_native_json_and_checked_export() -> Res
              image:photo.png[alt='*Bird*',title='_Tip_',width=0120]\n",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let native = serde_json::to_value(parsed.document_ref())?;
-        let graph = asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc)?;
+        let native = serde_json::to_value(parsed.document())?;
+        let graph = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         for (pointer, expected) in [
             ("/blocks/0/title/0/variant", json!("strong")),
             ("/blocks/0/title/0/inlines/0/value", json!("Declared")),
@@ -42,7 +42,7 @@ fn attribute_meaning_agrees_across_reads_native_json_and_checked_export() -> Res
                 "{mode:?}: {pointer}"
             );
         }
-        let mut blocks = parsed.document_ref().blocks();
+        let mut blocks = parsed.document().blocks();
         let Some(BlockKind::Paragraph(paragraph)) = blocks.next().map(BlockRef::kind) else {
             return Err("paragraph".into());
         };
@@ -59,11 +59,7 @@ fn attribute_meaning_agrees_across_reads_native_json_and_checked_export() -> Res
             return Err("example".into());
         };
         assert!(matches!(
-            CaptionRef::resolve(
-                example.attributes(),
-                parsed.document_ref().attributes(),
-                None
-            ),
+            CaptionRef::resolve(example.attributes(), parsed.document().attributes(), None),
             Some(CaptionRef::CustomContent(_))
         ));
         for (native_path, graph_path) in [
@@ -87,13 +83,13 @@ fn attribute_meaning_agrees_across_reads_native_json_and_checked_export() -> Res
                 .pointer("/blocks/2/metadata/attributes/attribution")
                 .is_none()
         );
-        assert_eq!(serde_json::to_value(parsed.document_ref())?, native);
+        assert_eq!(serde_json::to_value(parsed.document())?, native);
         assert_eq!(
-            asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc)?,
+            asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?,
             graph
         );
         assert!(
-            matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/1/metadata/caption")
+            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/1/metadata/caption")
         );
         let mut wrong = graph.clone();
         *wrong
@@ -121,9 +117,9 @@ fn snapshot_and_selected_content_survive_projection_without_side_effects() -> Re
              [title='*Selected* footnote:kept[Kept]']\nBody.\n",
             &options,
         )?;
-        let before = serde_json::to_value(parsed.document_ref())?;
+        let before = serde_json::to_value(parsed.document())?;
         let quote = parsed
-            .document_ref()
+            .document()
             .blocks()
             .find_map(|block| {
                 if let BlockKind::Quote(block) = block.kind() {
@@ -151,18 +147,13 @@ fn snapshot_and_selected_content_survive_projection_without_side_effects() -> Re
             attribution.inlines().next().map(InlineRef::kind),
             Some(InlineKind::Plain(_))
         ));
-        assert_eq!(parsed.document_ref().footnotes().count(), 1);
+        assert_eq!(parsed.document().footnotes().count(), 1);
         assert_eq!(
-            parsed
-                .document_ref()
-                .footnotes()
-                .next()
-                .ok_or("footnote")?
-                .id(),
+            parsed.document().footnotes().next().ok_or("footnote")?.id(),
             Some("kept")
         );
-        assert!(asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc).is_err());
-        assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+        assert!(asg::document_with_profile(parsed.document(), asg::Profile::Acdc).is_err());
+        assert_eq!(serde_json::to_value(parsed.document())?, before);
     }
     Ok(())
 }
@@ -175,7 +166,7 @@ fn mode_specific_literal_content_and_empty_presence_have_distinct_graphs() -> Re
              image:photo.png[alt=\"\",title=\"\"] and image:photo.png[]",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let graph = asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc)?;
+        let graph = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         let title = graph.pointer("/blocks/0/title/0").ok_or("title")?;
         if mode == CompatibilityMode::Asciidoctor {
             assert_eq!(title.get("variant"), Some(&json!("strong")));

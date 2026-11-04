@@ -4,7 +4,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 fn listing(parsed: &ParseResult) -> Result<&DelimitedBlock<'_>, Box<dyn Error>> {
     parsed
-        .document()
+        .document_storage()
         .blocks
         .iter()
         .find_map(|block| {
@@ -43,7 +43,7 @@ fn retained_text_does_not_change_serialization_or_equality() -> TestResult {
         serde_json::to_value(synthetic)?
     );
 
-    let Some(Block::Paragraph(original)) = parsed.document().blocks.last() else {
+    let Some(Block::Paragraph(original)) = parsed.document_storage().blocks.last() else {
         return Err("expected final source paragraph".into());
     };
     let synthetic = Paragraph::new(original.content.clone(), original.location.clone())

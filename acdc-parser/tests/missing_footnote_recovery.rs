@@ -31,7 +31,7 @@ fn unknown_footnote_fallbacks_report_each_recovered_occurrence(
             .with_attribute("missing-id", "missing")
             .build()?,
     )?;
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert_eq!(parsed.document().footnotes().count(), 0);
     assert!(parsed.source_recovery().is_some());
     let starts = source
         .match_indices(authored)

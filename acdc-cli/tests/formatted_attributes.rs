@@ -23,7 +23,7 @@ fn formatted_attribute_document_can_be_parsed_once_for_three_backends() -> Resul
         include_str!("../../acdc-parser/fixtures/tests/document_attribute_formatted.adoc"),
         &Options::default(),
     )?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     let text = serde_json::to_value(DocumentAttributes::from(doc.attributes()))?;
     let tree = serde_json::to_value(doc)?;
     let notes = Document::from(doc).footnotes;

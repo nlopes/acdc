@@ -5,7 +5,7 @@ type Error = Box<dyn std::error::Error>;
 #[test]
 fn replacing_a_title_cannot_leave_its_old_named_value() -> Result<(), Error> {
     let parsed = parse("[title='*Old*',custom=kept]\nText.", &Options::default())?;
-    let [Block::Paragraph(original)] = parsed.document().blocks.as_slice() else {
+    let [Block::Paragraph(original)] = parsed.document_storage().blocks.as_slice() else {
         return Err("missing paragraph".into());
     };
     assert!(matches!(
@@ -47,7 +47,7 @@ fn content_attributes_serialize_only_their_selected_inline_content() -> Result<(
         "[title=Discarded]\n.Selected\n[quote,attribution='*Ada*',citetitle='A _book_']\n____\nWords.\n____",
         &Options::default(),
     )?;
-    let [Block::DelimitedBlock(block)] = parsed.document().blocks.as_slice() else {
+    let [Block::DelimitedBlock(block)] = parsed.document_storage().blocks.as_slice() else {
         return Err("missing quote".into());
     };
     let attribution = block

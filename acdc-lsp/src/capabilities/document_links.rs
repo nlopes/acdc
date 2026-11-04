@@ -26,7 +26,7 @@ pub(crate) fn collect_document_links(doc: &DocumentState, doc_uri: &Uri) -> Vec<
     let mut links = Vec::new();
 
     if let Some(ast) = doc.ast() {
-        let _ = visit_links(ast.document_ref(), |link| {
+        let _ = visit_links(ast.document(), |link| {
             let info = match link {
                 LinkOccurrence::Hyperlink(link) => LinkInfo {
                     target: link.target().to_string(),

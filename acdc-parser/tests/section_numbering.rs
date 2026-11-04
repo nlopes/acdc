@@ -23,7 +23,7 @@ fn source_order_controls_section_numbers() -> Result<(), Error> {
         "= T\n\n== Before\n\n:sectnums:\n\n== First numbered\n\n=== Child\n\n:sectnums!:\n\n== Disabled\n\n:sectnums:\n\n== Second numbered\n",
         &Options::default(),
     )?;
-    let blocks = parsed.document_ref().blocks().collect::<Vec<_>>();
+    let blocks = parsed.document().blocks().collect::<Vec<_>>();
     let before = section(blocks.first().copied().ok_or("expected Before")?)?;
     let first = section(blocks.get(1).copied().ok_or("expected First numbered")?)?;
     let child = first
@@ -53,13 +53,7 @@ fn hidden_depths_still_consume_their_structural_ordinal() -> Result<(), Error> {
         "= T\n:sectnums:\n:sectnumlevels: 1\n\n== Parent\n\n=== Hidden\n\n:sectnumlevels: 2\n\n=== Visible\n",
         &Options::default(),
     )?;
-    let parent = section(
-        parsed
-            .document_ref()
-            .blocks()
-            .next()
-            .ok_or("expected Parent")?,
-    )?;
+    let parent = section(parsed.document().blocks().next().ok_or("expected Parent")?)?;
     let children: Vec<_> = parent
         .blocks()
         .filter_map(|block| {
@@ -86,7 +80,7 @@ fn toc_entries_use_the_sections_semantic_numbers() -> Result<(), Error> {
         &Options::default(),
     )?;
     let numbers: Vec<_> = parsed
-        .document_ref()
+        .document()
         .toc_entries()
         .map(TocEntryRef::number)
         .collect();
@@ -101,15 +95,12 @@ fn default_section_numbering_depth_is_three_without_defining_attribute() -> Resu
         &Options::default(),
     )?;
     let numbers: Vec<_> = parsed
-        .document_ref()
+        .document()
         .toc_entries()
         .map(TocEntryRef::number)
         .collect();
 
-    assert_eq!(
-        parsed.document_ref().attributes().get("sectnumlevels"),
-        None
-    );
+    assert_eq!(parsed.document().attributes().get("sectnumlevels"), None);
     assert_eq!(numbers, [Some("1"), Some("1.1"), Some("1.1.1"), None]);
     Ok(())
 }
@@ -121,7 +112,7 @@ fn duplicate_generated_ids_keep_their_own_toc_numbers() -> Result<(), Error> {
         &Options::default(),
     )?;
     let numbers: Vec<_> = parsed
-        .document_ref()
+        .document()
         .toc_entries()
         .map(TocEntryRef::number)
         .collect();
@@ -136,7 +127,7 @@ fn books_use_independent_part_chapter_and_appendix_sequences() -> Result<(), Err
         "= T\n:doctype: book\n:sectnums:\n:partnums:\n\n= Part\n\n== Chapter one\n\n[appendix]\n== Appendix\n\n=== Appendix child\n\n== Chapter two\n",
         &Options::default(),
     )?;
-    let blocks = parsed.document_ref().blocks().collect::<Vec<_>>();
+    let blocks = parsed.document().blocks().collect::<Vec<_>>();
     let part = section(blocks.first().copied().ok_or("expected Part")?)?;
     let chapter_one = section(part.blocks().next().ok_or("expected Chapter one")?)?;
     let appendix = section(part.blocks().nth(1).ok_or("expected Appendix")?)?;
@@ -157,7 +148,7 @@ fn special_sections_follow_the_numbering_mode() -> Result<(), Error> {
         "= T\n:sectnums:\n\n[preface]\n== Preface\n\n=== Hidden child\n\n== Section\n\n:sectnums: all\n\n[preface]\n== Numbered preface\n\n=== Numbered child\n",
         &Options::default(),
     )?;
-    let blocks = parsed.document_ref().blocks().collect::<Vec<_>>();
+    let blocks = parsed.document().blocks().collect::<Vec<_>>();
     let preface = section(blocks.first().copied().ok_or("expected Preface")?)?;
     let hidden_child = section(preface.blocks().next().ok_or("expected Hidden child")?)?;
     let normal = section(blocks.get(1).copied().ok_or("expected Section")?)?;

@@ -36,10 +36,10 @@ fn toc_header_normalization(#[case] header: &str, #[case] expected: &str) -> Res
     );
     let parsed = parse(&input, &Options::default())?;
     assert_eq!(
-        paragraphs(parsed.document_ref().blocks()),
+        paragraphs(parsed.document().blocks()),
         [format!("{expected}.")]
     );
-    assert!(!parsed.document_ref().attributes().contains("toc2"));
+    assert!(!parsed.document().attributes().contains("toc2"));
     Ok(())
 }
 
@@ -63,7 +63,7 @@ fn toc_normalization_preserves_caller_precedence(
         &options,
     )?;
     assert_eq!(
-        paragraphs(parsed.document_ref().blocks()),
+        paragraphs(parsed.document().blocks()),
         [format!("First: {first}."), format!("Last: {last}.")]
     );
     Ok(())
@@ -76,7 +76,7 @@ fn toc_normalization_preserves_caller_unset() -> Result<(), Error> {
         &Options::builder().with_attribute("toc", ()).build()?,
     )?;
     assert_eq!(
-        paragraphs(parsed.document_ref().blocks()),
+        paragraphs(parsed.document().blocks()),
         [
             "First: [{toc}] [{toc-position}] [auto].",
             "Last: [{toc}] [{toc-position}] [auto]."
@@ -92,7 +92,7 @@ fn toc_normalization_stops_at_header_boundary() -> Result<(), Error> {
         &Options::default(),
     )?;
     assert_eq!(
-        paragraphs(parsed.document_ref().blocks()),
+        paragraphs(parsed.document().blocks()),
         ["First.", "[right] [left] [auto] [toc2]."]
     );
     Ok(())
@@ -141,7 +141,7 @@ fn toc2_caller_settings_warn_once_on_each_parse() -> Result<(), Error> {
             assert!(warning.source_location().is_none());
             assert_eq!(
                 parsed
-                    .document_ref()
+                    .document()
                     .attributes()
                     .get("toc-position")
                     .and_then(|value| value.as_str()),
@@ -200,7 +200,7 @@ fn toc2_unset_preserves_caller_locks(
     .build()?;
     let parsed = parse("= T\n:toc2:\n\nBody.\n", &options)?;
     assert_eq!(toc2_warnings(&parsed).count(), expected);
-    assert_eq!(parsed.document_ref().attributes().contains("toc"), soft);
+    assert_eq!(parsed.document().attributes().contains("toc"), soft);
     Ok(())
 }
 

@@ -16,7 +16,7 @@ fn typed_document_json_keeps_native_targets_and_content_presence() -> Result<(),
         ] {
             let source = format!("image:bird.svg[{attributes}]");
             let parsed = parse(&source, &options)?;
-            let document = parsed.document_ref();
+            let document = parsed.document();
             let value = serde_json::to_value(document)?;
             let image = value.pointer("/blocks/0/inlines/0").ok_or("image")?;
             assert_eq!(image.pointer("/target/type"), Some(&json!("path")));
@@ -53,7 +53,7 @@ fn checked_export_does_not_change_native_serialization() -> Result<(), Error> {
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse("image:bird.svg[alt='*Bird*',title='_Hover_']", &options)?;
-        let document = parsed.document_ref();
+        let document = parsed.document();
         let native = serde_json::to_string(&document)?;
         assert!(matches!(
             asg::document(document),

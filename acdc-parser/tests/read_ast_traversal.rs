@@ -17,7 +17,7 @@ fn document_assignments_are_structural_only_when_retained_as_blocks(
         "= Title\n:header-entry: one\n\nBefore.\n\n:body-entry: two\n\nAfter.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     assert_eq!(document.descendants().count(), 4);
     let names = document
         .descendants()
@@ -104,8 +104,8 @@ fn compound_blocks_walk_in_preorder_without_inline_or_catalog_visits(
         "= Title footnote:[Header note.]\n\n== Section\n\nParent.\n\n====\nExample.\n\n--\nOpen.\n--\n\n****\nSidebar.\n****\n\n____\nQuote.\n____\n\nNOTE: Note.\n====\n\nTail.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
-    let document = parsed.document_ref();
+    let before = serde_json::to_value(parsed.document())?;
+    let document = parsed.document();
     assert_eq!(
         document.children().map(label).collect::<Vec<_>>(),
         ["header", "section"]
@@ -138,7 +138,7 @@ fn compound_blocks_walk_in_preorder_without_inline_or_catalog_visits(
         expected
     );
     assert_eq!(document.footnotes().count(), 1);
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 
@@ -156,16 +156,16 @@ fn lists_visit_items_before_their_attached_blocks(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
+    let before = serde_json::to_value(parsed.document())?;
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .descendants()
             .map(label)
             .collect::<Vec<_>>(),
         expected
     );
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 
@@ -178,7 +178,7 @@ fn table_rows_cells_and_spans_are_visited_once_in_header_body_footer_order(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let table = parsed.document_ref().blocks().next().ok_or("table")?;
+    let table = parsed.document().blocks().next().ok_or("table")?;
     assert_eq!(
         table.children().map(label).collect::<Vec<_>>(),
         ["row", "row", "row"]
@@ -228,7 +228,7 @@ fn structural_leaves_have_no_children(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let block = parsed.document_ref().blocks().next().ok_or("leaf block")?;
+    let block = parsed.document().blocks().next().ok_or("leaf block")?;
     assert!(block.children().next().is_none());
     let mut descendants = block.descendants();
     assert!(descendants.next().is_none());
@@ -257,7 +257,7 @@ fn empty_structures_still_keep_rows_and_early_breaks_can_resume() -> Result<(), 
     );
 
     let parsed = parse("====\nNested.\n====\n\nAfter.", &Options::default())?;
-    let mut nodes = parsed.document_ref().descendants();
+    let mut nodes = parsed.document().descendants();
     let stopped = nodes.try_for_each(|node| {
         if label(node) == "example" {
             ControlFlow::Break(node)
@@ -294,9 +294,9 @@ fn included_and_cell_blocks_keep_original_source_locations(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
+    let before = serde_json::to_value(parsed.document())?;
     let nodes = {
-        let document = parsed.document_ref();
+        let document = parsed.document();
         document.descendants()
     };
     let paragraphs = nodes
@@ -319,7 +319,7 @@ fn included_and_cell_blocks_keep_original_source_locations(
     assert_eq!(parsed.resolve_location(cell.location()).file, Some(main));
     assert_eq!(text(included.content()), "é Included.");
     assert_eq!(text(cell.content()), "é Cell.");
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 

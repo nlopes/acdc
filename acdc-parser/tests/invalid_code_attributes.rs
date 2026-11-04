@@ -25,7 +25,7 @@ fn invalid_code_boundaries_do_not_hide_attribute_references() -> Result<(), Erro
                 let source = format!(":word: {value}{newline}{newline}{body}");
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -68,7 +68,7 @@ fn invalid_code_edges_and_escapes_expand_attributes() -> Result<(), Error> {
         let source = format!(":word: café\n\nα {body} ω.");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -97,7 +97,7 @@ fn deferred_code_uses_the_later_valid_closer() -> Result<(), Error> {
         let source = format!(":word: café\n\nα {code_source}**End** ω.");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -160,7 +160,7 @@ fn expanded_references_do_not_create_new_code_boundaries() -> Result<(), Error> 
         let source = format!(":word: café\n:empty:\n\n{body}");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -179,7 +179,7 @@ fn expanded_references_do_not_create_new_code_boundaries() -> Result<(), Error> 
     let source = ":word: café\n\n[red]`{word}`X | [red]`{word}`.";
     let parsed = parse(source, &Options::default())?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -215,7 +215,7 @@ fn invalid_code_expansion_retains_include_origins() -> Result<(), Error> {
             .build()?,
     )?;
     let text = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             let BlockKind::Section(section) = block.kind() else {

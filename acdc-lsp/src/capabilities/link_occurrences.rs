@@ -37,7 +37,7 @@ mod tests {
             &acdc_parser::Options::default(),
         )?;
         let mut visited = 0;
-        let result = visit_links(parsed.document_ref(), |link| {
+        let result = visit_links(parsed.document(), |link| {
             visited += 1;
             ControlFlow::Break(match link {
                 LinkOccurrence::Hyperlink(link) => Some(link.target().to_string()),

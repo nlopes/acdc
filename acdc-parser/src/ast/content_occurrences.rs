@@ -47,7 +47,7 @@ impl<'doc> ContentOccurrences<'doc> {
     /// use acdc_parser::{Options, parse, ast::{ContentRole, InlineKind}};
     ///
     /// let parsed = parse("image:bird.png[alt='*Bird*',title='*Tip*']", &Options::default())?;
-    /// let mut fields = parsed.document_ref().content_occurrences();
+    /// let mut fields = parsed.document().content_occurrences();
     /// let mut words = Vec::new();
     /// while let Some(field) = fields.next() {
     ///     if field.role() == ContentRole::Tooltip {

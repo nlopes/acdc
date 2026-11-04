@@ -27,7 +27,7 @@ fn callout_continuations_propagate_invalid_child_errors() {
 fn callout_nested_lists_register_footnotes_once_in_source_order() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/callout_nested_lists.adoc");
     let parsed = parse(source, &Options::default())?;
-    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
+    let notes = parsed.document().footnotes().collect::<Vec<_>>();
     assert_eq!(notes.len(), 3);
     for (note, expected) in notes.iter().zip([
         "footnote:[Parent note.]",
@@ -74,7 +74,7 @@ fn callout_nested_lists_keep_exact_item_spans() -> Result<(), Error> {
         let source = format!("----\ncode <1> <2>\n----\n<1> First.\n{child}\n<2> Second.\n");
         let parsed = parse(&source, &Options::default())?;
         let [_, BlockKind::CalloutList(list)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()

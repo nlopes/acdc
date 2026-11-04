@@ -13,8 +13,8 @@ fn outer_macro_escapes_do_not_register_literal_macros() -> Result<(), Error> {
         include_str!("../fixtures/tests/outer_macro_escapes.adoc"),
         &Options::default(),
     )?;
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
-    assert!(!parsed.document_ref().references().contains("unused"));
+    assert_eq!(parsed.document().footnotes().count(), 1);
+    assert!(!parsed.document().references().contains("unused"));
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -35,7 +35,7 @@ fn outer_macro_escapes_preserve_backslash_runs_and_unicode_source_spans() -> Res
             let source = format!("α {}{literal} ω.\n", "\\".repeat(count));
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -77,8 +77,8 @@ fn outer_macro_escapes_preserve_backslash_runs_and_unicode_source_spans() -> Res
                 text,
                 format!("α {}{literal} ω.", "\\".repeat(count - consumed))
             );
-            assert!(parsed.document_ref().footnotes().next().is_none());
-            assert!(parsed.document_ref().references().is_empty());
+            assert!(parsed.document().footnotes().next().is_none());
+            assert!(parsed.document().references().is_empty());
             assert_eq!(parsed.warnings(), []);
         }
     }
@@ -93,7 +93,7 @@ fn outer_macro_escapes_cannot_be_introduced_after_macro_substitution() -> Result
         );
         let parsed = parse(&source, &Options::default())?;
         let Some(BlockKind::Paragraph(paragraph)) =
-            parsed.document_ref().blocks().last().map(BlockRef::kind)
+            parsed.document().blocks().last().map(BlockRef::kind)
         else {
             return Err("expected paragraph".into());
         };
@@ -115,7 +115,7 @@ fn outer_macro_escapes_cannot_be_introduced_after_macro_substitution() -> Result
                 .any(|node| matches!(node.kind(), InlineKind::Url(_) | InlineKind::Autolink(_)))
         );
         assert_eq!(
-            parsed.document_ref().footnotes().count(),
+            parsed.document().footnotes().count(),
             usize::from(expected_macros != 0)
         );
     }

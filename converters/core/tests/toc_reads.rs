@@ -19,7 +19,7 @@ fn local_levels_keep_exact_text_parsing_and_document_fallback() -> Result<(), Er
         "= Manual\n:toc: macro\n:toclevels: 4\n\ntoc::[]\n",
         &Options::default(),
     )?;
-    let document = &acdc_parser::Document::from(parsed.document_ref());
+    let document = &acdc_parser::Document::from(parsed.document());
     let Some(Block::TableOfContents(seed)) = document.blocks.first() else {
         return Err("missing TOC macro".into());
     };
@@ -79,7 +79,7 @@ fn configuration_keeps_placement_class_and_empty_title_rules() -> Result<(), Err
     ] {
         let source = format!("= Manual\n{attributes}\nText.\n");
         let parsed = parse(&source, &Options::default())?;
-        let context = TraversalContext::new(parsed.document_ref().attributes());
+        let context = TraversalContext::new(parsed.document().attributes());
         let config = Config::from_attributes(None, &context);
         assert_config(&config, &Config::resolve(None, &context));
         assert_eq!(config.placement(), placement, "{attributes}");
@@ -95,11 +95,11 @@ fn numbering_keeps_catalog_alignment_parts_specials_and_appendix_controls() -> R
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse(BOOK, &options)?;
-        let document = &acdc_parser::Document::from(parsed.document_ref());
+        let document = &acdc_parser::Document::from(parsed.document());
         let entries = &document.toc_entries;
         assert_eq!(entries.len(), 7);
         assert!(has_real_parts(entries));
-        assert!(has_parts(parsed.document_ref().toc_entries()));
+        assert!(has_parts(parsed.document().toc_entries()));
         for entry in entries {
             for parts in [false, true] {
                 assert_eq!(
@@ -138,8 +138,8 @@ fn numbering_keeps_catalog_alignment_parts_specials_and_appendix_controls() -> R
         ] {
             let source = BOOK.replacen(":partnums:\n", &format!(":partnums:\n{declaration}"), 1);
             let parsed = parse(&source, &options)?;
-            let parsed_document = acdc_parser::Document::from(parsed.document_ref());
-            let context = TraversalContext::new(parsed.document_ref().attributes());
+            let parsed_document = acdc_parser::Document::from(parsed.document());
+            let context = TraversalContext::new(parsed.document().attributes());
             let numbers = section_numbers(
                 &parsed_document.toc_entries,
                 &NumberingConfig::new(&context, None, None),
@@ -151,7 +151,7 @@ fn numbering_keeps_catalog_alignment_parts_specials_and_appendix_controls() -> R
             assert_eq!(
                 numbers,
                 number_prefixes(
-                    parsed.document_ref().toc_entries(),
+                    parsed.document().toc_entries(),
                     &NumberingConfig::new(&context, None, None)
                 )
             );
@@ -172,8 +172,8 @@ fn typed_catalog_helpers_accept_single_pass_and_temporary_inputs() -> Result<(),
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse(BOOK, &options)?;
-        let parsed_document = acdc_parser::Document::from(parsed.document_ref());
-        let mut remaining = parsed.document_ref().toc_entries();
+        let parsed_document = acdc_parser::Document::from(parsed.document());
+        let mut remaining = parsed.document().toc_entries();
         let mut pulled = 0;
         let input = std::iter::from_fn(|| {
             let entry = remaining.next()?;
@@ -185,9 +185,9 @@ fn typed_catalog_helpers_accept_single_pass_and_temporary_inputs() -> Result<(),
         assert!(remaining.next().is_some());
         assert!(!has_parts(std::iter::empty()));
 
-        let context = TraversalContext::new(parsed.document_ref().attributes());
+        let context = TraversalContext::new(parsed.document().attributes());
         let config = NumberingConfig::new(&context, None, None);
-        let mut remaining = parsed.document_ref().toc_entries();
+        let mut remaining = parsed.document().toc_entries();
         let mut pulled = 0;
         let input = std::iter::from_fn(|| {
             let entry = remaining.next()?;
@@ -208,9 +208,9 @@ fn typed_catalog_helpers_accept_single_pass_and_temporary_inputs() -> Result<(),
         let temporary_numbers = {
             let source = String::from(BOOK);
             let parsed = parse(&source, &options)?;
-            let context = TraversalContext::new(parsed.document_ref().attributes());
+            let context = TraversalContext::new(parsed.document().attributes());
             number_prefixes(
-                parsed.document_ref().toc_entries(),
+                parsed.document().toc_entries(),
                 &NumberingConfig::new(&context, None, None),
             )
         };

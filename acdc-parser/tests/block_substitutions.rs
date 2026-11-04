@@ -16,7 +16,7 @@ fn supported_block_substitutions_do_not_warn(#[case] mode: CompatibilityMode) ->
     )?;
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     assert!(parsed.source_recovery().is_none());
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert_eq!(parsed.document().footnotes().count(), 0);
     Ok(())
 }
 
@@ -39,13 +39,13 @@ fn unsupported_substitutions_preserve_source_and_report_recovery(
     }
     assert!(parsed.source_recovery().is_some());
     assert_eq!(parsed.source(), source.trim_end());
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert_eq!(parsed.document().footnotes().count(), 0);
     let [
         BlockKind::Paragraph(first),
         BlockKind::Paragraph(second),
         BlockKind::Stem(stem),
     ] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()

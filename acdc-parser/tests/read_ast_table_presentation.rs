@@ -123,7 +123,7 @@ fn local_values_mask_defaults_without_changing_their_meaning(
         assert_eq!(
             decoration(resolve(
                 &block,
-                &DocumentAttributes::from(parsed.document_ref().attributes())
+                &DocumentAttributes::from(parsed.document().attributes())
             )),
             expected
         );
@@ -166,10 +166,10 @@ fn document_values_distinguish_absence_presence_unsets_and_exact_text(
             )?;
             let value = resolve(
                 &empty_table(),
-                &DocumentAttributes::from(parsed.document_ref().attributes()),
+                &DocumentAttributes::from(parsed.document().attributes()),
             );
             assert_eq!(
-                TablePresentation::resolve(None, parsed.document_ref().attributes()),
+                TablePresentation::resolve(None, parsed.document().attributes()),
                 value
             );
             value
@@ -187,14 +187,14 @@ fn lookup_resolution_uses_body_assignments_and_unsets_without_updating_tables(
         "= Tables\n:table-frame: sides\n:table-grid: rows\n:table-stripes: odd\n\n|===\n|Header defaults\n|===\n\n:table-frame: ends\n:table-grid: cols\n:table-stripes: even\n\n|===\n|Body defaults\n|===\n\n:table-frame!:\n:table-grid!:\n:table-stripes!:\n\n|===\n|Unset defaults\n|===\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let header = parsed.document_ref().attributes();
+    let header = parsed.document().attributes();
     let mut overlay = HashMap::new();
     let mut actual = Vec::new();
     let unresolved = empty_table();
     let BlockKind::Table(constructed) = BlockRef::from(&unresolved).kind() else {
         return Err("expected constructed table".into());
     };
-    for block in parsed.document_ref().blocks() {
+    for block in parsed.document().blocks() {
         if let BlockKind::DocumentAttribute(event) = block.kind() {
             overlay.insert(event.name(), event.assignment().value());
         } else if let BlockKind::Table(table) = block.kind() {

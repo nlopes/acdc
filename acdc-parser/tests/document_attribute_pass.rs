@@ -36,7 +36,7 @@ fn document_attribute_pass_resolves_once_at_definition() -> Result<(), Error> {
     ] {
         assert_eq!(
             parsed
-                .document_ref()
+                .document()
                 .attributes()
                 .get(name)
                 .and_then(DocumentAttributeValue::text),
@@ -75,14 +75,14 @@ fn document_attribute_pass_preserves_caller_policy() -> Result<(), Error> {
         let parsed = parse(source, &options)?;
         assert_eq!(
             parsed
-                .document_ref()
+                .document()
                 .attributes()
                 .get("value")
                 .and_then(DocumentAttributeValue::text),
             Some(expected_header)
         );
         let Some(BlockKind::Paragraph(paragraph)) =
-            parsed.document_ref().blocks().last().map(BlockRef::kind)
+            parsed.document().blocks().last().map(BlockRef::kind)
         else {
             return Err("expected body paragraph".into());
         };
@@ -98,7 +98,7 @@ fn document_attribute_pass_preserves_caller_policy() -> Result<(), Error> {
     let options = Options::builder().with_attribute("value", false).build()?;
     assert!(
         !parse(source, &options)?
-            .document_ref()
+            .document()
             .attributes()
             .contains("value")
     );
@@ -112,15 +112,15 @@ fn document_attribute_pass_is_available_to_conditionals() -> Result<(), Error> {
         let parsed = parse(&source, &Options::default())?;
         assert_eq!(
             parsed
-                .document_ref()
+                .document()
                 .attributes()
                 .get("value")
                 .and_then(DocumentAttributeValue::text),
             Some("{name}")
         );
-        assert!(parsed.document_ref().attributes().contains("empty"));
+        assert!(parsed.document().attributes().contains("empty"));
         let text: String = parsed
-            .document_ref()
+            .document()
             .blocks()
             .filter_map(|block| {
                 if let BlockKind::Paragraph(p) = block.kind() {
@@ -152,7 +152,7 @@ fn document_attribute_pass_is_available_to_include_targets() -> Result<(), Error
             .build()?,
     )?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -177,7 +177,7 @@ fn document_attribute_pass_raw_fragments_keep_reference_locations() -> Result<()
             let source = format!("= T\n:raw: pass:[{value}]\n\nα {marker}{{raw}}{marker} ω.\n");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -222,7 +222,7 @@ fn document_attribute_pass_explicit_quotes_do_not_expand_attributes() -> Result<
     )?;
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("value")
             .and_then(DocumentAttributeValue::text),

@@ -15,7 +15,7 @@ fn ordinary_attribute_order_follows_the_selected_mode(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };
@@ -42,10 +42,10 @@ fn ordinary_order_preserves_single_registration_and_reference_ranges(
         include_str!("../fixtures/tests/compatibility_inline_attribute_effects.adoc"),
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .footnotes()
             .next()
             .ok_or("missing note")?
@@ -53,7 +53,7 @@ fn ordinary_order_preserves_single_registration_and_reference_ranges(
         Some("n")
     );
     let bold = parsed
-        .document_ref()
+        .document()
         .descendants()
         .filter_map(|n| {
             let StructuralRef::Block(block) = n else {
@@ -75,7 +75,7 @@ fn ordinary_order_preserves_single_registration_and_reference_ranges(
             0
         }
     );
-    for block in parsed.document_ref().blocks() {
+    for block in parsed.document().blocks() {
         let BlockKind::Paragraph(paragraph) = block.kind() else {
             continue;
         };

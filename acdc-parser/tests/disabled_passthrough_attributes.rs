@@ -35,7 +35,7 @@ fn disabled_passthroughs_use_the_enclosing_attribute_stage() -> Result<(), Error
                     format!(":word: café{newline}{newline}[subs=\"{subs}\"]{newline}α {body} ω.");
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -65,8 +65,8 @@ fn disabled_passthroughs_use_the_enclosing_attribute_stage() -> Result<(), Error
                         .get(text.location().absolute_start()..=text.location().absolute_end()),
                     Some(format!("α {body} ω.").as_str())
                 );
-                assert!(parsed.document_ref().footnotes().next().is_none());
-                assert!(parsed.document_ref().references().is_empty());
+                assert!(parsed.document().footnotes().next().is_none());
+                assert!(parsed.document().references().is_empty());
             }
         }
     }
@@ -87,7 +87,7 @@ fn disabled_pass_substitution_lists_cannot_enable_attributes() -> Result<(), Err
             let source = format!(":word: café\n\n[subs=\"{subs}\"]\n{body}");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -123,7 +123,7 @@ fn disabled_passthroughs_expand_inside_code_without_losing_source_spans() -> Res
                 let source = format!(":word: café\n\n[subs=\"{subs}\"]\nα {code_source}**End**.");
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -180,7 +180,7 @@ fn enabled_passthroughs_still_protect_attribute_references() -> Result<(), Error
         let source = format!(":word: café\n\n{body}");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -247,7 +247,7 @@ fn disabled_passthrough_expansion_keeps_catalogs_empty_and_include_origins() -> 
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
             .build()?,
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     assert!(document.footnotes().next().is_none());
     assert!(!document.references().contains("target"));
     let paragraph = document.blocks().find_map(|block| {

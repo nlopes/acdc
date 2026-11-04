@@ -39,7 +39,7 @@ fn draft_matches_structure_before_style(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [block] = &*parsed.document_ref().blocks().collect::<Vec<_>>() else {
+    let [block] = &*parsed.document().blocks().collect::<Vec<_>>() else {
         return Err("expected one block".into());
     };
     let expected = if mode == CompatibilityMode::Draft {
@@ -79,7 +79,7 @@ fn draft_styled_paragraphs_keep_structural_boundaries(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     assert_eq!(
-        parsed.document_ref().blocks().count(),
+        parsed.document().blocks().count(),
         if mode == CompatibilityMode::Draft {
             2
         } else {
@@ -87,7 +87,7 @@ fn draft_styled_paragraphs_keep_structural_boundaries(
         }
     );
     let first = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .ok_or("missing paragraph")?;
@@ -113,7 +113,7 @@ fn structural_lookahead_registers_the_selected_title_once(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }
@@ -127,7 +127,7 @@ fn draft_media_mapping_does_not_retain_source_only_attributes() -> Result<(), Er
             .build()?,
     )?;
     let [BlockKind::Image(image)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()

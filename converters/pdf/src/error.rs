@@ -199,7 +199,7 @@ mod tests {
         let message = "label `<id-636166c3a9>` occurs multiple times\nunknown variable\nunknown label <id-ff>\nunfinished <id-0";
         let error = with_source_labels(
             RenderError::Compile(message.into()),
-            parsed.document_ref().references(),
+            parsed.document().references(),
             Some(Path::new("guide.adoc")),
         );
         assert_eq!(

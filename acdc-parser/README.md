@@ -21,7 +21,7 @@ use acdc_parser::{Options, parse};
 
 let parsed = parse("= Example\n\nHello, *world*.\n", &Options::default())?;
 let document = parsed.document();
-assert!(!document.blocks.is_empty());
+assert!(document.blocks().next().is_some());
 
 for warning in parsed.warnings() {
     eprintln!("{warning}");
@@ -36,13 +36,13 @@ and recovered content. See [Source text and diagnostics](#source-text-and-diagno
 
 ## Reading the tree
 
-Use `document_ref()` to read nodes through typed handles and lazy iterators:
+Use `document()` to read nodes through typed handles and lazy iterators:
 
 ```rust
 use acdc_parser::{Options, parse, ast::{BlockKind, InlineKind}};
 
 let parsed = parse("Hello, *world*.", &Options::default())?;
-for block in parsed.document_ref().blocks() {
+for block in parsed.document().blocks() {
     if let BlockKind::Paragraph(paragraph) = block.kind() {
         for inline in paragraph.content().inlines() {
             if let InlineKind::Plain(text) = inline.kind() {
@@ -65,7 +65,7 @@ text. IDs retain their own source ranges. Mail `subject()` and `body()` read the
 second and third positional values before URI encoding; named attributes with
 those names remain extensions and do not populate the query.
 
-`document_ref().references()` reads registered targets by ID through `get()` or
+`document().references()` reads registered targets by ID through `get()` or
 `iter()`. Titles and reference labels stay separate, including present empty
 content. `toc_entries()` reads the stored TOC order and section numbers. These
 catalogs are snapshots; reads do not repair them after tree edits or register
@@ -78,7 +78,7 @@ roles, options, and effective `xrefstyle` through `attributes()`; edit them thro
 the owner fields and guarded scalar methods. As with other acdc inline macros,
 `roles` aliases `role`; Asciidoctor recognizes only `role` on xrefs.
 
-`document_ref().content_occurrences()` walks each retained inline-content field
+`document().content_occurrences()` walks each retained inline-content field
 once, including titles, captions, alt text, tooltips, and nested labels. Each field
 provides `role()`, `owner()`, and `content()`. Use the content's inline locations
 with `resolve_location()` for source provenance. Present empty fields remain empty;
@@ -96,10 +96,9 @@ For an expanded ID, this range covers the authored attribute reference, so tools
 must check the source before offering a literal ID edit.
 Table declarations remain separate from resolved presentation. Image and icon alt and
 tooltips preserve absent versus explicitly empty content. For a constructed node,
-use `ast::ParagraphRef::from(&paragraph)`. The existing `document()` API remains
-available for other reads, construction, and editing.
+use `ast::ParagraphRef::from(&paragraph)`.
 For independent edits, copy a typed document with
-`Document::from(parsed.document_ref())` or a block with `Block::from(block)`.
+`Document::from(parsed.document())` or a block with `Block::from(block)`.
 Copies preserve stored catalogs, source locations, captions, and table presentation;
 they do not reparse text or refresh catalogs. Source text can still borrow from
 the parse result.
@@ -227,13 +226,13 @@ resolution.
 
 Footnotes expose `id()`, `number()`, and the `content()` retained on each
 occurrence. References, including repeated definitions, have empty content.
-`document_ref().footnotes()` reads the registered definitions separately, in
+`document().footnotes()` reads the registered definitions separately, in
 numbering order. Reading either form does not register notes or resolve references.
 Anchors expose `is_bibliography()` and `bibliography_label()` alongside `reftext()`:
 the entry's display label and its citation text can differ.
 
-`document_ref().header()` exposes the title, subtitle, and authors. Read revision
-values through `document_ref().attributes().get("revnumber")`, `revdate`, and
+`document().header()` exposes the title, subtitle, and authors. Read revision
+values through `document().attributes().get("revnumber")`, `revdate`, and
 `revremark`. Header `attributes()` reads element metadata on the title;
 document `attributes()` reads the end-of-header snapshot.
 
@@ -497,7 +496,7 @@ Native JSON uses the same node form for an index term and its enclosing inline n
 
 ## Native AST JSON
 
-With the optional `asg` feature, `asg::document(parsed.document_ref())` and
+With the optional `asg` feature, `asg::document(parsed.document())` and
 `asg::inlines(parsed.content())` export a separate, checked draft ASG value.
 Unsupported semantic values return typed errors with JSON Pointer paths; export
 never changes the AST. The current subset covers headers and authors, unnumbered
@@ -507,7 +506,7 @@ inline span types. Literal reference-shaped text stays text. See
 [the support contract](schemas/asg/README.adoc) for exact limits.
 
 For the named acdc extension, call
-`asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc)`.
+`asg::document_with_profile(parsed.document(), asg::Profile::Acdc)`.
 Its output identifies `urn:acdc:asg:1` and preserves resolved captions,
 attribution, citation content and images. Use
 `asg::inlines_with_profile(parsed.content(), asg::Profile::Acdc)` for standalone
@@ -648,7 +647,7 @@ let options = Options::builder()
     .with_default_attribute("imagesdir", "images")
     .build()?;
 let parsed = parse(":project: acdc\n\nContent.\n", &options)?;
-let attributes = &parsed.document().attributes;
+let attributes = parsed.document().attributes();
 assert_eq!(attributes.get("project").and_then(|v| v.as_str()), Some("acdc"));
 
 if let Some(DocumentAttributeAssignment::Set(value)) = attributes.assignment("project") {
@@ -875,7 +874,7 @@ let options = Options::builder()
     .with_defaults([("imagesdir", "images")])
     .build()?;
 let parsed = parse("= Example\n\nContent.\n", &options)?;
-let depth = parsed.document().attributes.get("max-include-depth").unwrap();
+let depth = parsed.document().attributes().get("max-include-depth").unwrap();
 assert_eq!(depth.as_integer(), Some(64));
 assert_eq!(depth.text(), Some("064"));
 # Ok::<(), acdc_parser::Error>(())

@@ -72,8 +72,7 @@ fn nested_reads_keep_concrete_types_content_and_declarations(
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?
     };
-    let Some(BlockKind::Section(section)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Section(section)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected section".into());
     };
@@ -141,7 +140,7 @@ fn rows_columns_and_spans_preserve_table_order() -> Result<(), Error> {
          |Second companion\n|First\n|Second\n|Third\n|===\n",
         &Options::default(),
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let first = table(blocks.next().ok_or("missing first table")?)?;
     assert_eq!(
         row_text(first.header().ok_or("missing header")?)?,
@@ -203,7 +202,7 @@ fn local_declarations_remain_separate_from_source_order_presentation() -> Result
         &Options::default(),
     )?;
     let mut tables = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(|block| table(block).ok());
     for (frame, grid) in [
@@ -341,7 +340,7 @@ fn included_table_image_content_resolves_to_original_coordinates() -> Result<(),
     )?;
     let table = table(
         parsed
-            .document_ref()
+            .document()
             .blocks()
             .next()
             .ok_or("missing included table")?,
@@ -399,17 +398,11 @@ fn reads_support_shared_iterators_and_leave_the_document_unchanged() -> Result<(
         "[#table]\n[cols=a]\n|===\n|\nimage:bird.png[alt='*Bird*']\n|===\n",
         &Options::default(),
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
+    let before = serde_json::to_value(parsed.document())?;
     let diagnostics = format!("{:?}", parsed.warnings());
-    let references = parsed.document_ref().references().iter().count();
+    let references = parsed.document().references().iter().count();
     for _ in 0..2 {
-        let table = table(
-            parsed
-                .document_ref()
-                .blocks()
-                .next()
-                .ok_or("missing table")?,
-        )?;
+        let table = table(parsed.document().blocks().next().ok_or("missing table")?)?;
         let rows = iterator(table.rows());
         let columns = iterator(table.columns());
         std::thread::scope(|scope| {
@@ -426,13 +419,10 @@ fn reads_support_shared_iterators_and_leave_the_document_unchanged() -> Result<(
         ));
         assert!(table.id().is_some());
     }
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     assert_eq!(format!("{:?}", parsed.warnings()), diagnostics);
-    assert_eq!(
-        parsed.document_ref().references().iter().count(),
-        references
-    );
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert_eq!(parsed.document().references().iter().count(), references);
+    assert_eq!(parsed.document().footnotes().count(), 0);
     Ok(())
 }
 
@@ -444,13 +434,7 @@ fn column_iterator_clones_keep_independent_positions(
         "[cols=\"1,2,3\"]\n|===\n|A |B |C\n|===\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let table = table(
-        parsed
-            .document_ref()
-            .blocks()
-            .next()
-            .ok_or("missing table")?,
-    )?;
+    let table = table(parsed.document().blocks().next().ok_or("missing table")?)?;
     let mut columns = table.columns();
     let all = columns.clone();
     assert_eq!(

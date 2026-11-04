@@ -24,7 +24,7 @@ pub(crate) fn compute_inlay_hints(doc: &DocumentState, range: &Range) -> Vec<Inl
     collect_attribute_hints(doc, range, &mut hints);
 
     if let Some(ast) = doc.ast() {
-        collect_xref_hints(ast.document_ref(), doc.text(), range, &mut hints);
+        collect_xref_hints(ast.document(), doc.text(), range, &mut hints);
     }
 
     hints
@@ -37,7 +37,7 @@ fn collect_attribute_hints(doc: &DocumentState, range: &Range, hints: &mut Vec<I
     let Some(ast) = doc.ast() else {
         return;
     };
-    let ast = ast.document_ref();
+    let ast = ast.document();
 
     for (name, loc) in &doc.attribute_refs {
         let Some(reference_range) = location_to_utf16_range(doc.text(), loc) else {

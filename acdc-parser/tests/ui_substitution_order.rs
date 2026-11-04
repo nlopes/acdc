@@ -43,7 +43,7 @@ fn keyboard_boundaries_follow_attribute_substitution_order(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let keyboard = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
@@ -80,7 +80,7 @@ fn menu_boundaries_follow_attribute_substitution_order(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let menu = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
@@ -110,7 +110,7 @@ fn keyboard_passthroughs_stay_within_one_macro(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let keys = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
@@ -143,7 +143,7 @@ fn expanded_keys_keep_the_authored_reference_location(
     )?;
     let start = source.rfind("{keys}").ok_or("missing source reference")?;
     let mut locations = Vec::new();
-    for block in parsed.document_ref().blocks() {
+    for block in parsed.document().blocks() {
         if let BlockKind::Paragraph(paragraph) = block.kind() {
             for node in paragraph.content().inlines() {
                 if let InlineKind::Keyboard(keyboard) = node.kind() {
@@ -173,7 +173,7 @@ fn retained_attribute_profiles_keep_rich_keys_together(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let keyboard = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
@@ -218,6 +218,6 @@ fn introduced_ui_content_registers_only_at_its_macro_stage(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document_ref().footnotes().count(), count);
+    assert_eq!(parsed.document().footnotes().count(), count);
     Ok(())
 }

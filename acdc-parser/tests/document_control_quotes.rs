@@ -16,7 +16,7 @@ fn author_values_preserve_authored_quotes(
         "= Authors\n:author: \"Jane Doe\"\n:email: 'jane@example.org'\n\nBody.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let header = parsed.document_ref().header().ok_or("header")?;
+    let header = parsed.document().header().ok_or("header")?;
     let [author] = &*header.authors().collect::<Vec<_>>() else {
         return Err("one author".into());
     };
@@ -36,7 +36,7 @@ fn manpage_values_preserve_authored_quotes(
     )?;
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("manname")
             .and_then(|value| value.as_str()),
@@ -44,7 +44,7 @@ fn manpage_values_preserve_authored_quotes(
     );
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("manpurpose")
             .and_then(|value| value.as_str()),
@@ -52,7 +52,7 @@ fn manpage_values_preserve_authored_quotes(
     );
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("manvolnum")
             .and_then(|value| value.as_str()),
@@ -69,8 +69,7 @@ fn quoted_document_offsets_are_not_include_attribute_delimiters(
         "= Offset\n:leveloffset: \"+1\"\n\n== One\n\nBody.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Section(section)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Section(section)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("section".into());
     };
@@ -92,23 +91,13 @@ fn string_filetype_flags_retain_the_callers_literal_value(
     )?;
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("filetype")
             .and_then(|value| value.as_str()),
         Some("'custom'")
     );
-    assert!(
-        parsed
-            .document_ref()
-            .attributes()
-            .contains("filetype-'custom'")
-    );
-    assert!(
-        !parsed
-            .document_ref()
-            .attributes()
-            .contains("filetype-custom")
-    );
+    assert!(parsed.document().attributes().contains("filetype-'custom'"));
+    assert!(!parsed.document().attributes().contains("filetype-custom"));
     Ok(())
 }

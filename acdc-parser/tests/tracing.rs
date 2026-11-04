@@ -44,7 +44,7 @@ fn document_traces_omit_source_and_options() -> TestResult {
     let parsed = parse(source, &options)?;
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("private-attribute")
             .and_then(DocumentAttributeValue::text),
@@ -179,7 +179,7 @@ fn nested_include_traces_omit_content_and_source_paths() -> TestResult {
                 .any(|warning| warning.to_string().contains("PRIVATE_NESTED_WARNING"))
         );
         let block = parsed
-            .document_ref()
+            .document()
             .blocks()
             .next()
             .ok_or("expected included content")?;
@@ -208,7 +208,7 @@ fn manpage_traces_omit_titles_and_filenames() -> TestResult {
         let file = SourceFile::new(&format!("= {title}\n\nPRIVATE_BODY\n"))?;
         let parsed = parse_file(&file.0, &options)?;
         parsed
-            .document_ref()
+            .document()
             .blocks()
             .next()
             .ok_or("expected manpage body")?;
@@ -224,7 +224,7 @@ fn manpage_traces_omit_titles_and_filenames() -> TestResult {
 fn setext_traces_omit_titles() -> TestResult {
     let options = Options::builder().build()?;
     let parsed = parse("PRIVATE_TITLE\n=============\n\nPRIVATE_BODY\n", &options)?;
-    assert!(parsed.document_ref().header().is_some());
+    assert!(parsed.document().header().is_some());
     assert!(logs_contain("Processing setext document title"));
     logs_assert(assert_no_source_data);
     Ok(())

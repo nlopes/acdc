@@ -34,7 +34,7 @@ fn formatting_preserves_whitespace_and_its_source_span() -> Result<(), Error> {
                 let source = format!("α A{marker}{body}{marker}B.\n").replace('\n', newline);
                 let parsed = parse(&source, &Options::default())?;
                 let Some(BlockKind::Paragraph(paragraph)) =
-                    parsed.document_ref().blocks().next().map(BlockRef::kind)
+                    parsed.document().blocks().next().map(BlockRef::kind)
                 else {
                     return Err("expected a paragraph".into());
                 };
@@ -92,7 +92,7 @@ fn whitespace_and_empty_attributes_keep_constrained_quote_order() -> Result<(), 
                 let source = format!(":empty:\n\n{metadata}A {marker}{body}{marker} B.");
                 let parsed = parse(&source, &Options::default())?;
                 let Some(BlockKind::Paragraph(paragraph)) =
-                    parsed.document_ref().blocks().next().map(BlockRef::kind)
+                    parsed.document().blocks().next().map(BlockRef::kind)
                 else {
                     return Err("expected a paragraph".into());
                 };
@@ -127,7 +127,7 @@ fn blank_block_expansions_keep_their_existing_empty_content() -> Result<(), Erro
         let source = format!(":empty:\n\n{body}\n\nAfter.");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(blank), BlockKind::Paragraph(after)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -237,7 +237,7 @@ fn whitespace_macro_labels_keep_only_their_source_span() -> Result<(), Error> {
             let source = format!("{target}[{body}]");
             let parsed = parse(&source, &Options::default())?;
             let Some(BlockKind::Paragraph(paragraph)) =
-                parsed.document_ref().blocks().next().map(BlockRef::kind)
+                parsed.document().blocks().next().map(BlockRef::kind)
             else {
                 return Err("expected a paragraph".into());
             };

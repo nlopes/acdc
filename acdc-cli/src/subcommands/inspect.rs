@@ -416,8 +416,8 @@ pub fn run(args: &Args) -> Result<(), Box<dyn Error>> {
     let color = stdout.is_terminal();
     let mut visitor = TreeVisitor::new(stdout.lock(), args.show_locations, args.max_depth, color);
     visitor.visit_document(
-        &mut TraversalContext::new(parsed.document_ref().attributes()),
-        parsed.document_ref(),
+        &mut TraversalContext::new(parsed.document().attributes()),
+        parsed.document(),
     )?;
 
     Ok(())
@@ -440,8 +440,8 @@ mod tests {
         let parsed = parse("= Document\n\n== Section\n\nBody.\n", &Options::default())?;
         let mut output = Vec::new();
         TreeVisitor::new(&mut output, false, 0, false).visit_document(
-            &mut TraversalContext::new(parsed.document_ref().attributes()),
-            parsed.document_ref(),
+            &mut TraversalContext::new(parsed.document().attributes()),
+            parsed.document(),
         )?;
         let output = String::from_utf8(output)?;
 
@@ -458,8 +458,8 @@ mod tests {
         let parsed = parse("= Document\n\n== Section\n\nBody.\n", &Options::default())?;
         let mut output = Vec::new();
         TreeVisitor::new(&mut output, false, 1, false).visit_document(
-            &mut TraversalContext::new(parsed.document_ref().attributes()),
-            parsed.document_ref(),
+            &mut TraversalContext::new(parsed.document().attributes()),
+            parsed.document(),
         )?;
         let output = String::from_utf8(output)?;
 
@@ -482,8 +482,8 @@ mod tests {
             )?;
             let mut output = Vec::new();
             TreeVisitor::new(&mut output, true, 0, false).visit_document(
-                &mut TraversalContext::new(parsed.document_ref().attributes()),
-                parsed.document_ref(),
+                &mut TraversalContext::new(parsed.document().attributes()),
+                parsed.document(),
             )?;
             let output = String::from_utf8(output)?;
             assert!(output.contains("DelimitedBlock: Listing @1:1"));

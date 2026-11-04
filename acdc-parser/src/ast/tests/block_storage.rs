@@ -13,7 +13,7 @@ fn typed_section_numbers_read_stored_values_without_renumbering(
     let number = {
         let source = String::from("= Manual\n:sectnums:\n\n== First\n");
         let parsed = parse(&source, &options)?;
-        let Some(Block::Section(section)) = parsed.document().blocks.first() else {
+        let Some(Block::Section(section)) = parsed.document_storage().blocks.first() else {
             return Err("expected section".into());
         };
         let mut section = section.clone();
@@ -36,9 +36,9 @@ fn typed_heading_ids_preserve_assigned_collisions_and_owner_edits(
 ) -> Result<(), Error> {
     let options = Options::builder().with_compatibility_mode(mode).build()?;
     let parsed = parse("= Manual\n\n== Same\n\n== Same\n", &options)?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_storage())?;
     let mut ids = Vec::new();
-    for block in &parsed.document().blocks {
+    for block in &parsed.document_storage().blocks {
         let Block::Section(section) = block else {
             return Err("expected section".into());
         };
@@ -62,7 +62,7 @@ fn typed_heading_ids_preserve_assigned_collisions_and_owner_edits(
         return Err("expected two section IDs".into());
     };
     assert_ne!(first, second);
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_storage())?, before);
     Ok(())
 }
 
@@ -72,7 +72,7 @@ fn typed_heading_ids_keep_constructed_fallbacks_and_heading_precedence(
 ) -> Result<(), Error> {
     let options = Options::builder().with_compatibility_mode(mode).build()?;
     let parsed = parse("[discrete]\n== Heading\n", &options)?;
-    let Some(Block::DiscreteHeader(original)) = parsed.document().blocks.first() else {
+    let Some(Block::DiscreteHeader(original)) = parsed.document_storage().blocks.first() else {
         return Err("expected discrete heading".into());
     };
     for (text, expected) in [("", ""), ("!!!", ""), ("*Héading* _text_", "_héading_text")] {

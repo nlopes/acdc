@@ -27,7 +27,7 @@ fn raw_fragment_tokens_obey_attribute_order(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let kinds = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -72,7 +72,7 @@ fn split_symbols_retain_complete_authored_spans(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -114,7 +114,7 @@ fn raw_fragment_escape_and_formatting_barriers_remain_literal(
     )?;
     assert!(
         parsed
-            .document_ref()
+            .document()
             .content_occurrences()
             .flat_map(|field| field.content().inlines())
             .all(|node| !matches!(node.kind(), InlineKind::Symbol(_))),

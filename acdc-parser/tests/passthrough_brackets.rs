@@ -49,7 +49,7 @@ fn passthrough_brackets_preserve_nested_macro_locations() -> Result<(), Error> {
         let parsed = parse(&source, &Options::default())?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
         let [BlockKind::Paragraph(paragraph), _] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -87,7 +87,7 @@ fn passthrough_brackets_preserve_nested_macro_locations() -> Result<(), Error> {
         assert_eq!(label.text(), "é");
         assert_eq!(source_span(&source, label.location())?, "é");
         let target = parsed
-            .document_ref()
+            .document()
             .references()
             .get("target")
             .ok_or("missing anchor")?;
@@ -120,7 +120,7 @@ fn passthrough_brackets_register_footnotes_once() -> Result<(), Error> {
         let source = format!("α {wrapped} ω.\n\nReuse footnote:note[].\n");
         let parsed = parse(&source, &Options::default())?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
-        let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+        let [note] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
             return Err("expected one footnote".into());
         };
         assert_eq!(source_span(&source, note.location())?, r"footnote:note[é\]");
@@ -166,7 +166,7 @@ fn passthrough_brackets_keep_later_attribute_source_spans() -> Result<(), Error>
     let source = ":name: Expanded\n\nα pass:a,m[one\\]two (({name}))] ω.\n";
     let parsed = parse(source, &Options::default())?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()

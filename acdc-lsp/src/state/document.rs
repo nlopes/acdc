@@ -43,8 +43,8 @@ pub(crate) struct AstGuard<'a> {
 }
 
 impl AstGuard<'_> {
-    pub(crate) fn document_ref(&self) -> DocumentRef<'_> {
-        self.guard.document_ref()
+    pub(crate) fn document(&self) -> DocumentRef<'_> {
+        self.guard.document()
     }
 
     pub(super) fn source_location(&self, location: &Location) -> SourceLocation {

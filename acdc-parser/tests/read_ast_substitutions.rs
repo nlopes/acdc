@@ -78,12 +78,8 @@ fn parsed_specs_resolve_without_an_owner_escape_hatch(
 ) -> Result<(), Error> {
     let options = Options::builder().with_compatibility_mode(mode).build()?;
     let parsed = parse("[subs=\"+quotes,-callouts\"]\nText", &options)?;
-    let BlockKind::Paragraph(paragraph) = parsed
-        .document_ref()
-        .blocks()
-        .next()
-        .ok_or("paragraph")?
-        .kind()
+    let BlockKind::Paragraph(paragraph) =
+        parsed.document().blocks().next().ok_or("paragraph")?.kind()
     else {
         return Err("expected paragraph".into());
     };

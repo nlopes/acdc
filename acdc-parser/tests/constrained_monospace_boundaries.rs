@@ -30,7 +30,7 @@ fn constrained_monospace_boundaries_preserve_separate_source_spans() -> Result<(
                     format!(":blank:{newline}{newline}α {prefix}{quoted}{suffix} ω.{newline}");
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()

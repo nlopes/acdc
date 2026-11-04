@@ -27,7 +27,7 @@ fn delimited_style_selects_content_without_changing_source_form(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [block] = &*parsed.document_ref().blocks().collect::<Vec<_>>() else {
+    let [block] = &*parsed.document().blocks().collect::<Vec<_>>() else {
         return Err("expected one delimited block".into());
     };
     let (actual, retained_delimiter, open, close) = if let BlockKind::Literal(node) = block.kind() {
@@ -78,7 +78,7 @@ fn delimited_style_selects_content_without_changing_source_form(
         );
     }
     if expected != "sidebar" {
-        assert!(parsed.document_ref().footnotes().next().is_none());
+        assert!(parsed.document().footnotes().next().is_none());
     }
     assert_eq!(parsed.warnings(), []);
     Ok(())
@@ -99,7 +99,7 @@ fn transformed_verbatim_blocks_apply_explicit_substitutions_once(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }

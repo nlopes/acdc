@@ -46,7 +46,7 @@ fn nested_references_use_the_selected_declaration_snapshot(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let metadata = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(BlockRef::attributes)
         .ok_or("missing quote")?;
@@ -84,7 +84,7 @@ fn body_substitutions_do_not_disable_quote_attribute_formatting(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let metadata = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(BlockRef::attributes)
         .ok_or("missing quote")?;
@@ -120,7 +120,7 @@ fn single_character_quote_content_keeps_its_authored_byte_span(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let metadata = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(BlockRef::attributes)
         .ok_or("missing quote")?;
@@ -156,7 +156,7 @@ fn included_expanded_attribution_retains_the_reference_and_file(
             .build()?,
     )?;
     let included = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(BlockRef::attributes)
         .filter_map(|metadata| content(metadata, "attribution"))
@@ -183,7 +183,7 @@ fn included_expanded_attribution_retains_the_reference_and_file(
         assert_eq!(location.location.start.column, 21);
         assert_eq!(location.location.end.column, 28);
     }
-    assert_eq!(parsed.document_ref().footnotes().count(), 2);
+    assert_eq!(parsed.document().footnotes().count(), 2);
     Ok(())
 }
 
@@ -203,7 +203,7 @@ fn only_selected_quote_content_registers_footnotes(
     };
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .footnotes()
             .map(FootnoteDefinitionRef::id)
             .collect::<Vec<_>>(),

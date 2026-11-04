@@ -25,7 +25,7 @@ fn unsupported_block_owners_do_not_acquire_invented_forms() -> Result<(), Error>
         ] {
             let parsed = parse(source, &options)?;
             assert!(
-                matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {
+                matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {
                 path, construct: Some(actual), ..
             }) if path == format!("/blocks/0/{suffix}") && actual == owner),
                 "{mode:?}: {owner}: {source}"
@@ -60,7 +60,7 @@ fn unsupported_inline_owners_are_rejected_inside_supported_paragraphs() -> Resul
                 &options,
             )?;
             let Some(BlockKind::Paragraph(paragraph)) =
-                parsed.document_ref().blocks().next().map(BlockRef::kind)
+                parsed.document().blocks().next().map(BlockRef::kind)
             else {
                 return Err(format!("missing paragraph: {source}").into());
             };
@@ -159,7 +159,7 @@ fn source_comments_are_omitted_without_dropping_their_neighbors() -> Result<(), 
         "////\ncomment\n////\n\nBefore.\n\nAfter.",
     ] {
         let parsed = parse(source, &Options::default())?;
-        let value = asg::document(parsed.document_ref())?;
+        let value = asg::document(parsed.document())?;
         let blocks = value
             .get("blocks")
             .and_then(serde_json::Value::as_array)
@@ -191,7 +191,7 @@ fn comment_metadata_cannot_disappear_with_source_comments() -> Result<(), Error>
     ] {
         let parsed = parse(source, &Options::default())?;
         assert!(
-            matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {path, ..})
+            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..})
             if path == format!("/blocks/0/{property}"))
         );
     }

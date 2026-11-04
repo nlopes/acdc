@@ -10,7 +10,7 @@ type Error = Box<dyn std::error::Error>;
 
 fn index(parsed: &ParseResult) -> Result<IndexTermRef<'_>, Error> {
     parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .find_map(|node| {
@@ -122,7 +122,7 @@ fn catalog_typography_keeps_include_and_cell_snapshots_and_source_positions(
             .build()?,
     )?;
     let terms = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -177,7 +177,7 @@ fn catalog_typography_keeps_include_and_cell_snapshots_and_source_positions(
         parsed.resolve_location(first.location()).file,
         Some(included_path.canonicalize()?)
     );
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }

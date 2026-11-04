@@ -35,7 +35,7 @@ fn document_attribute_text_pass_stores_definition_time_results() -> Result<(), E
     ] {
         assert_eq!(
             parsed
-                .document_ref()
+                .document()
                 .attributes()
                 .get(name)
                 .and_then(DocumentAttributeValue::text),
@@ -81,7 +81,7 @@ fn document_attribute_text_pass_preserves_caller_policy() -> Result<(), Error> {
         let parsed = parse(source, &options)?;
         assert_eq!(
             parsed
-                .document_ref()
+                .document()
                 .attributes()
                 .get("value")
                 .and_then(DocumentAttributeValue::text),
@@ -98,7 +98,7 @@ fn document_attribute_text_pass_keeps_complete_reference_spans() -> Result<(), E
             let source = format!("= T\n:raw: pass:c[{value}]\n\nα {marker}{{raw}}{marker} ω.\n");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -159,7 +159,7 @@ fn document_attribute_text_pass_resolves_include_targets() -> Result<(), Error> 
             .build()?,
     )?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()

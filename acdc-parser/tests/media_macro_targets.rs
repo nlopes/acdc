@@ -22,14 +22,14 @@ fn block_media_macros_accept_spaced_local_targets() -> TestResult {
         BlockKind::Audio(audio),
         BlockKind::Video(video),
     ] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(unexpected(
             "expected two images, one audio block, and one video block",
-            parsed.document_ref().blocks().collect::<Vec<_>>(),
+            parsed.document().blocks().collect::<Vec<_>>(),
         ));
     };
 
@@ -48,14 +48,14 @@ fn inline_images_accept_spaced_encoded_and_attribute_expanded_targets() -> TestR
         &Options::default(),
     )?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(unexpected(
             "expected one paragraph",
-            parsed.document_ref().blocks().collect::<Vec<_>>(),
+            parsed.document().blocks().collect::<Vec<_>>(),
         ));
     };
     let sources = paragraph
@@ -88,14 +88,14 @@ fn media_macros_accept_encoded_paths_and_spaced_urls() -> TestResult {
         &Options::default(),
     )?;
     let [BlockKind::Image(encoded), BlockKind::Image(remote)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(unexpected(
             "expected encoded-path and remote image blocks",
-            parsed.document_ref().blocks().collect::<Vec<_>>(),
+            parsed.document().blocks().collect::<Vec<_>>(),
         ));
     };
 
@@ -113,7 +113,7 @@ fn media_macro_targets_reject_edge_whitespace() -> TestResult {
         "image:: leading.png[]\n\naudio:: leading.mp3[]\n\nvideo:: leading.mp4[]\n\nimage::trailing.png []\n",
         &Options::default(),
     )?;
-    assert!(parsed.document_ref().blocks().all(|block| !matches!(
+    assert!(parsed.document().blocks().all(|block| !matches!(
         block.kind(),
         BlockKind::Image(_) | BlockKind::Audio(_) | BlockKind::Video(_)
     )));

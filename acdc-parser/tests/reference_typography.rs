@@ -40,7 +40,7 @@ fn reference_labels_resolve_their_own_profile_and_exact_source_span(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let label = parsed
-        .document_ref()
+        .document()
         .references()
         .get("target")
         .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
@@ -72,7 +72,7 @@ fn restricted_labels_keep_macros_literal_and_do_not_register_them(
 ) -> Result<(), Error> {
     let parsed = parse(source, &Options::default())?;
     let label = parsed
-        .document_ref()
+        .document()
         .references()
         .get("target")
         .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
@@ -84,7 +84,7 @@ fn restricted_labels_keep_macros_literal_and_do_not_register_them(
             .collect::<Vec<_>>(),
         [SymbolKind::RegisteredTrademark]
     );
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert_eq!(parsed.document().footnotes().count(), 0);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -98,7 +98,7 @@ fn reference_typography_keeps_escaped_tokens_literal(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let label = parsed
-        .document_ref()
+        .document()
         .references()
         .get("target")
         .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
@@ -121,7 +121,7 @@ fn reference_labels_keep_declaration_snapshots_and_included_positions(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let references = parsed.document_ref().references();
+    let references = parsed.document().references();
     let label = references
         .get("included-label")
         .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
@@ -157,7 +157,7 @@ fn reference_labels_keep_declaration_snapshots_and_included_positions(
             .collect::<Vec<_>>(),
         [SymbolKind::RegisteredTrademark, SymbolKind::Trademark]
     );
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert_eq!(parsed.document().footnotes().count(), 0);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -171,7 +171,7 @@ fn natural_reference_targets_keep_their_authored_spelling(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let target = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .find_map(|node| {
@@ -202,7 +202,7 @@ fn visible_bibliography_labels_resolve_the_selected_body_profile(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let label = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .find_map(|node| {
@@ -228,7 +228,7 @@ fn visible_bibliography_labels_resolve_the_selected_body_profile(
             Some("(C)")
         );
     }
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert_eq!(parsed.document().footnotes().count(), 0);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }

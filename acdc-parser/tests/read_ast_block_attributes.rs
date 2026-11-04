@@ -33,7 +33,7 @@ fn header_metadata_and_document_assignments_stay_distinct() -> Result<(), Error>
     assert!(attributes.contains("subs"));
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("reftext")
             .and_then(acdc_parser::DocumentAttributeValue::text),
@@ -63,7 +63,7 @@ fn quote_content_reads_preserve_formatting_and_present_empty_values(
         "[quote,attribution='*Ada*',citetitle='_Book_']\n____\nText.\n____\n\n[verse,attribution='',citetitle='']\n____\nText.\n____",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let BlockKind::Quote(quote) = blocks.next().ok_or("quote")?.kind() else {
         return Err("quote".into());
     };
@@ -159,7 +159,7 @@ fn parsed_substitution_reads_keep_authored_entries(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let attrs = parsed
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .ok_or("paragraph")?
@@ -257,7 +257,7 @@ fn content_locations_survive_includes_and_nested_cells(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let attrs = blocks
         .next()
         .ok_or("quote")?
@@ -303,7 +303,7 @@ fn blocks_without_element_attributes_stay_distinct_from_empty_attributes() -> Re
         "Before.\n\n// Comment\n\n:setting: value\n\nText.\n",
         &Options::default(),
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     assert!(
         blocks
             .next()

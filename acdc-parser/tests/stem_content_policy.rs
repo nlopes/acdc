@@ -8,7 +8,7 @@ type Error = Box<dyn std::error::Error>;
 
 fn paragraph(parsed: &acdc_parser::ParseResult) -> Result<ContentRef<'_>, Error> {
     parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Paragraph(block) = block.kind() {
@@ -44,7 +44,7 @@ fn unsupported_inline_substitutions_preserve_the_complete_source(
         }
     }
     assert_eq!(text, format!("π Before {authored} after expanded."));
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert_eq!(parsed.document().footnotes().count(), 0);
     let [warning] = parsed.warnings() else {
         return Err("expected one STEM recovery warning".into());
     };
@@ -138,7 +138,7 @@ fn block_formula_substitutions_are_shared_and_keep_the_authored_body(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let block = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Stem(block) = block.kind() {

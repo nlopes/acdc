@@ -15,7 +15,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 
 fn listing(parsed: &ParseResult) -> Result<ListingRef<'_>, Box<dyn Error>> {
     parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Listing(listing) = block.kind() {
@@ -60,7 +60,7 @@ fn retained_source_paragraph_is_literal(#[case] substitutions: &str) -> TestResu
     let input = format!(":value: replaced\n\n[source,bash,subs={substitutions}]\n{body}");
     let parsed = parse(&input, &Options::default())?;
     let paragraph = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -79,7 +79,7 @@ fn retained_table_cell_source_uses_its_nested_input() -> TestResult {
         "[cols=a]\n|===\n|[source,bash]\n----\ncat <<'EOF'\n<1>\nEOF\n----\n|===",
         &Options::default(),
     )?;
-    let Some(BlockKind::Table(table)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Table(table)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected table".into());
     };
@@ -115,7 +115,7 @@ fn retained_include_body_contains_transformed_content() -> TestResult {
 fn retained_comment_in_list_continuation_includes_final_newline() -> TestResult {
     let parsed = parse("* item\n+\n////\ncomment body\n////\n", &Options::default())?;
     let Some(BlockKind::UnorderedList(list)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected list".into());
     };
@@ -145,7 +145,7 @@ fn source_location_resolves_nested_selected_content() -> TestResult {
             .build()?,
     )?;
     let selected = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -160,8 +160,7 @@ fn source_location_resolves_nested_selected_content() -> TestResult {
         Some(directory.join("include_tag_diagnostics_target.adoc"))
     );
     assert_eq!(source.location.start.line, 2);
-    let Some(BlockKind::Paragraph(first)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Paragraph(first)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected primary paragraph".into());
     };
@@ -390,7 +389,7 @@ fn typed_paragraph_retains_literal_body(
     let input = format!(":value: replaced\n\n[source,bash,subs=normal]\n{body}");
     let options = Options::builder().with_compatibility_mode(mode).build()?;
     let parsed = parse(&input, &options)?;
-    let Some(block) = parsed.document_ref().blocks().next() else {
+    let Some(block) = parsed.document().blocks().next() else {
         return Err("expected source paragraph".into());
     };
     let acdc_parser::ast::BlockKind::Paragraph(paragraph) = block.kind() else {

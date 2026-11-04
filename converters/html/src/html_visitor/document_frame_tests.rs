@@ -16,7 +16,7 @@ fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
         "[[first]]\n[[last]]\n= Frame\n:lang: fr\n:toc: left\n:toc-class: header-toc\n:revnumber: 1.0\n\nBody.\n",
         &Options::default(),
     )?;
-    let parsed_stored = acdc_parser::Document::from(parsed.document_ref());
+    let parsed_stored = acdc_parser::Document::from(parsed.document());
     let replay = parse(
         ":lang: es\n:toc: right\n:toc-class: replay-toc\n\nBody.\n",
         &Options::default(),
@@ -30,7 +30,7 @@ fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
                     .with_metadata(original.metadata.clone())?,
             );
             document.attributes =
-                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes());
             let header = document.header.as_mut().ok_or("expected a header")?;
             assert_eq!(header.metadata.anchors.len(), 2);
             header.metadata.id = if explicit {
@@ -62,7 +62,7 @@ fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
                 RenderOptions::default(),
                 Diagnostics::new(&source, &mut warnings),
             );
-            let mut traversal = TraversalContext::new(replay.document_ref().attributes());
+            let mut traversal = TraversalContext::new(replay.document().attributes());
             visitor.visit_document_start(&mut traversal, &document)?;
             visitor.render_footer_version()?;
             let output = String::from_utf8(visitor.into_writer())?;
@@ -82,7 +82,7 @@ fn frame_keeps_embedded_return_and_css_signature_error_after_alias_warnings()
         "= Frame\n:syntect-style: InspiredGitHub\n\nBody.\n",
         &Options::default(),
     )?;
-    let parsed_stored = Document::from(parsed.document_ref());
+    let parsed_stored = Document::from(parsed.document());
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         for embedded in [false, true] {
             let processor = Processor::new_with_variant(
@@ -104,7 +104,7 @@ fn frame_keeps_embedded_return_and_css_signature_error_after_alias_warnings()
                 },
                 Diagnostics::new(&source, &mut warnings),
             );
-            let mut traversal = TraversalContext::new(parsed.document_ref().attributes());
+            let mut traversal = TraversalContext::new(parsed.document().attributes());
             let result = visitor.visit_document_start(&mut traversal, &parsed_stored);
             let output = String::from_utf8(visitor.into_writer())?;
             if embedded {
@@ -141,7 +141,7 @@ impl io::Write for RefusingWriter {
 #[test]
 fn frame_propagates_writer_failure_before_css_signature_validation() -> Result<(), TestError> {
     let parsed = parse("= Frame\n\nBody.\n", &Options::default())?;
-    let parsed_stored = Document::from(parsed.document_ref());
+    let parsed_stored = Document::from(parsed.document());
     let processor = Processor::new_with_variant(
         ConverterOptions::default(),
         Options::builder().with_attribute("css-signature", "old-id"),
@@ -155,7 +155,7 @@ fn frame_propagates_writer_failure_before_css_signature_validation() -> Result<(
         RenderOptions::default(),
         Diagnostics::new(&source, &mut warnings),
     );
-    let mut traversal = TraversalContext::new(parsed.document_ref().attributes());
+    let mut traversal = TraversalContext::new(parsed.document().attributes());
     let result = visitor.visit_document_start(&mut traversal, &parsed_stored);
     assert!(matches!(result, Err(Error::Io(error)) if error.to_string() == "closed"));
     Ok(())
@@ -164,9 +164,9 @@ fn frame_propagates_writer_failure_before_css_signature_validation() -> Result<(
 #[test]
 fn headerless_frame_uses_processor_toc_placement_for_its_wrapper() -> Result<(), TestError> {
     let parsed = parse("== Section\n\nBody.\n", &Options::default())?;
-    let parsed_stored = acdc_parser::Document::from(parsed.document_ref());
+    let parsed_stored = acdc_parser::Document::from(parsed.document());
     assert!(parsed_stored.header.is_none());
-    assert_eq!(parsed.document_ref().toc_entries().len(), 1);
+    assert_eq!(parsed.document().toc_entries().len(), 1);
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         for (processor_placement, replay_placement, has_wrapper) in
             [("left", "preamble", true), ("preamble", "left", false)]
@@ -184,7 +184,7 @@ fn headerless_frame_uses_processor_toc_placement_for_its_wrapper() -> Result<(),
             )?;
             processor.toc_entries.clone_from(
                 &parsed
-                    .document_ref()
+                    .document()
                     .toc_entries()
                     .map(acdc_parser::TocEntry::from)
                     .collect(),
@@ -197,7 +197,7 @@ fn headerless_frame_uses_processor_toc_placement_for_its_wrapper() -> Result<(),
                 RenderOptions::default(),
                 Diagnostics::new(&source, &mut warnings),
             );
-            let mut traversal = TraversalContext::new(replay.document_ref().attributes());
+            let mut traversal = TraversalContext::new(replay.document().attributes());
             visitor.visit_body_content_start(&mut traversal, &parsed_stored)?;
             let output = String::from_utf8(visitor.into_writer())?;
             let opener = if variant == HtmlVariant::Standard {

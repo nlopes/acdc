@@ -24,16 +24,8 @@ fn removed_groups_do_not_register_disabled_macros() -> Result<(), Error> {
             );
             let parsed = parse(&source, &Options::default())?;
             let expected = 0;
-            assert_eq!(
-                parsed.document_ref().footnotes().count(),
-                expected,
-                "{source}"
-            );
-            assert_eq!(
-                parsed.document_ref().references().len(),
-                expected,
-                "{source}"
-            );
+            assert_eq!(parsed.document().footnotes().count(), expected, "{source}");
+            assert_eq!(parsed.document().references().len(), expected, "{source}");
         }
     }
     Ok(())
@@ -56,19 +48,15 @@ fn readded_group_members_preserve_macro_registration_order() -> Result<(), Error
              {{value}} anchor:direct[]footnote:[Direct note.]\n"
         );
         let parsed = parse(&source, &Options::default())?;
+        assert_eq!(parsed.document().footnotes().count(), expected, "{subs}");
+        assert_eq!(parsed.document().references().len(), expected, "{subs}");
         assert_eq!(
-            parsed.document_ref().footnotes().count(),
-            expected,
-            "{subs}"
-        );
-        assert_eq!(parsed.document_ref().references().len(), expected, "{subs}");
-        assert_eq!(
-            parsed.document_ref().references().contains("direct"),
+            parsed.document().references().contains("direct"),
             expected > 0,
             "{subs}"
         );
         assert_eq!(
-            parsed.document_ref().references().contains("from-value"),
+            parsed.document().references().contains("from-value"),
             expected == 2,
             "{subs}"
         );
@@ -104,7 +92,7 @@ fn removed_verbatim_group_controls_callouts_in_every_code_block_kind() -> Result
                 };
                 let source = format!("[{style}subs=\"{subs}\"]{newline}{body}{newline}");
                 let parsed = parse(&source, &Options::default())?;
-                let nodes = match parsed.document_ref().blocks().next().map(BlockRef::kind) {
+                let nodes = match parsed.document().blocks().next().map(BlockRef::kind) {
                     Some(BlockKind::Paragraph(paragraph)) => paragraph.content(),
                     Some(BlockKind::Listing(block)) => block.content(),
                     Some(BlockKind::Literal(block)) => block.content(),

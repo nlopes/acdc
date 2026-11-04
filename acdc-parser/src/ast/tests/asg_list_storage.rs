@@ -8,7 +8,9 @@ fn invalid_list_state_fails_before_schema_projection() -> Result<(), Error> {
     for source in ["* Item", ". Item", "<1> Item", "Term:: Definition"] {
         let parsed = parse(source, &Options::default())?;
         let mut document = Document::default();
-        document.blocks.clone_from(&parsed.document().blocks);
+        document
+            .blocks
+            .clone_from(&parsed.document_storage().blocks);
         let block = document.blocks.first_mut().ok_or("list")?;
         if let Block::UnorderedList(list) = block {
             list.items.clear();
@@ -27,7 +29,9 @@ fn invalid_list_state_fails_before_schema_projection() -> Result<(), Error> {
     }
     let parsed = parse("* Item", &Options::default())?;
     let mut document = Document::default();
-    document.blocks.clone_from(&parsed.document().blocks);
+    document
+        .blocks
+        .clone_from(&parsed.document_storage().blocks);
     let Some(Block::UnorderedList(list)) = document.blocks.first_mut() else {
         return Err("list".into());
     };
@@ -61,14 +65,16 @@ fn checklist_and_nested_unsupported_content_report_their_own_paths() -> Result<(
     ] {
         let parsed = parse(source, &Options::default())?;
         assert!(
-            matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {path, construct: Some(actual), ..})
+            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, construct: Some(actual), ..})
             if path == expected && actual == owner),
             "{source}"
         );
     }
     let parsed = parse("* Item", &Options::default())?;
     let mut document = Document::default();
-    document.blocks.clone_from(&parsed.document().blocks);
+    document
+        .blocks
+        .clone_from(&parsed.document_storage().blocks);
     let Some(Block::UnorderedList(list)) = document.blocks.first_mut() else {
         return Err("list".into());
     };
@@ -85,7 +91,7 @@ fn checklist_and_nested_unsupported_content_report_their_own_paths() -> Result<(
 #[test]
 fn callout_markers_preserve_kind_and_resolved_number() -> Result<(), Error> {
     let parsed = parse("<.> First\n<5> Second\n<.> Third", &Options::default())?;
-    let value = asg::document(parsed.document_ref())?;
+    let value = asg::document(parsed.document())?;
     assert_eq!(value.pointer("/blocks/0/marker"), Some(&json!("<.>")));
     assert_eq!(
         value.pointer("/blocks/0/items/0/marker"),
@@ -100,7 +106,9 @@ fn callout_markers_preserve_kind_and_resolved_number() -> Result<(), Error> {
         Some(&json!("<.>"))
     );
     let mut document = Document::default();
-    document.blocks.clone_from(&parsed.document().blocks);
+    document
+        .blocks
+        .clone_from(&parsed.document_storage().blocks);
     let Some(Block::CalloutList(list)) = document.blocks.first_mut() else {
         return Err("list".into());
     };
@@ -115,7 +123,9 @@ fn callout_markers_preserve_kind_and_resolved_number() -> Result<(), Error> {
 fn description_item_identities_are_preserved_or_explicitly_rejected() -> Result<(), Error> {
     let parsed = parse("Term:: Definition", &Options::default())?;
     let mut document = Document::default();
-    document.blocks.clone_from(&parsed.document().blocks);
+    document
+        .blocks
+        .clone_from(&parsed.document_storage().blocks);
     let Some(Block::DescriptionList(list)) = document.blocks.first_mut() else {
         return Err("list".into());
     };
@@ -147,7 +157,9 @@ fn description_item_identities_are_preserved_or_explicitly_rejected() -> Result<
 fn list_attachments_cannot_gain_sections() -> Result<(), Error> {
     let parsed = parse("* Item", &Options::default())?;
     let mut document = Document::default();
-    document.blocks.clone_from(&parsed.document().blocks);
+    document
+        .blocks
+        .clone_from(&parsed.document_storage().blocks);
     let Some(Block::UnorderedList(list)) = document.blocks.first_mut() else {
         return Err("list".into());
     };

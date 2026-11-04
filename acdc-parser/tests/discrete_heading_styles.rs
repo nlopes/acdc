@@ -41,11 +41,7 @@ fn heading_styles_keep_their_selected_meaning(
     } else {
         draft
     };
-    let heading = parsed
-        .document_ref()
-        .blocks()
-        .next()
-        .ok_or("missing heading")?;
+    let heading = parsed.document().blocks().next().ok_or("missing heading")?;
     assert_eq!(
         heading
             .attributes()
@@ -77,9 +73,8 @@ fn discrete_boundaries_preserve_nesting_and_register_heading_content_once(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
-    let Some(BlockKind::Section(parent)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    assert_eq!(parsed.document().footnotes().count(), 1);
+    let Some(BlockKind::Section(parent)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("missing parent section".into());
     };
@@ -95,10 +90,10 @@ fn discrete_boundaries_preserve_nesting_and_register_heading_content_once(
             child.blocks().nth(1).map(BlockRef::kind),
             Some(BlockKind::Paragraph(_))
         ));
-        assert_eq!(parsed.document_ref().blocks().count(), 2);
+        assert_eq!(parsed.document().blocks().count(), 2);
     } else {
         assert!(child.blocks().next().is_none());
-        assert_eq!(parsed.document_ref().blocks().count(), 4);
+        assert_eq!(parsed.document().blocks().count(), 4);
     }
     Ok(())
 }

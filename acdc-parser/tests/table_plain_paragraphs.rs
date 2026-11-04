@@ -46,7 +46,7 @@ fn plain_table_paragraphs_keep_block_syntax_as_text() -> Result<(), Error> {
     for style in ["1", "1d", "1e", "1s", "1m", "1h"] {
         let source = format!("[cols=\"{style}\"]\n|===\n|{first}\n\nSecond paragraph.\n|===\n");
         let parsed = parse(&source, &Options::default())?;
-        let cell = first_cell(parsed.document_ref())?;
+        let cell = first_cell(parsed.document())?;
         assert_eq!(
             cell.blocks().count(),
             2,
@@ -77,7 +77,7 @@ fn plain_table_paragraphs_do_not_apply_block_metadata() -> Result<(), Error> {
     ] {
         let source = format!("[cols=\"1\"]\n|===\n|{content}\n|===\n");
         let parsed = parse(&source, &Options::default())?;
-        let cell = first_cell(parsed.document_ref())?;
+        let cell = first_cell(parsed.document())?;
         let expected = content.split("\n\n").collect::<Vec<_>>();
         assert_eq!(cell.blocks().count(), expected.len(), "{content}");
         for (block, expected) in cell.blocks().zip(expected) {
@@ -102,7 +102,7 @@ fn plain_table_paragraphs_retain_source_spans() -> Result<(), Error> {
             "[cols=\"1\"]{newline}|==={newline}|Élodie.{newline}////{newline}José.{newline}////{newline}{newline}Last.{newline}|==={newline}"
         );
         let parsed = parse(&source, &Options::default())?;
-        let cell = first_cell(parsed.document_ref())?;
+        let cell = first_cell(parsed.document())?;
         assert_eq!(cell.blocks().count(), 2);
         for (block, (line, column, end_line, end_column)) in
             cell.blocks().zip([(3, 2, 6, 4), (8, 1, 8, 5)])
@@ -123,7 +123,7 @@ fn plain_table_paragraphs_retain_source_spans() -> Result<(), Error> {
 fn plain_table_paragraphs_register_inline_effects_once() -> Result<(), Error> {
     let source = ":value: outer\n\n[cols=\"1\"]\n|===\n|[comment]\n:value: inner\nText {value}.\n////\nanchor:plain-target[]footnote:[Visible note.] ((Visible term))\n////\n\nNext.\n|===\n";
     let parsed = parse(source, &Options::default())?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     assert_eq!(
         document
             .attributes()

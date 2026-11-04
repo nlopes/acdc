@@ -32,7 +32,7 @@ fn index_detection_is_independent_of_last_section_style() -> Result<(), Error> {
         &Options::default(),
     )?;
     let parsed_blocks: Vec<_> = parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(acdc_parser::Block::from)
         .collect();
@@ -50,7 +50,7 @@ fn index_detection_reaches_sections_inside_book_parts() -> Result<(), Error> {
         &Options::default(),
     )?;
     let parsed_blocks: Vec<_> = parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(acdc_parser::Block::from)
         .collect();
@@ -67,7 +67,7 @@ fn index_detection_excludes_styled_paragraphs_and_plain_cells() -> Result<(), Er
     ] {
         let parsed = parse(input, &Options::default())?;
         let parsed_blocks: Vec<_> = parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(acdc_parser::Block::from)
             .collect();
@@ -95,7 +95,7 @@ fn index_detection_reaches_asciidoc_table_cells() -> Result<(), Error> {
             let input = format!("= Manual\n\n{prefix}{table}{suffix}\n");
             let parsed = parse(&input, &Options::default())?;
             let parsed_blocks: Vec<_> = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(acdc_parser::Block::from)
                 .collect();
@@ -145,7 +145,7 @@ fn index_detection_preserves_constructed_compound_and_list_boundaries() -> Resul
         ] {
             let parsed = parse(source, &options)?;
             let parsed_blocks: Vec<_> = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(acdc_parser::Block::from)
                 .collect();
@@ -184,7 +184,7 @@ fn index_detection_preserves_stored_cell_style_fallback_in_every_row_group() -> 
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse("|===\n| First | Second\n|===\n", &options)?;
         let parsed_blocks: Vec<_> = parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(acdc_parser::Block::from)
             .collect();
@@ -263,7 +263,7 @@ fn typed_index_detection_accepts_short_lived_and_single_pass_inputs() -> Result<
         let found = {
             let source = String::from("= Manual\n\n[index]\n== Index\n");
             let parsed = parse(&source, &options)?;
-            contains_index_section(parsed.document_ref().blocks())
+            contains_index_section(parsed.document().blocks())
         };
         assert!(found);
     }

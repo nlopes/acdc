@@ -90,7 +90,7 @@ fn index_catalog_reads_preserve_registration_time_labels() -> Result<(), Error> 
         &Options::default(),
     )?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()

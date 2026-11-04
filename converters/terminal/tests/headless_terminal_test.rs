@@ -107,7 +107,7 @@ fn render_to_grid(asciidoc: &str, cols: u16, rows: u16) -> Result<RenderedGrid, 
     crossterm::style::force_color_output(true);
     let parser_options = ParserOptions::default();
     let parsed = acdc_parser::parse(asciidoc, &parser_options)?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
 
     let processor = Processor::new(
         ConverterOptions::default(),

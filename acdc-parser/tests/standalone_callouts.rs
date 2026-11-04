@@ -64,7 +64,7 @@ fn standalone_callouts_validate_source_markers_and_render_ordinals() -> Result<(
         let source = format!("<{marker}> First.\n<.> Second.\n");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::CalloutList(list)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -124,7 +124,7 @@ fn standalone_callouts_register_parent_notes_before_nested_notes() -> Result<(),
             "{marker} Parent footnote:[Parent.].\n<1> Child footnote:[Child.].\n<2> Last footnote:[Last.].\n"
         );
         let parsed = parse(&source, &Options::default())?;
-        let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
+        let notes = parsed.document().footnotes().collect::<Vec<_>>();
         assert_eq!(notes.len(), 3, "{source}");
         for (note, expected) in notes.iter().zip([
             "footnote:[Parent.]",
@@ -147,13 +147,13 @@ fn standalone_callout_probes_do_not_register_paragraph_notes_twice() -> Result<(
     let parsed = parse(source, &Options::default())?;
     assert!(matches!(
         &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>(),
         [BlockKind::Paragraph(_)]
     ));
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }

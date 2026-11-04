@@ -1201,7 +1201,7 @@ mod tests {
                     .build()?,
             )?;
             let first = parsed
-                .document()
+                .document_storage()
                 .blocks
                 .first()
                 .and_then(Block::metadata)
@@ -1232,7 +1232,7 @@ mod tests {
                 Some("{entries}")
             );
             let second = parsed
-                .document()
+                .document_storage()
                 .blocks
                 .last()
                 .and_then(Block::metadata)

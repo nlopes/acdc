@@ -18,7 +18,7 @@ fn standalone_fragments_use_document_inline_semantics(
     let options = Options::builder().with_compatibility_mode(mode).build()?;
     let document = parse(source, &options)?;
     let [BlockKind::Paragraph(_)] = &*document
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -28,7 +28,7 @@ fn standalone_fragments_use_document_inline_semantics(
     let fragment = parse_inline(source, &options)?;
     assert_eq!(
         &serde_json::to_value(fragment.inlines())?,
-        serde_json::to_value(document.document_ref())?
+        serde_json::to_value(document.document())?
             .pointer("/blocks/0/inlines")
             .ok_or("missing paragraph inlines")?
     );

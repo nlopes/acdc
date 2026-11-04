@@ -10,7 +10,7 @@ fn decorated_passthroughs_preserve_raw_and_protected_meaning_by_mode() -> Result
             "Before [#sample.red.blue]++<b>*literal*</b>++ after.",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let value = serde_json::to_value(parsed.document_ref())?;
+        let value = serde_json::to_value(parsed.document())?;
         let nodes = value
             .pointer("/blocks/0/inlines")
             .and_then(Value::as_array)
@@ -31,14 +31,14 @@ fn decorated_passthroughs_preserve_raw_and_protected_meaning_by_mode() -> Result
                 nodes.first().and_then(|node| node.get("value")),
                 Some(&json!("Before "))
             );
-            assert!(parsed.document_ref().references().contains("sample"));
+            assert!(parsed.document().references().contains("sample"));
         } else {
             assert!(raw.get("metadata").is_none());
             assert_eq!(
                 nodes.first().and_then(|node| node.get("value")),
                 Some(&json!("Before [#sample.red.blue]"))
             );
-            assert!(!parsed.document_ref().references().contains("sample"));
+            assert!(!parsed.document().references().contains("sample"));
         }
     }
     Ok(())
@@ -59,7 +59,7 @@ fn raw_nodes(parsed: &acdc_parser::ParseResult) -> Vec<acdc_parser::ast::RawRef<
         }
     }
     let mut result = Vec::new();
-    for owner in parsed.document_ref().descendants() {
+    for owner in parsed.document().descendants() {
         for field in owner.content_fields() {
             visit(field.content(), &mut result);
         }
@@ -117,7 +117,7 @@ fn passthrough_ids_map_to_the_authored_token_once(#[case] spelling: &str) -> Res
         let body = context.replace("{}", &format!("[#old.red#{spelling}]++literal Ω++"));
         let source = format!(":identifier: expanded\n\nEarlier.\n\n{body}\n");
         let parsed = parse(&source, &Options::default())?;
-        let before = serde_json::to_value(parsed.document_ref())?;
+        let before = serde_json::to_value(parsed.document())?;
         let raws = raw_nodes(&parsed);
         let [raw] = raws.as_slice() else {
             return Err("one raw node".into());
@@ -150,7 +150,7 @@ fn passthrough_ids_map_to_the_authored_token_once(#[case] spelling: &str) -> Res
             Some(acdc_parser::ast::AttributeValueRef::Text(id.as_str()))
         );
         assert_eq!(raw.attributes().iter().count(), 2);
-        assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+        assert_eq!(serde_json::to_value(parsed.document())?, before);
     }
     Ok(())
 }

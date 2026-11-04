@@ -38,7 +38,7 @@ fn dashes_are_semantic_only_in_their_enabled_source_context(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -77,7 +77,7 @@ fn dash_context_belongs_to_the_replacement_stage(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter(|node| matches!(node.kind(), InlineKind::Symbol(_)))
@@ -104,7 +104,7 @@ fn dash_locations_retain_consumed_whitespace(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -145,7 +145,7 @@ fn callout_guards_are_not_reinterpreted_by_later_replacements(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter(|node| matches!(node.kind(), InlineKind::Symbol(_)))
@@ -177,7 +177,7 @@ fn dash_boundaries_belong_to_the_owning_substitution_scope(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter(|node| matches!(node.kind(), InlineKind::Symbol(_)))

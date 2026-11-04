@@ -20,7 +20,7 @@ fn typed_attribute_replay_preserves_assignment_identity_and_header_values() -> R
         "= Header\n:name: header\n:present:\n\nBody.\n\n:name: first\n:name!:\n:name: final\n",
         &options,
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     let mut context = TraversalContext::new(document.attributes());
     let header: DocumentAttributesRef<'_> = context.header();
     let depth = context.get("max-include-depth").ok_or("depth")?;
@@ -78,7 +78,7 @@ fn typed_nested_cells_restore_parent_state_after_success_and_error() -> Result<(
         "= Doc\n:doctype: book\n:toc: left\n:imagesdir: root\n\nBody.\n\n:imagesdir: parent\n\n[cols=\"a,a\"]\n|===\n|\nOne.\n\n:cell-value: one\n\nLater.\n|\nTwo.\n\n:cell-value: two\n\nLater.\n|===\n",
         &Options::default(),
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     let table = document
         .blocks()
         .find_map(|block| {
@@ -160,7 +160,7 @@ fn table_decoration_lookup_follows_nested_scopes_and_restores_body_defaults() ->
             "= Doc\n:table-frame: all\n\nBody.\n\n:table-frame: sides\n\n[cols=\"a,a\"]\n|===\n|\nOne.\n\n:table-grid: cols\n\nLater.\n|\nTwo.\n\n:table-grid: rows\n\nLater.\n|===\n",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let document = parsed.document_ref();
+        let document = parsed.document();
         let table = document
             .blocks()
             .find_map(|block| {

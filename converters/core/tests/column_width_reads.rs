@@ -59,7 +59,7 @@ fn typed_table_widths_outlive_temporary_input() -> Result<(), Box<dyn std::error
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let Some(BlockKind::Table(table)) =
-                parsed.document_ref().blocks().next().map(BlockRef::kind)
+                parsed.document().blocks().next().map(BlockRef::kind)
             else {
                 return Err("expected table".into());
             };

@@ -66,7 +66,7 @@ impl<'doc> Visitor<'doc> for OwnerTrace<'doc> {
 #[test]
 fn owner_inline_sequence_visits_only_selected_direct_nodes() -> Result<(), Error> {
     let document = parse("= Doc\n:marker: retained\n\nBody.\n", &Options::default())?;
-    let mut context = TraversalContext::new(document.document_ref().attributes());
+    let mut context = TraversalContext::new(document.document().attributes());
     let mut visitor = OwnerTrace::default();
     {
         let fragment = parse_inline(SOURCE, &Options::default())?;
@@ -87,7 +87,7 @@ fn owner_inline_sequence_visits_only_selected_direct_nodes() -> Result<(), Error
 #[test]
 fn owner_inline_errors_stop_the_sequence_and_retain_attribute_borrows() -> Result<(), Error> {
     let document = parse("= Doc\n:marker: retained\n\nBody.\n", &Options::default())?;
-    let mut context = TraversalContext::new(document.document_ref().attributes());
+    let mut context = TraversalContext::new(document.document().attributes());
     for fail_at in 0..3 {
         let mut visitor = OwnerTrace(Trace {
             fail_at: Some(fail_at),
@@ -202,8 +202,8 @@ fn typed_document_block_and_inline_callbacks_compose_in_one_converter() -> Resul
     let parsed = parse("= Header\n\nBody *Bold*.\n", &Options::default())?;
     let mut rendered = Rendered::default();
     rendered.visit_document(
-        &mut TraversalContext::new(parsed.document_ref().attributes()),
-        parsed.document_ref(),
+        &mut TraversalContext::new(parsed.document().attributes()),
+        parsed.document(),
     )?;
     assert_eq!(rendered.0, "HeaderBody Bold.");
     Ok(())
@@ -234,7 +234,7 @@ fn typed_and_owner_inline_sequences_agree_after_temporary_fragments_are_dropped(
             };
             let mut owner = OwnerTrace(trace());
             let mut typed = TypedTrace(trace());
-            let mut context = TraversalContext::new(document.document_ref().attributes());
+            let mut context = TraversalContext::new(document.document().attributes());
             {
                 let source = String::from(SOURCE);
                 let fragment = parse_inline(&source, &options)?;
@@ -259,7 +259,7 @@ fn typed_and_owner_inline_sequences_agree_after_temporary_fragments_are_dropped(
 #[test]
 fn typed_trait_objects_accept_constructed_text_shorter_than_the_document() -> Result<(), Error> {
     let document = parse("= Doc\n:marker: retained\n\nBody.\n", &Options::default())?;
-    let mut context = TraversalContext::new(document.document_ref().attributes());
+    let mut context = TraversalContext::new(document.document().attributes());
     let mut trace = TypedTrace::default();
     let visitor: &mut dyn InlineVisitor<'_, Error = &'static str> = &mut trace;
     {
@@ -311,7 +311,7 @@ fn typed_callbacks_choose_span_children_without_visiting_footnote_bodies() -> Re
     }
 
     let document = parse("Body.\n", &Options::default())?;
-    let mut context = TraversalContext::new(document.document_ref().attributes());
+    let mut context = TraversalContext::new(document.document().attributes());
     let mut selected = Selected::default();
     let fragment = parse_inline(SOURCE, &Options::default())?;
     selected.visit_inline_nodes(&mut context, fragment.content())?;

@@ -11,7 +11,7 @@ fn xref_nested_footnotes_register_once_and_keep_source_locations() -> Result<(),
     // The footnote catalog, numbering, and warnings are absent from parser snapshots.
     let source = include_str!("../fixtures/tests/xref_nested_footnotes.adoc");
     let parsed = parse(source, &Options::default())?;
-    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
+    let notes = parsed.document().footnotes().collect::<Vec<_>>();
     assert_eq!(notes.len(), 13);
     for (index, note) in notes.iter().enumerate() {
         assert_eq!(note.number() as usize, index + 1);
@@ -44,7 +44,7 @@ fn nested_footnote_catalog_locations_are_document_absolute() -> Result<(), Error
     ] {
         let source = format!("= Locations\n:name: Éva\n\nPrefix {body}.\n");
         let parsed = parse(&source, &Options::default())?;
-        let mut definitions = parsed.document_ref().footnotes();
+        let mut definitions = parsed.document().footnotes();
         let (Some(note), None) = (definitions.next(), definitions.next()) else {
             return Err(format!("expected one note: {body}").into());
         };
@@ -61,7 +61,7 @@ fn nested_footnote_catalog_locations_are_document_absolute() -> Result<(), Error
 fn verbatim_footnotes_keep_one_definition_and_original_locations() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/subs_verbatim_footnotes.adoc");
     let parsed = parse(source, &Options::default())?;
-    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
+    let notes = parsed.document().footnotes().collect::<Vec<_>>();
     assert_eq!(notes.len(), 14);
     for (index, note) in notes.iter().enumerate() {
         assert_eq!(note.number() as usize, index + 1);
@@ -84,7 +84,7 @@ fn verbatim_footnotes_keep_one_definition_and_original_locations() -> Result<(),
 fn footnote_reuse_and_missing_references_do_not_consume_numbers() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/footnote_reuse.adoc");
     let parsed = parse(source, &Options::default())?;
-    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
+    let notes = parsed.document().footnotes().collect::<Vec<_>>();
     assert_eq!(notes.len(), 4);
     for (note, expected) in notes.iter().zip([
         "footnote:shared[Shared body.]",

@@ -55,8 +55,8 @@ fn block_inventories_project_the_retained_content_owners(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
-    let owner = parsed.document().blocks.first().ok_or("block")?;
+    let before = serde_json::to_value(parsed.document_storage())?;
+    let owner = parsed.document_storage().blocks.first().ok_or("block")?;
     let metadata = owner.metadata().ok_or("block metadata")?;
     let attributes = BlockRef::from(owner)
         .attributes()
@@ -82,7 +82,7 @@ fn block_inventories_project_the_retained_content_owners(
             .map(|spec| AttributeValueRef::Substitutions(SubstitutionSpecRef::from(spec)))
     );
     assert!(attributes.contains("subs"));
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_storage())?, before);
     Ok(())
 }
 
@@ -96,7 +96,7 @@ fn captions_and_anchor_labels_do_not_fabricate_named_attributes(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let images = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(|block| {
             if let BlockKind::Image(image) = block.kind() {
@@ -115,7 +115,7 @@ fn captions_and_anchor_labels_do_not_fabricate_named_attributes(
         return Err("explicit empty caption".into());
     };
     assert!(caption.is_empty());
-    let paragraph = parsed.document().blocks.last().ok_or("paragraph")?;
+    let paragraph = parsed.document_storage().blocks.last().ok_or("paragraph")?;
     assert!(
         !BlockRef::from(paragraph)
             .attributes()

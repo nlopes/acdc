@@ -260,7 +260,7 @@ fn url_opening_boundaries_use_the_macro_stage() -> Result<(), Error> {
             format!(":space: {{sp}}\n:empty:\n:prefix: Label:\n\n[subs=\"{subs}\"]\n{body}");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -300,7 +300,7 @@ fn formatted_attribute_profiles_preserve_url_boundaries() -> Result<(), Error> {
             );
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -335,7 +335,7 @@ fn enabled_code_links_use_the_same_boundaries() -> Result<(), Error> {
                 .replace('\n', newline);
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Listing(block)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()

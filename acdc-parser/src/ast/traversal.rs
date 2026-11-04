@@ -14,7 +14,7 @@ use super::{
 /// use acdc_parser::{Options, parse, ast::{BlockKind, StructuralRef}};
 ///
 /// let parsed = parse("* Item\n+\nAttached.\n", &Options::default())?;
-/// let paragraph = parsed.document_ref().descendants().find_map(|node| {
+/// let paragraph = parsed.document().descendants().find_map(|node| {
 ///     if let StructuralRef::Block(block) = node {
 ///         if let BlockKind::Paragraph(paragraph) = block.kind() {
 ///             return Some(paragraph);

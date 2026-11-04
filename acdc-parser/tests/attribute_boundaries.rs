@@ -18,7 +18,7 @@ fn closing_quote_needs_a_separator_in_draft(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let [BlockKind::Paragraph(block)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -47,7 +47,7 @@ fn leading_whitespace_keeps_a_block_attribute_line_as_content() -> Result<(), Er
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let [BlockKind::Paragraph(block)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -73,7 +73,7 @@ fn preprocessing_uses_the_same_quote_rules_on_fast_and_slow_paths(
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let [BlockKind::Paragraph(block)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -106,7 +106,7 @@ fn rejected_attribute_lines_start_source_paragraph_content() -> Result<(), Error
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let [BlockKind::Paragraph(block)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -135,7 +135,7 @@ fn quoted_unicode_content_retains_its_authored_location() -> Result<(), Error> {
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let [BlockKind::Paragraph(block)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -172,7 +172,7 @@ fn toc_uses_block_macro_boundaries() -> Result<(), Error> {
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let [block] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()

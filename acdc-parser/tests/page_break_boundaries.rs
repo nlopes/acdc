@@ -19,7 +19,7 @@ fn complete_page_break_lines_keep_marker_ranges(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     assert!(matches!(
         blocks.next().ok_or("leading paragraph")?.kind(),
         BlockKind::Paragraph(_)
@@ -47,7 +47,7 @@ fn page_break_markers_require_an_entire_unindented_line(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert!(!parsed.document_ref().descendants().any(|node| {
+    assert!(!parsed.document().descendants().any(|node| {
         matches!(node, StructuralRef::Block(block) if matches!(block.kind(), BlockKind::PageBreak(_)))
     }));
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
@@ -63,7 +63,7 @@ fn final_page_break_keeps_selected_metadata(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let BlockKind::PageBreak(page) = blocks.next().ok_or("page break")?.kind() else {
         return Err("final marker must be a page break".into());
     };
@@ -90,7 +90,7 @@ fn page_break_contexts_keep_original_source_ranges(
             .build()?,
     )?;
     let pages = parsed
-        .document_ref()
+        .document()
         .descendants()
         .filter_map(|node| {
             if let StructuralRef::Block(block) = node {

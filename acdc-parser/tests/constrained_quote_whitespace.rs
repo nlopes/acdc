@@ -24,7 +24,7 @@ fn constrained_quotes_reject_ascii_whitespace_at_both_content_edges() -> Result<
                 let source = format!("P {marker}{content}{marker}. Q.\n");
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -48,7 +48,7 @@ fn constrained_quotes_skip_invalid_closers_and_preserve_complete_source_spans() 
                 let source = format!("P {quoted} Q.{newline}");
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -82,7 +82,7 @@ fn constrained_quotes_keep_non_ascii_spaces_and_unconstrained_controls() -> Resu
             let source = format!("P {marker}{content}{marker} Q.\n");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -95,7 +95,7 @@ fn constrained_quotes_keep_non_ascii_spaces_and_unconstrained_controls() -> Resu
             let source = format!("P {marker}{marker}{content}{marker}{marker} Q.\n");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -121,7 +121,7 @@ fn unconstrained_quotes_keep_multiline_content_and_complete_source_spans() -> Re
                 let source = format!("P {quoted}. Q.{newline}");
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -154,8 +154,8 @@ fn unconstrained_quotes_keep_multiline_content_and_complete_source_spans() -> Re
         }
         let source = format!("P {marker}first\n\nsecond{marker}.\n");
         let parsed = parse(&source, &Options::default())?;
-        assert_eq!(parsed.document_ref().blocks().count(), 2, "{source:?}");
-        for block in parsed.document_ref().blocks() {
+        assert_eq!(parsed.document().blocks().count(), 2, "{source:?}");
+        for block in parsed.document().blocks() {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return Err("expected separate paragraphs".into());
             };
@@ -172,7 +172,7 @@ fn constrained_quotes_check_whitespace_before_later_attribute_expansion() -> Res
             let source = format!("= Edges\n:empty:\n\nP {marker}{content}{marker}.\n");
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -204,7 +204,7 @@ fn constrained_quotes_reject_whitespace_from_earlier_attribute_expansion() -> Re
             );
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()

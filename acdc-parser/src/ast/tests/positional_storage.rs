@@ -19,7 +19,7 @@ fn fence_language_does_not_shift_or_map_preceding_positions() -> Result<(), Erro
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let metadata = parsed
-            .document()
+            .document_storage()
             .blocks
             .first()
             .and_then(Block::metadata)
@@ -46,7 +46,7 @@ fn draft_maps_preceding_media_positions_after_aggregation() -> Result<(), Error>
             source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let Some(Block::Image(image)) = parsed.document().blocks.first() else {
+        let Some(Block::Image(image)) = parsed.document_storage().blocks.first() else {
             return Err("missing image".into());
         };
         let alt = image.alt.as_ref().ok_or("missing alt")?;
@@ -83,7 +83,7 @@ fn draft_selects_source_and_quote_attributes_in_document_order() -> Result<(), E
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let metadata = parsed
-                .document()
+                .document_storage()
                 .blocks
                 .first()
                 .and_then(Block::metadata)
@@ -107,7 +107,7 @@ fn draft_selects_source_and_quote_attributes_in_document_order() -> Result<(), E
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let metadata = parsed
-            .document()
+            .document_storage()
             .blocks
             .first()
             .and_then(Block::metadata)
@@ -139,7 +139,7 @@ fn unrelated_block_forms_keep_positions_without_routing_them() -> Result<(), Err
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let metadata = parsed
-                .document()
+                .document_storage()
                 .blocks
                 .first()
                 .and_then(Block::metadata)

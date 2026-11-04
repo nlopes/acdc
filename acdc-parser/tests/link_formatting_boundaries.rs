@@ -22,7 +22,7 @@ fn formatted_content<'node, 'source>(
 fn link_formatting_boundaries_register_nested_notes_once() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/link_formatting_boundaries.adoc");
     let parsed = parse(source, &Options::default())?;
-    let mut definitions = parsed.document_ref().footnotes();
+    let mut definitions = parsed.document().footnotes();
     let (Some(note), None) = (definitions.next(), definitions.next()) else {
         return Err("expected one retained note definition".into());
     };

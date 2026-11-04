@@ -50,7 +50,7 @@ fn menu_separators_follow_the_macro_stage(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let menu = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
@@ -79,12 +79,8 @@ fn entity_width_does_not_shift_unicode_labels_or_registered_content(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
-    let note = parsed
-        .document_ref()
-        .footnotes()
-        .next()
-        .ok_or("missing note")?;
+    assert_eq!(parsed.document().footnotes().count(), 1);
+    let note = parsed.document().footnotes().next().ok_or("missing note")?;
     let authored = "footnote:n[Note.]";
     let start = source.find(authored).ok_or("missing source")?;
     assert_eq!(
@@ -95,7 +91,7 @@ fn entity_width_does_not_shift_unicode_labels_or_registered_content(
         (start, start + authored.len() - 1)
     );
     let menu = parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {

@@ -37,7 +37,7 @@ fn fallback_captions_preserve_precedence_presence_and_exact_label_text() -> Resu
             let global_entry = global.map_or(String::new(), |value| format!(":caption: {value}\n"));
             let input = format!("= Doc\n{entries}{global_entry}\nText.");
             let parsed = parse(&input, &Options::default())?;
-            let attributes = DocumentAttributes::from(parsed.document_ref().attributes());
+            let attributes = DocumentAttributes::from(parsed.document().attributes());
             for local in [
                 None,
                 Some(AttributeValue::None),
@@ -84,7 +84,7 @@ fn fallback_captions_preserve_precedence_presence_and_exact_label_text() -> Resu
 #[test]
 fn only_collapsible_examples_suppress_the_fallback_prefix() -> Result<(), Error> {
     let parsed = parse("= Doc\n:caption: Global:\n\nText.", &Options::default())?;
-    let attributes = DocumentAttributes::from(parsed.document_ref().attributes());
+    let attributes = DocumentAttributes::from(parsed.document().attributes());
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
     paragraph.metadata.options.push("collapsible");
     paragraph
@@ -120,7 +120,7 @@ fn fallback_labels_borrow_the_supplied_snapshot_and_see_current_owner_edits() ->
     let caption = {
         CaptionRef::resolve(
             ParagraphRef::from(&paragraph).attributes(),
-            parsed.document_ref().attributes(),
+            parsed.document().attributes(),
             Some(CaptionKind::Figure),
         )
         .ok_or("caption")?
@@ -137,7 +137,7 @@ fn fallback_labels_borrow_the_supplied_snapshot_and_see_current_owner_edits() ->
     assert!(std::ptr::eq(
         label,
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("figure-caption")
             .and_then(|value| value.text())
@@ -149,7 +149,7 @@ fn fallback_labels_borrow_the_supplied_snapshot_and_see_current_owner_edits() ->
         .set("caption".into(), String::from("Local:").into());
     let caption = CaptionRef::resolve(
         ParagraphRef::from(&paragraph).attributes(),
-        parsed.document_ref().attributes(),
+        parsed.document().attributes(),
         Some(CaptionKind::Figure),
     );
     assert_eq!(caption, Some(CaptionRef::Custom("Local:")));
@@ -157,7 +157,7 @@ fn fallback_labels_borrow_the_supplied_snapshot_and_see_current_owner_edits() ->
     assert_eq!(
         CaptionRef::resolve(
             ParagraphRef::from(&paragraph).attributes(),
-            parsed.document_ref().attributes(),
+            parsed.document().attributes(),
             Some(CaptionKind::Figure)
         ),
         Some(CaptionRef::Unnumbered)
@@ -169,13 +169,13 @@ fn fallback_labels_borrow_the_supplied_snapshot_and_see_current_owner_edits() ->
 fn unsupported_elements_do_not_gain_fallback_captions() -> Result<(), Error> {
     use acdc_parser::ast::{BlockKind, InlineKind};
     let parsed = parse("'''\n\nimage:bird.svg[]\n", &Options::default())?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let block = blocks.next().ok_or("thematic break")?;
     assert!(matches!(block.kind(), BlockKind::ThematicBreak(_)));
     assert_eq!(
         CaptionRef::resolve(
             block.attributes().ok_or("attributes")?,
-            parsed.document_ref().attributes(),
+            parsed.document().attributes(),
             Some(CaptionKind::Figure)
         ),
         None
@@ -190,7 +190,7 @@ fn unsupported_elements_do_not_gain_fallback_captions() -> Result<(), Error> {
     assert_eq!(
         CaptionRef::resolve(
             image.attributes(),
-            parsed.document_ref().attributes(),
+            parsed.document().attributes(),
             Some(CaptionKind::Figure)
         ),
         None

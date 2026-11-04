@@ -72,14 +72,14 @@ fn write(path: &Path, content: &str) -> IoResult<()> {
 
 fn paragraph_text(result: &acdc_parser::ParseResult) -> Result<&str, Box<dyn Error>> {
     let [BlockKind::Paragraph(paragraph)] = &*result
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(format!(
             "unexpected blocks: {:?}",
-            result.document_ref().blocks().collect::<Vec<_>>()
+            result.document().blocks().collect::<Vec<_>>()
         )
         .into());
     };

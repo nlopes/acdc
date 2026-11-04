@@ -100,7 +100,7 @@ fn xref_controls_preserve_empty_values_and_restore_protected_text() -> Result<()
         &Options::default(),
     )?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -203,9 +203,9 @@ fn retained_xref_controls_do_not_register_content(
         "xref:target[id=occurrence,title=footnote:ignored[Note],reftext=footnote:other[Other]]\n\n[[target]]\nTarget.",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert!(!parsed.document_ref().references().contains("occurrence"));
-    assert!(parsed.document_ref().references().contains("target"));
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert!(!parsed.document().references().contains("occurrence"));
+    assert!(parsed.document().references().contains("target"));
+    assert_eq!(parsed.document().footnotes().count(), 0);
     Ok(())
 }
 
@@ -248,7 +248,7 @@ fn xref_ids_follow_expansion_includes_and_table_cells(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     blocks.next().ok_or("first paragraph")?;
     let BlockKind::Paragraph(paragraph) = blocks.next().ok_or("paragraph")?.kind() else {
         return Err("paragraph".into());

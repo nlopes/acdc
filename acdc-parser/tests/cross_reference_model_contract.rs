@@ -56,7 +56,7 @@ fn passthrough_cross_reference_targets_keep_source_classification() -> Result<()
     ] {
         let parsed = parse(source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -89,7 +89,7 @@ fn compatibility_mode_keeps_the_entire_cross_reference_target_local() -> Result<
         &Options::default(),
     )?;
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("missing paragraph".into());
     };
@@ -131,10 +131,10 @@ fn unused_block_metadata_does_not_register_references_or_footnotes() -> Result<(
         include_str!("../fixtures/tests/block_metadata_eof_contexts.adoc"),
     ] {
         let parsed = parse(source, &Options::default())?;
-        assert_eq!(parsed.document_ref().footnotes().count(), 0);
+        assert_eq!(parsed.document().footnotes().count(), 0);
         assert!(
             parsed
-                .document_ref()
+                .document()
                 .references()
                 .iter()
                 .all(|(id, _)| !id.starts_with("unused-"))
@@ -204,7 +204,7 @@ fn cross_reference_model_full_document_resolves_caption_label() -> Result<(), Er
         ":table-caption: ReferenceTable\n:xrefstyle: full\n\nSee <<table-target>>.\n\n:table-caption: TargetTable\n\n[[table-target]]\n.A table\n|===\n|Cell\n|===\n",
         &Options::default(),
     )?;
-    let Some(xref) = parsed.document_ref().blocks().find_map(|block| {
+    let Some(xref) = parsed.document().blocks().find_map(|block| {
         let BlockKind::Paragraph(paragraph) = block.kind() else {
             return None;
         };
@@ -236,7 +236,7 @@ fn reference_catalog_covers_rendered_header_title_credits_and_footnotes() -> Res
         ),
         &Options::default(),
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
 
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     assert!(!document.references().contains("unused-header-anchor"));

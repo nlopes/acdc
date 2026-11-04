@@ -28,7 +28,7 @@ pub(crate) fn compute_code_lenses(
     let mut lenses = Vec::new();
 
     if let Some(ast) = doc.ast() {
-        collect_section_lenses(ast.document_ref(), source, doc_uri, workspace, &mut lenses);
+        collect_section_lenses(ast.document(), source, doc_uri, workspace, &mut lenses);
     }
     collect_attribute_def_lenses(doc, doc_uri, workspace, &mut lenses);
 

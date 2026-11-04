@@ -37,15 +37,15 @@ fn highest_caption_numbers_use_stored_tree_values_without_allocating(
         CaptionKind::Figure,
         CaptionKind::Listing,
     ] {
-        assert_eq!(parsed.document_ref().highest_caption_number(kind), 1);
+        assert_eq!(parsed.document().highest_caption_number(kind), 1);
         assert_eq!(
             DocumentRef::from(&Document::default()).highest_caption_number(kind),
             0
         );
     }
     let mut document = Document::default();
-    document.blocks = parsed.document_ref().blocks().map(Block::from).collect();
-    document.references = parsed.document_ref().references().into();
+    document.blocks = parsed.document().blocks().map(Block::from).collect();
+    document.references = parsed.document().references().into();
     document
         .references
         .get_mut("figure")
@@ -124,7 +124,7 @@ fn constructed_caption_states_do_not_gain_content_or_ordinals() -> Result<(), Er
     let parsed = parse(SOURCE, &Options::default())?;
     let mut reference = Reference::from(
         parsed
-            .document_ref()
+            .document()
             .references()
             .get("figure")
             .ok_or("figure")?,
@@ -175,8 +175,8 @@ fn constructed_caption_states_do_not_gain_content_or_ordinals() -> Result<(), Er
 fn caption_reads_preserve_registered_snapshots_after_owner_edits() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
     let mut document = Document::default();
-    document.blocks = parsed.document_ref().blocks().map(Block::from).collect();
-    document.references = parsed.document_ref().references().into();
+    document.blocks = parsed.document().blocks().map(Block::from).collect();
+    document.references = parsed.document().references().into();
     document.references.insert(
         "alias",
         document
@@ -233,7 +233,7 @@ fn caption_reads_are_shared_and_allocate_nothing() -> Result<(), Error> {
     fn shared<T: Copy + Send + Sync>() {}
     shared::<CaptionRef<'_>>();
     let parsed = parse(SOURCE, &Options::default())?;
-    let references = parsed.document_ref().references();
+    let references = parsed.document().references();
     let region = Region::new(ALLOCATOR);
     for (_, reference) in references.iter() {
         if let Some(caption) = reference.caption() {
@@ -243,12 +243,12 @@ fn caption_reads_are_shared_and_allocate_nothing() -> Result<(), Error> {
             }
         }
     }
-    for block in parsed.document_ref().blocks() {
+    for block in parsed.document().blocks() {
         black_box(CaptionKind::for_block(block));
         if let Some(attributes) = block.attributes() {
             black_box(CaptionRef::resolve(
                 attributes,
-                parsed.document_ref().attributes(),
+                parsed.document().attributes(),
                 Some(CaptionKind::Figure),
             ));
         }

@@ -43,7 +43,7 @@ impl Drop for TempDirectory {
 
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<String>, Box<dyn Error>> {
     result
-        .document_ref()
+        .document()
         .blocks()
         .map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {

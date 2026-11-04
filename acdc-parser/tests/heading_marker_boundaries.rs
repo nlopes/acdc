@@ -18,7 +18,7 @@ fn bare_heading_markers_keep_one_paragraph_and_complete_source_spans() -> Result
                         format!("Before.{newline}{marker}{padding}{newline}After.{ending}");
                     let parsed = parse(&source, &Options::default())?;
                     let [BlockKind::Paragraph(paragraph)] = &*parsed
-                        .document_ref()
+                        .document()
                         .blocks()
                         .map(BlockRef::kind)
                         .collect::<Vec<_>>()
@@ -49,11 +49,11 @@ fn bare_heading_markers_at_document_edges_are_not_titles() -> Result<(), Error> 
                 for before in ["", "Before.\n"] {
                     let source = format!("{before}{marker}{padding}{ending}");
                     let parsed = parse(&source, &Options::default())?;
-                    assert!(parsed.document_ref().header().is_none(), "{source:?}");
+                    assert!(parsed.document().header().is_none(), "{source:?}");
                     assert!(
                         matches!(
                             &*parsed
-                                .document_ref()
+                                .document()
                                 .blocks()
                                 .map(BlockRef::kind)
                                 .collect::<Vec<_>>(),
@@ -74,7 +74,7 @@ fn standalone_hashes_close_multiline_highlights() -> Result<(), Error> {
         let source = format!("Before ##café{newline}##{newline}after.{newline}");
         let parsed = parse(&source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -115,7 +115,7 @@ fn titled_headings_still_interrupt_paragraphs() -> Result<(), Error> {
                 );
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(_), BlockKind::Section(section)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -149,7 +149,7 @@ fn heading_metadata_before_bare_markers_belongs_to_the_paragraph() -> Result<(),
                 BlockKind::Paragraph(paragraph),
                 BlockKind::Section(_),
             ] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -163,7 +163,7 @@ fn heading_metadata_before_bare_markers_belongs_to_the_paragraph() -> Result<(),
                 "{source:?}"
             );
             assert!(anchors.next().is_none(), "{source:?}");
-            assert_eq!(parsed.document_ref().footnotes().count(), 1);
+            assert_eq!(parsed.document().footnotes().count(), 1);
         }
     }
     Ok(())
@@ -175,7 +175,7 @@ fn a_title_that_expands_to_empty_is_still_a_heading() -> Result<(), Error> {
     let parsed = parse(source, &Options::default())?;
     assert!(matches!(
         &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>(),

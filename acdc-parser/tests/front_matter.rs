@@ -38,7 +38,7 @@ impl Drop for TempDirectory {
 
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<&str>, Box<dyn Error>> {
     result
-        .document_ref()
+        .document()
         .blocks()
         .map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -70,7 +70,7 @@ fn caller_option_captures_front_matter_before_parsing() -> TestResult {
 
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("front-matter")
             .and_then(DocumentAttributeValue::text),
@@ -85,7 +85,7 @@ fn caller_option_captures_front_matter_before_parsing() -> TestResult {
         ["Captured: layout: default\ntags: [one, two]"]
     );
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -106,7 +106,7 @@ fn captured_front_matter_overrides_a_caller_value() -> TestResult {
 
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("front-matter")
             .and_then(DocumentAttributeValue::text),
@@ -138,7 +138,7 @@ fn captured_front_matter_is_available_to_conditionals_and_includes() -> TestResu
     assert_eq!(paragraph_texts(&parsed)?, ["Root: root", "Child: root"]);
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("front-matter")
             .and_then(DocumentAttributeValue::text),
@@ -153,13 +153,8 @@ fn source_cannot_enable_front_matter_processing() -> TestResult {
     let parsed = parse(source, &Options::default())?;
 
     assert_eq!(parsed.source(), source.trim_end());
-    assert!(
-        !parsed
-            .document_ref()
-            .attributes()
-            .contains("skip-front-matter")
-    );
-    assert!(!parsed.document_ref().attributes().contains("front-matter"));
+    assert!(!parsed.document().attributes().contains("skip-front-matter"));
+    assert!(!parsed.document().attributes().contains("front-matter"));
     Ok(())
 }
 
@@ -169,7 +164,7 @@ fn unterminated_front_matter_is_left_unchanged() -> TestResult {
     let parsed = parse(source, &options()?)?;
 
     assert_eq!(parsed.source(), source.trim_end());
-    assert!(!parsed.document_ref().attributes().contains("front-matter"));
+    assert!(!parsed.document().attributes().contains("front-matter"));
     Ok(())
 }
 
@@ -187,7 +182,7 @@ fn string_reader_and_file_inputs_share_front_matter_behavior() -> TestResult {
     for parsed in [&parsed_string, &parsed_reader, &parsed_file] {
         assert_eq!(
             parsed
-                .document_ref()
+                .document()
                 .attributes()
                 .get("front-matter")
                 .and_then(DocumentAttributeValue::text),
@@ -219,7 +214,7 @@ fn includes_drop_front_matter_without_replacing_the_primary_value() -> TestResul
 
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("front-matter")
             .and_then(DocumentAttributeValue::text),
@@ -234,7 +229,7 @@ fn includes_drop_front_matter_without_replacing_the_primary_value() -> TestResul
         ]
     );
     let Some(BlockKind::Paragraph(child_paragraph)) =
-        parsed.document_ref().blocks().nth(1).map(BlockRef::kind)
+        parsed.document().blocks().nth(1).map(BlockRef::kind)
     else {
         return Err("expected included paragraph".into());
     };
@@ -269,6 +264,6 @@ fn include_front_matter_is_removed_before_indent_is_applied() -> TestResult {
     )?;
 
     assert_eq!(parsed.source(), "= Main\n\n  Child content");
-    assert!(!parsed.document_ref().attributes().contains("front-matter"));
+    assert!(!parsed.document().attributes().contains("front-matter"));
     Ok(())
 }

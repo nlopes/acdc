@@ -171,7 +171,7 @@ fn options() -> Result<Options<'static>, acdc_parser::Error> {
 
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<&str>, Box<dyn Error>> {
     result
-        .document_ref()
+        .document()
         .blocks()
         .map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -218,7 +218,7 @@ fn assert_nested_include(
     );
 
     let [_, BlockKind::Paragraph(nested), _] = &*result
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()

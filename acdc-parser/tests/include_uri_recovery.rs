@@ -263,7 +263,7 @@ fn parse_authorized_uri(uri: &str) -> Result<(TempDocument, ParseResult), acdc_p
 
 fn paragraph_texts(result: &ParseResult) -> TestResult<Vec<String>> {
     result
-        .document_ref()
+        .document()
         .blocks()
         .map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -304,7 +304,7 @@ fn assert_uri_recovery(result: &ParseResult, uri: &str, source: &Path) -> TestRe
     assert_eq!(location.location.start.line, 3);
 
     let Some(BlockKind::Paragraph(fallback)) =
-        result.document_ref().blocks().nth(1).map(BlockRef::kind)
+        result.document().blocks().nth(1).map(BlockRef::kind)
     else {
         return Err("expected the fallback paragraph".into());
     };

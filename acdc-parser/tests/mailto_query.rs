@@ -23,7 +23,7 @@ fn mailto_query_arguments_keep_empty_slots_and_ignore_named_values() -> Result<(
         let input = format!("mailto:user@example.org[{arguments}]");
         let parsed = parse(&input, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -52,7 +52,7 @@ fn mailto_query_freezes_arguments_before_late_attributes() -> Result<(), Error> 
     let source = "= Mail\n:label: One, two\n:subject: Expanded\n\n[subs=\"macros,attributes\"]\nmailto:user@example.org[{label},{subject},Body]\n";
     let parsed = acdc_parser::parse(source, &Options::default())?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()

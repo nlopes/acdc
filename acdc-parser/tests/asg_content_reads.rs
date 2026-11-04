@@ -39,13 +39,9 @@ fn typed_titles_and_image_content_export_without_owner_access() -> Result<(), Er
             ".*Caption*\nimage:photo.png[alt='*Bird*',title='_Tip_']",
             &options,
         )?;
-        let before = serde_json::to_value(parsed.document_ref())?;
-        let BlockKind::Paragraph(paragraph) = parsed
-            .document_ref()
-            .blocks()
-            .next()
-            .ok_or("paragraph")?
-            .kind()
+        let before = serde_json::to_value(parsed.document())?;
+        let BlockKind::Paragraph(paragraph) =
+            parsed.document().blocks().next().ok_or("paragraph")?.kind()
         else {
             return Err("paragraph".into());
         };
@@ -91,7 +87,7 @@ fn typed_titles_and_image_content_export_without_owner_access() -> Result<(), Er
             value.pointer("/0/tooltip/0/inlines/0/value"),
             Some(&json!("Tip"))
         );
-        assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+        assert_eq!(serde_json::to_value(parsed.document())?, before);
     }
     Ok(())
 }
@@ -105,12 +101,8 @@ fn absent_and_present_empty_image_content_remain_distinct() -> Result<(), Error>
             ("image:photo.png[alt=\"\",title=\"\"]", true),
         ] {
             let parsed = parse(source, &options)?;
-            let BlockKind::Paragraph(paragraph) = parsed
-                .document_ref()
-                .blocks()
-                .next()
-                .ok_or("paragraph")?
-                .kind()
+            let BlockKind::Paragraph(paragraph) =
+                parsed.document().blocks().next().ok_or("paragraph")?.kind()
             else {
                 return Err("paragraph".into());
             };

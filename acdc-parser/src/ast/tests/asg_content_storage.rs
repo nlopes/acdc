@@ -20,10 +20,10 @@ fn resolved_content_fields_preserve_their_inline_trees() -> Result<(), Error> {
             ".Title\n[caption='*Custom* ']\n====\nBody.\n====",
         ] {
             let parsed = parse(source, &options)?;
-            let before = serde_json::to_value(parsed.document())?;
-            let value = export(parsed.document())?;
+            let before = serde_json::to_value(parsed.document_storage())?;
+            let value = export(parsed.document_storage())?;
             let metadata = parsed
-                .document()
+                .document_storage()
                 .blocks
                 .first()
                 .ok_or("block")?
@@ -56,7 +56,7 @@ fn resolved_content_fields_preserve_their_inline_trees() -> Result<(), Error> {
                     Some(&asg::inlines(ContentRef::from(content))?)
                 );
             }
-            assert_eq!(serde_json::to_value(parsed.document())?, before);
+            assert_eq!(serde_json::to_value(parsed.document_storage())?, before);
         }
     }
     Ok(())
@@ -65,14 +65,16 @@ fn resolved_content_fields_preserve_their_inline_trees() -> Result<(), Error> {
 #[test]
 fn captioned_targets_are_reconstructible_but_stale_catalogs_fail() -> Result<(), Error> {
     let parsed = parse("[#sample]\n.Title\n====\nBody.\n====", &Options::default())?;
-    let value = export(parsed.document())?;
+    let value = export(parsed.document_storage())?;
     assert_eq!(value.pointer("/blocks/0/caption/number"), Some(&json!(1)));
     let mut document = Document::default();
-    document.blocks.clone_from(&parsed.document().blocks);
+    document
+        .blocks
+        .clone_from(&parsed.document_storage().blocks);
     document
         .references
-        .clone_from(&parsed.document().references);
-    document.attributes = parsed.document().attributes.clone();
+        .clone_from(&parsed.document_storage().references);
+    document.attributes = parsed.document_storage().attributes.clone();
     document
         .references
         .get_mut("sample")
@@ -87,7 +89,7 @@ fn captioned_targets_are_reconstructible_but_stale_catalogs_fail() -> Result<(),
 #[test]
 fn nested_unsupported_content_keeps_its_property_path() -> Result<(), Error> {
     let parsed = parse("= Title\n:experimental:\n\nbtn:[Save]", &Options::default())?;
-    let Block::Paragraph(source) = parsed.document().blocks.first().ok_or("block")? else {
+    let Block::Paragraph(source) = parsed.document_storage().blocks.first().ok_or("block")? else {
         return Err("paragraph".into());
     };
     for property in ["attribution", "citetitle", "caption"] {

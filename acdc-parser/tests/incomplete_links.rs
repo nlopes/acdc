@@ -12,7 +12,7 @@ fn incomplete_links_do_not_duplicate_nested_notes() -> Result<(), Error> {
         include_str!("../fixtures/tests/incomplete_links.adoc"),
         &Options::default(),
     )?;
-    let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+    let [note] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
         return Err("expected one note from the incomplete link's remaining text".into());
     };
     let [InlineKind::Plain(body)] = &*note
@@ -103,7 +103,7 @@ fn incomplete_links_cannot_be_completed_by_late_attributes() -> Result<(), Error
             );
             let parsed = parse(&source, &Options::default())?;
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()

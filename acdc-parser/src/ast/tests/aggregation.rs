@@ -10,7 +10,7 @@ fn named_gaps_preserve_slots_and_draft_empty_slots_preserve_values() -> Result<(
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let metadata = parsed
-            .document()
+            .document_storage()
             .blocks
             .first()
             .and_then(Block::metadata)

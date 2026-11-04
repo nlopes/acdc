@@ -15,7 +15,7 @@ fn standalone_anchor_interrupts_description_principal_text() -> Result<(), Error
             BlockKind::DescriptionList(_),
             BlockKind::Paragraph(paragraph),
         ] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -36,7 +36,7 @@ fn standalone_anchor_interrupts_an_ordinary_paragraph() -> Result<(), Error> {
     let source = "Before.\n[[target]]\nAfter.";
     let parsed = parse(source, &Options::default())?;
     let [BlockKind::Paragraph(before), BlockKind::Paragraph(after)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -59,7 +59,7 @@ fn description_list_metadata_belongs_to_the_following_list() -> Result<(), Error
                 let source = format!("Term:: Description.{gap}{metadata}\n{marker} Nested.");
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::DescriptionList(list)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -88,7 +88,7 @@ fn description_list_metadata_belongs_to_the_following_list() -> Result<(), Error
                 BlockKind::DescriptionList(first),
                 BlockKind::DescriptionList(next),
             ] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -118,7 +118,7 @@ fn inline_and_verbatim_anchor_lines_do_not_split_blocks() -> Result<(), Error> {
         "[literal]\nBefore.\n[[target]]\nAfter.",
     ] {
         let parsed = parse(source, &Options::default())?;
-        assert_eq!(parsed.document_ref().blocks().count(), 1, "{source}");
+        assert_eq!(parsed.document().blocks().count(), 1, "{source}");
     }
     Ok(())
 }

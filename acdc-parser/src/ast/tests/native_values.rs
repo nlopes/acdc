@@ -6,7 +6,7 @@ type TestError = Box<dyn std::error::Error>;
 #[test]
 fn block_image_alt_cannot_reappear_from_the_scalar_map() -> Result<(), TestError> {
     let parsed = parse("image::photo.png[Alt]", &Options::default())?;
-    let [Block::Image(owner)] = parsed.document().blocks.as_slice() else {
+    let [Block::Image(owner)] = parsed.document_storage().blocks.as_slice() else {
         return Err("image".into());
     };
     let mut owner = owner.clone();
@@ -19,7 +19,7 @@ fn block_image_alt_cannot_reappear_from_the_scalar_map() -> Result<(), TestError
 #[test]
 fn content_replacement_and_removal_do_not_resurrect_old_values() -> Result<(), TestError> {
     let parsed = parse("image::photo.png[Alt,title=Title]", &Options::default())?;
-    let [Block::Image(owner)] = parsed.document().blocks.as_slice() else {
+    let [Block::Image(owner)] = parsed.document_storage().blocks.as_slice() else {
         return Err("image".into());
     };
     let mut owner = owner.clone();
@@ -39,7 +39,13 @@ fn content_replacement_and_removal_do_not_resurrect_old_values() -> Result<(), T
     assert!(absent.pointer("/metadata/attributes/title").is_none());
     assert_eq!(
         original,
-        serde_json::to_value(parsed.document().blocks.first().ok_or("original image")?)?
+        serde_json::to_value(
+            parsed
+                .document_storage()
+                .blocks
+                .first()
+                .ok_or("original image")?
+        )?
     );
     Ok(())
 }
@@ -50,7 +56,7 @@ fn content_metadata_has_the_same_presence_rules_without_its_owner() -> Result<()
         "[quote,attribution='Author',citetitle='Book',reftext='Label',caption='Prefix']\n____\nBody.\n____",
         &Options::default(),
     )?;
-    let owner = parsed.document().blocks.first().ok_or("quote")?;
+    let owner = parsed.document_storage().blocks.first().ok_or("quote")?;
     let mut metadata = owner.metadata().ok_or("metadata")?.clone();
     let direct = serde_json::to_value(&metadata)?;
     assert_eq!(serde_json::to_value(owner)?.get("metadata"), Some(&direct));

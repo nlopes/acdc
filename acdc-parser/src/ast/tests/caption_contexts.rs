@@ -32,7 +32,12 @@ fn caption_context_uses_the_current_form_and_style(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let mut block = parsed.document().blocks.first().ok_or("block")?.clone();
+    let mut block = parsed
+        .document_storage()
+        .blocks
+        .first()
+        .ok_or("block")?
+        .clone();
     for (style, expected) in [
         None,
         Some("source"),
@@ -78,7 +83,12 @@ fn current_caption_context_does_not_replace_the_stored_caption() -> Result<(), E
         "= Doc\n:listing-caption: Listing\n\n.Title\n----\nCode.\n----\n",
         &Options::default(),
     )?;
-    let mut block = parsed.document().blocks.first().ok_or("listing")?.clone();
+    let mut block = parsed
+        .document_storage()
+        .blocks
+        .first()
+        .ok_or("listing")?
+        .clone();
     let Block::DelimitedBlock(delimited) = &mut block else {
         return Err("delimited listing".into());
     };
@@ -90,7 +100,7 @@ fn current_caption_context_does_not_replace_the_stored_caption() -> Result<(), E
     assert_eq!(
         CaptionRef::resolve(
             block.attributes().ok_or("block attributes")?,
-            parsed.document_ref().attributes(),
+            parsed.document().attributes(),
             kind,
         ),
         Some(CaptionRef::from(&stored))

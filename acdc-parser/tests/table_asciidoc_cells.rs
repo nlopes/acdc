@@ -102,7 +102,7 @@ fn assert_nested_attribute_lock_case(
         "= T\n{header}\n{body}\n[cols=\"2*a\"]\n|===\n|\n:value: child\n\nInside: {{value}}.\n|\nSibling: {{value}}.\n|===\n\nOutside: {{value}}.\n"
     );
     let parsed = parse(&input, options)?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     let mut cells = first_table(doc)?
         .rows()
         .next()
@@ -138,7 +138,7 @@ fn nested_cells_lock_inherited_universal_defaults() -> Result<(), Error> {
         let parsed = parse(&input, &Options::default())?;
         let table = table(
             parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .next()
                 .ok_or("missing table block")?,
@@ -175,7 +175,7 @@ fn nested_cells_initialize_and_unlock_document_exceptions() -> Result<(), Error>
         let parsed = parse(&input, &options)?;
         let table = table(
             parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .next()
                 .ok_or("missing table block")?,
@@ -195,7 +195,7 @@ fn nested_cells_initialize_and_unlock_document_exceptions() -> Result<(), Error>
         );
         assert_eq!(
             parsed
-                .document_ref()
+                .document()
                 .attributes()
                 .get(name)
                 .and_then(DocumentAttributeValue::as_str),
@@ -208,7 +208,7 @@ fn nested_cells_initialize_and_unlock_document_exceptions() -> Result<(), Error>
     )?;
     let table = table(
         parsed
-            .document_ref()
+            .document()
             .blocks()
             .next()
             .ok_or("missing table block")?,
@@ -298,7 +298,7 @@ fn attributes_in_asciidoc_cells_have_nested_document_scope() -> Result<(), Error
         "= T\n:outer: inherited\n\n[cols=\"2*a\"]\n|===\n|\n:cell-local: local\n:sectnums:\n\nInside {cell-local} and {outer}.\n\n:outer: changed\n\nStill {outer}.\n\n:outer!:\n\nStill {outer} after unset.\n\n:cell-local!:\n\nLocal {cell-local} after unset.\n\n|\nSibling {cell-local} and {outer}.\n|===\n\nAfter {cell-local} and {outer}.\n",
         &Options::default(),
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     let table = table(document.blocks().next().ok_or("expected a table")?)?;
     let row = table.rows().next().ok_or("expected a body row")?;
     let first_cell = row.cells().next().ok_or("expected the first cell")?;
@@ -368,7 +368,7 @@ fn attribute_syntax_in_plain_cells_is_literal_text() -> Result<(), Error> {
     )?;
     let table = table(
         parsed
-            .document_ref()
+            .document()
             .blocks()
             .next()
             .ok_or("expected a table")?,
@@ -389,7 +389,7 @@ fn attribute_syntax_in_plain_cells_is_literal_text() -> Result<(), Error> {
     };
     assert_eq!(paragraph_text(*assignment), ":cell-local: value");
     assert_eq!(paragraph_text(*after), "Cell sees {cell-local}.");
-    assert!(!parsed.document_ref().attributes().contains("cell-local"));
+    assert!(!parsed.document().attributes().contains("cell-local"));
     Ok(())
 }
 
@@ -399,7 +399,7 @@ fn nested_section_numbering_uses_cell_source_order() -> Result<(), Error> {
         "= T\n:outer-value: inherited\n\n[cols=\"2*a\"]\n|===\n|\n:cell-local: local\n:outer-value: changed\n\nCell sees {cell-local} and {outer-value}.\n\n== Before enabling\n\nBefore.\n\n:sectnums:\n:sectnumlevels: 1\n\n== After enabling\n\nAfter.\n\n=== Child\n\nChild.\n\n|\nSibling sees {cell-local} and {outer-value}.\n|===\n",
         &Options::default(),
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     let parsed_table = table(document.blocks().next().ok_or("expected a table")?)?;
     let blocks = parsed_table
         .rows()
@@ -435,7 +435,7 @@ fn nested_section_numbering_uses_cell_source_order() -> Result<(), Error> {
     )?;
     let table = table(
         inherited
-            .document_ref()
+            .document()
             .blocks()
             .next()
             .ok_or("expected a table")?,
@@ -463,7 +463,7 @@ fn nested_sections_are_not_outer_toc_entries_but_remain_xref_targets() -> Result
         "= T\n\n== Outer\n\n[cols=\"1a\"]\n|===\na|\n== Nested\n\nNested text.\n|===\n\n== After\n\nSee <<_nested>>.\n",
         &Options::default(),
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     let ids: Vec<_> = document.toc_entries().map(TocEntryRef::id).collect();
 
     assert_eq!(ids, ["_outer", "_after"]);
@@ -492,7 +492,7 @@ fn duplicated_cells_parse_footnotes_independently() -> Result<(), Error> {
         ":who: Ada\n\n[cols=\"2*\"]\n|===\n2*|{who} footnote:[duplicated].\n|===\n",
         &Options::default(),
     )?;
-    let row = first_table(parsed.document_ref())?
+    let row = first_table(parsed.document())?
         .rows()
         .next()
         .ok_or("missing duplicated row")?;
@@ -518,7 +518,7 @@ fn duplicated_cells_parse_footnotes_independently() -> Result<(), Error> {
         .collect();
     assert_eq!(numbers, [1, 2]);
     let registered: Vec<_> = parsed
-        .document_ref()
+        .document()
         .footnotes()
         .map(FootnoteDefinitionRef::number)
         .collect();

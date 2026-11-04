@@ -446,7 +446,7 @@ mod tests {
             let parsed = acdc_parser::parse(adoc, &options)?;
             let parsed: &'static acdc_parser::ParseResult = Box::leak(Box::new(parsed));
             let parsed_blocks: Vec<_> = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(acdc_parser::Block::from)
                 .collect();

@@ -15,13 +15,17 @@ fn video_copies_preserve_parsed_values_and_allow_independent_edits(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let BlockKind::Video(video) = parsed.document_ref().blocks().next().ok_or("video")?.kind()
-    else {
+    let BlockKind::Video(video) = parsed.document().blocks().next().ok_or("video")?.kind() else {
         return Err("expected video".into());
     };
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_storage())?;
     let mut copy = Video::from(video);
-    let Block::Video(original) = parsed.document().blocks.first().ok_or("original video")? else {
+    let Block::Video(original) = parsed
+        .document_storage()
+        .blocks
+        .first()
+        .ok_or("original video")?
+    else {
         return Err("expected original video".into());
     };
     assert_eq!(&copy, original);
@@ -41,6 +45,6 @@ fn video_copies_preserve_parsed_values_and_allow_independent_edits(
     copy.source = Source::Name("changed");
     assert!(!video.roles().contains("copied"));
     assert!(video.options().contains("loop"));
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_storage())?, before);
     Ok(())
 }

@@ -384,7 +384,7 @@ mod tests {
         ] {
             let source = format!("= Document\n\n{source}\n\n");
             let parsed = parse(&source, &Options::default())?;
-            let symbols = document_symbols(parsed.document_ref(), &source);
+            let symbols = document_symbols(parsed.document(), &source);
             let symbol = symbols.get(1);
             assert_eq!(
                 symbol.map(|symbol| (symbol.name.as_str(), symbol.kind)),
@@ -410,7 +410,7 @@ Some content.
 More content.
 ";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let symbols = document_symbols(doc, content);
 
         // Header + 2 top-level sections
@@ -453,7 +453,7 @@ More content.
     fn test_paragraph_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\nA simple paragraph.\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let symbols = document_symbols(doc, content);
 
         // Find the paragraph inside Section
@@ -471,7 +471,7 @@ More content.
     fn test_admonition_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\nNOTE: This is a note.\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let symbols = document_symbols(doc, content);
 
         let section = symbols.get(1);
@@ -491,7 +491,7 @@ More content.
     fn test_delimited_block_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\n.My sidebar\n****\nSidebar content.\n****\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let symbols = document_symbols(doc, content);
 
         let section = symbols.get(1);
@@ -517,7 +517,7 @@ More content.
     fn test_list_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\n* Item one\n* Item two\n* Item three\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let symbols = document_symbols(doc, content);
 
         let section = symbols.get(1);
@@ -536,7 +536,7 @@ More content.
     fn test_image_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\nimage::photo.png[]\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let symbols = document_symbols(doc, content);
 
         let section = symbols.get(1);
@@ -555,7 +555,7 @@ More content.
     fn test_comment_excluded() -> Result<(), Error> {
         let content = "= Doc\n\n// This is a comment\n\n== Section\n\nContent.\n";
         let parsed = parse(content, &Options::default())?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let symbols = document_symbols(doc, content);
 
         // Comments should not appear in symbols

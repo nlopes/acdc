@@ -427,7 +427,7 @@ fn complete_attribute_references(doc: &DocumentState, prefix: &str) -> Vec<Compl
 
     // Add document-defined attributes
     if let Some(ast) = doc.ast() {
-        for (name, _value) in ast.document_ref().attributes().iter() {
+        for (name, _value) in ast.document().attributes().iter() {
             if name.starts_with(prefix) {
                 items.push(CompletionItem {
                     label: name.to_string(),

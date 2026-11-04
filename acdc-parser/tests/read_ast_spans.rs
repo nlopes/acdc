@@ -33,13 +33,9 @@ fn concrete_spans_keep_content_form_identity_and_tokens(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     assert_eq!(parsed.warnings(), []);
-    let before = serde_json::to_value(parsed.document_ref())?;
-    let BlockKind::Paragraph(paragraph) = parsed
-        .document_ref()
-        .blocks()
-        .next()
-        .ok_or("paragraph")?
-        .kind()
+    let before = serde_json::to_value(parsed.document())?;
+    let BlockKind::Paragraph(paragraph) =
+        parsed.document().blocks().next().ok_or("paragraph")?.kind()
     else {
         return Err("paragraph".into());
     };
@@ -105,7 +101,7 @@ fn concrete_spans_keep_content_form_identity_and_tokens(
     } else {
         return Err(format!("unexpected inline: {:?}", span.kind()).into());
     }
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 
@@ -117,12 +113,8 @@ fn marks_and_generic_spans_keep_their_meaning(
         "#marked# [.red]#role# [#identity]#id# [one\ttwo\u{2003}one]#tokens#",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let BlockKind::Paragraph(paragraph) = parsed
-        .document_ref()
-        .blocks()
-        .next()
-        .ok_or("paragraph")?
-        .kind()
+    let BlockKind::Paragraph(paragraph) =
+        parsed.document().blocks().next().ok_or("paragraph")?.kind()
     else {
         return Err("paragraph".into());
     };
@@ -181,12 +173,8 @@ fn nested_spans_keep_concrete_children_and_unicode_locations(
         "é *外 _中_ 後*",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let BlockKind::Paragraph(paragraph) = parsed
-        .document_ref()
-        .blocks()
-        .next()
-        .ok_or("paragraph")?
-        .kind()
+    let BlockKind::Paragraph(paragraph) =
+        parsed.document().blocks().next().ok_or("paragraph")?.kind()
     else {
         return Err("paragraph".into());
     };
@@ -223,7 +211,7 @@ fn included_and_table_cell_spans_keep_original_source_context(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let BlockKind::Paragraph(paragraph) = blocks.next().ok_or("paragraph")?.kind() else {
         return Err("paragraph".into());
     };

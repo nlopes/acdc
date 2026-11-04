@@ -14,16 +14,11 @@ fn escaped_macros_keep_their_catalogs_inactive(
         include_str!("../fixtures/tests/compatibility_inline_escapes.adoc"),
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+    let [note] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
         return Err("expected only the active note".into());
     };
     assert_eq!(note.id(), Some("active"));
-    assert!(
-        !parsed
-            .document_ref()
-            .references()
-            .contains("inactive-anchor")
-    );
+    assert!(!parsed.document().references().contains("inactive-anchor"));
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -46,7 +41,7 @@ fn constrained_boundaries_keep_the_shared_character_policy(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()

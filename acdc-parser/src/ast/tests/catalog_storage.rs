@@ -32,9 +32,9 @@ fn catalog_reads_match_registered_values_and_preserve_json(
         "[bibliography]\n== References\n\n* [[[book,Book]]] Bibliography.\n\nSee <<book>>.\n",
     ] {
         let parsed = parse(source, &options)?;
-        let owner = parsed.document();
+        let owner = parsed.document_storage();
         let before = serde_json::to_value(owner)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let references = doc.references();
         assert_eq!(references.len(), owner.references.len());
         assert_eq!(references.is_empty(), owner.references.is_empty());
@@ -94,8 +94,8 @@ fn catalog_reads_match_registered_values_and_preserve_json(
 fn catalog_reads_do_not_repair_caller_edited_trees() -> Result<(), Error> {
     let parsed = parse("[#target]\n== Original\n", &Options::default())?;
     let mut document = Document::default();
-    document.references = parsed.document().references.clone();
-    document.toc_entries = parsed.document().toc_entries.clone();
+    document.references = parsed.document_storage().references.clone();
+    document.toc_entries = parsed.document_storage().toc_entries.clone();
     document.blocks.clear();
     let doc = DocumentRef::from(&document);
     assert_eq!(
@@ -116,7 +116,7 @@ fn catalog_reads_do_not_repair_caller_edited_trees() -> Result<(), Error> {
             .as_deref(),
         Some("Original")
     );
-    document.blocks = parsed.document().blocks.clone();
+    document.blocks = parsed.document_storage().blocks.clone();
     document.references.clear();
     document.toc_entries.clear();
     let doc = DocumentRef::from(&document);
@@ -137,9 +137,9 @@ fn catalog_snapshots_preserve_registered_state_without_refreshing(
         "= Catalog\n\n[#figure]\n.A *bird*\nimage::bird.svg[]\n\n[bibliography]\n== References\n\n* [[[book,Book]]] Entry.\n\nSee <<book>>.\n",
     ] {
         let parsed = parse(source, &options)?;
-        let original = parsed.document();
+        let original = parsed.document_storage();
         let before = serde_json::to_value(original)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let mut references = std::collections::HashMap::from(doc.references());
         for (id, reference) in doc.references().iter() {
             assert_eq!(
@@ -196,7 +196,11 @@ fn catalog_snapshots_preserve_registered_state_without_refreshing(
 #[test]
 fn catalog_snapshots_keep_absent_and_explicitly_empty_content() -> Result<(), Error> {
     let parsed = parse("[#target]\n== Original\n", &Options::default())?;
-    let original = parsed.document().references.get("target").ok_or("target")?;
+    let original = parsed
+        .document_storage()
+        .references
+        .get("target")
+        .ok_or("target")?;
     for title in [None, Some(Title::new(Vec::new()))] {
         for label in [None, Some(ContentAttribute::new(Vec::new()))] {
             let mut owner = original.clone();
@@ -207,7 +211,7 @@ fn catalog_snapshots_keep_absent_and_explicitly_empty_content() -> Result<(), Er
         }
     }
     let mut entry = parsed
-        .document()
+        .document_storage()
         .toc_entries
         .first()
         .ok_or("entry")?

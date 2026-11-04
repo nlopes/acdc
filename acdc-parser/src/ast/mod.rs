@@ -3,7 +3,7 @@
 //! Serializing `DocumentRef` with Serde writes native AST JSON. The `asg` module
 //! provides separate checked ASG export when that feature is enabled.
 //!
-//! Start with [`crate::ParseResult::document_ref`]. Handles borrow the tree;
+//! Start with [`crate::ParseResult::document`]. Handles borrow the tree;
 //! copying a handle does not copy the tree. Iterators remain valid after the
 //! handle is dropped, as long as the tree remains alive.
 //!
@@ -11,7 +11,7 @@
 //! use acdc_parser::{Options, parse, ast::{BlockKind, InlineKind}};
 //!
 //! let parsed = parse("A paragraph.", &Options::default())?;
-//! for block in parsed.document_ref().blocks() {
+//! for block in parsed.document().blocks() {
 //!     if let BlockKind::Paragraph(paragraph) = block.kind() {
 //!         for inline in paragraph.content().inlines() {
 //!             if let InlineKind::Plain(text) = inline.kind() {
@@ -54,7 +54,7 @@
 //! }
 //!
 //! let parsed = parse("A [.warning]*bold* word.", &Options::default())?;
-//! let block = parsed.document_ref().blocks().next().unwrap();
+//! let block = parsed.document().blocks().next().unwrap();
 //! if let BlockKind::Paragraph(paragraph) = block.kind() {
 //!     for inline in paragraph.content().inlines() {
 //!         if let InlineKind::Bold(span) = inline.kind() {
@@ -74,7 +74,7 @@
 //! use acdc_parser::{Options, parse, ast::{BlockKind, InlineKind}};
 //!
 //! let parsed = parse("----\n*literal code*\n----\n", &Options::default())?;
-//! let block = parsed.document_ref().blocks().next().unwrap();
+//! let block = parsed.document().blocks().next().unwrap();
 //! if let BlockKind::Listing(listing) = block.kind() {
 //!     assert_eq!(listing.source_text(), Some("*literal code*\n"));
 //!     for inline in listing.content().inlines() {
@@ -93,7 +93,7 @@
 //! use acdc_parser::{Options, parse, ast::BlockKind};
 //!
 //! let parsed = parse("* Task\n+\nDetails.\n", &Options::default())?;
-//! let block = parsed.document_ref().blocks().next().unwrap();
+//! let block = parsed.document().blocks().next().unwrap();
 //! if let BlockKind::UnorderedList(list) = block.kind() {
 //!     for item in list.items() {
 //!         assert_eq!(item.marker(), "*");
@@ -121,7 +121,7 @@
 //! use acdc_parser::{DocumentAttributeValue, Options, parse, ast::BlockKind};
 //!
 //! let parsed = parse(":audience: everyone\n\nBefore.\n\n:audience!:\n\nAfter.\n", &Options::default())?;
-//! let document = parsed.document_ref();
+//! let document = parsed.document();
 //! let mut audience = document.attributes().get("audience");
 //! for block in document.blocks() {
 //!     if let BlockKind::DocumentAttribute(event) = block.kind() {
@@ -145,7 +145,7 @@
 //! use acdc_parser::{Options, parse, ast::{AttributeValueRef, BlockKind, SourceKind}};
 //!
 //! let parsed = parse("video::one,,three[youtube]", &Options::default())?;
-//! let block = parsed.document_ref().blocks().next().unwrap();
+//! let block = parsed.document().blocks().next().unwrap();
 //! if let BlockKind::Video(video) = block.kind() {
 //!     assert_eq!(video.source().kind(), SourceKind::Name("one,,three"));
 //!     assert_eq!(video.attributes().get("poster"), Some(AttributeValueRef::Text("youtube")));
@@ -159,7 +159,7 @@
 //! use acdc_parser::{Options, parse, ast::{BlockKind, InlineKind}};
 //!
 //! let parsed = parse("icon:star[2x,id=favorite,role=gold]", &Options::default())?;
-//! let block = parsed.document_ref().blocks().next().unwrap();
+//! let block = parsed.document().blocks().next().unwrap();
 //! if let BlockKind::Paragraph(paragraph) = block.kind() {
 //!     for inline in paragraph.content().inlines() {
 //!         if let InlineKind::Icon(icon) = inline.kind() {

@@ -20,14 +20,13 @@ fn block_anchor_bracket_escapes_follow_the_mode(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Paragraph(block)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Paragraph(block)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected a paragraph".into());
     };
     let anchor = block.anchors().next().ok_or("missing anchor")?;
     assert_eq!(label_text(anchor.reftext()), Some(expected.to_owned()));
-    assert!(parsed.document_ref().references().contains("bracket"));
+    assert!(parsed.document().references().contains("bracket"));
     Ok(())
 }
 
@@ -42,7 +41,7 @@ fn literal_attributions_exclude_the_following_delimiter() -> Result<(), Error> {
                     &Options::builder().with_compatibility_mode(mode).build()?,
                 )?;
                 let [BlockKind::Quote(block)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -77,7 +76,7 @@ fn expanded_attributions_point_to_the_authored_reference() -> Result<(), Error> 
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let [BlockKind::Quote(block)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
@@ -111,7 +110,7 @@ fn even_backslashes_before_a_reference_follow_the_mode(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let [BlockKind::Paragraph(block)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -143,7 +142,7 @@ fn included_and_nested_values_keep_authored_byte_ranges() -> Result<(), Error> {
                 .with_safe_mode(SafeMode::Unsafe)
                 .build()?,
         )?;
-        let blocks = parsed.document_ref().blocks().collect::<Vec<_>>();
+        let blocks = parsed.document().blocks().collect::<Vec<_>>();
         let location =
             attribution_location(blocks.get(5).copied().ok_or("missing included quote")?)?;
         assert_eq!(
@@ -205,7 +204,7 @@ fn block_anchor_reftext_expands_saved_references_once() -> Result<(), Error> {
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let Some(BlockKind::Paragraph(block)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected a paragraph".into());
         };

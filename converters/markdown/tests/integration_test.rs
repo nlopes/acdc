@@ -34,7 +34,7 @@ fn decoded_media_links_keep_literal_values_in_markdown() -> Result<(), Error> {
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             processor.write_to(
-                parsed.document_ref(),
+                parsed.document(),
                 &mut output,
                 None,
                 None,
@@ -89,7 +89,7 @@ fn literal_caption_markup_stays_text_in_both_markdown_variants() -> Result<(), E
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             processor.write_to(
-                parsed.document_ref(),
+                parsed.document(),
                 &mut output,
                 None,
                 None,
@@ -138,7 +138,7 @@ fn link_tooltips_preserve_parser_selected_text() -> Result<(), Error> {
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             processor.write_to(
-                parsed.document_ref(),
+                parsed.document(),
                 &mut output,
                 None,
                 None,
@@ -198,7 +198,7 @@ fn curved_quotes_preserve_punctuation_and_inline_identity() -> Result<(), Error>
             let mut warnings = Vec::new();
             let source = WarningSource::new("markdown");
             processor.write_to(
-                parsed.document_ref(),
+                parsed.document(),
                 &mut output,
                 None,
                 None,
@@ -256,7 +256,7 @@ fn remaining_passthrough_profiles_keep_disabled_formatting_escapes() -> Result<(
             let mut warnings = Vec::new();
             let source = WarningSource::new("markdown");
             processor.write_to(
-                parsed.document_ref(),
+                parsed.document(),
                 &mut output,
                 None,
                 None,
@@ -304,7 +304,7 @@ fn resolved_escapes_survive_markdown_parsing_in_both_modes() -> Result<(), Error
             let mut warnings = Vec::new();
             let source = WarningSource::new("markdown");
             processor.write_to(
-                parsed.document_ref(),
+                parsed.document(),
                 &mut output,
                 None,
                 None,
@@ -527,7 +527,7 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
         .build()?;
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
     let expected_path = Path::new("tests/fixtures/expected").join(format!("{file_name}.md"));
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
 
     // Convert to Markdown (GFM variant)
     let mut output = Vec::new();
@@ -578,7 +578,7 @@ fn test_commonmark_variant(
     let parser_options = ParserOptions::default();
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
     let expected_path = Path::new("tests/fixtures/expected").join(format!("{file_name}.md"));
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
 
     // Convert to Markdown (CommonMark variant)
     let mut output = Vec::new();
@@ -619,7 +619,7 @@ fn convert_str_with_variant(
 ) -> Result<(String, Vec<Warning>), Error> {
     let parser_options = ParserOptions::default();
     let parsed = parse(input, &parser_options)?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
 
     let mut output = Vec::new();
     let converter_options = ConverterOptions::builder()
@@ -646,7 +646,7 @@ fn convert_str(input: &str) -> Result<(String, Vec<Warning>), Error> {
 fn convert_html_str(input: &str) -> Result<(String, Vec<Warning>), Error> {
     let parser_options = ParserOptions::default();
     let parsed = parse(input, &parser_options)?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
 
     let mut output = Vec::new();
     let converter_options = ConverterOptions::builder()
@@ -1448,7 +1448,7 @@ fn document_wide_fallback_warnings_are_deduplicated_across_subvisitors() -> Resu
 #[test]
 fn unhandled_blocks_emit_a_structured_warning_with_source_context() -> Result<(), Error> {
     let parsed = parse("Paragraph.\n", &ParserOptions::default())?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     let block = doc.blocks().next().ok_or("missing test block")?;
     let processor = Processor::new(
         ConverterOptions::default(),
@@ -1544,7 +1544,7 @@ fn resolved_reference_display_text_preserves_escaped_literals() -> Result<(), Er
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             processor.write_to(
-                parsed.document_ref(),
+                parsed.document(),
                 &mut output,
                 None,
                 None,

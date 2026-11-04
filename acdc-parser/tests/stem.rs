@@ -11,7 +11,7 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 fn inline_stem(parsed: &ParseResult) -> Result<StemRef<'_>, Box<dyn std::error::Error>> {
     parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -30,7 +30,7 @@ fn inline_stem(parsed: &ParseResult) -> Result<StemRef<'_>, Box<dyn std::error::
 
 fn block_stem(parsed: &ParseResult) -> Result<StemBlockRef<'_>, Box<dyn std::error::Error>> {
     parsed
-        .document_ref()
+        .document()
         .blocks()
         .find_map(|block| {
             if let BlockKind::Stem(stem) = block.kind() {
@@ -105,7 +105,7 @@ fn stem_notation_follows_caller_values_and_body_assignments() -> TestResult {
         &Options::default(),
     )?;
     let notations = parsed
-        .document_ref()
+        .document()
         .blocks()
         .filter_map(|block| {
             let BlockKind::Paragraph(paragraph) = block.kind() else {
@@ -144,7 +144,7 @@ fn stem_default_substitutions_preserve_attributes_and_formula_operators() -> Tes
     assert_eq!(inline_stem(&parsed)?.text(), "{value} *x* + y --");
     assert_eq!(block_stem(&parsed)?.text(), "{value} *x* +y+ --");
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected the first paragraph".into());
     };
@@ -259,8 +259,7 @@ fn stem_substitutions_expand_attributes_only_when_requested() -> TestResult {
             format!(":value: expanded\n\n[stem,subs=\"{substitutions}\"]\n++++\n{{value}}\n++++");
         let parsed = parse(&source, &Options::default())?;
         assert_eq!(block_stem(&parsed)?.text(), expected);
-        let Some(BlockKind::Stem(block)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        let Some(BlockKind::Stem(block)) = parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected the STEM block".into());
         };
@@ -271,7 +270,7 @@ fn stem_substitutions_expand_attributes_only_when_requested() -> TestResult {
         &Options::default(),
     )?;
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected a paragraph with macros disabled".into());
     };
@@ -288,7 +287,7 @@ fn stem_substitutions_expand_attributes_only_when_requested() -> TestResult {
 fn stem_escaped_macros_still_expand_surrounding_attributes() -> TestResult {
     let parsed = parse(":value: expanded\n\n\\stem:[{value}]", &Options::default())?;
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected a literal escaped macro".into());
     };
@@ -347,8 +346,7 @@ fn stem_nested_selected_includes_keep_the_original_source_location() -> TestResu
         (2, 3)
     );
     assert_eq!(block_stem(&parsed)?.text(), "β < γ");
-    let Some(BlockKind::Stem(block)) = parsed.document_ref().blocks().last().map(BlockRef::kind)
-    else {
+    let Some(BlockKind::Stem(block)) = parsed.document().blocks().last().map(BlockRef::kind) else {
         return Err("expected the included STEM block".into());
     };
     let open = parsed.resolve_location(

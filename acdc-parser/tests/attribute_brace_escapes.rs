@@ -15,7 +15,7 @@ fn escaped_attribute_references_keep_complete_source_spans() -> Result<(), Error
             // Byte offsets refer to the grammar input after line-ending normalization.
             let source = parsed.source();
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -71,17 +71,17 @@ fn escaped_attribute_values_do_not_register_their_macros() -> Result<(), Error> 
         include_str!("../fixtures/tests/attribute_brace_escapes.adoc"),
         &Options::default(),
     )?;
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .footnotes()
             .next()
             .and_then(acdc_parser::ast::FootnoteDefinitionRef::id),
         Some("n")
     );
     let mut terms = 0;
-    for block in parsed.document_ref().blocks() {
+    for block in parsed.document().blocks() {
         if let BlockKind::Section(section) = block.kind() {
             for block in section.blocks() {
                 if let BlockKind::Paragraph(paragraph) = block.kind() {

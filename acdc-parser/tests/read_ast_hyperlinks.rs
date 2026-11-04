@@ -198,7 +198,7 @@ fn empty_link_text_keeps_automatic_display_policy() -> Result<(), Error> {
         &Options::default(),
     )?;
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("paragraph".into());
     };

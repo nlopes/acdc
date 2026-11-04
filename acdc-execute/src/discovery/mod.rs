@@ -24,7 +24,7 @@ impl TryFrom<&ParseResult> for CommandGraph {
 
     fn try_from(parsed: &ParseResult) -> Result<Self, Self::Error> {
         validate_source(parsed)?;
-        let document = parsed.document_ref();
+        let document = parsed.document();
         let mut traversal = TraversalContext::new(document.attributes());
         let mut collector = CommandCollector {
             parsed,
@@ -74,7 +74,7 @@ impl<'doc> BlockVisitor<'doc> for CommandCollector<'doc> {
             command.metadata.section_title = self.section_title.map(|title| {
                 InlineTextTransform::default()
                     .decode_char_refs(true)
-                    .references(self.parsed.document_ref().references())
+                    .references(self.parsed.document().references())
                     .content_to_string(title)
             });
             self.builder.add(command, dependencies);

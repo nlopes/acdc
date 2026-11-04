@@ -32,7 +32,7 @@ pub(crate) fn format_document(doc: &DocumentState, options: &FormattingOptions) 
     let line_count = lines.len();
 
     let protected = if let Some(ast) = doc.ast() {
-        collect_protected_ranges(ast.document_ref(), doc.text())
+        collect_protected_ranges(ast.document(), doc.text())
     } else {
         collect_protected_ranges_from_text(doc.text())
     };
@@ -51,7 +51,7 @@ pub(crate) fn format_document(doc: &DocumentState, options: &FormattingOptions) 
     if let Some(ast) = doc.ast() {
         edits.extend(ensure_block_separation(
             &lines,
-            ast.document_ref(),
+            ast.document(),
             doc.text(),
             &protected,
             range,
@@ -88,7 +88,7 @@ pub(crate) fn format_range(
     let line_range = start_line..end_line + 1;
 
     let protected = if let Some(ast) = doc.ast() {
-        collect_protected_ranges(ast.document_ref(), doc.text())
+        collect_protected_ranges(ast.document(), doc.text())
     } else {
         collect_protected_ranges_from_text(doc.text())
     };
@@ -110,7 +110,7 @@ pub(crate) fn format_range(
     if let Some(ast) = doc.ast() {
         edits.extend(ensure_block_separation(
             &lines,
-            ast.document_ref(),
+            ast.document(),
             doc.text(),
             &protected,
             line_range.clone(),

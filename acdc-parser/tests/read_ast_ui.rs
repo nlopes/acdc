@@ -47,10 +47,8 @@ fn ui_reads_preserve_structured_labels_and_source_ranges(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
-    let content = paragraphs(parsed.document_ref())
-        .next()
-        .ok_or("paragraph")?;
+    let before = serde_json::to_value(parsed.document())?;
+    let content = paragraphs(parsed.document()).next().ok_or("paragraph")?;
     let mut families = 0;
     for inline in content.inlines() {
         if let InlineKind::Button(button) = inline.kind() {
@@ -113,7 +111,7 @@ fn ui_reads_preserve_structured_labels_and_source_ranges(
         }
     }
     assert_eq!(families, 3);
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 
@@ -125,7 +123,7 @@ fn ui_payloads_keep_attribute_like_text_and_empty_values(
         ":experimental:\n\nbtn:[Save,role=red] kbd:[Ctrl,role=red] menu:File[Open > role=red]\n\nbtn:[] menu:File[]",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let mut paragraphs = paragraphs(parsed.document_ref());
+    let mut paragraphs = paragraphs(parsed.document());
     let mut found = Vec::new();
     for inline in paragraphs.next().ok_or("paragraph")?.inlines() {
         if let InlineKind::Button(button) = inline.kind() {
@@ -175,8 +173,8 @@ fn formula_reads_preserve_protected_text_and_selected_notation(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
-    let formula = paragraphs(parsed.document_ref())
+    let before = serde_json::to_value(parsed.document())?;
+    let formula = paragraphs(parsed.document())
         .next()
         .ok_or("paragraph")?
         .inlines()
@@ -196,7 +194,7 @@ fn formula_reads_preserve_protected_text_and_selected_notation(
         source.get(formula.location().absolute_start()..=formula.location().absolute_end()),
         Some(format!("{prefix}:[{{value}} *x* + y,role=red]").as_str())
     );
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 
@@ -272,7 +270,7 @@ fn payload_reads_preserve_includes_and_table_cells(
             .build()?,
     )?;
     let mut count = 0;
-    for inline in paragraphs(parsed.document_ref())
+    for inline in paragraphs(parsed.document())
         .next()
         .ok_or("included paragraph")?
         .inlines()
@@ -297,8 +295,7 @@ fn payload_reads_preserve_includes_and_table_cells(
             count += 1;
         }
     }
-    let BlockKind::Table(table) = parsed.document_ref().blocks().nth(1).ok_or("table")?.kind()
-    else {
+    let BlockKind::Table(table) = parsed.document().blocks().nth(1).ok_or("table")?.kind() else {
         return Err("table".into());
     };
     let cell = table

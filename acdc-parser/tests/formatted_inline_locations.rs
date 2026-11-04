@@ -66,7 +66,7 @@ fn formatted_inline_locations_map_anchor_catalogs_to_source() -> Result<(), Erro
                 );
                 let parsed = parse(&source, &Options::default())?;
                 let target = parsed
-                    .document_ref()
+                    .document()
                     .references()
                     .get("target")
                     .ok_or("missing target")?;
@@ -85,7 +85,7 @@ fn formatted_inline_locations_map_breaks_and_apostrophes() -> Result<(), Error> 
                 format!("Before.{newline}{newline}α {marker}Writer`'s +{newline}text{marker}.");
             let parsed = parse(&source, &Options::default())?;
             let Some(BlockKind::Paragraph(paragraph)) =
-                parsed.document_ref().blocks().nth(1).map(BlockRef::kind)
+                parsed.document().blocks().nth(1).map(BlockRef::kind)
             else {
                 return Err("expected paragraph".into());
             };
@@ -123,7 +123,7 @@ fn formatted_inline_locations_keep_generated_break_at_newline() -> Result<(), Er
     let source = "Before.\n\n[%hardbreaks]\nα *first\nsecond*.";
     let parsed = parse(source, &Options::default())?;
     let Some(BlockKind::Paragraph(paragraph)) =
-        parsed.document_ref().blocks().nth(1).map(BlockRef::kind)
+        parsed.document().blocks().nth(1).map(BlockRef::kind)
     else {
         return Err("expected paragraph".into());
     };
@@ -194,7 +194,7 @@ fn formatted_inline_locations_preserve_include_origins() -> Result<(), Error> {
             .build()?,
     )?;
     let target = parsed
-        .document_ref()
+        .document()
         .references()
         .get("included")
         .ok_or("missing included anchor")?;
@@ -225,7 +225,7 @@ fn formatted_inline_locations_preserve_include_origins() -> Result<(), Error> {
             .map(Iterator::collect::<Vec<_>>)
     );
     let following = parsed
-        .document_ref()
+        .document()
         .references()
         .get("following")
         .ok_or("missing following anchor")?;

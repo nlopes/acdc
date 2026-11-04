@@ -33,8 +33,8 @@ fn header_reads_keep_title_subtitle_authors_and_revision_values(
         "[#book.role,options=custom]\n= Main: *Subtitle*\nÉlodie Marie Durand <elodie@example.org>; José García\nv2.5, 2026-10-29: Reviewed\n\nBody.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
-    let document = parsed.document_ref();
+    let before = serde_json::to_value(parsed.document())?;
+    let document: DocumentRef<'_> = parsed.document();
     let header = document.header().ok_or("header")?;
     assert_eq!(text(header.title().ok_or("title")?)?, "Main");
     assert_eq!(header.title(), document.title());
@@ -71,7 +71,7 @@ fn header_reads_keep_title_subtitle_authors_and_revision_values(
             Some(expected)
         );
     }
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }
@@ -88,7 +88,7 @@ fn document_values_keep_defaults_explicit_unsets_and_their_own_namespace(
             .with_attribute("empty", "")
             .build()?,
     )?;
-    let attributes = parsed.document_ref().attributes();
+    let attributes = parsed.document().attributes();
     assert!(attributes.get("flag").ok_or("flag")?.is_presence());
     assert!(matches!(
         attributes.assignment("removed"),
@@ -156,7 +156,7 @@ fn snapshots_stay_fixed_while_accepted_body_assignments_replay_in_order(
             .with_attribute("locked", "caller")
             .build()?,
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     let attributes = document.attributes();
     let mut active = attributes.get("state");
     let mut paragraphs = Vec::new();
@@ -208,7 +208,7 @@ fn included_assignments_keep_authored_unicode_coordinates(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     let BlockKind::DocumentAttribute(event) = blocks.next().ok_or("event")?.kind() else {
         return Err("attribute event".into());
     };

@@ -36,7 +36,7 @@ fn bibliography_labels_preserve_empty_presence_and_authored_whitespace(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let anchor = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .find_map(|node| {
@@ -65,8 +65,8 @@ fn bibliography_labels_preserve_empty_presence_and_authored_whitespace(
             Some(plain.text())
         );
     }
-    assert!(parsed.document_ref().references().contains("target"));
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert!(parsed.document().references().contains("target"));
+    assert_eq!(parsed.document().footnotes().count(), 0);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -86,7 +86,7 @@ fn empty_bibliography_labels_survive_includes_and_table_cells(
             .build()?,
     )?;
     let mut labels = Vec::new();
-    for field in parsed.document_ref().content_occurrences() {
+    for field in parsed.document().content_occurrences() {
         for node in field.content().inlines() {
             if let InlineKind::Anchor(anchor) = node.kind() {
                 let label = anchor.bibliography_label().ok_or("present label")?;
@@ -121,7 +121,7 @@ fn empty_bibliography_labels_survive_includes_and_table_cells(
             ("cell-unicode", "café ".into())
         ]
     );
-    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+    assert_eq!(parsed.document().footnotes().count(), 0);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }

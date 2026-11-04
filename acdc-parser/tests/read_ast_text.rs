@@ -34,10 +34,10 @@ fn text_reads_keep_escapes_and_character_reference_identity(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
+    let before = serde_json::to_value(parsed.document())?;
     let mut text = String::new();
     let mut escaped = false;
-    for inline in paragraph(parsed.document_ref())?.inlines() {
+    for inline in paragraph(parsed.document())?.inlines() {
         if let InlineKind::Plain(plain) = inline.kind() {
             shared(plain);
             text.push_str(plain.text());
@@ -55,7 +55,7 @@ fn text_reads_keep_escapes_and_character_reference_identity(
     assert_eq!(text, "é ^literal^ &amp; &#169; &#60;");
     assert!(escaped);
     let BlockKind::Paragraph(expanded) = parsed
-        .document_ref()
+        .document()
         .blocks()
         .nth(1)
         .ok_or("expanded paragraph")?
@@ -72,7 +72,7 @@ fn text_reads_keep_escapes_and_character_reference_identity(
         source.get(plain.location().absolute_start()..=plain.location().absolute_end()),
         Some("{value}")
     );
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 
@@ -91,10 +91,8 @@ fn document_passthroughs_expose_lowered_text_and_remaining_substitutions(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
-    let nodes = paragraph(parsed.document_ref())?
-        .inlines()
-        .collect::<Vec<_>>();
+    let before = serde_json::to_value(parsed.document())?;
+    let nodes = paragraph(parsed.document())?.inlines().collect::<Vec<_>>();
     let [inline] = nodes.as_slice() else {
         return Err(format!("expected one raw node: {nodes:?}").into());
     };
@@ -109,7 +107,7 @@ fn document_passthroughs_expose_lowered_text_and_remaining_substitutions(
         source.get(raw.location().absolute_start()..=raw.location().absolute_end()),
         Some("<é> *raw*")
     );
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }
 
@@ -122,7 +120,7 @@ fn document_passthrough_substitutions_can_produce_structure(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let inline = paragraph(parsed.document_ref())?
+    let inline = paragraph(parsed.document())?
         .inlines()
         .next()
         .ok_or("bold")?;
@@ -214,7 +212,7 @@ fn typography_and_breaks_keep_semantic_kinds_and_authored_locations(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let mut spans = Vec::new();
-    for inline in paragraph(parsed.document_ref())?.inlines() {
+    for inline in paragraph(parsed.document())?.inlines() {
         if let InlineKind::CurvedQuotation(span) = inline.kind() {
             assert_eq!(span.content().inlines().count(), 1);
             spans.push("\"`double`\"");
@@ -305,8 +303,8 @@ fn text_reads_preserve_includes_table_cells_and_listing_whitespace(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let before = serde_json::to_value(parsed.document_ref())?;
-    let raw = paragraph(parsed.document_ref())?
+    let before = serde_json::to_value(parsed.document())?;
+    let raw = paragraph(parsed.document())?
         .inlines()
         .find_map(|inline| {
             if let InlineKind::Raw(raw) = inline.kind() {
@@ -320,7 +318,7 @@ fn text_reads_preserve_includes_table_cells_and_listing_whitespace(
     let location = parsed.resolve_location(raw.location());
     assert_eq!(location.file, Some(include));
     assert_eq!(location.location.start.column, 4);
-    let mut blocks = parsed.document_ref().blocks().skip(1);
+    let mut blocks = parsed.document().blocks().skip(1);
     let BlockKind::Table(table) = blocks.next().ok_or("table")?.kind() else {
         return Err("table".into());
     };
@@ -363,6 +361,6 @@ fn text_reads_preserve_includes_table_cells_and_listing_whitespace(
         })
         .collect::<Result<String, _>>()?;
     assert_eq!(text, "  <literal> *code*");
-    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }

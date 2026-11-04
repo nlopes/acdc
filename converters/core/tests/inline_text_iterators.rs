@@ -35,7 +35,7 @@ fn text_policy_preserves_content_and_fragment_context() -> Result<(), Error> {
         ] {
             let parsed = parse(source, &options)?;
             let parsed_blocks: Vec<_> = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(acdc_parser::Block::from)
                 .collect();
@@ -98,7 +98,7 @@ fn text_writing_stops_at_the_first_writer_error() -> Result<(), Error> {
 #[test]
 fn typed_text_writing_accepts_temporary_inputs_and_appends_to_the_writer() -> Result<(), Error> {
     let document = parse("[[target]]\n== Destination\n", &Options::default())?;
-    let transform = InlineTextTransform::default().references(document.document_ref().references());
+    let transform = InlineTextTransform::default().references(document.document().references());
     let mut output = String::from("Prefix: ");
     {
         let source = String::from("*Temporary* <<target>>");
@@ -122,7 +122,7 @@ fn typed_catalog_projection_keeps_explicit_empty_labels() -> Result<(), Error> {
 
     let parsed = parse("[#target]\n== Title\n", &Options::default())?;
     let inline = parse_inline("<<target>>", &Options::default())?;
-    let mut catalog: std::collections::HashMap<_, _> = parsed.document_ref().references().into();
+    let mut catalog: std::collections::HashMap<_, _> = parsed.document().references().into();
 
     assert_eq!(
         project(ReferencesRef::from(&catalog), inline.content()),

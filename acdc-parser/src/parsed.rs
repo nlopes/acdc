@@ -151,23 +151,7 @@ impl ParseResult {
         })
     }
 
-    /// Borrow the document AST for as long as this result remains alive.
-    ///
-    /// ```compile_fail,E0597
-    /// use acdc_parser::{Options, parse};
-    ///
-    /// let document = {
-    ///     let parsed = parse("A paragraph.", &Options::default()).unwrap();
-    ///     parsed.document()
-    /// };
-    /// println!("{}", document.blocks.len());
-    /// ```
-    #[must_use]
-    pub fn document(&self) -> &Document<'_> {
-        self.cell.borrow_dependent()
-    }
-
-    /// Read the document through the typed AST API.
+    /// Read the document through typed handles and iterators.
     ///
     /// The document cannot outlive this parse result:
     ///
@@ -176,13 +160,18 @@ impl ParseResult {
     ///
     /// let document = {
     ///     let parsed = parse("A paragraph.", &Options::default()).unwrap();
-    ///     parsed.document_ref()
+    ///     parsed.document()
     /// };
     /// println!("{}", document.blocks().count());
     /// ```
     #[must_use]
-    pub fn document_ref(&self) -> crate::ast::DocumentRef<'_> {
-        crate::ast::DocumentRef::from(self.document())
+    pub fn document(&self) -> crate::ast::DocumentRef<'_> {
+        crate::ast::DocumentRef::from(self.cell.borrow_dependent())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn document_storage(&self) -> &Document<'_> {
+        self.cell.borrow_dependent()
     }
 
     /// Borrow the preprocessed source the AST was parsed from.

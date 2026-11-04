@@ -37,7 +37,7 @@ fn content_attribute_edges_are_independent_of_body_substitutions(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let block = parsed.document_ref().blocks().last().ok_or("block")?;
+    let block = parsed.document().blocks().last().ok_or("block")?;
     let Some(AttributeValueRef::Content(content)) =
         block.attributes().and_then(|attrs| attrs.get(name))
     else {
@@ -74,7 +74,7 @@ fn isolated_attribute_edges_do_not_leak_into_nested_link_labels(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let block = parsed.document_ref().blocks().next().ok_or("block")?;
+    let block = parsed.document().blocks().next().ok_or("block")?;
     let Some(AttributeValueRef::Content(content)) = block
         .attributes()
         .and_then(|attrs| attrs.get("attribution"))

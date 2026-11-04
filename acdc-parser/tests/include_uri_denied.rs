@@ -58,14 +58,14 @@ fn assert_plain_paragraph(block: BlockKind<'_>, expected: &str) -> TestResult {
 
 fn assert_denied_uri_fallback(result: &ParseResult, target: &str) -> TestResult {
     let [before, BlockKind::Paragraph(fallback), after] = &*result
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(format!(
             "expected before, fallback, and after paragraphs, got {:?}",
-            result.document_ref().blocks().collect::<Vec<_>>()
+            result.document().blocks().collect::<Vec<_>>()
         )
         .into());
     };
@@ -127,14 +127,14 @@ fn compat_mode_omits_include_role_from_denied_uri_fallback() -> TestResult {
     let result = parse_file(&document.path, &options)?;
 
     let [BlockKind::Paragraph(fallback)] = &*result
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(format!(
             "unexpected blocks: {:?}",
-            result.document_ref().blocks().collect::<Vec<_>>()
+            result.document().blocks().collect::<Vec<_>>()
         )
         .into());
     };

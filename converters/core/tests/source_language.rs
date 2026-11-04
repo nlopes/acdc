@@ -119,7 +119,7 @@ fn parsed_paragraphs_and_delimited_blocks_keep_language_controls() -> Result<(),
             let options = Options::builder().with_compatibility_mode(mode).build()?;
             let parsed = parse(source, &options)?;
             let parsed_blocks: Vec<_> = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(acdc_parser::Block::from)
                 .collect();
@@ -133,7 +133,7 @@ fn parsed_paragraphs_and_delimited_blocks_keep_language_controls() -> Result<(),
             };
             assert_eq!(detect_language(metadata), expected, "{mode:?} {source}");
             let kind = parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .next()
                 .ok_or("typed block")?

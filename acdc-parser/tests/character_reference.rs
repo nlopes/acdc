@@ -194,7 +194,7 @@ fn generated_section_ids_omit_character_references() -> Result<(), Error> {
         ] {
             let parsed = acdc_parser::parse(source, &options)?;
             let Some(BlockKind::Section(section)) =
-                parsed.document_ref().blocks().next().map(BlockRef::kind)
+                parsed.document().blocks().next().map(BlockRef::kind)
             else {
                 return Err("missing section".into());
             };
@@ -244,7 +244,7 @@ fn document_and_caller_character_references_expand_once() -> Result<(), Error> {
         let source = ":reference: &copy;\n:encoded: &amp;copy;\n:escaped: \\&copy;\n\n{reference} {encoded} {escaped}";
         let parsed = acdc_parser::parse(source, &options)?;
         let Some(BlockKind::Paragraph(paragraph)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("missing paragraph".into());
         };
@@ -296,7 +296,7 @@ fn intrinsic_references_have_semantic_identity_and_authored_ranges() -> Result<(
             let source = format!("{settings}é {{quot}} {{apos}} {{plus}} {{asterisk}} {{cpp}}.");
             let parsed = acdc_parser::parse(&source, &options)?;
             let Some(BlockKind::Paragraph(paragraph)) =
-                parsed.document_ref().blocks().next().map(BlockRef::kind)
+                parsed.document().blocks().next().map(BlockRef::kind)
             else {
                 return Err("missing paragraph".into());
             };
@@ -350,7 +350,7 @@ fn intrinsic_references_keep_a_later_escape_stage() -> Result<(), Error> {
                 format!("[subs=\"{substitutions}\"]\n{{quot}} {{apos}} {{lt}} {{gt}} {{amp}}");
             let parsed = acdc_parser::parse(&source, &options)?;
             let Some(BlockKind::Paragraph(paragraph)) =
-                parsed.document_ref().blocks().next().map(BlockRef::kind)
+                parsed.document().blocks().next().map(BlockRef::kind)
             else {
                 return Err("missing paragraph".into());
             };

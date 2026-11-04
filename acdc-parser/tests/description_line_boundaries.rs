@@ -14,9 +14,9 @@ fn a_later_description_marker_does_not_change_an_ordinary_paragraph(
         "Wrapped paragraph.\nTerm:: Still paragraph text.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document_ref().blocks().count(), 1);
+    assert_eq!(parsed.document().blocks().count(), 1);
     assert!(matches!(
-        parsed.document_ref().blocks().next().map(BlockRef::kind),
+        parsed.document().blocks().next().map(BlockRef::kind),
         Some(BlockKind::Paragraph(_))
     ));
     Ok(())
@@ -30,15 +30,15 @@ fn an_ordinary_paragraph_between_terms_ends_the_description_list(
         "First:: One\n\nWrapped paragraph.\nSecond:: Still paragraph text.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document_ref().blocks().count(), 2);
+    assert_eq!(parsed.document().blocks().count(), 2);
     let Some(BlockKind::DescriptionList(list)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected description list".into());
     };
     assert_eq!(list.items().count(), 1);
     assert!(matches!(
-        parsed.document_ref().blocks().nth(1).map(BlockRef::kind),
+        parsed.document().blocks().nth(1).map(BlockRef::kind),
         Some(BlockKind::Paragraph(_))
     ));
     Ok(())
@@ -61,7 +61,7 @@ fn wrapped_included_text_keeps_its_original_unicode_range() -> Result<(), Error>
                 .build()?,
         )?;
         let Some(BlockKind::Paragraph(paragraph)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected included paragraph".into());
         };

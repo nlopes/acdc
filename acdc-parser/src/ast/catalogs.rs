@@ -104,7 +104,7 @@ impl<'doc> ReferenceRef<'doc> {
     /// use acdc_parser::{Options, ast::CaptionRef, parse};
     ///
     /// let parsed = parse("[#picture]\n.A bird\nimage::bird.svg[]\n", &Options::default())?;
-    /// let reference = parsed.document_ref().references().get("picture").ok_or("picture")?;
+    /// let reference = parsed.document().references().get("picture").ok_or("picture")?;
     /// assert!(matches!(reference.caption(), Some(CaptionRef::Numbered { label: "Figure", .. })));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```

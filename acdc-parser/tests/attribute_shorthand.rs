@@ -16,7 +16,7 @@ fn quoted_and_incomplete_shorthands_follow_the_selected_mode() -> Result<(), Err
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let Some(BlockKind::Paragraph(block)) =
-                parsed.document_ref().blocks().next().map(BlockRef::kind)
+                parsed.document().blocks().next().map(BlockRef::kind)
             else {
                 return Err("expected a paragraph".into());
             };
@@ -42,8 +42,7 @@ fn draft_anchor_shorthand_keeps_reftext_and_uses_the_last_id() -> Result<(), Err
             .with_compatibility_mode(CompatibilityMode::Draft)
             .build()?,
     )?;
-    let Some(BlockKind::Paragraph(block)) =
-        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::Paragraph(block)) = parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected a paragraph".into());
     };
@@ -67,8 +66,8 @@ fn draft_anchor_shorthand_keeps_reftext_and_uses_the_last_id() -> Result<(), Err
             }),
         Some("Read, this] label")
     );
-    assert!(parsed.document_ref().references().contains("late"));
-    assert!(!parsed.document_ref().references().contains("early"));
+    assert!(parsed.document().references().contains("late"));
+    assert!(!parsed.document().references().contains("early"));
     let location = block.id().ok_or("missing ID")?.location();
     assert_eq!(
         source.get(location.absolute_start()..=location.absolute_end()),
@@ -86,7 +85,7 @@ fn none_is_ignored_only_in_asciidoctor_named_block_attributes() -> Result<(), Er
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let Some(BlockKind::Paragraph(block)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected a paragraph".into());
         };
@@ -109,7 +108,7 @@ fn none_is_ignored_only_in_asciidoctor_named_block_attributes() -> Result<(), Er
             block.roles().contains("None"),
             mode == CompatibilityMode::Draft
         );
-        let title = serde_json::to_value(parsed.document_ref())?
+        let title = serde_json::to_value(parsed.document())?
             .pointer("/blocks/0/title")
             .cloned()
             .ok_or("missing title")?;
@@ -137,7 +136,7 @@ fn expanded_shorthand_ids_point_to_the_authored_reference() -> Result<(), Error>
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let Some(BlockKind::Paragraph(block)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected a paragraph".into());
         };
@@ -161,7 +160,7 @@ fn preprocessing_and_block_matching_share_shorthand_rules() -> Result<(), Error>
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let Some(BlockKind::Paragraph(block)) =
-                parsed.document_ref().blocks().next().map(BlockRef::kind)
+                parsed.document().blocks().next().map(BlockRef::kind)
             else {
                 return Err("expected a paragraph".into());
             };
@@ -180,7 +179,7 @@ fn preprocessing_and_block_matching_share_shorthand_rules() -> Result<(), Error>
                 .build()?,
         )?;
         let Some(BlockKind::Paragraph(block)) =
-            parsed.document_ref().blocks().next().map(BlockRef::kind)
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected a source paragraph".into());
         };
@@ -199,7 +198,7 @@ fn draft_anchor_shorthand_marks_discrete_headings() -> Result<(), Error> {
             .build()?,
     )?;
     assert!(matches!(
-        parsed.document_ref().blocks().next().map(BlockRef::kind),
+        parsed.document().blocks().next().map(BlockRef::kind),
         Some(BlockKind::DiscreteHeader(_))
     ));
     Ok(())
@@ -214,7 +213,7 @@ fn a_named_none_style_follows_the_mode_during_heading_lookahead() -> Result<(), 
         )?;
         assert_eq!(
             matches!(
-                parsed.document_ref().blocks().next().map(BlockRef::kind),
+                parsed.document().blocks().next().map(BlockRef::kind),
                 Some(BlockKind::DiscreteHeader(_))
             ),
             mode == CompatibilityMode::Asciidoctor

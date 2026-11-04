@@ -47,7 +47,7 @@ fn a_section_reference_carries_its_name_and_number() -> Result<(), Error> {
                   [[p1]]\n= Part One\n\n[[ch1]]\n== Chapter\n\n[[s11]]\n=== Section\n\nx\n\n\
                   [appendix]\n[[app]]\n== Appendix\n\n[[appsub]]\n=== Appendix Sub\n\nx\n";
     let parsed = parse(source, &Options::default())?;
-    let references = parsed.document_ref().references();
+    let references = parsed.document().references();
 
     for (id, name, number) in [
         ("p1", "part", "I"),
@@ -69,7 +69,7 @@ fn an_article_level_one_section_is_a_section_not_a_chapter() -> Result<(), Error
         "= A\n:sectnums:\n\n[[s1]]\n== One\n\nx\n",
         &Options::default(),
     )?;
-    let section = section_reference(parsed.document_ref().references(), "s1")?;
+    let section = section_reference(parsed.document().references(), "s1")?;
     assert_eq!(section.section_name(), Some("section"));
     Ok(())
 }
@@ -81,7 +81,7 @@ fn an_unnumbered_section_has_no_reference_number() -> Result<(), Error> {
     let source = "= A\n\n[[plain]]\n== Plain\n\nx\n\n:sectnums:\n\n[[numbered]]\n== Numbered\n\nx\n\n\
                   :sectnums!:\n\n[[off]]\n== Off Again\n\nx\n";
     let parsed = parse(source, &Options::default())?;
-    let references = parsed.document_ref().references();
+    let references = parsed.document().references();
     assert_eq!(
         section_reference(references, "plain")?.section_number(),
         None
@@ -99,7 +99,7 @@ fn a_part_is_numbered_only_with_partnums() -> Result<(), Error> {
     let source = "= B\n:doctype: book\n:sectnums:\n\n[preface]\n== P\n\n[[p1]]\n= Part One\n\n\
                   [[c1]]\n== C1\n\nx\n";
     let parsed = parse(source, &Options::default())?;
-    let references = parsed.document_ref().references();
+    let references = parsed.document().references();
     assert_eq!(section_reference(references, "p1")?.section_number(), None);
     assert_eq!(
         section_reference(references, "c1")?.section_number(),
@@ -114,7 +114,7 @@ fn a_reference_is_numbered_past_sectnumlevels_though_the_heading_is_not() -> Res
     // `Section 1.1`; the table of contents follows the heading.
     let source = "= A\n:sectnums:\n:sectnumlevels: 1\n\n[[s1]]\n== S1\n\n[[s11]]\n=== S11\n\nx\n";
     let parsed = parse(source, &Options::default())?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
 
     assert_eq!(
         section_reference(document.references(), "s11")?.section_number(),
@@ -133,7 +133,7 @@ fn a_numbered_special_section_takes_its_style_as_its_name() -> Result<(), Error>
     let source = "= B\n:doctype: book\n:sectnums: all\n\n[preface]\n[[pre]]\n== Preface\n\nx\n\n\
                   [[ch]]\n== Chapter\n\nx\n";
     let parsed = parse(source, &Options::default())?;
-    let preface = section_reference(parsed.document_ref().references(), "pre")?;
+    let preface = section_reference(parsed.document().references(), "pre")?;
     assert_eq!(preface.section_name(), Some("preface"));
     assert_eq!(preface.section_number(), Some("1"));
     Ok(())
@@ -145,7 +145,7 @@ fn the_signifier_is_read_where_the_reference_is_written() -> Result<(), Error> {
                   Changed: <<s1>>\n\n:section-refsig:\n\nEmpty: <<s1>>\n\n:section-refsig!:\n\n\
                   Unset: <<s1>>\n\n[[s1]]\n== S1\n\nx\n";
     let parsed = parse(source, &Options::default())?;
-    let signifiers: Vec<_> = cross_references(parsed.document_ref().blocks())
+    let signifiers: Vec<_> = cross_references(parsed.document().blocks())
         .into_iter()
         .map(CrossReferenceRef::signifier)
         .collect();
@@ -176,7 +176,7 @@ fn the_xref_macro_reads_its_brackets_as_an_attribute_list() -> Result<(), Error>
                   <<fig,role=r>>\n\n\
                   [[fig]]\n.A figure\nimage::f.png[]\n";
     let parsed = parse(source, &Options::default())?;
-    let xrefs = cross_references(parsed.document_ref().blocks());
+    let xrefs = cross_references(parsed.document().blocks());
     let seen: Vec<_> = xrefs
         .iter()
         .map(|xref| {

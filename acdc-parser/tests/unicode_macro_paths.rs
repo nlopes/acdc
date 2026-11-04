@@ -105,14 +105,14 @@ fn block_media_macros_accept_non_ascii_path_characters() -> TestResult {
         BlockKind::Audio(audio),
         BlockKind::Video(video),
     ] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(unexpected(
             "expected image, audio, and video blocks",
-            parsed.document_ref().blocks().collect::<Vec<_>>(),
+            parsed.document().blocks().collect::<Vec<_>>(),
         ));
     };
 

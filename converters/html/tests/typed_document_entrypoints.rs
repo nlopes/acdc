@@ -29,8 +29,8 @@ fn parsed_and_constructed_documents_share_conversion_entrypoints()
         embedded: true,
         ..RenderOptions::default()
     };
-    let expected = processor.convert_to_string(parsed.document_ref(), &options)?;
-    for document in [parsed.document_ref(), DocumentRef::from(&constructed)] {
+    let expected = processor.convert_to_string(parsed.document(), &options)?;
+    for document in [parsed.document(), DocumentRef::from(&constructed)] {
         assert_eq!(processor.convert_to_string(document, &options)?, expected);
         let source = WarningSource::new("html");
         let mut warnings = Vec::new();

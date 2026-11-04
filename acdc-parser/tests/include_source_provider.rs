@@ -87,14 +87,14 @@ impl Drop for TempDirectory {
 
 fn paragraph_text(result: &acdc_parser::ParseResult) -> Result<&str, Box<dyn Error>> {
     let [BlockKind::Paragraph(paragraph)] = &*result
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(format!(
             "unexpected blocks: {:?}",
-            result.document_ref().blocks().collect::<Vec<_>>()
+            result.document().blocks().collect::<Vec<_>>()
         )
         .into());
     };
@@ -141,7 +141,7 @@ fn default_options_deny_includes_for_every_input_kind() -> TestResult {
             parse_file(&entry, &options)?,
         ] {
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()
@@ -177,7 +177,7 @@ fn custom_provider_and_uri_permission_do_not_lower_the_secure_default() -> TestR
         &options,
     )?;
     assert_eq!(provider.requests(), []);
-    assert_eq!(result.document_ref().blocks().count(), 2);
+    assert_eq!(result.document().blocks().count(), 2);
     assert!(result.source_recovery().is_some());
     Ok(())
 }
@@ -225,7 +225,7 @@ fn provider_loads_nested_sources_on_demand() -> TestResult {
 
     assert_eq!(paragraph_text(&result)?, "NESTED CONTENT");
     let block = result
-        .document_ref()
+        .document()
         .blocks()
         .next()
         .ok_or("missing included block")?;
@@ -306,14 +306,14 @@ fn secure_mode_does_not_call_the_provider() -> TestResult {
     // Secure mode degrades the include to Asciidoctor's link fallback; it must not
     // leave the directive sitting in the output as ordinary text.
     let [BlockKind::Paragraph(paragraph)] = &*result
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
     else {
         return Err(format!(
             "unexpected blocks: {:?}",
-            result.document_ref().blocks().collect::<Vec<_>>()
+            result.document().blocks().collect::<Vec<_>>()
         )
         .into());
     };
@@ -350,14 +350,14 @@ fn secure_mode_falls_back_identically_with_and_without_a_provider() -> TestResul
     assert_eq!(provider.requests(), []);
     let link_target = |result: &acdc_parser::ParseResult| -> Result<PathBuf, Box<dyn Error>> {
         let [BlockKind::Paragraph(paragraph)] = &*result
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()
         else {
             return Err(format!(
                 "unexpected blocks: {:?}",
-                result.document_ref().blocks().collect::<Vec<_>>()
+                result.document().blocks().collect::<Vec<_>>()
             )
             .into());
         };
@@ -574,7 +574,7 @@ fn include_budget_override_applies_to_all_input_kinds_and_loading_modes() -> Tes
                 if bytes == 8 {
                     let parsed = result?;
                     assert_eq!(parsed.warnings(), []);
-                    assert_eq!(parsed.document_ref().blocks().count(), 1);
+                    assert_eq!(parsed.document().blocks().count(), 1);
                 } else {
                     let Err(acdc_parser::Error::IncludeExpansionTooLarge(location, limit)) = result
                     else {
@@ -635,7 +635,7 @@ fn include_budget_zero_keeps_secure_fallbacks_and_empty_selections() -> TestResu
         .with_max_total_include_bytes(0)
         .build()?;
     let parsed = parse("include::part.adoc[]", &options)?;
-    assert_eq!(parsed.document_ref().blocks().count(), 1);
+    assert_eq!(parsed.document().blocks().count(), 1);
     assert_eq!(provider.requests(), []);
     let options = options
         .into_builder()
@@ -643,7 +643,7 @@ fn include_budget_zero_keeps_secure_fallbacks_and_empty_selections() -> TestResu
         .build()?;
     assert_eq!(
         parse("include::part.adoc[lines=2]", &options)?
-            .document_ref()
+            .document()
             .blocks()
             .count(),
         0
@@ -686,7 +686,7 @@ fn small_selections_from_large_local_and_custom_sources_keep_locations() -> Test
             assert_eq!(paragraph_text(&parsed)?, "Chosen.");
             assert_eq!(parsed.warnings(), []);
             let [BlockKind::Paragraph(paragraph)] = &*parsed
-                .document_ref()
+                .document()
                 .blocks()
                 .map(BlockRef::kind)
                 .collect::<Vec<_>>()

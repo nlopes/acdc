@@ -25,7 +25,7 @@ fn escaped_macro_brackets_preserve_unicode_source_spans() -> Result<(), Error> {
                 let source = format!("α \\{literal} ω.\n");
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -75,7 +75,7 @@ fn active_macro_brackets_consume_only_their_delimiter_escape() -> Result<(), Err
                 let source = format!("α {prefix}[é {escapes} café] ω.\n");
                 let parsed = parse(&source, &Options::default())?;
                 let [BlockKind::Paragraph(paragraph)] = &*parsed
-                    .document_ref()
+                    .document()
                     .blocks()
                     .map(BlockRef::kind)
                     .collect::<Vec<_>>()
@@ -127,7 +127,7 @@ fn formatted_macro_escapes_keep_original_source_spans() -> Result<(), Error> {
     ] {
         let parsed = parse(source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(BlockRef::kind)
             .collect::<Vec<_>>()

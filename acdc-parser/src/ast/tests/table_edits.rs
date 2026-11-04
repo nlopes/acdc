@@ -25,7 +25,7 @@ fn metadata_replacement_updates_resolved_table_controls(
         "[frame=none,grid=none,stripes=none]\n|===\n|Cell\n|===\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::DelimitedBlock(original)) = parsed.document().blocks.first() else {
+    let Some(Block::DelimitedBlock(original)) = parsed.document_storage().blocks.first() else {
         return Err("expected delimited block".into());
     };
     let mut metadata = original.metadata.clone();
@@ -62,7 +62,7 @@ fn removing_controls_restores_defaults_at_each_table(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let blocks = parsed
-        .document()
+        .document_storage()
         .blocks
         .iter()
         .filter_map(|block| {
@@ -115,7 +115,7 @@ fn present_controls_mask_document_defaults_after_edits(
         "= Tables\n:table-frame: sides\n:table-grid: rows\n:table-stripes: even\n\n|===\n|Cell\n|===\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::DelimitedBlock(original)) = parsed.document().blocks.first() else {
+    let Some(Block::DelimitedBlock(original)) = parsed.document_storage().blocks.first() else {
         return Err("expected table".into());
     };
     for (value, expected) in [
@@ -175,7 +175,7 @@ fn nested_table_edits_keep_scopes_columns_and_cells_independent(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::DelimitedBlock(outer)) = parsed.document().blocks.first() else {
+    let Some(Block::DelimitedBlock(outer)) = parsed.document_storage().blocks.first() else {
         return Err("expected outer table".into());
     };
     let DelimitedBlockType::DelimitedTable(outer_table) = &outer.inner else {
@@ -251,7 +251,7 @@ fn invalid_metadata_replacement_leaves_table_unchanged(
         "[frame=none,grid=none,stripes=none]\n|===\n|Cell\n|===\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::DelimitedBlock(original)) = parsed.document().blocks.first() else {
+    let Some(Block::DelimitedBlock(original)) = parsed.document_storage().blocks.first() else {
         return Err("expected table".into());
     };
     for name in ["title", "role", "options"] {

@@ -681,7 +681,7 @@ impl LanguageServer for Backend {
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             doc.ast().map(|ast| {
                 DocumentSymbolResponse::Nested(symbols::document_symbols(
-                    ast.document_ref(),
+                    ast.document(),
                     doc.text(),
                 ))
             })
@@ -835,7 +835,7 @@ impl LanguageServer for Backend {
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             doc.ast()
-                .map(|ast| folding::compute_folding_ranges(ast.document_ref(), doc.text()))
+                .map(|ast| folding::compute_folding_ranges(ast.document(), doc.text()))
         } else {
             None
         };
@@ -988,7 +988,7 @@ impl LanguageServer for Backend {
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             doc.ast().map(|ast| {
                 SemanticTokensResult::Tokens(semantic_tokens::compute_semantic_tokens(
-                    ast.document_ref(),
+                    ast.document(),
                     &doc.conditionals,
                     doc.text(),
                 ))

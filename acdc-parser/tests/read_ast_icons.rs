@@ -109,7 +109,7 @@ fn icon_ids_follow_expansion_includes_and_table_cells(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let mut blocks = parsed.document_ref().blocks();
+    let mut blocks = parsed.document().blocks();
     blocks.next().ok_or("first paragraph")?;
     let BlockKind::Paragraph(paragraph) = blocks.next().ok_or("paragraph")?.kind() else {
         return Err("paragraph".into());

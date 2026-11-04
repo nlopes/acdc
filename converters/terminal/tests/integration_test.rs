@@ -32,7 +32,7 @@ fn selected_terminal_text_works_in_every_build() -> Result<(), Error> {
             let mut warnings = Vec::new();
             let warning_source = WarningSource::new("terminal");
             processor.write_to(
-                parsed.document_ref(),
+                parsed.document(),
                 &mut output,
                 None,
                 None,
@@ -87,7 +87,7 @@ fn selected_draft_buttons_render_in_plain_and_buffered_content() -> Result<(), E
         let mut warnings = Vec::new();
         let warning_source = WarningSource::new("terminal");
         processor.write_to(
-            parsed.document_ref(),
+            parsed.document(),
             &mut output,
             None,
             None,
@@ -116,7 +116,7 @@ fn render_terminal(
 ) -> Result<(String, Vec<String>), Error> {
     crossterm::style::force_color_output(true);
     let parsed = parse(input, &ParserOptions::default())?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     let processor = Processor::new(
         ConverterOptions::default(),
         ParserOptions::builder()
@@ -162,7 +162,7 @@ fn buffered_blocks_share_attributes_but_asciidoc_cells_restore_them() -> Result<
     ] {
         let source = format!("= T\n\n{wrapper}\n:imagesdir: inside\n\nContent.\n{close}\n");
         let parsed = parse(&source, &ParserOptions::default())?;
-        let document = parsed.document_ref();
+        let document = parsed.document();
         let processor = Processor::new(
             ConverterOptions::default(),
             ParserOptions::builder().with_attributes(
@@ -189,7 +189,7 @@ fn buffered_blocks_share_attributes_but_asciidoc_cells_restore_them() -> Result<
 #[test]
 fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
     let parsed = parse("Paragraph.\n", &ParserOptions::default())?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     let block = doc.blocks().next().ok_or("missing test block")?;
     let processor = Processor::new(
         ConverterOptions::default(),
@@ -291,7 +291,7 @@ fn test_fixture_variant(fixture_name: &str, osc8: bool) -> Result<(), Error> {
         .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .build()?;
     let parsed = acdc_parser::parse_file(&input_path, &parser_options)?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
 
     // Convert to Terminal output
     let mut output = Vec::new();
@@ -393,7 +393,7 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
         let input = format!("[{style}]\n. one\n. two\n. three\n");
         let parser_options = ParserOptions::default();
         let parsed = parse(&input, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let mut output = Vec::new();
         let processor = Processor::new(
             ConverterOptions::default(),
@@ -422,7 +422,7 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
     let input = ":figure-caption: BeforeFigure\n:table-caption: BeforeTable\n:xrefstyle: short\n\nForward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nForward full: <<figure-target>> and <<table-target>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n\n[[figure-target]]\n.A figure title\nimage::figure.svg[]\n\n[[table-target]]\n.A table title\n|===\n|Cell\n|===\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:xrefstyle: short\n\nBackward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nBackward full: <<figure-target>> and <<table-target>>.\n";
     let parser_options = ParserOptions::default();
     let parsed = parse(input, &parser_options)?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
@@ -456,7 +456,7 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
 fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Error> {
     let input = "Empty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n";
     let parsed = parse(input, &ParserOptions::default())?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
@@ -488,7 +488,7 @@ fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Er
 fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Error> {
     let input = "Title macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n";
     let parsed = parse(input, &ParserOptions::default())?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
@@ -525,7 +525,7 @@ fn none_ordered_list_style_suppresses_marker() -> Result<(), Error> {
     let input = ". numbered\n\n[none]\n. unmarked\n";
     let parser_options = ParserOptions::default();
     let parsed = parse(input, &parser_options)?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
@@ -550,7 +550,7 @@ fn markerless_ordered_list_styles_suppress_markers() -> Result<(), Error> {
         let input = format!("[{style}]\n. unmarked\n");
         let parser_options = ParserOptions::default();
         let parsed = parse(&input, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let mut output = Vec::new();
         let processor = Processor::new(
             ConverterOptions::default(),
@@ -576,7 +576,7 @@ fn markerless_unordered_list_styles_suppress_markers() -> Result<(), Error> {
         let input = format!("[{style}]\n* unmarked\n");
         let parser_options = ParserOptions::default();
         let parsed = parse(&input, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let mut output = Vec::new();
         let processor = Processor::new(
             ConverterOptions::default(),
@@ -602,7 +602,7 @@ fn markerless_checklist_styles_keep_the_checkbox() -> Result<(), Error> {
         let input = format!("[{style}]\n* [ ] task\n");
         let parser_options = ParserOptions::default();
         let parsed = parse(&input, &parser_options)?;
-        let doc = parsed.document_ref();
+        let doc = parsed.document();
         let mut output = Vec::new();
         let processor = Processor::new(
             ConverterOptions::default(),
@@ -631,7 +631,7 @@ fn markerless_checklist_styles_keep_the_checkbox() -> Result<(), Error> {
 fn image_failure_warning_is_returned_in_conversion_result() -> Result<(), Error> {
     let parser_options = ParserOptions::default();
     let parsed = parse("image::definitely-missing-image.png[]\n", &parser_options)?;
-    let doc = parsed.document_ref();
+    let doc = parsed.document();
     let processor = Processor::new(
         ConverterOptions::default(),
         ParserOptions::builder()

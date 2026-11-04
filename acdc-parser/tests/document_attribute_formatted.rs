@@ -12,7 +12,7 @@ fn formatted_attributes_store_source_and_register_macros_at_use() -> Result<(), 
         include_str!("../fixtures/tests/document_attribute_formatted.adoc"),
         &Options::default(),
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     for (name, expected) in [
         ("bold", "*Bold*"),
         ("frozen", "*Early*"),
@@ -64,8 +64,8 @@ fn formatted_attributes_do_not_register_unused_definitions() -> Result<(), Error
         "= T\n:unused: pass:m[footnote:[Unused.] ((Unused)) anchor:unused[]]\n\nBody.\n",
         &Options::default(),
     )?;
-    assert!(parsed.document_ref().footnotes().next().is_none());
-    assert!(!parsed.document_ref().references().contains("unused"));
+    assert!(parsed.document().footnotes().next().is_none());
+    assert!(!parsed.document().references().contains("unused"));
     Ok(())
 }
 
@@ -79,7 +79,7 @@ fn formatted_attributes_register_footnotes_in_source_order() -> Result<(), Error
             format!("= T\n:value: pass:m[footnote:n[Named.] footnote:[Attribute.]]\n\n{content}\n");
         let parsed = parse(&source, &Options::default())?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
-        let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
+        let notes = parsed.document().footnotes().collect::<Vec<_>>();
         assert_eq!(notes.len(), 5);
         for (note, expected) in
             notes
@@ -122,7 +122,7 @@ fn formatted_attributes_warn_only_on_used_conflicting_named_bodies() -> Result<(
     assert_eq!(parse(source, &Options::default())?.warnings(), []);
     let source = format!("{source}\n{{second}}\n");
     let parsed = parse(&source, &Options::default())?;
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     assert!(parsed.warnings().iter().any(|warning| matches!(
         warning.kind,
         acdc_parser::WarningKind::ConflictingFootnote { .. }
@@ -138,13 +138,13 @@ fn formatted_attributes_obey_locked_and_soft_caller_values() -> Result<(), Error
         Options::builder().with_attribute("value", false).build()?,
     ] {
         let parsed = parse(source, &options)?;
-        assert!(parsed.document_ref().footnotes().next().is_none());
+        assert!(parsed.document().footnotes().next().is_none());
     }
     let soft = Options::builder()
         .with_default_attribute("value", "Caller")
         .build()?;
     let parsed = parse(source, &soft)?;
-    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     Ok(())
 }
 
@@ -153,7 +153,7 @@ fn formatted_attributes_keep_complete_reference_spans() -> Result<(), Error> {
     let source = "= T\n:value: pass:q[*Éva*]\n:alias: prefix {value} suffix\n\nα {alias} ω.\n";
     let parsed = parse(source, &Options::default())?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -194,10 +194,10 @@ fn formatted_attributes_survive_owned_snapshots_and_compare_by_value() -> Result
             &Options::default(),
         )?;
         assert_eq!(
-            parsed.document_ref().attributes().get("first"),
-            parsed.document_ref().attributes().get("second")
+            parsed.document().attributes().get("first"),
+            parsed.document().attributes().get("second")
         );
-        DocumentAttributes::from(parsed.document_ref().attributes()).into_static()
+        DocumentAttributes::from(parsed.document().attributes()).into_static()
     };
     assert_eq!(
         attributes
@@ -210,7 +210,7 @@ fn formatted_attributes_survive_owned_snapshots_and_compare_by_value() -> Result
         &Options::default().with_document_attributes(attributes),
     )?;
     let [BlockKind::Paragraph(paragraph)] = &*parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(BlockRef::kind)
         .collect::<Vec<_>>()
@@ -241,13 +241,13 @@ fn formatted_attributes_have_backend_independent_text_conditions_and_nodes() -> 
             assert!(!parsed.source().contains("Wrong."));
             assert_eq!(
                 parsed
-                    .document_ref()
+                    .document()
                     .attributes()
                     .get("value")
                     .and_then(DocumentAttributeValue::text),
                 Some("*Bold*")
             );
-            let structure = serde_json::to_value(parsed.document_ref())?
+            let structure = serde_json::to_value(parsed.document())?
                 .get("blocks")
                 .cloned()
                 .ok_or("missing blocks")?;
@@ -269,7 +269,7 @@ fn formatted_attributes_warn_on_output_dependent_lists() -> Result<(), Error> {
     let parsed = parse(source, &Options::default())?;
     assert_eq!(
         parsed
-            .document_ref()
+            .document()
             .attributes()
             .get("value")
             .and_then(DocumentAttributeValue::text),
@@ -380,7 +380,7 @@ fn formatted_attributes_preserve_missing_empty_escaped_and_nested_aliases() -> R
     ] {
         assert_eq!(
             parsed
-                .document_ref()
+                .document()
                 .attributes()
                 .get(name)
                 .and_then(DocumentAttributeValue::text),
@@ -388,7 +388,7 @@ fn formatted_attributes_preserve_missing_empty_escaped_and_nested_aliases() -> R
             "{name}"
         );
     }
-    assert_eq!(parsed.document_ref().footnotes().count(), 3);
-    assert!(!parsed.document_ref().references().contains("unused"));
+    assert_eq!(parsed.document().footnotes().count(), 3);
+    assert!(!parsed.document().references().contains("unused"));
     Ok(())
 }

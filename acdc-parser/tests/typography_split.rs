@@ -30,7 +30,7 @@ fn split_dashes_preserve_profiles_and_earlier_replacements(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let kinds = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -75,7 +75,7 @@ fn symbols_keep_only_their_owners_source_contribution(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let symbols = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -96,7 +96,7 @@ fn symbols_keep_only_their_owners_source_contribution(
         "{source}"
     );
     for term in parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter_map(|node| {
@@ -149,7 +149,7 @@ fn split_tokens_obey_attribute_stage_order(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let count = parsed
-        .document_ref()
+        .document()
         .content_occurrences()
         .flat_map(|field| field.content().inlines())
         .filter(|node| matches!(node.kind(), InlineKind::Symbol(_)))

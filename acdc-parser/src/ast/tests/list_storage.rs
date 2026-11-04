@@ -16,7 +16,7 @@ fn cloned_owners_preserve_empty_lists_items_and_anchor_content() -> Result<(), E
         "[title=\"\"]\n* Text\n\nTerm:: Value\n",
         &Options::default(),
     )?;
-    let Some(Block::UnorderedList(list)) = parsed.document().blocks.first() else {
+    let Some(Block::UnorderedList(list)) = parsed.document_storage().blocks.first() else {
         return Err("list".into());
     };
     let mut list = list.clone();
@@ -31,7 +31,7 @@ fn cloned_owners_preserve_empty_lists_items_and_anchor_content() -> Result<(), E
     assert!(read.title().ok_or("empty title")?.is_empty());
     shared(read);
     let owner = parsed
-        .document()
+        .document_storage()
         .blocks
         .iter()
         .find_map(|b| {
@@ -64,8 +64,8 @@ fn list_owners_convert_to_the_same_public_handles() -> Result<(), Error> {
         ". Ordered\n\nTerm:: Value\n\n<1> Callout\n",
         &Options::default(),
     )?;
-    assert_eq!(parsed.document().blocks.len(), 3);
-    for block in &parsed.document().blocks {
+    assert_eq!(parsed.document_storage().blocks.len(), 3);
+    for block in &parsed.document_storage().blocks {
         if let Block::OrderedList(list) = block {
             assert_eq!(OrderedListRef::from(list).items().count(), list.items.len());
         } else if let Block::DescriptionList(list) = block {

@@ -130,7 +130,7 @@ fn check_code_link(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let parsed_blocks: Vec<_> = parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(acdc_parser::Block::from)
         .collect();
@@ -142,10 +142,10 @@ fn check_code_link(
         .iter()
         .flat_map(|node| {
             [
-                resolve_code_link(node, parsed.document_ref().references(), "html"),
+                resolve_code_link(node, parsed.document().references(), "html"),
                 resolve_code_link(
                     InlineRef::from(node),
-                    parsed.document_ref().references(),
+                    parsed.document().references(),
                     "html",
                 ),
             ]
@@ -180,7 +180,7 @@ fn check_registered_occurrence(mode: CompatibilityMode) -> Result<(), Error> {
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let parsed_blocks: Vec<_> = parsed
-        .document_ref()
+        .document()
         .blocks()
         .map(acdc_parser::Block::from)
         .collect();
@@ -192,10 +192,10 @@ fn check_registered_occurrence(mode: CompatibilityMode) -> Result<(), Error> {
         .iter()
         .flat_map(|node| {
             [
-                resolve_code_link(node, parsed.document_ref().references(), "html"),
+                resolve_code_link(node, parsed.document().references(), "html"),
                 resolve_code_link(
                     InlineRef::from(node),
-                    parsed.document_ref().references(),
+                    parsed.document().references(),
                     "html",
                 ),
             ]
@@ -220,7 +220,7 @@ fn code_link_results_outlive_temporary_inline_inputs() -> Result<(), Error> {
         let input = String::from("xref:target[*Temporary*]");
         let parsed = parse_inline(&input, &Options::default())?;
         let node = parsed.content().inlines().next().ok_or("temporary xref")?;
-        resolve_code_link(node, document.document_ref().references(), "pdf").ok_or("code link")?
+        resolve_code_link(node, document.document().references(), "pdf").ok_or("code link")?
     };
     assert_eq!(resolved.text, "Temporary");
     assert!(
@@ -259,28 +259,25 @@ fn code_text_keeps_displayed_content_and_required_markers() -> Result<(), Error>
         let document = parse("[[target]]\n== Destination\n", &options)?;
         let empty: &[acdc_parser::InlineNode<'_>] = &[];
         assert_eq!(
-            code_inline_text(empty, document.document_ref().references(), "html"),
+            code_inline_text(empty, document.document().references(), "html"),
             (String::new(), false)
         );
         assert_eq!(
             code_inline_text(
                 std::iter::empty::<InlineRef<'_>>(),
-                document.document_ref().references(),
+                document.document().references(),
                 "html"
             ),
             (String::new(), false)
         );
         for (source, expected, linked) in cases {
             let input = parse_inline(source, &options)?;
-            let result = code_inline_text(
-                input.inlines(),
-                document.document_ref().references(),
-                "html",
-            );
+            let result =
+                code_inline_text(input.inlines(), document.document().references(), "html");
             assert_eq!(result, (expected.to_owned(), linked), "{source:?} {mode:?}");
             let typed = code_inline_text(
                 input.content().inlines(),
-                document.document_ref().references(),
+                document.document().references(),
                 "html",
             );
             assert_eq!(typed, result);
@@ -297,7 +294,7 @@ fn code_text_consumes_temporary_typed_input_once() -> Result<(), Error> {
         let input = parse_inline(&source, &Options::default())?;
         let mut visited = 0;
         let nodes = input.content().inlines().inspect(|_| visited += 1);
-        let result = code_inline_text(nodes, document.document_ref().references(), "html");
+        let result = code_inline_text(nodes, document.document().references(), "html");
         assert_eq!(visited, input.inlines().len());
         result
     };
@@ -313,7 +310,7 @@ fn code_link_anchors_keep_literal_quotes() -> Result<(), Error> {
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let parsed_blocks: Vec<_> = parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(acdc_parser::Block::from)
             .collect();
@@ -322,10 +319,10 @@ fn code_link_anchors_keep_literal_quotes() -> Result<(), Error> {
         };
         let node = paragraph.content.first().ok_or("link")?;
         for link in [
-            resolve_code_link(node, parsed.document_ref().references(), "html"),
+            resolve_code_link(node, parsed.document().references(), "html"),
             resolve_code_link(
                 InlineRef::from(node),
-                parsed.document_ref().references(),
+                parsed.document().references(),
                 "html",
             ),
         ] {
@@ -349,7 +346,7 @@ xref:target[]
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let parsed_blocks: Vec<_> = parsed
-            .document_ref()
+            .document()
             .blocks()
             .map(acdc_parser::Block::from)
             .collect();
@@ -357,7 +354,7 @@ xref:target[]
             return Err("paragraph".into());
         };
         for node in paragraph.content.iter().map(InlineRef::from) {
-            let link = resolve_code_link(node, parsed.document_ref().references(), "pdf")
+            let link = resolve_code_link(node, parsed.document().references(), "pdf")
                 .ok_or("code link")?;
             assert_eq!(link.text, "Destination © and &#169;");
         }

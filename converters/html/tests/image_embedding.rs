@@ -22,7 +22,7 @@ fn convert(
     let processor = Processor::new_with_variant(
         Options::builder().safe_mode(safe_mode).build(),
         ParserOptions::builder().with_attributes(
-            acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes()).into_inputs(),
+            acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
         ),
         HtmlVariant::Standard,
     )?;
@@ -35,7 +35,7 @@ fn convert(
     let mut warnings = Vec::new();
     let source = WarningSource::new("html");
     processor.convert_to_writer(
-        parsed.document_ref(),
+        parsed.document(),
         &mut output,
         &options,
         &mut Diagnostics::new(&source, &mut warnings),
@@ -309,7 +309,7 @@ fn image_text_survives_embedding_and_fallback_modes() -> Result<(), Error> {
                     let mut output = Vec::new();
                     let mut warnings = Vec::new();
                     processor.convert_to_writer(
-                        parsed.document_ref(),
+                        parsed.document(),
                         &mut output,
                         &RenderOptions {
                             embedded: true,
@@ -347,7 +347,7 @@ fn image_text_survives_embedding_and_fallback_modes() -> Result<(), Error> {
                         assert!(html.contains("title=\"© → --\""), "{html}");
                         assert!(warnings.is_empty(), "{warnings:?}");
                     }
-                    assert_eq!(parsed.document_ref().footnotes().count(), 0);
+                    assert_eq!(parsed.document().footnotes().count(), 0);
                 }
             }
         }

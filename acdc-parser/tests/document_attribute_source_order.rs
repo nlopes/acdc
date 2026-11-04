@@ -14,7 +14,7 @@ fn document_attributes_are_the_header_snapshot() -> Result<(), Error> {
         "= Header\n:imagesdir: header\n\nimage::before.png[]\n\n:imagesdir: body\n\nimage::after.png[]\n",
         &Options::default(),
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
 
     assert_eq!(
         document
@@ -47,12 +47,7 @@ fn untitled_document_attributes_are_the_header_snapshot() -> Result<(), Error> {
         &Options::default(),
     )?;
 
-    assert!(
-        parsed
-            .document_ref()
-            .attributes()
-            .contains("hardbreaks-option")
-    );
+    assert!(parsed.document().attributes().contains("hardbreaks-option"));
     Ok(())
 }
 
@@ -62,7 +57,7 @@ fn metadata_adjacent_assignment_precedes_its_block() -> Result<(), Error> {
         include_str!("../fixtures/tests/document_attributes_source_order.adoc"),
         &Options::default(),
     )?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
 
     assert_eq!(
         document
@@ -104,7 +99,7 @@ fn rejected_body_assignment_is_not_an_ast_event() -> Result<(), Error> {
 
     assert!(
         parsed
-            .document_ref()
+            .document()
             .blocks()
             .all(|block| !matches!(block.kind(), BlockKind::DocumentAttribute(_)))
     );
@@ -176,7 +171,7 @@ fn assignments_follow_caller_precedence_in_source_order(
     };
 
     let parsed = parse(&source, &options)?;
-    let document = parsed.document_ref();
+    let document = parsed.document();
     let mut active = document.attributes().get(family);
     assert_eq!(active.and_then(DocumentAttributeValue::text), header);
     let mut observed = Vec::new();
