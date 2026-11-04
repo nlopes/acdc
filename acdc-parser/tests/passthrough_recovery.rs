@@ -1,4 +1,8 @@
-use acdc_parser::{Block, CompatibilityMode, InlineNode, Options, WarningKind, parse};
+use acdc_parser::{
+    CompatibilityMode, Options, WarningKind,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -14,18 +18,23 @@ fn unsupported_passthroughs_keep_source_without_registering_macros(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let document = parsed.document();
-    assert_eq!(document.footnotes, []);
-    assert!(!document.references.contains_key("unused"));
-    let Some(Block::Paragraph(paragraph)) = document.blocks.last() else {
+    let document = parsed.document_ref();
+    assert_eq!(document.footnotes().count(), 0);
+    assert!(!document.references().contains("unused"));
+    let Some(BlockKind::Paragraph(paragraph)) = document.blocks().last().map(BlockRef::kind) else {
         return Err("missing recovered paragraph".into());
     };
-    let [InlineNode::RawText(raw)] = paragraph.content.as_slice() else {
-        return Err(format!("expected protected source: {:?}", paragraph.content).into());
+    let [InlineKind::Raw(raw)] = &*paragraph
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err(format!("expected protected source: {:?}", paragraph.content()).into());
     };
-    assert_eq!(raw.content, full);
+    assert_eq!(raw.text(), full);
     assert_eq!(
-        source.get(raw.location.absolute_start..=raw.location.absolute_end),
+        source.get(raw.location().absolute_start()..=raw.location().absolute_end()),
         Some(full.as_str())
     );
     let [warning] = parsed.warnings() else {
@@ -49,29 +58,31 @@ fn passthrough_recovery_keeps_bracket_escapes_and_later_macro_locations(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.last() else {
+    let Some(BlockKind::Paragraph(paragraph)) =
+        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    else {
         return Err("missing paragraph".into());
     };
     let raw = paragraph
-        .content
-        .iter()
+        .content()
+        .inlines()
         .find_map(|node| {
-            let InlineNode::RawText(raw) = node else {
+            let InlineKind::Raw(raw) = node.kind() else {
                 return None;
             };
             Some(raw)
         })
         .ok_or("missing recovered source")?;
-    assert_eq!(raw.content, "pass:q,c[α *Éva* \\] tail]");
+    assert_eq!(raw.text(), "pass:q,c[α *Éva* \\] tail]");
     assert_eq!(
-        source.get(raw.location.absolute_start..=raw.location.absolute_end),
-        Some(raw.content)
+        source.get(raw.location().absolute_start()..=raw.location().absolute_end()),
+        Some(raw.text())
     );
-    let [note] = parsed.document().footnotes.as_slice() else {
+    let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
         return Err("expected only the later footnote".into());
     };
     assert_eq!(
-        source.get(note.location.absolute_start..=note.location.absolute_end),
+        source.get(note.location().absolute_start()..=note.location().absolute_end()),
         Some("footnote:n[Kept.]")
     );
     assert_eq!(parsed.warnings().len(), 1);
@@ -86,8 +97,8 @@ fn unsupported_attribute_values_use_the_same_recovery_category(
         include_str!("../fixtures/tests/compatibility_passthrough_recovery.adoc"),
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
-    assert!(!parsed.document().references.contains_key("unused"));
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert!(!parsed.document_ref().references().contains("unused"));
     assert_eq!(parsed.warnings().len(), 10);
     assert!(
         parsed

@@ -1,25 +1,20 @@
 use std::{fs, path::PathBuf};
 
 use acdc_parser::{
-    Block, CompatibilityMode, DelimitedBlockType, Document, InlineMacro, InlineNode, Options,
-    SafeMode, Substitution, SymbolKind,
-    ast::{BlockKind, InlineKind, StructuralRef},
+    CompatibilityMode, Options, SafeMode, Substitution, SymbolKind,
+    ast::{BlockKind, ContentRef, DocumentRef, InlineKind, InlineRef, StructuralRef},
     parse, parse_file,
 };
 
 type Error = Box<dyn std::error::Error>;
 
-fn body<'doc, 'input>(
-    document: &'doc Document<'input>,
-) -> Result<&'doc [InlineNode<'input>], Error> {
-    let block = document.blocks.first().ok_or("missing block")?;
-    if let Block::Paragraph(paragraph) = block {
-        return Ok(&paragraph.content);
+fn body(document: DocumentRef<'_>) -> Result<ContentRef<'_>, Error> {
+    let block = document.blocks().next().ok_or("missing block")?;
+    if let BlockKind::Paragraph(paragraph) = block.kind() {
+        return Ok(paragraph.content());
     }
-    if let Block::DelimitedBlock(block) = block
-        && let DelimitedBlockType::DelimitedPass(content) = &block.inner
-    {
-        return Ok(content);
+    if let BlockKind::Passthrough(block) = block.kind() {
+        return Ok(block.content());
     }
     Err("expected passthrough content".into())
 }
@@ -56,49 +51,48 @@ fn block_passthroughs_resolve_order_and_register_selected_macros_once(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let nodes = body(parsed.document())?;
+    let nodes = body(parsed.document_ref())?;
     let bold = nodes
-        .iter()
-        .filter(|node| matches!(node, InlineNode::BoldText(_)))
+        .inlines()
+        .filter(|node| matches!(node.kind(), InlineKind::Bold(_)))
         .collect::<Vec<_>>();
     assert_eq!(bold.len(), bold_count, "{nodes:?}");
     for node in bold {
         let location = node.location();
         let selected = source
-            .get(location.absolute_start..=location.absolute_end)
+            .get(location.absolute_start()..=location.absolute_end())
             .ok_or("invalid bold location")?;
         assert!(matches!(selected, "*Authored*" | "{word}"), "{selected}");
     }
-    let copyright = nodes.iter().find(|node| matches!(node, InlineNode::Symbol(symbol) if symbol.kind == SymbolKind::Copyright)).ok_or("missing copyright")?;
+    let copyright = nodes.inlines().find(|node| matches!(node.kind(), InlineKind::Symbol(symbol) if symbol.kind() == SymbolKind::Copyright)).ok_or("missing copyright")?;
     let location = copyright.location();
     assert_eq!(
-        source.get(location.absolute_start..=location.absolute_end),
+        source.get(location.absolute_start()..=location.absolute_end()),
         Some("(C)")
     );
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     let note = parsed
-        .document()
-        .footnotes
-        .first()
+        .document_ref()
+        .footnotes()
+        .next()
         .ok_or("missing footnote")?;
     assert_eq!(
-        source.get(note.location.absolute_start..=note.location.absolute_end),
+        source.get(note.location().absolute_start()..=note.location().absolute_end()),
         Some("footnote:one[Note.]")
     );
-    assert!(parsed.document().references.contains_key("target"));
+    assert!(parsed.document_ref().references().contains("target"));
     assert_eq!(
         nodes
-            .iter()
-            .filter(|node| matches!(node, InlineNode::Macro(InlineMacro::IndexTerm(_))))
+            .inlines()
+            .filter(|node| matches!(node.kind(), InlineKind::IndexTerm(_)))
             .count(),
         1
     );
-    for node in nodes {
-        if let InlineNode::RawText(raw) = node {
+    for node in nodes.inlines() {
+        if let InlineKind::Raw(raw) = node.kind() {
             assert!(
-                raw.subs
-                    .iter()
-                    .all(|substitution| *substitution == Substitution::SpecialChars)
+                raw.substitutions()
+                    .all(|substitution| substitution == Substitution::SpecialChars)
             );
         }
     }
@@ -123,13 +117,17 @@ fn block_passthroughs_keep_default_and_none_content_raw(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [InlineNode::RawText(raw)] = body(parsed.document())? else {
+    let [InlineKind::Raw(raw)] = &*body(parsed.document_ref())?
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected untouched raw content".into());
     };
-    assert_eq!(raw.content.trim_end_matches('\n'), input);
-    assert_eq!(raw.subs, []);
-    assert_eq!(parsed.document().footnotes, []);
-    assert!(!parsed.document().references.contains_key("unused"));
+    assert_eq!(raw.text().trim_end_matches('\n'), input);
+    assert_eq!(raw.substitutions().collect::<Vec<_>>(), []);
+    assert!(parsed.document_ref().footnotes().next().is_none());
+    assert!(!parsed.document_ref().references().contains("unused"));
     Ok(())
 }
 
@@ -227,7 +225,7 @@ fn block_passthroughs_keep_snapshots_and_included_or_cell_locations(
         selected.push(label);
     }
     assert_eq!(selected, ["Included", "Cell", "Later"]);
-    assert_eq!(parsed.document().footnotes.len(), 2);
+    assert_eq!(parsed.document_ref().footnotes().count(), 2);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
