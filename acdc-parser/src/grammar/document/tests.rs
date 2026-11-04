@@ -2647,3 +2647,87 @@ fn test_unterminated_example_through_parse_entry() {
         res.warnings(),
     );
 }
+
+/// The column formats of the one table in `input`, and the cells of each of its rows,
+/// the header included.
+fn table_shape(input: &str) -> Result<(Vec<crate::ColumnFormat>, Vec<usize>), Error> {
+    let result = parse(input, &Options::default())?;
+    let table = result
+        .document()
+        .blocks
+        .iter()
+        .find_map(|block| {
+            if let Block::DelimitedBlock(DelimitedBlock {
+                inner: DelimitedBlockType::DelimitedTable(table),
+                ..
+            }) = block
+            {
+                Some(table)
+            } else {
+                None
+            }
+        })
+        .expect("a table");
+    let cells = table
+        .header
+        .iter()
+        .chain(&table.rows)
+        .chain(&table.footer)
+        .map(|row| row.columns.len())
+        .collect();
+    Ok((table.columns.clone(), cells))
+}
+
+fn cols_table(cols: &str) -> String {
+    format!("[cols={cols}]\n|===\n|A |B |C\n\n|1 |2 |3\n|===\n")
+}
+
+/// A `cols` value that is a whole number N means N columns of equal width, as `N*` does
+/// (Asciidoctor's deprecated but supported form), quoted or not and with spaces ignored.
+#[test]
+fn test_integer_cols_gives_equal_columns() -> Result<(), Error> {
+    let (multiplied, _) = table_shape(&cols_table("\"3*\""))?;
+    for cols in ["3", "\"3\"", "\" 3 \""] {
+        let (columns, cells) = table_shape(&cols_table(cols))?;
+        assert_eq!(columns, multiplied, "cols={cols}");
+        assert_eq!(cells, [3, 3], "cols={cols}");
+    }
+    Ok(())
+}
+
+/// `cols=0` gives no column specs, so the first row sets the columns, as without `cols`.
+#[test]
+fn test_zero_cols_takes_columns_from_first_row() -> Result<(), Error> {
+    let (columns, cells) = table_shape(&cols_table("0"))?;
+    let (implicit, implicit_cells) = table_shape("|===\n|A |B |C\n\n|1 |2 |3\n|===\n")?;
+    assert_eq!(columns, implicit);
+    assert_eq!(cells, implicit_cells);
+    Ok(())
+}
+
+/// Only a number written as itself is a column count: `03` stays one column of width 3,
+/// as in Asciidoctor.
+#[test]
+fn test_cols_with_leading_zero_is_one_column_spec() -> Result<(), Error> {
+    let (columns, cells) = table_shape(&cols_table("03"))?;
+    assert_eq!(columns.len(), 1);
+    assert_eq!(columns[0].width, crate::ColumnWidth::Proportional(3));
+    assert_eq!(cells, [1, 1, 1, 1, 1, 1]);
+    Ok(())
+}
+
+/// An integer `cols` is held to the same column limit as `N*`.
+#[test]
+fn test_integer_cols_respects_the_column_limit() {
+    let too_many = (crate::blocks::table::MAX_TABLE_COLUMNS + 1).to_string();
+    let integer = parse(&cols_table(&too_many), &Options::default());
+    let multiplied = parse(
+        &cols_table(&format!("\"{too_many}*\"")),
+        &Options::default(),
+    );
+    assert_eq!(
+        integer.as_ref().map_err(ToString::to_string).err(),
+        multiplied.as_ref().map_err(ToString::to_string).err(),
+    );
+    assert!(integer.is_err(), "more than the column limit is refused");
+}

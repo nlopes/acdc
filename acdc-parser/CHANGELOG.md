@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A table whose `cols` is a whole number, such as `[cols=3]`, now has that many
+  columns of equal width, as `cols="3*"` does, matching Asciidoctor's deprecated
+  but supported form. Previously it had one column. `cols=0` takes the columns
+  from the first row, as without `cols`.
+
 - Errors and warnings in reindented includes report columns in the original
   source, including nested and selected includes.
 

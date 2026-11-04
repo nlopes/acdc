@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A table's `<colgroup>` has one `<col>` for each column the parser read, so
+  `[cols=0]` gets the columns of its first row, matching Asciidoctor.
+
 - HTML math output escapes `<`, `>` and `&` so formulas display those characters,
   matching Asciidoctor. With `pre-spec-subs`, `[stem,subs=none]` still preserves
   authored raw HTML.

@@ -53,6 +53,22 @@ fn table_limit_error(
     )
 }
 
+/// The number of columns a `cols` value gives when it is a whole number written as
+/// itself, such as `3`: that many columns of equal width, as `3*` gives. Asciidoctor
+/// deprecates this form but still reads it, ignoring spaces. `03` is not one, and stays
+/// a single column spec. A number too large to hold exceeds every column limit.
+fn whole_column_count(cols: &str) -> Option<usize> {
+    let count: String = strip_quotes(cols.trim())
+        .chars()
+        .filter(|c| *c != ' ')
+        .collect();
+    let digits = !count.is_empty() && count.bytes().all(|b| b.is_ascii_digit());
+    if !digits || (count.len() > 1 && count.starts_with('0')) {
+        return None;
+    }
+    Some(count.parse::<usize>().unwrap_or(usize::MAX))
+}
+
 /// Parse a table block with the selected separator and source ranges.
 #[allow(clippy::too_many_lines)]
 pub(super) fn parse_table_block_impl<'input>(
@@ -133,9 +149,28 @@ pub(super) fn parse_table_block_impl<'input>(
         default_separator.to_string()
     };
 
-    let (ncols, column_formats) = if let Some(AttributeValue::String(cols)) =
-        block_metadata.metadata.attributes.get("cols")
-    {
+    let cols = match block_metadata.metadata.attributes.get("cols") {
+        Some(AttributeValue::String(cols)) => Some(cols),
+        _ => None,
+    };
+    let whole = cols.and_then(|cols| whole_column_count(cols));
+    let (ncols, column_formats) = if let Some(count) = whole {
+        if count > MAX_TABLE_COLUMNS {
+            return Err(table_limit_error(
+                state,
+                table_location.clone(),
+                "column count",
+                count,
+                MAX_TABLE_COLUMNS,
+            ));
+        }
+        // No columns at all leaves the first row to set them, as without `cols`.
+        if count == 0 {
+            (None, Vec::new())
+        } else {
+            (Some(count), vec![crate::ColumnFormat::new(); count])
+        }
+    } else if let Some(cols) = cols {
         // Parse cols attribute
         // Full syntax: [multiplier*][halign][valign][width][style]
         // Examples: "3*", "^.>2a", "2*>.^1m", "<,^,>", "15%,30%,55%"
