@@ -31,3 +31,5 @@ mod asg_core_storage;
 mod asg_image_storage;
 #[cfg(feature = "asg")]
 mod asg_list_storage;
+
+mod structural_copies;

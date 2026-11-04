@@ -11,7 +11,7 @@ use super::{
 /// A table block, including its title and local declarations.
 #[derive(Clone, Copy, Debug)]
 pub struct TableRef<'doc> {
-    block: &'doc DelimitedBlock<'doc>,
+    pub(super) block: &'doc DelimitedBlock<'doc>,
     pub(super) table: &'doc Table<'doc>,
 }
 

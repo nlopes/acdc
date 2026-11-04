@@ -99,6 +99,11 @@ Table declarations remain separate from resolved presentation. Image and icon al
 tooltips preserve absent versus explicitly empty content. For a constructed node,
 use `ast::ParagraphRef::from(&paragraph)`. The existing `document()` API remains
 available for other reads, construction, and editing.
+For independent edits, copy a typed document with
+`Document::from(parsed.document_ref())` or a block with `Block::from(block)`.
+Copies preserve stored catalogs, source locations, captions, and table presentation;
+they do not reparse text or refresh catalogs. Source text can still borrow from
+the parse result.
 
 `IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
 option tokens. An icon ID is retained even when a converter does not emit it.

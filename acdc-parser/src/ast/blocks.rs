@@ -474,3 +474,83 @@ impl<'doc> From<&'doc crate::DelimitedBlock<'doc>> for BlockRef<'doc> {
         Self { kind }
     }
 }
+
+/// Copy the complete document for independent edits, including its registered
+/// catalogs, source locations, and resolved captions and table presentation.
+/// Copies can still borrow source text and cannot outlive the parse result.
+///
+/// ```compile_fail,E0597
+/// use acdc_parser::{Document, Options, parse};
+///
+/// let copy = {
+///     let parsed = parse("Text.", &Options::default()).unwrap();
+///     Document::from(parsed.document_ref())
+/// };
+/// println!("{copy:?}");
+/// ```
+impl<'doc> From<DocumentRef<'doc>> for Document<'doc> {
+    fn from(document: DocumentRef<'doc>) -> Self {
+        let document = document.node;
+        Self {
+            header: document.header.as_ref().map(|header| crate::Header {
+                metadata: header.metadata.clone(),
+                title: header.title.clone(),
+                subtitle: header.subtitle.clone(),
+                authors: header
+                    .authors
+                    .iter()
+                    .map(|author| crate::Author {
+                        first_name: author.first_name,
+                        middle_name: author.middle_name,
+                        last_name: author.last_name,
+                        initials: author.initials,
+                        email: author.email,
+                    })
+                    .collect(),
+                location: header.location.clone(),
+            }),
+            attributes: document.attributes.clone(),
+            blocks: document.blocks.clone(),
+            footnotes: document.footnotes.clone(),
+            toc_entries: document.toc_entries.clone(),
+            references: document.references.clone(),
+            location: document.location.clone(),
+        }
+    }
+}
+
+/// Copy a block and its descendants for independent edits, preserving retained
+/// source and resolved values. The copy can still borrow source text.
+impl<'doc> From<BlockRef<'doc>> for Block<'doc> {
+    fn from(block: BlockRef<'doc>) -> Self {
+        match block.kind() {
+            BlockKind::TableOfContents(node) => Self::TableOfContents(node.node.clone()),
+            BlockKind::Admonition(node) => Self::Admonition(node.node.clone()),
+            BlockKind::DiscreteHeader(node) => Self::DiscreteHeader(node.node.clone()),
+            BlockKind::DocumentAttribute(node) => Self::DocumentAttribute(node.node.clone()),
+            BlockKind::ThematicBreak(node) => Self::ThematicBreak(node.node.clone()),
+            BlockKind::PageBreak(node) => Self::PageBreak(node.node.clone()),
+            BlockKind::UnorderedList(node) => Self::UnorderedList(node.node.clone()),
+            BlockKind::OrderedList(node) => Self::OrderedList(node.node.clone()),
+            BlockKind::CalloutList(node) => Self::CalloutList(node.node.clone()),
+            BlockKind::DescriptionList(node) => Self::DescriptionList(node.node.clone()),
+            BlockKind::Section(node) => Self::Section(node.node.clone()),
+            BlockKind::Paragraph(node) => Self::Paragraph(node.node.clone()),
+            BlockKind::Image(node) => Self::Image(node.node.clone()),
+            BlockKind::Audio(node) => Self::Audio(node.node.clone()),
+            BlockKind::Video(node) => Self::Video(node.node.clone()),
+            BlockKind::Comment(node) => Self::Comment(node.node.clone()),
+            BlockKind::DelimitedComment(node) => Self::DelimitedBlock(node.node.clone()),
+            BlockKind::Example(node) => Self::DelimitedBlock(node.node.clone()),
+            BlockKind::Listing(node) => Self::DelimitedBlock(node.node.clone()),
+            BlockKind::Literal(node) => Self::DelimitedBlock(node.node.clone()),
+            BlockKind::Open(node) => Self::DelimitedBlock(node.node.clone()),
+            BlockKind::Sidebar(node) => Self::DelimitedBlock(node.node.clone()),
+            BlockKind::Passthrough(node) => Self::DelimitedBlock(node.node.clone()),
+            BlockKind::Quote(node) => Self::DelimitedBlock(node.node.clone()),
+            BlockKind::Verse(node) => Self::DelimitedBlock(node.node.clone()),
+            BlockKind::Stem(node) => Self::DelimitedBlock(node.node.clone()),
+            BlockKind::Table(node) => Self::DelimitedBlock(node.block.clone()),
+        }
+    }
+}

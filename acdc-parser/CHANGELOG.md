@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Copy a typed document or block for independent edits with `Document::from` or
+  `Block::from`. Copies preserve registered catalogs, source locations, captions,
+  and table presentation. Text can still borrow from the parse result.
+
 - Library callers can read retained paragraph source text through the typed API, before inline substitutions. Constructed paragraphs have no retained source.
 
 - Use `ast::ReferencesRef::from(&catalog)` to read a caller-constructed reference catalog through the typed API without copying its entries.
