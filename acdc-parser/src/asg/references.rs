@@ -2,10 +2,10 @@ use serde_json::{Map, Value};
 
 use crate::{
     ContentAttribute, CrossReference, ElementAttributes, InlineMacro, InlineMetadata, InlineNode,
-    Mailto, Source, XrefCaptionLabel, XrefSignifier, XrefStyle,
+    Mailto, XrefCaptionLabel, XrefSignifier, XrefStyle,
 };
 
-use super::{Error, pointer, projection::inlines, unsupported};
+use super::{Error, pointer, projection::inlines, target, unsupported};
 
 type Node = Map<String, Value>;
 
@@ -190,19 +190,6 @@ fn check(
         ));
     }
     Ok(())
-}
-
-fn target(source: &Source<'_>, path: &str) -> Result<String, Error> {
-    match source {
-        Source::Path(value) => value.to_str().map(str::to_owned).ok_or_else(|| {
-            unsupported(
-                &pointer(path, "target"),
-                "a non-UTF-8 target cannot be represented as JSON text",
-            )
-        }),
-        Source::Url(value) => Ok(value.to_string()),
-        Source::Name(value) => Ok((*value).into()),
-    }
 }
 
 pub(super) fn mailto_address(target: &str) -> Option<&str> {

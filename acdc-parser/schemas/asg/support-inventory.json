@@ -3179,7 +3179,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "blocks"
     },
     "src/model/media.rs::Image": {
       "shape": {
@@ -3218,7 +3218,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "blocks"
     },
     "src/model/media.rs::InlineImage": {
       "shape": {
@@ -3365,7 +3365,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "blocks"
     },
     "src/model/metadata.rs::AttributePosition": {
       "shape": {
@@ -4032,7 +4032,7 @@
           "upstream": "#/$defs/block"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "blocks"
     },
     "src/model/mod.rs::DelimitedBlockType": {
       "shape": {
@@ -4203,7 +4203,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "blocks"
     },
     "src/model/mod.rs::Document": {
       "shape": {
@@ -4349,7 +4349,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "blocks"
     },
     "src/model/mod.rs::Paragraph": {
       "shape": {
@@ -4389,7 +4389,7 @@
           "upstream": "#/$defs/leafBlock"
         }
       },
-      "strict_export_group": "core"
+      "strict_export_group": "blocks"
     },
     "src/model/mod.rs::StemContent": {
       "shape": {
@@ -4464,7 +4464,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "blocks"
     },
     "src/model/mod.rs::ThematicBreak": {
       "shape": {
@@ -4494,7 +4494,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "blocks"
     },
     "src/model/section.rs::NumberingState": {
       "shape": {
@@ -5573,7 +5573,7 @@
       ]
     },
     "literal-content": {
-      "handling": "Resolved text, references and strong/emphasis/code/mark spans are supported. Verbatim text, invalid XML references and span controls are rejected.",
+      "handling": "Resolved text, references and strong/emphasis/code/mark spans are supported. Verbatim leaves map to text only inside supported literal/listing/verse bodies; other verbatim context, invalid XML references and span controls are rejected.",
       "tests": [
         {
           "file": "tests/asg.rs",
@@ -5590,6 +5590,10 @@
         {
           "file": "tests/asg_support.rs",
           "name": "unsupported_inline_owners_are_rejected_inside_supported_paragraphs"
+        },
+        {
+          "file": "tests/asg_blocks.rs",
+          "name": "uncaptioned_library_listing_forms_are_supported"
         }
       ]
     },
@@ -5671,6 +5675,10 @@
         {
           "file": "tests/asg_lists.rs",
           "name": "each_list_family_preserves_its_items_and_markers"
+        },
+        {
+          "file": "tests/asg_blocks.rs",
+          "name": "real_delimited_blocks_preserve_names_and_delimiters"
         }
       ]
     },
@@ -5786,7 +5794,7 @@
       ]
     },
     "references": {
-      "handling": "Links/URLs/mailto/autolinks preserve targets and effective labels; xrefs retain explicit inline labels or empty automatic labels. Populated metadata, nondefault xref controls and unrepresentable target classification are rejected. Target helpers remain rejected on unsupported media owners.",
+      "handling": "Links/URLs/mailto/autolinks preserve targets and effective labels; xrefs retain explicit inline labels or empty automatic labels. Populated metadata, nondefault xref controls and unrepresentable target classification are rejected. UTF-8 target helpers are shared by supported media owners.",
       "tests": [
         {
           "file": "tests/asg_references.rs",
@@ -5856,6 +5864,39 @@
         {
           "file": "tests/asg_lists.rs",
           "name": "list_attachments_cannot_gain_sections"
+        }
+      ]
+    },
+    "blocks": {
+      "handling": "Retained delimited, paragraph/indented leaf and macro forms preserve bodies, targets, titles and supported metadata. Video targets stay complete. Missing/ambiguous forms, parsed alt/captions, unsupported parent paragraph styles, admonition delimiter provenance, table and STEM bodies are rejected. Uncaptioned library-built listings/examples/images are representable; parsed caption state remains explicit failure.",
+      "tests": [
+        {
+          "file": "tests/asg_blocks.rs",
+          "name": "real_delimited_blocks_preserve_names_and_delimiters"
+        },
+        {
+          "file": "tests/asg_blocks.rs",
+          "name": "paragraph_and_indented_leaf_forms_have_no_delimiters"
+        },
+        {
+          "file": "tests/asg_blocks.rs",
+          "name": "media_targets_and_retained_slots_are_read_from_owners"
+        },
+        {
+          "file": "tests/asg_blocks.rs",
+          "name": "toc_discrete_heading_and_breaks_use_their_schema_forms"
+        },
+        {
+          "file": "tests/asg_blocks.rs",
+          "name": "missing_forms_and_unsupported_semantics_fail_explicitly"
+        },
+        {
+          "file": "tests/asg_blocks.rs",
+          "name": "nested_block_failures_keep_their_paths_and_owner"
+        },
+        {
+          "file": "tests/asg_blocks.rs",
+          "name": "uncaptioned_library_listing_forms_are_supported"
         }
       ]
     }

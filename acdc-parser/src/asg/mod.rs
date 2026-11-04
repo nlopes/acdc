@@ -13,7 +13,7 @@ use std::sync::OnceLock;
 
 use serde_json::{Map, Value};
 
-use crate::{Document, InlineNode, Location};
+use crate::{Document, InlineNode, Location, Source};
 
 /// Schema identifier used by this exporter.
 pub const SCHEMA_ID: &str = "https://schemas.asciidoc.org/asg/1-0-0/draft-01";
@@ -114,6 +114,19 @@ fn unsupported(path: &str, message: impl Into<String>) -> Error {
         construct: None,
         location: None,
         message: message.into(),
+    }
+}
+
+fn target(source: &Source<'_>, path: &str) -> Result<String, Error> {
+    match source {
+        Source::Path(value) => value.to_str().map(str::to_owned).ok_or_else(|| {
+            unsupported(
+                &pointer(path, "target"),
+                "a non-UTF-8 target cannot be represented as JSON text",
+            )
+        }),
+        Source::Url(value) => Ok(value.to_string()),
+        Source::Name(value) => Ok((*value).into()),
     }
 }
 

@@ -1,9 +1,8 @@
 use crate::{
-    BlockMetadata, CalloutList, CalloutListItem, CalloutRefKind, DescriptionList,
-    DescriptionListItem, ListItem, Title,
+    CalloutList, CalloutListItem, CalloutRefKind, DescriptionList, DescriptionListItem, ListItem,
 };
 
-use super::{Error, Export, Node, Target, inlines, metadata, node, pointer, unsupported};
+use super::{Error, Export, Node, inlines, metadata, node, pointer, unsupported};
 use serde_json::Value;
 
 impl<'a, 'doc> Export<'a, 'doc> {
@@ -64,18 +63,6 @@ impl<'a, 'doc> Export<'a, 'doc> {
         Ok(Value::Object(result))
     }
 
-    pub(super) fn list_metadata(
-        &mut self,
-        result: &mut Node,
-        value: &'a BlockMetadata<'doc>,
-        title: &'a Title<'doc>,
-        path: &str,
-    ) -> Result<(), Error> {
-        metadata::apply(result, value, path)?;
-        metadata::title(result, title, path)?;
-        self.target(value, title, None, path)
-    }
-
     pub(super) fn callout_list(
         &mut self,
         value: &'a CalloutList<'doc>,
@@ -96,7 +83,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             })
             .collect::<Result<Vec<_>, _>>()?;
         result.insert("items".into(), Value::Array(items));
-        self.list_metadata(&mut result, &value.metadata, &value.title, path)?;
+        self.block_metadata(&mut result, &value.metadata, Some(&value.title), path)?;
         Ok(result)
     }
 
@@ -148,7 +135,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             })
             .collect::<Result<Vec<_>, _>>()?;
         result.insert("items".into(), Value::Array(items));
-        self.list_metadata(&mut result, &value.metadata, &value.title, path)?;
+        self.block_metadata(&mut result, &value.metadata, Some(&value.title), path)?;
         Ok(result)
     }
 
@@ -180,33 +167,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             "blocks".into(),
             self.nonsection_blocks(&value.description, &pointer(path, "blocks"))?,
         );
-        if value.anchors.len() > 1 {
-            return Err(unsupported(
-                &pointer(path, "anchors"),
-                "multiple item identities need a lossless mapping",
-            ));
-        }
-        if let Some(anchor) = value.anchors.first() {
-            if anchor.is_bibliography() {
-                return Err(unsupported(
-                    &pointer(path, "anchors"),
-                    "bibliography identity has no supported upstream mapping",
-                ));
-            }
-            result.insert("id".into(), anchor.id.into());
-            if let Some(label) = &anchor.xreflabel {
-                result.insert("reftext".into(), inlines(label, &pointer(path, "reftext"))?);
-            }
-            self.insert_target(
-                anchor.id.into(),
-                Target {
-                    title: None,
-                    label: anchor.xreflabel.as_ref(),
-                    section: None,
-                },
-                path,
-            )?;
-        }
+        self.identity(&mut result, &value.anchors, None, path)?;
         metadata::location(&mut result, &value.location, path)?;
         Ok(Value::Object(result))
     }

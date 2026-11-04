@@ -13,31 +13,19 @@ type Error = Box<dyn std::error::Error + Send + Sync>;
 fn unsupported_block_owners_do_not_acquire_invented_forms() -> Result<(), Error> {
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
-        for (source, owner) in [
-            ("toc::[]", "table of contents"),
-            ("NOTE: Text.", "admonition"),
-            ("[discrete]\n== Heading", "discrete heading"),
-            ("'''", "thematic break"),
-            ("<<<", "page break"),
-            ("image::photo.png[Alt]", "block image"),
-            ("audio::track.ogg[]", "audio"),
-            ("video::movie.mp4[]", "video"),
-            ("====\nText.\n====", "example"),
-            ("----\nText.\n----", "listing"),
-            ("....\nText.\n....", "literal"),
-            ("--\nText.\n--", "open block"),
-            ("****\nText.\n****", "sidebar"),
-            ("|===\n|Cell\n|===", "table"),
-            ("++++\n<b>Text</b>\n++++", "passthrough block"),
-            ("____\nText.\n____", "quote"),
-            ("[verse]\n____\nText.\n____", "verse"),
-            ("[stem]\n++++\nx+y\n++++", "STEM block"),
+        for (source, owner, suffix) in [
+            ("NOTE: Text.", "admonition", "form"),
+            ("image::photo.png[Alt]", "block image", "alt"),
+            ("====\nText.\n====", "example", "metadata/caption"),
+            ("----\nText.\n----", "listing", "metadata/caption"),
+            ("|===\n|Cell\n|===", "table", "inner"),
+            ("[stem]\n++++\nx+y\n++++", "STEM block", "inner"),
         ] {
             let parsed = parse(source, &options)?;
             assert!(
                 matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {
                 path, construct: Some(actual), ..
-            }) if path == "/blocks/0" && actual == owner),
+            }) if path == format!("/blocks/0/{suffix}") && actual == owner),
                 "{mode:?}: {owner}: {source}"
             );
         }

@@ -108,6 +108,7 @@ operations, raw text with exactly one escaping stage, resolved typographic
 symbols, strong/emphasis/code/mark spans without inline IDs or roles, and supported
 links and cross-references. Ordered, unordered, callout and description lists retain
 their item structure.
+Supported delimited, leaf and macro blocks retain their actual forms and bodies.
 Titles and reference labels retain their inline structure and empty presence.
 Document presence is an empty string, explicit unsets are null, and integers
 retain their attribute-reference spelling. Protected document values are rejected
@@ -121,11 +122,11 @@ scalar values, multiple IDs, bibliography meaning, and independent reference
 labels are rejected. A primary block ID and its selected reftext are promoted
 to the block. Source coordinates of the ID token have no upstream field.
 
-Unsupported values include other block forms, other inline macros, missing span
+Unsupported values include uncovered block forms, other inline macros, missing span
 variants, inline identities/controls, subtitles/header metadata, ordered body
 assignments, captions, attribution/citation, explicit block substitutions, and
-nondefault section category/numbering. Verbatim content requires a supported
-literal or listing block mapping; it cannot be flattened into paragraph text.
+nondefault section category/numbering. Verbatim leaves require a supported literal, listing or verse body; they cannot
+be flattened into ordinary paragraph text.
 A section without a title is rejected, while a present empty title stays an
 empty array.
 
@@ -154,7 +155,7 @@ The property inventory remains authoritative for each declaration.
 [cols="2,1,5",options="header"]
 |===
 |Group |Declarations |Current handling
-|`core` |8 |Documents, headers/authors, paragraphs and ordinary sections; recurse into all owned content.
+|`core` |7 |Documents, headers/authors, paragraphs and ordinary sections; recurse into all owned content.
 |`literal-content` |13 |Resolved text/references and four span forms; reject unsupported controls and verbatim context.
 |`block-metadata` |7 |Preserve supported scalar values, identity and slots; reject unsupported presence or independent meaning.
 |`document-values` |7 |Preserve resolved assignments; reject protected insertion behavior.
@@ -169,7 +170,8 @@ The property inventory remains authoritative for each declaration.
 |`inline-controls` |4 |Reject identities/roles on supported spans and populated controls on unsupported macros.
 |`references` |11 |Preserve link/xref targets and effective labels; reject unsupported controls and ambiguous target classification.
 |`lists` |11 |Preserve list families, markers, terms, principal and nested content; reject checklists and unrecoverable item state.
-|`unsupported-owners` |45 |Reject the entire block, inline, macro or payload without inventing a form.
+|`blocks` |9 |Preserve supported forms, bodies and media targets; reject missing provenance or unsupported content properties.
+|`unsupported-owners` |37 |Reject the entire block, inline, macro or payload without inventing a form.
 |===
 
 The evidence covers positive mappings, rejected owners/properties and permitted
@@ -217,3 +219,27 @@ Inline callout references and their associations remain unsupported.
 Empty lists, checklist state, independent levels, unsupported nested content and
 sections inside item attachments fail explicitly. Supported list metadata and
 catalog entries use the same rules as other supported blocks.
+
+== Blocks and media
+
+Supported delimited bodies keep their opening delimiter. Literal, listing and verse
+bodies can contain verbatim leaves because the owning block preserves their
+presentation. Code in an ordinary paragraph still fails. Indented and styled leaf
+paragraphs retain their source form from the native paragraph and its retained
+pre-inline source; export does not invent a delimiter. Unsupported parent paragraph
+forms and synthetic quote markers fail explicitly.
+
+Audio, video, image and TOC nodes use macro form. Targets come from the native source;
+video playlists remain one complete target, including commas. The provider selector stays in
+its retained `poster` attribute, as supplied by the native owner. Retained positional slots follow the selected parser
+policy; a consumed provider is not reinserted as an extra slot. Discrete headings
+retain their level and present title, and page/thematic breaks retain their variant.
+Single ordinary identities use the same rules as other supported owners.
+
+Every semantic property must still have a mapping. Parsed captions, including
+unnumbered caption state, and explicit image alternative content are rejected until
+supported by a named content extension. Uncaptioned library-built listings, examples
+and images can be exported. Tables and block STEM remain unsupported. Admonitions
+currently lack their real delimiter in the native owner, so export rejects that
+missing provenance; it does not infer a universal example delimiter. Extension
+support must preserve the paragraph/delimited distinction and actual opening token.

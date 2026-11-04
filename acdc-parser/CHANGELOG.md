@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Checked ASG export preserves supported block forms, literal bodies, TOC/discrete headings, breaks and media targets, including complete video playlists. Missing source forms and unsupported semantic properties fail explicitly. Parsed captions and image alternative content still need a named content extension; they are not flattened into scalar attributes.
+
 - Checked ASG export supports ordered, unordered, callout and description lists, including formatted terms, attached blocks and supported identities/metadata. Callout markers retain resolved numbering and automatic form. Checklists, unrecoverable item state and unsupported nested content fail with item/property paths.
 
 - Checked ASG export supports links, URL macros, mail links, autolinks and default cross-references. Formatted labels stay structured; automatic link labels, URI scheme hiding and encoded mail subjects/bodies retain their meaning. Unsupported reference controls and ambiguous target classification fail with property paths.

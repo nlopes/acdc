@@ -1,3 +1,4 @@
+mod blocks;
 mod lists;
 
 use std::collections::BTreeMap;
@@ -19,6 +20,18 @@ fn node(name: &str, kind: &str) -> Node {
 }
 
 pub(super) fn inlines(values: &[InlineNode<'_>], path: &str) -> Result<Value, Error> {
+    project_inlines(values, path, false)
+}
+
+fn literal_inlines(values: &[InlineNode<'_>], path: &str) -> Result<Value, Error> {
+    project_inlines(values, path, true)
+}
+
+fn project_inlines(
+    values: &[InlineNode<'_>],
+    path: &str,
+    literal_content: bool,
+) -> Result<Value, Error> {
     let mut result = Vec::new();
     for value in values {
         let bracketed_email = matches!(value, InlineNode::Macro(crate::InlineMacro::Autolink(link))
@@ -27,7 +40,17 @@ pub(super) fn inlines(values: &[InlineNode<'_>], path: &str) -> Result<Value, Er
             result.push(Value::Object(literal("text", "<")));
         }
         let at = pointer(path, &result.len().to_string());
-        result.push(inline(value, &at)?);
+        let projected = if let InlineNode::VerbatimText(text) = value
+            && literal_content
+        {
+            let mut result = literal("text", text.content);
+            metadata::location(&mut result, &text.location, &at)
+                .map_err(|error| error.with_context("verbatim text", &text.location))?;
+            Value::Object(result)
+        } else {
+            inline(value, &at)?
+        };
+        result.push(projected);
         if bracketed_email {
             result.push(Value::Object(literal("text", ">")));
         }
@@ -303,26 +326,16 @@ impl<'a, 'doc> Export<'a, 'doc> {
 
     fn block(&mut self, value: &'a Block<'doc>, at: &str) -> Result<Option<Value>, Error> {
         let projected = match value {
-            Block::Paragraph(paragraph) => {
-                let mut result = node("paragraph", "block");
-                metadata::apply(&mut result, &paragraph.metadata, at)?;
-                metadata::title(&mut result, &paragraph.title, at)?;
-                result.insert(
-                    "inlines".into(),
-                    inlines(&paragraph.content, &pointer(at, "inlines"))?,
-                );
-                self.target(&paragraph.metadata, &paragraph.title, None, at)?;
-                result
-            }
+            Block::Paragraph(paragraph) => self.paragraph(paragraph, at)?,
             Block::Section(section) => self.section(section, at)?,
             Block::UnorderedList(list) => {
                 let mut result = self.list(&list.items, list.marker, "unordered", at)?;
-                self.list_metadata(&mut result, &list.metadata, &list.title, at)?;
+                self.block_metadata(&mut result, &list.metadata, Some(&list.title), at)?;
                 result
             }
             Block::OrderedList(list) => {
                 let mut result = self.list(&list.items, list.marker, "ordered", at)?;
-                self.list_metadata(&mut result, &list.metadata, &list.title, at)?;
+                self.block_metadata(&mut result, &list.metadata, Some(&list.title), at)?;
                 result
             }
             Block::CalloutList(list) => self.callout_list(list, at)?,
@@ -340,19 +353,68 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 metadata::empty(&block.metadata, at)?;
                 return Ok(None);
             }
-            Block::TableOfContents(_)
-            | Block::Admonition(_)
-            | Block::DiscreteHeader(_)
-            | Block::DocumentAttribute(_)
-            | Block::ThematicBreak(_)
-            | Block::PageBreak(_)
-            | Block::DelimitedBlock(_)
-            | Block::Image(_)
-            | Block::Audio(_)
-            | Block::Video(_) => {
+            Block::DelimitedBlock(block) => self.delimited(block, at)?,
+            Block::Image(image) => {
+                if image.alt.is_some() {
+                    return Err(unsupported(
+                        &pointer(at, "alt"),
+                        "parsed alternative content needs an explicit content-attribute mapping",
+                    ));
+                }
+                self.block_macro(
+                    "image",
+                    Some(&image.source),
+                    Some(&image.title),
+                    &image.metadata,
+                    at,
+                )?
+            }
+            Block::Audio(audio) => self.block_macro(
+                "audio",
+                Some(&audio.source),
+                Some(&audio.title),
+                &audio.metadata,
+                at,
+            )?,
+            Block::Video(video) => self.block_macro(
+                "video",
+                Some(&video.source),
+                Some(&video.title),
+                &video.metadata,
+                at,
+            )?,
+            Block::TableOfContents(toc) => {
+                self.block_macro("toc", None, None, &toc.metadata, at)?
+            }
+            Block::DiscreteHeader(heading) => self.heading(heading, at)?,
+            Block::PageBreak(page) => {
+                let mut result = node("break", "block");
+                result.insert("variant".into(), "page".into());
+                self.block_metadata(&mut result, &page.metadata, Some(&page.title), at)?;
+                result
+            }
+            Block::ThematicBreak(thematic) => {
+                let mut result = node("break", "block");
+                result.insert("variant".into(), "thematic".into());
+                metadata::title(&mut result, &thematic.title, at)?;
+                self.identity(&mut result, &thematic.anchors, Some(&thematic.title), at)?;
+                result
+            }
+            Block::Admonition(value) => {
+                let property = if value.paragraph_form {
+                    "form"
+                } else {
+                    "delimiter"
+                };
+                return Err(unsupported(
+                    &pointer(at, property),
+                    "the actual admonition source form needs a supported mapping",
+                ));
+            }
+            Block::DocumentAttribute(_) => {
                 return Err(unsupported(
                     at,
-                    "this block form has no supported upstream mapping",
+                    "ordered body assignments have no supported upstream mapping",
                 ));
             }
         };
@@ -387,7 +449,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             inlines(section.title.as_ref(), &pointer(at, "title"))?,
         );
         result.insert("level".into(), section.level.into());
-        self.target(&section.metadata, &section.title, Some(section), at)?;
+        self.target(&section.metadata, Some(&section.title), Some(section), at)?;
         result.insert(
             "blocks".into(),
             self.blocks(&section.content, &pointer(at, "blocks"))?,
@@ -398,7 +460,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
     fn target(
         &mut self,
         metadata: &'a BlockMetadata<'doc>,
-        title: &'a Title<'doc>,
+        title: Option<&'a Title<'doc>>,
         section: Option<&'a Section<'doc>>,
         path: &str,
     ) -> Result<(), Error> {
@@ -407,7 +469,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             .or_else(|| metadata::anchor(metadata).map(|anchor| anchor.id.to_string()));
         if let Some(id) = id {
             let target = Target {
-                title: title.is_present().then_some(title),
+                title: title.filter(|title| title.is_present()),
                 label: metadata::label(metadata),
                 section,
             };

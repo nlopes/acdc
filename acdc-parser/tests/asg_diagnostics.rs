@@ -114,7 +114,7 @@ fn omitted_comments_do_not_shift_error_paths() -> Result<(), Error> {
     assert!(
         matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {
         path, construct: Some("block image"), location: Some(_), ..
-    }) if path == "/blocks/0")
+    }) if path == "/blocks/0/alt")
     );
     Ok(())
 }
