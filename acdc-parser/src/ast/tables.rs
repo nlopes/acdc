@@ -62,6 +62,30 @@ impl<'doc> TableRef<'doc> {
         LocationRef::from(&self.block.location)
     }
 
+    /// The retained table delimiter, such as `|===` or `!===`.
+    #[must_use]
+    pub fn delimiter(self) -> &'doc str {
+        self.block.delimiter
+    }
+
+    /// The opening delimiter's source span, if retained.
+    #[must_use]
+    pub fn open_delimiter_location(self) -> Option<LocationRef<'doc>> {
+        self.block
+            .open_delimiter_location
+            .as_ref()
+            .map(LocationRef::from)
+    }
+
+    /// The closing delimiter's source span, if retained.
+    #[must_use]
+    pub fn close_delimiter_location(self) -> Option<LocationRef<'doc>> {
+        self.block
+            .close_delimiter_location
+            .as_ref()
+            .map(LocationRef::from)
+    }
+
     /// The header row, including a present empty row.
     #[must_use]
     pub fn header(self) -> Option<TableRowRef<'doc>> {

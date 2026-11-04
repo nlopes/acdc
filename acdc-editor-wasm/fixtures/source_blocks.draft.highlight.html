@@ -1,0 +1,96 @@
+<span class="adoc-title">= Block source</span>
+<span class="adoc-attribute">:toc:</span>
+<span class="adoc-attribute">:stem:</span>
+
+<span class="adoc-attribute"><span class="adoc-block-title">.Block <span class="adoc-bold"><span class="adoc-delimiter">*</span>title<span class="adoc-delimiter">*</span></span></span>
+[#<span class="adoc-anchor">paragraph</span>.role]
+</span>Paragraph.
+
+<span class="adoc-heading">== Heading</span>
+
+<span class="adoc-heading">[discrete]
+=== Discrete</span>
+
+<span class="adoc-list-marker">* </span><span class="adoc-checklist">[x] </span>Checked
+<span class="adoc-list-marker">* </span><span class="adoc-checklist">[ ] </span>Unchecked
++
+Attached <span class="adoc-bold"><span class="adoc-delimiter">*</span>paragraph<span class="adoc-delimiter">*</span></span>.
+
+<span class="adoc-list-marker">. </span>Ordered
+<span class="adoc-list-marker">. </span>Second
+
+Term<span class="adoc-description-marker">::</span> Description with <span class="adoc-italic"><span class="adoc-delimiter">_</span>formatting<span class="adoc-delimiter">_</span></span>.
+
+<span class="adoc-attribute">[source,rust]
+</span><span class="adoc-delimiter">----</span>
+<span class="adoc-code-content">let value = 1; // </span><span class="adoc-callout">&lt;1&gt;</span>
+<span class="adoc-delimiter">----</span>
+<span class="adoc-callout">&lt;1&gt; Callout explanation.</span>
+
+<span class="adoc-delimiter">....</span>
+<span class="adoc-literal-content">Literal &lt;content&gt;.</span>
+<span class="adoc-delimiter">....</span>
+
+<span class="adoc-delimiter">++++</span>
+<span class="adoc-passthrough-content">&lt;strong&gt;Raw HTML&lt;/strong&gt;</span>
+<span class="adoc-delimiter">++++</span>
+
+<span class="adoc-attribute">[verse]
+</span><span class="adoc-delimiter">____</span>
+<span class="adoc-bold"><span class="adoc-delimiter">*</span>Verse<span class="adoc-delimiter">*</span></span> line.
+<span class="adoc-delimiter">____</span>
+
+<span class="adoc-attribute">[quote,Author,Book]
+</span><span class="adoc-delimiter">____</span>
+Quoted <span class="adoc-bold"><span class="adoc-delimiter">*</span>paragraph<span class="adoc-delimiter">*</span></span>.
+<span class="adoc-delimiter">____</span>
+
+<span class="adoc-admonition">NOTE:</span> A note.
+
+<span class="adoc-attribute">[IMPORTANT]
+</span>====
+An admonition block.
+====
+
+<span class="adoc-attribute"><span class="adoc-block-title">.Example</span>
+</span><span class="adoc-delimiter">====</span>
+Nested <span class="adoc-bold"><span class="adoc-delimiter">*</span>paragraph<span class="adoc-delimiter">*</span></span>.
+<span class="adoc-delimiter">====</span>
+
+<span class="adoc-delimiter">****</span>
+Sidebar <span class="adoc-italic"><span class="adoc-delimiter">_</span>content<span class="adoc-delimiter">_</span></span>.
+<span class="adoc-delimiter">****</span>
+
+<span class="adoc-delimiter">--</span>
+Open block.
+<span class="adoc-delimiter">--</span>
+
+<span class="adoc-attribute">[cols=&quot;a,a&quot;,options=header]
+</span><span class="adoc-table-delimiter"><span class="adoc-table-cell">|</span>===</span>
+<span class="adoc-table-cell">|</span>First <span class="adoc-table-cell">|</span>Second
+<span class="adoc-table-cell">|</span><span class="adoc-bold"><span class="adoc-delimiter">*</span>Cell<span class="adoc-delimiter">*</span></span> <span class="adoc-table-cell">|</span>Another cell
+<span class="adoc-table-delimiter">|===</span>
+
+<span class="adoc-attribute">[stem]<span class="adoc-code-content">
+</span><span class="adoc-delimiter">++++</span>
+x^2
+</span><span class="adoc-delimiter">++++</span>
+
+<span class="adoc-macro">image::<span class="adoc-macro-target">bird.svg</span>[<span class="adoc-macro-attrs">Bird</span>]</span>
+
+<span class="adoc-macro">audio::<span class="adoc-macro-target">bird.ogg</span>[]</span>
+
+<span class="adoc-macro">video::<span class="adoc-macro-target">bird.mp4</span>[]</span>
+
+<span class="adoc-thematic-break">'''</span>
+
+<span class="adoc-page-break">&lt;&lt;&lt;</span>
+
+<span class="adoc-comment">// Line comment
+</span>
+<span class="adoc-delimiter">////</span>
+<span class="adoc-comment">Block comment.</span>
+<span class="adoc-delimiter">////</span>
+
+<span class="adoc-macro">toc::[]
+</span>

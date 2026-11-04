@@ -259,6 +259,17 @@ To run it locally:
 
 The editor is live at https://acdc.nlopes.dev
 
+## Tests
+
+Native tests compare source highlighting and preview output in both compatibility modes.
+To regenerate one fixture from the workspace root:
+
+```console
+cargo run -p acdc-editor-wasm --example generate_fixtures --all-features -- source_inlines
+```
+
+The generator also accepts `source_blocks`.
+
 ## License
 
 MIT

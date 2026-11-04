@@ -135,7 +135,7 @@ fn render_parsed(
         .collect();
 
     let document = parsed.document();
-    let highlight_html = ast_highlight::highlight_from_ast(input, document);
+    let highlight_html = ast_highlight::highlight_from_ast(input, parsed.document_ref());
 
     let render_options = RenderOptions {
         embedded: true,
@@ -175,6 +175,41 @@ mod tests {
     use acdc_parser::DocumentAttributeValue;
 
     use super::*;
+
+    #[test]
+    fn source_fixtures_preserve_highlighting_and_preview_in_both_modes() -> Result<(), String> {
+        for (source, mode, highlight, preview) in [
+            (
+                include_str!("../fixtures/source_inlines.adoc"),
+                CompatibilityMode::Asciidoctor,
+                include_str!("../fixtures/source_inlines.asciidoctor.highlight.html"),
+                include_str!("../fixtures/source_inlines.asciidoctor.preview.html"),
+            ),
+            (
+                include_str!("../fixtures/source_inlines.adoc"),
+                CompatibilityMode::Draft,
+                include_str!("../fixtures/source_inlines.draft.highlight.html"),
+                include_str!("../fixtures/source_inlines.draft.preview.html"),
+            ),
+            (
+                include_str!("../fixtures/source_blocks.adoc"),
+                CompatibilityMode::Asciidoctor,
+                include_str!("../fixtures/source_blocks.asciidoctor.highlight.html"),
+                include_str!("../fixtures/source_blocks.asciidoctor.preview.html"),
+            ),
+            (
+                include_str!("../fixtures/source_blocks.adoc"),
+                CompatibilityMode::Draft,
+                include_str!("../fixtures/source_blocks.draft.highlight.html"),
+                include_str!("../fixtures/source_blocks.draft.preview.html"),
+            ),
+        ] {
+            let result = parse_and_render_with_mode(source, mode)?;
+            assert_eq!(result.highlight_html, highlight, "{mode:?} highlight");
+            assert_eq!(result.preview_html, preview, "{mode:?} preview");
+        }
+        Ok(())
+    }
 
     #[test]
     fn warnings_keep_nested_source_files_and_unicode_positions()

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Library callers can read table delimiter spelling and opening/closing source ranges through typed table reads, including nested tables and selected includes.
+
 - Preserve IDs and roles on single-, double-, and triple-plus passthroughs in Asciidoctor mode. Protected text stays escaped; raw content stays raw. Draft keeps these prefixes literal until its span syntax is defined.
 
 - Explained how semantic regression checks complement ASG validation in both compatibility modes.
