@@ -1,0 +1,23 @@
+[1m[4mAttribute boundaries[0m
+Earlier paragraph.
+[38;5;10m│ [39m[3mQuote body.[0m
+[38;5;10m│[39m
+[2m—[0m [2m[3mπ © → — [0m, [2m[3mBook → — [0m
+[38;5;13m┊ [39mVerse body.
+[38;5;13m┊[39m
+[2m—[0m [2m[3mπ © → — [0m, [2m[3mBook → — [0m
+[3m[Image: bird][0m[2m (bird.png)[0m
+  π © → — Figure → — 
+[38;5;12m[4mπ © → — , “Figure → — ”[24m[39m.
+
+[38;5;12m│[39m ℹ️ [1mπ © → — :[0m
+[38;5;12m│[39m Admonition body.
+[38;5;12m│[39m
+π © → — Paragraph.
+π © → — Paragraph.
+[38;5;10m│ [39m[3mNested credits.[0m
+[38;5;10m│[39m
+[2m—[0m [2m[3m-- — [0m, [2m[3minner -- — [0m
+[38;5;10m│ [39m[3mLiteral credits.[0m
+[38;5;10m│[39m
+[2m—[0m [2m[3mπ (C) -> --[0m, [2m[3m*Book* --[0m

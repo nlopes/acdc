@@ -345,6 +345,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Formatted named block titles, single-quoted quote credits, and custom captions now resolve typography at both text edges, matching asciidoctor. Literal values and nested inline boundaries stay unchanged.
+
 - Recognize page-break lines at end of file, with or without a final newline,
   including CRLF input. Runs of three or more `<` characters match Asciidoctor.
   Page-break source ranges end on the marker instead of the next character.

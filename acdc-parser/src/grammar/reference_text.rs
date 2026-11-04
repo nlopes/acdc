@@ -7,6 +7,7 @@ use super::{
     attributes::{AttributeQuote, ResolvedContentAttribute, expand_attribute_list},
     inline_preprocessor::SourceMap,
     inline_processing::process_attribute_inlines_with_substitutions,
+    state::InlineRules,
 };
 use crate::{
     CompatibilityMode, ContentAttribute, Error, InlineNode, Raw, Substitution,
@@ -144,7 +145,12 @@ pub(super) fn resolve<'a>(
     let nodes = if value.text.is_empty() {
         Vec::new()
     } else if let Some(substitutions) = source.substitutions {
-        process_attribute_inlines_with_substitutions(state, value, substitutions)?
+        process_attribute_inlines_with_substitutions(
+            state,
+            value,
+            substitutions,
+            InlineRules::default(),
+        )?
     } else {
         vec![InlineNode::RawText(Raw {
             content: value.text,

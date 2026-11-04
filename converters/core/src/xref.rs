@@ -288,7 +288,7 @@ fn caption_prefix(caption: CaptionRef<'_>, xref: CrossReferenceRef<'_>) -> Optio
         }
         CaptionRef::CustomContent(content) => {
             let prefix = crate::inline_text::InlineTextTransform::default()
-                .rendered_replacements(true)
+                .rendered_replacements(false)
                 .content_to_string(content);
             (!prefix.is_empty()).then(|| prefix.strip_suffix(". ").unwrap_or(&prefix).to_string())
         }

@@ -27,13 +27,19 @@ pub(super) fn process_attribute_inlines<'a>(
     if state.options.compatibility_mode == crate::CompatibilityMode::Draft {
         substitutions = substitutions.without(&Substitution::Attributes);
     }
-    process_attribute_inlines_with_substitutions(state, source, substitutions)
+    process_attribute_inlines_with_substitutions(
+        state,
+        source,
+        substitutions,
+        InlineRules::default() | InlineRules::ISOLATED_TEXT,
+    )
 }
 
 pub(super) fn process_attribute_inlines_with_substitutions<'a>(
     state: &ParserState<'a>,
     source: &ResolvedContentAttribute<'a>,
     substitutions: SubstitutionPlan,
+    rules: InlineRules,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
     let metadata = BlockParsingMetadata {
         substitutions,
@@ -45,7 +51,7 @@ pub(super) fn process_attribute_inlines_with_substitutions<'a>(
         &source.source_map,
         &metadata,
         &source.attributes,
-        InlineRules::default(),
+        rules,
     )
 }
 

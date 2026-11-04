@@ -128,6 +128,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Admonition image alternatives now preserve the same resolved caption text as the visible caption.
+
 - Image alternative text and tooltips retain curved quotation marks.
 
 - Honor block `subs=` settings in every build, including HTML escaping for

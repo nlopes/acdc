@@ -254,6 +254,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Generated cross-reference labels now preserve the resolved custom caption text, including escaped typography and literal values.
+
 - Plain-text output preserves curved quotation marks around formatted content,
   including image alternative text and tooltips.
 

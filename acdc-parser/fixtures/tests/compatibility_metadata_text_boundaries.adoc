@@ -1,0 +1,43 @@
+= Attribute boundaries
+:icons: image
+:xrefstyle: full
+
+Earlier paragraph.
+
+[quote,attribution='π (C) -> --',citetitle='Book -> --']
+____
+Quote body.
+____
+
+[verse,'π (C) -> --','Book -> --']
+____
+Verse body.
+____
+
+[[figure]]
+[caption='π (C) -> --']
+.Figure -> --
+image::bird.png[]
+
+<<figure>>.
+
+[NOTE,caption='π (C) -> --']
+====
+Admonition body.
+====
+
+[title='π (C) -> --']
+Paragraph.
+
+[title="π (C) -> --"]
+Paragraph.
+
+[quote,attribution='link:https://example.org[--] --',citetitle='*inner --* --']
+____
+Nested credits.
+____
+
+[quote,attribution="π (C) -> --",citetitle="*Book* --"]
+____
+Literal credits.
+____
