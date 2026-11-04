@@ -5738,7 +5738,7 @@
       "handling": "Ordinary unnumbered sections are supported. Nondefault category/numbering, captions, attribution/citation and bibliography labels are rejected on supported owners.",
       "tests": [
         {
-          "file": "tests/asg_diagnostics.rs",
+          "file": "src/ast/tests/section_asg_storage.rs",
           "name": "section_policy_errors_identify_the_native_property"
         },
         {

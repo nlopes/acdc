@@ -19,10 +19,12 @@ fn assert_detection(blocks: &[Block<'_>], expected: bool) {
     );
 }
 
-fn index_section() -> Block<'static> {
+fn index_section() -> Result<Block<'static>, Error> {
     let mut section = Section::new(Title::default(), 1, Vec::new(), Location::default());
-    section.kind = SectionKind::Index;
-    Block::Section(section)
+    let mut metadata = section.take_metadata();
+    metadata.style = SectionKind::Index.as_style();
+    section.set_metadata(metadata)?;
+    Ok(Block::Section(section))
 }
 
 #[test]
@@ -108,10 +110,10 @@ fn index_detection_reaches_asciidoc_table_cells() -> Result<(), Error> {
 #[test]
 fn index_detection_preserves_constructed_compound_and_list_boundaries() -> Result<(), Error> {
     for inner in [
-        DelimitedBlockType::DelimitedExample(vec![index_section()]),
-        DelimitedBlockType::DelimitedOpen(vec![index_section()]),
-        DelimitedBlockType::DelimitedQuote(vec![index_section()]),
-        DelimitedBlockType::DelimitedSidebar(vec![index_section()]),
+        DelimitedBlockType::DelimitedExample(vec![index_section()?]),
+        DelimitedBlockType::DelimitedOpen(vec![index_section()?]),
+        DelimitedBlockType::DelimitedQuote(vec![index_section()?]),
+        DelimitedBlockType::DelimitedSidebar(vec![index_section()?]),
     ] {
         let block = Block::DelimitedBlock(DelimitedBlock::new(inner, "", Location::default()));
         assert_detection(&[block], true);
@@ -119,7 +121,7 @@ fn index_detection_preserves_constructed_compound_and_list_boundaries() -> Resul
     assert_detection(
         &[Block::Admonition(Admonition::new(
             AdmonitionVariant::Note,
-            vec![index_section()],
+            vec![index_section()?],
             Location::default(),
         ))],
         true,
@@ -127,13 +129,16 @@ fn index_detection_preserves_constructed_compound_and_list_boundaries() -> Resul
     let mut section = Section::new(
         Title::default(),
         1,
-        vec![index_section()],
+        vec![index_section()?],
         Location::default(),
     );
     assert_detection(&[Block::Section(section.clone())], true);
-    section.content.clear();
-    section.metadata.style = Some("index");
-    assert_detection(&[Block::Section(section)], false);
+    section.set_blocks([]);
+    assert_detection(&[Block::Section(section.clone())], false);
+    let mut metadata = section.take_metadata();
+    metadata.style = Some("index");
+    section.set_metadata(metadata)?;
+    assert_detection(&[Block::Section(section)], true);
 
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
@@ -171,7 +176,7 @@ fn index_detection_preserves_constructed_compound_and_list_boundaries() -> Resul
             } else {
                 return Err(format!("expected a list in {source:?}").into());
             };
-            attachments.push(index_section());
+            attachments.push(index_section()?);
             assert_detection(&blocks, true);
         }
     }
@@ -200,7 +205,7 @@ fn index_detection_preserves_stored_cell_style_fallback_in_every_row_group() -> 
         };
         first.colspan = 2;
         first.style = Some(ColumnStyle::Default);
-        second.content = vec![index_section()];
+        second.content = vec![index_section()?];
         for fallback in [
             ColumnStyle::Default,
             ColumnStyle::AsciiDoc,
@@ -274,8 +279,8 @@ fn typed_index_detection_accepts_short_lived_and_single_pass_inputs() -> Result<
             Vec::new(),
             Location::default(),
         )),
-        index_section(),
-        index_section(),
+        index_section()?,
+        index_section()?,
     ];
     let mut remaining = blocks.iter().map(BlockRef::from);
     let mut pulled = 0;

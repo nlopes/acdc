@@ -136,6 +136,12 @@ owned setters or `take_*` methods to edit it. `set_metadata` rejects conflicting
 scalar attributes before changing the paragraph. Content edits retain the original
 `source_text()` snapshot and do not rebuild document registrations.
 
+`Section` uses the same checked metadata and owned content operations. Its style
+selects the section kind. Title and role edits preserve an assigned ID, including
+collision suffixes; changing the selected authored ID clears the local assignment.
+Setters leave document catalogs unchanged. Call `renumber_sections()` to update
+numbers after changing levels, styles, numbering policy or the section tree.
+
 `IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
 option tokens. An icon ID is retained even when a converter does not emit it.
 To construct an icon, use `Icon::new(target, location)` and edit its content and

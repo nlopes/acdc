@@ -40,3 +40,6 @@ mod catalog_storage;
 #[cfg(feature = "asg")]
 mod paragraph_asg_storage;
 mod paragraph_caption_storage;
+
+#[cfg(feature = "asg")]
+mod section_asg_storage;

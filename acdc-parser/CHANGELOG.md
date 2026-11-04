@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `Section` fields are private. Read through `ast::SectionRef` and
+  use owned setters and `take_*` methods to edit prepared content. Metadata edits
+  classify special sections from their style and preserve assigned IDs unless the
+  selected authored ID changes. Edits do not rebuild document catalogs.
+
 - **Breaking:** `Paragraph` fields are private. Read through `ast::ParagraphRef`
   and use the owned `set_*`, `take_*`, and `push_inline` methods to edit it.
   Invalid metadata is rejected without changing the paragraph. Content edits

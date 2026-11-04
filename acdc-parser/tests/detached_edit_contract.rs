@@ -203,8 +203,10 @@ fn nonidentity_edits_keep_parser_assigned_collision_ids(
     let Block::Section(second) = blocks.get_mut(1).ok_or("second section")? else {
         return Err("section".into());
     };
-    second.metadata.roles.push("highlighted");
-    second.title = Title::new(Vec::new());
+    let mut metadata = second.clone_metadata();
+    metadata.roles.push("highlighted");
+    second.set_metadata(metadata)?;
+    second.set_title(Title::new(Vec::new()));
     let section = SectionRef::from(&*second);
     assert_eq!(section.id().ok_or("assigned ID")?.as_str(), "_same_2");
     assert!(section.title().is_some_and(ContentRef::is_empty));

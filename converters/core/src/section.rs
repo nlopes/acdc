@@ -2,7 +2,7 @@
 
 use acdc_parser::{
     Block, ColumnStyle, SectionKind,
-    ast::{BlockKind, BlockRef, ColumnFormatRef},
+    ast::{BlockKind, BlockRef, ColumnFormatRef, SectionRef},
 };
 
 use crate::TraversalContext;
@@ -17,7 +17,7 @@ pub fn last_section_has_style(blocks: &[Block<'_>], style: &str) -> bool {
             None
         }
     });
-    last_section.is_some_and(|section| section.metadata.style.is_some_and(|value| value == style))
+    last_section.is_some_and(|section| SectionRef::from(section).style() == Some(style))
 }
 
 /// Whether the document contains an index section, including nested `AsciiDoc` cells.

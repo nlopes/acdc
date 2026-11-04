@@ -47,3 +47,22 @@ fn renumbering_the_sections_refreshes_the_catalog() -> Result<(), Error> {
     );
     Ok(())
 }
+
+#[test]
+fn section_kind_reads_preserve_an_inconsistent_private_storage_snapshot() {
+    let mut section = crate::Section::new(
+        crate::Title::default(),
+        1,
+        Vec::new(),
+        crate::Location::default(),
+    );
+    section.metadata.style = Some("index");
+    assert_eq!(
+        crate::ast::SectionRef::from(&section).kind(),
+        crate::SectionKind::Normal
+    );
+    assert_eq!(
+        crate::ast::SectionRef::from(&section).style(),
+        Some("index")
+    );
+}

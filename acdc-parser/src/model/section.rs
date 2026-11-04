@@ -164,19 +164,19 @@ impl SectionKind {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Section<'a> {
-    pub metadata: BlockMetadata<'a>,
-    pub title: Title<'a>,
-    pub level: SectionLevel,
-    pub content: Vec<Block<'a>>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) title: Title<'a>,
+    pub(crate) level: SectionLevel,
+    pub(crate) content: Vec<Block<'a>>,
     /// The section's structural category (special-section style, or `Normal`).
-    pub kind: SectionKind,
+    pub(crate) kind: SectionKind,
     numbering: SectionNumbering,
     pub(crate) id: Option<&'a str>,
-    // Preserve the assigned origin when callers later edit metadata directly.
+    // Retain the origin of the assigned ID across semantic edits.
     pub(crate) id_generated: bool,
     // Retained until the reference catalog assigns the section's ID.
     pub(crate) reference_text: Option<&'a str>,
-    pub location: Location,
+    pub(crate) location: Location,
 }
 
 impl<'a> Section<'a> {
@@ -233,11 +233,86 @@ impl<'a> Section<'a> {
         mut self,
         metadata: BlockMetadata<'a>,
     ) -> Result<Self, crate::ReservedAttribute> {
-        metadata.validate_attributes(&["title"])?;
-        self.metadata = metadata;
-        self.id = None;
-        self.id_generated = false;
+        self.set_metadata(metadata)?;
         Ok(self)
+    }
+
+    /// Replace metadata and classify the section from its prepared style.
+    ///
+    /// Title and role edits keep the assigned ID. Changing the selected authored
+    /// ID clears its local assignment without repairing document catalogs.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated fields, leaving the section unchanged.
+    pub fn set_metadata(
+        &mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<(), crate::ReservedAttribute> {
+        metadata.validate_attributes(&["title"])?;
+        if Self::explicit_id(&self.metadata) != Self::explicit_id(&metadata) {
+            self.id = None;
+            self.id_generated = false;
+        }
+        self.kind = SectionKind::from_style(metadata.style);
+        self.metadata = metadata;
+        Ok(())
+    }
+
+    /// Copy metadata to prepare a checked replacement, retaining its source lifetime.
+    #[must_use]
+    pub fn clone_metadata(&self) -> BlockMetadata<'a> {
+        self.metadata.clone()
+    }
+
+    /// Remove metadata, clearing an authored ID assignment and the special style.
+    ///
+    /// An assigned generated ID is retained. Document catalogs are unchanged.
+    #[must_use]
+    pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
+        if Self::explicit_id(&self.metadata).is_some() {
+            self.id = None;
+            self.id_generated = false;
+        }
+        self.kind = SectionKind::Normal;
+        std::mem::take(&mut self.metadata)
+    }
+
+    /// Replace prepared title content without changing an assigned ID or catalogs.
+    pub fn set_title(&mut self, title: Title<'a>) {
+        self.title = title;
+    }
+
+    /// Remove the title without changing an assigned ID or catalogs.
+    #[must_use]
+    pub fn take_title(&mut self) -> Title<'a> {
+        std::mem::take(&mut self.title)
+    }
+
+    /// Replace prepared children without rebuilding document registrations.
+    pub fn set_blocks(&mut self, blocks: impl IntoIterator<Item = Block<'a>>) {
+        self.content = blocks.into_iter().collect();
+    }
+
+    /// Append a prepared child without rebuilding document registrations.
+    pub fn push_block(&mut self, block: Block<'a>) {
+        self.content.push(block);
+    }
+
+    /// Remove children, retaining each child's source lifetime.
+    pub fn take_blocks(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = Block<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.content).into_iter()
+    }
+
+    /// Replace the nesting level without moving children or renumbering sections.
+    pub fn set_level(&mut self, level: SectionLevel) {
+        self.level = level;
+    }
+
+    /// Replace the section span without relocating titles, children or catalogs.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 
     /// Return the explicit or parser-assigned section ID.
@@ -259,12 +334,20 @@ impl<'a> Section<'a> {
     /// this policy on a section in a document.
     #[must_use]
     pub fn with_numbering(mut self, enabled: bool) -> Self {
+        self.set_numbering(enabled);
+        self
+    }
+
+    /// Replace numbering policy and clear the assigned number.
+    ///
+    /// Call `Document::renumber_sections` to assign numbers and refresh existing
+    /// reference and table-of-contents numbers after editing the tree.
+    pub fn set_numbering(&mut self, enabled: bool) {
         self.numbering = if enabled {
             SectionNumbering::explicitly_enabled()
         } else {
             SectionNumbering::disabled()
         };
-        self
     }
 
     #[cfg(feature = "asg")]

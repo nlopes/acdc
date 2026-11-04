@@ -402,7 +402,8 @@ mod tests {
         let mut references = Vec::new();
         for block in blocks {
             if let Block::Section(section) = block {
-                references.extend(paragraph_xrefs(&section.content));
+                let children: Vec<_> = section.clone().take_blocks().collect();
+                references.extend(paragraph_xrefs(&children));
             } else if let Block::Paragraph(paragraph) = block {
                 references.extend(paragraph.clone().take_content().filter_map(|inline| {
                     if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
@@ -449,7 +450,7 @@ mod tests {
     }
 
     #[test]
-    fn renumbered_signifiers_match_reparsed_source() -> Result<(), Error> {
+    fn renumbered_signifiers_match_reparsed_source() -> Result<(), Box<dyn std::error::Error>> {
         let parsed = parse(
             include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_renumber.adoc"),
             &Options::default(),
@@ -478,7 +479,9 @@ mod tests {
             if let Block::Section(section) = block
                 && section.id() == "target"
             {
-                section.kind = SectionKind::Appendix;
+                let mut metadata = section.clone_metadata();
+                metadata.style = SectionKind::Appendix.as_style();
+                section.set_metadata(metadata)?;
             }
         }
         document.set_blocks(blocks);
@@ -498,7 +501,9 @@ mod tests {
             if let Block::Section(section) = block
                 && section.id() == "target"
             {
-                section.kind = SectionKind::Normal;
+                let mut metadata = section.clone_metadata();
+                metadata.style = SectionKind::Normal.as_style();
+                section.set_metadata(metadata)?;
             }
         }
         document.set_blocks(blocks);
@@ -508,7 +513,7 @@ mod tests {
     }
 
     #[test]
-    fn signifier_overrides_survive_category_changes() -> Result<(), Error> {
+    fn signifier_overrides_survive_category_changes() -> Result<(), Box<dyn std::error::Error>> {
         let parsed = parse(
             include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_renumber.adoc"),
             &Options::default(),
@@ -535,7 +540,9 @@ mod tests {
                 if let Block::Section(section) = block
                     && section.id() == "target"
                 {
-                    section.kind = SectionKind::Appendix;
+                    let mut metadata = section.clone_metadata();
+                    metadata.style = SectionKind::Appendix.as_style();
+                    section.set_metadata(metadata)?;
                 }
             }
             document.set_footnotes(footnotes);

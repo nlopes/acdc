@@ -1520,7 +1520,7 @@ mod title_media_tests {
             ));
             document.set_blocks(vec![
                 Block::Section(Section::new(
-                    section.title.clone(),
+                    section.clone().take_title(),
                     1,
                     Vec::new(),
                     Location::default(),
@@ -1532,10 +1532,10 @@ mod title_media_tests {
             ]);
             let mut blocks: Vec<_> = document.take_blocks().collect();
             for block in &mut blocks {
-                let metadata = if let Block::Section(section) = block {
-                    &mut section.metadata
+                let mut metadata = if let Block::Section(section) = block {
+                    section.clone_metadata()
                 } else if let Block::DiscreteHeader(header) = block {
-                    &mut header.metadata
+                    header.metadata.clone()
                 } else {
                     return Err("expected heading".into());
                 };
@@ -1547,6 +1547,11 @@ mod title_media_tests {
                         .push(Anchor::new("fallback", Location::default()));
                 }
                 metadata.roles = vec!["one", "one"];
+                if let Block::Section(section) = block {
+                    section.set_metadata(metadata)?;
+                } else if let Block::DiscreteHeader(header) = block {
+                    header.metadata = metadata;
+                }
             }
             document.set_blocks(blocks);
             for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
