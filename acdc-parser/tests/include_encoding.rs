@@ -5,7 +5,11 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use acdc_parser::{Block, Error as ParserError, InlineNode, Options, ParseResult, parse_file};
+use acdc_parser::{
+    Error as ParserError, Options, ParseResult,
+    ast::{BlockKind, InlineKind},
+    parse_file,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -39,21 +43,20 @@ impl Drop for TempDirectory {
 
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<String>, Box<dyn Error>> {
     result
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return Err(format!("expected paragraph, got {block:?}").into());
             };
             paragraph
-                .content
-                .iter()
+                .content()
+                .inlines()
                 .map(|node| {
-                    let InlineNode::PlainText(text) = node else {
+                    let InlineKind::Plain(text) = node.kind() else {
                         return Err(format!("expected plain text, got {node:?}").into());
                     };
-                    Ok(text.content)
+                    Ok(text.text())
                 })
                 .collect()
         })

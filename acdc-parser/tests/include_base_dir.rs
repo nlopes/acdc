@@ -6,7 +6,11 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use acdc_parser::{Block, InlineNode, Options, SafeMode, parse, parse_file, parse_from_reader};
+use acdc_parser::{
+    Options, SafeMode,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse, parse_file, parse_from_reader,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -67,13 +71,27 @@ fn write(path: &Path, content: &str) -> IoResult<()> {
 }
 
 fn paragraph_text(result: &acdc_parser::ParseResult) -> Result<&str, Box<dyn Error>> {
-    let [Block::Paragraph(paragraph)] = result.document().blocks.as_slice() else {
-        return Err(format!("unexpected blocks: {:?}", result.document().blocks).into());
+    let [BlockKind::Paragraph(paragraph)] = &*result
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err(format!(
+            "unexpected blocks: {:?}",
+            result.document_ref().blocks().collect::<Vec<_>>()
+        )
+        .into());
     };
-    let [InlineNode::PlainText(text)] = paragraph.content.as_slice() else {
+    let [InlineKind::Plain(text)] = &*paragraph
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err(format!("unexpected paragraph: {paragraph:?}").into());
     };
-    Ok(text.content)
+    Ok(text.text())
 }
 
 #[test]

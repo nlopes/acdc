@@ -1,6 +1,10 @@
 //! Header controls use semantic values without another quote pass.
 
-use acdc_parser::{Block, CompatibilityMode, Options, parse};
+use acdc_parser::{
+    CompatibilityMode, Options,
+    ast::{BlockKind, BlockRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -12,13 +16,13 @@ fn author_values_preserve_authored_quotes(
         "= Authors\n:author: \"Jane Doe\"\n:email: 'jane@example.org'\n\nBody.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let header = parsed.document().header.as_ref().ok_or("header")?;
-    let [author] = header.authors.as_slice() else {
+    let header = parsed.document_ref().header().ok_or("header")?;
+    let [author] = &*header.authors().collect::<Vec<_>>() else {
         return Err("one author".into());
     };
-    assert_eq!(author.first_name, "\"Jane");
-    assert_eq!(author.last_name, "Doe\"");
-    assert_eq!(author.email, Some("'jane@example.org'"));
+    assert_eq!(author.first_name(), "\"Jane");
+    assert_eq!(author.last_name(), "Doe\"");
+    assert_eq!(author.email(), Some("'jane@example.org'"));
     Ok(())
 }
 
@@ -32,24 +36,24 @@ fn manpage_values_preserve_authored_quotes(
     )?;
     assert_eq!(
         parsed
-            .document()
-            .attributes
+            .document_ref()
+            .attributes()
             .get("manname")
             .and_then(|value| value.as_str()),
         Some("'authored-name'")
     );
     assert_eq!(
         parsed
-            .document()
-            .attributes
+            .document_ref()
+            .attributes()
             .get("manpurpose")
             .and_then(|value| value.as_str()),
         Some("\"Quoted purpose\"")
     );
     assert_eq!(
         parsed
-            .document()
-            .attributes
+            .document_ref()
+            .attributes()
             .get("manvolnum")
             .and_then(|value| value.as_str()),
         Some("1")
@@ -65,10 +69,12 @@ fn quoted_document_offsets_are_not_include_attribute_delimiters(
         "= Offset\n:leveloffset: \"+1\"\n\n== One\n\nBody.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Section(section)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Section(section)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("section".into());
     };
-    assert_eq!(section.level, 1);
+    assert_eq!(section.level(), 1);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -86,18 +92,23 @@ fn string_filetype_flags_retain_the_callers_literal_value(
     )?;
     assert_eq!(
         parsed
-            .document()
-            .attributes
+            .document_ref()
+            .attributes()
             .get("filetype")
             .and_then(|value| value.as_str()),
         Some("'custom'")
     );
     assert!(
         parsed
-            .document()
-            .attributes
-            .contains_key("filetype-'custom'")
+            .document_ref()
+            .attributes()
+            .contains("filetype-'custom'")
     );
-    assert!(!parsed.document().attributes.contains_key("filetype-custom"));
+    assert!(
+        !parsed
+            .document_ref()
+            .attributes()
+            .contains("filetype-custom")
+    );
     Ok(())
 }

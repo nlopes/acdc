@@ -5,7 +5,11 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use acdc_parser::{Block, InlineNode, Options, ParseResult, parse_file};
+use acdc_parser::{
+    Options, ParseResult,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse_file,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -69,17 +73,21 @@ fn options(max_depth: &str) -> Result<Options<'_>, acdc_parser::Error> {
 
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<&str>, Box<dyn Error>> {
     result
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return Err(format!("expected paragraph, got {block:?}").into());
             };
-            let [InlineNode::PlainText(text)] = paragraph.content.as_slice() else {
+            let [InlineKind::Plain(text)] = &*paragraph
+                .content()
+                .inlines()
+                .map(InlineRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err(format!("expected plain paragraph text, got {paragraph:?}").into());
             };
-            Ok(text.content)
+            Ok(text.text())
         })
         .collect()
 }
@@ -116,8 +124,8 @@ fn assert_chain(result: &ParseResult, depth: &str, expansion: Expansion) -> Test
 fn assert_max_depth(result: &ParseResult, expected: &str) -> TestResult {
     let mut actual = String::new();
     let value = result
-        .document()
-        .attributes
+        .document_ref()
+        .attributes()
         .get("max-include-depth")
         .ok_or("depth has a default")?;
     value.write_text(&mut actual)?;
@@ -326,8 +334,8 @@ fn boolean_true_disables_includes_without_crashing() -> TestResult {
 
     assert_eq!(
         result
-            .document()
-            .attributes
+            .document_ref()
+            .attributes()
             .get("max-include-depth")
             .and_then(acdc_parser::DocumentAttributeValue::as_integer),
         Some(0)
@@ -384,22 +392,45 @@ fn ignored_body_depth_declarations_are_absent_from_the_ast() -> TestResult {
     let result = parse_file(&tree.main, &options("1")?)?;
 
     assert_max_depth(&result, "1")?;
-    let [Block::Paragraph(before), Block::Section(section)] = result.document().blocks.as_slice()
+    let [BlockKind::Paragraph(before), BlockKind::Section(section)] = &*result
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
     else {
-        return Err(format!("unexpected document blocks: {:?}", result.document().blocks).into());
+        return Err(format!(
+            "unexpected document blocks: {:?}",
+            result.document_ref().blocks().collect::<Vec<_>>()
+        )
+        .into());
     };
-    let [InlineNode::PlainText(before)] = before.content.as_slice() else {
+    let [InlineKind::Plain(before)] = &*before
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err(format!("unexpected paragraph content: {before:?}").into());
     };
-    assert_eq!(before.content, "BEFORE");
+    assert_eq!(before.text(), "BEFORE");
 
-    let [Block::Paragraph(after)] = section.content.as_slice() else {
-        return Err(format!("unexpected section content: {:?}", section.content).into());
+    let [BlockKind::Paragraph(after)] = &*section.blocks().map(BlockRef::kind).collect::<Vec<_>>()
+    else {
+        return Err(format!(
+            "unexpected section content: {:?}",
+            section.blocks().collect::<Vec<_>>()
+        )
+        .into());
     };
-    let [InlineNode::PlainText(after)] = after.content.as_slice() else {
+    let [InlineKind::Plain(after)] = &*after
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err(format!("unexpected paragraph content: {after:?}").into());
     };
-    assert_eq!(after.content, "AFTER 1");
+    assert_eq!(after.text(), "AFTER 1");
     assert_eq!(result.warnings(), []);
     Ok(())
 }

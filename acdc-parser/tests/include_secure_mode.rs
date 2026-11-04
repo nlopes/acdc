@@ -1,4 +1,8 @@
-use acdc_parser::{Block, InlineMacro, InlineNode, Options, SafeMode, parse_file};
+use acdc_parser::{
+    Options, SafeMode,
+    ast::{BlockKind, InlineKind, InlineRef},
+    parse_file,
+};
 
 #[test]
 fn secure_mode_preserves_local_and_uri_includes_without_reading_them()
@@ -13,34 +17,41 @@ fn secure_mode_preserves_local_and_uri_includes_without_reading_them()
         "include_quote_part.adoc",
         "https://example.invalid/secret.adoc",
     ];
-    assert_eq!(result.document().blocks.len(), expected_targets.len());
+    assert_eq!(
+        result.document_ref().blocks().count(),
+        expected_targets.len()
+    );
     for ((block, expected_target), expected_line) in result
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .zip(expected_targets)
         .zip([3, 5])
     {
-        let Block::Paragraph(paragraph) = block else {
+        let BlockKind::Paragraph(paragraph) = block.kind() else {
             return Err(std::io::Error::other(format!(
                 "expected fallback paragraph, got {block:?}"
             ))
             .into());
         };
-        let [InlineNode::Macro(InlineMacro::Link(link))] = paragraph.content.as_slice() else {
+        let [InlineKind::Link(link)] = &*paragraph
+            .content()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err(std::io::Error::other(format!(
                 "expected one fallback link, got {:?}",
-                paragraph.content
+                paragraph.content()
             ))
             .into());
         };
 
-        assert_eq!(link.target.to_string(), expected_target);
-        assert_eq!(link.text, []);
-        assert_eq!(link.attributes().iter().count(), 0);
-        assert_eq!(link.metadata.roles, ["include"]);
-        assert_eq!(paragraph.location.start.line, expected_line);
-        assert!(paragraph.location.start.file.is_none());
+        assert_eq!(link.target().to_string(), expected_target);
+        assert!(link.text().is_empty());
+        assert_eq!(link.attributes().iter().count(), 1);
+        assert_eq!(link.roles().iter().collect::<Vec<_>>(), ["include"]);
+        assert_eq!(paragraph.location().start().line(), expected_line);
+        assert!(paragraph.location().start().include_chain().is_none());
     }
     assert_eq!(result.warnings().len(), 2);
     for (warning, line) in result.warnings().iter().zip([3, 5]) {

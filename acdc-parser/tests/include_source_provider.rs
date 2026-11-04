@@ -11,8 +11,9 @@ use std::{
 };
 
 use acdc_parser::{
-    Block, IncludeLoader, IncludeSource, IncludeSourceError, IncludeSourceErrorKind,
-    IncludeSourceProvider, IncludeSourceTarget, InlineMacro, InlineNode, Options, SafeMode, Source,
+    IncludeLoader, IncludeSource, IncludeSourceError, IncludeSourceErrorKind,
+    IncludeSourceProvider, IncludeSourceTarget, Options, SafeMode,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef, SourceKind},
     parse, parse_file, parse_from_reader,
 };
 
@@ -85,13 +86,27 @@ impl Drop for TempDirectory {
 }
 
 fn paragraph_text(result: &acdc_parser::ParseResult) -> Result<&str, Box<dyn Error>> {
-    let [Block::Paragraph(paragraph)] = result.document().blocks.as_slice() else {
-        return Err(format!("unexpected blocks: {:?}", result.document().blocks).into());
+    let [BlockKind::Paragraph(paragraph)] = &*result
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err(format!(
+            "unexpected blocks: {:?}",
+            result.document_ref().blocks().collect::<Vec<_>>()
+        )
+        .into());
     };
-    let [InlineNode::PlainText(text)] = paragraph.content.as_slice() else {
+    let [InlineKind::Plain(text)] = &*paragraph
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err(format!("unexpected paragraph: {paragraph:?}").into());
     };
-    Ok(text.content)
+    Ok(text.text())
 }
 
 fn file_target(path: impl AsRef<Path>) -> IncludeSourceTarget {
@@ -125,13 +140,25 @@ fn default_options_deny_includes_for_every_input_kind() -> TestResult {
             parse_from_reader(Cursor::new(&input), &options)?,
             parse_file(&entry, &options)?,
         ] {
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let [BlockKind::Paragraph(paragraph)] = &*parsed
+                .document_ref()
+                .blocks()
+                .map(BlockRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err("expected a fallback paragraph".into());
             };
-            let [InlineNode::Macro(InlineMacro::Link(link))] = paragraph.content.as_slice() else {
+            let [InlineKind::Link(link)] = &*paragraph
+                .content()
+                .inlines()
+                .map(InlineRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err("expected an include link instead of private content".into());
             };
-            assert_eq!(link.target, Source::Path(target.clone()));
+            assert!(
+                matches!(link.target().kind(), SourceKind::Path(path) if path == target.as_path())
+            );
             assert!(parsed.source_recovery().is_some());
         }
     }
@@ -150,7 +177,7 @@ fn custom_provider_and_uri_permission_do_not_lower_the_secure_default() -> TestR
         &options,
     )?;
     assert_eq!(provider.requests(), []);
-    assert_eq!(result.document().blocks.len(), 2);
+    assert_eq!(result.document_ref().blocks().count(), 2);
     assert!(result.source_recovery().is_some());
     Ok(())
 }
@@ -198,12 +225,12 @@ fn provider_loads_nested_sources_on_demand() -> TestResult {
 
     assert_eq!(paragraph_text(&result)?, "NESTED CONTENT");
     let block = result
-        .document()
-        .blocks
-        .first()
+        .document_ref()
+        .blocks()
+        .next()
         .ok_or("missing included block")?;
     assert_eq!(
-        result.source_location(block.location()).file.as_ref(),
+        result.resolve_location(block.location()).file.as_ref(),
         Some(&inner)
     );
     assert_eq!(
@@ -278,14 +305,28 @@ fn secure_mode_does_not_call_the_provider() -> TestResult {
     assert!(result.source_recovery().is_some());
     // Secure mode degrades the include to Asciidoctor's link fallback; it must not
     // leave the directive sitting in the output as ordinary text.
-    let [Block::Paragraph(paragraph)] = result.document().blocks.as_slice() else {
-        return Err(format!("unexpected blocks: {:?}", result.document().blocks).into());
+    let [BlockKind::Paragraph(paragraph)] = &*result
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err(format!(
+            "unexpected blocks: {:?}",
+            result.document_ref().blocks().collect::<Vec<_>>()
+        )
+        .into());
     };
-    let [InlineNode::Macro(InlineMacro::Link(link))] = paragraph.content.as_slice() else {
+    let [InlineKind::Link(link)] = &*paragraph
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err(format!("unexpected paragraph: {paragraph:?}").into());
     };
-    let Source::Path(target) = &link.target else {
-        return Err(format!("unexpected link target: {:?}", link.target).into());
+    let SourceKind::Path(target) = link.target().kind() else {
+        return Err(format!("unexpected link target: {:?}", link.target()).into());
     };
     assert_eq!(target, Path::new("secret.adoc"));
     Ok(())
@@ -308,16 +349,30 @@ fn secure_mode_falls_back_identically_with_and_without_a_provider() -> TestResul
 
     assert_eq!(provider.requests(), []);
     let link_target = |result: &acdc_parser::ParseResult| -> Result<PathBuf, Box<dyn Error>> {
-        let [Block::Paragraph(paragraph)] = result.document().blocks.as_slice() else {
-            return Err(format!("unexpected blocks: {:?}", result.document().blocks).into());
+        let [BlockKind::Paragraph(paragraph)] = &*result
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
+            return Err(format!(
+                "unexpected blocks: {:?}",
+                result.document_ref().blocks().collect::<Vec<_>>()
+            )
+            .into());
         };
-        let [InlineNode::Macro(InlineMacro::Link(link))] = paragraph.content.as_slice() else {
+        let [InlineKind::Link(link)] = &*paragraph
+            .content()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err(format!("unexpected paragraph: {paragraph:?}").into());
         };
-        let Source::Path(target) = &link.target else {
-            return Err(format!("unexpected link target: {:?}", link.target).into());
+        let SourceKind::Path(target) = link.target().kind() else {
+            return Err(format!("unexpected link target: {:?}", link.target()).into());
         };
-        Ok(target.clone())
+        Ok(target.to_path_buf())
     };
 
     assert_eq!(link_target(&with_provider)?, PathBuf::from("secret.adoc"));
@@ -519,7 +574,7 @@ fn include_budget_override_applies_to_all_input_kinds_and_loading_modes() -> Tes
                 if bytes == 8 {
                     let parsed = result?;
                     assert_eq!(parsed.warnings(), []);
-                    assert_eq!(parsed.document().blocks.len(), 1);
+                    assert_eq!(parsed.document_ref().blocks().count(), 1);
                 } else {
                     let Err(acdc_parser::Error::IncludeExpansionTooLarge(location, limit)) = result
                     else {
@@ -580,7 +635,7 @@ fn include_budget_zero_keeps_secure_fallbacks_and_empty_selections() -> TestResu
         .with_max_total_include_bytes(0)
         .build()?;
     let parsed = parse("include::part.adoc[]", &options)?;
-    assert_eq!(parsed.document().blocks.len(), 1);
+    assert_eq!(parsed.document_ref().blocks().count(), 1);
     assert_eq!(provider.requests(), []);
     let options = options
         .into_builder()
@@ -588,9 +643,10 @@ fn include_budget_zero_keeps_secure_fallbacks_and_empty_selections() -> TestResu
         .build()?;
     assert_eq!(
         parse("include::part.adoc[lines=2]", &options)?
-            .document()
-            .blocks,
-        []
+            .document_ref()
+            .blocks()
+            .count(),
+        0
     );
     assert!(matches!(
         parse("include::part.adoc[]", &options),
@@ -629,10 +685,15 @@ fn small_selections_from_large_local_and_custom_sources_keep_locations() -> Test
             let parsed = parse(&format!("include::{include_target}[{selector}]"), &options)?;
             assert_eq!(paragraph_text(&parsed)?, "Chosen.");
             assert_eq!(parsed.warnings(), []);
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let [BlockKind::Paragraph(paragraph)] = &*parsed
+                .document_ref()
+                .blocks()
+                .map(BlockRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err("expected a paragraph".into());
             };
-            assert_eq!(paragraph.location.start.line, 3);
+            assert_eq!(paragraph.location().start().line(), 3);
         }
     }
     Ok(())
