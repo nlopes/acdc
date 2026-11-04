@@ -88,6 +88,39 @@
                   ]
                 }
               ],
+              "bibliography": true,
+              "bibliography_label": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café ",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 12
+                    },
+                    {
+                      "line": 4,
+                      "col": 16
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "©",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 17
+                    },
+                    {
+                      "line": 4,
+                      "col": 19
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 4,
@@ -163,6 +196,39 @@
               "type": "inline",
               "id": "late",
               "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café ",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 11
+                    },
+                    {
+                      "line": 7,
+                      "col": 15
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 16
+                    },
+                    {
+                      "line": 7,
+                      "col": 18
+                    }
+                  ]
+                }
+              ],
+              "bibliography": true,
+              "bibliography_label": [
                 {
                   "name": "text",
                   "type": "string",
@@ -299,6 +365,24 @@
                   ]
                 }
               ],
+              "bibliography": true,
+              "bibliography_label": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café (TM)",
+                  "location": [
+                    {
+                      "line": 10,
+                      "col": 15
+                    },
+                    {
+                      "line": 10,
+                      "col": 23
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 10,
@@ -368,6 +452,42 @@
               "type": "inline",
               "id": "escaped",
               "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café ",
+                  "location": [
+                    {
+                      "line": 13,
+                      "col": 14
+                    },
+                    {
+                      "line": 13,
+                      "col": 18
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "(C)",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 13,
+                      "col": 19
+                    },
+                    {
+                      "line": 13,
+                      "col": 22
+                    }
+                  ]
+                }
+              ],
+              "bibliography": true,
+              "bibliography_label": [
                 {
                   "name": "text",
                   "type": "string",

@@ -1001,6 +1001,57 @@
                       ]
                     }
                   ],
+                  "bibliography": true,
+                  "bibliography_label": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Book ",
+                      "location": [
+                        {
+                          "line": 34,
+                          "col": 11
+                        },
+                        {
+                          "line": 34,
+                          "col": 15
+                        }
+                      ]
+                    },
+                    {
+                      "name": "span",
+                      "type": "inline",
+                      "variant": "strong",
+                      "form": "constrained",
+                      "inlines": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "label",
+                          "location": [
+                            {
+                              "line": 34,
+                              "col": 17
+                            },
+                            {
+                              "line": 34,
+                              "col": 21
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 34,
+                          "col": 16
+                        },
+                        {
+                          "line": 34,
+                          "col": 22
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 34,

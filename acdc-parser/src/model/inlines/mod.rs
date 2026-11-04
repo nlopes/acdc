@@ -301,11 +301,7 @@ impl Serialize for InlineNode<'_> {
             InlineNode::InlineAnchor(anchor) => {
                 map.serialize_entry("name", "anchor")?;
                 map.serialize_entry("type", "inline")?;
-                map.serialize_entry("id", &anchor.id)?;
-                if let Some(xreflabel) = &anchor.xreflabel {
-                    map.serialize_entry("xreflabel", xreflabel)?;
-                }
-                map.serialize_entry("location", &anchor.location)?;
+                anchor.serialize_fields(&mut map)?;
             }
             InlineNode::Macro(macro_node) => {
                 serialize_inline_macro::<S>(macro_node, &mut map)?;

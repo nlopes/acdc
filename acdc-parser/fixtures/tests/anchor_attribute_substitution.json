@@ -609,6 +609,7 @@
                   "name": "anchor",
                   "type": "inline",
                   "id": "doc-ref01",
+                  "bibliography": true,
                   "location": [
                     {
                       "line": 32,
@@ -669,6 +670,24 @@
                         {
                           "line": 33,
                           "col": 39
+                        }
+                      ]
+                    }
+                  ],
+                  "bibliography": true,
+                  "bibliography_label": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Introduction Reference",
+                      "location": [
+                        {
+                          "line": 33,
+                          "col": 21
+                        },
+                        {
+                          "line": 33,
+                          "col": 44
                         }
                       ]
                     }

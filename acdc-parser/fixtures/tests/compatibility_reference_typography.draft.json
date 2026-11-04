@@ -1140,6 +1140,39 @@
                       ]
                     }
                   ],
+                  "bibliography": true,
+                  "bibliography_label": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Bibliography ",
+                      "location": [
+                        {
+                          "line": 29,
+                          "col": 19
+                        },
+                        {
+                          "line": 29,
+                          "col": 31
+                        }
+                      ]
+                    },
+                    {
+                      "name": "symbol",
+                      "type": "string",
+                      "value": "©",
+                      "location": [
+                        {
+                          "line": 29,
+                          "col": 32
+                        },
+                        {
+                          "line": 29,
+                          "col": 34
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 29,

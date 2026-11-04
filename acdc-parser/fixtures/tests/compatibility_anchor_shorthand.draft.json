@@ -671,6 +671,24 @@
                   ]
                 }
               ],
+              "bibliography": true,
+              "bibliography_label": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Entry",
+                  "location": [
+                    {
+                      "line": 34,
+                      "col": 16
+                    },
+                    {
+                      "line": 34,
+                      "col": 20
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 34,

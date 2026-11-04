@@ -33,19 +33,15 @@ pub const UNNUMBERED_SECTION_STYLES: &[&str] = &[
 /// An `Anchor` represents an anchor in a document.
 ///
 /// An anchor is a reference point in a document that can be linked to.
-#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[non_exhaustive]
 pub struct Anchor<'a> {
     pub id: &'a str,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub xreflabel: Option<ContentAttribute<'a>>,
     pub location: Location,
-    #[serde(skip)]
     // Key into parser-owned input, cleared before returning the AST.
     pub(crate) reftext_source: Option<usize>,
-    #[serde(skip)]
     pub(crate) bibliography: bool,
-    #[serde(skip)]
     pub(crate) bibliography_label: Option<Box<BibliographyLabel<'a>>>,
 }
 
@@ -55,7 +51,29 @@ pub(crate) struct BibliographyLabel<'a> {
     pub(crate) content: Vec<InlineNode<'a>>,
 }
 
+impl Serialize for Anchor<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        self.serialize_fields(&mut map)?;
+        map.end()
+    }
+}
+
 impl<'a> Anchor<'a> {
+    pub(super) fn serialize_fields<M: SerializeMap>(&self, map: &mut M) -> Result<(), M::Error> {
+        map.serialize_entry("id", &self.id)?;
+        if let Some(label) = &self.xreflabel {
+            map.serialize_entry("xreflabel", label)?;
+        }
+        if self.is_bibliography() {
+            map.serialize_entry("bibliography", &true)?;
+        }
+        if let Some(label) = self.bibliography_label() {
+            map.serialize_entry("bibliography_label", label)?;
+        }
+        map.serialize_entry("location", &self.location)
+    }
+
     /// Create a new anchor with the given ID and location.
     #[must_use]
     pub fn new(id: &'a str, location: Location) -> Self {
@@ -252,6 +270,7 @@ impl Reference<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn section_reference_queries_borrow_shared_numbers() -> Result<(), Box<dyn std::error::Error>> {
@@ -308,6 +327,25 @@ mod tests {
     fn toc_entry_omits_style_for_normal_section() -> Result<(), serde_json::Error> {
         let json = serde_json::to_value(toc_entry(SectionKind::Normal))?;
         assert!(json.get("style").is_none());
+        Ok(())
+    }
+    #[test]
+    fn bibliography_json_distinguishes_empty_and_automatic_labels() -> Result<(), serde_json::Error>
+    {
+        let mut anchor = Anchor::new("entry", Location::default());
+        anchor.bibliography = true;
+        let automatic = serde_json::to_value(&anchor)?;
+        assert_eq!(automatic.get("bibliography"), Some(&json!(true)));
+        assert!(automatic.get("bibliography_label").is_none());
+        anchor.bibliography_label = Some(Box::new(BibliographyLabel {
+            source: Some("unexported cache"),
+            content: Vec::new(),
+        }));
+        let direct = serde_json::to_value(&anchor)?;
+        let node = serde_json::to_value(InlineNode::InlineAnchor(anchor))?;
+        assert_eq!(direct.get("bibliography_label"), Some(&json!([])));
+        assert_eq!(node.get("bibliography_label"), Some(&json!([])));
+        assert!(!direct.to_string().contains("unexported cache"));
         Ok(())
     }
 }

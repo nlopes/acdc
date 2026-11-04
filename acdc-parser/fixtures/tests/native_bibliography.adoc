@@ -1,0 +1,12 @@
+= Native bibliography labels
+
+Ordinary [[ordinary,Label]] and anchor:macro[Macro label] targets.
+
+[bibliography]
+* [[[default]]] An automatic label.
+* [[[formatted,*café (C)*]]] A formatted label.
+
+[bibliography,subs="specialcharacters,quotes,macros"]
+* [[[literal,café (C)]]] Literal display text and a resolved citation.
+
+See <<default>>, <<formatted>>, and <<literal>>.

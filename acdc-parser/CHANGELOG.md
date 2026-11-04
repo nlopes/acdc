@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Native JSON now identifies bibliography anchors with `bibliography: true` and
+  retains an explicitly supplied `bibliography_label` as parsed inline content,
+  including `[]` for an empty label. An omitted label uses the entry ID. Citation
+  `xreflabel` remains separate because its substitutions can differ from the
+  displayed entry label. Ordinary anchor JSON is unchanged.
+
 - Native JSON now writes presence attributes, including `toc`, as `true` and
   validated numeric attributes as JSON numbers. Numeric-looking text remains a
   string, and integer text reads retain their original spelling. Header values
