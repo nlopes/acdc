@@ -1,0 +1,14 @@
+= source-name(1)
+:doctype: manpage
+:manname: 'authored-name'
+:manpurpose: "Quoted purpose"
+:manmanual: "Manual"
+:revdate: 2026-11-04
+
+== NAME
+
+source-name - fallback purpose
+
+== DESCRIPTION
+
+Body.

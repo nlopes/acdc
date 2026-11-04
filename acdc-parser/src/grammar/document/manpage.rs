@@ -5,7 +5,7 @@ use crate::{
     document_attribute::AttributeDeclaration,
     error::{Error, SourceLocation},
     grammar::{ParserState, document::doctype::is_manpage_doctype},
-    model::{strip_quotes, substitute, substitution::HEADER},
+    model::{substitute, substitution::HEADER},
 };
 use std::rc::Rc;
 
@@ -24,11 +24,8 @@ pub(super) fn prepare_manpage_name_attributes<'input>(
     }
 
     if let (Some(name), Some(purpose)) = (
-        state.document_attributes.text("manname").map(strip_quotes),
-        state
-            .document_attributes
-            .text("manpurpose")
-            .map(strip_quotes),
+        state.document_attributes.text("manname"),
+        state.document_attributes.text("manpurpose"),
     ) {
         let name = state.intern_str(name);
         let purpose = state.intern_str(purpose);
@@ -57,7 +54,7 @@ pub(super) fn prepare_manpage_name_attributes<'input>(
     let fallback = state
         .document_attributes
         .text("docname")
-        .map_or("command", strip_quotes);
+        .unwrap_or("command");
     let fallback = state.intern_str(fallback);
     set_manpage_name_attributes(state, fallback, None, None);
 }
@@ -76,7 +73,7 @@ fn set_manpage_name_attributes<'input>(
     if let Some(title) = title {
         attributes.insert_text("manname-title".into(), title.into());
     }
-    if attributes.text("backend").map(strip_quotes) == Some("manpage") {
+    if attributes.text("backend") == Some("manpage") {
         attributes.set_text("docname".into(), name.into());
     }
 }
@@ -244,8 +241,8 @@ pub(super) fn derive_manpage_header_attrs<'a>(
         tracing::debug!("using fallback manpage attributes for non-conforming title");
     }
 
-    if attrs.text("backend").map(crate::strip_quotes) == Some("manpage")
-        && let Some(manvolnum) = attrs.text("manvolnum").map(crate::strip_quotes)
+    if attrs.text("backend") == Some("manpage")
+        && let Some(manvolnum) = attrs.text("manvolnum")
     {
         attrs.set_text("outfilesuffix".into(), format!(".{manvolnum}").into());
     }

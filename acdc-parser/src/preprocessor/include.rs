@@ -1124,7 +1124,6 @@ impl<'a> Include<'a> {
                 .options
                 .document_attributes
                 .text("leveloffset")
-                .map(crate::strip_quotes)
                 .and_then(|s| s.parse::<isize>().ok())
                 .unwrap_or(0);
 

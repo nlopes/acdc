@@ -99,7 +99,7 @@ fn ingest_author_attribute<'a>(
     attrs: &DocumentAttributes<'a>,
     options: &Rc<Options<'a>>,
 ) -> bool {
-    let Some(author) = attrs.text("author").map(crate::strip_quotes) else {
+    let Some(author) = attrs.text("author") else {
         return false;
     };
     if author.is_empty() {
@@ -112,7 +112,7 @@ fn ingest_author_attribute<'a>(
         .is_some_and(|first| build_author_full_name(first) == author)
     {
         if let Some(first) = header.authors.first_mut() {
-            let email = attrs.text("email").map(crate::strip_quotes);
+            let email = attrs.text("email");
             if first.email != email {
                 first.email = email.map(|value| &*arena.alloc_str(value));
             }
@@ -123,9 +123,19 @@ fn ingest_author_attribute<'a>(
     // arena before the temporary arena is dropped.
     let scratch = Bump::new();
     let mut temp_state = ParserState::new(author, &scratch, Rc::clone(options));
-    let Ok(parsed) = document_parser::authors(author, &mut temp_state) else {
-        return false;
-    };
+    let parsed = document_parser::authors(author, &mut temp_state).unwrap_or_else(|_| {
+        // Attribute values can contain punctuation outside the author-line grammar.
+        let mut names = author.split_whitespace();
+        let first = names.next().unwrap_or_default();
+        let second = names.next();
+        let rest = names.collect::<Vec<_>>().join(" ");
+        let (middle, last) = if rest.is_empty() {
+            (None, second)
+        } else {
+            (second, Some(&*scratch.alloc_str(&rest)))
+        };
+        vec![Author::new(&scratch, first, middle, last)]
+    });
     // `arena.alloc_str` returns `&mut str`; reborrow to `&str` to match the
     // `Option<&'a str>` field type.
     let mut authors: Vec<Author<'a>> = parsed
@@ -141,7 +151,7 @@ fn ingest_author_attribute<'a>(
 
     if let Some(first) = authors.first_mut()
         && first.email.is_none()
-        && let Some(email) = attrs.text("email").map(crate::strip_quotes)
+        && let Some(email) = attrs.text("email")
     {
         first.email = Some(arena.alloc_str(email));
     }

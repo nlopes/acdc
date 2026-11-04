@@ -1043,13 +1043,22 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                             String::new()
                         }
                     )?;
-                    write!(self.writer, "{} ", author.first_name())?;
+                    write!(
+                        self.writer,
+                        "{} ",
+                        crate::inlines::escape_role(author.first_name())
+                    )?;
                     if let Some(middle_name) = author.middle_name() {
-                        write!(self.writer, "{middle_name} ")?;
+                        write!(self.writer, "{} ", crate::inlines::escape_role(middle_name))?;
                     }
-                    write!(self.writer, "{}", author.last_name())?;
+                    write!(
+                        self.writer,
+                        "{}",
+                        crate::inlines::escape_role(author.last_name())
+                    )?;
                     writeln!(self.writer, "</span><br>")?;
                     if let Some(email) = author.email() {
+                        let email = crate::inlines::escape_role(email);
                         // Emit on a single line, like asciidoctor: a newline
                         // inside the span renders as a leading space that shifts
                         // the email right of the `–` separator.

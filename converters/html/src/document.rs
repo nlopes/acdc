@@ -3,7 +3,10 @@ use std::io::Write;
 use acdc_converters_core::InlineTextTransform;
 use acdc_parser::ast::{AuthorRef, DocumentAttributesRef, HeaderRef};
 
-use crate::{Error, HtmlVisitor, inlines::escape_attribute};
+use crate::{
+    Error, HtmlVisitor,
+    inlines::{escape_attribute, escape_role},
+};
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_document_metadata(&mut self) -> Result<(), Error> {
@@ -43,11 +46,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
 fn render_author<W: Write + ?Sized>(author: AuthorRef<'_>, w: &mut W) -> Result<(), Error> {
     write!(w, "<meta name=\"author\" content=\"")?;
-    write!(w, "{} ", author.first_name())?;
+    write!(w, "{} ", escape_role(author.first_name()))?;
     if let Some(middle_name) = author.middle_name() {
-        write!(w, "{middle_name} ")?;
+        write!(w, "{} ", escape_role(middle_name))?;
     }
-    write!(w, "{}", author.last_name())?;
+    write!(w, "{}", escape_role(author.last_name()))?;
     writeln!(w, "\">")?;
     Ok(())
 }

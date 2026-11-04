@@ -1,0 +1,12 @@
+= Literal header controls
+:author: "Jane Doe"
+:email: "jane@example.org"
+:leveloffset: "+1"
+:!stylesheet:
+:nofooter:
+
+== One
+
+Body.
+
+include::includes/literal_offset_heading.adoc[leveloffset=+1]

@@ -747,10 +747,7 @@ fn initialize_source_metadata(
 
 fn initialize_filetype(attributes: &mut DocumentAttributes<'_>, input_kind: InputKind<'_>) {
     let filetype = if input_kind == InputKind::String {
-        attributes
-            .text("filetype")
-            .map(crate::strip_quotes)
-            .map(str::to_owned)
+        attributes.text("filetype").map(str::to_owned)
     } else {
         attributes.processor_convenience_value("filetype-")
     };

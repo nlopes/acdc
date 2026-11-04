@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Authors and email labels retain authored quotes with safe HTML escaping. Quoted document `leveloffset` values no longer shift headings or included sections.
+
 - Document attribute values keep literal quotes in text labels and media paths. Literal quotes in cross-reference labels and style names now follow Asciidoctor.
 
 - Audio and video controls retain literal quote characters. Quoted provider names no longer select YouTube or Vimeo, matching Asciidoctor.
