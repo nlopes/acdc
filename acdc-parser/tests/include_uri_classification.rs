@@ -5,7 +5,11 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use acdc_parser::{Block, InlineMacro, InlineNode, Options, parse_file};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef, ParagraphRef},
+    parse_file,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -44,15 +48,15 @@ impl Drop for TempDocument {
     }
 }
 
-fn plain_text(paragraph: &acdc_parser::Paragraph<'_>) -> Result<String, Box<dyn Error>> {
+fn plain_text(paragraph: ParagraphRef<'_>) -> Result<String, Box<dyn Error>> {
     paragraph
-        .content
-        .iter()
+        .content()
+        .inlines()
         .map(|node| {
-            let InlineNode::PlainText(text) = node else {
+            let InlineKind::Plain(text) = node.kind() else {
                 return Err(format!("unexpected inline node: {node:?}").into());
             };
-            Ok(text.content)
+            Ok(text.text())
         })
         .collect()
 }
@@ -77,22 +81,35 @@ fn denied_non_http_uri_uses_link_fallback_instead_of_local_file_handling() -> Te
         let result = parse_file(&document.main, &options)?;
 
         let [
-            Block::Paragraph(before),
-            Block::Paragraph(fallback),
-            Block::Paragraph(after),
-        ] = result.document().blocks.as_slice()
+            BlockKind::Paragraph(before),
+            BlockKind::Paragraph(fallback),
+            BlockKind::Paragraph(after),
+        ] = &*result
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
         else {
-            return Err(format!("unexpected blocks: {:?}", result.document().blocks).into());
+            return Err(format!(
+                "unexpected blocks: {:?}",
+                result.document_ref().blocks().collect::<Vec<_>>()
+            )
+            .into());
         };
-        assert_eq!(plain_text(before)?, "BEFORE");
-        assert_eq!(plain_text(after)?, "AFTER");
+        assert_eq!(plain_text(*before)?, "BEFORE");
+        assert_eq!(plain_text(*after)?, "AFTER");
 
-        let [InlineNode::Macro(InlineMacro::Link(link))] = fallback.content.as_slice() else {
+        let [InlineKind::Link(link)] = &*fallback
+            .content()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err(format!("unexpected fallback: {fallback:?}").into());
         };
-        assert_eq!(link.target.to_string(), target);
+        assert_eq!(link.target().to_string(), target);
         assert_eq!(
-            link.metadata.roles.first().copied(),
+            link.roles().iter().next(),
             (!compat_mode).then_some("include")
         );
         let [warning] = result.warnings() else {
@@ -124,16 +141,24 @@ fn authorized_unsupported_uri_recovers_without_reading_a_local_file() -> TestRes
     let result = parse_file(&document.main, &options)?;
 
     let [
-        Block::Paragraph(before),
-        Block::Paragraph(fallback),
-        Block::Paragraph(after),
-    ] = result.document().blocks.as_slice()
+        BlockKind::Paragraph(before),
+        BlockKind::Paragraph(fallback),
+        BlockKind::Paragraph(after),
+    ] = &*result
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
     else {
-        return Err(format!("unexpected blocks: {:?}", result.document().blocks).into());
+        return Err(format!(
+            "unexpected blocks: {:?}",
+            result.document_ref().blocks().collect::<Vec<_>>()
+        )
+        .into());
     };
-    assert_eq!(plain_text(before)?, "BEFORE");
-    assert_eq!(plain_text(after)?, "AFTER");
-    let text = plain_text(fallback)?;
+    assert_eq!(plain_text(*before)?, "BEFORE");
+    assert_eq!(plain_text(*after)?, "AFTER");
+    let text = plain_text(*fallback)?;
     assert!(text.contains(&format!("include::{target}[]")));
     assert!(!text.contains("LOCAL FILE"));
 

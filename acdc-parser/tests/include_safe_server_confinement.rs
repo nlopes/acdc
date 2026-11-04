@@ -5,7 +5,11 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use acdc_parser::{Block, InlineNode, Options, ParseResult, SafeMode, parse_file};
+use acdc_parser::{
+    Options, ParseResult, SafeMode,
+    ast::{BlockKind, InlineKind, InlineRef},
+    parse_file,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -74,17 +78,21 @@ fn options(safe_mode: SafeMode) -> Result<Options<'static>, acdc_parser::Error> 
 
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<&str>, Box<dyn Error>> {
     result
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return Err(format!("expected paragraph, got {block:?}").into());
             };
-            let [InlineNode::PlainText(text)] = paragraph.content.as_slice() else {
+            let [InlineKind::Plain(text)] = &*paragraph
+                .content()
+                .inlines()
+                .map(InlineRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err(format!("expected plain paragraph text, got {paragraph:?}").into());
             };
-            Ok(text.content)
+            Ok(text.text())
         })
         .collect()
 }
@@ -207,7 +215,7 @@ fn optional_missing_recovered_target_keeps_only_the_recovery_warning() -> TestRe
 
     for safe_mode in [SafeMode::Safe, SafeMode::Server] {
         let result = parse_file(&tree.main, &options(safe_mode)?)?;
-        assert_eq!(result.document().blocks, []);
+        assert!(result.document_ref().blocks().next().is_none());
         assert_single_recovery_warning(&result, ANCESTOR_RECOVERY_WARNING, &tree.main, 1)?;
     }
 

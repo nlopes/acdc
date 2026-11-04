@@ -14,7 +14,11 @@ use std::{
     time::Duration,
 };
 
-use acdc_parser::{Block, InlineNode, Options, ParseResult, SafeMode, parse_file};
+use acdc_parser::{
+    Options, ParseResult, SafeMode,
+    ast::{BlockKind, BlockRef, InlineKind},
+    parse_file,
+};
 
 type TestResult<T = ()> = Result<T, Box<dyn Error>>;
 
@@ -259,21 +263,20 @@ fn parse_authorized_uri(uri: &str) -> Result<(TempDocument, ParseResult), acdc_p
 
 fn paragraph_texts(result: &ParseResult) -> TestResult<Vec<String>> {
     result
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return Err(format!("expected paragraph, got {block:?}").into());
             };
             paragraph
-                .content
-                .iter()
+                .content()
+                .inlines()
                 .map(|inline| {
-                    let InlineNode::PlainText(text) = inline else {
+                    let InlineKind::Plain(text) = inline.kind() else {
                         return Err(format!("expected plain paragraph text, got {inline:?}").into());
                     };
-                    Ok(text.content)
+                    Ok(text.text())
                 })
                 .collect::<TestResult<Vec<_>>>()
                 .map(|parts| parts.concat())
@@ -300,11 +303,13 @@ fn assert_uri_recovery(result: &ParseResult, uri: &str, source: &Path) -> TestRe
     assert_eq!(location.file.as_deref(), Some(source));
     assert_eq!(location.location.start.line, 3);
 
-    let Some(Block::Paragraph(fallback)) = result.document().blocks.get(1) else {
+    let Some(BlockKind::Paragraph(fallback)) =
+        result.document_ref().blocks().nth(1).map(BlockRef::kind)
+    else {
         return Err("expected the fallback paragraph".into());
     };
-    assert_eq!(fallback.location.start.line, 3);
-    assert!(fallback.location.start.file.is_none());
+    assert_eq!(fallback.location().start().line(), 3);
+    assert!(fallback.location().start().include_chain().is_none());
     Ok(())
 }
 

@@ -14,7 +14,11 @@ use std::{
     time::Duration,
 };
 
-use acdc_parser::{Block, InlineMacro, InlineNode, Options, ParseResult, SafeMode, parse_file};
+use acdc_parser::{
+    Options, ParseResult, SafeMode,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse_file,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -128,26 +132,40 @@ impl Drop for TestServer {
 }
 
 fn assert_single_paragraph(result: &ParseResult, expected: &str) -> TestResult {
-    let [Block::Paragraph(paragraph)] = result.document().blocks.as_slice() else {
-        return Err(format!("expected one paragraph, got {:?}", result.document().blocks).into());
+    let [BlockKind::Paragraph(paragraph)] = &*result
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err(format!(
+            "expected one paragraph, got {:?}",
+            result.document_ref().blocks().collect::<Vec<_>>()
+        )
+        .into());
     };
-    let [InlineNode::PlainText(text)] = paragraph.content.as_slice() else {
+    let [InlineKind::Plain(text)] = &*paragraph
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err(format!("expected plain paragraph text, got {paragraph:?}").into());
     };
-    assert_eq!(text.content, expected);
+    assert_eq!(text.text(), expected);
     Ok(())
 }
 
-fn paragraph_source_text(block: &Block<'_>) -> Result<String, Box<dyn Error>> {
-    let Block::Paragraph(paragraph) = block else {
+fn paragraph_source_text(block: BlockKind<'_>) -> Result<String, Box<dyn Error>> {
+    let BlockKind::Paragraph(paragraph) = block else {
         return Err(format!("expected paragraph, got {block:?}").into());
     };
     paragraph
-        .content
-        .iter()
+        .content()
+        .inlines()
         .map(|inline| {
-            if let InlineNode::PlainText(text) = inline {
-                Ok(text.content.to_string())
+            if let InlineKind::Plain(text) = inline.kind() {
+                Ok(text.text().to_string())
             } else {
                 Err(format!("expected plain text, got {inline:?}").into())
             }
@@ -157,19 +175,29 @@ fn paragraph_source_text(block: &Block<'_>) -> Result<String, Box<dyn Error>> {
 }
 
 fn assert_include_fallback(result: &ParseResult, target: &str) -> TestResult {
-    let [Block::Paragraph(paragraph)] = result.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(paragraph)] = &*result
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err(format!(
             "expected one fallback paragraph, got {:?}",
-            result.document().blocks
+            result.document_ref().blocks().collect::<Vec<_>>()
         )
         .into());
     };
-    let [InlineNode::Macro(InlineMacro::Link(link))] = paragraph.content.as_slice() else {
+    let [InlineKind::Link(link)] = &*paragraph
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err(format!("expected one fallback link, got {paragraph:?}").into());
     };
-    assert_eq!(link.target.to_string(), target);
-    assert_eq!(link.text, []);
-    assert_eq!(link.metadata.roles, ["include"]);
+    assert_eq!(link.target().to_string(), target);
+    assert!(link.text().is_empty());
+    assert_eq!(link.roles().iter().collect::<Vec<_>>(), ["include"]);
     let [warning] = result.warnings() else {
         return Err("expected a content-recovery warning".into());
     };
@@ -181,7 +209,10 @@ fn assert_include_fallback(result: &ParseResult, target: &str) -> TestResult {
         .source_location()
         .ok_or("missing recovery location")?;
     assert!(location.file.is_some());
-    assert_eq!(location.location.start.line, paragraph.location.start.line);
+    assert_eq!(
+        location.location.start.line,
+        paragraph.location().start().line()
+    );
     Ok(())
 }
 
@@ -232,22 +263,27 @@ fn authorized_uri_with_internal_spaces_uses_ureq_recovery() -> TestResult {
 
     let result = parse_file(&document.path, &options)?;
 
-    let [before, unresolved, after] = result.document().blocks.as_slice() else {
+    let [before, unresolved, after] = &*result
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err(format!(
             "expected before, unresolved directive, and after, got {:?}",
-            result.document().blocks
+            result.document_ref().blocks().collect::<Vec<_>>()
         )
         .into());
     };
-    assert_eq!(paragraph_source_text(before)?, "BEFORE");
+    assert_eq!(paragraph_source_text(*before)?, "BEFORE");
     assert_eq!(
-        paragraph_source_text(unresolved)?,
+        paragraph_source_text(*unresolved)?,
         format!(
             "Unresolved directive in main.adoc - include::{}[]",
             server.uri
         )
     );
-    assert_eq!(paragraph_source_text(after)?, "AFTER");
+    assert_eq!(paragraph_source_text(*after)?, "AFTER");
 
     let [warning] = result.warnings() else {
         return Err(format!("expected one warning, got {:?}", result.warnings()).into());
@@ -304,7 +340,12 @@ fn document_cannot_revoke_caller_uri_read_authority() -> TestResult {
     let result = parse_file(&document.path, &options)?;
 
     assert_single_paragraph(&result, "Remote content.")?;
-    assert!(result.document().attributes.contains_key("allow-uri-read"));
+    assert!(
+        result
+            .document_ref()
+            .attributes()
+            .contains("allow-uri-read")
+    );
     assert_eq!(result.warnings(), []);
     assert!(server.finish()?);
 
