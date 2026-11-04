@@ -142,7 +142,7 @@ fn link_anchor(node: InlineRef<'_>, references: &HashMap<&str, Reference<'_>>) -
     ) {
         return None;
     }
-    let id = acdc_parser::strip_quotes(node.id()?.as_str());
+    let id = node.id()?.as_str();
     references
         .get(id)
         .filter(|reference| LocationRef::from(&reference.location) == node.location())

@@ -1625,14 +1625,11 @@ impl<'a> ElementAttributes<'a> {
 
     /// Get a text attribute, borrowing its content when possible.
     ///
-    /// Strips surrounding quotes from the value if present.
+    /// Returns the stored value without interpreting quote characters.
     #[must_use]
     pub fn get_string(&self, name: &str) -> Option<Cow<'a, str>> {
         self.get(name).and_then(|v| match v {
-            AttributeValue::String(s) => Some(match s {
-                Cow::Borrowed(b) => Cow::Borrowed(strip_quotes(b)),
-                Cow::Owned(o) => Cow::Owned(strip_quotes(o).to_string()),
-            }),
+            AttributeValue::String(s) => Some(s.clone()),
             AttributeValue::None | AttributeValue::Bool(_) => None,
         })
     }
@@ -1658,6 +1655,31 @@ impl Serialize for ElementAttributes<'_> {
 mod element_attribute_tests {
     use super::{AttributeValue, ElementAttributes};
     use serde_json::{Error, json, to_value};
+
+    #[test]
+    fn string_reads_preserve_semantic_quotes_and_empty_values() {
+        use std::borrow::Cow;
+
+        for text in ["", "plain", "'π'", "\"π\"", "''", "\"α\"tail", "head'"] {
+            let mut attributes = ElementAttributes::default();
+            attributes.set("value".into(), text.into());
+            assert!(
+                matches!(attributes.get_string("value"), Some(Cow::Borrowed(value)) if value == text)
+            );
+            attributes.set("value".into(), text.to_owned().into());
+            assert_eq!(attributes.get_string("value").as_deref(), Some(text));
+        }
+        let mut attributes = ElementAttributes::default();
+        for value in [
+            AttributeValue::None,
+            AttributeValue::Bool(false),
+            AttributeValue::Bool(true),
+        ] {
+            attributes.set("value".into(), value);
+            assert!(attributes.get_string("value").is_none());
+        }
+        assert!(attributes.get_string("missing").is_none());
+    }
 
     #[test]
     fn insert_set_and_merge_preserve_existing_value_rules() -> Result<(), Error> {

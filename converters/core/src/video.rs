@@ -14,7 +14,6 @@ use std::fmt::Write as _;
 use acdc_parser::{
     Video,
     ast::{AttributeValueRef, VideoRef},
-    strip_quotes,
 };
 
 /// Errors that can occur while generating a video URL.
@@ -75,7 +74,7 @@ impl TryUrl for VideoRef<'_> {
         if self.source().to_string().is_empty() {
             return Err(UrlError::MissingSource);
         }
-        match (unquoted_attribute(*self, "poster"), embed) {
+        match (attribute_text(*self, "poster"), embed) {
             (Some("youtube"), true) => build_youtube_embed_url(*self),
             (Some("youtube"), false) => build_youtube_watch_url(*self),
             (Some("vimeo"), true) => build_vimeo_embed_url(*self),
@@ -85,9 +84,9 @@ impl TryUrl for VideoRef<'_> {
     }
 }
 
-fn unquoted_attribute<'doc>(video: VideoRef<'doc>, name: &str) -> Option<&'doc str> {
+fn attribute_text<'doc>(video: VideoRef<'doc>, name: &str) -> Option<&'doc str> {
     match video.attributes().get(name) {
-        Some(AttributeValueRef::Text(value)) => Some(strip_quotes(value)),
+        Some(AttributeValueRef::Text(value)) => Some(value),
         _ => None,
     }
 }
@@ -108,7 +107,7 @@ fn youtube_target(video: VideoRef<'_>) -> Result<YoutubeTarget, UrlError> {
         .map_or((source.as_str(), None), |(target, list)| {
             (target, Some(list))
         });
-    let named_list = unquoted_attribute(video, "list");
+    let named_list = attribute_text(video, "list");
     if let Some(list) = list.or(named_list) {
         return Ok(YoutubeTarget {
             id: target.to_owned(),
@@ -120,7 +119,7 @@ fn youtube_target(video: VideoRef<'_>) -> Result<YoutubeTarget, UrlError> {
         .map_or((target, None), |(target, playlist)| {
             (target, Some(playlist))
         });
-    let named_playlist = unquoted_attribute(video, "playlist");
+    let named_playlist = attribute_text(video, "playlist");
     let playlist = playlist
         .or(named_playlist)
         .map(|playlist| ("playlist", format!("{target},{playlist}")));
@@ -224,7 +223,7 @@ fn build_youtube_embed_url(video: VideoRef<'_>) -> Result<String, UrlError> {
     if video.options().contains("nofullscreen") {
         write!(url, "&fs=0")?;
     }
-    if let Some(lang) = unquoted_attribute(video, "lang") {
+    if let Some(lang) = attribute_text(video, "lang") {
         write!(url, "&hl={lang}")?;
     }
 
@@ -249,7 +248,7 @@ fn build_vimeo_watch_url(video: VideoRef<'_>) -> Result<String, UrlError> {
     let video_id = video.source().to_string();
     let mut url = format!("https://vimeo.com/{video_id}");
     if !video_id.contains('/')
-        && let Some(hash) = unquoted_attribute(video, "hash")
+        && let Some(hash) = attribute_text(video, "hash")
     {
         write!(url, "/{hash}")?;
     }
@@ -276,7 +275,7 @@ fn build_vimeo_embed_url(video: VideoRef<'_>) -> Result<String, UrlError> {
     let (video_id, hash) = video_id
         .split_once('/')
         .map_or((video_id.as_str(), None), |(id, hash)| (id, Some(hash)));
-    let named_hash = unquoted_attribute(video, "hash");
+    let named_hash = attribute_text(video, "hash");
     let mut url = format!("https://player.vimeo.com/video/{video_id}");
     let mut first_param = true;
     if let Some(hash) = hash.or(named_hash) {
@@ -301,7 +300,7 @@ fn build_vimeo_embed_url(video: VideoRef<'_>) -> Result<String, UrlError> {
         write!(url, "{}muted=1", if first_param { "?" } else { "&" })?;
     }
 
-    if let Some(start) = unquoted_attribute(video, "start") {
+    if let Some(start) = attribute_text(video, "start") {
         write!(url, "#at={start}")?;
     }
 

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Audio and video controls retain literal quote characters. Quoted provider names no longer select YouTube or Vimeo, matching Asciidoctor.
+
 - Inline icon alternatives preserve literal trailing dashes, matching Asciidoctor.
 
 - Inline image alternatives preserve literal trailing dashes in normal images, embedded images, and SVG fallbacks.

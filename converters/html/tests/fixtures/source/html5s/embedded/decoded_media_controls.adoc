@@ -1,0 +1,18 @@
+= Decoded scalar attributes
+
+link:https://example.org[Named link,id="'link-π'",role="'underline'",window="'review'"]
+
+image:missing.png[Alt,link="'https://example.org/image'",width="'40'",window="''"]
+
+audio::sample.ogg[start="'5'",end="'10'"]
+
+video::sample.mp4[start="'5'",end="'10'"]
+
+video::quoted-provider[poster="'youtube'"]
+
+video::real-provider[youtube,list="'list-π'",playlist="'other'",lang="'pt'"]
+
+[source,text,subs=+macros]
+----
+link:https://example.org[Code link,id="'code-π'"]
+----

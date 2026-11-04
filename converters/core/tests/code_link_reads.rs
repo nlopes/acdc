@@ -267,3 +267,25 @@ fn code_text_consumes_temporary_typed_input_once() -> Result<(), Error> {
     assert_eq!(result, (String::from("Temporary Destination"), true));
     Ok(())
 }
+
+#[test]
+fn code_link_anchors_keep_literal_quotes() -> Result<(), Error> {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            "link:https://example.org[Link,id=\"'code-π'\"]",
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let Block::Paragraph(paragraph) = parsed.document().blocks.first().ok_or("paragraph")?
+        else {
+            return Err("paragraph".into());
+        };
+        let node = paragraph.content.first().ok_or("link")?;
+        for link in [
+            resolve_code_link(node, &parsed.document().references, "html"),
+            resolve_code_link(InlineRef::from(node), &parsed.document().references, "html"),
+        ] {
+            assert_eq!(link.ok_or("code link")?.anchor.as_deref(), Some("'code-π'"));
+        }
+    }
+    Ok(())
+}

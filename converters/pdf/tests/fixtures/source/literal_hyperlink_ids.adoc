@@ -1,0 +1,12 @@
+= Literal hyperlink IDs
+
+link:https://example.org[Link,id="'link-π'"]
+
+https://example.org[URL,id="'url-π'"]
+
+mailto:a@example.org[Mail,id="'mail-π'"]
+
+[source,text,subs=+macros]
+----
+link:https://example.org[Code link,id="'code-π'"]
+----

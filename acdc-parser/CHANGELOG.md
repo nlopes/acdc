@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Text attribute reads retain literal quotes, empty strings, and Unicode. Hyperlink IDs keep the same value in the reference catalog instead of being dequoted again.
+
 - `parse_inline` and `Parser::parse_inline` now resolve attribute references, replacement characters, and passthroughs like document content in the selected compatibility mode. Empty fragments are accepted; surrounding whitespace is preserved. Inline passthroughs return resolved nodes or raw content with remaining substitutions instead of unprocessed `Pass` macros.
 
 - Block image alt text now contains resolved replacement symbols in Asciidoctor mode. Draft alt text stays literal. JSON consumers must accept symbol nodes in alternative text.

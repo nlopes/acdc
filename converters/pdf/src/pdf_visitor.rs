@@ -4522,7 +4522,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .and_then(|metadata| metadata.get("id"))
             .and_then(|value| {
                 if let AttributeValueRef::Text(id) = value {
-                    Some(acdc_parser::strip_quotes(id))
+                    Some(id)
                 } else {
                     None
                 }

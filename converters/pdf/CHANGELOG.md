@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Hyperlink IDs with literal quotes now retain their named PDF destinations, including links in code blocks.
+
 - Missing block images use the same resolved alternative text as embedded images. Replacement characters now appear in this fallback; Asciidoctor PDF keeps block alternatives literal.
 
 ### Changed

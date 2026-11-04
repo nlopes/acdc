@@ -5,7 +5,6 @@ use std::{borrow::Cow, path::Path};
 use acdc_parser::{
     ContentAttribute, Source,
     ast::{AttributeValueRef, AttributesRef, ContentRef, SourceRef},
-    strip_quotes,
 };
 use relative_path::RelativePath;
 
@@ -133,12 +132,12 @@ pub fn with_time_range(target: &str, attributes: &acdc_parser::ElementAttributes
 
 /// Append a playback range from typed `start` and `end` attributes.
 ///
-/// Text values lose their enclosing quotes; empty values remain present.
+/// Text values are preserved, including literal quotes and empty values.
 /// Nontext values are ignored. The target and any existing fragment stay intact.
 #[must_use]
 pub fn with_time_range_from_attributes(target: &str, attributes: AttributesRef<'_>) -> String {
     let time = |name| match attributes.get(name) {
-        Some(AttributeValueRef::Text(value)) => Some(strip_quotes(value)),
+        Some(AttributeValueRef::Text(value)) => Some(value),
         _ => None,
     };
     append_time_range(target, time("start"), time("end"))

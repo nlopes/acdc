@@ -425,7 +425,7 @@ fn collect_link_references<'a>(
     xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) {
     if let Some(id) = &metadata.id {
-        insert_untitled_reference(state, refs, crate::strip_quotes(id.id), location);
+        insert_untitled_reference(state, refs, id.id, location);
     }
     collect_inline_references(state, text, refs, xrefs);
 }

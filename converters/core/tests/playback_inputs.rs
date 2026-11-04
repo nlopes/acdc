@@ -83,12 +83,12 @@ fn youtube_playlists_keep_shorthand_and_named_precedence() -> Result<(), Box<dyn
 }
 
 #[test]
-fn youtube_controls_keep_raw_time_values_and_unquoted_language()
--> Result<(), Box<dyn std::error::Error>> {
+fn youtube_controls_keep_literal_time_and_language_values() -> Result<(), Box<dyn std::error::Error>>
+{
     let video = video(
         "one",
         &[
-            ("poster", "\"youtube\""),
+            ("poster", "youtube"),
             ("start", "\"5\""),
             ("end", ""),
             ("theme", "\"dark\""),
@@ -107,7 +107,7 @@ fn youtube_controls_keep_raw_time_values_and_unquoted_language()
     assert_urls(
         &video,
         "https://www.youtube.com/watch?v=one&t=\"5\"&end=",
-        "https://www.youtube.com/embed/one?rel=1&start=\"5\"&end=&theme=\"dark\"&autoplay=1&loop=1&playlist=one&mute=1&controls=0&fs=0&hl=en&modestbranding=1",
+        "https://www.youtube.com/embed/one?rel=1&start=\"5\"&end=&theme=\"dark\"&autoplay=1&loop=1&playlist=one&mute=1&controls=0&fs=0&hl=\"en\"&modestbranding=1",
     )
 }
 
@@ -122,7 +122,7 @@ fn vimeo_hashes_and_times_keep_watch_and_embed_policies() -> Result<(), Box<dyn 
                 vec!["autoplay", "loop", "muted"],
             )?,
             "https://vimeo.com/123/secret#t=\"5\"",
-            "https://player.vimeo.com/video/123?h=secret&autoplay=1&loop=1&muted=1#at=5",
+            "https://player.vimeo.com/video/123?h=secret&autoplay=1&loop=1&muted=1#at=\"5\"",
         )?;
     }
     assert_urls(
@@ -143,7 +143,11 @@ fn ranges_keep_absent_empty_nontext_and_quoted_values() -> Result<(), Box<dyn st
         (Some(""), None, "clip,audio.ogg?x=1#part#t="),
         (None, Some(""), "clip,audio.ogg?x=1#part#t=,"),
         (Some(""), Some(""), "clip,audio.ogg?x=1#part#t=,"),
-        (Some("\"5\""), Some("'9'"), "clip,audio.ogg?x=1#part#t=5,9"),
+        (
+            Some("\"5\""),
+            Some("'9'"),
+            "clip,audio.ogg?x=1#part#t=\"5\",'9'",
+        ),
     ] {
         let mut audio = Audio::new(Source::Name("clip,audio.ogg?x=1#part"), Location::default());
         audio
@@ -238,7 +242,7 @@ fn range_results_outlive_temporary_attribute_values() {
         let audio = AudioRef::from(&audio);
         with_time_range_from_attributes(&audio.source().to_string(), audio.attributes())
     };
-    assert_eq!(range, "track.ogg#t=5");
+    assert_eq!(range, "track.ogg#t=\"5\"");
 }
 
 #[test]
@@ -255,4 +259,36 @@ fn nontext_controls_keep_a_complete_local_target() -> Result<(), Box<dyn std::er
         assert_urls(&video, "one,two,three", "one,two,three")?;
     }
     Ok(())
+}
+
+#[test]
+fn quoted_provider_names_are_local_poster_values() -> Result<(), Box<dyn std::error::Error>> {
+    for provider in ["'youtube'", "\"vimeo\"", "''"] {
+        assert_urls(
+            &video("clip.mp4", &[("poster", provider)], vec![])?,
+            "clip.mp4",
+            "clip.mp4",
+        )?;
+    }
+    Ok(())
+}
+
+#[test]
+fn named_playlist_and_hash_values_preserve_literal_quotes() -> Result<(), Box<dyn std::error::Error>>
+{
+    assert_urls(
+        &video("one", &[("poster", "youtube"), ("list", "'π'")], vec![])?,
+        "https://www.youtube.com/watch?v=one&list='π'",
+        "https://www.youtube.com/embed/one?rel=0&list='π'",
+    )?;
+    assert_urls(
+        &video("one", &[("poster", "youtube"), ("playlist", "''")], vec![])?,
+        "https://www.youtube.com/watch?v=one&playlist=one,''",
+        "https://www.youtube.com/embed/one?rel=0&playlist=one,''",
+    )?;
+    assert_urls(
+        &video("123", &[("poster", "vimeo"), ("hash", "'π'")], vec![])?,
+        "https://vimeo.com/123/'π'",
+        "https://player.vimeo.com/video/123?h='π'",
+    )
 }

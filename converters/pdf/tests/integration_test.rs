@@ -3851,6 +3851,22 @@ fn typst_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> Res
 }
 
 #[test]
+fn literal_hyperlink_ids_are_named_pdf_destinations() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/literal_hyperlink_ids.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let pdf = render_parsed(&parsed)?;
+        let mut names = named_destinations(&pdf)?.into_keys().collect::<Vec<_>>();
+        names.sort();
+        assert_eq!(names, ["'code-π'", "'link-π'", "'mail-π'", "'url-π'"]);
+    }
+    Ok(())
+}
+
+#[test]
 fn link_macro_ids_are_named_pdf_destinations() -> Result<(), Error> {
     let path = Path::new("tests/fixtures/source/link_macro_ids.adoc");
     let bootstrap = Processor::new(ConverterOptions::default(), Options::builder())?;

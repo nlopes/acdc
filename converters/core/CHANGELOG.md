@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Media playback controls retain literal quotes in start/end values, playlists, language and hashes. A quoted provider name remains a local poster value, matching Asciidoctor. Code-link anchors keep their parsed IDs.
+
 - Icon alternatives retain the parser-selected text, including literal trailing dashes.
 
 - Image alternatives retain the parser-selected text, including literal trailing dashes in inline images.
