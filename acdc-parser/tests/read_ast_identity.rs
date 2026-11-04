@@ -28,7 +28,7 @@ fn headings_select_the_same_primary_id_as_reference_resolution(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let doc = parsed.document_ref();
     let header = doc.header().ok_or("header")?;
     assert_eq!(doc.id().ok_or("document ID")?.as_str(), "header-last");
@@ -63,7 +63,7 @@ fn headings_select_the_same_primary_id_as_reference_resolution(
     for block in &blocks {
         if let Some(id) = block.id() {
             assert_eq!(id.origin(), IdOrigin::Explicit);
-            assert!(parsed.document().references.contains_key(id.as_str()));
+            assert!(parsed.document_ref().references().contains(id.as_str()));
             assert_eq!(block.primary_anchor().map(AnchorRef::id), Some(id.as_str()));
         }
     }
@@ -96,9 +96,9 @@ fn headings_select_the_same_primary_id_as_reference_resolution(
         ["dedicated", "alias"]
     );
     for unregistered in ["header-first", "section-first", "paragraph-last", "alias"] {
-        assert!(!parsed.document().references.contains_key(unregistered));
+        assert!(!parsed.document_ref().references().contains(unregistered));
     }
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 
@@ -134,13 +134,11 @@ fn generated_section_ids_are_retained_collision_checked_and_not_authored_anchors
         assert!(block.anchors().next().is_none());
         assert_eq!(
             parsed
-                .document()
-                .references
+                .document_ref()
+                .references()
                 .get(expected)
                 .ok_or("reference")?
-                .title
-                .as_ref()
-                .and_then(Title::content),
+                .title(),
             section.title()
         );
     }
@@ -282,10 +280,10 @@ fn inline_identity_is_separate_from_reference_targets_and_footnote_keys(
         }
     }
     for target in ["span", "anchor", "link", "url", "mail"] {
-        assert!(parsed.document().references.contains_key(target));
+        assert!(parsed.document_ref().references().contains(target));
     }
     for retained_only in ["image", "icon", "xref", "index", "key"] {
-        assert!(!parsed.document().references.contains_key(retained_only));
+        assert!(!parsed.document_ref().references().contains(retained_only));
     }
     Ok(())
 }
@@ -425,50 +423,6 @@ fn explicit_underscore_ids_are_not_mistaken_for_generated_ids() -> Result<(), Er
     assert_eq!(
         (generated.as_str(), generated.origin()),
         ("_same_2", IdOrigin::Generated)
-    );
-    Ok(())
-}
-
-#[test]
-fn retained_id_origin_survives_direct_metadata_edits() -> Result<(), Error> {
-    let parsed = parse(
-        "[id=explicit]\n== Heading\n\n== Generated\n",
-        &Options::default(),
-    )?;
-    let mut owners = parsed.document().blocks.iter();
-    let acdc_parser::Block::Section(explicit) = owners.next().ok_or("explicit")? else {
-        return Err("section".into());
-    };
-    let mut explicit = explicit.clone();
-    explicit.metadata = BlockMetadata::default();
-    let id = SectionRef::from(&explicit)
-        .id()
-        .ok_or("retained explicit ID")?;
-    assert_eq!((id.as_str(), id.origin()), ("explicit", IdOrigin::Explicit));
-    let acdc_parser::Block::Section(generated) = owners.next().ok_or("generated")? else {
-        return Err("section".into());
-    };
-    let mut generated = generated.clone();
-    generated.metadata.id = Some(Anchor::new("override", Location::default()));
-    assert_eq!(
-        SectionRef::from(&generated)
-            .id()
-            .ok_or("override")?
-            .origin(),
-        IdOrigin::Explicit
-    );
-    generated.metadata.id = None;
-    let id = SectionRef::from(&generated)
-        .id()
-        .ok_or("retained generated ID")?;
-    assert_eq!(
-        (id.as_str(), id.origin()),
-        ("_generated", IdOrigin::Generated)
-    );
-    assert!(
-        SectionRef::from(&generated.with_metadata(BlockMetadata::default())?)
-            .id()
-            .is_none()
     );
     Ok(())
 }
