@@ -242,9 +242,9 @@ fn constructed_headers_keep_optional_content_and_shared_authors() -> Result<(), 
     let mut header = Header::new(Title::default(), Location::default());
     assert!(HeaderRef::from(&header).title().is_none());
     assert!(HeaderRef::from(&header).subtitle().is_none());
-    header.title = Title::new(Vec::new());
-    header.subtitle = Some(Title::default());
-    header.authors.push(author);
+    header.set_title(Title::new(Vec::new()));
+    header.set_subtitle(Some(Title::default()));
+    header.set_authors([author]);
     let header = HeaderRef::from(&header);
     assert!(header.title().ok_or("empty title")?.is_empty());
     assert!(header.subtitle().ok_or("empty subtitle")?.is_empty());

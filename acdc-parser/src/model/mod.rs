@@ -228,33 +228,33 @@ impl<'a> Document<'a> {
 ///
 /// The header contains the title, subtitle, authors, and optional metadata
 /// (such as ID and roles) that can be applied to the document title.
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Header<'a> {
     #[serde(skip_serializing_if = "BlockMetadata::is_default")]
-    pub metadata: BlockMetadata<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
     #[serde(skip_serializing_if = "Title::is_empty")]
-    pub title: Title<'a>,
+    pub(crate) title: Title<'a>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub subtitle: Option<Subtitle<'a>>,
+    pub(crate) subtitle: Option<Subtitle<'a>>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub authors: Vec<Author<'a>>,
-    pub location: Location,
+    pub(crate) authors: Vec<Author<'a>>,
+    pub(crate) location: Location,
 }
 
 /// An `Author` represents the author of a document.
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Author<'a> {
     #[serde(rename = "firstname")]
-    pub first_name: &'a str,
+    pub(crate) first_name: &'a str,
     #[serde(skip_serializing_if = "Option::is_none", rename = "middlename")]
-    pub middle_name: Option<&'a str>,
+    pub(crate) middle_name: Option<&'a str>,
     #[serde(rename = "lastname")]
-    pub last_name: &'a str,
-    pub initials: &'a str,
+    pub(crate) last_name: &'a str,
+    pub(crate) initials: &'a str,
     #[serde(skip_serializing_if = "Option::is_none", rename = "address")]
-    pub email: Option<&'a str>,
+    pub(crate) email: Option<&'a str>,
 }
 
 impl<'a> Header<'a> {
@@ -278,27 +278,108 @@ impl<'a> Header<'a> {
         mut self,
         metadata: BlockMetadata<'a>,
     ) -> Result<Self, crate::ReservedAttribute> {
-        metadata.validate_attributes(&["title"])?;
-        self.metadata = metadata;
+        self.set_metadata(metadata)?;
         Ok(self)
     }
 
     /// Set the subtitle.
     #[must_use]
     pub fn with_subtitle(mut self, subtitle: Subtitle<'a>) -> Self {
-        self.subtitle = Some(subtitle);
+        self.set_subtitle(Some(subtitle));
         self
     }
 
     /// Set the authors.
     #[must_use]
     pub fn with_authors(mut self, authors: Vec<Author<'a>>) -> Self {
-        self.authors = authors;
+        self.set_authors(authors);
         self
+    }
+    /// Replace metadata without shadowing the header title or common metadata.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated fields, leaving the header unchanged.
+    pub fn set_metadata(
+        &mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<(), crate::ReservedAttribute> {
+        metadata.validate_attributes(&["title"])?;
+        self.metadata = metadata;
+        Ok(())
+    }
+
+    /// Remove metadata without changing title, subtitle, or authors.
+    #[must_use]
+    pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
+        std::mem::take(&mut self.metadata)
+    }
+
+    /// Replace the title, including an explicitly empty value.
+    pub fn set_title(&mut self, title: Title<'a>) {
+        self.title = title;
+    }
+
+    /// Remove the title, leaving it absent.
+    #[must_use]
+    pub fn take_title(&mut self) -> Title<'a> {
+        std::mem::take(&mut self.title)
+    }
+
+    /// Replace the optional subtitle. `Some` retains explicit empty content.
+    pub fn set_subtitle(&mut self, subtitle: Option<Subtitle<'a>>) {
+        self.subtitle = subtitle;
+    }
+
+    /// Remove and return the optional subtitle.
+    #[must_use]
+    pub fn take_subtitle(&mut self) -> Option<Subtitle<'a>> {
+        self.subtitle.take()
+    }
+
+    /// Replace authors without updating author-derived document attributes.
+    pub fn set_authors(&mut self, authors: impl IntoIterator<Item = Author<'a>>) {
+        self.authors = authors.into_iter().collect();
+    }
+
+    /// Remove authors, retaining each author's source lifetime.
+    pub fn take_authors(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = Author<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.authors).into_iter()
+    }
+
+    /// Replace the header span without relocating its content or metadata.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 }
 
 impl<'a> Author<'a> {
+    /// Replace the prepared first name without normalization.
+    pub fn set_first_name(&mut self, first_name: &'a str) {
+        self.first_name = first_name;
+    }
+
+    /// Replace or remove the prepared middle name without normalization.
+    pub fn set_middle_name(&mut self, middle_name: Option<&'a str>) {
+        self.middle_name = middle_name;
+    }
+
+    /// Replace the prepared last name without normalization.
+    pub fn set_last_name(&mut self, last_name: &'a str) {
+        self.last_name = last_name;
+    }
+
+    /// Replace prepared initials without recomputing them from the name.
+    pub fn set_initials(&mut self, initials: &'a str) {
+        self.initials = initials;
+    }
+
+    /// Replace or remove the email address without updating document attributes.
+    pub fn set_email(&mut self, email: Option<&'a str>) {
+        self.email = email;
+    }
+
     /// Assemble an author from already-prepared name parts. No normalization
     /// or allocation happens — callers (tests, external consumers) are
     /// responsible for providing the display-ready strings they want.
@@ -369,7 +450,7 @@ impl<'a> Author<'a> {
     /// Set the email address.
     #[must_use]
     pub fn with_email(mut self, email: &'a str) -> Self {
-        self.email = Some(email);
+        self.set_email(Some(email));
         self
     }
 

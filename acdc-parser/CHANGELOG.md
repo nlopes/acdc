@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `Header` and `Author` fields are private. Read through `ast::HeaderRef`
+  and `ast::AuthorRef`; use their owned setters to edit prepared values. Header
+  `take_*` methods transfer metadata, titles, and authors with their source
+  lifetimes. Invalid header metadata is rejected without changing the header;
+  author edits do not recompute document attributes.
+
 - **Breaking:** `Document` storage fields are private. Read through
   `ast::DocumentRef::from(&document)` and edit with `set_header`, `set_attributes`,
   `set_blocks`, `set_footnotes`, `set_toc_entries`, `set_references`, and

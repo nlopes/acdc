@@ -120,6 +120,14 @@ other `set_*` methods to replace owned parts. Their `take_*` counterparts transf
 them to a borrow of the old document. You can edit those parts and put them back;
 registrations stay unchanged until you replace them or reparse the source.
 
+Read constructed headers and authors through `HeaderRef::from(&header)` and
+`AuthorRef::from(&author)`. Their fields are private; use setters to edit prepared
+values. Clone an owned header and use `take_metadata()` to prepare a replacement
+while keeping the original intact. Header metadata replacement rejects attributes that shadow dedicated
+fields and leaves the header unchanged on error. Header `take_*` methods transfer
+content and authors while preserving their source lifetimes. Author setters keep
+the supplied display text and leave author-derived document attributes unchanged.
+
 `IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
 option tokens. An icon ID is retained even when a converter does not emit it.
 To construct an icon, use `Icon::new(target, location)` and edit its content and

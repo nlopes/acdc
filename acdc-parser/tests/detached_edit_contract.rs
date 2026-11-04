@@ -108,7 +108,7 @@ fn author_and_document_attribute_edits_do_not_reinterpret_registered_content(
     )?;
     let mut document = Document::from(parsed.document());
     let mut header = document.take_header().ok_or("header")?;
-    header.authors = vec![Author::from_parts("Bob", None, "Jones", "BJ")];
+    header.set_authors([Author::from_parts("Bob", None, "Jones", "BJ")]);
     document.set_header(Some(header));
     assert_eq!(
         DocumentRef::from(&document)

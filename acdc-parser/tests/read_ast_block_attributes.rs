@@ -17,11 +17,13 @@ fn header_metadata_and_document_assignments_stay_distinct() -> Result<(), Error>
         &Options::default(),
     )?;
     let mut header = acdc_parser::Header::new(acdc_parser::Title::default(), Location::default());
-    header.metadata.reftext = Some(ContentAttribute::default());
-    header.metadata.attribution = Some(ContentAttribute::default());
-    header.metadata.citetitle = Some(ContentAttribute::default());
-    header.metadata.caption = Some(Caption::CustomContent(ContentAttribute::default()));
-    header.metadata.substitutions = Some(SubstitutionSpec::Modifiers(Vec::new()));
+    let mut metadata = header.take_metadata();
+    metadata.reftext = Some(ContentAttribute::default());
+    metadata.attribution = Some(ContentAttribute::default());
+    metadata.citetitle = Some(ContentAttribute::default());
+    metadata.caption = Some(Caption::CustomContent(ContentAttribute::default()));
+    metadata.substitutions = Some(SubstitutionSpec::Modifiers(Vec::new()));
+    header.set_metadata(metadata)?;
     let attributes = HeaderRef::from(&header).attributes();
     inventory(attributes);
     for name in ["reftext", "attribution", "citetitle", "caption"] {

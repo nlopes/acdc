@@ -309,11 +309,9 @@ fn attribute_only_preambles_remain_unwrapped_after_owner_edits() -> Result<(), E
     let parsed = parse(SOURCE, &Options::default())?;
     let mut parsed_document = acdc_parser::Document::from(parsed.document());
     let mut document = Document::default();
-    let header = parsed_document.take_header().ok_or("header")?;
-    document.set_header(Some(Header::new(
-        header.title.clone(),
-        header.location.clone(),
-    )));
+    let mut header = parsed_document.take_header().ok_or("header")?;
+    let location = acdc_parser::Location::from(HeaderRef::from(&header).location());
+    document.set_header(Some(Header::new(header.take_title(), location)));
     document.set_attributes(parsed_document.take_attributes());
     document.set_blocks(
         parsed_document

@@ -25,24 +25,26 @@ fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         for (explicit, expected_id) in [(false, "last"), (true, "first")] {
             let mut document = Document::default();
-            let original = Document::from(acdc_parser::ast::DocumentRef::from(&parsed_stored))
+            let mut original = Document::from(acdc_parser::ast::DocumentRef::from(&parsed_stored))
                 .take_header()
                 .ok_or("expected a header")?;
             document.set_header(Some(
-                Header::new(original.title.as_ref().to_vec().into(), Location::default())
-                    .with_metadata(original.metadata.clone())?,
+                Header::new(original.take_title(), Location::default())
+                    .with_metadata(original.take_metadata())?,
             ));
             document.set_attributes(acdc_parser::DocumentAttributes::from(
                 parsed.document().attributes(),
             ));
             let mut header = document.take_header().ok_or("expected a header")?;
-            assert_eq!(header.metadata.anchors.len(), 2);
-            header.metadata.id = if explicit {
-                header.metadata.anchors.first().cloned()
+            let mut metadata = header.clone().take_metadata();
+            assert_eq!(metadata.anchors.len(), 2);
+            metadata.id = if explicit {
+                metadata.anchors.first().cloned()
             } else {
                 None
             };
-            header.metadata.roles = vec!["alpha", "beta", "alpha"];
+            metadata.roles = vec!["alpha", "beta", "alpha"];
+            header.set_metadata(metadata)?;
             document.set_header(Some(header));
             let processor = Processor::new_with_variant(
                 ConverterOptions::default(),
