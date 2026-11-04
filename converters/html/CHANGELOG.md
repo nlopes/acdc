@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Rust callers must now pass `parsed.document_ref()` to `uses_stem`. Math detection still includes header, body, and nested table-cell settings.
+
 - Render attributed plus passthroughs without leaking their ID and role prefixes into the text. Apply the supported inline roles and retain link destinations.
 
 - Document titles and subtitles keep escaped references literal in the HTML head. Literal markup cannot close the title element or introduce head elements.

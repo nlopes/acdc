@@ -137,8 +137,8 @@ fn add_mathjax<W: Write>(writer: &mut W) -> Result<(), Error> {
 /// Return whether the document enables STEM in its header, body, or a nested
 /// `AsciiDoc` cell. Embedded consumers can use this to enable math rendering.
 #[must_use]
-pub fn uses_stem(document: &Document<'_>) -> bool {
-    let resources = HeadResources::collect(document.into());
+pub fn uses_stem(document: DocumentRef<'_>) -> bool {
+    let resources = HeadResources::collect(document);
     resources.stem || resources.nested_stem
 }
 

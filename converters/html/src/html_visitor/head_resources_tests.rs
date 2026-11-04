@@ -11,7 +11,7 @@ fn flags(source: &str, options: &Options<'_>) -> Result<Flags, Error> {
     let parsed = parse(source, options)?;
     let resources = HeadResources::collect(parsed.document_ref());
     assert_eq!(
-        super::uses_stem(parsed.document()),
+        super::uses_stem(parsed.document_ref()),
         resources.stem || resources.nested_stem
     );
     Ok((resources.stem, resources.font_icons, resources.nested_stem))

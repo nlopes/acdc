@@ -160,7 +160,7 @@ fn render_parsed(
         )
     }));
 
-    let has_stem = acdc_converters_html::uses_stem(document);
+    let has_stem = acdc_converters_html::uses_stem(parsed.document_ref());
 
     Ok(ParseResult {
         highlight_html,
@@ -207,6 +207,62 @@ mod tests {
             let result = parse_and_render_with_mode(source, mode)?;
             assert_eq!(result.highlight_html, highlight, "{mode:?} highlight");
             assert_eq!(result.preview_html, preview, "{mode:?} preview");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn repeated_edits_keep_mode_source_math_and_warnings_independent() -> Result<(), String> {
+        let source = ":word: *Selected*\n\n== {word}\n\n:stem: latexmath\n\nstem:[x^2]\n\nπ 😀 image:diagram.svg[alt='_Diagram_',title='*Hover*'] <<cycle-missing>>\n";
+        let clean = "== Clean\n\nπ 😀 Plain.\n";
+        for _ in 0..2 {
+            for mode in [CompatibilityMode::Draft, CompatibilityMode::Asciidoctor] {
+                let before = parse_and_render_with_mode(source, mode)?;
+                assert!(before.has_stem);
+                assert!(before.highlight_html.contains("adoc-heading"));
+                assert!(before.highlight_html.contains("π 😀"));
+                assert!(before.preview_html.contains("alt=\"Diagram\""));
+                assert!(before.preview_html.contains("title=\"Hover\""));
+                assert!(before.warnings.iter().any(|warning| {
+                    warning.message.contains("cycle-missing")
+                        && warning.line == Some(9)
+                        && warning.column.is_some()
+                }));
+                let heading = if mode == CompatibilityMode::Draft {
+                    "<strong>Selected</strong>"
+                } else {
+                    "*Selected*"
+                };
+                assert!(before.preview_html.contains(&format!(">{heading}</h2>")));
+
+                let reset = parse_and_render_with_mode(clean, mode)?;
+                assert!(!reset.has_stem);
+                assert!(reset.warnings.is_empty());
+                assert!(reset.preview_html.contains(">Clean</h2>"));
+                assert!(!reset.preview_html.contains("Selected"));
+                assert!(!reset.highlight_html.contains("{word}"));
+
+                let after = parse_and_render_with_mode(source, mode)?;
+                assert_eq!(after.preview_html, before.preview_html);
+                assert_eq!(after.highlight_html, before.highlight_html);
+                assert_eq!(after.has_stem, before.has_stem);
+                let warnings = |result: &ParseResult| {
+                    result
+                        .warnings
+                        .iter()
+                        .map(|warning| {
+                            (
+                                warning.message.clone(),
+                                warning.advice.clone(),
+                                warning.file.clone(),
+                                warning.line,
+                                warning.column,
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                };
+                assert_eq!(warnings(&after), warnings(&before));
+            }
         }
         Ok(())
     }
@@ -261,12 +317,13 @@ mod tests {
             &test_sources::options(&[("part.adoc", "π 😀 <<missing>>\n")])?,
         )?;
         let location = parsed
-            .document()
-            .blocks
-            .first()
+            .document_ref()
+            .blocks()
+            .next()
             .ok_or("missing block")?
             .location();
-        let unresolved = acdc_parser::SourceLocation::at_location(None, location.clone());
+        let unresolved =
+            acdc_parser::SourceLocation::at_location(None, acdc_parser::Location::from(location));
         let warning = EditorWarning::new(
             "Converter warning".to_string(),
             None,
