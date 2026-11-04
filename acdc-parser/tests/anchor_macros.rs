@@ -1,4 +1,8 @@
-use acdc_parser::{InlineNode, Options, WarningKind, parse};
+use acdc_parser::{
+    Options, WarningKind,
+    ast::{InlineKind, InlineRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -21,15 +25,15 @@ fn anchor_macros_register_labels_and_exact_source_spans() -> Result<(), Error> {
         ("first", "anchor:first[First]"),
         ("second", "anchor:second[Second]"),
     ] {
-        let reference = parsed.document().references.get(id).ok_or(id)?;
+        let reference = parsed.document_ref().references().get(id).ok_or(id)?;
         assert_eq!(
-            source.get(reference.location.absolute_start..=reference.location.absolute_end),
+            source.get(reference.location().absolute_start()..=reference.location().absolute_end()),
             Some(syntax),
             "{id}"
         );
-        assert_eq!(reference.xreflabel.is_some(), id != "empty", "{id}");
+        assert_eq!(reference.xreflabel().is_some(), id != "empty", "{id}");
     }
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     Ok(())
 }
 
@@ -62,12 +66,14 @@ fn anchor_macros_warn_on_duplicates_and_keep_first_label() -> Result<(), Error> 
         );
     }
     let label = parsed
-        .document()
-        .references
+        .document_ref()
+        .references()
         .get("same")
-        .and_then(|reference| reference.xreflabel.as_deref())
+        .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
         .ok_or("missing label")?;
-    assert!(matches!(label, [InlineNode::PlainText(text)] if text.content == "First"));
+    assert!(
+        matches!(label.inlines().map(InlineRef::kind).collect::<Vec<_>>().as_slice(), [InlineKind::Plain(text)] if text.text() == "First")
+    );
     Ok(())
 }
 
@@ -76,7 +82,7 @@ fn anchor_macros_do_not_register_escaped_invalid_or_literal_ids() -> Result<(), 
     let source = include_str!("../fixtures/tests/anchor_macro_boundaries.adoc");
     let parsed = parse(source, &Options::default())?;
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
-    let references = &parsed.document().references;
+    let references = parsed.document_ref().references();
     for id in [
         "café",
         "東京",
@@ -95,7 +101,7 @@ fn anchor_macros_do_not_register_escaped_invalid_or_literal_ids() -> Result<(), 
         "a·b",
         "a\u{200d}b",
     ] {
-        assert!(references.contains_key(id), "missing {id}");
+        assert!(references.contains(id), "missing {id}");
     }
     for id in [
         "escaped",
@@ -117,7 +123,7 @@ fn anchor_macros_do_not_register_escaped_invalid_or_literal_ids() -> Result<(), 
         "🚀bad",
         "bad\u{a0}id",
     ] {
-        assert!(!references.contains_key(id), "unexpected {id}");
+        assert!(!references.contains(id), "unexpected {id}");
     }
     Ok(())
 }
@@ -144,9 +150,9 @@ fn anchor_macros_preserve_unicode_ids_without_normalizing() -> Result<(), Error>
     ] {
         let source = format!("anchor:{id}[Label]Target.\n\n<<{id}>>.\n");
         let parsed = parse(&source, &Options::default())?;
-        let references = &parsed.document().references;
+        let references = parsed.document_ref().references();
         assert_eq!(references.len(), 1, "{id:?}");
-        assert!(references.contains_key(id), "missing {id:?}");
+        assert!(references.contains(id), "missing {id:?}");
         assert!(
             parsed.warnings().is_empty(),
             "{id:?}: {:?}",
@@ -188,7 +194,10 @@ fn anchor_macros_reject_whitespace_controls_and_invalid_starts() -> Result<(), E
     ] {
         let source = format!("anchor:{id}[Label]Target.\n");
         let parsed = parse(&source, &Options::default())?;
-        assert!(parsed.document().references.is_empty(), "unexpected {id:?}");
+        assert!(
+            parsed.document_ref().references().is_empty(),
+            "unexpected {id:?}"
+        );
     }
     Ok(())
 }
@@ -211,7 +220,7 @@ fn anchor_macros_follow_macro_and_attribute_substitution_order() -> Result<(), E
             );
             let parsed = parse(&source, &Options::default())?;
             assert_eq!(
-                parsed.document().references.contains_key("dynamic"),
+                parsed.document_ref().references().contains("dynamic"),
                 recognized,
                 "{source}"
             );

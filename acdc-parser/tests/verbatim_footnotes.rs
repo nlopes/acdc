@@ -1,4 +1,8 @@
-use acdc_parser::{InlineNode, Options, WarningKind, parse};
+use acdc_parser::{
+    Options, WarningKind,
+    ast::{InlineKind, InlineRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -7,12 +11,12 @@ fn xref_nested_footnotes_register_once_and_keep_source_locations() -> Result<(),
     // The footnote catalog, numbering, and warnings are absent from parser snapshots.
     let source = include_str!("../fixtures/tests/xref_nested_footnotes.adoc");
     let parsed = parse(source, &Options::default())?;
-    let notes = &parsed.document().footnotes;
+    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
     assert_eq!(notes.len(), 13);
     for (index, note) in notes.iter().enumerate() {
-        assert_eq!(note.number as usize, index + 1);
+        assert_eq!(note.number() as usize, index + 1);
         let span = source
-            .get(note.location.absolute_start..=note.location.absolute_end)
+            .get(note.location().absolute_start()..=note.location().absolute_end())
             .ok_or("invalid footnote span")?;
         assert!(
             span.starts_with("footnote:") && span.ends_with(']'),
@@ -40,11 +44,12 @@ fn nested_footnote_catalog_locations_are_document_absolute() -> Result<(), Error
     ] {
         let source = format!("= Locations\n:name: Éva\n\nPrefix {body}.\n");
         let parsed = parse(&source, &Options::default())?;
-        let [note] = parsed.document().footnotes.as_slice() else {
+        let mut definitions = parsed.document_ref().footnotes();
+        let (Some(note), None) = (definitions.next(), definitions.next()) else {
             return Err(format!("expected one note: {body}").into());
         };
         assert_eq!(
-            source.get(note.location.absolute_start..=note.location.absolute_end),
+            source.get(note.location().absolute_start()..=note.location().absolute_end()),
             Some("footnote:[Note {name}.]"),
             "{body}"
         );
@@ -56,12 +61,12 @@ fn nested_footnote_catalog_locations_are_document_absolute() -> Result<(), Error
 fn verbatim_footnotes_keep_one_definition_and_original_locations() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/subs_verbatim_footnotes.adoc");
     let parsed = parse(source, &Options::default())?;
-    let notes = &parsed.document().footnotes;
+    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
     assert_eq!(notes.len(), 14);
     for (index, note) in notes.iter().enumerate() {
-        assert_eq!(note.number as usize, index + 1);
+        assert_eq!(note.number() as usize, index + 1);
         let span = source
-            .get(note.location.absolute_start..=note.location.absolute_end)
+            .get(note.location().absolute_start()..=note.location().absolute_end())
             .ok_or("invalid footnote span")?;
         assert!(
             span.starts_with("footnote:") && span.ends_with(']'),
@@ -79,7 +84,7 @@ fn verbatim_footnotes_keep_one_definition_and_original_locations() -> Result<(),
 fn footnote_reuse_and_missing_references_do_not_consume_numbers() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/footnote_reuse.adoc");
     let parsed = parse(source, &Options::default())?;
-    let notes = &parsed.document().footnotes;
+    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
     assert_eq!(notes.len(), 4);
     for (note, expected) in notes.iter().zip([
         "footnote:shared[Shared body.]",
@@ -88,7 +93,7 @@ fn footnote_reuse_and_missing_references_do_not_consume_numbers() -> Result<(), 
         "footnote:[Last body.]",
     ]) {
         assert_eq!(
-            source.get(note.location.absolute_start..=note.location.absolute_end),
+            source.get(note.location().absolute_start()..=note.location().absolute_end()),
             Some(expected)
         );
     }
@@ -96,11 +101,16 @@ fn footnote_reuse_and_missing_references_do_not_consume_numbers() -> Result<(), 
         return Err("missing definitions".into());
     };
     assert_eq!(
-        [first.number, blank.number, later.number, last.number],
+        [
+            first.number(),
+            blank.number(),
+            later.number(),
+            last.number()
+        ],
         [1, 2, 3, 4]
     );
     assert!(
-        matches!(first.content.as_slice(), [InlineNode::PlainText(text)] if text.content == "Shared body.")
+        matches!(first.content().inlines().map(InlineRef::kind).collect::<Vec<_>>().as_slice(), [InlineKind::Plain(text)] if text.text() == "Shared body.")
     );
     assert!(parsed.warnings().iter().any(|warning| {
         warning

@@ -5,7 +5,7 @@ type Error = Box<dyn std::error::Error>;
 
 fn fixture(source: &str) -> Result<Value, Error> {
     Ok(serde_json::to_value(
-        parse(source, &Options::default())?.document(),
+        parse(source, &Options::default())?.document_ref(),
     )?)
 }
 
@@ -97,7 +97,7 @@ fn ui_content_retains_inline_formatting() -> Result<(), Error> {
 fn selected_media_content_registers_notes_once_at_authored_locations() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/media_content_escapes.adoc");
     let parsed = parse(source, &Options::default())?;
-    let notes = &parsed.document().footnotes;
+    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
     assert_eq!(notes.len(), 3, "{notes:?}");
     for (note, expected) in notes.iter().zip([
         "footnote:[Selected.]",
@@ -105,7 +105,7 @@ fn selected_media_content_registers_notes_once_at_authored_locations() -> Result
         "footnote:[Escaped.\\]",
     ]) {
         assert_eq!(
-            source.get(note.location.absolute_start..=note.location.absolute_end),
+            source.get(note.location().absolute_start()..=note.location().absolute_end()),
             Some(expected)
         );
     }
@@ -147,14 +147,14 @@ fn block_content_attributes_register_before_lazy_titles() -> Result<(), Error> {
             "[{attribute}='footnote:[Attribute.]']\n.Title footnote:[Title.]\nimage::x.png[]"
         );
         let parsed = parse(&source, &Options::default())?;
-        let notes = &parsed.document().footnotes;
+        let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
         assert_eq!(notes.len(), 2);
         for (note, expected) in notes
             .iter()
             .zip(["footnote:[Attribute.]", "footnote:[Title.]"])
         {
             assert_eq!(
-                source.get(note.location.absolute_start..=note.location.absolute_end),
+                source.get(note.location().absolute_start()..=note.location().absolute_end()),
                 Some(expected)
             );
         }

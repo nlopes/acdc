@@ -65,8 +65,8 @@ fn bibliography_labels_preserve_empty_presence_and_authored_whitespace(
             Some(plain.text())
         );
     }
-    assert!(parsed.document().references.contains_key("target"));
-    assert_eq!(parsed.document().footnotes.len(), 0);
+    assert!(parsed.document_ref().references().contains("target"));
+    assert_eq!(parsed.document_ref().footnotes().count(), 0);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -121,7 +121,7 @@ fn empty_bibliography_labels_survive_includes_and_table_cells(
             ("cell-unicode", "café ".into())
         ]
     );
-    assert_eq!(parsed.document().footnotes.len(), 0);
+    assert_eq!(parsed.document_ref().footnotes().count(), 0);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }

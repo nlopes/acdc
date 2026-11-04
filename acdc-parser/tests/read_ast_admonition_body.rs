@@ -18,7 +18,7 @@ fn simple_admonitions_keep_paragraph_attributes_content_and_locations(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let mut admonitions = parsed.document_ref().blocks().filter_map(|block| {
         if let BlockKind::Admonition(admonition) = block.kind() {
             Some(admonition)
@@ -47,8 +47,8 @@ fn simple_admonitions_keep_paragraph_attributes_content_and_locations(
             .is_none()
     );
     assert!(admonitions.next().is_none());
-    assert_eq!(parsed.document().footnotes.len(), 1);
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 

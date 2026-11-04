@@ -98,14 +98,15 @@ fn typography_does_not_register_a_note_twice(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [note] = parsed.document().footnotes.as_slice() else {
+    let mut definitions = parsed.document_ref().footnotes();
+    let (Some(note), None) = (definitions.next(), definitions.next()) else {
         return Err("expected one registered note".into());
     };
-    assert_eq!(note.id.as_deref(), Some("n"));
+    assert_eq!(note.id(), Some("n"));
     assert!(
-        note.content
-            .iter()
-            .any(|node| matches!(node, acdc_parser::InlineNode::Symbol(_)))
+        note.content()
+            .inlines()
+            .any(|node| matches!(node.kind(), InlineKind::Symbol(_)))
     );
     Ok(())
 }

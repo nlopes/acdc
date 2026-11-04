@@ -40,12 +40,12 @@ fn reference_labels_resolve_their_own_profile_and_exact_source_span(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let label = parsed
-        .document()
-        .references
+        .document_ref()
+        .references()
         .get("target")
-        .and_then(|reference| reference.xreflabel.as_ref())
+        .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
         .ok_or("reference label")?;
-    let found = symbols(label.into());
+    let found = symbols(label);
     if draft_literal && mode == CompatibilityMode::Draft {
         assert_eq!(found.len(), 0);
     } else {
@@ -72,19 +72,19 @@ fn restricted_labels_keep_macros_literal_and_do_not_register_them(
 ) -> Result<(), Error> {
     let parsed = parse(source, &Options::default())?;
     let label = parsed
-        .document()
-        .references
+        .document_ref()
+        .references()
         .get("target")
-        .and_then(|reference| reference.xreflabel.as_ref())
+        .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
         .ok_or("reference label")?;
     assert_eq!(
-        symbols(label.into())
+        symbols(label)
             .iter()
             .map(|symbol| symbol.kind())
             .collect::<Vec<_>>(),
         [SymbolKind::RegisteredTrademark]
     );
-    assert_eq!(parsed.document().footnotes.len(), 0);
+    assert_eq!(parsed.document_ref().footnotes().count(), 0);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -98,12 +98,12 @@ fn reference_typography_keeps_escaped_tokens_literal(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let label = parsed
-        .document()
-        .references
+        .document_ref()
+        .references()
         .get("target")
-        .and_then(|reference| reference.xreflabel.as_ref())
+        .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
         .ok_or("reference label")?;
-    assert_eq!(symbols(label.into()).len(), 0);
+    assert_eq!(symbols(label).len(), 0);
     Ok(())
 }
 
@@ -121,12 +121,12 @@ fn reference_labels_keep_declaration_snapshots_and_included_positions(
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let references = &parsed.document().references;
+    let references = parsed.document_ref().references();
     let label = references
         .get("included-label")
-        .and_then(|r| r.xreflabel.as_ref())
+        .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
         .ok_or("included label")?;
-    let found = symbols(label.into());
+    let found = symbols(label);
     assert_eq!(
         found.iter().map(|symbol| symbol.kind()).collect::<Vec<_>>(),
         [SymbolKind::Copyright, SymbolKind::Copyright]
@@ -148,16 +148,16 @@ fn reference_labels_keep_declaration_snapshots_and_included_positions(
     );
     let cell = references
         .get("cell-label")
-        .and_then(|r| r.xreflabel.as_ref())
+        .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
         .ok_or("cell label")?;
     assert_eq!(
-        symbols(cell.into())
+        symbols(cell)
             .iter()
             .map(|symbol| symbol.kind())
             .collect::<Vec<_>>(),
         [SymbolKind::RegisteredTrademark, SymbolKind::Trademark]
     );
-    assert_eq!(parsed.document().footnotes.len(), 0);
+    assert_eq!(parsed.document_ref().footnotes().count(), 0);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -228,7 +228,7 @@ fn visible_bibliography_labels_resolve_the_selected_body_profile(
             Some("(C)")
         );
     }
-    assert_eq!(parsed.document().footnotes.len(), 0);
+    assert_eq!(parsed.document_ref().footnotes().count(), 0);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }

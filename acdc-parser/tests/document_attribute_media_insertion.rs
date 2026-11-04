@@ -81,7 +81,7 @@ fn scalar_media_values_expand_once(
             .alt()
             .is_some_and(ContentRef::is_empty)
     );
-    assert_eq!(parsed.document().footnotes, []);
+    assert!(parsed.document_ref().footnotes().next().is_none());
     Ok(())
 }
 

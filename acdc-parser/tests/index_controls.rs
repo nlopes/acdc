@@ -1,5 +1,6 @@
 use acdc_parser::{
-    CompatibilityMode, IndexTerm, InlineMacro, InlineNode, Options, parse, parse_inline,
+    CompatibilityMode, IndexTerm, InlineMacro, InlineNode, Options, ast::InlineKind, parse,
+    parse_inline,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -90,15 +91,27 @@ fn discarded_index_controls_and_relationships_do_not_register_footnotes() -> Res
          indexterm2:[Selected footnote:used[Only note.],custom=kept]",
         &Options::default(),
     )?;
-    let [note] = parsed.document().footnotes.as_slice() else {
+    let mut definitions = parsed.document_ref().footnotes();
+    let (Some(note), None) = (definitions.next(), definitions.next()) else {
         return Err(format!(
             "expected one selected note: {:?}",
-            parsed.document().footnotes
+            parsed.document_ref().footnotes().collect::<Vec<_>>()
         )
         .into());
     };
-    assert_eq!(note.id, Some("used"));
-    assert_eq!(text(&note.content)?, "Only note.");
+    assert_eq!(note.id(), Some("used"));
+    let content = note
+        .content()
+        .inlines()
+        .map(|node| {
+            if let InlineKind::Plain(text) = node.kind() {
+                Ok(text.text())
+            } else {
+                Err(Error::from("expected plain note"))
+            }
+        })
+        .collect::<Result<String, Error>>()?;
+    assert_eq!(content, "Only note.");
     Ok(())
 }
 
