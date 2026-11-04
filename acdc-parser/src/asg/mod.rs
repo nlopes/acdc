@@ -101,7 +101,10 @@ pub fn inlines(inlines: &[InlineNode<'_>]) -> Result<Value, Error> {
     wrapper
         .pointer_mut("/blocks/0/inlines")
         .map(Value::take)
-        .ok_or_else(|| Error::Schema("validated inline wrapper has no content".into()))
+        .ok_or_else(|| Error::Projection {
+            path: String::new(),
+            message: "validated inline wrapper has no content".into(),
+        })
 }
 
 fn unsupported(path: &str, message: impl Into<String>) -> Error {

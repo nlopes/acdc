@@ -152,3 +152,37 @@ fn unsupported_source_keeps_include_chains() -> Result<(), Error> {
     );
     Ok(())
 }
+
+#[test]
+fn protected_document_values_have_no_invented_declaration_range() -> Result<(), Error> {
+    let parsed = acdc_parser::parse(
+        "= Guide\n:protected: pass:q[*Bold*]\n\nText.",
+        &acdc_parser::Options::default(),
+    )?;
+    assert!(
+        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {
+        path, construct: Some("document attribute"), location: None, ..
+    }) if path == "/attributes/protected")
+    );
+    Ok(())
+}
+
+#[test]
+fn section_policy_errors_identify_the_native_property() {
+    for (kind, numbered, expected) in [
+        (acdc_parser::SectionKind::Appendix, false, "kind"),
+        (acdc_parser::SectionKind::Normal, true, "numbering"),
+    ] {
+        let mut section =
+            acdc_parser::Section::new(Title::new(Vec::new()), 1, Vec::new(), Location::default())
+                .with_numbering(numbered);
+        section.kind = kind;
+        let mut document = Document::default();
+        document.blocks.push(Block::Section(section));
+        assert!(
+            matches!(asg::document(&document), Err(asg::Error::Unsupported {
+            path, construct: Some("section"), ..
+        }) if path == format!("/blocks/0/{expected}"))
+        );
+    }
+}

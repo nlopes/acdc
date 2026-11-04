@@ -3,8 +3,9 @@ use std::collections::BTreeMap;
 use serde_json::{Map, Value};
 
 use crate::{
-    Block, BlockMetadata, ContentAttribute, Document, DocumentAttributeAssignment, Form, Header,
-    InlineNode, Section, SectionKind, Substitution, Title,
+    Block, BlockMetadata, ContentAttribute, DelimitedBlockType, Document,
+    DocumentAttributeAssignment, Form, Header, InlineNode, Section, SectionKind, Substitution,
+    Title,
 };
 
 use super::{Error, diagnostics, metadata, pointer, unsupported};
@@ -229,11 +230,13 @@ pub(super) fn document(value: &Document<'_>) -> Result<Value, Error> {
                     return Err(unsupported(
                         &pointer("/attributes", name),
                         "attribute content protection cannot be flattened into a scalar string",
-                    ));
+                    )
+                    .with_context("document attribute", &crate::Location::default()));
                 }
                 let mut text = String::new();
                 attribute.write_text(&mut text).map_err(|error| {
                     unsupported(&pointer("/attributes", name), error.to_string())
+                        .with_context("document attribute", &crate::Location::default())
                 })?;
                 Value::String(text)
             }
@@ -285,11 +288,16 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 result
             }
             Block::Section(section) => {
-                if section.kind != SectionKind::Normal || !section.numbering_is_disabled() {
-                    return Err(unsupported(
-                        at,
-                        "section category or numbering requires a defined semantic mapping",
-                    ));
+                for (present, property) in [
+                    (section.kind != SectionKind::Normal, "kind"),
+                    (!section.numbering_is_disabled(), "numbering"),
+                ] {
+                    if present {
+                        return Err(unsupported(
+                            &pointer(at, property),
+                            "section category or numbering requires a defined semantic mapping",
+                        ));
+                    }
                 }
                 if !section.title.is_present() {
                     return Err(unsupported(
@@ -313,6 +321,18 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 result
             }
             Block::Comment(_) => return Ok(None),
+            Block::DelimitedBlock(block)
+                if matches!(&block.inner, DelimitedBlockType::DelimitedComment(_)) =>
+            {
+                if block.title.is_present() {
+                    return Err(unsupported(
+                        &pointer(at, "title"),
+                        "a comment title cannot be omitted",
+                    ));
+                }
+                metadata::empty(&block.metadata, at)?;
+                return Ok(None);
+            }
             Block::TableOfContents(_)
             | Block::Admonition(_)
             | Block::DiscreteHeader(_)
@@ -447,5 +467,33 @@ impl<'a, 'doc> Export<'a, 'doc> {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Error, inlines};
+    use crate::{CalloutRef, InlineMacro, InlineNode, Location, Pass, PassthroughKind};
+
+    #[test]
+    fn unresolved_macro_and_callout_owners_are_rejected() {
+        let pass = InlineNode::Macro(InlineMacro::Pass(Pass {
+            attribute_fragments: Box::default(),
+            text: Some("literal"),
+            substitutions: Vec::new(),
+            location: Location::default(),
+            kind: PassthroughKind::Macro,
+        }));
+        for (node, owner) in [
+            (pass, "passthrough"),
+            (
+                InlineNode::CalloutRef(CalloutRef::explicit(1, Location::default())),
+                "callout",
+            ),
+        ] {
+            assert!(matches!(inlines(&[node], ""), Err(Error::Unsupported {
+                path, construct: Some(actual), ..
+            }) if path == "/0" && actual == owner));
+        }
     }
 }

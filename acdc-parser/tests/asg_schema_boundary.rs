@@ -150,3 +150,59 @@ fn support_inventory_covers_every_backing_model_property() -> Result<(), Error> 
     }
     Ok(())
 }
+
+#[test]
+fn every_inventory_class_has_current_strict_export_evidence() -> Result<(), Error> {
+    use std::{collections::BTreeSet, path::Path};
+    let inventory: serde_json::Value =
+        serde_json::from_str(include_str!("../schemas/asg/support-inventory.json"))?;
+    let groups = inventory
+        .get("strict_export_groups")
+        .and_then(serde_json::Value::as_object)
+        .ok_or("missing export groups")?;
+    let types = inventory
+        .get("types")
+        .and_then(serde_json::Value::as_object)
+        .ok_or("missing types")?;
+    let mut used = BTreeSet::new();
+    for (name, entry) in types {
+        let group = entry
+            .get("strict_export_group")
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| format!("unclassified {name}"))?;
+        assert!(groups.contains_key(group), "{name}: unknown {group}");
+        used.insert(group);
+    }
+    assert_eq!(used, groups.keys().map(String::as_str).collect());
+    for (name, group) in groups {
+        assert!(
+            !group
+                .get("handling")
+                .and_then(serde_json::Value::as_str)
+                .ok_or("missing handling")?
+                .is_empty(),
+            "{name}"
+        );
+        let tests = group
+            .get("tests")
+            .and_then(serde_json::Value::as_array)
+            .ok_or("missing evidence")?;
+        assert!(!tests.is_empty(), "{name}");
+        for test in tests {
+            let file = test
+                .get("file")
+                .and_then(serde_json::Value::as_str)
+                .ok_or("missing test file")?;
+            let case = test
+                .get("name")
+                .and_then(serde_json::Value::as_str)
+                .ok_or("missing test name")?;
+            let source = std::fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(file))?;
+            assert!(
+                source.contains(&format!("fn {case}(")),
+                "{name}: stale evidence {file}::{case}"
+            );
+        }
+    }
+    Ok(())
+}

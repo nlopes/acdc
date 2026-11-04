@@ -113,12 +113,17 @@ pub(super) fn check(value: &BlockMetadata<'_>, path: &str) -> Result<(), Error> 
             ));
         }
     }
-    if value.alt_source.is_some() || value.first_source.is_some() || value.reftext_source.is_some()
-    {
-        return Err(unsupported(
-            &at,
-            "pending content must be resolved before export",
-        ));
+    for (present, property) in [
+        (value.alt_source.is_some(), "alt_source"),
+        (value.first_source.is_some(), "first_source"),
+        (value.reftext_source.is_some(), "reftext_source"),
+    ] {
+        if present {
+            return Err(unsupported(
+                &pointer(&at, property),
+                "pending content must be resolved before export",
+            ));
+        }
     }
     Ok(())
 }
@@ -211,20 +216,92 @@ pub(super) fn apply(
 }
 
 pub(super) fn header(value: &BlockMetadata<'_>) -> Result<(), Error> {
-    check(value, "/header")?;
-    if !value.attributes.is_empty()
-        || !value.raw_positional_attributes().is_empty()
-        || !value.roles.is_empty()
-        || !value.options.is_empty()
-        || value.style.is_some()
-        || value.id.is_some()
-        || !value.anchors.is_empty()
-        || value.reftext.is_some()
-    {
-        return Err(unsupported(
-            "/header/metadata",
-            "the upstream header has no identity or metadata fields",
-        ));
+    empty(value, "/header")
+}
+
+pub(super) fn empty(value: &BlockMetadata<'_>, path: &str) -> Result<(), Error> {
+    check(value, path)?;
+    for (present, property) in [
+        (!value.attributes.is_empty(), "attributes"),
+        (
+            !value.raw_positional_attributes().is_empty(),
+            "positional_attributes",
+        ),
+        (!value.roles.is_empty(), "roles"),
+        (!value.options.is_empty(), "options"),
+        (value.style.is_some(), "style"),
+        (value.id.is_some(), "id"),
+        (!value.anchors.is_empty(), "anchors"),
+        (value.reftext.is_some(), "reftext"),
+    ] {
+        if present {
+            return Err(unsupported(
+                &pointer(&pointer(path, "metadata"), property),
+                "this owner has no supported upstream metadata mapping",
+            ));
+        }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Error, check};
+    use crate::{
+        BlockMetadata, DocumentAttribute, DocumentAttributeAssignment, Location,
+        grammar::BlockAttributeMode, model::content_attribute::PendingContentAttribute,
+    };
+
+    #[test]
+    fn pending_content_is_rejected_by_property() {
+        let pending = || {
+            Box::new(PendingContentAttribute {
+                source: "content",
+                input: 0,
+                mode: BlockAttributeMode::Macro,
+            })
+        };
+        for (property, metadata) in [
+            (
+                "alt_source",
+                BlockMetadata {
+                    alt_source: Some(pending()),
+                    ..BlockMetadata::default()
+                },
+            ),
+            (
+                "first_source",
+                BlockMetadata {
+                    first_source: Some(pending()),
+                    ..BlockMetadata::default()
+                },
+            ),
+            (
+                "reftext_source",
+                BlockMetadata {
+                    reftext_source: Some(0),
+                    ..BlockMetadata::default()
+                },
+            ),
+        ] {
+            assert!(
+                matches!(check(&metadata, "/blocks/0"), Err(Error::Unsupported {path, ..})
+                if path == format!("/blocks/0/metadata/{property}"))
+            );
+        }
+    }
+
+    #[test]
+    fn retained_document_events_are_not_omitted() {
+        let mut metadata = BlockMetadata::default();
+        metadata.push_document_attribute(DocumentAttribute::accepted(
+            "later".into(),
+            DocumentAttributeAssignment::Set("value".into()),
+            Location::default(),
+        ));
+        assert!(
+            matches!(check(&metadata, "/blocks/0"), Err(Error::Unsupported {path, ..})
+            if path == "/blocks/0/metadata/document_attributes")
+        );
+    }
 }

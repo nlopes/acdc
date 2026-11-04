@@ -45,7 +45,8 @@
         "paragraph_form": {
           "policy": "only-an-authored-delimited-form-has-an"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/admonition.rs::AdmonitionVariant": {
       "shape": {
@@ -84,7 +85,8 @@
           "policy": "candidate",
           "upstream": "#/$defs/parentBlock"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/anchor.rs::Anchor": {
       "shape": {
@@ -122,7 +124,8 @@
         "bibliography_label": {
           "policy": "block-id-reftext-promotion-does-not-cover"
         }
-      }
+      },
+      "strict_export_group": "block-metadata"
     },
     "src/model/anchor.rs::BibliographyLabel": {
       "shape": {
@@ -143,7 +146,8 @@
         "content": {
           "policy": "block-id-reftext-promotion-does-not-cover"
         }
-      }
+      },
+      "strict_export_group": "decorations"
     },
     "src/model/anchor.rs::Reference": {
       "shape": {
@@ -184,7 +188,8 @@
         "automatic_citation": {
           "policy": "derived-catalog"
         }
-      }
+      },
+      "strict_export_group": "catalogs"
     },
     "src/model/anchor.rs::SectionReference": {
       "shape": {
@@ -205,7 +210,8 @@
         "number": {
           "policy": "derived-catalog"
         }
-      }
+      },
+      "strict_export_group": "catalogs"
     },
     "src/model/anchor.rs::TocEntry": {
       "shape": {
@@ -246,7 +252,8 @@
         "location": {
           "policy": "derived-catalog"
         }
-      }
+      },
+      "strict_export_group": "catalogs"
     },
     "src/model/attributes.rs::AttributeInlineFragment": {
       "shape": {
@@ -271,7 +278,8 @@
         "source": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "pending-content"
     },
     "src/model/attributes.rs::AttributeInlineSource": {
       "shape": {
@@ -292,7 +300,8 @@
         "references": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "pending-content"
     },
     "src/model/attributes.rs::AttributeName": {
       "shape": {
@@ -304,7 +313,8 @@
         "policy": "candidate",
         "upstream": "#/$defs/blockMetadata/properties/attributes"
       },
-      "properties": {}
+      "properties": {},
+      "strict_export_group": "block-metadata"
     },
     "src/model/attributes.rs::AttributeValue": {
       "shape": {
@@ -345,7 +355,8 @@
           "policy": "use-effective-semantic-values-and-exact-textual",
           "upstream": "#/$defs/blockMetadata/properties/attributes"
         }
-      }
+      },
+      "strict_export_group": "block-metadata"
     },
     "src/model/attributes.rs::DocumentAttributeAssignment": {
       "shape": {
@@ -375,7 +386,8 @@
           "policy": "candidate",
           "upstream": "#/properties/attributes"
         }
-      }
+      },
+      "strict_export_group": "document-values"
     },
     "src/model/attributes.rs::DocumentAttributeStatus": {
       "shape": {
@@ -405,7 +417,8 @@
         "variant:Unset": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "document-values"
     },
     "src/model/attributes.rs::DocumentAttributeValue": {
       "shape": {
@@ -424,7 +437,8 @@
           "policy": "use-effective-semantic-values-and-exact-textual",
           "upstream": "#/properties/attributes"
         }
-      }
+      },
+      "strict_export_group": "document-values"
     },
     "src/model/attributes.rs::DocumentAttributes": {
       "shape": {
@@ -453,7 +467,8 @@
           "policy": "use-effective-semantic-values-and-exact-textual",
           "upstream": "#/properties/attributes"
         }
-      }
+      },
+      "strict_export_group": "document-values"
     },
     "src/model/attributes.rs::ElementAttributes": {
       "shape": {
@@ -472,7 +487,8 @@
           "policy": "use-effective-semantic-values-and-exact-textual",
           "upstream": "#/$defs/blockMetadata/properties/attributes"
         }
-      }
+      },
+      "strict_export_group": "block-metadata"
     },
     "src/model/attributes.rs::EntryFilter": {
       "shape": {
@@ -493,7 +509,8 @@
         "upper": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "source-state"
     },
     "src/model/attributes.rs::RawAttributes": {
       "shape": {
@@ -504,7 +521,8 @@
       "representation": {
         "policy": "source-state"
       },
-      "properties": {}
+      "properties": {},
+      "strict_export_group": "source-state"
     },
     "src/model/attributes.rs::SerializedDocumentAttributeValue": {
       "shape": {
@@ -544,7 +562,8 @@
         "Text.0": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "document-values"
     },
     "src/model/attributes.rs::StoredAssignment": {
       "shape": {
@@ -565,7 +584,8 @@
         "state": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "document-values"
     },
     "src/model/attributes.rs::ValueKind": {
       "shape": {
@@ -632,7 +652,8 @@
           "policy": "use-effective-semantic-values-and-exact-textual",
           "upstream": "#/properties/attributes"
         }
-      }
+      },
+      "strict_export_group": "document-values"
     },
     "src/model/attribution.rs::Attribution": {
       "shape": {
@@ -643,7 +664,8 @@
       "representation": {
         "policy": "parsed-caption-attribution-citation-content-has-no"
       },
-      "properties": {}
+      "properties": {},
+      "strict_export_group": "decorations"
     },
     "src/model/attribution.rs::CiteTitle": {
       "shape": {
@@ -654,7 +676,8 @@
       "representation": {
         "policy": "parsed-caption-attribution-citation-content-has-no"
       },
-      "properties": {}
+      "properties": {},
+      "strict_export_group": "decorations"
     },
     "src/model/caption.rs::Caption": {
       "shape": {
@@ -706,7 +729,8 @@
         "variant:Unnumbered": {
           "policy": "parsed-caption-attribution-citation-content-has-no"
         }
-      }
+      },
+      "strict_export_group": "decorations"
     },
     "src/model/caption.rs::CaptionCounters": {
       "shape": {
@@ -735,7 +759,8 @@
         "table": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "decorations"
     },
     "src/model/caption.rs::CaptionKind": {
       "shape": {
@@ -764,7 +789,8 @@
         "variant:Table": {
           "policy": "parsed-caption-attribution-citation-content-has-no"
         }
-      }
+      },
+      "strict_export_group": "decorations"
     },
     "src/model/caption.rs::CaptionSource": {
       "shape": {
@@ -799,7 +825,8 @@
         "Numbered.0": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "decorations"
     },
     "src/model/content_attribute.rs::ContentAttribute": {
       "shape": {
@@ -818,7 +845,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inlines"
         }
-      }
+      },
+      "strict_export_group": "core"
     },
     "src/model/content_attribute.rs::PendingContentAttribute": {
       "shape": {
@@ -843,7 +871,8 @@
         "mode": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "pending-content"
     },
     "src/model/inlines/character_reference.rs::CharacterReference": {
       "shape": {
@@ -867,7 +896,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "literal-content"
     },
     "src/model/inlines/character_reference.rs::CharacterReferenceKind": {
       "shape": {
@@ -903,7 +933,8 @@
           "policy": "preserve-the-resolved-scalar-value-as-text",
           "upstream": "#/$defs/inlineLiteral/properties/value"
         }
-      }
+      },
+      "strict_export_group": "literal-content"
     },
     "src/model/inlines/hyperlinks.rs::Link": {
       "shape": {
@@ -950,7 +981,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inlineRef"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/hyperlinks.rs::Mailto": {
       "shape": {
@@ -1002,7 +1034,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/hyperlinks.rs::Url": {
       "shape": {
@@ -1049,7 +1082,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inlineRef"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/icon.rs::Icon": {
       "shape": {
@@ -1087,7 +1121,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::Autolink": {
       "shape": {
@@ -1121,7 +1156,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inlineRef"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::Button": {
       "shape": {
@@ -1143,7 +1179,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::CrossReference": {
       "shape": {
@@ -1218,7 +1255,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inlineRef"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::Footnote": {
       "shape": {
@@ -1256,7 +1294,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::IndexTerm": {
       "shape": {
@@ -1298,7 +1337,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::IndexTermKind": {
       "shape": {
@@ -1337,7 +1377,8 @@
         "Flow.0": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::IndexTermRelationship": {
       "shape": {
@@ -1368,7 +1409,8 @@
         "SeeAlso.targets": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::Key": {
       "shape": {
@@ -1379,7 +1421,8 @@
       "representation": {
         "policy": "unsupported"
       },
-      "properties": {}
+      "properties": {},
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::Keyboard": {
       "shape": {
@@ -1401,7 +1444,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::Menu": {
       "shape": {
@@ -1427,7 +1471,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::Pass": {
       "shape": {
@@ -1461,7 +1506,8 @@
         "kind": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::PassthroughKind": {
       "shape": {
@@ -1494,7 +1540,8 @@
         "variant:Triple": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::Stem": {
       "shape": {
@@ -1520,7 +1567,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::XrefCaptionLabel": {
       "shape": {
@@ -1550,7 +1598,8 @@
         "variant:NumberOnly": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::XrefSignifier": {
       "shape": {
@@ -1580,7 +1629,8 @@
         "variant:Standard": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::XrefSourceSyntax": {
       "shape": {
@@ -1609,7 +1659,8 @@
         "variant:Shorthand": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/macros.rs::XrefStyle": {
       "shape": {
@@ -1638,7 +1689,8 @@
         "variant:Short": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/mod.rs::IndexCatalog": {
       "shape": {
@@ -1663,7 +1715,8 @@
         "location": {
           "policy": "derived-catalog"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/mod.rs::InlineMacro": {
       "shape": {
@@ -1831,7 +1884,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         }
-      }
+      },
+      "strict_export_group": "dispatch"
     },
     "src/model/inlines/mod.rs::InlineNode": {
       "shape": {
@@ -2043,7 +2097,8 @@
           "policy": "preserve-the-resolved-scalar-value-as-text",
           "upstream": "#/$defs/inlineLiteral/properties/value"
         }
-      }
+      },
+      "strict_export_group": "dispatch"
     },
     "src/model/inlines/symbol.rs::Symbol": {
       "shape": {
@@ -2067,7 +2122,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "literal-content"
     },
     "src/model/inlines/symbol.rs::SymbolKind": {
       "shape": {
@@ -2136,7 +2192,8 @@
           "policy": "candidate",
           "upstream": "#/$defs/inlineLiteral/properties/value"
         }
-      }
+      },
+      "strict_export_group": "literal-content"
     },
     "src/model/inlines/text.rs::Bold": {
       "shape": {
@@ -2175,7 +2232,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "literal-content"
     },
     "src/model/inlines/text.rs::CalloutRef": {
       "shape": {
@@ -2201,7 +2259,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/text.rs::CalloutRefKind": {
       "shape": {
@@ -2222,7 +2281,8 @@
         "variant:Explicit": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/text.rs::CurvedApostrophe": {
       "shape": {
@@ -2258,7 +2318,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/text.rs::CurvedQuotation": {
       "shape": {
@@ -2294,7 +2355,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/text.rs::Form": {
       "shape": {
@@ -2318,7 +2380,8 @@
           "policy": "candidate",
           "upstream": "#/$defs/inlineSpan/properties/form"
         }
-      }
+      },
+      "strict_export_group": "literal-content"
     },
     "src/model/inlines/text.rs::Highlight": {
       "shape": {
@@ -2357,7 +2420,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "literal-content"
     },
     "src/model/inlines/text.rs::Italic": {
       "shape": {
@@ -2396,7 +2460,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "literal-content"
     },
     "src/model/inlines/text.rs::LineBreak": {
       "shape": {
@@ -2414,7 +2479,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/text.rs::Monospace": {
       "shape": {
@@ -2453,7 +2519,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "literal-content"
     },
     "src/model/inlines/text.rs::Plain": {
       "shape": {
@@ -2482,7 +2549,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inlineLiteral"
         }
-      }
+      },
+      "strict_export_group": "literal-content"
     },
     "src/model/inlines/text.rs::Raw": {
       "shape": {
@@ -2511,7 +2579,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inlineLiteral"
         }
-      }
+      },
+      "strict_export_group": "literal-content"
     },
     "src/model/inlines/text.rs::StandaloneCurvedApostrophe": {
       "shape": {
@@ -2530,7 +2599,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "literal-content"
     },
     "src/model/inlines/text.rs::Subscript": {
       "shape": {
@@ -2566,7 +2636,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/text.rs::Superscript": {
       "shape": {
@@ -2602,7 +2673,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/inlines/text.rs::Verbatim": {
       "shape": {
@@ -2626,7 +2698,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "literal-content"
     },
     "src/model/lists.rs::CalloutList": {
       "shape": {
@@ -2659,7 +2732,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/lists.rs::CalloutListItem": {
       "shape": {
@@ -2693,7 +2767,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/lists.rs::DescriptionList": {
       "shape": {
@@ -2727,7 +2802,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/lists.rs::DescriptionListItem": {
       "shape": {
@@ -2776,7 +2852,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/lists.rs::ListItem": {
       "shape": {
@@ -2820,7 +2897,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/lists.rs::ListItemCheckedStatus": {
       "shape": {
@@ -2841,7 +2919,8 @@
         "variant:Unchecked": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/lists.rs::ListLevel": {
       "shape": {
@@ -2853,7 +2932,8 @@
         "policy": "candidate",
         "upstream": "#/$defs/list"
       },
-      "properties": {}
+      "properties": {},
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/lists.rs::OrderedList": {
       "shape": {
@@ -2892,7 +2972,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/lists.rs::UnorderedList": {
       "shape": {
@@ -2931,7 +3012,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/location.rs::LeveloffsetRange": {
       "shape": {
@@ -2956,7 +3038,8 @@
         "value": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "locations"
     },
     "src/model/location.rs::Location": {
       "shape": {
@@ -2988,7 +3071,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "locations"
     },
     "src/model/location.rs::Position": {
       "shape": {
@@ -3017,7 +3101,8 @@
           "policy": "preserve-line-column-and-each-endpoint-include",
           "upstream": "#/$defs/locationBoundary"
         }
-      }
+      },
+      "strict_export_group": "locations"
     },
     "src/model/location.rs::SourceRange": {
       "shape": {
@@ -3058,7 +3143,8 @@
         "column_shift": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "locations"
     },
     "src/model/media.rs::Audio": {
       "shape": {
@@ -3092,7 +3178,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/media.rs::Image": {
       "shape": {
@@ -3130,7 +3217,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/media.rs::InlineImage": {
       "shape": {
@@ -3168,7 +3256,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/media.rs::Source": {
       "shape": {
@@ -3215,7 +3304,8 @@
           "policy": "preserve-the-semantic-target-multiple-youtube-ids",
           "upstream": "#/$defs/blockMacro/properties/target"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/media.rs::SourceUrl": {
       "shape": {
@@ -3239,7 +3329,8 @@
           "policy": "preserve-the-semantic-target-multiple-youtube-ids",
           "upstream": "#/$defs/blockMacro/properties/target"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/media.rs::Video": {
       "shape": {
@@ -3273,7 +3364,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/metadata.rs::AttributePosition": {
       "shape": {
@@ -3294,7 +3386,8 @@
         "slot": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "source-state"
     },
     "src/model/metadata.rs::AttributePositions": {
       "shape": {
@@ -3315,7 +3408,8 @@
         "named": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "source-state"
     },
     "src/model/metadata.rs::BlockMetadata": {
       "shape": {
@@ -3415,7 +3509,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "block-metadata"
     },
     "src/model/metadata.rs::DocumentAttributeEvents": {
       "shape": {
@@ -3432,7 +3527,8 @@
         "0": {
           "policy": "the-root-attribute-map-cannot-encode-ordered"
         }
-      }
+      },
+      "strict_export_group": "body-assignments"
     },
     "src/model/metadata.rs::ElementId": {
       "shape": {
@@ -3454,7 +3550,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "inline-controls"
     },
     "src/model/metadata.rs::InlineMetadata": {
       "shape": {
@@ -3475,7 +3572,8 @@
         "id": {
           "policy": "the-pinned-inline-span-reference-forms-have"
         }
-      }
+      },
+      "strict_export_group": "inline-controls"
     },
     "src/model/metadata.rs::InlineMetadataView": {
       "shape": {
@@ -3504,7 +3602,8 @@
         "id": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "inline-controls"
     },
     "src/model/metadata.rs::MacroAttributes": {
       "shape": {
@@ -3525,7 +3624,8 @@
         "options": {
           "policy": "the-pinned-inline-span-reference-forms-have"
         }
-      }
+      },
+      "strict_export_group": "inline-controls"
     },
     "src/model/metadata.rs::PositionalAttribute": {
       "shape": {
@@ -3555,7 +3655,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "block-metadata"
     },
     "src/model/metadata.rs::ReservedAttribute": {
       "shape": {
@@ -3572,7 +3673,8 @@
         "name": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "source-state"
     },
     "src/model/metadata.rs::Role": {
       "shape": {
@@ -3584,7 +3686,8 @@
         "policy": "candidate",
         "upstream": "#/$defs/blockMetadata/properties/roles"
       },
-      "properties": {}
+      "properties": {},
+      "strict_export_group": "block-metadata"
     },
     "src/model/mod.rs::Author": {
       "shape": {
@@ -3623,7 +3726,8 @@
           "policy": "direct-property",
           "upstream": "#/$defs/author/properties/address"
         }
-      }
+      },
+      "strict_export_group": "core"
     },
     "src/model/mod.rs::Block": {
       "shape": {
@@ -3824,7 +3928,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/block"
         }
-      }
+      },
+      "strict_export_group": "dispatch"
     },
     "src/model/mod.rs::Comment": {
       "shape": {
@@ -3849,7 +3954,8 @@
         "location": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "source-state"
     },
     "src/model/mod.rs::CommentKind": {
       "shape": {
@@ -3870,7 +3976,8 @@
         "variant:Paragraph": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "source-state"
     },
     "src/model/mod.rs::DelimitedBlock": {
       "shape": {
@@ -3924,7 +4031,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/block"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/mod.rs::DelimitedBlockType": {
       "shape": {
@@ -4059,7 +4167,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/block"
         }
-      }
+      },
+      "strict_export_group": "dispatch"
     },
     "src/model/mod.rs::DiscreteHeader": {
       "shape": {
@@ -4093,7 +4202,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/mod.rs::Document": {
       "shape": {
@@ -4139,7 +4249,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "core"
     },
     "src/model/mod.rs::DocumentAttribute": {
       "shape": {
@@ -4169,7 +4280,8 @@
         "accepted": {
           "policy": "the-root-attribute-map-cannot-encode-ordered"
         }
-      }
+      },
+      "strict_export_group": "body-assignments"
     },
     "src/model/mod.rs::Header": {
       "shape": {
@@ -4206,7 +4318,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "core"
     },
     "src/model/mod.rs::PageBreak": {
       "shape": {
@@ -4235,7 +4348,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/mod.rs::Paragraph": {
       "shape": {
@@ -4274,7 +4388,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/leafBlock"
         }
-      }
+      },
+      "strict_export_group": "core"
     },
     "src/model/mod.rs::StemContent": {
       "shape": {
@@ -4298,7 +4413,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/leafBlock"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/mod.rs::StemNotation": {
       "shape": {
@@ -4322,7 +4438,8 @@
           "policy": "candidate",
           "upstream": "#/$defs/blockMetadata/properties/attributes"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/mod.rs::TableOfContents": {
       "shape": {
@@ -4346,7 +4463,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/mod.rs::ThematicBreak": {
       "shape": {
@@ -4375,7 +4493,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/section.rs::NumberingState": {
       "shape": {
@@ -4408,7 +4527,8 @@
         "base_level": {
           "policy": "derived-catalog"
         }
-      }
+      },
+      "strict_export_group": "decorations"
     },
     "src/model/section.rs::SafeId": {
       "shape": {
@@ -4439,7 +4559,8 @@
         "Generated.0": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "source-state"
     },
     "src/model/section.rs::Section": {
       "shape": {
@@ -4502,7 +4623,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "core"
     },
     "src/model/section.rs::SectionKind": {
       "shape": {
@@ -4561,7 +4683,8 @@
           "policy": "candidate",
           "upstream": "#/$defs/blockMetadata/properties/attributes"
         }
-      }
+      },
+      "strict_export_group": "decorations"
     },
     "src/model/section.rs::SectionLevel": {
       "shape": {
@@ -4573,7 +4696,8 @@
         "policy": "candidate",
         "upstream": "#/$defs/abstractHeading/properties/level"
       },
-      "properties": {}
+      "properties": {},
+      "strict_export_group": "core"
     },
     "src/model/section.rs::SectionNumber": {
       "shape": {
@@ -4590,7 +4714,8 @@
         "0": {
           "policy": "derived-catalog"
         }
-      }
+      },
+      "strict_export_group": "decorations"
     },
     "src/model/section.rs::SectionNumbering": {
       "shape": {
@@ -4623,7 +4748,8 @@
         "number": {
           "policy": "derived-catalog"
         }
-      }
+      },
+      "strict_export_group": "decorations"
     },
     "src/model/section.rs::SectionNumbers": {
       "shape": {
@@ -4644,7 +4770,8 @@
         "reference": {
           "policy": "derived-catalog"
         }
-      }
+      },
+      "strict_export_group": "decorations"
     },
     "src/model/substitution.rs::AttributeTextSubstitution": {
       "shape": {
@@ -4665,7 +4792,8 @@
         "variant:SpecialChars": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "substitutions"
     },
     "src/model/substitution.rs::GroupContext": {
       "shape": {
@@ -4686,7 +4814,8 @@
         "variant:Passthrough": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "substitutions"
     },
     "src/model/substitution.rs::SubsModifier": {
       "shape": {
@@ -4711,7 +4840,8 @@
         "variant:Remove": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "substitutions"
     },
     "src/model/substitution.rs::Substitution": {
       "shape": {
@@ -4760,7 +4890,8 @@
         "variant:Verbatim": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "substitutions"
     },
     "src/model/substitution.rs::SubstitutionOp": {
       "shape": {
@@ -4800,7 +4931,8 @@
         "Remove.0": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "substitutions"
     },
     "src/model/substitution.rs::SubstitutionPlan": {
       "shape": {
@@ -4817,7 +4949,8 @@
         "ranks": {
           "policy": "source-state"
         }
-      }
+      },
+      "strict_export_group": "substitutions"
     },
     "src/model/substitution.rs::SubstitutionSpec": {
       "shape": {
@@ -4857,7 +4990,8 @@
         "Source.0": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "substitutions"
     },
     "src/model/tables.rs::ColumnFormat": {
       "shape": {
@@ -4886,7 +5020,8 @@
         "style": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/tables.rs::ColumnStyle": {
       "shape": {
@@ -4927,7 +5062,8 @@
         "variant:Strong": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/tables.rs::ColumnWidth": {
       "shape": {
@@ -4962,7 +5098,8 @@
         "Proportional.0": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/tables.rs::HorizontalAlignment": {
       "shape": {
@@ -4987,7 +5124,8 @@
         "variant:Right": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/tables.rs::ResolvedTablePresentation": {
       "shape": {
@@ -5008,7 +5146,8 @@
         "value": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/tables.rs::Table": {
       "shape": {
@@ -5046,7 +5185,8 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/tables.rs::TableColumn": {
       "shape": {
@@ -5087,7 +5227,8 @@
         "style": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/tables.rs::TableFrame": {
       "shape": {
@@ -5116,7 +5257,8 @@
         "variant:Sides": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/tables.rs::TableGrid": {
       "shape": {
@@ -5145,7 +5287,8 @@
         "variant:Rows": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/tables.rs::TablePresentation": {
       "shape": {
@@ -5170,7 +5313,8 @@
         "stripes": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/tables.rs::TableRow": {
       "shape": {
@@ -5187,7 +5331,8 @@
         "columns": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/tables.rs::TableStripes": {
       "shape": {
@@ -5220,7 +5365,8 @@
         "variant:Odd": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/tables.rs::VerticalAlignment": {
       "shape": {
@@ -5245,7 +5391,8 @@
         "variant:Top": {
           "policy": "unsupported"
         }
-      }
+      },
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/title.rs::Subtitle": {
       "shape": {
@@ -5257,7 +5404,8 @@
         "policy": "candidate",
         "upstream": "#/$defs/inlines"
       },
-      "properties": {}
+      "properties": {},
+      "strict_export_group": "unsupported-owners"
     },
     "src/model/title.rs::Title": {
       "shape": {
@@ -5276,7 +5424,8 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inlines"
         }
-      }
+      },
+      "strict_export_group": "core"
     }
   },
   "policies": {
@@ -5407,6 +5556,222 @@
     "visit-supported-child-inlines-directly-a-supported": {
       "handling": "mapping-candidate",
       "reason": "Visit supported child inlines directly; a supported child does not make an unsupported span variant valid."
+    }
+  },
+  "strict_export_groups": {
+    "core": {
+      "handling": "Supported when every owned value is supported; required titles retain empty presence.",
+      "tests": [
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_preserves_formatted_titles_reftext_and_ids"
+        },
+        {
+          "file": "tests/asg_diagnostics.rs",
+          "name": "absent_header_title_reports_the_required_property"
+        }
+      ]
+    },
+    "literal-content": {
+      "handling": "Resolved text, references and strong/emphasis/code/mark spans are supported. Verbatim text, invalid XML references and span controls are rejected.",
+      "tests": [
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_preserves_literal_text_raw_text_and_resolved_typography"
+        },
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_reads_classified_references_and_literal_ampersands"
+        },
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_rejects_verbatim_without_a_literal_block_mapping"
+        },
+        {
+          "file": "tests/asg_support.rs",
+          "name": "unsupported_inline_owners_are_rejected_inside_supported_paragraphs"
+        }
+      ]
+    },
+    "block-metadata": {
+      "handling": "Supported scalar strings, presence, roles/options, styles, slots and one ordinary identity retain meaning. Unsets, ambiguous values, aliases, bibliography and independent labels are rejected.",
+      "tests": [
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_reads_retained_positional_slots"
+        },
+        {
+          "file": "tests/asg_support.rs",
+          "name": "supported_metadata_preserves_presence_and_rejects_extra_meaning"
+        },
+        {
+          "file": "src/asg/metadata.rs",
+          "name": "pending_content_is_rejected_by_property"
+        }
+      ]
+    },
+    "document-values": {
+      "handling": "Resolved assignments preserve strings, presence, explicit unsets and numeric spelling. Locks/origins/history are source state after resolution; protected insertion behavior is rejected.",
+      "tests": [
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_preserves_explicit_unsets_and_numeric_spelling"
+        },
+        {
+          "file": "tests/asg_diagnostics.rs",
+          "name": "protected_document_values_have_no_invented_declaration_range"
+        }
+      ]
+    },
+    "catalogs": {
+      "handling": "Reference and TOC data is omitted only when reconstructible from supported owners. Extra, stale, numbered or bibliography meaning is rejected.",
+      "tests": [
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_preserves_formatted_titles_reftext_and_ids"
+        },
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_rejects_independent_header_and_catalog_values"
+        }
+      ]
+    },
+    "locations": {
+      "handling": "Known line/column endpoints and include chains are preserved. Unknown optional locations are omitted; partial or invalid locations fail. Byte offsets and remap history have no ASG field.",
+      "tests": [
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_preserves_endpoint_include_chains_and_unicode_columns"
+        },
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_omits_unknown_optional_locations_and_rejects_partial_ones"
+        }
+      ]
+    },
+    "dispatch": {
+      "handling": "Every owner variant is explicitly handled. A rejected owner rejects all of its properties and children without flattening or invented forms.",
+      "tests": [
+        {
+          "file": "tests/asg_support.rs",
+          "name": "unsupported_block_owners_do_not_acquire_invented_forms"
+        },
+        {
+          "file": "tests/asg_support.rs",
+          "name": "unsupported_inline_owners_are_rejected_inside_supported_paragraphs"
+        },
+        {
+          "file": "src/asg/projection.rs",
+          "name": "unresolved_macro_and_callout_owners_are_rejected"
+        }
+      ]
+    },
+    "source-state": {
+      "handling": "Comments and parser routing/edit history can be omitted after resolved values, identity and supported coordinates are preserved. A SafeId cache contributes its effective ID.",
+      "tests": [
+        {
+          "file": "tests/asg_support.rs",
+          "name": "source_comments_are_omitted_without_dropping_their_neighbors"
+        },
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_reads_retained_positional_slots"
+        },
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_preserves_formatted_titles_reftext_and_ids"
+        }
+      ]
+    },
+    "pending-content": {
+      "handling": "Unresolved content is rejected; protected document values are not flattened into strings.",
+      "tests": [
+        {
+          "file": "src/asg/metadata.rs",
+          "name": "pending_content_is_rejected_by_property"
+        },
+        {
+          "file": "tests/asg_diagnostics.rs",
+          "name": "protected_document_values_have_no_invented_declaration_range"
+        }
+      ]
+    },
+    "substitutions": {
+      "handling": "Already resolved content is supported. Raw values allow no remaining operation or exactly SpecialChars; explicit block policies and every other remaining plan are rejected.",
+      "tests": [
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_preserves_literal_text_raw_text_and_resolved_typography"
+        },
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_does_not_run_pending_passthrough_operations"
+        },
+        {
+          "file": "tests/asg_support.rs",
+          "name": "supported_metadata_preserves_presence_and_rejects_extra_meaning"
+        }
+      ]
+    },
+    "decorations": {
+      "handling": "Ordinary unnumbered sections are supported. Nondefault category/numbering, captions, attribution/citation and bibliography labels are rejected on supported owners.",
+      "tests": [
+        {
+          "file": "tests/asg_diagnostics.rs",
+          "name": "section_policy_errors_identify_the_native_property"
+        },
+        {
+          "file": "tests/asg_support.rs",
+          "name": "supported_metadata_preserves_presence_and_rejects_extra_meaning"
+        }
+      ]
+    },
+    "body-assignments": {
+      "handling": "Ordered body assignments and retained assignment events are rejected; they cannot be replaced by the header snapshot.",
+      "tests": [
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_rejects_unsupported_meaning_at_any_depth"
+        },
+        {
+          "file": "src/asg/metadata.rs",
+          "name": "retained_document_events_are_not_omitted"
+        }
+      ]
+    },
+    "inline-controls": {
+      "handling": "Current macro owners are rejected in full; IDs and roles on otherwise supported spans are rejected at their exact property.",
+      "tests": [
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_rejects_unsupported_meaning_at_any_depth"
+        },
+        {
+          "file": "tests/asg_support.rs",
+          "name": "unsupported_inline_owners_are_rejected_inside_supported_paragraphs"
+        }
+      ]
+    },
+    "unsupported-owners": {
+      "handling": "These owners/payloads have no implemented strict mapping. The entire owning construct is rejected, including empty values and all nested controls/content.",
+      "tests": [
+        {
+          "file": "tests/asg_support.rs",
+          "name": "unsupported_block_owners_do_not_acquire_invented_forms"
+        },
+        {
+          "file": "tests/asg_support.rs",
+          "name": "unsupported_inline_owners_are_rejected_inside_supported_paragraphs"
+        },
+        {
+          "file": "src/asg/projection.rs",
+          "name": "unresolved_macro_and_callout_owners_are_rejected"
+        },
+        {
+          "file": "tests/asg.rs",
+          "name": "asg_rejects_independent_header_and_catalog_values"
+        }
+      ]
     }
   }
 }

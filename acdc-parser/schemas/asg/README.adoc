@@ -52,7 +52,8 @@ and separately classified parser/source helpers. A test compares its declaration
 and field coverage with the current Rust sources. The inventory is an internal
 mapping record, not a promise about public AST storage or a checked export API.
 Shared policies are defined once; each property names its policy and any upstream
-schema location.
+schema location. Each declaration also names a strict-export group with its current
+handling and executable evidence. Tests reject missing groups and stale evidence.
 
 [cols="1,3",options="header"]
 |===
@@ -133,10 +134,40 @@ references stay text. Export never infers reference meaning from a string.
 Invalid XML numeric values fail export; unknown names retain their identity.
 Protected literal text and raw output remain distinct supported forms.
 
-Ordinary source comments and parser/edit history can be omitted. Derived
+Ordinary line and delimited source comments and parser/edit history can be omitted.
+A title or semantic metadata on a delimited comment is rejected, rather than omitted. Derived
 reference and TOC entries can be omitted only when their titles, labels, category,
 and numbering agree with supported exported owners. Extra or stale catalog
 meaning is rejected; exporting does not repair catalogs. Byte offsets and ID-token
 coordinates have no upstream fields. Completely unknown optional locations are
 omitted; partially known or invalid coordinates fail. Export success does not
 promise source reconstruction or complete AsciiDoc conformance.
+
+== Strict-export coverage
+
+These groups describe the current checked subset. Helper and payload types inherit
+their owning construct's decision; membership does not promise independent export.
+The property inventory remains authoritative for each declaration.
+
+[cols="2,1,5",options="header"]
+|===
+|Group |Declarations |Current handling
+|`core` |8 |Documents, headers/authors, paragraphs and ordinary sections; recurse into all owned content.
+|`literal-content` |13 |Resolved text/references and four span forms; reject unsupported controls and verbatim context.
+|`block-metadata` |7 |Preserve supported scalar values, identity and slots; reject unsupported presence or independent meaning.
+|`document-values` |7 |Preserve resolved assignments; reject protected insertion behavior.
+|`catalogs` |3 |Omit reconstructible entries; reject extra or stale meaning.
+|`locations` |4 |Preserve known endpoints/include chains; omit unknown optional locations; reject invalid ones.
+|`dispatch` |4 |Exhaustive owner decisions; a rejected owner rejects its entire subtree.
+|`source-state` |8 |Omit comments and resolved routing/history; retain effective values and IDs.
+|`pending-content` |3 |Reject unresolved content.
+|`substitutions` |7 |Accept resolved content and supported raw escaping; reject remaining policy/operations.
+|`decorations` |12 |Accept default section policy; reject numbering, category, captions and attribution/citation.
+|`body-assignments` |2 |Reject ordered assignments and retained events.
+|`inline-controls` |4 |Reject identities/roles on supported spans and populated controls on unsupported macros.
+|`unsupported-owners` |67 |Reject the entire block, inline, macro or payload without inventing a form.
+|===
+
+The evidence covers positive mappings, rejected owners/properties and permitted
+omissions. Adding a model declaration or field requires an inventory decision;
+adding a mapping also requires semantic assertions beyond schema validity.
