@@ -217,6 +217,8 @@ mod location;
 mod media;
 mod substitutions;
 mod tables;
+#[cfg(test)]
+mod tests;
 mod traversal;
 mod values;
 

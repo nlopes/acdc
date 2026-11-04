@@ -2,8 +2,8 @@ use acdc_parser::{
     Anchor, CalloutRefKind, CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, Location,
     Options, SafeMode,
     ast::{
-        AnchorRef, BlockKind, CalloutRef, ContentRef, DocumentRef, FootnoteDefinitionRef,
-        FootnoteRef, InlineKind, LocationRef,
+        AnchorRef, BlockKind, CalloutRef, ContentRef, DocumentRef, FootnoteRef, InlineKind,
+        LocationRef,
     },
     parse, parse_file, parse_inline,
 };
@@ -50,71 +50,6 @@ fn paragraph(document: DocumentRef<'_>) -> Result<ContentRef<'_>, Error> {
 
 fn slice<'source>(source: &'source str, location: LocationRef<'_>) -> Option<&'source str> {
     source.get(location.absolute_start()..=location.absolute_end())
-}
-
-#[rstest::rstest]
-fn footnote_occurrences_and_definitions_remain_separate(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
-) -> Result<(), Error> {
-    let source = "é footnote:n[A *bold* note.] footnote:n[] footnote:n[Discarded footnote:[Nested.]] footnote:[Anonymous.]";
-    let parsed = parse(
-        source,
-        &Options::builder().with_compatibility_mode(mode).build()?,
-    )?;
-    let before = serde_json::to_value(parsed.document())?;
-    let catalog_before = parsed.document().footnotes.clone();
-    let warnings_before = format!("{:?}", parsed.warnings());
-    let occurrences: Vec<_> = notes(paragraph(parsed.document_ref())?).collect();
-    let &[first, reference, repeated, anonymous] = occurrences.as_slice() else {
-        return Err("four footnote occurrences".into());
-    };
-    assert_eq!(
-        occurrences
-            .iter()
-            .map(|note| note.number())
-            .collect::<Vec<_>>(),
-        [1, 1, 1, 2]
-    );
-    assert_eq!(
-        occurrences.iter().map(|note| note.id()).collect::<Vec<_>>(),
-        [Some("n"), Some("n"), Some("n"), None]
-    );
-    assert_eq!(text(first.content())?, "A bold note.");
-    assert!(reference.content().is_empty());
-    assert!(repeated.content().is_empty());
-    assert_eq!(text(anonymous.content())?, "Anonymous.");
-    assert_eq!(
-        slice(source, first.location()),
-        Some("footnote:n[A *bold* note.]")
-    );
-    assert_eq!(slice(source, reference.location()), Some("footnote:n[]"));
-    let definitions = {
-        let document = parsed.document_ref();
-        document.footnotes()
-    };
-    let definitions: Vec<FootnoteDefinitionRef<'_>> = definitions.collect();
-    assert_eq!(definitions.len(), 2);
-    for (definition, occurrence) in definitions.iter().zip([first, anonymous]) {
-        shared(*definition);
-        shared(occurrence);
-        assert_eq!(definition.id(), occurrence.id());
-        assert_eq!(definition.number(), occurrence.number());
-        assert_eq!(definition.content(), occurrence.content());
-        assert_eq!(
-            definition.location().absolute_start(),
-            occurrence.location().absolute_start()
-        );
-    }
-    let bold = first
-        .content()
-        .inlines()
-        .find(|inline| matches!(inline.kind(), InlineKind::Bold(_)))
-        .ok_or("bold")?;
-    assert_eq!(slice(source, bold.location()), Some("*bold*"));
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
-    assert_eq!(parsed.document().footnotes, catalog_before);
-    assert_eq!(format!("{:?}", parsed.warnings()), warnings_before);
-    Ok(())
 }
 
 #[test]
@@ -177,7 +112,7 @@ fn bibliography_reads_separate_citation_from_display_content(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let BlockKind::UnorderedList(list) =
         parsed.document_ref().blocks().next().ok_or("list")?.kind()
     else {
@@ -215,7 +150,7 @@ fn bibliography_reads_separate_citation_from_display_content(
     assert!(fallback.is_bibliography());
     assert_eq!(fallback.id(), "fallback");
     assert!(fallback.bibliography_label().is_none());
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 
@@ -287,7 +222,7 @@ fn bibliography_display_reads_do_not_replace_reference_text() -> Result<(), Erro
 fn callout_leaves_keep_local_numbers_and_marker_locations() -> Result<(), Error> {
     let source = "----\nfirst <.>\nsecond <2>\n----\n<.> First\n<2> Second\n\n----\nnew sequence <.>\n----\n<.> Again\n";
     let parsed = parse(source, &Options::default())?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let mut found = Vec::new();
     for block in parsed.document_ref().blocks() {
         if let BlockKind::Listing(listing) = block.kind() {
@@ -313,7 +248,7 @@ fn callout_leaves_keep_local_numbers_and_marker_locations() -> Result<(), Error>
     );
     let owner = acdc_parser::CalloutRef::explicit(9, Location::default());
     assert_eq!(CalloutRef::from(&owner).number(), 9);
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 
