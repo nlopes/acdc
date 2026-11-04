@@ -7,13 +7,12 @@
 
 use std::{
     borrow::Cow,
-    collections::HashMap,
     fmt::{self, Write},
 };
 
 use acdc_parser::{
-    InlineNode, Reference, Substitution,
-    ast::{ContentRef, CrossReferenceRef, InlineKind, InlineRef},
+    InlineNode, Substitution,
+    ast::{ContentRef, CrossReferenceRef, InlineKind, InlineRef, ReferencesRef},
 };
 
 use crate::{
@@ -35,7 +34,7 @@ pub struct InlineTextTransform<'t, 'd> {
     decode_char_refs: bool,
     projection: TextProjection,
     text_boundaries: TextBoundaries,
-    references: Option<&'t HashMap<&'d str, Reference<'d>>>,
+    references: Option<ReferencesRef<'d>>,
     /// Set while extracting a target's reference text, so a cross-reference
     /// inside it falls back to `[id]` instead of recursing. See
     /// [`crate::xref::XrefGuard`], which does the same for rendered output.
@@ -100,7 +99,7 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
     /// Without a catalog such a reference contributes its target id, which is
     /// all an inter-document reference has.
     #[must_use]
-    pub fn references(mut self, references: &'t HashMap<&'d str, Reference<'d>>) -> Self {
+    pub fn references(mut self, references: ReferencesRef<'d>) -> Self {
         self.references = Some(references);
         self
     }
@@ -282,7 +281,7 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
                 resolving_xref: true,
                 ..self
             }
-            .write(w, nodes),
+            .write_content(w, nodes),
             None => write!(w, "[{}]", stylized_id(target)),
         }
     }
@@ -913,7 +912,7 @@ mod tests {
         let doc = parsed.document();
         assert_eq!(
             InlineTextTransform::default()
-                .references(&doc.references)
+                .references((&doc.references).into())
                 .to_string(body_inlines(doc)),
             "See A title, A label, [untitled], and [missing]."
         );
@@ -930,7 +929,7 @@ mod tests {
 
         assert_eq!(
             InlineTextTransform::default()
-                .references(&doc.references)
+                .references((&doc.references).into())
                 .to_string(body_inlines(doc)),
             "Named: Custom Label. Explicit: Chosen text. Title: [Actual Title]. ID: Custom Label."
         );
@@ -943,7 +942,7 @@ mod tests {
         let doc = parsed.document();
         assert_eq!(
             InlineTextTransform::default()
-                .references(&doc.references)
+                .references((&doc.references).into())
                 .to_string(body_inlines(doc)),
             "See See [recursive] again."
         );

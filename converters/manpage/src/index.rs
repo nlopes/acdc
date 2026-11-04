@@ -128,7 +128,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<IndexTermLabel, Error> {
         let plain = InlineTextTransform::default()
             .decode_char_refs(true)
-            .references(&self.processor.references)
+            .references(self.processor.references.as_ref().into())
             .content_to_string(inlines);
         let mut output = Vec::new();
         {

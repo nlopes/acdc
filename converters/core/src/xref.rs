@@ -90,12 +90,8 @@ impl Drop for XrefScope<'_> {
 /// The precedence is [`resolve_xref`]'s, without the distinctions a rendering
 /// backend needs: plain-text extraction treats a label and a title alike.
 #[must_use]
-pub fn reference_text<'r, 'a>(reference: &'r Reference<'a>) -> Option<&'r [InlineNode<'a>]> {
-    match (&reference.xreflabel, &reference.title) {
-        (Some(label), _) => Some(label),
-        (None, Some(title)) => Some(title.as_ref()),
-        (None, None) => None,
-    }
+pub fn reference_text(reference: ReferenceRef<'_>) -> Option<ContentRef<'_>> {
+    reference.xreflabel().or_else(|| reference.title())
 }
 
 /// Resolve an empty cross-reference's display content.

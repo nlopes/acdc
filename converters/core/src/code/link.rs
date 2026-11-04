@@ -1,16 +1,16 @@
 //! Link labels, destinations, and footnote markers used inside code blocks.
 
-use std::{collections::HashMap, fmt::Write as _};
+use std::fmt::Write as _;
 
 use acdc_parser::{
-    InlineMacro, InlineNode, Reference,
-    ast::{ContentRef, InlineKind, InlineRef, LocationRef},
+    InlineMacro, InlineNode,
+    ast::{ContentRef, InlineKind, InlineRef, ReferencesRef},
 };
 
 use crate::{
     InlineTextTransform,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
-    xref::{XrefDisplay, XrefGuard, interdocument_xref, resolve_xref},
+    xref::{XrefDisplay, XrefGuard, interdocument_xref, resolve_reference},
 };
 
 /// A destination for a link embedded in source code.
@@ -40,13 +40,9 @@ pub struct CodeLink {
 /// Accepts typed inline handles and existing owner references. The result owns
 /// its text, destination, and ID, so it can outlive the inline input.
 #[must_use]
-#[expect(
-    clippy::implicit_hasher,
-    reason = "InlineTextTransform uses the parser reference catalog type"
-)]
 pub fn resolve_code_link<'inline>(
     node: impl Into<InlineRef<'inline>>,
-    references: &HashMap<&str, Reference<'_>>,
+    references: ReferencesRef<'_>,
     output_extension: &str,
 ) -> Option<CodeLink> {
     let node = node.into();
@@ -89,7 +85,7 @@ pub fn resolve_code_link<'inline>(
             Some(CodeLinkTarget::DocumentTop)
         } else if let Some((target, _)) = &external {
             Some(CodeLinkTarget::External(target.clone()))
-        } else if references.contains_key(xref.target()) {
+        } else if references.contains(xref.target()) {
             Some(CodeLinkTarget::Internal(xref.target().to_string()))
         } else {
             None
@@ -97,16 +93,16 @@ pub fn resolve_code_link<'inline>(
         let label = if xref.text().is_empty() {
             let guard = XrefGuard::default();
             let text = text.in_reference();
-            match resolve_xref(references.get(xref.target()), xref, &guard) {
+            match resolve_reference(references.get(xref.target()), xref, &guard) {
                 XrefDisplay::Title(nodes, _) | XrefDisplay::Label(nodes, _) => {
-                    text.to_string(nodes)
+                    text.content_to_string(nodes)
                 }
                 XrefDisplay::ShortCaption(prefix) => prefix,
                 XrefDisplay::FullCaption(prefix, nodes, _) => {
-                    format!("{prefix}, “{}”", text.to_string(nodes))
+                    format!("{prefix}, “{}”", text.content_to_string(nodes))
                 }
                 XrefDisplay::Emphasized(prefix, nodes, _) => {
-                    let label = text.to_string(nodes);
+                    let label = text.content_to_string(nodes);
                     prefix.map_or_else(|| label.clone(), |prefix| format!("{prefix}, {label}"))
                 }
                 XrefDisplay::External(target) => external.map_or(target, |(_, label)| label),
@@ -136,7 +132,7 @@ pub fn resolve_code_link<'inline>(
     })
 }
 
-fn link_anchor(node: InlineRef<'_>, references: &HashMap<&str, Reference<'_>>) -> Option<String> {
+fn link_anchor(node: InlineRef<'_>, references: ReferencesRef<'_>) -> Option<String> {
     if !matches!(
         node.kind(),
         InlineKind::Link(_) | InlineKind::Url(_) | InlineKind::Mailto(_)
@@ -146,7 +142,7 @@ fn link_anchor(node: InlineRef<'_>, references: &HashMap<&str, Reference<'_>>) -
     let id = node.id()?.as_str();
     references
         .get(id)
-        .filter(|reference| LocationRef::from(&reference.location) == node.location())
+        .filter(|reference| reference.location() == node.location())
         .map(|_| id.to_owned())
 }
 
@@ -225,13 +221,9 @@ pub fn code_inline_content(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
 ///
 /// Accepts typed inline iterators and existing owner slices.
 #[must_use]
-#[expect(
-    clippy::implicit_hasher,
-    reason = "InlineTextTransform uses the parser reference catalog type"
-)]
 pub fn code_inline_text<'inline>(
     nodes: impl IntoIterator<Item = impl Into<InlineRef<'inline>>>,
-    references: &HashMap<&str, Reference<'_>>,
+    references: ReferencesRef<'_>,
     output_extension: &str,
 ) -> (String, bool) {
     let mut text = String::new();

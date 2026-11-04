@@ -347,3 +347,26 @@ fn catalog_snapshots_keep_absent_and_explicitly_empty_content() -> Result<(), Er
     assert_eq!(TocEntry::from(TocEntryRef::from(&entry)), entry);
     Ok(())
 }
+
+#[test]
+fn caller_constructed_catalog_reads_do_not_allocate_or_copy_entries() -> Result<(), Error> {
+    let parsed = parse(
+        "[#target,reftext='*Chosen*']\n== Title\n",
+        &Options::default(),
+    )?;
+    let catalog: std::collections::HashMap<_, _> = parsed.document_ref().references().into();
+    let before = serde_json::to_value(parsed.document_ref())?;
+    let region = Region::new(ALLOCATOR);
+    let references = ReferencesRef::from(&catalog);
+    let reference = references.get("target").ok_or("target")?;
+    black_box(reference.title());
+    black_box(reference.xreflabel());
+    black_box(reference.location());
+    black_box(references.iter().count());
+    let stats = region.change();
+    assert_eq!(stats.allocations, 0);
+    assert_eq!(stats.reallocations, 0);
+    assert_eq!(references.len(), catalog.len());
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
+    Ok(())
+}

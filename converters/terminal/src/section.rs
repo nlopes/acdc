@@ -137,7 +137,7 @@ fn extract_title_text(
 ) -> String {
     acdc_converters_core::InlineTextTransform::default()
         .decode_char_refs(true)
-        .references(references)
+        .references(references.into())
         .to_string(title)
 }
 

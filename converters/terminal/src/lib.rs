@@ -508,7 +508,7 @@ fn extract_heading_content(
     nodes.map_or_else(String::new, |content| {
         InlineTextTransform::default()
             .decode_char_refs(true)
-            .references(references)
+            .references(references.into())
             .content_to_string(content)
     })
 }

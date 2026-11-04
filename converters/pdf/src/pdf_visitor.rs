@@ -1027,7 +1027,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 code.append(self.format_code_text(node, child));
             } else if let Some(link) = resolve_code_link(
                 node,
-                &self.processor.references,
+                self.processor.references.as_ref().into(),
                 code_output_extension(traversal),
             ) {
                 let mut child = if let Some(children) =
@@ -2131,7 +2131,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 )?;
                 code.append(self.format_code_text(node, child));
             } else if let Some(link) =
-                resolve_code_link(node, &self.processor.references, extension)
+                resolve_code_link(node, self.processor.references.as_ref().into(), extension)
             {
                 let mut child = if let Some(children) =
                     code_link_content(node).filter(|nodes| !nodes.is_empty())

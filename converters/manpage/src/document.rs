@@ -96,7 +96,7 @@ pub(crate) fn extract_heading_text(
     nodes.map_or_else(String::new, |nodes| {
         InlineTextTransform::default()
             .decode_char_refs(true)
-            .references(references)
+            .references(references.into())
             .content_to_string(nodes)
     })
 }

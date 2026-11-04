@@ -880,7 +880,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
         .map(|(index, node)| {
             let (mut text, linked) = acdc_converters_core::code::code_inline_text(
                 std::iter::once(node),
-                &visitor.processor.references,
+                (&visitor.processor.references).into(),
                 "html",
             );
             let formatted = is_formatted_code_inline(node);

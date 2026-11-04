@@ -93,7 +93,7 @@ fn text_writing_stops_at_the_first_writer_error() -> Result<(), Error> {
 #[test]
 fn typed_text_writing_accepts_temporary_inputs_and_appends_to_the_writer() -> Result<(), Error> {
     let document = parse("[[target]]\n== Destination\n", &Options::default())?;
-    let transform = InlineTextTransform::default().references(&document.document().references);
+    let transform = InlineTextTransform::default().references(document.document_ref().references());
     let mut output = String::from("Prefix: ");
     {
         let source = String::from("*Temporary* <<target>>");
@@ -101,5 +101,40 @@ fn typed_text_writing_accepts_temporary_inputs_and_appends_to_the_writer() -> Re
         transform.write_inlines(&mut output, parsed.content().inlines())?;
     }
     assert_eq!(output, "Prefix: Temporary Destination");
+    Ok(())
+}
+
+#[test]
+fn typed_catalog_projection_keeps_explicit_empty_labels() -> Result<(), Error> {
+    use acdc_converters_core::xref::reference_text;
+    use acdc_parser::{ContentAttribute, ast::ReferencesRef};
+
+    fn project(references: ReferencesRef<'_>, content: acdc_parser::ast::ContentRef<'_>) -> String {
+        InlineTextTransform::default()
+            .references(references)
+            .content_to_string(content)
+    }
+
+    let parsed = parse("[#target]\n== Title\n", &Options::default())?;
+    let inline = parse_inline("<<target>>", &Options::default())?;
+    let mut catalog: std::collections::HashMap<_, _> = parsed.document_ref().references().into();
+
+    assert_eq!(
+        project(ReferencesRef::from(&catalog), inline.content()),
+        "Title"
+    );
+    catalog.get_mut("target").ok_or("target")?.xreflabel = Some(ContentAttribute::new(Vec::new()));
+    let references = ReferencesRef::from(&catalog);
+    assert!(
+        reference_text(references.get("target").ok_or("target")?)
+            .is_some_and(acdc_parser::ast::ContentRef::is_empty)
+    );
+    assert_eq!(project(references, inline.content()), "");
+    catalog.get_mut("target").ok_or("target")?.xreflabel = None;
+    catalog.get_mut("target").ok_or("target")?.title = None;
+    let references = ReferencesRef::from(&catalog);
+    assert!(reference_text(references.get("target").ok_or("target")?).is_none());
+    assert_eq!(project(references, inline.content()), "[target]");
+    assert_eq!(catalog.len(), 1);
     Ok(())
 }

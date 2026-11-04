@@ -65,7 +65,7 @@ impl<'doc> Visitor<'doc> for CommandCollector<'doc> {
             command.metadata.section_title = self.section_title.map(|title| {
                 InlineTextTransform::default()
                     .decode_char_refs(true)
-                    .references(&self.parsed.document().references)
+                    .references(self.parsed.document_ref().references())
                     .to_string(title)
             });
             self.builder.add(command, dependencies);

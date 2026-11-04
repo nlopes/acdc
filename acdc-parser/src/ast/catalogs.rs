@@ -28,6 +28,12 @@ pub struct ReferencesRef<'doc> {
     references: &'doc HashMap<&'doc str, Reference<'doc>>,
 }
 
+impl<'doc> From<&'doc HashMap<&'doc str, Reference<'doc>>> for ReferencesRef<'doc> {
+    fn from(references: &'doc HashMap<&'doc str, Reference<'doc>>) -> Self {
+        Self { references }
+    }
+}
+
 impl<'doc> DocumentRef<'doc> {
     /// Registered cross-reference targets, including aliases and the document target.
     #[must_use]

@@ -897,7 +897,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     ) -> Result<IndexTermLabel, Error> {
         let plain = InlineTextTransform::default()
             .decode_char_refs(true)
-            .references(&self.processor.references)
+            .references(self.processor.references.as_ref().into())
             .content_to_string(inlines);
         let mut output = Vec::new();
         {
@@ -1538,7 +1538,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         let section_title = section.title().map_or_else(String::new, |title| {
             InlineTextTransform::default()
                 .decode_char_refs(true)
-                .references(&self.processor.references)
+                .references(self.processor.references.as_ref().into())
                 .content_to_string(title)
         });
         let previous_section_title = self.current_section_title.replace(section_title);
