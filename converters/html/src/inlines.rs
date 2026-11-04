@@ -25,7 +25,6 @@ use acdc_parser::{
         PassRef, PlainRef, RawRef, StemRef, SubscriptRef, SuperscriptRef, TokensRef, UrlRef,
         VerbatimRef,
     },
-    strip_quotes,
 };
 
 use crate::{
@@ -143,8 +142,7 @@ fn link_class_attr(roles: TokensRef<'_>, bare: bool) -> String {
         }
         role.push_str(token);
     }
-    let role = strip_quotes(&role);
-    let role = (!role.is_empty()).then(|| escape_role(role));
+    let role = (!role.is_empty()).then(|| escape_role(&role));
     match (bare, role) {
         (true, Some(role)) => format!(" class=\"bare {role}\""),
         (true, None) => " class=\"bare\"".to_string(),
@@ -155,7 +153,7 @@ fn link_class_attr(roles: TokensRef<'_>, bare: bool) -> String {
 
 fn link_id_attr(id: Option<ElementIdRef<'_>>) -> String {
     id.map_or_else(String::new, |id| {
-        format!(" id=\"{}\"", escape_attribute(strip_quotes(id.as_str())))
+        format!(" id=\"{}\"", escape_attribute(id.as_str()))
     })
 }
 
@@ -164,7 +162,6 @@ fn link_control_attributes(attributes: AttributesRef<'_>) -> String {
     let get_str = |key: &str| {
         attributes.get(key).and_then(|value| {
             if let AttributeValueRef::Text(s) = value {
-                let s = strip_quotes(s);
                 (!s.is_empty()).then_some(s)
             } else {
                 None

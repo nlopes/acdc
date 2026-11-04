@@ -2075,8 +2075,8 @@ mod title_media_tests {
             let output = String::from_utf8(output)?;
             assert_eq!(output.matches("one one").count(), 2);
             assert!(!output.contains("fallback"));
-            assert!(output.contains("style=\"width: 75%;\""));
-            assert!(output.contains("stretch right") || output.contains("grid-all right"));
+            assert!(output.contains("style=\"width: &quot;75%&quot;;\""));
+            assert!(output.contains("stretch 'right'") || output.contains("grid-all 'right'"));
             assert_eq!(output.matches("id=\"primary&amp;\"").count(), 2);
             assert_eq!(output.matches("id=\"primary&\"").count(), 0);
             assert_eq!(warnings, [] as [acdc_converters_core::Warning; 0]);

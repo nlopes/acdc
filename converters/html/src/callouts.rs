@@ -2,7 +2,6 @@ use acdc_converters_core::TraversalContext;
 use acdc_parser::{
     InlineNode,
     ast::{AttributeValueRef, AttributesRef, InlineKind, InlineRef},
-    strip_quotes,
 };
 
 pub(crate) fn font_icons(attributes: &TraversalContext<'_>) -> bool {
@@ -27,7 +26,7 @@ pub(crate) fn strip_guards<'input>(
         return None;
     }
     let prefix = match attributes.and_then(|attributes| attributes.get("line-comment")) {
-        Some(AttributeValueRef::Text(value)) => Some(strip_quotes(value)),
+        Some(AttributeValueRef::Text(value)) => Some(value),
         _ => None,
     };
     let mut result: Option<Vec<_>> = None;
@@ -132,8 +131,12 @@ mod tests {
             (None, "value "),
             (Some(AttributeValue::None), "value "),
             (Some(AttributeValue::Bool(false)), "value "),
-            (Some(AttributeValue::from("'#'")), "value "),
-            (Some(AttributeValue::from(String::from("\"#\""))), "value "),
+            (Some(AttributeValue::from("#")), "value "),
+            (Some(AttributeValue::from("'#'")), "value # "),
+            (
+                Some(AttributeValue::from(String::from("\"#\""))),
+                "value # ",
+            ),
             (Some(AttributeValue::from("")), "value # "),
             (Some(AttributeValue::from("?")), "value # "),
         ] {

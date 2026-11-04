@@ -4,7 +4,6 @@ use acdc_converters_core::{TraversalContext, media::resolve_target};
 use acdc_parser::{
     CaptionKind,
     ast::{AttributeValueRef, AttributesRef, ImageRef, TokensRef},
-    strip_quotes,
 };
 
 use crate::{
@@ -223,7 +222,7 @@ pub(crate) fn image_link_control_attributes(
         .get("window")
         .and_then(|value| {
             if let AttributeValueRef::Text(text) = value {
-                Some(strip_quotes(text))
+                Some(text)
             } else {
                 None
             }

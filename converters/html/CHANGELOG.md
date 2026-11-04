@@ -124,6 +124,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve literal quotes in link IDs, roles, and window targets, image link
+  targets and alignment, and other decoded HTML controls. Quotes inside quoted
+  AsciiDoc values stay in the output, matching Asciidoctor. Empty controls keep
+  their existing fallback behavior. Table widths also escape literal quotes
+  inside the HTML style attribute. Callout comment guards and index occurrence
+  labels also retain literal quotes. Indentation controls containing literal
+  quotes now warn and keep the original indentation, like other invalid values.
+
 - Escape document and block IDs, roles, and table-of-contents classes and links
   in both HTML variants. Quotes and markup stay inside their attribute values.
   Roles containing character references now behave consistently with Asciidoctor

@@ -11,8 +11,9 @@ use acdc_parser::{
 };
 
 use crate::{
-    Error, HtmlVariant, HtmlVisitor, Processor, image_helpers::attribute_text,
-    inlines::escape_pcdata,
+    Error, HtmlVariant, HtmlVisitor, Processor,
+    image_helpers::attribute_text,
+    inlines::{escape_attribute, escape_pcdata},
 };
 
 /// Convert horizontal alignment to CSS class name
@@ -316,7 +317,10 @@ fn table_sizing(attributes: AttributesRef<'_>) -> (Option<&'static str>, String)
         if width.trim_end_matches('%') == "100" {
             (Some("stretch"), String::new())
         } else {
-            (None, format!(" style=\"width: {width};\""))
+            (
+                None,
+                format!(" style=\"width: {};\"", escape_attribute(width)),
+            )
         }
     } else if matches!(attributes.get("options"), Some(AttributeValueRef::Tokens(options)) if options.contains("autowidth"))
     {

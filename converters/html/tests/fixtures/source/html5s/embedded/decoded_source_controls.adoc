@@ -1,0 +1,14 @@
+:icons: font
+:acdc-index:
+:doctitle: 'Catalog'
+
+[listing,line-comment="'#'"]
+----
+value '#' <1>
+----
+<1> Literal guard.
+
+Preamble ((entry)).
+
+[index]
+== Index

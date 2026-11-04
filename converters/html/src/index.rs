@@ -299,7 +299,6 @@ pub(crate) fn render<W: Write>(visitor: &mut HtmlVisitor<'_, '_, W>) -> Result<(
         .document_attributes()
         .get("doctitle")
         .and_then(|value| value.text())
-        .map(acdc_parser::strip_quotes)
         .map_or_else(|| "top".to_string(), str::to_owned);
 
     let catalog = processor.index_catalog_counter.get() + 1;

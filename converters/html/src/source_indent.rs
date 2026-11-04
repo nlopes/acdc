@@ -4,7 +4,6 @@ use acdc_converters_core::{Diagnostics, TraversalContext};
 use acdc_parser::{
     InlineNode, Location, Verbatim,
     ast::{AttributeValueRef, AttributesRef, ContentRef, InlineKind, InlineRef},
-    strip_quotes,
 };
 
 const MAX_INDENT: u16 = 1024;
@@ -33,7 +32,7 @@ pub(crate) fn resolve(
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<u16> {
     let local = match element_attributes.and_then(|attributes| attributes.get("indent")) {
-        Some(AttributeValueRef::Text(value)) => Some(strip_quotes(value)),
+        Some(AttributeValueRef::Text(value)) => Some(value),
         _ => None,
     };
     let value = local.or_else(|| {
@@ -237,11 +236,12 @@ mod tests {
                 (None, None, false),
                 (Some(AttributeValue::None), None, false),
                 (Some(AttributeValue::Bool(false)), None, false),
-                (Some(AttributeValue::from("\"2\"")), Some(2), false),
+                (Some(AttributeValue::from("2")), Some(2), false),
+                (Some(AttributeValue::from("\"2\"")), None, true),
                 (
                     Some(AttributeValue::from(String::from("' 2 '"))),
-                    Some(2),
-                    false,
+                    None,
+                    true,
                 ),
                 (Some(AttributeValue::from("0")), Some(0), false),
                 (Some(AttributeValue::from("-1")), None, false),

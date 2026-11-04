@@ -12,17 +12,18 @@ type TestError = Box<dyn std::error::Error>;
 fn link_attributes_keep_empty_nontext_and_quoted_values_after_owner_edits() -> Result<(), TestError>
 {
     for (window, expected) in [
-        (AttributeValue::Bool(false), " target=\"alias\""),
-        (AttributeValue::Bool(true), " target=\"alias\""),
-        (AttributeValue::None, " target=\"alias\""),
-        (AttributeValue::from("''"), " target=\"alias\""),
+        (AttributeValue::Bool(false), " target=\"'alias'\""),
+        (AttributeValue::Bool(true), " target=\"'alias'\""),
+        (AttributeValue::None, " target=\"'alias'\""),
+        (AttributeValue::from(""), " target=\"'alias'\""),
+        (AttributeValue::from("''"), " target=\"''\""),
         (
             AttributeValue::from("\"_blank\""),
-            " target=\"_blank\" rel=\"noopener\"",
+            " target=\"&quot;_blank&quot;\"",
         ),
         (
             AttributeValue::from(String::from("'review'")),
-            " target=\"review\"",
+            " target=\"'review'\"",
         ),
         (AttributeValue::from(" "), " target=\" \""),
     ] {
@@ -36,10 +37,13 @@ fn link_attributes_keep_empty_nontext_and_quoted_values_after_owner_edits() -> R
 
         link.metadata.id = Some(ElementId::new("'explicit'", Location::default()));
         link.metadata.roles = vec!["'first", "second'"];
-        assert_eq!(link_id_attr(LinkRef::from(&link).id()), " id=\"explicit\"");
+        assert_eq!(
+            link_id_attr(LinkRef::from(&link).id()),
+            " id=\"'explicit'\""
+        );
         assert_eq!(
             link_class_attr(LinkRef::from(&link).roles(), true),
-            " class=\"bare first second\""
+            " class=\"bare 'first second'\""
         );
         link.metadata.roles = vec!["duplicate", "duplicate"];
         assert_eq!(
@@ -60,14 +64,18 @@ fn media_link_controls_keep_their_own_window_and_option_rules() {
         (None, " rel=\"nofollow\""),
         (Some(AttributeValue::Bool(false)), " rel=\"nofollow\""),
         (Some(AttributeValue::None), " rel=\"nofollow\""),
-        (Some(AttributeValue::from("''")), " rel=\"nofollow\""),
+        (Some(AttributeValue::from("")), " rel=\"nofollow\""),
+        (
+            Some(AttributeValue::from("''")),
+            " target=\"''\" rel=\"nofollow noopener\"",
+        ),
         (
             Some(AttributeValue::from("'_blank'")),
-            " target=\"_blank\" rel=\"nofollow noopener\"",
+            " target=\"'_blank'\" rel=\"nofollow noopener\"",
         ),
         (
             Some(AttributeValue::from(String::from("'review'"))),
-            " target=\"review\" rel=\"nofollow noopener\"",
+            " target=\"'review'\" rel=\"nofollow noopener\"",
         ),
     ] {
         let mut image = Image::new(Source::Name("sample"), Location::default());
@@ -152,4 +160,24 @@ fn hyperlink_options_control_rel_without_changing_window_fallbacks() -> Result<(
         );
     }
     Ok(())
+}
+
+#[test]
+fn shared_scalar_reads_preserve_decoded_text() {
+    for value in [
+        "",
+        "'",
+        "\"",
+        "'literal'",
+        "\"literal\"",
+        "\"α\"tail",
+        "é😀 & <pane>",
+    ] {
+        let mut image = Image::new(Source::Name("sample"), Location::default());
+        image.metadata.attributes.set("align".into(), value.into());
+        assert_eq!(
+            crate::image_helpers::attribute_text(ImageRef::from(&image).attributes(), "align"),
+            Some(value)
+        );
+    }
 }

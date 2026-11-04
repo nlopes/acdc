@@ -2,10 +2,7 @@
 
 use std::io::Write;
 
-use acdc_parser::{
-    ast::{AttributeValueRef, AttributesRef},
-    strip_quotes,
-};
+use acdc_parser::ast::{AttributeValueRef, AttributesRef};
 
 use crate::{Error, constants::escape_ampersands, inlines::escape_attribute};
 
@@ -36,7 +33,7 @@ pub(crate) fn attribute_text<'doc>(
     name: &str,
 ) -> Option<&'doc str> {
     if let Some(AttributeValueRef::Text(text)) = attributes.get(name) {
-        Some(strip_quotes(text))
+        Some(text)
     } else {
         None
     }
