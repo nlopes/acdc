@@ -1,6 +1,7 @@
 use acdc_parser::{
-    CompatibilityMode, InlineMacro, InlineNode, Options, SafeMode, WarningKind, parse, parse_file,
-    parse_inline,
+    CompatibilityMode, InlineMacro, InlineNode, Options, SafeMode, WarningKind,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse, parse_file, parse_inline,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -53,8 +54,8 @@ fn draft_preserves_legacy_control_and_warns_without_recovery() -> Result<(), Err
     let parsed = parse(source, &options)?;
     assert_eq!(
         parsed
-            .document()
-            .attributes
+            .document_ref()
+            .attributes()
             .get("compat-mode")
             .and_then(|value| value.text()),
         Some("authored value")
@@ -92,7 +93,7 @@ fn caller_legacy_control_warns_once_and_document_locks_still_apply() -> Result<(
             .collect::<Vec<_>>();
         assert_eq!(warnings.len(), usize::from(enabled));
         assert_eq!(
-            parsed.document().attributes.contains_key("compat-mode"),
+            parsed.document_ref().attributes().contains("compat-mode"),
             enabled
         );
         if let Some(warning) = warnings.first() {
@@ -150,15 +151,18 @@ fn uri_fallback_roles_follow_the_fixed_mode() -> Result<(), Error> {
             "= Guide\n:compat-mode:\n\ninclude::https://example.invalid/blocked.adoc[]\n",
             &options,
         )?;
-        let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed.document().blocks.first()
+        let Some(BlockKind::Paragraph(paragraph)) =
+            parsed.document_ref().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected fallback paragraph".into());
         };
-        let Some(InlineNode::Macro(InlineMacro::Link(link))) = paragraph.content.first() else {
+        let Some(InlineKind::Link(link)) =
+            paragraph.content().inlines().next().map(InlineRef::kind)
+        else {
             return Err("expected fallback link".into());
         };
         assert_eq!(
-            link.metadata.roles.contains(&"include"),
+            link.roles().iter().any(|role| role == "include"),
             mode == CompatibilityMode::Draft
         );
     }

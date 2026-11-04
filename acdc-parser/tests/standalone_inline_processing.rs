@@ -1,5 +1,7 @@
 use acdc_parser::{
-    Block, CompatibilityMode, InlineMacro, InlineNode, Options, parse, parse_inline,
+    CompatibilityMode, InlineMacro, InlineNode, Options,
+    ast::{BlockKind, BlockRef},
+    parse, parse_inline,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -15,13 +17,20 @@ fn standalone_fragments_use_document_inline_semantics(
     let source = source.trim_end_matches('\n');
     let options = Options::builder().with_compatibility_mode(mode).build()?;
     let document = parse(source, &options)?;
-    let [Block::Paragraph(paragraph)] = document.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(_)] = &*document
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected one paragraph".into());
     };
     let fragment = parse_inline(source, &options)?;
     assert_eq!(
-        serde_json::to_value(fragment.inlines())?,
-        serde_json::to_value(&paragraph.content)?
+        &serde_json::to_value(fragment.inlines())?,
+        serde_json::to_value(document.document_ref())?
+            .pointer("/blocks/0/inlines")
+            .ok_or("missing paragraph inlines")?
     );
     assert_eq!(fragment.warnings(), document.warnings());
     let footnotes: Vec<_> = fragment

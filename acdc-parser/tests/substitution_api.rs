@@ -1,6 +1,8 @@
 use acdc_parser::{
-    Block, BlockMetadata, CompatibilityMode, InlineNode, Location, NORMAL, Options, Paragraph,
-    Substitution, SubstitutionOp, SubstitutionSpec, VERBATIM, parse,
+    BlockMetadata, CompatibilityMode, Location, NORMAL, Options, Paragraph, Substitution,
+    SubstitutionOp, SubstitutionSpec, VERBATIM,
+    ast::{AttributeValueRef, BlockKind, BlockRef, InlineKind, InlineRef, SubstitutionSpecRef},
+    parse,
 };
 use serde_json::json;
 
@@ -96,15 +98,22 @@ fn block_substitutions_are_available_in_both_modes_and_every_build() -> Result<(
             "[subs=none]\n*Bold*",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let [Block::Paragraph(block)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(block)] = &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected a paragraph".into());
         };
         assert!(
-            matches!(block.content.as_slice(), [InlineNode::PlainText(text)] if text.content == "*Bold*")
+            matches!(&*block.content().inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Plain(text)] if text.text() == "*Bold*")
         );
         assert_eq!(
-            block.metadata.substitutions,
-            Some(SubstitutionSpec::Explicit(Vec::new()))
+            block.attributes().get("subs"),
+            Some(AttributeValueRef::Substitutions(SubstitutionSpecRef::from(
+                &SubstitutionSpec::Explicit(Vec::new())
+            )))
         );
         assert_eq!(parsed.warnings(), []);
         assert!(parsed.source_recovery().is_none());
