@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- In Draft mode, character-reference names resolved by an earlier passthrough replacement stage stay intact through later formatting and macro labels. XML names containing underscores no longer become emphasis. Enclosing formatting, includes, and table cells retain their meaning.
+
 - Intrinsic attributes such as `{quot}` and `{apos}` produce semantic character references. A later `specialchars` stage now escapes intrinsic values, matching Asciidoctor; replacement attributes still protect formatting and macro syntax.
 
 - Checked ASG export rejects sections without a title and verbatim content without a supported literal/listing mapping. Present empty titles remain distinct from absent titles.

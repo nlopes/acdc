@@ -1203,7 +1203,7 @@ fn parse_raw_stage<'a>(
         return Vec::new();
     }
 
-    let Some((mut parsed, warnings)) = parse_raw_inlines(raw.content, plan, state) else {
+    let Some((mut parsed, warnings)) = parse_raw_inlines(raw.content, plan, state, &[]) else {
         return vec![InlineNode::RawText(raw)];
     };
     for node in &mut parsed {
@@ -1229,6 +1229,7 @@ fn parse_raw_inlines<'a>(
     content: &'a str,
     plan: SubstitutionPlan,
     state: &ParserState<'a>,
+    resolved_reference_ranges: &[std::ops::Range<usize>],
 ) -> Option<(Vec<InlineNode<'a>>, Vec<Warning>)> {
     let mut rules = state.inline_ctx.rules;
     rules.set(InlineRules::AUTOLINKS, plan.enabled(&Substitution::Macros));
@@ -1243,6 +1244,9 @@ fn parse_raw_inlines<'a>(
         rules,
     };
     let mut child = ParserState::for_inline_parsing(content, state, inline_ctx);
+    if !resolved_reference_ranges.is_empty() {
+        child.resolved_reference_ranges = resolved_reference_ranges.to_vec();
+    }
 
     let parsed = if plan.enabled(&Substitution::Quotes) && !plan.enabled(&Substitution::Macros) {
         inline_parser::quotes_only_inlines(content, &mut child)
@@ -1283,7 +1287,18 @@ fn parse_raw_fragments<'a>(
         .map(|fragment| fragment.as_raw().content)
         .collect();
     let text = state.intern_str(&text);
-    let Some((mut nodes, warnings)) = parse_raw_inlines(text, plan, state) else {
+    let mut cursor = 0;
+    let resolved_reference_ranges: Vec<_> = fragments
+        .iter()
+        .filter_map(|fragment| {
+            let start = cursor;
+            cursor += fragment.as_raw().content.len();
+            matches!(fragment, TextFragment::Reference { .. }).then_some(start..cursor)
+        })
+        .collect();
+    let Some((mut nodes, warnings)) =
+        parse_raw_inlines(text, plan, state, &resolved_reference_ranges)
+    else {
         return fragments.into_iter().map(TextFragment::into_node).collect();
     };
     for node in &mut nodes {

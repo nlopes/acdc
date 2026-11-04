@@ -489,7 +489,8 @@ With the optional `asg` feature, `asg::document(parsed.document())` and
 Unsupported semantic values return typed errors with JSON Pointer paths; export
 never changes the AST. The current subset covers headers and authors, unnumbered
 ordinary sections, paragraphs, promoted titles/reftext/IDs, plain or raw content,
-resolved typography, and the draft's four inline span types. See
+resolved typography, named/numeric character references, and the draft's four
+inline span types. Literal reference-shaped text stays text. See
 [the support contract](schemas/asg/README.adoc) for exact limits.
 
 Native JSON preserves acdc's model; it is not a claim of ASG conformance.

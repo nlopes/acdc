@@ -108,6 +108,16 @@ pub(super) fn structural_token_allowed(
     start: usize,
     len: usize,
 ) -> bool {
+    let index = state
+        .resolved_reference_ranges
+        .partition_point(|range| range.end <= start);
+    if state
+        .resolved_reference_ranges
+        .get(index)
+        .is_some_and(|range| range.start < start + len)
+    {
+        return false;
+    }
     !state
         .inline_ctx
         .substitutions

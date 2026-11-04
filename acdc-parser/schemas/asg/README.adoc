@@ -98,7 +98,7 @@ JSON Pointer path. It never expands attributes, parses strings again, registers
 macros, or invokes a converter. Native JSON and parsing behavior stay unchanged.
 
 The initial subset includes document attributes, headers/authors, paragraphs,
-ordinary unnumbered sections, plain and verbatim text, raw text without remaining
+ordinary unnumbered sections, plain text, raw text without remaining
 operations, raw text with exactly one escaping stage, resolved typographic
 symbols, and strong/emphasis/code/mark spans without inline IDs or roles.
 Titles and reference labels retain their inline structure and empty presence.
@@ -117,14 +117,17 @@ to the block. Source coordinates of the ID token have no upstream field.
 Unsupported values include lists, other block forms, inline macros, missing span
 variants, inline identities/controls, subtitles/header metadata, ordered body
 assignments, captions, attribution/citation, explicit block substitutions, and
-nondefault section category/numbering. Ordinary text containing ampersands is
-also rejected until literal text and character references have authoritative
-parser classifications. Export does not guess their meaning from stored text.
+nondefault section category/numbering. Verbatim content requires a supported
+literal or listing block mapping; it cannot be flattened into paragraph text.
+A section without a title is rejected, while a present empty title stays an
+empty array.
+
+Character references retain their named identity or canonical decimal numeric
+value. The parser identifies them during replacements, according to the selected
+compatibility mode and substitution order. Literal ampersands and escaped
+references stay text. Export never infers reference meaning from a string.
+Invalid XML numeric values fail export; unknown names retain their identity.
 Protected literal text and raw output remain distinct supported forms.
-Constructed `CharacterReference` nodes export as `charref` literals with their
-named identity or canonical decimal numeric value. Invalid XML numeric values
-fail export; unknown names retain their identity. This API support does not
-change reference recognition in parsed source.
 
 Ordinary source comments and parser/edit history can be omitted. Derived
 reference and TOC entries can be omitted only when their titles, labels, category,

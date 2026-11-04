@@ -333,6 +333,40 @@ fn attribute_value_ranges(
     ranges
 }
 
+fn resolved_reference_ranges(
+    processed: &ProcessedContent<'_>,
+    parent: &ParserState<'_>,
+    location: &Location,
+) -> Vec<Range<usize>> {
+    let mut ranges = Vec::new();
+    let mut replacements = processed.source_map.replacements.iter().peekable();
+    let mut original = location.absolute_start;
+    let mut projected = 0;
+    for range in parent.resolved_reference_ranges.iter().filter(|range| {
+        range.start >= location.absolute_start
+            && range.end <= location.absolute_end.saturating_add(1)
+    }) {
+        while let Some(replacement) = replacements.peek() {
+            if replacement.absolute_end > range.start {
+                break;
+            }
+            if replacement.absolute_start >= original {
+                projected += replacement.absolute_start - original + replacement.byte_len;
+                original = replacement.absolute_end;
+            }
+            replacements.next();
+        }
+        if replacements
+            .peek()
+            .is_some_and(|replacement| replacement.absolute_start < range.end)
+        {
+            continue;
+        }
+        ranges.push(projected + range.start - original..projected + range.end - original);
+    }
+    ranges
+}
+
 fn inline_context(
     state: &ParserState<'_>,
     block_metadata: &BlockParsingMetadata<'_>,
@@ -412,6 +446,8 @@ fn parse_processed_inlines<'a>(
     inline_peg_state.empty_attribute_offsets.sort_unstable();
     inline_peg_state.empty_attribute_offsets.dedup();
     inline_peg_state.attribute_value_ranges = attribute_value_ranges(processed, state, location);
+    inline_peg_state.resolved_reference_ranges =
+        resolved_reference_ranges(processed, state, location);
     if inline_ctx
         .substitutions
         .precedes(&Substitution::Macros, &Substitution::Attributes)

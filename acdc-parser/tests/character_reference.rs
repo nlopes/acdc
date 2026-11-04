@@ -343,3 +343,62 @@ fn intrinsic_references_keep_a_later_escape_stage() -> Result<(), Error> {
     }
     Ok(())
 }
+
+#[test]
+fn resolved_reference_names_do_not_become_later_formatting() -> Result<(), Error> {
+    let options = acdc_parser::Options::builder()
+        .with_compatibility_mode(acdc_parser::CompatibilityMode::Draft)
+        .build()?;
+    for source in [
+        "pass:c,r,q[Before &a__b__c; after]",
+        "pass:c,r,q[*Before &a__b__c; after*]",
+        "pass:c,r,q[_Before &a__b__c; after_]",
+        "pass:c,r,q[*Before &a__b__c; +literal+ after*]",
+        "pass:c,r,m[link:page.html[Before &a__b__c; after]]",
+    ] {
+        let parsed = acdc_parser::parse_inline(source, &options)?;
+        let mut found = Vec::new();
+        collect_reference_names(parsed.content().inlines(), &mut found);
+        assert_eq!(found, ["&a__b__c;"], "{source}: {:?}", parsed.inlines());
+    }
+    Ok(())
+}
+
+fn collect_reference_names<'a>(
+    nodes: impl Iterator<Item = InlineRef<'a>>,
+    found: &mut Vec<String>,
+) {
+    for node in nodes {
+        if let InlineKind::CharacterReference(reference) = node.kind() {
+            found.push(reference.kind().to_string());
+        }
+        for field in node.content_fields() {
+            collect_reference_names(field.content().inlines(), found);
+        }
+    }
+}
+
+#[test]
+fn later_formatting_can_enclose_reference_marker_characters() -> Result<(), Error> {
+    let options = acdc_parser::Options::builder()
+        .with_compatibility_mode(acdc_parser::CompatibilityMode::Draft)
+        .build()?;
+    for (source, expected) in [
+        ("pass:c,r,q[__Before &a__b__c; after__]", "&a__b__c;"),
+        ("pass:c,r,q[#Before &#169; after#]", "&#169;"),
+    ] {
+        let parsed = acdc_parser::parse_inline(source, &options)?;
+        assert!(
+            matches!(
+                parsed.inlines(),
+                [InlineNode::ItalicText(_) | InlineNode::HighlightText(_)]
+            ),
+            "{source}: {:?}",
+            parsed.inlines()
+        );
+        let mut found = Vec::new();
+        collect_reference_names(parsed.content().inlines(), &mut found);
+        assert_eq!(found, [expected]);
+    }
+    Ok(())
+}

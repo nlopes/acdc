@@ -135,6 +135,8 @@ pub(crate) struct ParserState<'a> {
     /// Profiled attribute placeholders available to this inline grammar. Consume
     /// them in source order so their notes precede later literal references.
     pub(crate) attribute_passthroughs: Rc<[Pass<'a>]>,
+    // Resolved references cannot contribute syntax to a later stage.
+    pub(crate) resolved_reference_ranges: Vec<Range<usize>>,
     /// When parsing content extracted from a constrained formatting rule, holds
     /// the delimiter byte of the outer formatting (e.g., `b'_'` for italic).
     /// Used to correctly fail boundary checks when the outer delimiter is a
@@ -609,6 +611,7 @@ impl<'a> ParserState<'a> {
             warnings_start: 0,
             quotes_only: false,
             attribute_passthroughs: Rc::default(),
+            resolved_reference_ranges: Vec::new(),
             outer_constrained_delimiter: None,
             scope: ParserScope::Document,
             inline_ctx: InlineContext {
@@ -659,6 +662,7 @@ impl<'a> ParserState<'a> {
             warnings_start: 0,
             quotes_only: true,
             attribute_passthroughs: Rc::default(),
+            resolved_reference_ranges: Vec::new(),
             outer_constrained_delimiter: None,
             scope: ParserScope::Document,
             inline_ctx: InlineContext {
@@ -712,6 +716,23 @@ impl<'a> ParserState<'a> {
             warnings_start: parent.warnings.borrow().len(),
             quotes_only: parent.quotes_only,
             attribute_passthroughs: Rc::clone(&parent.attribute_passthroughs),
+            resolved_reference_ranges: (input.as_ptr() as usize)
+                .checked_sub(parent.input.as_ptr() as usize)
+                .filter(|start| {
+                    *start <= parent.input.len() && input.len() <= parent.input.len() - *start
+                })
+                .map_or_else(Vec::new, |start| {
+                    parent
+                        .resolved_reference_ranges
+                        .iter()
+                        .filter_map(|range| {
+                            let left = range.start.max(start);
+                            let right = range.end.min(start + input.len());
+                            (left < right)
+                                .then_some(left.saturating_sub(start)..right.saturating_sub(start))
+                        })
+                        .collect()
+                }),
             outer_constrained_delimiter: parent.outer_constrained_delimiter,
             scope: ParserScope::Inline,
             inline_ctx,
