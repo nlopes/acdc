@@ -7,7 +7,7 @@ use acdc_converters_core::{
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::Processor as HtmlProcessor;
 use acdc_converters_markdown::{MarkdownVariant, MarkdownVisitor, Processor};
-use acdc_parser::{Options as ParserOptions, parse};
+use acdc_parser::{CompatibilityMode, Options as ParserOptions, parse};
 use pulldown_cmark::{
     Alignment, CodeBlockKind, Event, Options as MarkdownParserOptions, Parser as MarkdownParser,
     Tag, TagEnd,
@@ -16,6 +16,53 @@ use pulldown_cmark::{
 mod support;
 
 type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn resolved_escapes_survive_markdown_parsing_in_both_modes() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/resolved_escapes.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            input,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let source = WarningSource::new("markdown");
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&source, &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let events = parse_markdown(&output, variant);
+            let text = parsed_text(&events);
+            for expected in [
+                r"R01 X *word*.",
+                r"R03 X **word**.",
+                r"R05 X \*word* \[link] \(C) \->.",
+                r"R06 \*word*",
+                r"R07 X \*word.",
+                r"R08 X \*word.",
+                r"R09 \*writer",
+            ] {
+                assert!(text.contains(expected), "missing {expected}: {text}");
+            }
+            assert!(!output.contains('\u{e000}'), "{output}");
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
 
 #[test]
 fn fixture_paths_preserve_stems_and_ignore_unrelated_warnings() -> Result<(), Error> {

@@ -14,7 +14,7 @@ use acdc_converters_core::{
         appendix_number_prefix, book_chapter_signifier, effective_section_level,
         part_number_prefix, section_number_prefix,
     },
-    substitutions::{Replacements, TextBoundaries, strip_backslash_escapes},
+    substitutions::{Replacements, TextBoundaries},
     table::{CellKind, GridRow, column_count, grid_rows, has_spans},
     toc::{Config as TocConfig, NumberingConfig, entry_level, has_parts, number_prefixes},
     visitor::{BlockVisitor, DocumentVisitor},
@@ -597,11 +597,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         let mut lines = text.split('\n').peekable();
         while let Some(line) = lines.next() {
             if escape {
-                write!(
-                    self.writer,
-                    "{}",
-                    Self::escape_markdown(&strip_backslash_escapes(line))
-                )?;
+                write!(self.writer, "{}", Self::escape_markdown(line))?;
             } else {
                 write!(self.writer, "{line}")?;
             }
@@ -788,11 +784,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     }
 
     fn write_escaped_text(&mut self, text: &str) -> Result<(), Error> {
-        write!(
-            self.writer,
-            "{}",
-            Self::escape_markdown(&strip_backslash_escapes(text))
-        )?;
+        write!(self.writer, "{}", Self::escape_markdown(text))?;
         Ok(())
     }
 
