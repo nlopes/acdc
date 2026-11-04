@@ -33,3 +33,6 @@ mod asg_image_storage;
 mod asg_list_storage;
 
 mod structural_copies;
+
+mod caption_storage;
+mod catalog_storage;

@@ -63,7 +63,7 @@ fn classification_follows_the_effective_block_context() -> Result<(), Error> {
     for (body, expected) in cases {
         let source = format!("= T\n:listing-caption: Listing\n\n.Title\n{body}\n");
         let parsed = parse(&source, &Options::default())?;
-        let document = parsed.document();
+        let document = Document::from(parsed.document_ref());
         let block = document.blocks.first().ok_or("expected a block")?;
         let kind = numbered(block).map(|(kind, _, _)| kind);
         assert_eq!(kind, expected, "source: {body:?}");
@@ -84,7 +84,7 @@ fn styled_paragraphs_take_the_caption_their_style_names() -> Result<(), Error> {
     for (body, expected) in cases {
         let source = format!("= T\n:listing-caption: Listing\n\n.Title\n{body}\n");
         let parsed = parse(&source, &Options::default())?;
-        let document = parsed.document();
+        let document = Document::from(parsed.document_ref());
         let block = document.blocks.first().ok_or("expected a block")?;
         assert_eq!(
             numbered(block).map(|(kind, _, _)| kind),
@@ -103,7 +103,7 @@ fn nested_examples_are_numbered_inner_first() -> Result<(), Error> {
         "= T\n\n.Outer\n====\n.Inner\n[example]\nInner body.\n====\n\n.After\n====\nx\n====\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let [outer, after] = document.blocks.as_slice() else {
         return Err(format!("expected two blocks, got {:?}", document.blocks).into());
     };
@@ -128,7 +128,7 @@ fn collapsible_examples_do_not_consume_example_numbers() -> Result<(), Error> {
         "= T\n\n.Before\n====\none\n====\n\n.Collapsible block\n[%collapsible,caption=\"Ignored: \"]\n====\ntwo\n====\n\n.Collapsible paragraph\n[example%collapsible]\nthree\n\n.Collapsible open block\n[example%collapsible]\n--\nfour\n--\n\n.After\n====\nfive\n====\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let [before, block, paragraph, open, after] = document.blocks.as_slice() else {
         return Err(format!("expected five blocks, got {:?}", document.blocks).into());
     };
@@ -148,7 +148,7 @@ fn a_list_continuation_block_takes_a_caption() -> Result<(), Error> {
         "= T\n\n* Item\n+\n.Continued\n====\nContent.\n====\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let Some(Block::UnorderedList(list)) = document.blocks.first() else {
         return Err(format!("expected a list, got {:?}", document.blocks).into());
     };
@@ -171,7 +171,7 @@ fn table_headers_do_not_consume_body_and_footer_caption_numbers() -> Result<(), 
         "= T\n\n[cols=\"1a\",options=\"header,footer\"]\n|===\n|.In header\n[example]\none\n\n|.In body\n[example]\ntwo\n\n|.In footer\n[example]\nthree\n|===\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let Some(Block::DelimitedBlock(delimited)) = document.blocks.first() else {
         return Err(format!("expected a table, got {:?}", document.blocks).into());
     };
@@ -214,7 +214,7 @@ fn an_attribute_inside_a_block_changes_that_blocks_own_caption() -> Result<(), E
         "= T\n:example-caption: Outer\n\n.Inner attr\n====\n:example-caption: Inner\ncontent\n====\n\n.After\n====\nmore\n====\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let [first, second] = document.blocks.as_slice() else {
         return Err(format!("expected two blocks, got {:?}", document.blocks).into());
     };
@@ -236,7 +236,7 @@ fn blocks_keep_the_caption_active_at_their_source_position() -> Result<(), Error
         "= T\n:example-caption: Header\n\n.First\n[example]\none\n\n:example-caption!:\n\n.Second\n[example]\ntwo\n\n:example-caption: Later\n\n.Third\n[example]\nthree\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     assert_eq!(
         document
             .attributes
@@ -279,7 +279,7 @@ fn a_metadata_line_applies_to_its_own_block() -> Result<(), Error> {
         "= T\n:example-caption: Header\n\n.First\n:example-caption: Metadata\n[example]\none\n\n.Second\n[example]\ntwo\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     assert!(matches!(
         document.blocks.first(),
         Some(Block::DocumentAttribute(attribute))
@@ -307,7 +307,7 @@ fn untitled_caption_capable_blocks_consume_no_ordinal() -> Result<(), Error> {
         "= T\n\n[example]\nuntitled\n\n.Titled\n[example]\ntitled\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let [untitled, titled] = document.blocks.as_slice() else {
         return Err(format!("expected two blocks, got {:?}", document.blocks).into());
     };
@@ -329,7 +329,7 @@ fn a_listing_takes_no_caption_until_its_label_is_set() -> Result<(), Error> {
         "= T\n\n.Untitled label\n[listing]\nc\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let block = document.blocks.first().ok_or("expected a block")?;
     assert_eq!(caption(block), Some(&Caption::Unnumbered));
 
@@ -337,7 +337,7 @@ fn a_listing_takes_no_caption_until_its_label_is_set() -> Result<(), Error> {
         "= T\n:listing-caption: Listing\n\n.Set label\n[listing]\nc\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let block = document.blocks.first().ok_or("expected a block")?;
     assert_eq!(
         numbered(block),
@@ -352,7 +352,7 @@ fn caption_precedence_covers_element_generic_and_type_specific() -> Result<(), E
         "= Captions\n:listing-caption: Listing\n\n.Type specific\n[listing]\none\n\n:caption: Generic: \n\n.Generic\n[listing]\ntwo\n\n.Element\n[listing,caption=Element: ]\nthree\n\n:caption:\n\n.Blank generic\n[listing]\nfour\n\n:caption!:\n\n.Fallback\n[listing]\nfive\n\n:listing-caption!:\n\n.Unnumbered\n[source,rust]\nsix\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let captions: Vec<_> = document
         .blocks
         .iter()
@@ -392,7 +392,7 @@ fn figures_and_tables_count_separately() -> Result<(), Error> {
         "= T\n\n.A figure\nimage::one.png[]\n\n.An example\n====\nc\n====\n\n.A table\n|===\n|cell\n|===\n\n.Another figure\nimage::two.png[]\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let captions: Vec<_> = document.blocks.iter().filter_map(numbered).collect();
 
     assert_eq!(
@@ -422,8 +422,8 @@ fn renumber_captions_restores_numbering_after_a_mutation() -> Result<(), Error> 
         &Options::default(),
     )?;
     let mut document = Document::default();
-    document.attributes = parsed.document().attributes.clone();
-    document.blocks = parsed.document().blocks.clone();
+    document.attributes = acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
+    document.blocks = parsed.document_ref().blocks().map(Block::from).collect();
     assert_eq!(ordinals(&document), vec![Some(1), Some(2), Some(3), None]);
 
     // Removing a numbered block closes the gap it left.
@@ -482,7 +482,7 @@ fn caption_labels_keep_their_quote_characters() -> Result<(), Error> {
         "= T\n:example-caption: 'Sample'\n:listing-caption: \"Code\"\n\n.A\n[example]\none\n\n.B\n[listing]\ntwo\n\n.C\n[listing,caption=\"'Snippet': \"]\nthree\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let labels: Vec<_> = document
         .blocks
         .iter()
@@ -529,7 +529,7 @@ fn a_bare_caption_marker_is_ignored() -> Result<(), Error> {
         "= T\n:listing-caption: Listing\n\n.Bare marker\n[listing,caption]\none\n\n.Next\n[listing]\ntwo\n\n.Empty value\n[listing,caption=]\nthree\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let captions: Vec<_> = document
         .blocks
         .iter()
@@ -563,7 +563,7 @@ fn caller_built_metadata_carries_no_caption() -> Result<(), Error> {
     assert_eq!(BlockMetadata::default().caption, None);
 
     let parsed = parse("= T\n\n.Parsed\n====\nc\n====\n", &Options::default())?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let block = document.blocks.first().ok_or("expected a block")?;
     assert!(caption(block).is_some());
     assert_eq!(document.highest_caption_number(CaptionKind::Example), 1);
@@ -577,7 +577,7 @@ fn an_empty_element_caption_takes_no_prefix_and_no_ordinal() -> Result<(), Error
         "= T\n\n.Empty\n[example,caption=]\none\n\n.After\n[example]\ntwo\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let [empty, after] = document.blocks.as_slice() else {
         return Err(format!("expected two blocks, got {:?}", document.blocks).into());
     };
@@ -603,7 +603,7 @@ fn caption_labels_come_from_api_supplied_attributes() -> Result<(), Error> {
         "= T\n\n.Titled\n====\nc\n====\n",
         &Options::builder().with_attributes(attributes).build()?,
     )?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
     let block = document.blocks.first().ok_or("expected a block")?;
     assert_eq!(
         numbered(block),
@@ -663,7 +663,7 @@ fn every_container_is_read_back() -> Result<(), Error> {
         let parsed = parse(source, &Options::default())?;
         assert_eq!(
             parsed
-                .document()
+                .document_ref()
                 .highest_caption_number(CaptionKind::Example),
             1,
             "a captioned block in a {container} is not reached by `visit_captions` in \
@@ -782,7 +782,7 @@ footer
 ";
 
     let parsed = parse(source, &Options::default())?;
-    let document = parsed.document();
+    let document = Document::from(parsed.document_ref());
 
     assert_eq!(
         document.highest_caption_number(CaptionKind::Example),
@@ -804,7 +804,7 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
         &Options::default(),
     )?;
     let mut document = Document::default();
-    document.blocks = parsed.document().blocks.clone();
+    document.blocks = parsed.document_ref().blocks().map(Block::from).collect();
     let Some(Block::DelimitedBlock(delimited)) = document.blocks.first_mut() else {
         return Err("expected a table".into());
     };
