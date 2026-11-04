@@ -157,26 +157,41 @@ fn index_detection_preserves_constructed_compound_and_list_boundaries() -> Resul
             let mut blocks = parsed_blocks.clone();
             assert_detection(&blocks, false);
             let list = blocks.last_mut().ok_or("missing list")?;
-            let attachments = if let Block::UnorderedList(list) = list {
-                &mut list
-                    .items
+            if let Block::UnorderedList(list) = list {
+                let mut items: Vec<_> = list.take_items().collect();
+                items
                     .first_mut()
                     .ok_or("missing unordered item")?
                     .blocks
+                    .push(index_section()?);
+                list.set_items(items);
             } else if let Block::OrderedList(list) = list {
-                &mut list.items.first_mut().ok_or("missing ordered item")?.blocks
+                let mut items: Vec<_> = list.take_items().collect();
+                items
+                    .first_mut()
+                    .ok_or("missing ordered item")?
+                    .blocks
+                    .push(index_section()?);
+                list.set_items(items);
             } else if let Block::DescriptionList(list) = list {
-                &mut list
-                    .items
+                let mut items: Vec<_> = list.take_items().collect();
+                items
                     .first_mut()
                     .ok_or("missing description item")?
                     .description
+                    .push(index_section()?);
+                list.set_items(items);
             } else if let Block::CalloutList(list) = list {
-                &mut list.items.first_mut().ok_or("missing callout item")?.blocks
+                let mut items: Vec<_> = list.take_items().collect();
+                items
+                    .first_mut()
+                    .ok_or("missing callout item")?
+                    .blocks
+                    .push(index_section()?);
+                list.set_items(items);
             } else {
                 return Err(format!("expected a list in {source:?}").into());
-            };
-            attachments.push(index_section()?);
+            }
             assert_detection(&blocks, true);
         }
     }

@@ -5,12 +5,14 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
-use super::Block;
-use super::anchor::Anchor;
-use super::inlines::{CalloutRef, InlineNode};
-use super::location::Location;
-use super::metadata::BlockMetadata;
-use super::title::Title;
+use super::{
+    Block,
+    anchor::Anchor,
+    inlines::{CalloutRef, InlineNode},
+    location::Location,
+    metadata::BlockMetadata,
+    title::Title,
+};
 
 pub type ListLevel = u8;
 
@@ -45,10 +47,10 @@ pub struct ListItem<'a> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct DescriptionList<'a> {
-    pub title: Title<'a>,
-    pub metadata: BlockMetadata<'a>,
-    pub items: Vec<DescriptionListItem<'a>>,
-    pub location: Location,
+    pub(crate) title: Title<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) items: Vec<DescriptionListItem<'a>>,
+    pub(crate) location: Location,
 }
 
 /// An item in a description list (term + description).
@@ -98,22 +100,22 @@ pub struct DescriptionListItem<'a> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct UnorderedList<'a> {
-    pub title: Title<'a>,
-    pub metadata: BlockMetadata<'a>,
-    pub items: Vec<ListItem<'a>>,
-    pub marker: &'a str,
-    pub location: Location,
+    pub(crate) title: Title<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) items: Vec<ListItem<'a>>,
+    pub(crate) marker: &'a str,
+    pub(crate) location: Location,
 }
 
 /// An `OrderedList` represents an ordered list in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct OrderedList<'a> {
-    pub title: Title<'a>,
-    pub metadata: BlockMetadata<'a>,
-    pub items: Vec<ListItem<'a>>,
-    pub marker: &'a str,
-    pub location: Location,
+    pub(crate) title: Title<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) items: Vec<ListItem<'a>>,
+    pub(crate) marker: &'a str,
+    pub(crate) location: Location,
 }
 
 /// A `CalloutList` represents a callout list in a document.
@@ -122,10 +124,10 @@ pub struct OrderedList<'a> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct CalloutList<'a> {
-    pub title: Title<'a>,
-    pub metadata: BlockMetadata<'a>,
-    pub items: Vec<CalloutListItem<'a>>,
-    pub location: Location,
+    pub(crate) title: Title<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) items: Vec<CalloutListItem<'a>>,
+    pub(crate) location: Location,
 }
 
 /// A `CalloutListItem` represents an item in a callout list.
@@ -150,6 +152,158 @@ pub struct CalloutListItem<'a> {
     pub blocks: Vec<Block<'a>>,
     /// Source location of this item.
     pub location: Location,
+}
+
+macro_rules! list_edits {
+    ($($owner:ident, $item:ident);+ $(;)?) => {
+        $(
+            impl<'a> $owner<'a> {
+                /// Replace metadata without shadowing dedicated fields.
+                ///
+                /// # Errors
+                /// Rejects conflicting scalar attributes without changing the list.
+                pub fn set_metadata(
+                    &mut self,
+                    metadata: BlockMetadata<'a>,
+                ) -> Result<(), crate::ReservedAttribute> {
+                    metadata.validate_attributes(&["title"])?;
+                    self.metadata = metadata;
+                    Ok(())
+                }
+
+                /// Attach checked metadata without interpreting its content.
+                ///
+                /// # Errors
+                /// Rejects scalar attributes for dedicated fields.
+                pub fn with_metadata(
+                    mut self,
+                    metadata: BlockMetadata<'a>,
+                ) -> Result<Self, crate::ReservedAttribute> {
+                    self.set_metadata(metadata)?;
+                    Ok(self)
+                }
+
+                /// Copy metadata without copying items or their attached blocks.
+                #[must_use]
+                pub fn clone_metadata(&self) -> BlockMetadata<'a> {
+                    self.metadata.clone()
+                }
+
+                /// Remove metadata without renumbering items or rebuilding registrations.
+                #[must_use]
+                pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
+                    std::mem::take(&mut self.metadata)
+                }
+
+                /// Replace the prepared title, including an explicitly empty value.
+                pub fn set_title(&mut self, title: Title<'a>) {
+                    self.title = title;
+                }
+
+                /// Attach a prepared title without parsing or registering content.
+                #[must_use]
+                pub fn with_title(mut self, title: Title<'a>) -> Self {
+                    self.set_title(title);
+                    self
+                }
+
+                /// Remove the title, leaving it absent.
+                #[must_use]
+                pub fn take_title(&mut self) -> Title<'a> {
+                    std::mem::take(&mut self.title)
+                }
+
+                /// Replace prepared items without renumbering or rebuilding registrations.
+                pub fn set_items(&mut self, items: impl IntoIterator<Item = $item<'a>>) {
+                    self.items = items.into_iter().collect();
+                }
+
+                /// Copy items to prepare an independent replacement, retaining source lifetimes.
+                pub fn clone_items(
+                    &self,
+                ) -> impl DoubleEndedIterator<Item = $item<'a>> + ExactSizeIterator + use<'a> {
+                    self.items.clone().into_iter()
+                }
+
+                /// Append a prepared item without renumbering or rebuilding registrations.
+                pub fn push_item(&mut self, item: $item<'a>) {
+                    self.items.push(item);
+                }
+
+                /// Remove items, retaining their content and original source lifetimes.
+                pub fn take_items(
+                    &mut self,
+                ) -> impl DoubleEndedIterator<Item = $item<'a>> + ExactSizeIterator + use<'a> {
+                    std::mem::take(&mut self.items).into_iter()
+                }
+
+                /// Replace the list span without relocating items or their attached blocks.
+                pub fn set_location(&mut self, location: Location) {
+                    self.location = location;
+                }
+            }
+        )+
+    };
+}
+
+list_edits!(
+    UnorderedList, ListItem;
+    OrderedList, ListItem;
+    CalloutList, CalloutListItem;
+    DescriptionList, DescriptionListItem;
+);
+
+macro_rules! marked_lists {
+    ($($name:ident),+ $(,)?) => {
+        $(
+            impl<'a> $name<'a> {
+                /// Construct a list from prepared items and retained marker spelling.
+                #[must_use]
+                pub fn new(items: Vec<ListItem<'a>>, marker: &'a str, location: Location) -> Self {
+                    Self {
+                        title: Title::default(),
+                        metadata: BlockMetadata::default(),
+                        items,
+                        marker,
+                        location,
+                    }
+                }
+
+                /// Replace marker spelling without changing item markers, levels or numbering.
+                pub fn replace_marker(&mut self, marker: &'a str) -> &'a str {
+                    std::mem::replace(&mut self.marker, marker)
+                }
+            }
+        )+
+    };
+}
+
+marked_lists!(UnorderedList, OrderedList);
+
+impl<'a> DescriptionList<'a> {
+    /// Construct a description list from prepared entries without registering their content.
+    #[must_use]
+    pub fn new(items: Vec<DescriptionListItem<'a>>, location: Location) -> Self {
+        Self {
+            title: Title::default(),
+            metadata: BlockMetadata::default(),
+            items,
+            location,
+        }
+    }
+}
+
+impl<'a> CalloutList<'a> {
+    /// Construct a callout list without recomputing the supplied item numbers.
+    #[must_use]
+    pub fn new(items: Vec<CalloutListItem<'a>>, location: Location) -> Self {
+        Self {
+            title: Title::default(),
+            metadata: BlockMetadata::default(),
+            items,
+            location,
+        }
+    }
 }
 
 // =============================================================================

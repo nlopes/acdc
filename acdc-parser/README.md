@@ -167,6 +167,13 @@ attribute events keep the names, values and policy decisions made during parsing
 Reparse source to change those assignments. Their `set_location` method changes
 only the event span.
 
+List containers follow the same pattern. Construct the four list types from
+prepared items, read through their typed list handles, and use `set_items`,
+`take_items`, `clone_items`, or `push_item` for independent edits. Transfers retain
+source lifetimes. Items keep their nesting, checklist state and stored callout
+numbers. Metadata, title, marker and span edits do not rebuild registrations or
+rewrite child items.
+
 `IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
 option tokens. An icon ID is retained even when a converter does not emit it.
 To construct an icon, use `Icon::new(target, location)` and edit its content and

@@ -174,9 +174,9 @@ fn a_list_continuation_block_takes_a_caption() -> Result<(), Error> {
     let Some(Block::UnorderedList(list)) = blocks.first() else {
         return Err(format!("expected a list, got {blocks:?}").into());
     };
-    let block = list
-        .items
-        .first()
+    let item = list.clone_items().next();
+    let block = item
+        .as_ref()
         .and_then(|item| item.blocks.first())
         .ok_or("expected a continuation block")?;
 

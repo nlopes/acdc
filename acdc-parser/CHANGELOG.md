@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** the four list-container types have private fields. Read through
+  typed list handles and use owned metadata, title and item edit methods.
+  Item transfers retain source lifetimes, nesting, checklist state and stored
+  callout numbers. Changing a list marker does not rewrite its items; edits do
+  not rebuild document registrations.
+
 - **Breaking:** discrete headings, page/thematic breaks, TOC placements, comments,
   and document-attribute event fields are private. Read through their typed `ast`
   handles. Boundary constructors and owned edits preserve empty titles, literal
