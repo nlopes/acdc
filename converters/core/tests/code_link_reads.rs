@@ -74,6 +74,18 @@ const LINK_CASES: &[(&str, &str, &str, Target<'_>)] = &[
     ("", "xref:missing[]", "[missing]", None),
     (
         "",
+        "link:https://example.org[Label &#169; and \\&#169;]",
+        "Label © and &#169;",
+        Some(("external", "https://example.org")),
+    ),
+    (
+        "",
+        "xref:target[Label &amp; and \\&amp;]",
+        "Label & and &amp;",
+        Some(("internal", "target")),
+    ),
+    (
+        "",
         "xref:other.adoc#target[]",
         "other.html",
         Some(("external", "other.html#target")),
@@ -203,6 +215,9 @@ fn code_link_results_outlive_temporary_inline_inputs() -> Result<(), Error> {
 fn code_text_keeps_displayed_content_and_required_markers() -> Result<(), Error> {
     let cases = [
         ("plain words", "plain words", false),
+        ("&#169; &amp;", "© &", false),
+        (r"\&#169; \&amp;", "&#169; &amp;", false),
+        ("*&#169;*", "©", false),
         (
             "*Bold* _italic_ `mono` #mark# ~sub~ ^sup^",
             "Bold italic mono mark sub sup",
@@ -285,6 +300,32 @@ fn code_link_anchors_keep_literal_quotes() -> Result<(), Error> {
             resolve_code_link(InlineRef::from(node), &parsed.document().references, "html"),
         ] {
             assert_eq!(link.ok_or("code link")?.anchor.as_deref(), Some("'code-π'"));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn automatic_code_labels_use_the_target_display_characters() -> Result<(), Error> {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            r"= Document
+
+xref:target[]
+
+[[target]]
+== Destination &#169; and \&#169;
+",
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let Block::Paragraph(paragraph) = parsed.document().blocks.first().ok_or("paragraph")?
+        else {
+            return Err("paragraph".into());
+        };
+        for node in paragraph.content.iter().map(InlineRef::from) {
+            let link =
+                resolve_code_link(node, &parsed.document().references, "pdf").ok_or("code link")?;
+            assert_eq!(link.text, "Destination © and &#169;");
         }
     }
     Ok(())

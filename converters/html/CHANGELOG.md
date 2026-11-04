@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Reference characters in source-code link labels now use their display text, including labels taken from referenced headings. Literal escaped references remain unchanged.
+
 - Index occurrence labels and admonition image alternatives use the displayed characters of resolved references.
 
 - Character references follow parser-selected substitutions. Literal ampersands are escaped, and numeric references use equivalent decimal spelling.

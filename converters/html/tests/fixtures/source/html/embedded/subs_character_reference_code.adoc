@@ -1,0 +1,16 @@
+= Code references
+:acdc-index:
+:source-highlighter: rouge
+
+[[destination]]
+== P01 Destination &#169;
+
+[source,text,subs="specialchars,quotes,macros,replacements"]
+----
+P02 xref:destination[]
+P03 link:https://example.org[Label &#169; and \&#169;]
+P04 *&#169;* then ((&#65;lpha))
+----
+
+[index]
+== Index

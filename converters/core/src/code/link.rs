@@ -27,7 +27,7 @@ pub enum CodeLinkTarget {
 /// The visible text and optional destination of a code link.
 #[derive(Clone, Debug)]
 pub struct CodeLink {
-    /// Text supplied to the syntax highlighter.
+    /// Display text supplied to the syntax highlighter, with parsed references decoded.
     pub text: String,
     /// Absent when a cross-reference has no valid destination.
     pub target: Option<CodeLinkTarget>,
@@ -53,6 +53,7 @@ pub fn resolve_code_link<'inline>(
     let kind = node.kind();
     let text = InlineTextTransform::default()
         .line_break("\n")
+        .decode_char_refs(true)
         .references(references);
     let anchor = link_anchor(node, references);
     let (target, label, fallback) = if let InlineKind::Link(link) = kind {
@@ -253,6 +254,7 @@ pub fn code_inline_text<'inline>(
         } else {
             let _ = InlineTextTransform::default()
                 .line_break("\n")
+                .decode_char_refs(true)
                 .references(references)
                 .write_inlines(&mut text, std::iter::once(node));
         }

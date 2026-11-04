@@ -245,3 +245,22 @@ fn typed_discovery_accepts_temporary_input_and_empty_iterators() -> Result<(), E
     })?;
     Ok(())
 }
+
+#[test]
+fn discovery_offsets_count_resolved_reference_characters() -> Result<(), Error> {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse_inline(
+            r"&#169; indexterm2:[&#65;lpha] \&#169; indexterm:[hidden] *&#x1f600;* indexterm2:[last]",
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        assert_eq!(
+            collect(parsed.inlines()),
+            [
+                ("&#65;lpha".to_owned(), "© ".len()),
+                ("hidden".to_owned(), "© Alpha &#169; ".len()),
+                ("last".to_owned(), "© Alpha &#169;  😀 ".len()),
+            ]
+        );
+    }
+    Ok(())
+}

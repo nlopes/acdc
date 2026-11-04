@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Reference characters in source-code link labels now use their display text, including labels taken from referenced headings. Literal escaped references remain unchanged.
+
 - Inline code and passthrough text display resolved references while escaped references stay literal. Image fallback text and index collation use displayed characters. In passthrough blocks, Asciidoctor PDF instead prints the substituted reference spellings.
 
 - Character references follow parser-selected substitutions. Literal numeric-reference text remains literal when replacements are disabled. Known named references such as `&copy;` render as characters; Asciidoctor PDF reports these names as unsupported.

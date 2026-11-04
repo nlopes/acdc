@@ -11,6 +11,7 @@ use crate::InlineTextTransform;
 
 /// Visit index occurrences in source order, including terms in formatted text.
 /// Each callback receives the byte offset in plain text with `\n` line breaks.
+/// Parsed references count as their display characters; escaped text stays literal.
 /// Term labels and relationship targets are not additional occurrences.
 ///
 /// # Errors
@@ -19,7 +20,9 @@ pub fn visit_index_terms<E>(
     nodes: &[InlineNode<'_>],
     visit: &mut impl FnMut(&IndexTerm<'_>, usize) -> Result<(), E>,
 ) -> Result<(), E> {
-    let transform = InlineTextTransform::default().line_break("\n");
+    let transform = InlineTextTransform::default()
+        .line_break("\n")
+        .decode_char_refs(true);
     let mut offset = TextOffset(0);
     for node in nodes {
         walk_node::<&[InlineNode<'_>], E>(node, &mut offset, &transform, visit)?;
@@ -29,7 +32,7 @@ pub fn visit_index_terms<E>(
 
 /// Visit index occurrences from typed inlines in source order.
 ///
-/// Offsets count UTF-8 bytes in plain text with `\n` line breaks. Descent and
+/// Offsets count UTF-8 bytes in decoded plain text with `\n` line breaks. Descent and
 /// label exclusions follow [`visit_index_terms`]. The iterator need not be
 /// cloneable, and discovery does not collect or register terms.
 ///
@@ -40,7 +43,9 @@ pub fn visit_index_inlines<'inline, E>(
     nodes: impl Iterator<Item = InlineRef<'inline>>,
     visit: &mut impl FnMut(IndexTermRef<'inline>, usize) -> Result<(), E>,
 ) -> Result<(), E> {
-    let transform = InlineTextTransform::default().line_break("\n");
+    let transform = InlineTextTransform::default()
+        .line_break("\n")
+        .decode_char_refs(true);
     let mut offset = TextOffset(0);
     for node in nodes {
         walk_node::<ContentRef<'inline>, E>(node, &mut offset, &transform, visit)?;
