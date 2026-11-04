@@ -3,8 +3,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_converters_core::{TraversalContext, visitor::Visitor};
-use acdc_parser::{Document, Image, InlineMacro, InlineNode, Location, Source};
+use acdc_converters_core::{InlineTextTransform, TraversalContext, visitor::BlockVisitor};
+use acdc_parser::{
+    ColumnStyle,
+    ast::{
+        AttributeValueRef, BlockKind, BlockRef, ColumnFormatRef, ContentRef, ContentRole,
+        DocumentRef, InlineKind, LocationRef, SourceKind, SourceRef, StructuralRef, TableRef,
+    },
+};
 
 use crate::LintId;
 
@@ -12,15 +18,15 @@ use super::LintEmitter;
 
 pub(crate) fn lint_resources(
     emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
+    document: DocumentRef<'_>,
     source_path: Option<&Path>,
 ) {
-    let mut traversal = TraversalContext::new(&document.attributes);
+    let mut traversal = TraversalContext::new(document.attributes());
     let mut visitor = ResourceVisitor {
         emitter,
         source_path,
     };
-    let Ok(()) = traversal.visit_blocks(&mut visitor, &document.blocks);
+    let Ok(()) = traversal.visit_blocks(&mut visitor, document.blocks());
 }
 
 struct ResourceVisitor<'emitter, 'source, 'path> {
@@ -28,48 +34,117 @@ struct ResourceVisitor<'emitter, 'source, 'path> {
     source_path: Option<&'path Path>,
 }
 
-impl<'doc> Visitor<'doc> for ResourceVisitor<'_, '_, '_> {
+impl<'doc> BlockVisitor<'doc> for ResourceVisitor<'_, '_, '_> {
     type Error = Infallible;
 
     fn before_block(
         &mut self,
         traversal: &mut TraversalContext<'doc>,
-        block: &'doc acdc_parser::Block<'doc>,
+        block: BlockRef<'doc>,
     ) -> Result<(), Self::Error> {
-        if let Some(content) = block
-            .metadata()
-            .and_then(acdc_parser::BlockMetadata::caption_content)
+        if let Some(AttributeValueRef::Content(content)) = block
+            .attributes()
+            .and_then(|attributes| attributes.get("caption"))
         {
-            self.visit_inline_nodes(traversal, content)?;
+            lint_resource_inlines(self.emitter, traversal, content, self.source_path);
         }
         Ok(())
     }
 
-    fn visit_image(
+    fn visit_block(
         &mut self,
         traversal: &mut TraversalContext<'doc>,
-        image: &Image<'_>,
+        block: BlockRef<'doc>,
     ) -> Result<(), Self::Error> {
-        if let Some(alt) = &image.alt {
-            self.visit_inline_nodes(traversal, alt)?;
+        if let BlockKind::Image(image) = block.kind() {
+            if let Some(alt) = image.alt() {
+                lint_resource_inlines(self.emitter, traversal, alt, self.source_path);
+            }
+            lint_image(
+                self.emitter,
+                traversal,
+                image.source(),
+                image.location(),
+                image.alt(),
+                self.source_path,
+            );
+            return Ok(());
         }
-        lint_image(
-            self.emitter,
-            traversal,
-            &image.source,
-            &image.location,
-            image.alt.as_ref(),
-            self.source_path,
+        let visit_title = matches!(
+            block.kind(),
+            BlockKind::Paragraph(_)
+                | BlockKind::Section(_)
+                | BlockKind::DiscreteHeader(_)
+                | BlockKind::OrderedList(_)
+                | BlockKind::UnorderedList(_)
         );
+        for field in StructuralRef::Block(block).content_fields() {
+            if (visit_title && field.role() == ContentRole::Title)
+                || (matches!(block.kind(), BlockKind::Paragraph(_))
+                    && field.role() == ContentRole::Body)
+            {
+                lint_resource_inlines(self.emitter, traversal, field.content(), self.source_path);
+            }
+        }
+        if let BlockKind::Table(table) = block.kind() {
+            self.visit_table(traversal, table)
+        } else {
+            for child in block.children() {
+                self.visit_structure(traversal, child)?;
+            }
+            Ok(())
+        }
+    }
+}
+
+impl ResourceVisitor<'_, '_, '_> {
+    fn visit_structure<'doc>(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        node: StructuralRef<'doc>,
+    ) -> Result<(), Infallible> {
+        if let StructuralRef::Block(block) = node {
+            return traversal.visit_block(self, block);
+        }
+        for field in node.content_fields() {
+            if matches!(
+                field.role(),
+                ContentRole::ListPrincipal | ContentRole::DescriptionTerm
+            ) {
+                lint_resource_inlines(self.emitter, traversal, field.content(), self.source_path);
+            }
+        }
+        for child in node.children() {
+            self.visit_structure(traversal, child)?;
+        }
         Ok(())
     }
 
-    fn visit_inline_nodes(
+    fn visit_table<'doc>(
         &mut self,
         traversal: &mut TraversalContext<'doc>,
-        nodes: &[InlineNode<'_>],
-    ) -> Result<(), Self::Error> {
-        lint_resource_inlines(self.emitter, traversal, nodes, self.source_path);
+        table: TableRef<'doc>,
+    ) -> Result<(), Infallible> {
+        for row in table
+            .header()
+            .into_iter()
+            .chain(table.rows())
+            .chain(table.footer())
+        {
+            let mut formats = table.columns();
+            for cell in row.cells() {
+                let default_style = formats
+                    .next()
+                    .map_or(ColumnStyle::Default, ColumnFormatRef::style);
+                if cell.style().unwrap_or(default_style) == ColumnStyle::AsciiDoc {
+                    traversal.with_table_cell(cell, |context| {
+                        context.visit_blocks(self, cell.blocks())
+                    })?;
+                } else {
+                    traversal.visit_blocks(self, cell.blocks())?;
+                }
+            }
+        }
         Ok(())
     }
 }
@@ -77,84 +152,55 @@ impl<'doc> Visitor<'doc> for ResourceVisitor<'_, '_, '_> {
 fn lint_resource_inlines(
     emitter: &mut LintEmitter<'_>,
     attributes: &mut TraversalContext<'_>,
-    nodes: &[InlineNode<'_>],
+    nodes: ContentRef<'_>,
     source_path: Option<&Path>,
 ) {
-    for node in nodes {
-        if let InlineNode::Macro(value) = node {
-            value.for_each_content_attribute(|content| {
-                lint_resource_inlines(emitter, attributes, content, source_path);
-            });
-        }
-        match node {
-            InlineNode::BoldText(text) => {
-                lint_resource_inlines(emitter, attributes, &text.content, source_path);
-            }
-            InlineNode::CurvedApostropheText(text) => {
-                lint_resource_inlines(emitter, attributes, &text.content, source_path);
-            }
-            InlineNode::CurvedQuotationText(text) => {
-                lint_resource_inlines(emitter, attributes, &text.content, source_path);
-            }
-            InlineNode::HighlightText(text) => {
-                lint_resource_inlines(emitter, attributes, &text.content, source_path);
-            }
-            InlineNode::ItalicText(text) => {
-                lint_resource_inlines(emitter, attributes, &text.content, source_path);
-            }
-            InlineNode::MonospaceText(text) => {
-                lint_resource_inlines(emitter, attributes, &text.content, source_path);
-            }
-            InlineNode::SubscriptText(text) => {
-                lint_resource_inlines(emitter, attributes, &text.content, source_path);
-            }
-            InlineNode::SuperscriptText(text) => {
-                lint_resource_inlines(emitter, attributes, &text.content, source_path);
-            }
-            InlineNode::Macro(macro_node) => match macro_node {
-                InlineMacro::CrossReference(reference) => {
-                    lint_resource_inlines(emitter, attributes, &reference.text, source_path);
+    for node in nodes.inlines() {
+        let mut link_text = None;
+        for field in node.content_fields() {
+            match field.role() {
+                // Tooltips are checked before link labels to retain diagnostic order.
+                ContentRole::LinkText => link_text = Some(field.content()),
+                ContentRole::Alt
+                | ContentRole::Tooltip
+                | ContentRole::ButtonLabel
+                | ContentRole::KeyboardKey
+                | ContentRole::MenuTarget
+                | ContentRole::MenuItem
+                | ContentRole::Span
+                | ContentRole::Footnote => {
+                    lint_resource_inlines(emitter, attributes, field.content(), source_path);
                 }
-                InlineMacro::Footnote(footnote) => {
-                    lint_resource_inlines(emitter, attributes, &footnote.content, source_path);
-                }
-                InlineMacro::Image(image) => {
-                    lint_image(
-                        emitter,
-                        attributes,
-                        &image.source,
-                        &image.location,
-                        image.alt.as_ref(),
-                        source_path,
-                    );
-                }
-                InlineMacro::Link(link) => {
-                    lint_resource_inlines(emitter, attributes, &link.text, source_path);
-                }
-                InlineMacro::Mailto(mailto) => {
-                    lint_resource_inlines(emitter, attributes, &mailto.text, source_path);
-                }
-                InlineMacro::Url(url) => {
-                    lint_resource_inlines(emitter, attributes, &url.text, source_path);
-                }
-                InlineMacro::Autolink(_)
-                | InlineMacro::Button(_)
-                | InlineMacro::Icon(_)
-                | InlineMacro::IndexTerm(_)
-                | InlineMacro::Keyboard(_)
-                | InlineMacro::Menu(_)
-                | InlineMacro::Pass(_)
-                | InlineMacro::Stem(_)
+                ContentRole::Title
+                | ContentRole::Subtitle
+                | ContentRole::Body
+                | ContentRole::Attribution
+                | ContentRole::CiteTitle
+                | ContentRole::Caption
+                | ContentRole::ReferenceText
+                | ContentRole::BibliographyLabel
+                | ContentRole::ListPrincipal
+                | ContentRole::DescriptionTerm
+                | ContentRole::IndexPrimary
+                | ContentRole::IndexSecondary
+                | ContentRole::IndexTertiary
+                | ContentRole::IndexSee
+                | ContentRole::IndexSeeAlso
                 | _ => {}
-            },
-            InlineNode::CalloutRef(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::VerbatimText(_)
-            | _ => {}
+            }
+        }
+        if let Some(content) = link_text {
+            lint_resource_inlines(emitter, attributes, content, source_path);
+        }
+        if let InlineKind::Image(image) = node.kind() {
+            lint_image(
+                emitter,
+                attributes,
+                image.source(),
+                image.location(),
+                image.alt(),
+                source_path,
+            );
         }
     }
 }
@@ -162,9 +208,9 @@ fn lint_resource_inlines(
 fn lint_image(
     emitter: &mut LintEmitter<'_>,
     attributes: &mut TraversalContext<'_>,
-    source: &Source<'_>,
-    location: &Location,
-    alt: Option<&acdc_parser::ContentAttribute<'_>>,
+    source: SourceRef<'_>,
+    location: LocationRef<'_>,
+    alt: Option<ContentRef<'_>>,
     source_path: Option<&Path>,
 ) {
     lint_imagesdir(emitter, source, location);
@@ -172,7 +218,7 @@ fn lint_image(
     lint_image_target_exists(emitter, attributes, source, location, source_path);
 }
 
-fn lint_imagesdir(emitter: &mut LintEmitter<'_>, source: &Source<'_>, location: &Location) {
+fn lint_imagesdir(emitter: &mut LintEmitter<'_>, source: SourceRef<'_>, location: LocationRef<'_>) {
     let Some(target) = image_target_with_directory(source) else {
         return;
     };
@@ -190,11 +236,12 @@ fn lint_imagesdir(emitter: &mut LintEmitter<'_>, source: &Source<'_>, location: 
 
 fn lint_image_alt_text(
     emitter: &mut LintEmitter<'_>,
-    alt: Option<&acdc_parser::ContentAttribute<'_>>,
-    location: &Location,
+    alt: Option<ContentRef<'_>>,
+    location: LocationRef<'_>,
 ) {
     let has_alt = alt.is_some_and(|alt| {
-        !acdc_converters_core::inlines_to_string(alt)
+        !InlineTextTransform::default()
+            .content_to_string(alt)
             .trim()
             .is_empty()
     });
@@ -213,8 +260,8 @@ fn lint_image_alt_text(
 fn lint_image_target_exists(
     emitter: &mut LintEmitter<'_>,
     attributes: &mut TraversalContext<'_>,
-    source: &Source<'_>,
-    location: &Location,
+    source: SourceRef<'_>,
+    location: LocationRef<'_>,
     source_path: Option<&Path>,
 ) {
     let Some(path) = image_target_path(attributes, source, source_path) else {
@@ -234,14 +281,14 @@ fn lint_image_target_exists(
 
 fn image_target_path(
     attributes: &TraversalContext<'_>,
-    source: &Source<'_>,
+    source: SourceRef<'_>,
     source_path: Option<&Path>,
 ) -> Option<PathBuf> {
     let source_path = source_path?;
-    let target = match source {
-        Source::Url(_) => return None,
-        Source::Path(path) => path.clone(),
-        Source::Name(name) => PathBuf::from(name),
+    let target = match source.kind() {
+        SourceKind::Path(path) => path.to_path_buf(),
+        SourceKind::Name(name) => PathBuf::from(name),
+        SourceKind::Url(_) | _ => return None,
     };
     if target.is_absolute() {
         return Some(target);
@@ -259,28 +306,28 @@ fn image_target_path(
     Some(base.join(imagesdir).join(target))
 }
 
-fn image_target_with_directory(source: &Source<'_>) -> Option<String> {
-    match source {
-        Source::Path(path) if path_has_directory(path) => Some(path.display().to_string()),
-        Source::Name(name) if name.contains('/') || name.contains('\\') => {
-            Some((*name).to_string())
+fn image_target_with_directory(source: SourceRef<'_>) -> Option<String> {
+    match source.kind() {
+        SourceKind::Path(path) if path_has_directory(path) => Some(path.display().to_string()),
+        SourceKind::Name(name) if name.contains('/') || name.contains('\\') => {
+            Some(name.to_string())
         }
-        Source::Name(_) | Source::Path(_) | Source::Url(_) => None,
+        SourceKind::Name(_) | SourceKind::Path(_) | SourceKind::Url(_) | _ => None,
     }
 }
 
-fn image_target_basename(source: &Source<'_>) -> Option<String> {
-    match source {
-        Source::Path(path) => path
+fn image_target_basename(source: SourceRef<'_>) -> Option<String> {
+    match source.kind() {
+        SourceKind::Path(path) => path
             .file_name()
             .and_then(std::ffi::OsStr::to_str)
             .map(ToString::to_string),
-        Source::Name(name) => name
+        SourceKind::Name(name) => name
             .rsplit(['/', '\\'])
             .next()
             .filter(|name| !name.is_empty())
             .map(ToString::to_string),
-        Source::Url(_) => None,
+        SourceKind::Url(_) | _ => None,
     }
 }
 
@@ -302,7 +349,7 @@ mod tests {
 
     use super::{
         super::test_support::{has_lint, report_for},
-        TraversalContext, image_target_path,
+        BlockKind, TraversalContext, image_target_path,
     };
 
     struct TempDoc {
@@ -370,11 +417,10 @@ mod tests {
             &acdc_parser::Options::default(),
         )?;
         let image = parsed
-            .document()
-            .blocks
-            .iter()
+            .document_ref()
+            .blocks()
             .find_map(|block| {
-                if let acdc_parser::Block::Image(image) = block {
+                if let BlockKind::Image(image) = block.kind() {
                     Some(image)
                 } else {
                     None
@@ -382,10 +428,10 @@ mod tests {
             })
             .ok_or("missing image")?;
         let source = Path::new("/tmp/attributes.adoc");
-        let attributes = TraversalContext::new(&parsed.document().attributes);
+        let attributes = TraversalContext::new(parsed.document_ref().attributes());
 
         assert_eq!(
-            image_target_path(&attributes, &image.source, Some(source)),
+            image_target_path(&attributes, image.source(), Some(source)),
             Some(PathBuf::from("/tmp/'media files'/photo.png"))
         );
         Ok(())

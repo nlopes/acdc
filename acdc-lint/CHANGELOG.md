@@ -7,15 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Sentence-per-line advice retains formatting-aware source ranges, authored link-label checks, and its description-term and table-cell exclusions in both compatibility modes.
-
-- Delimiter-shortening advice retains body-collision checks and authored opening ranges across delimited forms. Repeated-title advice still exempts the exact `doctype=book` value.
-
-- Heading checks retain formatting-aware capitalization, separate monospace advice, and their existing table-cell exclusion in both compatibility modes.
-
-- List-marker checks retain nesting context and diagnostic order through all list families, attached containers, and table cells in both compatibility modes.
-
-- URL-attribute and source-block whitespace checks retain diagnostic order and authored source ranges in both compatibility modes, including list continuations and table cells.
+- Expanded regression coverage for diagnostics in both compatibility modes, including formatted labels, nested lists, source blocks, delimiter safety, and image-directory scopes.
 
 - Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
 

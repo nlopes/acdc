@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use acdc_parser::{Document, ParseResult};
+use acdc_parser::{ParseResult, ast::DocumentRef};
 
 use crate::{
     LintId, LintOptions,
@@ -22,8 +22,8 @@ pub(crate) struct LintContext<'context, 'source> {
 }
 
 impl LintContext<'_, '_> {
-    pub(crate) fn document(&self) -> &Document<'_> {
-        self.parsed.document()
+    pub(crate) fn document(&self) -> DocumentRef<'_> {
+        self.parsed.document_ref()
     }
 }
 
@@ -227,21 +227,17 @@ fn run_document_extension(emitter: &mut LintEmitter<'_>, context: &LintContext<'
 }
 
 fn run_prose(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    prose::lint_one_sentence_per_line(emitter, context.parsed.document_ref(), context.lines);
+    prose::lint_one_sentence_per_line(emitter, context.document(), context.lines);
 }
 
 fn run_section_title_style(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    headings::lint_section_title_symmetric_marker(
-        emitter,
-        context.parsed.document_ref(),
-        context.lines,
-    );
+    headings::lint_section_title_symmetric_marker(emitter, context.document(), context.lines);
     headings::lint_section_title_setext_style(emitter, context.lines, context.skipped_lines);
 }
 
 fn run_document_header(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    headings::lint_document_title_author(emitter, context.parsed.document_ref(), context.lines);
-    headings::lint_document_title_revision(emitter, context.parsed.document_ref(), context.lines);
+    headings::lint_document_title_author(emitter, context.document(), context.lines);
+    headings::lint_document_title_revision(emitter, context.document(), context.lines);
 }
 
 fn run_parser_warnings(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
@@ -251,14 +247,14 @@ fn run_parser_warnings(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, 
 fn run_multiple_document_title(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
     document::lint_multiple_document_title(
         emitter,
-        context.parsed.document_ref(),
+        context.document(),
         context.lines,
         context.skipped_lines,
     );
 }
 
 fn run_delimited_blocks(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    blocks::lint_blocks(emitter, context.parsed.document_ref(), context.lines);
+    blocks::lint_blocks(emitter, context.document(), context.lines);
 }
 
 fn run_section_title_marker_spacing(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
@@ -266,7 +262,7 @@ fn run_section_title_marker_spacing(emitter: &mut LintEmitter<'_>, context: &Lin
 }
 
 fn run_section_title_capitalization(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    headings::lint_section_title_capitalization(emitter, context.parsed.document_ref());
+    headings::lint_section_title_capitalization(emitter, context.document());
 }
 
 fn run_delimited_block_layout(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
@@ -274,15 +270,15 @@ fn run_delimited_block_layout(emitter: &mut LintEmitter<'_>, context: &LintConte
 }
 
 fn run_source_whitespace(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    whitespace::lint_source_whitespace(emitter, context.parsed.document_ref(), context.lines);
+    whitespace::lint_source_whitespace(emitter, context.document(), context.lines);
 }
 
 fn run_list_marker_spacing(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    lists::lint_list_marker_spacing(emitter, context.parsed.document_ref(), context.lines);
+    lists::lint_list_marker_spacing(emitter, context.document(), context.lines);
 }
 
 fn run_attribute_url_prefix(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    attributes::lint_attribute_url_prefix(emitter, context.parsed.document_ref(), context.lines);
+    attributes::lint_attribute_url_prefix(emitter, context.document(), context.lines);
 }
 
 fn run_resources(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
@@ -290,7 +286,7 @@ fn run_resources(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
 }
 
 fn run_nested_unordered_list_marker(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    lists::lint_nested_unordered_list_markers(emitter, context.parsed.document_ref());
+    lists::lint_nested_unordered_list_markers(emitter, context.document());
 }
 
 fn run_adjacent_list_separator(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
