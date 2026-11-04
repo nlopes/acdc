@@ -111,6 +111,20 @@ fn highlighted_callouts_preserve_plain_code_text_and_targets(
     Ok(())
 }
 
+/// The colgroup has a column for each column of the table: `cols=3` and `cols="3*"` give
+/// three, and `cols=0`, which gives no column specs, leaves the first row to set them.
+#[rstest::rstest]
+#[case::integer("3")]
+#[case::multiplied("\"3*\"")]
+#[case::zero("0")]
+fn colgroup_follows_the_parsed_columns(#[case] cols: &str) -> Result<(), Error> {
+    let input = format!("[cols={cols}]\n|===\n|A |B |C\n\n|1 |2 |3\n|===\n");
+    let parsed = parse(&input, &ParserOptions::default())?;
+    let output = render_fixture_document(parsed.document(), HtmlVariant::Standard, true)?;
+    assert_eq!(output.matches("<col ").count(), 3, "{output}");
+    Ok(())
+}
+
 #[test]
 fn quote_titles_keep_macro_targets_once() -> Result<(), Error> {
     let parsed = parse(

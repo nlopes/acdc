@@ -263,19 +263,10 @@ where
 fn render_colgroup<'a, W: std::io::Write + ?Sized>(
     writer: &mut W,
     table: &'a Table<'a>,
-    metadata: &BlockMetadata,
 ) -> Result<(), Error> {
-    // Generate colgroup - either from cols attribute or inferred from table structure
-    let col_count = if let Some(cols_str) = metadata.attributes.get_string("cols") {
-        // Handle multiplier syntax like "3*" or "2*~"
-        if let Some(asterisk_pos) = cols_str.find('*') {
-            let count_str = &cols_str[..asterisk_pos];
-            count_str.parse::<usize>().unwrap_or(1)
-        } else {
-            // Regular comma-separated format
-            cols_str.split(',').count()
-        }
-    } else {
+    // Generate colgroup - from the columns the parser read from `cols`, or inferred from
+    // table structure when there are none
+    let col_count = if table.columns.is_empty() {
         // Infer column count from header or first row
         if let Some(header) = &table.header {
             header.columns.len()
@@ -284,6 +275,8 @@ fn render_colgroup<'a, W: std::io::Write + ?Sized>(
         } else {
             0
         }
+    } else {
+        table.columns.len()
     };
 
     if col_count > 0 {
@@ -468,7 +461,7 @@ where
     render_table_caption(traversal, visitor, title, processor, metadata)?;
 
     // Render colgroup with column widths
-    render_colgroup(visitor.writer_mut(), table, metadata)?;
+    render_colgroup(visitor.writer_mut(), table)?;
 
     // Cell class prefix: "tableblock " for standard, "" for semantic
     let cell_class_prefix = if semantic { "" } else { "tableblock " };
