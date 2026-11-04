@@ -1,6 +1,6 @@
 use acdc_parser::{
-    Block, CompatibilityMode, Options, SafeMode,
-    ast::{BlockKind, InlineKind, StructuralRef},
+    CompatibilityMode, Options, SafeMode,
+    ast::{BlockKind, BlockRef, InlineKind, StructuralRef},
     parse, parse_file,
 };
 
@@ -36,7 +36,7 @@ fn only_matching_sibling_or_ancestor_items_interrupt_asciidoctor_attachments(
             1
         }
     );
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     Ok(())
 }
 
@@ -53,16 +53,18 @@ fn nested_or_other_family_markers_stay_in_an_attached_paragraph(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::UnorderedList(list)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::UnorderedList(list)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected unordered list".into());
     };
-    let item = list.items.first().ok_or("missing item")?;
-    assert_eq!(list.items.len(), 1);
-    let Some(Block::Paragraph(paragraph)) = item.blocks.first() else {
+    let item = list.items().next().ok_or("missing item")?;
+    assert_eq!(list.items().count(), 1);
+    let Some(BlockKind::Paragraph(paragraph)) = item.blocks().next().map(BlockRef::kind) else {
         return Err("expected attached paragraph".into());
     };
-    assert_eq!(paragraph.location.end.line, 4);
-    assert_eq!(item.blocks.len(), 1);
+    assert_eq!(paragraph.location().end().line(), 4);
+    assert_eq!(item.blocks().count(), 1);
     Ok(())
 }
 
@@ -73,15 +75,19 @@ fn list_markers_do_not_interrupt_ordinary_text_but_standalone_plus_does() -> Res
             "Paragraph\n* Wrapped\n. Wrapped too\n+\nNext paragraph.\n",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        assert_eq!(parsed.document().blocks.len(), 2);
-        let Some(Block::Paragraph(first)) = parsed.document().blocks.first() else {
+        assert_eq!(parsed.document_ref().blocks().count(), 2);
+        let Some(BlockKind::Paragraph(first)) =
+            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        else {
             return Err("expected ordinary paragraph".into());
         };
-        assert_eq!(first.location.end.line, 3);
-        let Some(Block::Paragraph(second)) = parsed.document().blocks.get(1) else {
+        assert_eq!(first.location().end().line(), 3);
+        let Some(BlockKind::Paragraph(second)) =
+            parsed.document_ref().blocks().nth(1).map(BlockRef::kind)
+        else {
             return Err("expected paragraph after plus".into());
         };
-        assert_eq!(second.location.start.line, 4);
+        assert_eq!(second.location().start().line(), 4);
     }
     Ok(())
 }
@@ -102,32 +108,39 @@ fn attached_selected_include_keeps_each_modes_original_text_range() -> Result<()
                 .with_safe_mode(SafeMode::Unsafe)
                 .build()?,
         )?;
-        let Some(Block::UnorderedList(list)) = parsed.document().blocks.first() else {
+        let Some(BlockKind::UnorderedList(list)) =
+            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        else {
             return Err("expected list".into());
         };
-        let Some(Block::Paragraph(paragraph)) =
-            list.items.first().ok_or("missing item")?.blocks.first()
+        let Some(BlockKind::Paragraph(paragraph)) = list
+            .items()
+            .next()
+            .ok_or("missing item")?
+            .blocks()
+            .next()
+            .map(BlockRef::kind)
         else {
             return Err("expected attachment".into());
         };
         assert_eq!(
-            paragraph.location.absolute_start,
+            paragraph.location().absolute_start(),
             source.find("Attached").ok_or("missing start")?
         );
-        assert_eq!(paragraph.location.start.line, 4);
+        assert_eq!(paragraph.location().start().line(), 4);
         let end_line = if mode == CompatibilityMode::Asciidoctor {
             4
         } else {
             5
         };
-        assert_eq!(paragraph.location.end.line, end_line);
+        assert_eq!(paragraph.location().end().line(), end_line);
         let end = if mode == CompatibilityMode::Asciidoctor {
             source.find("π.").ok_or("missing end")? + "π".len()
         } else {
             source.find("]\n").ok_or("missing note end")?
         };
-        assert_eq!(paragraph.location.absolute_end, end);
-        assert_eq!(parsed.document().footnotes.len(), 1);
+        assert_eq!(paragraph.location().absolute_end(), end);
+        assert_eq!(parsed.document_ref().footnotes().count(), 1);
         let text = parsed
             .document_ref()
             .descendants()
@@ -165,11 +178,16 @@ fn a_blank_line_after_plus_does_not_turn_a_sibling_into_paragraph_text() -> Resu
             "* First\n+\n\n* Second\n",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let Some(Block::UnorderedList(list)) = parsed.document().blocks.first() else {
+        let Some(BlockKind::UnorderedList(list)) =
+            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        else {
             return Err("expected list".into());
         };
-        assert_eq!(list.items.len(), 2);
-        assert_eq!(list.items.first().ok_or("missing item")?.blocks.len(), 0);
+        assert_eq!(list.items().count(), 2);
+        assert_eq!(
+            list.items().next().ok_or("missing item")?.blocks().count(),
+            0
+        );
     }
     Ok(())
 }
@@ -185,16 +203,23 @@ fn explicit_and_implicit_ordered_markers_do_not_interrupt_each_others_attachment
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::OrderedList(list)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::OrderedList(list)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected ordered list".into());
     };
-    assert_eq!(list.items.len(), 1);
-    let Some(Block::Paragraph(paragraph)) =
-        list.items.first().ok_or("missing item")?.blocks.first()
+    assert_eq!(list.items().count(), 1);
+    let Some(BlockKind::Paragraph(paragraph)) = list
+        .items()
+        .next()
+        .ok_or("missing item")?
+        .blocks()
+        .next()
+        .map(BlockRef::kind)
     else {
         return Err("expected attachment".into());
     };
-    assert_eq!(paragraph.location.end.line, 4);
+    assert_eq!(paragraph.location().end().line(), 4);
     Ok(())
 }
 
@@ -233,18 +258,30 @@ fn metadata_after_an_attachment_keeps_the_nested_list_in_its_parent(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document().blocks.len(), 1);
-    let blocks = match parsed.document().blocks.first() {
-        Some(Block::UnorderedList(list)) => &list.items.first().ok_or("missing item")?.blocks,
-        Some(Block::OrderedList(list)) => &list.items.first().ok_or("missing item")?.blocks,
+    assert_eq!(parsed.document_ref().blocks().count(), 1);
+    let blocks = match parsed.document_ref().blocks().next().map(BlockRef::kind) {
+        Some(BlockKind::UnorderedList(list)) => list
+            .items()
+            .next()
+            .ok_or("missing item")?
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>(),
+        Some(BlockKind::OrderedList(list)) => list
+            .items()
+            .next()
+            .ok_or("missing item")?
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>(),
         _ => return Err("expected list".into()),
     };
     assert_eq!(blocks.len(), 2);
-    assert!(matches!(blocks.first(), Some(Block::Paragraph(_))));
+    assert!(matches!(blocks.first(), Some(BlockKind::Paragraph(_))));
     assert!(matches!(
         blocks.get(1),
-        Some(Block::UnorderedList(_) | Block::OrderedList(_))
+        Some(BlockKind::UnorderedList(_) | BlockKind::OrderedList(_))
     ));
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     Ok(())
 }

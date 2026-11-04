@@ -1,4 +1,8 @@
-use acdc_parser::{Block, CompatibilityMode, Options, SafeMode, parse, parse_file};
+use acdc_parser::{
+    CompatibilityMode, Options, SafeMode,
+    ast::{BlockKind, BlockRef},
+    parse, parse_file,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -10,10 +14,10 @@ fn a_later_description_marker_does_not_change_an_ordinary_paragraph(
         "Wrapped paragraph.\nTerm:: Still paragraph text.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document().blocks.len(), 1);
+    assert_eq!(parsed.document_ref().blocks().count(), 1);
     assert!(matches!(
-        parsed.document().blocks.first(),
-        Some(Block::Paragraph(_))
+        parsed.document_ref().blocks().next().map(BlockRef::kind),
+        Some(BlockKind::Paragraph(_))
     ));
     Ok(())
 }
@@ -26,14 +30,16 @@ fn an_ordinary_paragraph_between_terms_ends_the_description_list(
         "First:: One\n\nWrapped paragraph.\nSecond:: Still paragraph text.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document().blocks.len(), 2);
-    let Some(Block::DescriptionList(list)) = parsed.document().blocks.first() else {
+    assert_eq!(parsed.document_ref().blocks().count(), 2);
+    let Some(BlockKind::DescriptionList(list)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected description list".into());
     };
-    assert_eq!(list.items.len(), 1);
+    assert_eq!(list.items().count(), 1);
     assert!(matches!(
-        parsed.document().blocks.get(1),
-        Some(Block::Paragraph(_))
+        parsed.document_ref().blocks().nth(1).map(BlockRef::kind),
+        Some(BlockKind::Paragraph(_))
     ));
     Ok(())
 }
@@ -54,17 +60,19 @@ fn wrapped_included_text_keeps_its_original_unicode_range() -> Result<(), Error>
                 .with_safe_mode(SafeMode::Unsafe)
                 .build()?,
         )?;
-        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+        let Some(BlockKind::Paragraph(paragraph)) =
+            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        else {
             return Err("expected included paragraph".into());
         };
-        assert_eq!(paragraph.location.start.line, 2);
-        assert_eq!(paragraph.location.end.line, 3);
+        assert_eq!(paragraph.location().start().line(), 2);
+        assert_eq!(paragraph.location().end().line(), 3);
         assert_eq!(
-            paragraph.location.absolute_start,
+            paragraph.location().absolute_start(),
             source.find("Wrapped").ok_or("missing start")?
         );
         assert_eq!(
-            paragraph.location.absolute_end,
+            paragraph.location().absolute_end(),
             source.find("text.\nExcluded").ok_or("missing end")? + "text".len()
         );
     }

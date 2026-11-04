@@ -1,4 +1,8 @@
-use acdc_parser::{Block, Error as ParseError, Options, parse};
+use acdc_parser::{
+    Error as ParseError, Options,
+    ast::{BlockKind, BlockRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -23,7 +27,7 @@ fn callout_continuations_propagate_invalid_child_errors() {
 fn callout_nested_lists_register_footnotes_once_in_source_order() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/callout_nested_lists.adoc");
     let parsed = parse(source, &Options::default())?;
-    let notes = &parsed.document().footnotes;
+    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
     assert_eq!(notes.len(), 3);
     for (note, expected) in notes.iter().zip([
         "footnote:[Parent note.]",
@@ -31,7 +35,7 @@ fn callout_nested_lists_register_footnotes_once_in_source_order() -> Result<(), 
         "footnote:[Last note.]",
     ]) {
         assert_eq!(
-            source.get(note.location.absolute_start..=note.location.absolute_end),
+            source.get(note.location().absolute_start()..=note.location().absolute_end()),
             Some(expected)
         );
     }
@@ -69,18 +73,23 @@ fn callout_nested_lists_keep_exact_item_spans() -> Result<(), Error> {
     for child in ["* Nested.", ". Nested.", "Term:: Nested."] {
         let source = format!("----\ncode <1> <2>\n----\n<1> First.\n{child}\n<2> Second.\n");
         let parsed = parse(&source, &Options::default())?;
-        let [_, Block::CalloutList(list)] = parsed.document().blocks.as_slice() else {
+        let [_, BlockKind::CalloutList(list)] = &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err(format!("expected listing and callout list for {source:?}").into());
         };
-        let [first, second] = list.items.as_slice() else {
+        let [first, second] = &*list.items().collect::<Vec<_>>() else {
             return Err("expected two callout items".into());
         };
         let first_source = source
-            .get(first.location.absolute_start..=first.location.absolute_end)
+            .get(first.location().absolute_start()..=first.location().absolute_end())
             .ok_or("invalid first item span")?;
         assert_eq!(first_source, format!("<1> First.\n{child}"));
         let second_source = source
-            .get(second.location.absolute_start..=second.location.absolute_end)
+            .get(second.location().absolute_start()..=second.location().absolute_end())
             .ok_or("invalid second item span")?;
         assert_eq!(second_source, "<2> Second.");
     }

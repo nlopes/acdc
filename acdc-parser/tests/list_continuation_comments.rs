@@ -1,5 +1,7 @@
 use acdc_parser::{
-    Block, CompatibilityMode, InlineMacro, InlineNode, Options, SafeMode, parse, parse_file,
+    CompatibilityMode, Options, SafeMode,
+    ast::{BlockKind, BlockRef, InlineKind},
+    parse, parse_file,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -17,29 +19,32 @@ fn comments_do_not_consume_a_list_attachment_or_register_hidden_macros() -> Resu
                 &source,
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
-            let Some(Block::UnorderedList(list)) = parsed.document().blocks.first() else {
+            let Some(BlockKind::UnorderedList(list)) =
+                parsed.document_ref().blocks().next().map(BlockRef::kind)
+            else {
                 return Err("expected list".into());
             };
-            assert_eq!(list.items.len(), 2);
-            let Some(Block::Paragraph(paragraph)) = list
-                .items
-                .first()
+            assert_eq!(list.items().count(), 2);
+            let Some(BlockKind::Paragraph(paragraph)) = list
+                .items()
+                .next()
                 .ok_or("missing first item")?
-                .blocks
-                .first()
+                .blocks()
+                .next()
+                .map(BlockRef::kind)
             else {
                 return Err("expected attached paragraph".into());
             };
             assert_eq!(
                 paragraph
-                    .content
-                    .iter()
-                    .filter(|node| matches!(node, InlineNode::Macro(InlineMacro::Footnote(_))))
+                    .content()
+                    .inlines()
+                    .filter(|node| matches!(node.kind(), InlineKind::Footnote(_)))
                     .count(),
                 1
             );
-            assert_eq!(parsed.document().footnotes.len(), 1);
-            assert_eq!(parsed.document().blocks.len(), 1);
+            assert_eq!(parsed.document_ref().footnotes().count(), 1);
+            assert_eq!(parsed.document_ref().blocks().count(), 1);
         }
     }
     Ok(())
@@ -64,30 +69,33 @@ fn attached_selected_include_content_keeps_original_ranges() -> Result<(), Error
                 .with_safe_mode(SafeMode::Unsafe)
                 .build()?,
         )?;
-        let Some(Block::UnorderedList(list)) = parsed.document().blocks.first() else {
+        let Some(BlockKind::UnorderedList(list)) =
+            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        else {
             return Err("expected list".into());
         };
-        let Some(Block::Paragraph(paragraph)) = list
-            .items
-            .first()
+        let Some(BlockKind::Paragraph(paragraph)) = list
+            .items()
+            .next()
             .ok_or("missing first item")?
-            .blocks
-            .first()
+            .blocks()
+            .next()
+            .map(BlockRef::kind)
         else {
             return Err("expected attached paragraph".into());
         };
-        assert_eq!(paragraph.location.start.line, 3);
-        assert_eq!(paragraph.location.end.line, 3);
+        assert_eq!(paragraph.location().start().line(), 3);
+        assert_eq!(paragraph.location().end().line(), 3);
         assert_eq!(
-            paragraph.location.absolute_start,
+            paragraph.location().absolute_start(),
             source.find("Attached").ok_or("source body")?
         );
         assert_eq!(
-            paragraph.location.absolute_end,
+            paragraph.location().absolute_end(),
             source.find("body.").ok_or("source end")? + "body".len()
         );
-        assert_eq!(list.items.len(), 2);
-        assert_eq!(parsed.document().blocks.len(), 1);
+        assert_eq!(list.items().count(), 2);
+        assert_eq!(parsed.document_ref().blocks().count(), 1);
     }
     Ok(())
 }
@@ -101,10 +109,10 @@ fn a_blank_line_after_the_comment_ends_the_attachment() -> Result<(), Error> {
                 &source,
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
-            assert_eq!(parsed.document().blocks.len(), 3);
+            assert_eq!(parsed.document_ref().blocks().count(), 3);
             assert!(matches!(
-                parsed.document().blocks.get(1),
-                Some(Block::Paragraph(_))
+                parsed.document_ref().blocks().nth(1).map(BlockRef::kind),
+                Some(BlockKind::Paragraph(_))
             ));
         }
     }
