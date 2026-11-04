@@ -1,17 +1,21 @@
-use acdc_parser::{AttributeValue, Block, CompatibilityMode, Options, parse};
+use acdc_parser::{
+    CompatibilityMode, Options,
+    ast::{AttributeValueRef, BlockKind, BlockRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
-fn is_kind(block: &Block<'_>, expected: &str) -> bool {
+fn is_kind(block: BlockRef<'_>, expected: &str) -> bool {
     match expected {
-        "paragraph" => matches!(block, Block::Paragraph(_)),
-        "unordered" => matches!(block, Block::UnorderedList(_)),
-        "ordered" => matches!(block, Block::OrderedList(_)),
-        "description" => matches!(block, Block::DescriptionList(_)),
-        "image" => matches!(block, Block::Image(_)),
-        "audio" => matches!(block, Block::Audio(_)),
-        "video" => matches!(block, Block::Video(_)),
-        "admonition" => matches!(block, Block::Admonition(_)),
+        "paragraph" => matches!(block.kind(), BlockKind::Paragraph(_)),
+        "unordered" => matches!(block.kind(), BlockKind::UnorderedList(_)),
+        "ordered" => matches!(block.kind(), BlockKind::OrderedList(_)),
+        "description" => matches!(block.kind(), BlockKind::DescriptionList(_)),
+        "image" => matches!(block.kind(), BlockKind::Image(_)),
+        "audio" => matches!(block.kind(), BlockKind::Audio(_)),
+        "video" => matches!(block.kind(), BlockKind::Video(_)),
+        "admonition" => matches!(block.kind(), BlockKind::Admonition(_)),
         _ => false,
     }
 }
@@ -35,7 +39,7 @@ fn draft_matches_structure_before_style(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [block] = parsed.document().blocks.as_slice() else {
+    let [block] = &*parsed.document_ref().blocks().collect::<Vec<_>>() else {
         return Err("expected one block".into());
     };
     let expected = if mode == CompatibilityMode::Draft {
@@ -43,9 +47,9 @@ fn draft_matches_structure_before_style(
     } else {
         "paragraph"
     };
-    assert!(is_kind(block, expected), "expected {expected}: {block:?}");
+    assert!(is_kind(*block, expected), "expected {expected}: {block:?}");
     let location = block.location();
-    assert_eq!(location.absolute_start, 0);
+    assert_eq!(location.absolute_start(), 0);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }
@@ -75,7 +79,7 @@ fn draft_styled_paragraphs_keep_structural_boundaries(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     assert_eq!(
-        parsed.document().blocks.len(),
+        parsed.document_ref().blocks().count(),
         if mode == CompatibilityMode::Draft {
             2
         } else {
@@ -83,9 +87,9 @@ fn draft_styled_paragraphs_keep_structural_boundaries(
         }
     );
     let first = parsed
-        .document()
-        .blocks
-        .first()
+        .document_ref()
+        .blocks()
+        .next()
         .ok_or("missing paragraph")?;
     let end = if mode == CompatibilityMode::Draft {
         source.find('\n').ok_or("missing metadata newline")?
@@ -94,8 +98,8 @@ fn draft_styled_paragraphs_keep_structural_boundaries(
     } else {
         source.len()
     };
-    assert_eq!(first.location().absolute_start, 0);
-    assert_eq!(first.location().absolute_end + 1, end);
+    assert_eq!(first.location().absolute_start(), 0);
+    assert_eq!(first.location().absolute_end() + 1, end);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }
@@ -109,7 +113,7 @@ fn structural_lookahead_registers_the_selected_title_once(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }
@@ -122,13 +126,18 @@ fn draft_media_mapping_does_not_retain_source_only_attributes() -> Result<(), Er
             .with_compatibility_mode(CompatibilityMode::Draft)
             .build()?,
     )?;
-    let [Block::Image(image)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Image(image)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected an image".into());
     };
-    assert!(!image.metadata.attributes.contains_key("language"));
+    assert!(image.attributes().get("language").is_none());
     assert_eq!(
-        image.metadata.attributes.get("width"),
-        Some(&AttributeValue::String("rust".into()))
+        image.attributes().get("width"),
+        Some(AttributeValueRef::Text("rust"))
     );
     Ok(())
 }

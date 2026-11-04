@@ -1,4 +1,8 @@
-use acdc_parser::{InlineNode, Options, parse};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, BlockRef, FootnoteDefinitionRef, InlineKind, InlineRef, ReferenceRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -27,7 +31,7 @@ fn index_registration_boundaries_survive_later_substitutions() -> Result<(), Err
                         "= Boundaries\n:close: ))\n:bracket: ]\n:empty:\n\n{block}\n{index}"
                     );
                     let parsed = parse(&source, &Options::default())?;
-                    assert_ne!(parsed.document().blocks, []);
+                    assert_ne!(parsed.document_ref().blocks().count(), 0);
                 }
             }
         }
@@ -39,19 +43,23 @@ fn index_registration_boundaries_survive_later_substitutions() -> Result<(), Err
 fn index_catalog_snapshots_do_not_register_footnotes_twice() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/subs_index_registration_order.adoc");
     let parsed = parse(source, &Options::default())?;
-    let notes = &parsed.document().footnotes;
+    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
     assert_eq!(notes.len(), 2);
     for (note, expected) in notes
         .iter()
         .zip(["footnote:[Only once]", "footnote:[Second note]"])
     {
         assert_eq!(
-            source.get(note.location.absolute_start..=note.location.absolute_end),
+            source.get(note.location().absolute_start()..=note.location().absolute_end()),
             Some(expected)
         );
     }
     assert_eq!(
-        notes.iter().map(|note| note.number).collect::<Vec<_>>(),
+        notes
+            .iter()
+            .copied()
+            .map(FootnoteDefinitionRef::number)
+            .collect::<Vec<_>>(),
         [1, 2]
     );
     Ok(())
@@ -61,7 +69,7 @@ fn index_catalog_snapshots_do_not_register_footnotes_twice() -> Result<(), Error
 fn ordered_index_footnotes_keep_one_definition_and_original_locations() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/subs_index_stage_labels.adoc");
     let parsed = parse(source, &Options::default())?;
-    let notes = &parsed.document().footnotes;
+    let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
     assert_eq!(notes.len(), 4);
     for (note, expected) in notes.iter().zip([
         "footnote:[One]",
@@ -70,7 +78,7 @@ fn ordered_index_footnotes_keep_one_definition_and_original_locations() -> Resul
         "footnote:[*bold* ((Early {name}))]",
     ]) {
         assert_eq!(
-            source.get(note.location.absolute_start..=note.location.absolute_end),
+            source.get(note.location().absolute_start()..=note.location().absolute_end()),
             Some(expected)
         );
     }
@@ -79,35 +87,36 @@ fn ordered_index_footnotes_keep_one_definition_and_original_locations() -> Resul
 
 #[test]
 fn passthrough_index_attribute_values_point_to_their_reference() -> Result<(), Error> {
-    use acdc_parser::{Block, InlineMacro};
-
     for value in ["Expanded", "é", "🦀", "foobar", "a much longer replacement"] {
         for stages in ["attributes,macros", "macros,attributes"] {
             let source = format!(":name: {value}\n\npass:{stages}[((Term {{name}}))]\n");
             let parsed = parse(&source, &Options::default())?;
-            let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+            let Some(BlockKind::Paragraph(paragraph)) =
+                parsed.document_ref().blocks().next().map(BlockRef::kind)
+            else {
                 return Err("missing paragraph".into());
             };
-            let Some(InlineNode::Macro(InlineMacro::IndexTerm(term))) = paragraph.content.first()
+            let Some(InlineKind::IndexTerm(term)) =
+                paragraph.content().inlines().next().map(InlineRef::kind)
             else {
                 return Err("missing index term".into());
             };
             let raw = term
                 .term()
-                .iter()
+                .inlines()
                 .find_map(|node| {
-                    if let InlineNode::RawText(raw) = node {
-                        (raw.content == value).then_some(raw)
+                    if let InlineKind::Raw(raw) = node.kind() {
+                        (raw.text() == value).then_some(raw)
                     } else {
                         None
                     }
                 })
                 .ok_or("missing expanded label")?;
             assert_eq!(
-                source.get(raw.location.absolute_start..=raw.location.absolute_end),
+                source.get(raw.location().absolute_start()..=raw.location().absolute_end()),
                 Some("{name}"),
                 "{stages}: {value} at {:?}",
-                raw.location,
+                raw.location(),
             );
         }
     }
@@ -137,15 +146,15 @@ fn disabled_attribute_substitutions_do_not_warn_about_counters() -> Result<(), E
 fn bibliography_footnotes_keep_their_source_and_catalog_entry() -> Result<(), Error> {
     let source = "[bibliography]\n* [[[note,footnote:[A note.] +]]] Footnote label.\n";
     let parsed = parse(source, &Options::default())?;
-    let [footnote] = parsed.document().footnotes.as_slice() else {
+    let [footnote] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
         return Err("expected one bibliography footnote".into());
     };
-    assert_eq!(footnote.number, 1);
+    assert_eq!(footnote.number(), 1);
     assert!(
-        matches!(footnote.content.as_slice(), [InlineNode::PlainText(text)] if text.content == "A note.")
+        matches!(&*footnote.content().inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Plain(text)] if text.text() == "A note.")
     );
     assert_eq!(
-        source.get(footnote.location.absolute_start..=footnote.location.absolute_end),
+        source.get(footnote.location().absolute_start()..=footnote.location().absolute_end()),
         Some("footnote:[A note.]")
     );
     Ok(())
@@ -158,18 +167,18 @@ fn bibliography_counter_citations_remain_literal() -> Result<(), Error> {
         &Options::default(),
     )?;
     let label = parsed
-        .document()
-        .references
+        .document_ref()
+        .references()
         .get("literal-counter")
-        .and_then(|reference| reference.xreflabel.as_ref())
+        .and_then(ReferenceRef::xreflabel)
         .ok_or("missing citation")?;
     let text = label
-        .iter()
+        .inlines()
         .map(|node| {
-            if let InlineNode::PlainText(text) = node {
-                Ok(text.content)
-            } else if let InlineNode::RawText(raw) = node {
-                Ok(raw.content)
+            if let InlineKind::Plain(text) = node.kind() {
+                Ok(text.text())
+            } else if let InlineKind::Raw(raw) = node.kind() {
+                Ok(raw.text())
             } else {
                 Err(Error::from("expected literal citation text"))
             }
