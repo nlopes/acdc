@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A line in a list item that starts with `+` followed by text, such as
+  `+ (+).`, is now part of the item's text, as in Asciidoctor. Previously it
+  ended the list, or joined the next term of a description list. Only a `+`
+  alone on its line continues a list item.
+
 - Errors and warnings in reindented includes report columns in the original
   source, including nested and selected includes.
 
