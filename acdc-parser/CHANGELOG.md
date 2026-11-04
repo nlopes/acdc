@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Library callers can read retained paragraph source text through the typed API, before inline substitutions. Constructed paragraphs have no retained source.
+
 - Use `ast::ReferencesRef::from(&catalog)` to read a caller-constructed reference catalog through the typed API without copying its entries.
 
 - Serialize `ast::DocumentRef` as native AST JSON with Serde. Checked ASG document export now accepts the same typed document: pass `parsed.document_ref()` or `DocumentRef::from(&document)` for a constructed tree. JSON shapes, schema profiles, and validation rules are unchanged.

@@ -415,3 +415,28 @@ fn unsupported_substitutions_remain_source_recovery_after_warning_routing() -> T
     );
     Ok(())
 }
+
+#[rstest::rstest]
+#[case(acdc_parser::CompatibilityMode::Asciidoctor)]
+#[case(acdc_parser::CompatibilityMode::Draft)]
+fn typed_paragraph_retains_literal_body(
+    #[case] mode: acdc_parser::CompatibilityMode,
+) -> TestResult {
+    let body = "printf '%s' '{value} *bold* \\<1>'";
+    let input = format!(":value: replaced\n\n[source,bash,subs=normal]\n{body}");
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    let parsed = parse(&input, &options)?;
+    let Some(block) = parsed.document_ref().blocks().next() else {
+        return Err("expected source paragraph".into());
+    };
+    let acdc_parser::ast::BlockKind::Paragraph(paragraph) = block.kind() else {
+        return Err("expected source paragraph".into());
+    };
+    assert_eq!(paragraph.source_text(), Some(body));
+    let constructed = Paragraph::new(Vec::new(), acdc_parser::Location::default());
+    assert_eq!(
+        acdc_parser::ast::ParagraphRef::from(&constructed).source_text(),
+        None
+    );
+    Ok(())
+}

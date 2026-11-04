@@ -357,6 +357,14 @@ impl<'doc> ParagraphRef<'doc> {
         ContentRef::new(&self.node.content)
     }
 
+    /// Body text after document preprocessing, before inline substitutions.
+    ///
+    /// Absent when no source text was retained, including constructed paragraphs.
+    #[must_use]
+    pub fn source_text(self) -> Option<&'doc str> {
+        self.node.source_text()
+    }
+
     /// Read the paragraph title; a supplied empty title remains present.
     #[must_use]
     pub fn title(self) -> Option<ContentRef<'doc>> {
