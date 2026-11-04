@@ -574,7 +574,8 @@ mod tests {
             let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed_blocks.first() else {
                 return Err("expected paragraph".into());
             };
-            let [_, term, tail] = paragraph.content.as_slice() else {
+            let content: Vec<_> = paragraph.clone().take_content().collect();
+            let [_, term, tail] = content.as_slice() else {
                 return Err("expected three inline fragments".into());
             };
             let prepared = [
@@ -588,7 +589,7 @@ mod tests {
             let (text, callouts) = extract_text_and_callouts(
                 prepared.iter().map(InlineRef::from),
                 TextBoundaries::BOTH,
-                &paragraph.content.iter().map(InlineRef::from),
+                &content.iter().map(InlineRef::from),
                 None,
             );
             assert_eq!(text, " —\u{200b}tail", "{mode:?}");

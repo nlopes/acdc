@@ -226,7 +226,9 @@ fn uncaptioned_library_listing_forms_are_supported() -> Result<(), Error> {
             ))
         } else {
             let mut paragraph = acdc_parser::Paragraph::new(content, Location::default());
-            paragraph.metadata.style = Some("source");
+            let mut metadata = paragraph.take_metadata();
+            metadata.style = Some("source");
+            paragraph.set_metadata(metadata)?;
             Block::Paragraph(paragraph)
         };
         let mut document = Document::default();

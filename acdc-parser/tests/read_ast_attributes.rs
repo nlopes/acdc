@@ -119,23 +119,18 @@ fn nested_callers_read_typed_and_generic_content_consistently(
 fn scalar_values_and_owned_names_are_read_without_cloning_or_stripping_quotes() -> Result<(), Error>
 {
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
+    let mut metadata = paragraph.take_metadata();
     let name = String::from("custom");
     let name_pointer = name.as_ptr();
     let text = String::from("\"literal quotes\"");
     let text_pointer = text.as_ptr();
-    paragraph
-        .metadata
+    metadata
         .attributes
         .set(Cow::Owned(name), AttributeValue::String(Cow::Owned(text)));
-    paragraph.metadata.attributes.set("empty".into(), "".into());
-    paragraph
-        .metadata
-        .attributes
-        .set("false".into(), false.into());
-    paragraph
-        .metadata
-        .attributes
-        .set("none".into(), AttributeValue::None);
+    metadata.attributes.set("empty".into(), "".into());
+    metadata.attributes.set("false".into(), false.into());
+    metadata.attributes.set("none".into(), AttributeValue::None);
+    paragraph.set_metadata(metadata)?;
     let attributes = ParagraphRef::from(&paragraph).attributes();
     assert_inventory(attributes);
     let Some(AttributeValueRef::Text(text)) = attributes.get(&String::from("custom")) else {
@@ -157,52 +152,6 @@ fn scalar_values_and_owned_names_are_read_without_cloning_or_stripping_quotes() 
     assert_eq!(attributes.get("none"), Some(AttributeValueRef::None));
     assert_eq!(attributes.iter().count(), 4);
     Ok(())
-}
-
-#[test]
-fn dedicated_presence_suppresses_stale_map_entries() {
-    let mut paragraph = Paragraph::new(Vec::new(), Location::default());
-    for name in ["title", "id", "role", "roles", "opts", "options", "style"] {
-        paragraph
-            .metadata
-            .attributes
-            .set(name.into(), "stale".into());
-    }
-    let empty = ParagraphRef::from(&paragraph);
-    assert_inventory(empty.attributes());
-    assert!(empty.attributes().is_empty());
-    assert!(empty.id().is_none());
-    assert!(empty.roles().is_empty());
-    assert!(empty.options().is_empty());
-    assert_eq!(empty.style(), None);
-
-    paragraph.title = Title::new(Vec::new());
-    paragraph.metadata.roles = vec!["one", "one", "two"];
-    paragraph.metadata.options = vec!["first", "second"];
-    paragraph.metadata.style = Some("");
-    let node = ParagraphRef::from(&paragraph);
-    assert_inventory(node.attributes());
-    assert_content(node.attributes(), "title", node.title());
-    assert!(node.title().is_some_and(ContentRef::is_empty));
-    assert_eq!(
-        node.attributes().get("style"),
-        Some(AttributeValueRef::Text(""))
-    );
-    assert_eq!(
-        node.roles().iter().collect::<Vec<_>>(),
-        ["one", "one", "two"]
-    );
-    assert!(node.roles().contains("one"));
-    assert!(!node.roles().contains("missing"));
-    assert_eq!(
-        node.attributes().get("role"),
-        Some(AttributeValueRef::Tokens(node.roles()))
-    );
-    assert_eq!(
-        node.attributes().get("opts"),
-        Some(AttributeValueRef::Tokens(node.options()))
-    );
-    assert_eq!(node.attributes().iter().count(), 4);
 }
 
 #[test]

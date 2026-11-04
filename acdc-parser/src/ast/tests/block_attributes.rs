@@ -1,6 +1,10 @@
 use crate::{
-    CompatibilityMode, Options,
-    ast::{AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, SubstitutionSpecRef},
+    Caption, CompatibilityMode, ContentAttribute, InlineImage, Location, Options, Paragraph,
+    Source, SubstitutionSpec,
+    ast::{
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, InlineImageRef,
+        ParagraphRef, SubstitutionSpecKind, SubstitutionSpecRef,
+    },
     parse,
 };
 
@@ -132,5 +136,47 @@ fn captions_and_anchor_labels_do_not_fabricate_named_attributes(
             .xreflabel
             .is_some()
     );
+    Ok(())
+}
+
+#[test]
+fn authoritative_fields_suppress_stale_scalars_and_generated_captions() -> Result<(), Error> {
+    let mut owner = Paragraph::new(Vec::new(), Location::default());
+    for name in ["attribution", "citetitle", "caption", "reftext", "subs"] {
+        owner.metadata.attributes.set(name.into(), "stale".into());
+    }
+    let absent = ParagraphRef::from(&owner).attributes();
+    inventory(absent);
+    assert!(absent.is_empty());
+    owner.metadata.attribution = Some(ContentAttribute::default());
+    owner.metadata.citetitle = Some(ContentAttribute::default());
+    owner.metadata.reftext = Some(ContentAttribute::default());
+    owner.metadata.caption = Some(Caption::CustomContent(ContentAttribute::default()));
+    owner.metadata.substitutions = Some(SubstitutionSpec::Explicit(Vec::new()));
+    let present = ParagraphRef::from(&owner).attributes();
+    inventory(present);
+    assert_eq!(present.iter().count(), 5);
+    for name in ["attribution", "citetitle", "caption", "reftext"] {
+        let Some(AttributeValueRef::Content(content)) = present.get(name) else {
+            return Err("empty content".into());
+        };
+        assert!(content.is_empty());
+    }
+    let Some(AttributeValueRef::Substitutions(spec)) = present.get("subs") else {
+        return Err("subs".into());
+    };
+    assert_eq!(spec.kind(), SubstitutionSpecKind::Explicit);
+    assert!(spec.is_empty());
+    owner.metadata.caption = Some(Caption::Custom("document prefix".into()));
+    assert!(!ParagraphRef::from(&owner).attributes().contains("caption"));
+
+    let mut inline = InlineImage::new(Source::Name("bird"), Location::default());
+    for name in ["attribution", "citetitle", "caption", "reftext", "subs"] {
+        inline.set_attribute(name.into(), "extension".into())?;
+        assert_eq!(
+            InlineImageRef::from(&inline).attributes().get(name),
+            Some(AttributeValueRef::Text("extension"))
+        );
+    }
     Ok(())
 }

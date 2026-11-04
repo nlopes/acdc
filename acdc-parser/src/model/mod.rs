@@ -308,6 +308,12 @@ impl<'a> Header<'a> {
         Ok(())
     }
 
+    /// Copy metadata to prepare a checked replacement, retaining its source lifetime.
+    #[must_use]
+    pub fn clone_metadata(&self) -> BlockMetadata<'a> {
+        self.metadata.clone()
+    }
+
     /// Remove metadata without changing title, subtitle, or authors.
     #[must_use]
     pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
@@ -862,10 +868,10 @@ impl Serialize for TableOfContents<'_> {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Paragraph<'a> {
-    pub metadata: BlockMetadata<'a>,
-    pub title: Title<'a>,
-    pub content: Vec<InlineNode<'a>>,
-    pub location: Location,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) title: Title<'a>,
+    pub(crate) content: Vec<InlineNode<'a>>,
+    pub(crate) location: Location,
     pub(crate) source_text: Option<&'a str>,
 }
 
@@ -891,10 +897,10 @@ impl<'a> Paragraph<'a> {
         }
     }
 
-    /// The paragraph body after document preprocessing, before inline substitutions.
+    /// The original body after document preprocessing, before inline substitutions.
     ///
-    /// Absent for programmatically constructed paragraphs. This text is not part
-    /// of ASG serialization or semantic equality.
+    /// Semantic edits retain this source snapshot. It is absent for constructed
+    /// paragraphs and is not part of ASG serialization or semantic equality.
     #[must_use]
     pub fn source_text(&self) -> Option<&'a str> {
         self.source_text
@@ -908,16 +914,74 @@ impl<'a> Paragraph<'a> {
         mut self,
         metadata: BlockMetadata<'a>,
     ) -> Result<Self, crate::ReservedAttribute> {
-        metadata.validate_attributes(&["title"])?;
-        self.metadata = metadata;
+        self.set_metadata(metadata)?;
         Ok(self)
     }
 
     /// Set the title.
     #[must_use]
     pub fn with_title(mut self, title: Title<'a>) -> Self {
-        self.title = title;
+        self.set_title(title);
         self
+    }
+    /// Replace metadata without shadowing the title or common metadata fields.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated fields, leaving the paragraph unchanged.
+    pub fn set_metadata(
+        &mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<(), crate::ReservedAttribute> {
+        metadata.validate_attributes(&["title"])?;
+        self.metadata = metadata;
+        Ok(())
+    }
+
+    /// Copy metadata to prepare a checked replacement, retaining its source lifetime.
+    #[must_use]
+    pub fn clone_metadata(&self) -> BlockMetadata<'a> {
+        self.metadata.clone()
+    }
+
+    /// Remove metadata without changing content or its source snapshot.
+    #[must_use]
+    pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
+        std::mem::take(&mut self.metadata)
+    }
+
+    /// Replace the title, including an explicitly empty value.
+    pub fn set_title(&mut self, title: Title<'a>) {
+        self.title = title;
+    }
+
+    /// Remove the title, leaving it absent.
+    #[must_use]
+    pub fn take_title(&mut self) -> Title<'a> {
+        std::mem::take(&mut self.title)
+    }
+
+    /// Replace prepared content, retaining the original source snapshot.
+    ///
+    /// Footnote and reference registrations are not rebuilt.
+    pub fn set_content(&mut self, content: impl IntoIterator<Item = InlineNode<'a>>) {
+        self.content = content.into_iter().collect();
+    }
+
+    /// Append a prepared inline without rebuilding registrations or source text.
+    pub fn push_inline(&mut self, inline: InlineNode<'a>) {
+        self.content.push(inline);
+    }
+
+    /// Remove content, retaining each inline's source lifetime and the source snapshot.
+    pub fn take_content(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = InlineNode<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.content).into_iter()
+    }
+
+    /// Replace the paragraph span without relocating content or its source snapshot.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 }
 

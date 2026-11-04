@@ -1,6 +1,6 @@
 use crate::{
-    Block, CompatibilityMode, Options,
-    ast::{AttributeValueRef, AttributesRef, BlockKind, BlockRef},
+    Block, CompatibilityMode, Location, Options, Paragraph, Title,
+    ast::{AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, ParagraphRef},
     parse,
 };
 
@@ -87,4 +87,58 @@ fn parser_tokens_and_identity_follow_existing_mode_semantics(
     assert_eq!(parsed.document_storage().footnotes.len(), footnotes);
     assert_eq!(parsed.document_storage().references.len(), references);
     Ok(())
+}
+
+#[test]
+fn dedicated_presence_suppresses_stale_map_entries() {
+    let mut paragraph = Paragraph::new(Vec::new(), Location::default());
+    for name in ["title", "id", "role", "roles", "opts", "options", "style"] {
+        paragraph
+            .metadata
+            .attributes
+            .set(name.into(), "stale".into());
+    }
+    let empty = ParagraphRef::from(&paragraph);
+    assert_inventory(empty.attributes());
+    assert!(empty.attributes().is_empty());
+    assert!(empty.id().is_none());
+    assert!(empty.roles().is_empty());
+    assert!(empty.options().is_empty());
+    assert_eq!(empty.style(), None);
+
+    paragraph.title = Title::new(Vec::new());
+    paragraph.metadata.roles = vec!["one", "one", "two"];
+    paragraph.metadata.options = vec!["first", "second"];
+    paragraph.metadata.style = Some("");
+    let node = ParagraphRef::from(&paragraph);
+    assert_inventory(node.attributes());
+    assert_content(node.attributes(), "title", node.title());
+    assert!(node.title().is_some_and(ContentRef::is_empty));
+    assert_eq!(
+        node.attributes().get("style"),
+        Some(AttributeValueRef::Text(""))
+    );
+    assert_eq!(
+        node.roles().iter().collect::<Vec<_>>(),
+        ["one", "one", "two"]
+    );
+    assert!(node.roles().contains("one"));
+    assert!(!node.roles().contains("missing"));
+    assert_eq!(
+        node.attributes().get("role"),
+        Some(AttributeValueRef::Tokens(node.roles()))
+    );
+    assert_eq!(
+        node.attributes().get("opts"),
+        Some(AttributeValueRef::Tokens(node.options()))
+    );
+    assert_eq!(node.attributes().iter().count(), 4);
+}
+
+fn assert_content(attributes: AttributesRef<'_>, name: &str, content: Option<ContentRef<'_>>) {
+    assert_eq!(
+        attributes.get(name),
+        content.map(AttributeValueRef::Content)
+    );
+    assert_eq!(attributes.contains(name), content.is_some());
 }

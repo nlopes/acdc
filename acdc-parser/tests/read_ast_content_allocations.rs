@@ -110,8 +110,8 @@ fn deep_inline_walk_and_skipping_do_not_recurse() -> Result<(), Box<dyn Error>> 
             let full_stats = region.change();
             assert_eq!(count, 4097);
             assert!(full_stats.bytes_allocated > skipped_stats.bytes_allocated);
-            if let Block::Paragraph(paragraph) = block {
-                let mut pending = paragraph.content;
+            if let Block::Paragraph(mut paragraph) = block {
+                let mut pending: Vec<_> = paragraph.take_content().collect();
                 while let Some(inline) = pending.pop() {
                     if let InlineNode::BoldText(span) = inline {
                         pending.extend(span.content);

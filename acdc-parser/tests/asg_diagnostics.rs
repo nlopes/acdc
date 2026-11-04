@@ -1,7 +1,7 @@
 //! Strict export identifies unsupported owner properties without changing the AST.
 #![cfg(feature = "asg")]
 
-use acdc_parser::{AttributeValue, Block, Document, Header, Location, Paragraph, Title, asg};
+use acdc_parser::{Block, Document, Header, Location, Paragraph, Title, asg};
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
@@ -11,21 +11,6 @@ fn absent_header_title_reports_the_required_property() {
     document.set_header(Some(Header::new(Title::default(), Location::default())));
     assert!(
         matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/header/title")
-    );
-}
-
-#[test]
-fn dedicated_metadata_cannot_be_shadowed_by_scalar_attributes() {
-    let mut paragraph = Paragraph::new(Vec::new(), Location::default());
-    paragraph.metadata.style = Some("example");
-    paragraph
-        .metadata
-        .attributes
-        .set("style".into(), AttributeValue::String("source".into()));
-    let mut document = Document::default();
-    document.push_block(Block::Paragraph(paragraph));
-    assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/metadata/attributes/style")
     );
 }
 
@@ -80,7 +65,9 @@ fn unknown_inline_source_does_not_borrow_the_parents_coordinates() {
         )],
         location,
     );
-    paragraph.location.end.line = 2;
+    let mut location = Location::from(acdc_parser::ast::ParagraphRef::from(&paragraph).location());
+    location.end.line = 2;
+    paragraph.set_location(location);
     document.push_block(Block::Paragraph(paragraph));
     assert!(matches!(
         asg::document((&document).into()),

@@ -13,15 +13,15 @@ use acdc_parser::{
 
 type Error = Box<dyn std::error::Error>;
 
-fn caption<'block, 'a>(block: &'block Block<'a>) -> Option<&'block Caption<'a>> {
+fn caption<'a>(block: &Block<'a>) -> Option<Caption<'a>> {
     if let Block::Paragraph(paragraph) = block {
-        return paragraph.metadata.caption.as_ref();
+        return paragraph.clone_metadata().caption;
     }
     if let Block::DelimitedBlock(delimited) = block {
-        return delimited.metadata.caption.as_ref();
+        return delimited.metadata.caption.clone();
     }
     if let Block::Image(image) = block {
-        return image.metadata.caption.as_ref();
+        return image.metadata.caption.clone();
     }
     None
 }
@@ -34,7 +34,7 @@ fn numbered(block: &Block<'_>) -> Option<(CaptionKind, String, Option<u32>)> {
         number,
     } = caption(block)?
     {
-        return Some((*kind, label.to_string(), number.map(NonZeroU32::get)));
+        return Some((kind, label.to_string(), number.map(NonZeroU32::get)));
     }
     None
 }
@@ -151,7 +151,7 @@ fn collapsible_examples_do_not_consume_example_numbers() -> Result<(), Error> {
 
     assert_eq!(numbered(before).and_then(|(_, _, n)| n), Some(1));
     for collapsible in [block, paragraph, open] {
-        assert_eq!(caption(collapsible), Some(&Caption::Custom("".into())));
+        assert_eq!(caption(collapsible), Some(Caption::Custom("".into())));
     }
     assert_eq!(numbered(after).and_then(|(_, _, n)| n), Some(2));
     Ok(())
@@ -280,7 +280,7 @@ fn blocks_keep_the_caption_active_at_their_source_position() -> Result<(), Error
     let captions: Vec<_> = blocks
         .iter()
         .filter(|block| matches!(block, Block::Paragraph(_)))
-        .map(|block| caption(block).map(caption_value))
+        .map(|block| caption(block).map(|caption| caption_value(&caption)))
         .collect();
     assert_eq!(
         captions,
@@ -373,7 +373,7 @@ fn a_listing_takes_no_caption_until_its_label_is_set() -> Result<(), Error> {
         .map(Block::from)
         .collect();
     let block = blocks.first().ok_or("expected a block")?;
-    assert_eq!(caption(block), Some(&Caption::Unnumbered));
+    assert_eq!(caption(block), Some(Caption::Unnumbered));
 
     let parsed = parse(
         "= T\n:listing-caption: Listing\n\n.Set label\n[listing]\nc\n",
@@ -406,7 +406,7 @@ fn caption_precedence_covers_element_generic_and_type_specific() -> Result<(), E
     let captions: Vec<_> = blocks
         .iter()
         .filter(|block| matches!(block, Block::Paragraph(_)))
-        .map(|block| caption(block).map(caption_value))
+        .map(|block| caption(block).map(|caption| caption_value(&caption)))
         .collect();
 
     assert_eq!(
@@ -520,11 +520,11 @@ fn renumber_captions_restores_numbering_after_a_mutation() -> Result<(), Error> 
     let Some(Block::Paragraph(paragraph)) = blocks.last_mut() else {
         return Err(format!("expected the untitled paragraph, got {blocks:?}").into());
     };
-    paragraph.title = Title::new(vec![InlineNode::PlainText(Plain {
+    paragraph.set_title(Title::new(vec![InlineNode::PlainText(Plain {
         content: "Added later",
         location: Location::default(),
         escaped: false,
-    })]);
+    })]));
     document.set_blocks(blocks);
     assert_eq!(ordinals(&document), vec![Some(1), Some(2), None]);
     document.renumber_captions();
@@ -601,7 +601,7 @@ fn a_bare_caption_marker_is_ignored() -> Result<(), Error> {
         .blocks()
         .map(Block::from)
         .collect();
-    let captions: Vec<_> = blocks.iter().filter_map(caption).cloned().collect();
+    let captions: Vec<_> = blocks.iter().filter_map(caption).collect();
 
     assert_eq!(
         captions,
@@ -658,7 +658,7 @@ fn an_empty_element_caption_takes_no_prefix_and_no_ordinal() -> Result<(), Error
 
     assert_eq!(
         caption(empty),
-        Some(&Caption::CustomContent(
+        Some(Caption::CustomContent(
             acdc_parser::ContentAttribute::default()
         ))
     );
@@ -900,17 +900,21 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
         return Err("expected a header paragraph".into());
     };
     // Parsing keeps headers inline, but callers can supply captioned header blocks.
-    paragraph.title = vec![InlineNode::PlainText(Plain {
-        content: "Caller title",
-        location: Location::default(),
-        escaped: false,
-    })]
-    .into();
-    paragraph.metadata.caption = Some(Caption::Numbered {
+    paragraph.set_title(
+        vec![InlineNode::PlainText(Plain {
+            content: "Caller title",
+            location: Location::default(),
+            escaped: false,
+        })]
+        .into(),
+    );
+    let mut metadata = paragraph.clone_metadata();
+    metadata.caption = Some(Caption::Numbered {
         kind: CaptionKind::Example,
         label: "Example".into(),
         number: NonZeroU32::new(77),
     });
+    paragraph.set_metadata(metadata)?;
     document.set_blocks(blocks);
     assert_eq!(document.highest_caption_number(CaptionKind::Example), 77);
     document.renumber_captions();

@@ -1,9 +1,9 @@
 use acdc_parser::{
-    Caption, CompatibilityMode, ContentAttribute, InlineImage, Location, Options, Paragraph,
-    SafeMode, Source, Substitution, SubstitutionOp, SubstitutionSpec,
+    Caption, CompatibilityMode, ContentAttribute, Location, Options, Paragraph, SafeMode,
+    Substitution, SubstitutionOp, SubstitutionSpec,
     ast::{
-        AttributeValueRef, AttributesRef, BlockKind, BlockRef, HeaderRef, InlineImageRef,
-        InlineKind, ParagraphRef, SubstitutionEntryRef, SubstitutionSpecKind, SubstitutionSpecRef,
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, HeaderRef, InlineKind,
+        SubstitutionEntryRef, SubstitutionSpecKind, SubstitutionSpecRef,
     },
     parse, parse_file,
 };
@@ -99,48 +99,6 @@ fn quote_content_reads_preserve_formatting_and_present_empty_values(
             return Err("present empty content".into());
         };
         assert!(content.is_empty());
-    }
-    Ok(())
-}
-
-#[test]
-fn authoritative_fields_suppress_stale_scalars_and_generated_captions() -> Result<(), Error> {
-    let mut owner = Paragraph::new(Vec::new(), Location::default());
-    for name in ["attribution", "citetitle", "caption", "reftext", "subs"] {
-        owner.metadata.attributes.set(name.into(), "stale".into());
-    }
-    let absent = ParagraphRef::from(&owner).attributes();
-    inventory(absent);
-    assert!(absent.is_empty());
-    owner.metadata.attribution = Some(ContentAttribute::default());
-    owner.metadata.citetitle = Some(ContentAttribute::default());
-    owner.metadata.reftext = Some(ContentAttribute::default());
-    owner.metadata.caption = Some(Caption::CustomContent(ContentAttribute::default()));
-    owner.metadata.substitutions = Some(SubstitutionSpec::Explicit(Vec::new()));
-    let present = ParagraphRef::from(&owner).attributes();
-    inventory(present);
-    assert_eq!(present.iter().count(), 5);
-    for name in ["attribution", "citetitle", "caption", "reftext"] {
-        let Some(AttributeValueRef::Content(content)) = present.get(name) else {
-            return Err("empty content".into());
-        };
-        assert!(content.is_empty());
-    }
-    let Some(AttributeValueRef::Substitutions(spec)) = present.get("subs") else {
-        return Err("subs".into());
-    };
-    assert_eq!(spec.kind(), SubstitutionSpecKind::Explicit);
-    assert!(spec.is_empty());
-    owner.metadata.caption = Some(Caption::Custom("document prefix".into()));
-    assert!(!ParagraphRef::from(&owner).attributes().contains("caption"));
-
-    let mut inline = InlineImage::new(Source::Name("bird"), Location::default());
-    for name in ["attribution", "citetitle", "caption", "reftext", "subs"] {
-        inline.set_attribute(name.into(), "extension".into())?;
-        assert_eq!(
-            InlineImageRef::from(&inline).attributes().get(name),
-            Some(AttributeValueRef::Text("extension"))
-        );
     }
     Ok(())
 }
@@ -336,14 +294,18 @@ fn blocks_without_element_attributes_stay_distinct_from_empty_attributes() -> Re
 #[test]
 fn block_attributes_borrow_the_current_owner_beyond_temporary_handles() -> Result<(), Error> {
     let mut owner = Paragraph::new(Vec::new(), Location::default());
-    owner.metadata.attributes.set("indent".into(), "2".into());
+    let mut metadata = owner.take_metadata();
+    metadata.attributes.set("indent".into(), "2".into());
+    owner.set_metadata(metadata)?;
     let block = acdc_parser::Block::Paragraph(owner);
     let attributes = { BlockRef::from(&block).attributes().ok_or("attributes")? };
     assert_eq!(attributes.get("indent"), Some(AttributeValueRef::Text("2")));
     let acdc_parser::Block::Paragraph(mut owner) = block else {
         return Err("paragraph".into());
     };
-    owner.metadata.attributes.set("indent".into(), "4".into());
+    let mut metadata = owner.take_metadata();
+    metadata.attributes.set("indent".into(), "4".into());
+    owner.set_metadata(metadata)?;
     let block = acdc_parser::Block::Paragraph(owner);
     assert_eq!(
         BlockRef::from(&block)

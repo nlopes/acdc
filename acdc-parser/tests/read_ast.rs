@@ -89,14 +89,19 @@ fn read_sections_titles_and_bodies_after_the_input_is_dropped(
 fn constructed_titles_keep_presence_without_copying_the_owner() {
     let missing = Paragraph::new(Vec::new(), Location::default());
     assert!(ParagraphRef::from(&missing).title().is_none());
-    let empty = missing.with_title(Title::new(Vec::new()));
+    let mut empty = missing.with_title(Title::new(Vec::new()));
     assert!(
         ParagraphRef::from(&empty)
             .title()
             .is_some_and(ContentRef::is_empty)
     );
     assert!(ParagraphRef::from(&empty).content().is_empty());
-    assert!(empty.title.content().is_some_and(ContentRef::is_empty));
+    assert!(
+        empty
+            .take_title()
+            .content()
+            .is_some_and(ContentRef::is_empty)
+    );
 }
 
 #[test]

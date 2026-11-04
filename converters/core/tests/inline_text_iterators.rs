@@ -42,6 +42,7 @@ fn text_policy_preserves_content_and_fragment_context() -> Result<(), Error> {
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("one paragraph".into());
             };
+            let legacy_inlines: Vec<_> = paragraph.clone().take_content().collect();
             for (transform, expected) in [
                 (InlineTextTransform::default().line_break("\n"), semantic),
                 (
@@ -55,13 +56,13 @@ fn text_policy_preserves_content_and_fragment_context() -> Result<(), Error> {
                     ParagraphRef::from(paragraph).content().inlines(),
                 )?;
                 let mut owner_content = String::new();
-                transform.write(&mut owner_content, &paragraph.content)?;
+                transform.write(&mut owner_content, &legacy_inlines)?;
                 assert_eq!(content, owner_content);
                 assert_eq!(content, expected, "{source:?} {mode:?}");
                 let mut fragments = String::new();
-                for (index, node) in paragraph.content.iter().enumerate() {
+                for (index, node) in legacy_inlines.iter().enumerate() {
                     transform
-                        .text_boundaries(TextBoundaries::BOTH.for_inline(&paragraph.content, index))
+                        .text_boundaries(TextBoundaries::BOTH.for_inline(&legacy_inlines, index))
                         .write_inlines(&mut fragments, std::iter::once(InlineRef::from(node)))?;
                 }
                 assert_eq!(fragments, content);

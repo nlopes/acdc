@@ -251,23 +251,24 @@ mod tests {
                 (Some(AttributeValue::from("")), None, true),
             ] {
                 let mut paragraph = Paragraph::new(Vec::new(), Location::default());
-                paragraph.metadata.style = style;
-                paragraph
-                    .metadata
-                    .attributes
-                    .set("style".into(), "source".into());
+                let mut metadata = paragraph.take_metadata();
+                metadata.style = style;
+                metadata.attributes.set("style".into(), "source".into());
                 let fallback = matches!(
                     local,
                     None | Some(AttributeValue::None | AttributeValue::Bool(_))
                 );
                 if let Some(local) = local {
-                    paragraph.metadata.attributes.set("indent".into(), local);
+                    metadata.attributes.set("indent".into(), local);
                 }
                 let expected = if fallback && style == Some("source") {
                     Some(4)
                 } else {
                     expected
                 };
+                assert!(paragraph.set_metadata(metadata.clone()).is_err());
+                metadata.attributes.remove("style");
+                paragraph.set_metadata(metadata)?;
                 let mut warnings = Vec::new();
                 assert_eq!(
                     resolve(

@@ -1349,7 +1349,7 @@ mod tests {
     }
 
     #[test]
-    fn terminal_session_style_preserves_exact_matching() {
+    fn terminal_session_style_preserves_exact_matching() -> TestResult {
         use acdc_parser::{Location, Paragraph, ast::ParagraphRef};
 
         for (style, expected) in [
@@ -1359,12 +1359,15 @@ mod tests {
             ("console", false),
         ] {
             let mut block = Paragraph::new(Vec::new(), Location::default());
-            block.metadata.style = Some(style);
+            let mut metadata = block.take_metadata();
+            metadata.style = Some(style);
+            block.set_metadata(metadata)?;
             assert_eq!(
                 super::is_terminal_session(ParagraphRef::from(&block).attributes()),
                 expected,
             );
         }
+        Ok(())
     }
 
     #[test]
@@ -1400,7 +1403,9 @@ mod tests {
                 assert_eq!(warnings, []);
             }
             let mut block = Paragraph::new(Vec::new(), Location::default());
-            block.metadata.attributes.set("format".into(), value);
+            let mut metadata = block.take_metadata();
+            metadata.attributes.set("format".into(), value);
+            block.set_metadata(metadata)?;
             warnings.clear();
             assert_eq!(
                 replay_format(

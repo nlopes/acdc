@@ -289,8 +289,8 @@ fn caller_built_empty_and_duplicate_ids_remain_explicit_without_generation() -> 
         Anchor::new("same", Location::default()),
     ];
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
-    paragraph.metadata = metadata;
-    paragraph.title = Title::new(Vec::new());
+    paragraph.set_metadata(metadata)?;
+    paragraph.set_title(Title::new(Vec::new()));
     let owner = acdc_parser::Block::Paragraph(paragraph);
     let read = BlockRef::from(&owner);
     assert_eq!(read.id().ok_or("empty ID")?.as_str(), "");

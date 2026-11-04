@@ -1399,10 +1399,10 @@ mod title_media_tests {
             document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
             let mut blocks: Vec<_> = document.take_blocks().collect();
             for block in &mut blocks {
-                let metadata = if let Block::Paragraph(node) = block {
-                    &mut node.metadata
+                let mut metadata = if let Block::Paragraph(node) = block {
+                    node.clone_metadata()
                 } else if let Block::DelimitedBlock(node) = block {
-                    &mut node.metadata
+                    node.metadata.clone()
                 } else {
                     return Err("expected quote".into());
                 };
@@ -1415,6 +1415,14 @@ mod title_media_tests {
                     .attributes
                     .set("citetitle".into(), AttributeValue::from("SHADOW BOOK"));
                 metadata.roles = vec!["", "one", "one"];
+                if let Block::Paragraph(node) = block {
+                    assert!(node.set_metadata(metadata.clone()).is_err());
+                    metadata.attributes.remove("attribution");
+                    metadata.attributes.remove("citetitle");
+                    node.set_metadata(metadata)?;
+                } else if let Block::DelimitedBlock(node) = block {
+                    node.metadata = metadata;
+                }
             }
             document.set_blocks(blocks);
             for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
@@ -1634,11 +1642,13 @@ mod title_media_tests {
             Diagnostics::new(&source, &mut warnings),
         );
         let mut paragraph = acdc_parser::Paragraph::new(Vec::new(), Location::default());
-        paragraph.metadata.caption = Some(acdc_parser::Caption::Numbered {
+        let mut metadata = paragraph.take_metadata();
+        metadata.caption = Some(acdc_parser::Caption::Numbered {
             kind: CaptionKind::Figure,
             label: "Figure".into(),
             number: None,
         });
+        paragraph.set_metadata(metadata)?;
         let attributes = Some(acdc_parser::ast::ParagraphRef::from(&paragraph).attributes());
         visitor.render_captioned_title_with_wrapper(
             &mut context,
@@ -1878,7 +1888,9 @@ mod title_media_tests {
                 1,
             ),
         ] {
-            paragraph.metadata.caption = Some(caption);
+            let mut metadata = paragraph.take_metadata();
+            metadata.caption = Some(caption);
+            paragraph.set_metadata(metadata)?;
             visitor.render_captioned_title_with_wrapper(
                 &mut context,
                 Title::new(Vec::new()).content(),
@@ -1891,7 +1903,9 @@ mod title_media_tests {
             assert_eq!(processor.figure_counter.get(), counter);
             visitor.writer.clear();
         }
-        paragraph.metadata.caption = None;
+        let mut metadata = paragraph.take_metadata();
+        metadata.caption = None;
+        paragraph.set_metadata(metadata)?;
         visitor.render_captioned_title_with_wrapper(
             &mut context,
             Title::new(Vec::new()).content(),

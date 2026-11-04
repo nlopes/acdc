@@ -115,7 +115,8 @@ mod tests {
     };
 
     #[test]
-    fn callout_guards_preserve_nontext_empty_quoted_and_disabled_controls() {
+    fn callout_guards_preserve_nontext_empty_quoted_and_disabled_controls()
+    -> Result<(), Box<dyn std::error::Error>> {
         let inlines = [
             InlineNode::VerbatimText(Verbatim {
                 content: "value # ",
@@ -141,12 +142,11 @@ mod tests {
             (Some(AttributeValue::from("?")), "value # "),
         ] {
             let mut paragraph = Paragraph::new(Vec::new(), Location::default());
+            let mut metadata = paragraph.take_metadata();
             if let Some(prefix) = prefix {
-                paragraph
-                    .metadata
-                    .attributes
-                    .set("line-comment".into(), prefix);
+                metadata.attributes.set("line-comment".into(), prefix);
             }
+            paragraph.set_metadata(metadata)?;
             let attributes = Some(ParagraphRef::from(&paragraph).attributes());
             let refs = inlines.iter().map(InlineRef::from).collect::<Vec<_>>();
             let edits = strip_guards(&refs, attributes, true);
@@ -161,5 +161,6 @@ mod tests {
                 assert_eq!(original.location(), &Location::from(rendered.location()));
             }
         }
+        Ok(())
     }
 }

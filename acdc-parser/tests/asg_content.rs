@@ -16,9 +16,10 @@ fn export(document: DocumentRef<'_>) -> Result<Value, asg::Error> {
 fn content_presence_and_caption_variants_do_not_collapse() -> Result<(), Error> {
     let mut document = Document::default();
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
-    paragraph.title = Title::new(Vec::new());
-    paragraph.metadata.attribution = Some(ContentAttribute::default());
-    paragraph.metadata.citetitle = Some(ContentAttribute::default());
+    paragraph.set_title(Title::new(Vec::new()));
+    let mut metadata = paragraph.take_metadata();
+    metadata.attribution = Some(ContentAttribute::default());
+    metadata.citetitle = Some(ContentAttribute::default());
     for (caption, expected) in [
         (None, None),
         (
@@ -56,7 +57,8 @@ fn content_presence_and_caption_variants_do_not_collapse() -> Result<(), Error> 
             Some(json!({"kind":"numbered","counter":"example","label":"","number":3})),
         ),
     ] {
-        paragraph.metadata.caption = caption;
+        metadata.caption = caption;
+        paragraph.set_metadata(metadata.clone())?;
         document.set_blocks(vec![Block::Paragraph(paragraph.clone())]);
         let value = export((&document).into())?;
         assert_eq!(value.pointer("/blocks/0/title"), Some(&json!([])));
@@ -70,13 +72,15 @@ fn content_presence_and_caption_variants_do_not_collapse() -> Result<(), Error> 
 #[test]
 fn programmatic_literal_content_is_not_parsed_again() -> Result<(), Error> {
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
-    paragraph.metadata.attribution = Some(ContentAttribute::new(vec![
+    let mut metadata = paragraph.take_metadata();
+    metadata.attribution = Some(ContentAttribute::new(vec![
         acdc_parser::InlineNode::PlainText(Plain {
             content: "*literal* {name}",
             escaped: false,
             location: Location::default(),
         }),
     ]));
+    paragraph.set_metadata(metadata)?;
     let mut document = Document::default();
     document.push_block(Block::Paragraph(paragraph));
     let value = export((&document).into())?;

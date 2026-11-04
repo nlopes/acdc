@@ -137,8 +137,8 @@ fn check_code_link(
     let Block::Paragraph(paragraph) = parsed_blocks.first().ok_or("paragraph")? else {
         return Err("paragraph".into());
     };
-    let links: Vec<_> = paragraph
-        .content
+    let content: Vec<_> = paragraph.clone().take_content().collect();
+    let links: Vec<_> = content
         .iter()
         .flat_map(|node| {
             [
@@ -187,8 +187,8 @@ fn check_registered_occurrence(mode: CompatibilityMode) -> Result<(), Error> {
     let Block::Paragraph(paragraph) = parsed_blocks.first().ok_or("paragraph")? else {
         return Err("paragraph".into());
     };
-    let links: Vec<_> = paragraph
-        .content
+    let content: Vec<_> = paragraph.clone().take_content().collect();
+    let links: Vec<_> = content
         .iter()
         .flat_map(|node| {
             [
@@ -317,7 +317,8 @@ fn code_link_anchors_keep_literal_quotes() -> Result<(), Error> {
         let Block::Paragraph(paragraph) = parsed_blocks.first().ok_or("paragraph")? else {
             return Err("paragraph".into());
         };
-        let node = paragraph.content.first().ok_or("link")?;
+        let content: Vec<_> = paragraph.clone().take_content().collect();
+        let node = content.first().ok_or("link")?;
         for link in [
             resolve_code_link(node, parsed.document().references(), "html"),
             resolve_code_link(
@@ -353,7 +354,8 @@ xref:target[]
         let Block::Paragraph(paragraph) = parsed_blocks.first().ok_or("paragraph")? else {
             return Err("paragraph".into());
         };
-        for node in paragraph.content.iter().map(InlineRef::from) {
+        let content: Vec<_> = paragraph.clone().take_content().collect();
+        for node in content.iter().map(InlineRef::from) {
             let link = resolve_code_link(node, parsed.document().references(), "pdf")
                 .ok_or("code link")?;
             assert_eq!(link.text, "Destination © and &#169;");

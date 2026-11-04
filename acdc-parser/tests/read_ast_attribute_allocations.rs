@@ -7,19 +7,22 @@ use acdc_parser::{
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
 
 #[test]
-fn block_content_and_substitution_reads_do_not_allocate() {
+fn block_content_and_substitution_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>>
+{
     let mut paragraph = acdc_parser::Paragraph::new(Vec::new(), Location::default());
-    paragraph.metadata.attribution = Some(ContentAttribute::default());
-    paragraph.metadata.citetitle = Some(ContentAttribute::default());
-    paragraph.metadata.reftext = Some(ContentAttribute::default());
-    paragraph.metadata.caption = Some(acdc_parser::Caption::CustomContent(
+    let mut metadata = paragraph.take_metadata();
+    metadata.attribution = Some(ContentAttribute::default());
+    metadata.citetitle = Some(ContentAttribute::default());
+    metadata.reftext = Some(ContentAttribute::default());
+    metadata.caption = Some(acdc_parser::Caption::CustomContent(
         ContentAttribute::default(),
     ));
-    paragraph.metadata.substitutions = Some(acdc_parser::SubstitutionSpec::Source(vec![
+    metadata.substitutions = Some(acdc_parser::SubstitutionSpec::Source(vec![
         String::from("q"),
         String::from("+macros"),
         String::from("unknown"),
     ]));
+    paragraph.set_metadata(metadata)?;
     let region = Region::new(ALLOCATOR);
     let attributes = acdc_parser::ast::ParagraphRef::from(&paragraph).attributes();
     for (name, value) in attributes.iter() {
@@ -41,6 +44,7 @@ fn block_content_and_substitution_reads_do_not_allocate() {
     assert_eq!(stats.allocations, 0);
     assert_eq!(stats.reallocations, 0);
     assert_eq!(stats.deallocations, 0);
+    Ok(())
 }
 
 #[global_allocator]

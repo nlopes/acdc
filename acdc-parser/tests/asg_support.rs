@@ -78,17 +78,17 @@ fn unsupported_inline_owners_are_rejected_inside_supported_paragraphs() -> Resul
 #[test]
 fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(), Error> {
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
-    paragraph
-        .metadata
+    let mut metadata = paragraph.take_metadata();
+    metadata
         .attributes
         .set("empty".into(), AttributeValue::String("".into()));
-    paragraph
-        .metadata
+    metadata
         .attributes
         .set("flag".into(), AttributeValue::Bool(true));
-    paragraph.metadata.roles = vec!["one", "two"];
-    paragraph.metadata.options = vec!["first", "second"];
+    metadata.roles = vec!["one", "two"];
+    metadata.options = vec!["first", "second"];
     let mut document = Document::default();
+    paragraph.set_metadata(metadata)?;
     document.push_block(Block::Paragraph(paragraph));
     let projected = asg::document((&document).into())?;
     assert_eq!(
@@ -108,10 +108,9 @@ fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(
         (AttributeValue::Bool(false), "unset"),
     ] {
         let mut paragraph = Paragraph::new(Vec::new(), Location::default());
-        paragraph
-            .metadata
-            .attributes
-            .set(property.into(), attribute);
+        let mut metadata = paragraph.take_metadata();
+        metadata.attributes.set(property.into(), attribute);
+        paragraph.set_metadata(metadata)?;
         document.set_blocks(vec![Block::Paragraph(paragraph)]);
         assert!(
             matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..})
@@ -126,23 +125,25 @@ fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(
         "anchors",
     ] {
         let mut paragraph = Paragraph::new(Vec::new(), Location::default());
+        let mut metadata = paragraph.take_metadata();
         match property {
-            "caption" => paragraph.metadata.caption = Some(Caption::Unnumbered),
+            "caption" => metadata.caption = Some(Caption::Unnumbered),
             "attribution" => {
-                paragraph.metadata.attribution = Some(ContentAttribute::new(Vec::new()));
+                metadata.attribution = Some(ContentAttribute::new(Vec::new()));
             }
-            "citetitle" => paragraph.metadata.citetitle = Some(ContentAttribute::new(Vec::new())),
+            "citetitle" => metadata.citetitle = Some(ContentAttribute::new(Vec::new())),
             "substitutions" => {
-                paragraph.metadata.substitutions = Some(SubstitutionSpec::Explicit(Vec::new()));
+                metadata.substitutions = Some(SubstitutionSpec::Explicit(Vec::new()));
             }
             "anchors" => {
-                paragraph.metadata.anchors = vec![
+                metadata.anchors = vec![
                     Anchor::new("first", Location::default()),
                     Anchor::new("second", Location::default()),
                 ];
             }
             _ => return Err("unknown metadata test property".into()),
         }
+        paragraph.set_metadata(metadata)?;
         document.set_blocks(vec![Block::Paragraph(paragraph)]);
         assert!(
             matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..})

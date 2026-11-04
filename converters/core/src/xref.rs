@@ -398,15 +398,15 @@ mod tests {
         cloned
     }
 
-    fn paragraph_xrefs<'d, 'a>(blocks: &'d [Block<'a>]) -> Vec<&'d CrossReference<'a>> {
+    fn paragraph_xrefs<'a>(blocks: &[Block<'a>]) -> Vec<CrossReference<'a>> {
         let mut references = Vec::new();
         for block in blocks {
             if let Block::Section(section) = block {
                 references.extend(paragraph_xrefs(&section.content));
             } else if let Block::Paragraph(paragraph) = block {
-                references.extend(paragraph.content.iter().filter_map(|inline| {
+                references.extend(paragraph.clone().take_content().filter_map(|inline| {
                     if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
-                        Some(xref.as_ref())
+                        Some(*xref)
                     } else {
                         None
                     }
@@ -425,7 +425,7 @@ mod tests {
         for footnote in &footnotes {
             xrefs.extend(footnote.content.iter().filter_map(|inline| {
                 if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
-                    Some(xref.as_ref())
+                    Some(xref.as_ref().clone())
                 } else {
                     None
                 }
@@ -770,7 +770,7 @@ mod tests {
                 };
                 Some(paragraph)
             })
-            .flat_map(|paragraph| paragraph.content.iter())
+            .flat_map(|paragraph| paragraph.clone().take_content())
             .filter_map(|inline| {
                 let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
                     return None;

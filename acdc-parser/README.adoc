@@ -126,11 +126,16 @@ source text; they do not copy the document body or replay registrations.
 
 Read constructed headers and authors through `HeaderRef::from(&header)` and
 `AuthorRef::from(&author)`. Their fields are private; use setters to edit prepared
-values. Clone an owned header and use `take_metadata()` to prepare a replacement
+values. Use `clone_metadata()` to prepare a checked replacement
 while keeping the original intact. Header metadata replacement rejects attributes that shadow dedicated
 fields and leaves the header unchanged on error. Header `take_*` methods transfer
 content and authors while preserving their source lifetimes. Author setters keep
 the supplied display text and leave author-derived document attributes unchanged.
+
+`Paragraph` also keeps its storage private. Use `ParagraphRef` to read it and the
+owned setters or `take_*` methods to edit it. `set_metadata` rejects conflicting
+scalar attributes before changing the paragraph. Content edits retain the original
+`source_text()` snapshot and do not rebuild document registrations.
 
 `IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
 option tokens. An icon ID is retained even when a converter does not emit it.

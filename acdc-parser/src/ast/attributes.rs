@@ -28,10 +28,13 @@ use super::{
 /// use acdc_parser::{Location, Paragraph, ast::{AttributeValueRef, ParagraphRef}};
 ///
 /// let mut paragraph = Paragraph::new(Vec::new(), Location::default());
-/// paragraph.metadata.attributes.set("width".into(), String::from("120").into());
+/// let mut metadata = paragraph.take_metadata();
+/// metadata.attributes.set("width".into(), String::from("120").into());
+/// paragraph.set_metadata(metadata)?;
 /// let attributes = ParagraphRef::from(&paragraph).attributes();
 /// assert_eq!(attributes.get("width"), Some(AttributeValueRef::Text("120")));
 /// assert!(!attributes.contains("title"));
+/// # Ok::<(), acdc_parser::ReservedAttribute>(())
 /// ```
 ///
 /// Attribute reads cannot outlive their owner:

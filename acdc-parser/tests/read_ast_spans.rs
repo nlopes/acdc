@@ -258,7 +258,9 @@ fn constructed_spans_keep_empty_identity_and_semantic_token_equality() -> Result
         location: Location::default(),
     };
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
-    paragraph.metadata.roles = vec!["one", "two", "one"];
+    let mut metadata = paragraph.take_metadata();
+    metadata.roles = vec!["one", "two", "one"];
+    paragraph.set_metadata(metadata)?;
     let span = BoldRef::from(&bold);
     assert_eq!(span.id().ok_or("empty id")?.as_str(), "");
     assert!(span.content().is_empty());

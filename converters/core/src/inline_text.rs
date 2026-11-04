@@ -382,13 +382,10 @@ mod tests {
                 let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                     return Err("expected one paragraph".into());
                 };
+                let content: Vec<_> = paragraph.clone().take_content().collect();
                 let transform = super::InlineTextTransform::default();
                 for policy in [transform, transform.rendered()] {
-                    assert_eq!(
-                        policy.to_string(&paragraph.content),
-                        expected,
-                        "{mode:?}: {source}"
-                    );
+                    assert_eq!(policy.to_string(&content), expected, "{mode:?}: {source}");
                     assert_eq!(
                         {
                             let block = parsed.document().blocks().next().ok_or("paragraph")?;
@@ -475,19 +472,14 @@ mod tests {
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
+            let content: Vec<_> = paragraph.clone().take_content().collect();
             let transform = super::InlineTextTransform::default().rendered();
-            assert_eq!(
-                transform.to_string(&paragraph.content),
-                expected,
-                "{source}"
-            );
+            assert_eq!(transform.to_string(&content), expected, "{source}");
             let mut fragments = String::new();
-            for (index, node) in paragraph.content.iter().enumerate() {
+            for (index, node) in content.iter().enumerate() {
                 fragments.push_str(
                     &transform
-                        .text_boundaries(
-                            super::TextBoundaries::BOTH.for_inline(&paragraph.content, index),
-                        )
+                        .text_boundaries(super::TextBoundaries::BOTH.for_inline(&content, index))
                         .to_string(std::slice::from_ref(node)),
                 );
             }
@@ -518,17 +510,18 @@ mod tests {
                         let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                             return Err("expected one paragraph".into());
                         };
+                        let content: Vec<_> = paragraph.clone().take_content().collect();
                         let transform = super::InlineTextTransform::default();
-                        let source = transform.to_string(&paragraph.content);
+                        let source = transform.to_string(&content);
                         let expected =
                             format!("{prefix}{label}{suffix}").replace("--", "—\u{200b}");
                         assert_eq!(source, expected, "{input}");
                         assert_eq!(
-                            transform.rendered().to_string(&paragraph.content),
+                            transform.rendered().to_string(&content),
                             expected,
                             "{input}"
                         );
-                        assert_eq!(transform.to_string(&paragraph.content), source, "{input}");
+                        assert_eq!(transform.to_string(&content), source, "{input}");
                     }
                 }
             }
@@ -562,10 +555,11 @@ mod tests {
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
+            let content: Vec<_> = paragraph.clone().take_content().collect();
             assert_eq!(
                 super::InlineTextTransform::default()
                     .rendered()
-                    .to_string(&paragraph.content),
+                    .to_string(&content),
                 expected,
                 "{input}"
             );
@@ -629,13 +623,14 @@ mod tests {
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
-            let source = super::InlineTextTransform::default().to_string(&paragraph.content);
+            let content: Vec<_> = paragraph.clone().take_content().collect();
+            let source = super::InlineTextTransform::default().to_string(&content);
             let rendered = super::InlineTextTransform::default()
                 .rendered()
-                .to_string(&paragraph.content);
+                .to_string(&content);
             assert_eq!(rendered, expected, "{input}");
             assert_eq!(
-                super::InlineTextTransform::default().to_string(&paragraph.content),
+                super::InlineTextTransform::default().to_string(&content),
                 source
             );
         }
@@ -729,10 +724,11 @@ mod tests {
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
+            let content: Vec<_> = paragraph.clone().take_content().collect();
             assert_eq!(
                 super::InlineTextTransform::default()
                     .rendered()
-                    .to_string(&paragraph.content),
+                    .to_string(&content),
                 expected,
                 "{input}"
             );
@@ -766,19 +762,14 @@ mod tests {
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
+            let content: Vec<_> = paragraph.clone().take_content().collect();
             let transform = super::InlineTextTransform::default();
+            assert_eq!(transform.to_string(&content), r"© (R) \*literal\* \->");
             assert_eq!(
-                transform.to_string(&paragraph.content),
+                transform.rendered().to_string(&content),
                 r"© (R) \*literal\* \->"
             );
-            assert_eq!(
-                transform.rendered().to_string(&paragraph.content),
-                r"© (R) \*literal\* \->"
-            );
-            assert_eq!(
-                transform.to_string(&paragraph.content),
-                r"© (R) \*literal\* \->"
-            );
+            assert_eq!(transform.to_string(&content), r"© (R) \*literal\* \->");
         }
         Ok(())
     }
@@ -802,14 +793,15 @@ mod tests {
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
+            let content: Vec<_> = paragraph.clone().take_content().collect();
             let transform = super::InlineTextTransform::default();
-            assert_eq!(transform.to_string(&paragraph.content), expected);
+            assert_eq!(transform.to_string(&content), expected);
             assert_eq!(
-                transform.rendered().to_string(&paragraph.content),
+                transform.rendered().to_string(&content),
                 expected,
                 "{profile}",
             );
-            assert_eq!(transform.to_string(&paragraph.content), expected);
+            assert_eq!(transform.to_string(&content), expected);
         }
         Ok(())
     }
@@ -842,17 +834,12 @@ mod tests {
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
+            let content: Vec<_> = paragraph.clone().take_content().collect();
             let transform = super::InlineTextTransform::default();
-            assert_eq!(
-                transform.to_string(&paragraph.content),
-                format!("α {arrow} ω")
-            );
-            let rendered = transform.rendered().to_string(&paragraph.content);
+            assert_eq!(transform.to_string(&content), format!("α {arrow} ω"));
+            let rendered = transform.rendered().to_string(&content);
             assert_eq!(rendered, format!("α {arrow} ω"));
-            assert_eq!(
-                transform.to_string(&paragraph.content),
-                format!("α {arrow} ω")
-            );
+            assert_eq!(transform.to_string(&content), format!("α {arrow} ω"));
         }
         Ok(())
     }
@@ -869,10 +856,11 @@ mod tests {
         let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
             return Err("expected one paragraph".into());
         };
+        let content: Vec<_> = paragraph.clone().take_content().collect();
         assert_eq!(
             super::InlineTextTransform::default()
                 .rendered()
-                .to_string(&paragraph.content),
+                .to_string(&content),
             "(C) ® (TM)"
         );
         Ok(())
@@ -937,8 +925,10 @@ mod tests {
         acdc_parser::ast::DocumentRef::from(doc)
             .blocks()
             .find_map(|block| {
-                if let acdc_parser::Block::Paragraph(paragraph) = acdc_parser::Block::from(block) {
-                    Some(paragraph.content)
+                if let acdc_parser::Block::Paragraph(mut paragraph) =
+                    acdc_parser::Block::from(block)
+                {
+                    Some(paragraph.take_content().collect())
                 } else {
                     None
                 }

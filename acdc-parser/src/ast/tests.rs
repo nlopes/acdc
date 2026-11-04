@@ -36,3 +36,7 @@ mod structural_copies;
 
 mod caption_storage;
 mod catalog_storage;
+
+#[cfg(feature = "asg")]
+mod paragraph_asg_storage;
+mod paragraph_caption_storage;

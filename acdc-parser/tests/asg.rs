@@ -143,7 +143,10 @@ fn asg_omits_unknown_optional_locations_and_rejects_partial_ones() -> Result<(),
     let Block::Paragraph(paragraph) = blocks.first_mut().ok_or("missing paragraph")? else {
         return Err("wrong block".into());
     };
-    paragraph.location.start.line = 1;
+    let mut location =
+        acdc_parser::Location::from(acdc_parser::ast::ParagraphRef::from(&*paragraph).location());
+    location.start.line = 1;
+    paragraph.set_location(location);
     document.set_blocks(blocks);
     assert!(
         matches!(asg::document((&document).into()), Err(asg::Error::InvalidLocation { path, .. }) if path == "/blocks/0/location/1")

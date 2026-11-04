@@ -3340,8 +3340,10 @@ mod tests {
         )
         .with_title(title("Built listing"));
         let mut styled_paragraph = Paragraph::new(Vec::new(), Location::default());
-        styled_paragraph.title = title("Built source paragraph");
-        styled_paragraph.metadata.style = Some("source");
+        styled_paragraph.set_title(title("Built source paragraph"));
+        let mut metadata = styled_paragraph.take_metadata();
+        metadata.style = Some("source");
+        styled_paragraph.set_metadata(metadata)?;
 
         let mut document = Document::default();
         document.set_attributes(

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `Paragraph` fields are private. Read through `ast::ParagraphRef`
+  and use the owned `set_*`, `take_*`, and `push_inline` methods to edit it.
+  Invalid metadata is rejected without changing the paragraph. Content edits
+  keep the original source snapshot and do not rebuild document registrations.
+
 - Copy an individual header or author with `Header::from(HeaderRef)` or
   `Author::from(AuthorRef)`. These copies preserve prepared values and source
   lifetimes without copying the document body or replaying registrations.
