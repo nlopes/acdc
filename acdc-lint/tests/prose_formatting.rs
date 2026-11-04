@@ -3,6 +3,8 @@ use acdc_lint::{
     Lintable,
 };
 
+use acdc_parser::CompatibilityMode;
+
 const MULTIPLE: &str = "multiple sentences on one source line";
 const WRAPPED: &str = "sentence spans multiple source lines";
 
@@ -17,8 +19,10 @@ fn lint_options() -> LintOptions {
 }
 
 fn assert_diagnostics(source: &str, expected: &[(&str, u32)]) -> Result<(), Error> {
-    let report = source.lint(&lint_options())?;
-    assert_report_diagnostics(&report, source, expected);
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let report = source.lint(&lint_options().with_compatibility_mode(mode))?;
+        assert_report_diagnostics(&report, source, expected);
+    }
     Ok(())
 }
 

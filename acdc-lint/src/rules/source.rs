@@ -1,6 +1,9 @@
 use std::path::PathBuf;
 
-use acdc_parser::{InlineNode, Position, SourceLocation, ast::LocationRef};
+use acdc_parser::{
+    Position, SourceLocation,
+    ast::{ContentRef, LocationRef},
+};
 
 use crate::{LintDiagnostic, LintId, LintLevel, LintOptions, LintReport, LintSelector};
 
@@ -176,9 +179,9 @@ pub(crate) fn line_range_for_location<'doc>(
     Some(SourceLineRange { start, end })
 }
 
-pub(crate) fn line_range_for_inlines(inlines: &[InlineNode<'_>]) -> Option<SourceLineRange> {
+pub(crate) fn line_range_for_inlines(inlines: ContentRef<'_>) -> Option<SourceLineRange> {
     let mut ranges = inlines
-        .iter()
+        .inlines()
         .filter_map(|node| line_range_for_location(node.location()));
     let mut combined = ranges.next()?;
 

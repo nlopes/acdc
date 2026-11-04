@@ -227,7 +227,7 @@ fn run_document_extension(emitter: &mut LintEmitter<'_>, context: &LintContext<'
 }
 
 fn run_prose(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    prose::lint_one_sentence_per_line(emitter, context.document(), context.lines);
+    prose::lint_one_sentence_per_line(emitter, context.parsed.document_ref(), context.lines);
 }
 
 fn run_section_title_style(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
