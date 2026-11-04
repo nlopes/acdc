@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Clarified detached editing: changes do not rebuild registered targets, TOC
+  membership, footnotes, or author-derived attributes. Explicit renumbering has
+  a limited scope; reparse changed source for complete registration updates.
+
 - **Breaking:** `ParseResult::document()` now returns `ast::DocumentRef`.
   Read fields through typed methods such as `blocks()` and `attributes()`.
   The temporary `document_ref()` method is removed. For independent edits,

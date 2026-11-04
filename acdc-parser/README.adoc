@@ -104,6 +104,16 @@ Copies preserve stored catalogs, source locations, captions, and table presentat
 they do not reparse text or refresh catalogs. Source text can still borrow from
 the parse result.
 
+Editing a copy does not rebuild reference targets, TOC membership, footnote
+registrations, or author-derived document attributes. Reads, copies, and conversion
+leave those snapshots unchanged. Reparse changed source when you need those
+values and declaration-order substitutions recomputed.
+
+`renumber_sections()` updates section numbers in the tree and existing reference
+and TOC entries; it does not add or remove catalog entries. `renumber_captions()`
+updates automatic block ordinals, keeping their stored prefixes. It does not
+update caption snapshots in the reference catalog.
+
 `IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
 option tokens. An icon ID is retained even when a converter does not emit it.
 To construct an icon, use `Icon::new(target, location)` and edit its content and

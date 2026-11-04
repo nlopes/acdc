@@ -55,7 +55,12 @@ pub use tables::{
 };
 pub use title::{Subtitle, Title};
 
-/// A `Document` represents the root of an `AsciiDoc` document.
+/// An editable `AsciiDoc` document tree.
+///
+/// Edits do not reparse content or rebuild reference, TOC, or footnote catalogs.
+/// [`Self::renumber_sections`] and [`Self::renumber_captions`] update only their
+/// documented numbering state. Reparse source to rebuild other registrations
+/// and declaration-order attribute snapshots.
 #[derive(Default, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Document<'a> {
