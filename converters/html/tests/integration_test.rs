@@ -22,6 +22,45 @@ mod support;
 type Error = Box<dyn StdError>;
 
 #[test]
+fn image_text_preserves_curved_quotation_punctuation() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/html/embedded/resolved_curved_quotes.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Processor::new_with_variant(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+                variant,
+            )?;
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let warning_source = WarningSource::new("html");
+            processor.convert_to_writer(
+                parsed.document(),
+                &mut output,
+                &RenderOptions::default(),
+                &mut Diagnostics::new(&warning_source, &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            for expected in [
+                r#"alt="“alt”""#,
+                r#"title="“tooltip”""#,
+                r#"alt="&quot;`block alt`&quot;""#,
+            ] {
+                assert!(output.contains(expected), "missing {expected}: {output}");
+            }
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn block_substitutions_are_honored_in_every_build() -> Result<(), Error> {
     let source = include_str!("fixtures/source/html/embedded/subs_runtime_builds.adoc");
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {

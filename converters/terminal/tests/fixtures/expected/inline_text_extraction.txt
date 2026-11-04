@@ -11,7 +11,7 @@
 Before the recursive section: [38;5;12m[4mSee [recursive] again[24m[39m.
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
-[38;2;215;0;135m[1mFormatting bold italic mono highlight super sub quote apostrophe[0m
+[38;2;215;0;135m[1mFormatting bold italic mono highlight super sub “quote” ‘apostrophe’[0m
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 Formatting body.
 

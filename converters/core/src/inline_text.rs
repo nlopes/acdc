@@ -199,8 +199,16 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
             InlineKind::Highlight(span) => self.write_content(w, span.content()),
             InlineKind::Subscript(span) => self.write_content(w, span.content()),
             InlineKind::Superscript(span) => self.write_content(w, span.content()),
-            InlineKind::CurvedQuotation(span) => self.write_content(w, span.content()),
-            InlineKind::CurvedApostrophe(span) => self.write_content(w, span.content()),
+            InlineKind::CurvedQuotation(span) => {
+                w.write_char('“')?;
+                self.write_content(w, span.content())?;
+                w.write_char('”')
+            }
+            InlineKind::CurvedApostrophe(span) => {
+                w.write_char('‘')?;
+                self.write_content(w, span.content())?;
+                w.write_char('’')
+            }
             InlineKind::Symbol(symbol) => w.write_str(symbol.text()),
             InlineKind::StandaloneCurvedApostrophe(_) => w.write_char('\u{2019}'),
             InlineKind::LineBreak(_) => w.write_str(self.line_break),
@@ -349,6 +357,62 @@ pub fn inlines_to_string(inlines: &[InlineNode<'_>]) -> String {
 #[cfg(test)]
 mod tests {
     use acdc_parser::{Block, InlineNode, LineBreak, Location, Options, Plain, parse};
+
+    #[test]
+    fn curved_quotes_remain_text_under_every_projection_policy()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for mode in [
+            acdc_parser::CompatibilityMode::Asciidoctor,
+            acdc_parser::CompatibilityMode::Draft,
+        ] {
+            for (source, expected) in [
+                (
+                    r#""`double`" and '`single`' and `'."#,
+                    "“double” and ‘single’ and ’.",
+                ),
+                (
+                    r#"[#quoted.role]"`*nested*`" and [#single]'`_text_`'."#,
+                    "“nested” and ‘text’.",
+                ),
+                (
+                    "[subs=none]\n\"`literal`\" and '`literal`'.",
+                    r#""`literal`" and '`literal`'."#,
+                ),
+            ] {
+                let parsed = parse(
+                    source,
+                    &Options::builder().with_compatibility_mode(mode).build()?,
+                )?;
+                let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                    return Err("expected one paragraph".into());
+                };
+                let transform = super::InlineTextTransform::default();
+                for policy in [
+                    transform,
+                    transform.rendered_replacements(false),
+                    transform.rendered_replacements(true),
+                ] {
+                    assert_eq!(
+                        policy.to_string(&paragraph.content),
+                        expected,
+                        "{mode:?}: {source}"
+                    );
+                    assert_eq!(
+                        {
+                            let block = parsed.document_ref().blocks().next().ok_or("paragraph")?;
+                            let acdc_parser::ast::BlockKind::Paragraph(paragraph) = block.kind()
+                            else {
+                                return Err("expected paragraph".into());
+                            };
+                            policy.content_to_string(paragraph.content())
+                        },
+                        expected
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
 
     #[test]
     fn typed_content_preserves_source_and_rendered_text() -> Result<(), Box<dyn std::error::Error>>

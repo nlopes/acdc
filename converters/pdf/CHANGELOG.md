@@ -48,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- PDF document titles retain curved quotation marks in document metadata.
+
 - Generated indexes sort and combine entries by their resolved labels. Catalog
   typography uses each label's own boundaries and registration-time substitutions.
 

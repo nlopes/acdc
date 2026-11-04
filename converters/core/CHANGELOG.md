@@ -250,6 +250,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Plain-text output preserves curved quotation marks around formatted content,
+  including image alternative text and tooltips.
+
 - Image descriptions preserve literal quotes in alt text across converters.
 
 - Media URLs retain end-only playback ranges. YouTube URLs support lists and

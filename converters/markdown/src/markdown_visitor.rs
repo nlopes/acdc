@@ -2317,16 +2317,16 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         } else if let InlineKind::CurvedQuotation(text) = node.kind() {
             self.write_inline_anchor(text.id().map(ElementIdRef::as_str))?;
             let role = self.write_role_start(text.role())?;
-            write!(self.writer, "\"")?;
+            write!(self.writer, "“")?;
             self.write_content(traversal, text.content())?;
-            write!(self.writer, "\"")?;
+            write!(self.writer, "”")?;
             self.write_role_end(role)?;
         } else if let InlineKind::CurvedApostrophe(text) = node.kind() {
             self.write_inline_anchor(text.id().map(ElementIdRef::as_str))?;
             let role = self.write_role_start(text.role())?;
-            write!(self.writer, "'")?;
+            write!(self.writer, "‘")?;
             self.write_content(traversal, text.content())?;
-            write!(self.writer, "'")?;
+            write!(self.writer, "’")?;
             self.write_role_end(role)?;
         } else {
             self.warn_unknown_inline_node_ref(node);
@@ -2393,7 +2393,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             }
             InlineKind::Verbatim(text) => self.write_code_span(text.text())?,
             InlineKind::StandaloneCurvedApostrophe(_) => {
-                write!(self.writer, "'")?;
+                write!(self.writer, "’")?;
             }
             InlineKind::Anchor(anchor) => {
                 self.write_inline_anchor_node(traversal, anchor)?;

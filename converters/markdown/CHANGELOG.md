@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Curved quotes and apostrophes retain their punctuation in body text, image
+  alternatives, and tooltips, including nested formatting.
+
 - Replacement-only passthroughs (`pass:r[...]`) preserve escapes for disabled
   formatting.
   Explicit character-escaping profiles keep those backslashes visible after

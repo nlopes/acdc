@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Plain-text headings retain curved quotation marks around their content.
+
 - Enabled typography resolves consistently in verbatim-only profiles. Generated
   em-dash padding is omitted at the end of a code block.
 

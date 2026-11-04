@@ -18,6 +18,64 @@ mod support;
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn curved_quotes_preserve_punctuation_and_inline_identity() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/resolved_curved_quotes.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            input,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let source = WarningSource::new("markdown");
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&source, &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let events = parse_markdown(&output, variant);
+            let text: String = events
+                .iter()
+                .filter_map(|event| {
+                    if let Event::Text(text) | Event::Code(text) = event {
+                        Some(text.as_ref())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            assert!(text.contains("Q01 “double” and ‘single’ and ’."), "{text}");
+            assert!(text.contains("Q02 “bold emphasis” and ‘nested’."), "{text}");
+            assert!(text.contains("Q03 “identity” and ‘identity’."), "{text}");
+            assert!(
+                text.contains(r#"Q05 "`literal`" and '`literal`' and `'."#),
+                "{text}"
+            );
+            assert!(output.contains(r#"id="quoted""#), "{output}");
+            assert!(output.contains(r#"id="single""#), "{output}");
+            assert!(output.contains(r#"class="role""#), "{output}");
+            assert!(
+                output.contains("![“alt”](bird.svg \"“tooltip”\")"),
+                "{output}"
+            );
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn remaining_passthrough_profiles_keep_disabled_formatting_escapes() -> Result<(), Error> {
     let input = include_str!("fixtures/source/resolved_passthrough_profiles.adoc");
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
