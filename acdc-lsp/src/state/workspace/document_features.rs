@@ -102,7 +102,7 @@ fn highlighting_and_folding_only_use_primary_source_ranges() -> Result<(), Box<d
     let doc = workspace.get_document(&uri).ok_or("missing book")?;
     let ast = doc.ast().ok_or("missing AST")?;
     let tokens =
-        semantic_tokens::compute_semantic_tokens(ast.document(), &doc.conditionals, doc.text());
+        semantic_tokens::compute_semantic_tokens(ast.document_ref(), &doc.conditionals, doc.text());
     let mut line = 0;
     for token in &tokens.data {
         line += token.delta_line;

@@ -7,7 +7,7 @@ use std::{
 };
 
 use acdc_parser::{
-    Document, Location, ParseResult, Position, SourceLocation,
+    Location, ParseResult, Position, SourceLocation,
     ast::{DocumentAttributesRef, DocumentRef},
 };
 use tower_lsp_server::ls_types::{Diagnostic, Uri};
@@ -43,12 +43,6 @@ pub(crate) struct AstGuard<'a> {
 }
 
 impl AstGuard<'_> {
-    /// Borrow the parsed document. The underlying mutex remains locked until
-    /// this guard is dropped.
-    pub(crate) fn document(&self) -> &Document<'_> {
-        self.guard.document()
-    }
-
     pub(crate) fn document_ref(&self) -> DocumentRef<'_> {
         self.guard.document_ref()
     }

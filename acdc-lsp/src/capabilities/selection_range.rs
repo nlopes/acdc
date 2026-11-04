@@ -4,7 +4,9 @@
 //! nested selection ranges that expand through the AST hierarchy:
 //! inline leaf → inline formatting → block → section → document.
 
-use acdc_parser::{Block, DelimitedBlockType, InlineNode};
+use acdc_parser::ast::{
+    BlockKind, ContentRef, ContentRole, InlineKind, LocationRef, StructuralRef,
+};
 use tower_lsp_server::ls_types::{Position, Range, SelectionRange};
 
 use crate::{
@@ -31,7 +33,7 @@ pub(crate) fn compute_selection_ranges(
             .map(|p| fallback_range(normalize_position(doc.text(), *p).unwrap_or(*p)))
             .collect();
     };
-    let ast = ast.document();
+    let ast = ast.document_ref();
 
     let Some(doc_range) = byte_range_to_utf16_range(doc.text(), 0..doc.text().len()) else {
         return positions
@@ -49,7 +51,9 @@ pub(crate) fn compute_selection_ranges(
             };
 
             let mut ranges = vec![doc_range];
-            collect_block_ranges(&ast.blocks, &position, &source, &mut ranges);
+            for block in ast.blocks() {
+                collect_structural_ranges(block.into(), &position, &source, &mut ranges);
+            }
 
             build_selection_range_chain(&ranges).unwrap_or_else(|| fallback_range(pos))
         })
@@ -83,7 +87,7 @@ fn fallback_range(pos: Position) -> SelectionRange {
 }
 
 fn push_range(
-    location: &acdc_parser::Location,
+    location: LocationRef<'_>,
     position: &acdc_parser::Position,
     source: &LineIndex<'_>,
     ranges: &mut Vec<Range>,
@@ -98,179 +102,96 @@ fn push_range(
     }
 }
 
-/// Recursively collect ranges from blocks containing the original-source position.
-fn collect_block_ranges(
-    blocks: &[Block],
+fn collect_structural_ranges(
+    node: StructuralRef<'_>,
     position: &acdc_parser::Position,
     source: &LineIndex<'_>,
     ranges: &mut Vec<Range>,
 ) {
-    for block in blocks {
-        collect_block_range(block, position, source, ranges);
-    }
-}
-
-#[allow(clippy::too_many_lines)]
-fn collect_block_range(
-    block: &Block,
-    position: &acdc_parser::Position,
-    source: &LineIndex<'_>,
-    ranges: &mut Vec<Range>,
-) {
-    // A foreign or mixed-source container can contain primary-input children.
-    if is_primary_location(block.location()) && !position_in_location(position, block.location()) {
-        return;
-    }
-    match block {
-        Block::Section(section) => {
-            push_range(&section.location, position, source, ranges);
-            collect_block_ranges(&section.content, position, source, ranges);
-        }
-        Block::Paragraph(para) => {
-            push_range(&para.location, position, source, ranges);
-            collect_inline_ranges(&para.content, position, source, ranges);
-        }
-        Block::DelimitedBlock(delimited) => {
-            push_range(&delimited.location, position, source, ranges);
-            collect_delimited_ranges(&delimited.inner, position, source, ranges);
-        }
-        Block::UnorderedList(list) => {
-            push_range(&list.location, position, source, ranges);
-            for item in &list.items {
-                push_range(&item.location, position, source, ranges);
-                collect_inline_ranges(&item.principal, position, source, ranges);
-                collect_block_ranges(&item.blocks, position, source, ranges);
-            }
-        }
-        Block::OrderedList(list) => {
-            push_range(&list.location, position, source, ranges);
-            for item in &list.items {
-                push_range(&item.location, position, source, ranges);
-                collect_inline_ranges(&item.principal, position, source, ranges);
-                collect_block_ranges(&item.blocks, position, source, ranges);
-            }
-        }
-        Block::DescriptionList(list) => {
-            push_range(&list.location, position, source, ranges);
-            for item in &list.items {
-                push_range(&item.location, position, source, ranges);
-                collect_inline_ranges(&item.principal_text, position, source, ranges);
-                collect_block_ranges(&item.description, position, source, ranges);
-            }
-        }
-        Block::CalloutList(list) => {
-            push_range(&list.location, position, source, ranges);
-            for item in &list.items {
-                push_range(&item.location, position, source, ranges);
-                collect_inline_ranges(&item.principal, position, source, ranges);
-                collect_block_ranges(&item.blocks, position, source, ranges);
-            }
-        }
-        Block::Admonition(adm) => {
-            push_range(&adm.location, position, source, ranges);
-            collect_block_ranges(&adm.blocks, position, source, ranges);
-        }
-        Block::DiscreteHeader(h) => {
-            push_range(&h.location, position, source, ranges);
-        }
-        Block::DocumentAttribute(a) => {
-            push_range(&a.location, position, source, ranges);
-        }
-        Block::Image(i) => {
-            push_range(&i.location, position, source, ranges);
-        }
-        Block::TableOfContents(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_delimited_ranges(
-    inner: &DelimitedBlockType,
-    position: &acdc_parser::Position,
-    source: &LineIndex<'_>,
-    ranges: &mut Vec<Range>,
-) {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            collect_block_ranges(blocks, position, source, ranges);
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedPass(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines)
-        | DelimitedBlockType::DelimitedComment(inlines) => {
-            collect_inline_ranges(inlines, position, source, ranges);
-        }
-        DelimitedBlockType::DelimitedTable(table) => {
-            // TableRow/TableColumn don't have Location fields, so we
-            // recurse directly into cell content blocks.
-            for row in table
-                .header
-                .iter()
-                .chain(table.rows.iter())
-                .chain(table.footer.iter())
+    let location = match node {
+        StructuralRef::Block(block) => {
+            // A foreign or mixed-source container can contain primary-input children.
+            if is_primary_location(block.location())
+                && !position_in_location(position, block.location())
             {
-                for col in &row.columns {
-                    collect_block_ranges(&col.content, position, source, ranges);
-                }
+                return;
+            }
+            match block.kind() {
+                BlockKind::Section(_)
+                | BlockKind::Paragraph(_)
+                | BlockKind::Example(_)
+                | BlockKind::Open(_)
+                | BlockKind::Sidebar(_)
+                | BlockKind::Quote(_)
+                | BlockKind::Listing(_)
+                | BlockKind::Literal(_)
+                | BlockKind::Passthrough(_)
+                | BlockKind::Verse(_)
+                | BlockKind::DelimitedComment(_)
+                | BlockKind::Table(_)
+                | BlockKind::Stem(_)
+                | BlockKind::UnorderedList(_)
+                | BlockKind::OrderedList(_)
+                | BlockKind::DescriptionList(_)
+                | BlockKind::CalloutList(_)
+                | BlockKind::Admonition(_)
+                | BlockKind::DiscreteHeader(_)
+                | BlockKind::DocumentAttribute(_)
+                | BlockKind::Image(_) => Some(block.location()),
+                BlockKind::TableOfContents(_)
+                | BlockKind::ThematicBreak(_)
+                | BlockKind::PageBreak(_)
+                | BlockKind::Audio(_)
+                | BlockKind::Video(_)
+                | BlockKind::Comment(_)
+                | _ => return,
             }
         }
-        DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => {}
+        StructuralRef::ListItem(item) => Some(item.location()),
+        StructuralRef::DescriptionListItem(item) => Some(item.location()),
+        StructuralRef::CalloutListItem(item) => Some(item.location()),
+        StructuralRef::TableRow(_) | StructuralRef::TableCell(_) => None,
+        StructuralRef::Document(_) | StructuralRef::Header(_) | _ => return,
+    };
+    if let Some(location) = location {
+        push_range(location, position, source, ranges);
+    }
+    for field in node.content_fields() {
+        if matches!(field.role(), ContentRole::Body | ContentRole::ListPrincipal) {
+            collect_inline_ranges(field.content(), position, source, ranges);
+        }
+    }
+    for child in node.children() {
+        collect_structural_ranges(child, position, source, ranges);
     }
 }
 
 fn collect_inline_ranges(
-    inlines: &[InlineNode],
+    content: ContentRef<'_>,
     position: &acdc_parser::Position,
     source: &LineIndex<'_>,
     ranges: &mut Vec<Range>,
 ) {
-    for inline in inlines {
-        let loc = inline.location();
-        if is_primary_location(loc) && !position_in_location(position, loc) {
+    for inline in content.inlines() {
+        let location = inline.location();
+        if is_primary_location(location) && !position_in_location(position, location) {
             continue;
         }
-
-        push_range(loc, position, source, ranges);
-
-        // Recurse into container inlines
-        match inline {
-            InlineNode::BoldText(b) => collect_inline_ranges(&b.content, position, source, ranges),
-            InlineNode::ItalicText(i) => collect_inline_ranges(&i.content, position, source, ranges),
-            InlineNode::MonospaceText(m) => collect_inline_ranges(&m.content, position, source, ranges),
-            InlineNode::HighlightText(h) => collect_inline_ranges(&h.content, position, source, ranges),
-            InlineNode::SubscriptText(s) => collect_inline_ranges(&s.content, position, source, ranges),
-            InlineNode::SuperscriptText(s) => collect_inline_ranges(&s.content, position, source, ranges),
-            InlineNode::CurvedQuotationText(q) => {
-                collect_inline_ranges(&q.content, position, source, ranges);
+        push_range(location, position, source, ranges);
+        if matches!(
+            inline.kind(),
+            InlineKind::Bold(_)
+                | InlineKind::Italic(_)
+                | InlineKind::Monospace(_)
+                | InlineKind::Highlight(_)
+                | InlineKind::Subscript(_)
+                | InlineKind::Superscript(_)
+                | InlineKind::CurvedQuotation(_)
+                | InlineKind::CurvedApostrophe(_)
+        ) {
+            for field in inline.content_fields() {
+                collect_inline_ranges(field.content(), position, source, ranges);
             }
-            InlineNode::CurvedApostropheText(a) => {
-                collect_inline_ranges(&a.content, position, source, ranges);
-            }
-            // Leaf inlines: no children to recurse into
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::CharacterReference(_)
-            | InlineNode::Symbol(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
-            // non_exhaustive
-            | _ => {}
         }
     }
 }

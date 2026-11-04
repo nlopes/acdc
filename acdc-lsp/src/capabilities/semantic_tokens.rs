@@ -8,11 +8,12 @@
 //! - Inline formatting (bold, italic, etc.) (`variable`)
 //! - Comments (`comment`)
 
-use acdc_parser::{
-    Block, DelimitedBlock, DelimitedBlockType, Document, InlineMacro, InlineNode, Location,
+use acdc_parser::ast::{
+    BlockKind, ContentRef, DocumentRef, IdOrigin, InlineKind, LocationRef, SectionRef,
+    StructuralRef,
 };
 use tower_lsp_server::ls_types::{
-    SemanticToken, SemanticTokenModifier, SemanticTokenType, SemanticTokens,
+    Range, SemanticToken, SemanticTokenModifier, SemanticTokenType, SemanticTokens,
     SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
     WorkDoneProgressOptions,
 };
@@ -75,14 +76,16 @@ struct RawToken {
 /// Compute semantic tokens for a document, including conditional directive awareness.
 #[must_use]
 pub(crate) fn compute_semantic_tokens(
-    doc: &Document,
+    doc: DocumentRef<'_>,
     conditionals: &[ConditionalBlock],
     text: &str,
 ) -> SemanticTokens {
     let mut tokens: Vec<RawToken> = Vec::new();
     let source = LineIndex::new(text);
 
-    collect_tokens_from_blocks(&doc.blocks, &source, &mut tokens);
+    for block in doc.blocks() {
+        collect_tokens_from_structure(block.into(), &source, &mut tokens);
+    }
     collect_conditional_tokens(conditionals, &source, &mut tokens);
 
     // Sort by position for delta encoding
@@ -161,184 +164,157 @@ fn collect_conditional_tokens(
     }
 }
 
-fn collect_tokens_from_blocks(
-    blocks: &[Block],
+fn collect_tokens_from_structure(
+    node: StructuralRef<'_>,
     source: &LineIndex<'_>,
     tokens: &mut Vec<RawToken>,
 ) {
-    for block in blocks {
-        collect_tokens_from_block(block, source, tokens);
+    match node {
+        StructuralRef::Block(block) => match block.kind() {
+            BlockKind::Section(section) => add_section_token(section, source, tokens),
+            BlockKind::Paragraph(paragraph) => {
+                collect_tokens_from_inlines(paragraph.content(), source, tokens);
+            }
+            BlockKind::Listing(block) => {
+                collect_tokens_from_inlines(block.content(), source, tokens);
+            }
+            BlockKind::Literal(block) => {
+                collect_tokens_from_inlines(block.content(), source, tokens);
+            }
+            BlockKind::Verse(block) => collect_tokens_from_inlines(block.content(), source, tokens),
+            BlockKind::DelimitedComment(comment) => {
+                add_token_for_location(comment.location(), 5, 0, source, tokens);
+            }
+            BlockKind::Admonition(admonition) => {
+                add_token_for_location(admonition.location(), 6, 0, source, tokens);
+            }
+            BlockKind::Comment(comment) => {
+                add_token_for_location(comment.location(), 5, 0, source, tokens);
+            }
+            BlockKind::DocumentAttribute(attribute) => {
+                if is_primary_location(attribute.location())
+                    && source.range(attribute.location()).is_some()
+                {
+                    add_attribute_token(
+                        attribute.name(),
+                        attribute.location().start().line() - 1,
+                        source,
+                        tokens,
+                    );
+                }
+            }
+            BlockKind::Example(_)
+            | BlockKind::Open(_)
+            | BlockKind::Sidebar(_)
+            | BlockKind::Quote(_)
+            | BlockKind::UnorderedList(_)
+            | BlockKind::OrderedList(_)
+            | BlockKind::DescriptionList(_) => {}
+            BlockKind::TableOfContents(_)
+            | BlockKind::DiscreteHeader(_)
+            | BlockKind::ThematicBreak(_)
+            | BlockKind::PageBreak(_)
+            | BlockKind::CalloutList(_)
+            | BlockKind::Image(_)
+            | BlockKind::Audio(_)
+            | BlockKind::Video(_)
+            | BlockKind::Table(_)
+            | BlockKind::Passthrough(_)
+            | BlockKind::Stem(_)
+            | _ => return,
+        },
+        StructuralRef::ListItem(item) => {
+            collect_tokens_from_inlines(item.principal(), source, tokens);
+        }
+        StructuralRef::DescriptionListItem(item) => {
+            collect_tokens_from_inlines(item.principal(), source, tokens);
+        }
+        StructuralRef::Document(_)
+        | StructuralRef::Header(_)
+        | StructuralRef::CalloutListItem(_)
+        | StructuralRef::TableRow(_)
+        | StructuralRef::TableCell(_)
+        | _ => return,
+    }
+    for child in node.children() {
+        collect_tokens_from_structure(child, source, tokens);
     }
 }
 
-fn collect_tokens_from_block(block: &Block, source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {
-    match block {
-        Block::Section(section) => {
-            if let (Some(first), Some(last)) = (section.title.first(), section.title.last()) {
-                let mut title = first.location().clone();
-                title.end = last.location().end.clone();
-                title.absolute_end = last.location().absolute_end;
-                add_token_for_location(&title, 0, if section.metadata.id.is_some() { 2 } else { 0 }, source, tokens);
-            }
-
-            // Process section content
-            collect_tokens_from_blocks(&section.content, source, tokens);
-        }
-        Block::Paragraph(para) => {
-            collect_tokens_from_inlines(&para.content, source, tokens);
-        }
-        Block::DelimitedBlock(delimited) => {
-            collect_tokens_from_delimited(delimited, source, tokens);
-        }
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                collect_tokens_from_inlines(&item.principal, source, tokens);
-                collect_tokens_from_blocks(&item.blocks, source, tokens);
-            }
-        }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                collect_tokens_from_inlines(&item.principal, source, tokens);
-                collect_tokens_from_blocks(&item.blocks, source, tokens);
-            }
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                collect_tokens_from_inlines(&item.principal_text, source, tokens);
-                collect_tokens_from_blocks(&item.description, source, tokens);
-            }
-        }
-        Block::Admonition(adm) => {
-            // Admonition label as keyword
-            add_token_for_location(&adm.location, 6, 0, source, tokens); // KEYWORD
-            collect_tokens_from_blocks(&adm.blocks, source, tokens);
-        }
-        Block::Comment(comment) => {
-            add_token_for_location(&comment.location, 5, 0, source, tokens); // COMMENT
-        }
-        Block::DocumentAttribute(attr) => {
-            if is_primary_location(&attr.location) && source.range(&attr.location).is_some() {
-                add_attribute_token(&attr.name, attr.location.start.line - 1, source, tokens);
-            }
-        }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_tokens_from_delimited(
-    delimited: &DelimitedBlock,
-    source: &LineIndex<'_>,
-    tokens: &mut Vec<RawToken>,
-) {
-    match &delimited.inner {
-        DelimitedBlockType::DelimitedComment(_) => {
-            add_token_for_location(&delimited.location, 5, 0, source, tokens); // COMMENT
-        }
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            collect_tokens_from_blocks(blocks, source, tokens);
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines) => {
-            collect_tokens_from_inlines(inlines, source, tokens);
-        }
-        DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => {}
+fn add_section_token(section: SectionRef<'_>, source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {
+    let Some(title) = section.title() else { return };
+    let mut inlines = title.inlines();
+    let Some(first) = inlines.next() else { return };
+    let last = inlines.next_back().unwrap_or(first);
+    let start = first.location().start();
+    let end = last.location().end();
+    if [start, end].into_iter().all(|position| {
+        position
+            .include_chain()
+            .is_none_or(|mut chain| chain.next().is_none())
+    }) && let Some(range) = source.range_between(start, end)
+    {
+        let modifiers = if section
+            .id()
+            .is_some_and(|id| id.origin() == IdOrigin::Explicit)
+        {
+            2
+        } else {
+            0
+        };
+        add_token_for_range(range, 0, modifiers, source, tokens);
     }
 }
 
 fn collect_tokens_from_inlines(
-    inlines: &[InlineNode],
+    content: ContentRef<'_>,
     source: &LineIndex<'_>,
     tokens: &mut Vec<RawToken>,
 ) {
-    for inline in inlines {
-        collect_tokens_from_inline(inline, source, tokens);
-    }
-}
-
-fn collect_tokens_from_inline(
-    inline: &InlineNode,
-    source: &LineIndex<'_>,
-    tokens: &mut Vec<RawToken>,
-) {
-    match inline {
-        InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-            add_token_for_location(&xref.location, 1, 0, source, tokens); // FUNCTION (macro)
+    for inline in content.inlines() {
+        match inline.kind() {
+            InlineKind::CrossReference(_)
+            | InlineKind::Link(_)
+            | InlineKind::Url(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Image(_)
+            | InlineKind::Icon(_) => {
+                add_token_for_location(inline.location(), 1, 0, source, tokens);
+            }
+            InlineKind::Anchor(_) => {
+                add_token_for_location(inline.location(), 7, 1, source, tokens);
+            }
+            InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_) => {
+                add_token_for_location(inline.location(), 4, 0, source, tokens);
+                for field in inline.content_fields() {
+                    collect_tokens_from_inlines(field.content(), source, tokens);
+                }
+            }
+            InlineKind::Plain(_)
+            | InlineKind::Symbol(_)
+            | InlineKind::CharacterReference(_)
+            | InlineKind::Raw(_)
+            | InlineKind::Verbatim(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::LineBreak(_)
+            | InlineKind::Callout(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Button(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Stem(_)
+            | InlineKind::IndexTerm(_)
+            | _ => {}
         }
-        InlineNode::Macro(InlineMacro::Link(link)) => {
-            add_token_for_location(&link.location, 1, 0, source, tokens); // FUNCTION
-        }
-        InlineNode::Macro(InlineMacro::Url(url)) => {
-            add_token_for_location(&url.location, 1, 0, source, tokens); // FUNCTION
-        }
-        InlineNode::Macro(InlineMacro::Autolink(autolink)) => {
-            add_token_for_location(&autolink.location, 1, 0, source, tokens); // FUNCTION
-        }
-        InlineNode::Macro(InlineMacro::Mailto(mailto)) => {
-            add_token_for_location(&mailto.location, 1, 0, source, tokens); // FUNCTION
-        }
-        InlineNode::Macro(InlineMacro::Image(image)) => {
-            add_token_for_location(&image.location, 1, 0, source, tokens); // FUNCTION
-        }
-        InlineNode::Macro(InlineMacro::Icon(icon)) => {
-            add_token_for_location(&icon.location, 1, 0, source, tokens); // FUNCTION
-        }
-        InlineNode::InlineAnchor(anchor) => {
-            add_token_for_location(&anchor.location, 7, 1, source, tokens); // DECORATOR + DECLARATION
-        }
-        InlineNode::BoldText(b) => {
-            add_token_for_location(&b.location, 4, 0, source, tokens); // VARIABLE
-            collect_tokens_from_inlines(&b.content, source, tokens);
-        }
-        InlineNode::ItalicText(i) => {
-            add_token_for_location(&i.location, 4, 0, source, tokens); // VARIABLE
-            collect_tokens_from_inlines(&i.content, source, tokens);
-        }
-        InlineNode::MonospaceText(m) => {
-            add_token_for_location(&m.location, 4, 0, source, tokens); // VARIABLE
-            collect_tokens_from_inlines(&m.content, source, tokens);
-        }
-        InlineNode::HighlightText(h) => {
-            add_token_for_location(&h.location, 4, 0, source, tokens); // VARIABLE
-            collect_tokens_from_inlines(&h.content, source, tokens);
-        }
-        InlineNode::SubscriptText(s) => {
-            add_token_for_location(&s.location, 4, 0, source, tokens); // VARIABLE
-            collect_tokens_from_inlines(&s.content, source, tokens);
-        }
-        InlineNode::SuperscriptText(s) => {
-            add_token_for_location(&s.location, 4, 0, source, tokens); // VARIABLE
-            collect_tokens_from_inlines(&s.content, source, tokens);
-        }
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::CharacterReference(_)
-            | InlineNode::Symbol(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
-        // non_exhaustive
-        | _ => {}
     }
 }
 
@@ -370,19 +346,30 @@ fn add_attribute_token(name: &str, line: u32, source: &LineIndex<'_>, tokens: &m
     }
 }
 
-fn add_token_for_location(
-    loc: &Location,
+fn add_token_for_location<'doc>(
+    loc: impl Into<LocationRef<'doc>>,
     token_type: u32,
     token_modifiers: u32,
     source: &LineIndex<'_>,
     tokens: &mut Vec<RawToken>,
 ) {
+    let loc = loc.into();
     if !is_primary_location(loc) {
         return;
     }
     let Some(range) = source.range(loc) else {
         return;
     };
+    add_token_for_range(range, token_type, token_modifiers, source, tokens);
+}
+
+fn add_token_for_range(
+    range: Range,
+    token_type: u32,
+    token_modifiers: u32,
+    source: &LineIndex<'_>,
+    tokens: &mut Vec<RawToken>,
+) {
     // Keep highlighting multiline nodes on their first physical line.
     let end = if range.start.line == range.end.line {
         range.end.character
@@ -435,13 +422,13 @@ fn delta_encode(tokens: Vec<RawToken>) -> Vec<SemanticToken> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::{Options, Position};
+    use acdc_parser::{Location, Options, Position};
 
     #[test]
     fn tokens_use_utf16_columns_and_stop_at_line_end() -> Result<(), Box<dyn std::error::Error>> {
         let text = "😀 *bold*\n*multi\nline*\n";
         let parsed = acdc_parser::parse(text, &Options::default())?;
-        let tokens = compute_semantic_tokens(parsed.document(), &[], text);
+        let tokens = compute_semantic_tokens(parsed.document_ref(), &[], text);
         let first = tokens.data.first().ok_or("missing token")?;
         assert_eq!(first.delta_start, 3);
         assert_eq!(first.length, 6);
@@ -504,7 +491,7 @@ mod tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let text = "Text.\r\n\r\n:!name:\r\n:name!:\r\n:other: value\r\n";
         let parsed = acdc_parser::parse(text, &Options::default())?;
-        let tokens = compute_semantic_tokens(parsed.document(), &[], text);
+        let tokens = compute_semantic_tokens(parsed.document_ref(), &[], text);
         let actual: Vec<_> = tokens
             .data
             .iter()
@@ -532,7 +519,7 @@ Some content.
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
 
-        let tokens = compute_semantic_tokens(parsed.document(), &[], content);
+        let tokens = compute_semantic_tokens(parsed.document_ref(), &[], content);
         // Should have at least tokens for section titles
         assert_ne!(tokens.data, []);
         Ok(())
@@ -550,7 +537,7 @@ See <<target>> for more.
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
 
-        let tokens = compute_semantic_tokens(parsed.document(), &[], content);
+        let tokens = compute_semantic_tokens(parsed.document_ref(), &[], content);
         // Should have tokens for section, anchor, and xref
         assert!(tokens.data.len() >= 2);
         Ok(())
@@ -576,7 +563,7 @@ See <<target>> for more.
         let content = "ifdef::missing[]\ninactive content\nendif::[]";
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let conditionals = vec![ConditionalBlock {
             kind: ConditionalDirectiveKind::Ifdef,
@@ -639,7 +626,7 @@ See <<target>> for more.
         let content = "ifdef::present[]\nactive content\nendif::[]";
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let conditionals = vec![ConditionalBlock {
             kind: ConditionalDirectiveKind::Ifdef,

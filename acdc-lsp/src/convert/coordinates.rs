@@ -1,4 +1,7 @@
-use acdc_parser::Location;
+use acdc_parser::{
+    Location,
+    ast::{LocationRef, PositionRef},
+};
 use tower_lsp_server::ls_types::{Position, Range};
 
 use super::to_lsp_u32;
@@ -22,21 +25,29 @@ pub(crate) fn byte_range_to_utf16_range(
 pub(crate) fn location_to_utf16_range(source: &str, location: &Location) -> Option<Range> {
     byte_range_to_utf16_range(
         source,
-        location_bytes(location, |line, boundary| {
-            scalar_offset(source, line, boundary)
-        })?,
+        position_bytes(
+            (&location.start).into(),
+            (&location.end).into(),
+            |line, boundary| scalar_offset(source, line, boundary),
+        )?,
     )
 }
 
-fn location_bytes(
-    location: &Location,
+fn position_bytes(
+    start: PositionRef<'_>,
+    end: PositionRef<'_>,
     offset: impl Fn(u32, u32) -> Option<usize>,
 ) -> Option<std::ops::Range<usize>> {
-    if location.start.file != location.end.file {
+    let same_file = match (start.include_chain(), end.include_chain()) {
+        (Some(start), Some(end)) => start.eq(end),
+        (None, None) => true,
+        _ => false,
+    };
+    if !same_file {
         return None;
     }
-    let start = offset(location.start.line, location.start.column.checked_sub(1)?)?;
-    let end = offset(location.end.line, location.end.column)?;
+    let start = offset(start.line(), start.column().checked_sub(1)?)?;
+    let end = offset(end.line(), end.column())?;
     Some(start..end)
 }
 
@@ -56,8 +67,17 @@ impl<'a> LineIndex<'a> {
         }
     }
 
-    pub(crate) fn range(&self, location: &Location) -> Option<Range> {
-        let bytes = location_bytes(location, |line, boundary| {
+    pub(crate) fn range<'doc>(&self, location: impl Into<LocationRef<'doc>>) -> Option<Range> {
+        let location = location.into();
+        self.range_between(location.start(), location.end())
+    }
+
+    pub(crate) fn range_between(
+        &self,
+        start: PositionRef<'_>,
+        end: PositionRef<'_>,
+    ) -> Option<Range> {
+        let bytes = position_bytes(start, end, |line, boundary| {
             let index = line.checked_sub(1)?;
             let start = self.starts.get(index as usize)?;
             scalar_boundary(self.line(index)?, boundary as usize).map(|offset| start + offset)
