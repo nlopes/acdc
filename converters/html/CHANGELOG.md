@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Table column widths follow the parsed columns in both HTML variants.
+  `cols=0` infers columns from the first row, and zero-count specifications
+  such as `cols="0*a,1"` no longer hide the remaining columns, matching Asciidoctor.
+
 - **Breaking:** construct and render HTML through `Converter`, renamed
   from `Processor`. The `Converter` trait and output behavior are unchanged.
   Import the shared `acdc_converters_core::Converter` trait as `_` when

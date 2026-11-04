@@ -1,0 +1,62 @@
+.Integer columns
+[cols=3]
+|===
+|A |B |C
+
+|1 |2 |3
+|===
+
+.Quoted integer columns
+[cols="3"]
+|===
+|A |B |C
+
+|1 |2 |3
+|===
+
+.Spaced integer columns
+[cols=" 3 "]
+|===
+|A |B |C
+
+|1 |2 |3
+|===
+
+.Repeated columns
+[cols="3*"]
+|===
+|A |B |C
+
+|1 |2 |3
+|===
+
+.Explicit equal columns
+[cols="1,1,1"]
+|===
+|A |B |C
+
+|1 |2 |3
+|===
+
+.Inferred columns with a header
+[cols=0]
+|===
+|A |B |C
+
+|1 |2 |3
+|===
+
+.Inferred columns without a header
+[cols=0]
+|===
+|A |B |C
+|1 |2 |3
+|===
+
+.Leading zero is a width
+[cols=03]
+|===
+|A |B |C
+
+|1 |2 |3
+|===

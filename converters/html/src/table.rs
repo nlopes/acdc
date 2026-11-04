@@ -236,36 +236,22 @@ fn render_styled_content<'a, W: Write>(
 
 /// Render colgroup with column width styles
 fn render_colgroup<W: Write + ?Sized>(writer: &mut W, table: TableRef<'_>) -> Result<(), Error> {
-    // Generate colgroup - either from cols attribute or inferred from table structure
-    let col_count = if let Some(cols_str) = table
-        .attributes()
-        .get("cols")
-        .and_then(AttributeValueRef::as_str)
-    {
-        // Handle multiplier syntax like "3*" or "2*~"
-        if let Some(asterisk_pos) = cols_str.find('*') {
-            let count_str = &cols_str[..asterisk_pos];
-            count_str.parse::<usize>().unwrap_or(1)
-        } else {
-            // Regular comma-separated format
-            cols_str.split(',').count()
-        }
+    // Use parsed column specifications, or infer columns from the table's first row.
+    let parsed_col_count = table.columns().count();
+    let col_count = if parsed_col_count == 0 {
+        table
+            .header()
+            .or_else(|| table.rows().next())
+            .map_or(0, |row| row.cells().count())
     } else {
-        // Infer column count from header or first row
-        if let Some(header) = table.header() {
-            header.cells().count()
-        } else if let Some(first_row) = table.rows().next() {
-            first_row.cells().count()
-        } else {
-            0
-        }
+        parsed_col_count
     };
 
     if col_count > 0 {
         writeln!(writer, "<colgroup>")?;
 
         // Use parsed column widths if available, otherwise fall back to equal distribution
-        let widths = if table.columns().next().is_none() {
+        let widths = if parsed_col_count == 0 {
             // Fall back to equal distribution
             let width = 100.0 / f64::from(u32::try_from(col_count).unwrap_or(1));
             vec![Some(width); col_count]

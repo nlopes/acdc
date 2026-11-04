@@ -282,6 +282,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Tables with an integer `cols` value, such as `[cols=3]`, have that many
+  equal-width columns, matching Asciidoctor. `cols=0` infers columns from the
+  first row; `cols=03` remains one column of width 3.
+
 - Named titles, image alt/tooltips, custom captions, quote credits, reference
   labels, and UI labels preserve formatting, escapes, declaration-time attributes,
   explicit emptiness, and authored source ranges. Only selected content registers
