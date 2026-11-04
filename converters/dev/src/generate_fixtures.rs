@@ -28,7 +28,12 @@
 //! }
 //! ```
 
-use std::{collections::HashSet, error::Error, fs, path::Path, path::PathBuf};
+use std::{
+    collections::HashSet,
+    error::Error,
+    fs,
+    path::{Path, PathBuf},
+};
 
 use acdc_parser::{Document, Options};
 use crossterm::style::{PrintStyledContent, Stylize};
@@ -137,7 +142,7 @@ impl FixtureGenerator {
     ///
     /// # Errors
     ///
-    /// Returns an error if directory creation or file I/O fails.
+    /// Returns an error if parsing, conversion, directory creation, or file I/O fails.
     pub fn generate<F>(&self, convert_fn: F) -> Result<(), Box<dyn Error>>
     where
         F: Fn(Option<&str>, &Document, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
@@ -182,13 +187,13 @@ impl FixtureGenerator {
         let mut success_count = 0;
         let mut error_count = 0;
 
-        for entry in input_dir
-            .read_dir()?
-            .filter_map(Result::ok)
-            .filter(|e| e.path().extension().is_some_and(|ext| ext == "adoc"))
-            .filter(|e| self.includes_fixture(&e.path()))
-        {
-            let input_path = entry.path();
+        for entry in input_dir.read_dir()? {
+            let input_path = entry?.path();
+            if input_path.extension().is_none_or(|ext| ext != "adoc")
+                || !self.includes_fixture(&input_path)
+            {
+                continue;
+            }
             let Some(output_path) = input_path
                 .file_stem()
                 .map(|name| output_dir.join(name).with_extension(&self.output_extension))
@@ -257,6 +262,9 @@ impl FixtureGenerator {
         }
         println!("   Manually verify each file before using in tests.");
 
+        if error_count > 0 {
+            return Err(format!("fixture generation failed in {}", input_dir.display()).into());
+        }
         Ok(())
     }
 
@@ -284,7 +292,80 @@ fn sorted_subdirs(dir: &Path) -> Result<Vec<String>, Box<dyn Error>> {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::Cell;
+
     use super::*;
+
+    #[test]
+    fn failed_conversions_return_an_error_without_overwriting_expectations()
+    -> Result<(), Box<dyn Error>> {
+        let temp = tempfile::tempdir()?;
+        let input = temp.path().join("source");
+        let output = temp.path().join("expected");
+        fs::create_dir_all(&input)?;
+        fs::create_dir_all(&output)?;
+        fs::write(input.join("bad.adoc"), ":fail:\n\nText.")?;
+        fs::write(input.join("good.adoc"), "Text.")?;
+        fs::write(output.join("bad.txt"), "previous expectation")?;
+
+        let result = FixtureGenerator::new("test", "txt").generate_dir(
+            &input,
+            &output,
+            &|document, bytes| {
+                bytes.extend_from_slice(b"converted");
+                if document.attributes.contains_key("fail") {
+                    Err("conversion failed after writing partial output".into())
+                } else {
+                    Ok(())
+                }
+            },
+        );
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read_to_string(output.join("bad.txt"))?,
+            "previous expectation"
+        );
+        assert_eq!(fs::read_to_string(output.join("good.txt"))?, "converted");
+        Ok(())
+    }
+
+    #[test]
+    fn failed_parses_return_an_error_without_creating_an_expectation() -> Result<(), Box<dyn Error>>
+    {
+        let temp = tempfile::tempdir()?;
+        let input = temp.path().join("source");
+        let output = temp.path().join("expected");
+        fs::create_dir_all(&input)?;
+        fs::write(input.join("bad.adoc"), [0xff])?;
+        let converted = Cell::new(false);
+        let result = FixtureGenerator::new("test", "txt").generate_dir(&input, &output, &|_, _| {
+            converted.set(true);
+            Ok(())
+        });
+        assert!(result.is_err());
+        assert!(!converted.get());
+        assert!(!output.join("bad.txt").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn scoped_generation_ignores_unselected_invalid_inputs() -> Result<(), Box<dyn Error>> {
+        let temp = tempfile::tempdir()?;
+        let input = temp.path().join("source");
+        let output = temp.path().join("expected");
+        fs::create_dir_all(&input)?;
+        fs::write(input.join("bad.adoc"), [0xff])?;
+        fs::write(input.join("good.adoc"), "Text.")?;
+        FixtureGenerator::new("test", "txt")
+            .with_fixtures(&["good"])
+            .generate_dir(&input, &output, &|_, bytes| {
+                bytes.extend_from_slice(b"converted");
+                Ok(())
+            })?;
+        assert_eq!(fs::read_to_string(output.join("good.txt"))?, "converted");
+        assert!(!output.join("bad.txt").exists());
+        Ok(())
+    }
 
     #[test]
     fn fixture_filter_matches_only_selected_source_stems() {

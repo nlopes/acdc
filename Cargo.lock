@@ -50,6 +50,7 @@ dependencies = [
  "acdc-converters-core",
  "acdc-parser",
  "crossterm",
+ "tempfile",
 ]
 
 [[package]]
