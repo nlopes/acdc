@@ -237,6 +237,7 @@ already been processed; these reads do not reconstruct consumed source.
 [cols=",,",options="header",]
 |===
 |Feature |Default |Effect
+|`asg` |Off |Checked export to the pinned ASG draft subset.
 |`network` |Off |Compiles built-in HTTP(S) include support outside bare WebAssembly. Caller permission and safe mode still apply.
 |===
 
@@ -475,6 +476,14 @@ later substitutions. An index macro ID is retained but does not register an anch
 Native JSON uses the same node form for an index term and its enclosing inline node.
 
 == Native AST JSON
+
+With the optional `asg` feature, `asg::document(parsed.document())` and
+`asg::inlines(parsed.inlines())` export a separate, checked draft ASG value.
+Unsupported semantic values return typed errors with JSON Pointer paths; export
+never changes the AST. The current subset covers headers and authors, unnumbered
+ordinary sections, paragraphs, promoted titles/reftext/IDs, plain or raw content,
+resolved typography, and the draft's four inline span types. See
+link:schemas/asg/README.adoc[the support contract] for exact limits.
 
 Native JSON preserves acdc's model; it is not a claim of ASG conformance.
 

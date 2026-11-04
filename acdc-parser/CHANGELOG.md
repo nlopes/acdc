@@ -175,6 +175,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- With `asg` enabled, export supported documents and inline content to a pinned
+  ASG draft, preserving empty titles, unsets, and positional values. Unsupported
+  meaning returns a typed error; native JSON is unchanged.
+
 - Applications can parse, display, and serialize `CompatibilityMode` using the
   canonical names `asciidoctor` and `draft`. Unknown names are rejected.
 

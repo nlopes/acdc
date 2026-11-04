@@ -34,6 +34,7 @@
 //!
 //! Language behavior follows [`CompatibilityMode`] in every build.
 //!
+//! - `asg` (off by default): checked export to the pinned ASG draft subset.
 //! - `network` (off by default): HTTP(S) includes, subject to safe mode and caller permission.
 //!
 //! The parser uses the draft `AsciiDoc` specification and Asciidoctor as references;
@@ -152,6 +153,8 @@ use std::{
 
 use tracing::instrument;
 
+#[cfg(feature = "asg")]
+pub mod asg;
 pub mod ast;
 mod blocks;
 mod constants;

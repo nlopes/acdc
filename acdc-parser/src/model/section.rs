@@ -267,6 +267,11 @@ impl<'a> Section<'a> {
         self
     }
 
+    #[cfg(feature = "asg")]
+    pub(crate) fn numbering_is_disabled(&self) -> bool {
+        !self.numbering.enabled && self.numbering.number.is_none()
+    }
+
     /// Return the assigned number without presentation punctuation or a signifier.
     ///
     /// Examples are `1`, `1.2`, `IV`, and `A.1`.

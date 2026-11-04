@@ -88,3 +88,44 @@ include-chain fidelity, or correct source attachment.
 Changes to this schema pin require a reviewed mapping and new validator controls.
 Keep extension schemas separately named and versioned; do not edit the upstream
 schema to make native JSON pass.
+
+== Checked upstream export
+
+Enable the `asg` Cargo feature and call `asg::document(parsed.document())` or
+`asg::inlines(parsed.inlines())`. Export reads the AST directly, then validates
+against this pin. It returns a complete JSON value or a typed error with a
+JSON Pointer path. It never expands attributes, parses strings again, registers
+macros, or invokes a converter. Native JSON and parsing behavior stay unchanged.
+
+The initial subset includes document attributes, headers/authors, paragraphs,
+ordinary unnumbered sections, plain and verbatim text, raw text without remaining
+operations, raw text with exactly one escaping stage, resolved typographic
+symbols, and strong/emphasis/code/mark spans without inline IDs or roles.
+Titles and reference labels retain their inline structure and empty presence.
+Document presence is an empty string, explicit unsets are null, and integers
+retain their attribute-reference spelling. Protected document values are rejected
+when their insertion behavior cannot fit a scalar string.
+
+Block metadata retains string attributes, true presence, styles, ordered roles
+and options, and retained positional slots. A gap omits its `$N` key; a retained
+explicit empty value emits an empty string. Positional values remain available
+after callers edit named attributes. Conflicting `$N` names, unset or ambiguous
+scalar values, multiple IDs, bibliography meaning, and independent reference
+labels are rejected. A primary block ID and its selected reftext are promoted
+to the block. Source coordinates of the ID token have no upstream field.
+
+Unsupported values include lists, other block forms, inline macros, missing span
+variants, inline identities/controls, subtitles/header metadata, ordered body
+assignments, captions, attribution/citation, explicit block substitutions, and
+nondefault section category/numbering. Ordinary text containing ampersands is
+also rejected until literal text and character references have authoritative
+parser classifications. Export does not guess their meaning from stored text.
+Protected literal text and raw output remain distinct supported forms.
+
+Ordinary source comments and parser/edit history can be omitted. Derived
+reference and TOC entries can be omitted only when their titles, labels, category,
+and numbering agree with supported exported owners. Extra or stale catalog
+meaning is rejected; exporting does not repair catalogs. Byte offsets and ID-token
+coordinates have no upstream fields. Completely unknown optional locations are
+omitted; partially known or invalid coordinates fail. Export success does not
+promise source reconstruction or complete AsciiDoc conformance.
