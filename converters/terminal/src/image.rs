@@ -1,10 +1,9 @@
 use std::io::Write;
 
 use acdc_converters_core::{TraversalContext, media::resolve_target};
-use acdc_parser::{
-    CaptionKind,
-    ast::{ImageRef, SourceKind},
-};
+#[cfg(feature = "images")]
+use acdc_parser::ast::SourceKind;
+use acdc_parser::{CaptionKind, ast::ImageRef};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},

@@ -6,8 +6,6 @@ use std::{
     rc::Rc,
 };
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, InlineTextTransform, Options, TraversalContext,
     section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
@@ -74,19 +72,6 @@ pub struct Processor<'a> {
     pub(crate) list_indent: Rc<Cell<usize>>,
     /// Document-wide fallback warnings already emitted by this converter.
     pub(crate) warned_fallbacks: Rc<RefCell<HashSet<&'static str>>>,
-    /// Substitutions active for the block currently being rendered, resolved
-    /// from `[subs="…"]` (or the block-kind baseline when absent). Lives on
-    /// `Processor` so freestanding inline helpers can consult it without
-    /// threading a slice through every recursive call. Shared across clones
-    /// so sub-visitors (e.g. the temp visitors used for styled paragraphs)
-    /// inherit the outer block's effective subs. `Cell<SubsFlags>` is a
-    /// single-byte load/store with no borrow tracking — chosen over
-    /// `RefCell<Vec<…>>` because the hot path runs once per inline leaf.
-    ///
-    /// Only present when the `pre-spec-subs` feature is enabled; otherwise
-    /// the converter applies typography unconditionally (asciidoctor default).
-    #[cfg(feature = "pre-spec-subs")]
-    pub(crate) current_subs: Rc<Cell<SubsFlags>>,
 }
 
 /// Build a `Processor` for tests with default document attributes.
@@ -120,8 +105,6 @@ pub(crate) fn create_test_processor_with(
         has_valid_index_section: false,
         list_indent: Rc::new(Cell::new(0)),
         warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
-        #[cfg(feature = "pre-spec-subs")]
-        current_subs: Rc::new(Cell::new(SubsFlags::all())),
     }
 }
 
@@ -170,8 +153,6 @@ impl<'a> Converter<'a> for Processor<'a> {
             has_valid_index_section: false,
             list_indent: Rc::new(Cell::new(0)),
             warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: Rc::new(Cell::new(SubsFlags::all())),
         })
     }
 
@@ -227,8 +208,6 @@ impl<'a> Converter<'a> for Processor<'a> {
             has_valid_index_section: contains_index_section(document.blocks()),
             list_indent: Rc::new(Cell::new(0)),
             warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
         let mut traversal = TraversalContext::new(document.attributes());
         let mut visitor = TerminalVisitor::new(writer, &processor, diagnostics.reborrow());

@@ -3,8 +3,6 @@ use std::{
     io::{Error as IoError, ErrorKind, Write},
 };
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     Diagnostics, InlineTextTransform, TraversalContext, WarningSource, decode_numeric_char_refs,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
@@ -35,36 +33,6 @@ fn attribute_text<'doc>(
         Some(AttributeValueRef::Text(value)) => Some(acdc_parser::strip_quotes(value)),
         _ => None,
     }
-}
-
-/// Apply Unicode typography replacements to a `PlainText` leaf.
-///
-/// When `pre-spec-subs` is enabled, defers to
-/// [`apply_replacements`](acdc_converters_core::substitutions::apply_replacements)
-/// so that `[subs="-replacements"]` can suppress the transform.
-/// Otherwise, always applies — matching the asciidoctor default and the
-/// pre-`pre-spec-subs` behavior of this converter.
-#[cfg(feature = "pre-spec-subs")]
-fn transform_plain<'a>(
-    text: &'a str,
-    processor: &Processor<'_>,
-    text_boundaries: TextBoundaries,
-) -> Cow<'a, str> {
-    apply_replacements(
-        text,
-        processor.current_subs.get(),
-        &Replacements::unicode(),
-        text_boundaries,
-    )
-}
-
-#[cfg(not(feature = "pre-spec-subs"))]
-fn transform_plain<'a>(
-    text: &'a str,
-    _processor: &Processor<'_>,
-    text_boundaries: TextBoundaries,
-) -> Cow<'a, str> {
-    Cow::Owned(Replacements::unicode().transform(text, text_boundaries))
 }
 
 /// Try to convert a character to its Unicode superscript equivalent.
@@ -239,8 +207,7 @@ fn render_inline_node_to_writer<'a, W: Write + ?Sized>(
 ) -> Result<(), Error> {
     match node.kind() {
         InlineKind::Plain(p) => {
-            let text = transform_plain(p.text(), processor, TextBoundaries::NONE);
-            write!(w, "{text}")?;
+            write!(w, "{}", p.text())?;
         }
         InlineKind::Raw(r) => {
             write_raw_text(w, r, TextBoundaries::NONE)?;
@@ -352,9 +319,7 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
         let processor = self.processor;
         match node.kind() {
             InlineKind::Plain(p) => {
-                let text = transform_plain(p.text(), processor, self.text_boundaries);
-                let w = self.writer_mut();
-                write!(w, "{text}")?;
+                write!(self.writer_mut(), "{}", p.text())?;
             }
             InlineKind::Italic(_)
             | InlineKind::Bold(_)
@@ -369,9 +334,8 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
                 self.render_cross_reference(traversal, xref, processor)?;
             }
             InlineKind::Button(button) => {
-                let experimental = traversal.contains_key("experimental");
                 let w = self.writer_mut();
-                render_button(button, w, experimental, processor, traversal)?;
+                render_button(button, w, processor, traversal)?;
             }
             InlineKind::IndexTerm(term) => {
                 register_index_term(term, processor, traversal)?;
@@ -771,13 +735,7 @@ fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
                 format!("[{}]", footnote.number()).cyan().bold(),
             ))?;
         }
-        InlineKind::Button(b) => render_button(
-            b,
-            w,
-            traversal.contains_key("experimental"),
-            processor,
-            traversal,
-        )?,
+        InlineKind::Button(b) => render_button(b, w, processor, traversal)?,
         InlineKind::CrossReference(xref) => {
             render_cross_reference_to_writer(xref, w, processor, traversal)?;
         }
@@ -952,17 +910,11 @@ fn render_index_term_to_writer<'a, W: Write + ?Sized>(
 fn render_button<'a, W: Write + ?Sized>(
     button: ButtonRef<'_>,
     w: &mut W,
-    experimental: bool,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
     let label = render_content_with_styles_to_owned(button.label(), processor, traversal)?;
-    if experimental {
-        w.queue(PrintStyledContent(format!("[{label}]").white().bold()))?;
-    } else {
-        // Without `experimental`, keep the button macro visible.
-        w.queue(PrintStyledContent(format!("btn:[{label}]").white()))?;
-    }
+    w.queue(PrintStyledContent(format!("[{label}]").white().bold()))?;
     Ok(())
 }
 

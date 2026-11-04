@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block `subs=` settings work in every build. Literal and escaped text,
+  titles, and code use the parser-selected content without extra typography.
+- Buttons selected by Draft mode render without requiring the Asciidoctor
+  `experimental` attribute, including inside formatting and links.
+
 - Plain-text headings retain curved quotation marks around their content.
 
 ### Breaking changes

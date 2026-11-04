@@ -2,9 +2,6 @@
 
 use std::io::Write;
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::SubsFlags;
-
 use acdc_converters_core::{
     Diagnostics, TraversalContext,
     substitutions::TextBoundaries,
@@ -36,16 +33,6 @@ pub(crate) fn attribute_text<'doc>(
 
 pub(crate) fn has_token(attributes: AttributesRef<'_>, name: &str, token: &str) -> bool {
     matches!(attributes.get(name), Some(AttributeValueRef::Tokens(tokens)) if tokens.iter().any(|value| value == token))
-}
-
-#[cfg(feature = "pre-spec-subs")]
-pub(crate) fn substitutions(
-    attributes: AttributesRef<'_>,
-) -> Option<acdc_parser::ast::SubstitutionSpecRef<'_>> {
-    match attributes.get("subs") {
-        Some(AttributeValueRef::Substitutions(spec)) => Some(spec),
-        _ => None,
-    }
 }
 
 /// Terminal visitor that generates terminal output from `AsciiDoc` AST
@@ -141,14 +128,6 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
         nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
     ) -> Result<(), Error> {
         let previous_boundaries = self.text_boundaries;
-        #[cfg(feature = "pre-spec-subs")]
-        let replacements = self
-            .processor
-            .current_subs
-            .get()
-            .contains(SubsFlags::REPLACEMENTS);
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let replacements = true;
         let siblings = nodes.clone();
         let result = (|| {
             for (index, node) in nodes.enumerate() {
@@ -158,7 +137,7 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
                     previous_boundaries
                 };
                 self.text_boundaries = boundaries
-                    .with_ordinary_replacements(replacements)
+                    .with_ordinary_replacements(false)
                     .for_inline_refs(
                         Some(node),
                         siblings.clone().take(index).rev(),

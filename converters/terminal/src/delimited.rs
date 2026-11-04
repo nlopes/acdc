@@ -1,7 +1,5 @@
 use std::io::{BufWriter, IntoInnerError, Write};
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::{SubsFlags, effective_subs_flags};
 use acdc_converters_core::{
     InlineTextTransform, TraversalContext,
     code::{SourceLineOptions, default_line_comment, source_language},
@@ -100,21 +98,8 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         block: BlockRef<'a>,
     ) -> Result<(), Error> {
-        #[cfg(feature = "pre-spec-subs")]
-        let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-            block
-                .attributes()
-                .and_then(super::terminal_visitor::substitutions),
-            matches!(
-                block.kind(),
-                BlockKind::Listing(_)
-                    | BlockKind::Literal(_)
-                    | BlockKind::Passthrough(_)
-                    | BlockKind::Verse(_)
-            ),
-        ));
         let caption_kind = CaptionKind::for_block(block);
-        let result = match block.kind() {
+        match block.kind() {
             BlockKind::Table(table) => {
                 self.render_captioned_title_with_wrapper(
                     traversal,
@@ -186,10 +171,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
                 self.warn_unsupported_parser_variant("delimited block");
                 Ok(())
             }
-        };
-        #[cfg(feature = "pre-spec-subs")]
-        self.processor.current_subs.set(previous_subs);
-        result
+        }
     }
 
     /// Render a listing, literal, or source block with its terminal source options.
@@ -544,8 +526,7 @@ pub(crate) fn render_preformatted_inlines<'inline>(
     line_options: impl FnOnce(&str) -> SourceLineOptions,
 ) -> Result<String, Error> {
     let inlines = inlines.collect::<Vec<_>>();
-    let (source, callouts, formatted) =
-        source_with_callout_placeholders(&inlines, language, processor);
+    let (source, callouts, formatted) = source_with_callout_placeholders(&inlines, language);
     let mut output = Vec::new();
     // Explicit quote formatting takes precedence over syntax colors. Sending
     // its terminal escapes through the highlighter would display or corrupt them.
@@ -569,33 +550,20 @@ pub(crate) fn render_preformatted_inlines<'inline>(
     Ok(apply_source_line_options(&output, &options))
 }
 
-pub(crate) fn code_text_transform(
-    processor: &Processor<'_>,
-) -> InlineTextTransform<'static, 'static> {
-    #[cfg(feature = "pre-spec-subs")]
-    let replacements = processor
-        .current_subs
-        .get()
-        .contains(SubsFlags::REPLACEMENTS);
-    #[cfg(not(feature = "pre-spec-subs"))]
-    let replacements = {
-        let _ = processor;
-        false
-    };
+pub(crate) fn code_text_transform() -> InlineTextTransform<'static, 'static> {
     InlineTextTransform::default()
         .line_break("\n")
-        .rendered_replacements(replacements)
+        .rendered_replacements(false)
 }
 
 fn source_with_callout_placeholders(
     nodes: &[InlineRef<'_>],
     language: Option<&str>,
-    processor: &Processor<'_>,
 ) -> (String, Vec<(String, usize)>, bool) {
     let mut source = String::new();
     let mut callouts = Vec::new();
     let mut formatted = false;
-    let transform = code_text_transform(processor);
+    let transform = code_text_transform();
     let comment_prefix = default_line_comment(language);
 
     for (index, node) in nodes.iter().copied().enumerate() {
@@ -634,7 +602,7 @@ fn source_with_callout_placeholders(
                 .to_string();
             source.push_str(&placeholder);
             callouts.push((placeholder, callout.number()));
-        } else if let Some(text) = formatted_code_text(node, processor) {
+        } else if let Some(text) = formatted_code_text(node) {
             source.push_str(&text);
             formatted = true;
         } else {
@@ -644,13 +612,13 @@ fn source_with_callout_placeholders(
     (source, callouts, formatted)
 }
 
-fn formatted_code_text(node: InlineRef<'_>, processor: &Processor<'_>) -> Option<String> {
+fn formatted_code_text(node: InlineRef<'_>) -> Option<String> {
     let children = acdc_converters_core::code::code_inline_content(node)?;
-    let transform = code_text_transform(processor);
+    let transform = code_text_transform();
     let text = children
         .inlines()
         .map(|child| {
-            formatted_code_text(child, processor).unwrap_or_else(|| {
+            formatted_code_text(child).unwrap_or_else(|| {
                 let mut text = String::new();
                 let _ = transform.write_inlines(&mut text, std::iter::once(child));
                 text

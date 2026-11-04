@@ -4,8 +4,6 @@
 
 use std::io::{BufWriter, Write};
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{InlineTextTransform, TraversalContext};
 use acdc_parser::{
     CaptionKind,
@@ -21,36 +19,6 @@ use crate::{Error, TerminalVisitor};
 impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     /// Render a regular or styled paragraph.
     pub(crate) fn render_paragraph(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        para: ParagraphRef<'_>,
-    ) -> Result<(), Error> {
-        #[cfg(feature = "pre-spec-subs")]
-        {
-            // Resolve `[subs="…"]` once per paragraph so inline rendering knows
-            // whether to apply typography. Verse/literal/listing/source styles
-            // are verbatim contexts; everything else uses the NORMAL baseline.
-            // Snapshot/restore via the processor's shared cell so nested renders
-            // (and sub-visitors that clone the processor) don't leak state.
-            let is_verbatim = matches!(
-                para.style(),
-                Some("verse" | "literal" | "listing" | "source")
-            );
-            let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-                super::terminal_visitor::substitutions(para.attributes()),
-                is_verbatim,
-            ));
-
-            let result = self.render_paragraph_inner(traversal, para);
-
-            self.processor.current_subs.set(previous_subs);
-            result
-        }
-        #[cfg(not(feature = "pre-spec-subs"))]
-        self.render_paragraph_inner(traversal, para)
-    }
-
-    fn render_paragraph_inner(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         para: ParagraphRef<'_>,
@@ -220,10 +188,8 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let separator = "─"
             .repeat(20)
             .with(self.processor.appearance.colors.label_listing);
-        let content = extract_plain_content(
-            para.content(),
-            crate::delimited::code_text_transform(self.processor),
-        );
+        let content =
+            extract_plain_content(para.content(), crate::delimited::code_text_transform());
         let w = self.writer_mut();
         writeln!(w, "{separator}")?;
         write!(w, "{content}")?;

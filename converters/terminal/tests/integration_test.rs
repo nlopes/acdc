@@ -6,9 +6,103 @@ use acdc_converters_core::{
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_terminal::{Capabilities, Processor, TerminalVisitor};
-use acdc_parser::{Options as ParserOptions, parse};
+use acdc_parser::{CompatibilityMode, Options as ParserOptions, parse};
 
 type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn selected_terminal_text_works_in_every_build() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/subs_resolved_text.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for capabilities in [TEXT_TERMINAL, OSC8_TERMINAL] {
+            let osc8 = capabilities.osc8_links;
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_terminal_width(80)
+            .with_terminal_capabilities(capabilities);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let warning_source = WarningSource::new("terminal");
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&warning_source, &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let text = strip_terminal_sequences(&output)
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ");
+            for expected in [
+                r"R02 X \*word* (C) -> *literal*.",
+                r"R03 X \*word* (C) -> *literal*.",
+                "R04 tail © →",
+                r"R05 X \*word* (C) ->",
+                "Title © bold",
+                "R07 Body (C) *literal*.",
+                "R08 Normal © →",
+                r"R09 \*literal* \'word\' © →.",
+                "R10 © Next",
+            ] {
+                assert!(text.contains(expected), "missing {expected}: {text}");
+            }
+            if osc8 {
+                assert!(
+                    output.contains("\u{1b}]8;;https://example.org"),
+                    "{output:?}"
+                );
+            }
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn selected_draft_buttons_render_in_plain_and_buffered_content() -> Result<(), Error> {
+    let source = "B01 btn:[Run] and *btn:[Bold]* and https://example.org[btn:[Nested]].";
+    let parsed = parse(
+        source,
+        &ParserOptions::builder()
+            .with_compatibility_mode(CompatibilityMode::Draft)
+            .build()?,
+    )?;
+    for capabilities in [TEXT_TERMINAL, OSC8_TERMINAL] {
+        let processor = Processor::new(
+            ConverterOptions::default(),
+            ParserOptions::builder().with_compatibility_mode(CompatibilityMode::Draft),
+        )?
+        .with_terminal_capabilities(capabilities);
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let warning_source = WarningSource::new("terminal");
+        processor.write_to(
+            parsed.document(),
+            &mut output,
+            None,
+            None,
+            &mut Diagnostics::new(&warning_source, &mut warnings),
+        )?;
+        let output = String::from_utf8(output)?;
+        let text = strip_terminal_sequences(&output);
+        for label in ["[Run]", "[Bold]", "[Nested]"] {
+            assert!(text.contains(label), "{text}");
+        }
+        assert!(!text.contains("btn:"), "{text}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+    Ok(())
+}
 
 #[cfg(feature = "images")]
 fn temp_output_path(name: &str, extension: &str) -> PathBuf {
@@ -176,15 +270,6 @@ macro_rules! terminal_fixture_catalog {
 include!("fixtures/catalog.rs");
 
 fn test_fixture_variants(fixture_name: &str, has_osc8_variant: bool) -> Result<(), Error> {
-    // Fixtures whose name contains `subs` test `[subs="…"]` behavior, which
-    // only takes effect under the `pre-spec-subs` feature. When the feature
-    // is off, skip — the expected output captures the feature-on behavior
-    // and cannot match.
-    #[cfg(not(feature = "pre-spec-subs"))]
-    if fixture_name.contains("subs") {
-        return Ok(());
-    }
-
     test_fixture_variant(fixture_name, false)?;
     if has_osc8_variant {
         test_fixture_variant(fixture_name, true)?;
@@ -231,12 +316,22 @@ fn test_fixture_variant(fixture_name: &str, osc8: bool) -> Result<(), Error> {
         &mut diagnostics,
     )?;
 
+    let plain_name = if osc8 {
+        format!("{fixture_name}.no-highlighting.osc8.txt")
+    } else {
+        format!("{fixture_name}.no-highlighting.txt")
+    };
+    let plain_path = PathBuf::from("tests/fixtures/expected").join(plain_name);
     let fixture_name = if osc8 {
         format!("{fixture_name}.osc8.txt")
     } else {
         format!("{fixture_name}.txt")
     };
-    let expected_path = PathBuf::from("tests/fixtures/expected").join(&fixture_name);
+    let expected_path = if !cfg!(feature = "highlighting") && plain_path.is_file() {
+        plain_path
+    } else {
+        PathBuf::from("tests/fixtures/expected").join(&fixture_name)
+    };
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
@@ -263,7 +358,13 @@ fn osc8_expected_files_match_fixture_catalog() -> Result<(), Error> {
         .read_dir()?
         .filter_map(Result::ok)
         .filter_map(|entry| entry.file_name().into_string().ok())
-        .filter_map(|name| name.strip_suffix(".osc8.txt").map(str::to_string))
+        .filter_map(|name| {
+            name.strip_suffix(".osc8.txt").map(|name| {
+                name.strip_suffix(".no-highlighting")
+                    .unwrap_or(name)
+                    .to_owned()
+            })
+        })
         .collect::<BTreeSet<_>>();
     let fixture_names = TERMINAL_FIXTURES
         .iter()
