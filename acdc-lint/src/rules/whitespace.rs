@@ -1,4 +1,4 @@
-use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Document, Location};
+use acdc_parser::ast::{BlockKind, DocumentRef, ListingRef, LocationRef, StructuralRef};
 
 use crate::LintId;
 
@@ -6,7 +6,7 @@ use super::{LintEmitter, SourceLine};
 
 pub(crate) fn lint_source_whitespace(
     emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
+    document: DocumentRef<'_>,
     lines: &[SourceLine<'_>],
 ) {
     let mut blank_run = 0usize;
@@ -37,108 +37,30 @@ pub(crate) fn lint_source_whitespace(
     }
 }
 
-fn source_block_body_lines(document: &Document<'_>, lines: &[SourceLine<'_>]) -> Vec<bool> {
+fn source_block_body_lines(document: DocumentRef<'_>, lines: &[SourceLine<'_>]) -> Vec<bool> {
     let mut source_block_lines = vec![false; lines.len()];
-    collect_source_block_body_lines(&document.blocks, &mut source_block_lines);
+    for node in document.descendants() {
+        if let StructuralRef::Block(block) = node
+            && let BlockKind::Listing(listing) = block.kind()
+        {
+            mark_delimited_block_body(listing, &mut source_block_lines);
+        }
+    }
     source_block_lines
 }
 
-fn collect_source_block_body_lines(blocks: &[Block<'_>], source_block_lines: &mut [bool]) {
-    for block in blocks {
-        match block {
-            Block::Admonition(block) => {
-                collect_source_block_body_lines(&block.blocks, source_block_lines);
-            }
-            Block::CalloutList(list) => {
-                for item in &list.items {
-                    collect_source_block_body_lines(&item.blocks, source_block_lines);
-                }
-            }
-            Block::DescriptionList(list) => {
-                for item in &list.items {
-                    collect_source_block_body_lines(&item.description, source_block_lines);
-                }
-            }
-            Block::DelimitedBlock(block) => {
-                collect_source_block_body_lines_for_delimited_block(block, source_block_lines);
-            }
-            Block::OrderedList(list) => {
-                for item in &list.items {
-                    collect_source_block_body_lines(&item.blocks, source_block_lines);
-                }
-            }
-            Block::Section(section) => {
-                collect_source_block_body_lines(&section.content, source_block_lines);
-            }
-            Block::UnorderedList(list) => {
-                for item in &list.items {
-                    collect_source_block_body_lines(&item.blocks, source_block_lines);
-                }
-            }
-            Block::Audio(_)
-            | Block::Comment(_)
-            | Block::DiscreteHeader(_)
-            | Block::DocumentAttribute(_)
-            | Block::Image(_)
-            | Block::PageBreak(_)
-            | Block::Paragraph(_)
-            | Block::TableOfContents(_)
-            | Block::ThematicBreak(_)
-            | Block::Video(_)
-            | _ => {}
-        }
-    }
-}
-
-fn collect_source_block_body_lines_for_delimited_block(
-    block: &DelimitedBlock<'_>,
-    source_block_lines: &mut [bool],
-) {
-    match &block.inner {
-        DelimitedBlockType::DelimitedListing(_) => {
-            mark_delimited_block_body(block, source_block_lines);
-        }
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks) => {
-            collect_source_block_body_lines(blocks, source_block_lines);
-        }
-        DelimitedBlockType::DelimitedTable(table) => {
-            for row in table
-                .header
-                .iter()
-                .chain(table.rows.iter())
-                .chain(table.footer.iter())
-            {
-                for column in &row.columns {
-                    collect_source_block_body_lines(&column.content, source_block_lines);
-                }
-            }
-        }
-        DelimitedBlockType::DelimitedComment(_)
-        | DelimitedBlockType::DelimitedLiteral(_)
-        | DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        | DelimitedBlockType::DelimitedVerse(_)
-        | _ => {}
-    }
-}
-
-fn mark_delimited_block_body(block: &DelimitedBlock<'_>, source_block_lines: &mut [bool]) {
+fn mark_delimited_block_body(block: ListingRef<'_>, source_block_lines: &mut [bool]) {
     let Some(open_line) = block
-        .open_delimiter_location
-        .as_ref()
+        .open_delimiter_location()
         .and_then(location_start_line)
     else {
         return;
     };
     let end_line = block
-        .close_delimiter_location
-        .as_ref()
+        .close_delimiter_location()
         .and_then(location_start_line)
         .and_then(|line| line.checked_sub(1))
-        .or_else(|| location_end_line(&block.location));
+        .or_else(|| location_end_line(block.location()));
     let Some(end_line) = end_line else {
         return;
     };
@@ -163,18 +85,18 @@ fn mark_line_range(lines: &mut [bool], start_line: usize, end_line: usize) {
     }
 }
 
-fn location_start_line(location: &Location) -> Option<usize> {
-    if location.start.file.is_some() {
+fn location_start_line(location: LocationRef<'_>) -> Option<usize> {
+    if location.start().include_chain().is_some() {
         return None;
     }
-    usize::try_from(location.start.line).ok()
+    usize::try_from(location.start().line()).ok()
 }
 
-fn location_end_line(location: &Location) -> Option<usize> {
-    if location.end.file.is_some() {
+fn location_end_line(location: LocationRef<'_>) -> Option<usize> {
+    if location.end().include_chain().is_some() {
         return None;
     }
-    usize::try_from(location.end.line).ok()
+    usize::try_from(location.end().line()).ok()
 }
 
 fn is_source_block_body_line(line_number: usize, source_block_lines: &[bool]) -> bool {

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- URL-attribute and source-block whitespace checks retain diagnostic order and authored source ranges in both compatibility modes, including list continuations and table cells.
+
 - Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
 
 - Image checks retain literal quotes in `imagesdir`. Quoted document text that is not a URL no longer triggers URL-prefix advice.
