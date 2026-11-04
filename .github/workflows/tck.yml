@@ -33,7 +33,12 @@ jobs:
         path: acdc
 
     - name: Clone asciidoc-tck
-      run: git clone --depth 1 https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck.git asciidoc-tck
+      run: |
+        git init asciidoc-tck
+        git -C asciidoc-tck remote add origin https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck.git
+        git -C asciidoc-tck fetch --depth 1 origin cdfada9c2768b164eadf4bc12e9f9c68e6caf68a
+        git -C asciidoc-tck checkout --detach FETCH_HEAD
+        test "$(git -C asciidoc-tck rev-parse HEAD)" = cdfada9c2768b164eadf4bc12e9f9c68e6caf68a
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
@@ -59,7 +64,7 @@ jobs:
 
     - name: Install asciidoc-tck dependencies
       working-directory: asciidoc-tck
-      run: npm install
+      run: npm ci
 
     - name: Run TCK tests
       working-directory: asciidoc-tck

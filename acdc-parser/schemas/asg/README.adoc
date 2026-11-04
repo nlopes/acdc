@@ -54,6 +54,8 @@ mapping record, not a promise about public AST storage or a checked export API.
 Shared policies are defined once; each property names its policy and any upstream
 schema location. Each declaration also names a strict-export group with its current
 handling and executable evidence. Tests reject missing groups and stale evidence.
+Extension records also check their owner/property names, schema pointers and test
+references against the current files.
 
 [cols="1,3",options="header"]
 |===
@@ -309,3 +311,20 @@ link:proposals/README.adoc[The content/image proposal] contains minimal schema
 patches, semantic examples and executable positive/negative controls. It separates
 promoted caption content from the open question of resolved caption state.
 It has not been submitted upstream and does not change either export contract.
+
+== Semantic regression checks
+
+The parser tests run every source fixture in both compatibility modes. Expected
+JSON records the selected language behavior; it is not an upstream-schema claim.
+`tests/attribute_contract.rs` checks a compact set across public reads, native JSON
+and checked ASG: introduced title formatting, caption prefixes, literal quote
+content, declaration snapshots, image text, selected-only footnotes and empty
+versus absent values. A deliberately wrong title still passes the schema and
+fails the expected semantic comparison.
+
+Run the export tests with `--all-features`, or with
+`--no-default-features --features asg` to check the same contracts without parser
+capabilities. CI uses the vendored schemas and a fixed TCK revision. The TCK
+runner reports the supported subset; an explicit rejection or a failed case
+remains a failure. Its result does not replace the native fixture or converter
+regression suites.

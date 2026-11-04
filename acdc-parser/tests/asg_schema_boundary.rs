@@ -206,3 +206,95 @@ fn every_inventory_class_has_current_strict_export_evidence() -> Result<(), Erro
     }
     Ok(())
 }
+
+#[test]
+fn extension_inventory_names_real_owners_properties_schema_fields_and_tests() -> Result<(), Error> {
+    use std::path::Path;
+
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let inventory: serde_json::Value =
+        serde_json::from_str(include_str!("../schemas/asg/support-inventory.json"))?;
+    let types = inventory
+        .get("types")
+        .and_then(serde_json::Value::as_object)
+        .ok_or("types")?;
+    let profiles = inventory
+        .get("extension_profiles")
+        .and_then(serde_json::Value::as_object)
+        .ok_or("profiles")?;
+    assert!(!profiles.is_empty());
+    for (id, profile) in profiles {
+        let filename = profile
+            .get("schema")
+            .and_then(serde_json::Value::as_str)
+            .ok_or("schema")?;
+        let schema: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(root.join("schemas/asg").join(filename))?)?;
+        assert_eq!(
+            schema.get("$id").and_then(serde_json::Value::as_str),
+            Some(id.as_str())
+        );
+        let additions = profile
+            .get("additions")
+            .and_then(serde_json::Value::as_object)
+            .ok_or("additions")?;
+        assert!(!additions.is_empty());
+        for (name, addition) in additions {
+            let owners = addition
+                .get("owners")
+                .and_then(serde_json::Value::as_object)
+                .ok_or("owners")?;
+            assert!(!owners.is_empty(), "{name}");
+            for (owner, properties) in owners {
+                let matches = types
+                    .iter()
+                    .filter(|(key, _)| key.ends_with(&format!("::{owner}")))
+                    .collect::<Vec<_>>();
+                let [(_, entry)] = matches.as_slice() else {
+                    return Err(format!("{name}: ambiguous or missing owner {owner}").into());
+                };
+                let properties = properties.as_array().ok_or("properties")?;
+                assert!(!properties.is_empty(), "{name}: {owner}");
+                for property in properties {
+                    let property = property.as_str().ok_or("property")?;
+                    assert!(
+                        entry
+                            .get("properties")
+                            .and_then(|fields| fields.get(property))
+                            .is_some(),
+                        "{name}: {owner}.{property}"
+                    );
+                }
+            }
+            let pointers = addition
+                .get("schema_pointers")
+                .and_then(serde_json::Value::as_array)
+                .ok_or("schema pointers")?;
+            assert!(!pointers.is_empty(), "{name}");
+            for pointer in pointers {
+                let pointer = pointer
+                    .as_str()
+                    .and_then(|pointer| pointer.strip_prefix('#'))
+                    .ok_or("local schema pointer")?;
+                assert!(schema.pointer(pointer).is_some(), "{name}: {pointer}");
+            }
+            let tests = addition
+                .get("tests")
+                .and_then(serde_json::Value::as_array)
+                .ok_or("tests")?;
+            assert!(!tests.is_empty(), "{name}");
+            for test in tests {
+                let (file, case) = test
+                    .as_str()
+                    .and_then(|test| test.split_once("::"))
+                    .ok_or("test reference")?;
+                let source = std::fs::read_to_string(root.join("tests").join(file))?;
+                assert!(
+                    source.contains(&format!("fn {case}(")),
+                    "{name}: stale test {file}::{case}"
+                );
+            }
+        }
+    }
+    Ok(())
+}

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Explained how semantic regression checks complement ASG validation in both compatibility modes.
+
 - Documented a proposed upstream ASG representation for formatted attributes and images, with a migration path from acdc's caption format. Existing export formats are unchanged.
 
 - The acdc ASG profile preserves inline images and block-image alternative content, including empty alt/tooltips, dimensions, links, identity, roles/options and source locations. Images can occur inside supported titles, captions and other content attributes. Use `asg::inlines_with_profile` for standalone content; strict upstream export still rejects unsupported image semantics.
