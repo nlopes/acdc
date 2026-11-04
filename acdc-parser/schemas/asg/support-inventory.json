@@ -5929,6 +5929,40 @@
             "asg_content.rs::strict_export_is_unchanged_and_profiles_are_explicit",
             "asg_content.rs::extension_schema_is_closed_and_keeps_the_pinned_structure"
           ]
+        },
+        "images": {
+          "owners": {
+            "Image": [
+              "source",
+              "alt",
+              "title",
+              "metadata",
+              "location"
+            ],
+            "InlineImage": [
+              "source",
+              "alt",
+              "tooltip",
+              "metadata",
+              "macro_attributes",
+              "location"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/acdcInlineImage",
+            "#/$defs/blockMacro/allOf/1"
+          ],
+          "handling": "Preserve complete targets, content presence and inline trees, scalar controls, identity, roles/options and node/content locations. Block captions stay separate from inline tooltips. ID-token locations follow the source-only policy. Reject unsupported nested content and ambiguous scalar states; strict image errors remain unchanged.",
+          "tests": [
+            "asg_images.rs::inline_image_metadata_and_content_are_preserved",
+            "asg_images.rs::image_text_presence_does_not_create_a_filename_fallback",
+            "asg_images.rs::block_image_alternative_content_stays_separate_from_its_caption",
+            "asg_images.rs::image_support_composes_through_every_supported_content_owner",
+            "asg_images.rs::unsupported_image_content_and_scalar_states_fail_by_property",
+            "asg_images.rs::image_schema_rejects_unknown_fields_and_malformed_nested_values",
+            "asg_images.rs::standalone_image_export_checks_the_selected_profile",
+            "asg_images.rs::block_image_metadata_cannot_shadow_promoted_content"
+          ]
         }
       }
     }

@@ -393,6 +393,25 @@
       "allOf": [
         {
           "$ref": "#/$defs/abstractBlock"
+        },
+        {
+          "if": {
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "const": "image"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "alt": {
+                "$ref": "#/$defs/inlines"
+              }
+            }
+          }
         }
       ],
       "unevaluatedProperties": false,
@@ -603,6 +622,9 @@
         },
         {
           "$ref": "#/$defs/inlineLiteral"
+        },
+        {
+          "$ref": "#/$defs/acdcInlineImage"
         }
       ]
     },
@@ -842,6 +864,41 @@
           }
         }
       ]
+    },
+    "acdcInlineImage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "target"
+      ],
+      "properties": {
+        "name": {
+          "const": "image"
+        },
+        "type": {
+          "const": "inline"
+        },
+        "target": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "alt": {
+          "$ref": "#/$defs/inlines"
+        },
+        "tooltip": {
+          "$ref": "#/$defs/inlines"
+        },
+        "metadata": {
+          "$ref": "#/$defs/blockMetadata"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        }
+      }
     }
   }
 }

@@ -1,6 +1,8 @@
 use serde_json::{Map, Value};
 
-use crate::{Anchor, AttributeValue, BlockMetadata, ContentAttribute, Location, Title};
+use crate::{
+    Anchor, AttributeValue, BlockMetadata, ContentAttribute, ElementAttributes, Location, Title,
+};
 
 use super::{Error, Profile, content, pointer, projection::inlines, unsupported};
 
@@ -59,11 +61,12 @@ pub(super) fn title(
     node: &mut Map<String, Value>,
     value: &Title<'_>,
     path: &str,
+    profile: Profile,
 ) -> Result<(), Error> {
     if value.is_present() {
         node.insert(
             "title".into(),
-            inlines(value.as_ref(), &pointer(path, "title"))?,
+            inlines(value.as_ref(), &pointer(path, "title"), profile)?,
         );
     }
     Ok(())
@@ -144,38 +147,19 @@ pub(super) fn apply(
     path: &str,
 ) -> Result<(), Error> {
     check(value, path, profile)?;
-    content::apply(node, value, path)?;
+    content::apply(node, value, path, profile)?;
     if let Some(anchor) = anchor(value) {
         node.insert("id".into(), anchor.id.into());
     }
     if let Some(label) = label(value) {
         node.insert(
             "reftext".into(),
-            inlines(label.as_ref(), &pointer(path, "reftext"))?,
+            inlines(label.as_ref(), &pointer(path, "reftext"), profile)?,
         );
     }
     let mut metadata = Map::new();
-    let mut attributes = Map::new();
     let at = pointer(&pointer(path, "metadata"), "attributes");
-    for (name, attribute) in value.attributes.iter() {
-        let text = match attribute {
-            AttributeValue::String(text) => text.as_ref(),
-            AttributeValue::Bool(true) => "",
-            AttributeValue::None => {
-                return Err(unsupported(
-                    &pointer(&at, name),
-                    "an element value without a defined scalar meaning cannot be encoded as an empty string",
-                ));
-            }
-            AttributeValue::Bool(false) => {
-                return Err(unsupported(
-                    &pointer(&at, name),
-                    "an unset element attribute cannot be encoded as a scalar string",
-                ));
-            }
-        };
-        attributes.insert(name.to_string(), text.into());
-    }
+    let mut attributes = scalar_attributes(&value.attributes, &at)?;
     if let Some(style) = value.style {
         attributes.insert("style".into(), style.into());
     }
@@ -224,6 +208,33 @@ pub(super) fn apply(
         node.insert("metadata".into(), Value::Object(metadata));
     }
     Ok(())
+}
+
+pub(super) fn scalar_attributes(
+    value: &ElementAttributes<'_>,
+    path: &str,
+) -> Result<Map<String, Value>, Error> {
+    let mut attributes = Map::new();
+    for (name, attribute) in value.iter() {
+        let text = match attribute {
+            AttributeValue::String(text) => text.as_ref(),
+            AttributeValue::Bool(true) => "",
+            AttributeValue::None => {
+                return Err(unsupported(
+                    &pointer(path, name),
+                    "an element value without a defined scalar meaning cannot be encoded as an empty string",
+                ));
+            }
+            AttributeValue::Bool(false) => {
+                return Err(unsupported(
+                    &pointer(path, name),
+                    "an unset element attribute cannot be encoded as a scalar string",
+                ));
+            }
+        };
+        attributes.insert(name.to_string(), text.into());
+    }
+    Ok(attributes)
 }
 
 pub(super) fn header(value: &BlockMetadata<'_>) -> Result<(), Error> {

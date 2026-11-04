@@ -2,28 +2,35 @@ use serde_json::{Map, Value};
 
 use crate::{BlockMetadata, Caption, CaptionKind};
 
-use super::{Error, pointer, projection::inlines};
+use super::{Error, Profile, pointer, projection::inlines};
 
 pub(super) fn apply(
     node: &mut Map<String, Value>,
     value: &BlockMetadata<'_>,
     path: &str,
+    profile: Profile,
 ) -> Result<(), Error> {
     for (name, content) in [
         ("attribution", value.attribution.as_ref()),
         ("citetitle", value.citetitle.as_ref()),
     ] {
         if let Some(content) = content {
-            node.insert(name.into(), inlines(content, &pointer(path, name))?);
+            node.insert(
+                name.into(),
+                inlines(content, &pointer(path, name), profile)?,
+            );
         }
     }
     if let Some(value) = &value.caption {
-        node.insert("caption".into(), caption(value, &pointer(path, "caption"))?);
+        node.insert(
+            "caption".into(),
+            caption(value, &pointer(path, "caption"), profile)?,
+        );
     }
     Ok(())
 }
 
-fn caption(value: &Caption<'_>, path: &str) -> Result<Value, Error> {
+fn caption(value: &Caption<'_>, path: &str, profile: Profile) -> Result<Value, Error> {
     let mut result = Map::new();
     match value {
         Caption::Unnumbered => {
@@ -40,7 +47,10 @@ fn caption(value: &Caption<'_>, path: &str) -> Result<Value, Error> {
         }
         Caption::CustomContent(content) => {
             result.insert("kind".into(), "custom".into());
-            result.insert("prefix".into(), inlines(content, &pointer(path, "prefix"))?);
+            result.insert(
+                "prefix".into(),
+                inlines(content, &pointer(path, "prefix"), profile)?,
+            );
         }
         Caption::Numbered {
             kind,

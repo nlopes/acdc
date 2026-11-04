@@ -53,7 +53,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
         result.insert("marker".into(), value.marker.into());
         result.insert(
             "principal".into(),
-            inlines(&value.principal, &pointer(path, "principal"))?,
+            inlines(&value.principal, &pointer(path, "principal"), self.profile)?,
         );
         result.insert(
             "blocks".into(),
@@ -106,7 +106,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
         result.insert("marker".into(), callout_marker(value).into());
         result.insert(
             "principal".into(),
-            inlines(&value.principal, &pointer(path, "principal"))?,
+            inlines(&value.principal, &pointer(path, "principal"), self.profile)?,
         );
         result.insert(
             "blocks".into(),
@@ -157,11 +157,16 @@ impl<'a, 'doc> Export<'a, 'doc> {
             Value::Array(vec![inlines(
                 &value.term,
                 &pointer(&pointer(path, "terms"), "0"),
+                self.profile,
             )?]),
         );
         result.insert(
             "principal".into(),
-            inlines(&value.principal_text, &pointer(path, "principal"))?,
+            inlines(
+                &value.principal_text,
+                &pointer(path, "principal"),
+                self.profile,
+            )?,
         );
         result.insert(
             "blocks".into(),

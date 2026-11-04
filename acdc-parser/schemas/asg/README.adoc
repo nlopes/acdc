@@ -209,10 +209,33 @@ A block's resolved `caption` has one of three closed forms:
 
 This supports captioned listings and examples, including their retained titles
 and reconstructible reference catalogs. A stale catalog still fails export.
-Cross-reference controls, image alternative content, unsupported inline nodes,
-header metadata and other uncovered semantics retain their explicit errors.
+Cross-reference controls, unsupported inline nodes, header metadata and other
+uncovered semantics retain their explicit errors.
 Nested content is checked under the same schema; unknown fields are invalid.
 `support-inventory.json` records these additions separately from strict support.
+
+== Images in the acdc profile
+
+An inline image has `name: "image"`, `type: "inline"` and its complete `target`.
+Optional `alt` and `tooltip` fields are inline arrays, including `[]` for explicit
+empty values. Omitting `alt` retains the filename fallback policy; export does not
+invent fallback content. A block image has macro form and an optional `alt` array.
+Its block title and resolved caption remain separate; it has no inline tooltip.
+The schema permits block `alt` only on image macros, not audio, video or TOC nodes.
+
+Inline image IDs are promoted to `id`. Scalar controls, such as dimensions and
+links, stay in `metadata.attributes`; roles and options retain their order.
+Values stay strings, including numeric spelling, and true presence becomes an
+empty string. Unset or ambiguous scalar state fails explicitly. Macro/node and
+content locations are retained; ID-token coordinates follow the documented
+source-only omission policy. No HTML tags or output escaping are introduced.
+
+Images compose through supported spans, link labels, document/block titles,
+reference text, captions, attribution and citation content. Every recursive call
+uses the selected profile. Unsupported nested nodes and unknown or malformed
+image fields fail; an extension does not enable arbitrary macros.
+`asg::inlines_with_profile(content, Profile::Acdc)` applies the same checks to a
+standalone array. Strict document and inline export keep their upstream errors.
 
 == References
 

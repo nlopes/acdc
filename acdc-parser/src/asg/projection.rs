@@ -12,7 +12,7 @@ use crate::{
 };
 
 use super::{
-    ACDC_SCHEMA_ID, Error, Profile, diagnostics, metadata, pointer, references, unsupported,
+    ACDC_SCHEMA_ID, Error, Profile, diagnostics, images, metadata, pointer, references, unsupported,
 };
 
 type Node = Map<String, Value>;
@@ -21,18 +21,27 @@ fn node(name: &str, kind: &str) -> Node {
     Map::from_iter([("name".into(), name.into()), ("type".into(), kind.into())])
 }
 
-pub(super) fn inlines(values: &[InlineNode<'_>], path: &str) -> Result<Value, Error> {
-    project_inlines(values, path, false)
+pub(super) fn inlines(
+    values: &[InlineNode<'_>],
+    path: &str,
+    profile: Profile,
+) -> Result<Value, Error> {
+    project_inlines(values, path, false, profile)
 }
 
-fn literal_inlines(values: &[InlineNode<'_>], path: &str) -> Result<Value, Error> {
-    project_inlines(values, path, true)
+fn literal_inlines(
+    values: &[InlineNode<'_>],
+    path: &str,
+    profile: Profile,
+) -> Result<Value, Error> {
+    project_inlines(values, path, true, profile)
 }
 
 fn project_inlines(
     values: &[InlineNode<'_>],
     path: &str,
     literal_content: bool,
+    profile: Profile,
 ) -> Result<Value, Error> {
     let mut result = Vec::new();
     for value in values {
@@ -50,7 +59,7 @@ fn project_inlines(
                 .map_err(|error| error.with_context("verbatim text", &text.location))?;
             Value::Object(result)
         } else {
-            inline(value, &at)?
+            inline(value, &at, profile)?
         };
         result.push(projected);
         if bracketed_email {
@@ -60,12 +69,12 @@ fn project_inlines(
     Ok(Value::Array(result))
 }
 
-fn inline(value: &InlineNode<'_>, path: &str) -> Result<Value, Error> {
-    inline_value(value, path)
+fn inline(value: &InlineNode<'_>, path: &str, profile: Profile) -> Result<Value, Error> {
+    inline_value(value, path, profile)
         .map_err(|error| error.with_context(diagnostics::inline_construct(value), value.location()))
 }
 
-fn inline_value(value: &InlineNode<'_>, path: &str) -> Result<Value, Error> {
+fn inline_value(value: &InlineNode<'_>, path: &str, profile: Profile) -> Result<Value, Error> {
     let mut result = match value {
         InlineNode::PlainText(text) => literal("text", text.content),
         InlineNode::VerbatimText(_) => {
@@ -106,6 +115,7 @@ fn inline_value(value: &InlineNode<'_>, path: &str) -> Result<Value, Error> {
             span.id.is_some(),
             &span.content,
             path,
+            profile,
         )?,
         InlineNode::ItalicText(span) => span_node(
             "emphasis",
@@ -114,6 +124,7 @@ fn inline_value(value: &InlineNode<'_>, path: &str) -> Result<Value, Error> {
             span.id.is_some(),
             &span.content,
             path,
+            profile,
         )?,
         InlineNode::MonospaceText(span) => span_node(
             "code",
@@ -122,6 +133,7 @@ fn inline_value(value: &InlineNode<'_>, path: &str) -> Result<Value, Error> {
             span.id.is_some(),
             &span.content,
             path,
+            profile,
         )?,
         InlineNode::HighlightText(span) => span_node(
             "mark",
@@ -130,8 +142,12 @@ fn inline_value(value: &InlineNode<'_>, path: &str) -> Result<Value, Error> {
             span.id.is_some(),
             &span.content,
             path,
+            profile,
         )?,
-        InlineNode::Macro(value) => references::project(value, path)?,
+        InlineNode::Macro(crate::InlineMacro::Image(image)) if profile == Profile::Acdc => {
+            images::inline(image, path, profile)?
+        }
+        InlineNode::Macro(value) => references::project(value, path, profile)?,
         InlineNode::SubscriptText(_)
         | InlineNode::SuperscriptText(_)
         | InlineNode::CurvedQuotationText(_)
@@ -162,6 +178,7 @@ fn span_node(
     has_id: bool,
     content: &[InlineNode<'_>],
     path: &str,
+    profile: Profile,
 ) -> Result<Node, Error> {
     for (present, property) in [(has_id, "id"), (role.is_some(), "role")] {
         if present {
@@ -183,7 +200,7 @@ fn span_node(
     );
     result.insert(
         "inlines".into(),
-        inlines(content, &pointer(path, "inlines"))?,
+        inlines(content, &pointer(path, "inlines"), profile)?,
     );
     Ok(result)
 }
@@ -200,7 +217,7 @@ struct Export<'a, 'doc> {
     targets: BTreeMap<String, Target<'a, 'doc>>,
 }
 
-fn project_header(header: &Header<'_>) -> Result<Value, Error> {
+fn project_header(header: &Header<'_>, profile: Profile) -> Result<Value, Error> {
     if !header.title.is_present() {
         return Err(unsupported(
             "/header/title",
@@ -215,7 +232,7 @@ fn project_header(header: &Header<'_>) -> Result<Value, Error> {
         ));
     }
     let mut projected = Map::new();
-    metadata::title(&mut projected, &header.title, "/header")?;
+    metadata::title(&mut projected, &header.title, "/header", profile)?;
     if !header.authors.is_empty() {
         projected.insert(
             "authors".into(),
@@ -287,7 +304,7 @@ pub(super) fn document(value: &Document<'_>, profile: Profile) -> Result<Value, 
         result.insert("attributes".into(), Value::Object(attributes));
     }
     if let Some(header) = &value.header {
-        let projected = project_header(header)
+        let projected = project_header(header, profile)
             .map_err(|error| error.with_context("header", &header.location))?;
         result.insert("header".into(), projected);
     }
@@ -363,19 +380,21 @@ impl<'a, 'doc> Export<'a, 'doc> {
             }
             Block::DelimitedBlock(block) => self.delimited(block, at)?,
             Block::Image(image) => {
-                if image.alt.is_some() {
+                if image.alt.is_some() && self.profile == Profile::Upstream {
                     return Err(unsupported(
                         &pointer(at, "alt"),
                         "parsed alternative content needs an explicit content-attribute mapping",
                     ));
                 }
-                self.block_macro(
+                let mut result = self.block_macro(
                     "image",
                     Some(&image.source),
                     Some(&image.title),
                     &image.metadata,
                     at,
-                )?
+                )?;
+                images::block(&mut result, image, at, self.profile)?;
+                result
             }
             Block::Audio(audio) => self.block_macro(
                 "audio",
@@ -404,7 +423,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             Block::ThematicBreak(thematic) => {
                 let mut result = node("break", "block");
                 result.insert("variant".into(), "thematic".into());
-                metadata::title(&mut result, &thematic.title, at)?;
+                metadata::title(&mut result, &thematic.title, at, self.profile)?;
                 self.identity(&mut result, &thematic.anchors, Some(&thematic.title), at)?;
                 result
             }
@@ -454,7 +473,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
         result.insert("id".into(), Value::String(section.id().into_owned()));
         result.insert(
             "title".into(),
-            inlines(section.title.as_ref(), &pointer(at, "title"))?,
+            inlines(section.title.as_ref(), &pointer(at, "title"), self.profile)?,
         );
         result.insert("level".into(), section.level.into());
         self.target(&section.metadata, Some(&section.title), Some(section), at)?;
@@ -590,7 +609,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Error, inlines};
+    use super::{Error, Profile, inlines};
     use crate::{CalloutRef, InlineMacro, InlineNode, Location, Pass, PassthroughKind};
 
     #[test]
@@ -609,9 +628,11 @@ mod tests {
                 "callout",
             ),
         ] {
-            assert!(matches!(inlines(&[node], ""), Err(Error::Unsupported {
+            assert!(
+                matches!(inlines(&[node], "", Profile::Upstream), Err(Error::Unsupported {
                 path, construct: Some(actual), ..
-            }) if path == "/0" && actual == owner));
+            }) if path == "/0" && actual == owner)
+            );
         }
     }
 }

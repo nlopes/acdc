@@ -6,6 +6,7 @@
 
 mod content;
 mod diagnostics;
+mod images;
 mod metadata;
 mod projection;
 mod references;
@@ -114,21 +115,34 @@ pub fn document_with_profile(document: &Document<'_>, profile: Profile) -> Resul
 /// Returns an error for unsupported content or locations, including unresolved
 /// passthrough operations and unsupported identity or controls on inline spans.
 pub fn inlines(inlines: &[InlineNode<'_>]) -> Result<Value, Error> {
-    let value = projection::inlines(inlines, "")?;
+    inlines_with_profile(inlines, Profile::Upstream)
+}
+
+/// Export resolved inline content under the selected schema profile.
+///
+/// # Errors
+/// Returns an error for unsupported nested values or invalid locations. The
+/// returned array validates as inline content under the selected profile.
+pub fn inlines_with_profile(inlines: &[InlineNode<'_>], profile: Profile) -> Result<Value, Error> {
+    let value = projection::inlines(inlines, "", profile)?;
     let paragraph = Map::from_iter([
         ("name".into(), "paragraph".into()),
         ("type".into(), "block".into()),
         ("inlines".into(), value),
     ]);
-    let mut wrapper = Value::Object(Map::from_iter([
+    let mut wrapper = Map::from_iter([
         ("name".into(), "document".into()),
         ("type".into(), "block".into()),
         (
             "blocks".into(),
             Value::Array(vec![Value::Object(paragraph)]),
         ),
-    ]));
-    validate(&wrapper, "/blocks/0/inlines", Profile::Upstream)?;
+    ]);
+    if profile == Profile::Acdc {
+        wrapper.insert("profile".into(), ACDC_SCHEMA_ID.into());
+    }
+    let mut wrapper = Value::Object(wrapper);
+    validate(&wrapper, "/blocks/0/inlines", profile)?;
     wrapper
         .pointer_mut("/blocks/0/inlines")
         .map(Value::take)

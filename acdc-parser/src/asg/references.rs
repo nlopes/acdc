@@ -5,11 +5,15 @@ use crate::{
     Mailto, XrefCaptionLabel, XrefSignifier, XrefStyle,
 };
 
-use super::{Error, pointer, projection::inlines, target, unsupported};
+use super::{Error, Profile, pointer, projection::inlines, target, unsupported};
 
 type Node = Map<String, Value>;
 
-pub(super) fn project(value: &InlineMacro<'_>, path: &str) -> Result<Node, Error> {
+pub(super) fn project(
+    value: &InlineMacro<'_>,
+    path: &str,
+    profile: Profile,
+) -> Result<Node, Error> {
     match value {
         InlineMacro::Link(link) => {
             check(
@@ -26,6 +30,7 @@ pub(super) fn project(value: &InlineMacro<'_>, path: &str) -> Result<Node, Error
                 &link.text,
                 Some(display_target(&target, link.hides_uri_scheme())),
                 path,
+                profile,
             )
         }
         InlineMacro::Url(link) => {
@@ -43,6 +48,7 @@ pub(super) fn project(value: &InlineMacro<'_>, path: &str) -> Result<Node, Error
                 &link.text,
                 Some(display_target(&target, link.hides_uri_scheme())),
                 path,
+                profile,
             )
         }
         InlineMacro::Mailto(link) => {
@@ -60,15 +66,16 @@ pub(super) fn project(value: &InlineMacro<'_>, path: &str) -> Result<Node, Error
                 &link.text,
                 Some(mailto_address(&original).unwrap_or(&original)),
                 path,
+                profile,
             )
         }
         InlineMacro::Autolink(link) => {
             let target = target(&link.url, path)?;
             let display = mailto_address(&target)
                 .unwrap_or_else(|| display_target(&target, link.hides_uri_scheme()));
-            reference("link", &target, &[], Some(display), path)
+            reference("link", &target, &[], Some(display), path, profile)
         }
-        InlineMacro::CrossReference(xref) => cross_reference(xref, path),
+        InlineMacro::CrossReference(xref) => cross_reference(xref, path, profile),
         InlineMacro::Footnote(_)
         | InlineMacro::Icon(_)
         | InlineMacro::Image(_)
@@ -84,7 +91,7 @@ pub(super) fn project(value: &InlineMacro<'_>, path: &str) -> Result<Node, Error
     }
 }
 
-fn cross_reference(xref: &CrossReference<'_>, path: &str) -> Result<Node, Error> {
+fn cross_reference(xref: &CrossReference<'_>, path: &str, profile: Profile) -> Result<Node, Error> {
     check(
         &xref.metadata,
         xref.attributes(),
@@ -111,7 +118,7 @@ fn cross_reference(xref: &CrossReference<'_>, path: &str) -> Result<Node, Error>
             ));
         }
     }
-    reference("xref", xref.target, &xref.text, None, path)
+    reference("xref", xref.target, &xref.text, None, path, profile)
 }
 
 fn default_signifier(xref: &CrossReference<'_>) -> bool {
@@ -142,6 +149,7 @@ fn reference(
     label: &[InlineNode<'_>],
     fallback: Option<&str>,
     path: &str,
+    profile: Profile,
 ) -> Result<Node, Error> {
     let content = if label.is_empty() {
         Value::Array(
@@ -152,7 +160,7 @@ fn reference(
                 }),
         )
     } else {
-        inlines(label, &pointer(path, "inlines"))?
+        inlines(label, &pointer(path, "inlines"), profile)?
     };
     Ok(Map::from_iter([
         ("name".into(), "ref".into()),

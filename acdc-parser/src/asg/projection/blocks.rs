@@ -17,7 +17,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
     ) -> Result<(), Error> {
         metadata::apply(self.profile, result, value, path)?;
         if let Some(title) = title {
-            metadata::title(result, title, path)?;
+            metadata::title(result, title, path, self.profile)?;
         }
         self.target(value, title, None, path)
     }
@@ -53,9 +53,9 @@ impl<'a, 'doc> Export<'a, 'doc> {
         }
         self.block_metadata(&mut result, &value.metadata, Some(&value.title), path)?;
         let content = if matches!(name, "listing" | "literal" | "verse") {
-            literal_inlines(&value.content, &pointer(path, "inlines"))?
+            literal_inlines(&value.content, &pointer(path, "inlines"), self.profile)?
         } else {
-            inlines(&value.content, &pointer(path, "inlines"))?
+            inlines(&value.content, &pointer(path, "inlines"), self.profile)?
         };
         result.insert("inlines".into(), content);
         Ok(result)
@@ -76,22 +76,22 @@ impl<'a, 'doc> Export<'a, 'doc> {
             DelimitedBlockType::DelimitedListing(content) => (
                 "listing",
                 "inlines",
-                literal_inlines(content, &pointer(path, "inlines"))?,
+                literal_inlines(content, &pointer(path, "inlines"), self.profile)?,
             ),
             DelimitedBlockType::DelimitedLiteral(content) => (
                 "literal",
                 "inlines",
-                literal_inlines(content, &pointer(path, "inlines"))?,
+                literal_inlines(content, &pointer(path, "inlines"), self.profile)?,
             ),
             DelimitedBlockType::DelimitedVerse(content) => (
                 "verse",
                 "inlines",
-                literal_inlines(content, &pointer(path, "inlines"))?,
+                literal_inlines(content, &pointer(path, "inlines"), self.profile)?,
             ),
             DelimitedBlockType::DelimitedPass(content) => (
                 "pass",
                 "inlines",
-                inlines(content, &pointer(path, "inlines"))?,
+                inlines(content, &pointer(path, "inlines"), self.profile)?,
             ),
             DelimitedBlockType::DelimitedOpen(content) => (
                 "open",
@@ -186,7 +186,10 @@ impl<'a, 'doc> Export<'a, 'doc> {
             }
             result.insert("id".into(), anchor.id.into());
             if let Some(label) = &anchor.xreflabel {
-                result.insert("reftext".into(), inlines(label, &pointer(path, "reftext"))?);
+                result.insert(
+                    "reftext".into(),
+                    inlines(label, &pointer(path, "reftext"), self.profile)?,
+                );
             }
             self.insert_target(
                 anchor.id.into(),

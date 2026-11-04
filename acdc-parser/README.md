@@ -496,7 +496,9 @@ inline span types. Literal reference-shaped text stays text. See
 For the named acdc extension, call
 `asg::document_with_profile(parsed.document(), asg::Profile::Acdc)`.
 Its output identifies `urn:acdc:asg:1` and preserves resolved captions,
-attribution and citation content. This choice is independent of
+attribution, citation content and images. Use
+`asg::inlines_with_profile(parsed.inlines(), asg::Profile::Acdc)` for standalone
+inline content. This choice is independent of
 `CompatibilityMode`; unsupported nested values still fail export.
 
 Native JSON preserves acdc's model; it is not a claim of ASG conformance.

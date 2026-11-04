@@ -143,7 +143,7 @@ fn captioned_targets_are_reconstructible_but_stale_catalogs_fail() -> Result<(),
 
 #[test]
 fn nested_unsupported_content_keeps_its_property_path() -> Result<(), Error> {
-    let parsed = parse("image:photo.png[Alt]", &Options::default())?;
+    let parsed = parse("= Title\n:experimental:\n\nbtn:[Save]", &Options::default())?;
     let Block::Paragraph(source) = parsed.document().blocks.first().ok_or("block")? else {
         return Err("paragraph".into());
     };
@@ -163,7 +163,7 @@ fn nested_unsupported_content_keeps_its_property_path() -> Result<(), Error> {
             property
         };
         assert!(
-            matches!(export(&document),Err(asg::Error::Unsupported {path,construct:Some("inline image"),..}) if path==format!("/blocks/0/{field}/0"))
+            matches!(export(&document),Err(asg::Error::Unsupported {path,construct:Some("button"),..}) if path==format!("/blocks/0/{field}/0"))
         );
     }
     Ok(())
@@ -252,7 +252,7 @@ fn extension_schema_is_closed_and_keeps_the_pinned_structure() -> Result<(), Err
         ),
         (
             "/blocks/0/caption",
-            json!({"kind":"custom","prefix":[{"name":"image","type":"inline","target":"photo.png"}]}),
+            json!({"kind":"custom","prefix":[{"name":"image","type":"inline","target":7}]}),
         ),
     ] {
         let mut invalid = valid.clone();
@@ -290,6 +290,21 @@ fn extension_schema_is_closed_and_keeps_the_pinned_structure() -> Result<(), Err
         .and_then(Value::as_object_mut)
         .ok_or("defs")?
         .remove("acdcCaption");
+    restored
+        .pointer_mut("/$defs/inline/oneOf")
+        .and_then(Value::as_array_mut)
+        .ok_or("inline union")?
+        .pop();
+    restored
+        .pointer_mut("/$defs/blockMacro/allOf")
+        .and_then(Value::as_array_mut)
+        .ok_or("block macro conditions")?
+        .pop();
+    restored
+        .get_mut("$defs")
+        .and_then(Value::as_object_mut)
+        .ok_or("defs")?
+        .remove("acdcInlineImage");
     assert_eq!(restored, base);
     Ok(())
 }
