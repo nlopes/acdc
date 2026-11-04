@@ -1,4 +1,8 @@
-use acdc_parser::{Block, CompatibilityMode, Options, parse};
+use acdc_parser::{
+    CompatibilityMode, Options,
+    ast::{AttributeValueRef, BlockKind, BlockRef, ElementIdRef, InlineKind},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -11,19 +15,18 @@ fn quoted_and_incomplete_shorthands_follow_the_selected_mode() -> Result<(), Err
                 &input,
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
-            let Some(Block::Paragraph(block)) = parsed.document().blocks.first() else {
+            let Some(BlockKind::Paragraph(block)) =
+                parsed.document_ref().blocks().next().map(BlockRef::kind)
+            else {
                 return Err("expected a paragraph".into());
             };
             if mode == CompatibilityMode::Draft {
-                assert_eq!(block.metadata.style, Some(source.trim_matches(['\'', '"'])));
-                assert_eq!(block.metadata.roles, [] as [&str; 0]);
-                assert!(block.metadata.id.is_none());
+                assert_eq!(block.style(), Some(source.trim_matches(['\'', '"'])));
+                assert_eq!(block.roles().iter().collect::<Vec<_>>(), [] as [&str; 0]);
+                assert!(block.id().is_none());
             } else {
-                assert_eq!(block.metadata.style, Some("note"));
-                assert_eq!(
-                    block.metadata.roles.contains(&"demo"),
-                    source.contains("demo")
-                );
+                assert_eq!(block.style(), Some("note"));
+                assert_eq!(block.roles().contains("demo"), source.contains("demo"));
             }
         }
     }
@@ -39,33 +42,36 @@ fn draft_anchor_shorthand_keeps_reftext_and_uses_the_last_id() -> Result<(), Err
             .with_compatibility_mode(CompatibilityMode::Draft)
             .build()?,
     )?;
-    let Some(Block::Paragraph(block)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Paragraph(block)) =
+        parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected a paragraph".into());
     };
-    assert_eq!(block.metadata.style, Some("note"));
-    assert_eq!(block.metadata.id.as_ref().map(|id| id.id), Some("late"));
-    assert_eq!(block.metadata.roles, ["demo"]);
-    assert_eq!(block.metadata.options, ["ready"]);
+    assert_eq!(block.style(), Some("note"));
+    assert_eq!(block.id().map(ElementIdRef::as_str), Some("late"));
+    assert_eq!(block.roles().iter().collect::<Vec<_>>(), ["demo"]);
+    assert_eq!(block.options().iter().collect::<Vec<_>>(), ["ready"]);
     assert_eq!(
         block
-            .metadata
-            .reftext
-            .as_ref()
-            .and_then(|label| label.first())
-            .and_then(
-                |node| if let acdc_parser::InlineNode::PlainText(plain) = node {
-                    Some(plain.content)
-                } else {
-                    None
-                }
-            ),
+            .attributes()
+            .get("reftext")
+            .and_then(|value| if let AttributeValueRef::Content(content) = value {
+                content.inlines().next()
+            } else {
+                None
+            })
+            .and_then(|node| if let InlineKind::Plain(plain) = node.kind() {
+                Some(plain.text())
+            } else {
+                None
+            }),
         Some("Read, this] label")
     );
-    assert!(parsed.document().references.contains_key("late"));
-    assert!(!parsed.document().references.contains_key("early"));
-    let location = &block.metadata.id.as_ref().ok_or("missing ID")?.location;
+    assert!(parsed.document_ref().references().contains("late"));
+    assert!(!parsed.document_ref().references().contains("early"));
+    let location = block.id().ok_or("missing ID")?.location();
     assert_eq!(
-        source.get(location.absolute_start..=location.absolute_end),
+        source.get(location.absolute_start()..=location.absolute_end()),
         Some("late")
     );
     Ok(())
@@ -79,7 +85,9 @@ fn none_is_ignored_only_in_asciidoctor_named_block_attributes() -> Result<(), Er
             source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let Some(Block::Paragraph(block)) = parsed.document().blocks.first() else {
+        let Some(BlockKind::Paragraph(block)) =
+            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        else {
             return Err("expected a paragraph".into());
         };
         let expected = if mode == CompatibilityMode::Draft {
@@ -88,14 +96,23 @@ fn none_is_ignored_only_in_asciidoctor_named_block_attributes() -> Result<(), Er
             "old"
         };
         assert_eq!(
-            block.metadata.attributes.get_string("custom").as_deref(),
+            block.attributes().get("custom").and_then(|value| {
+                if let AttributeValueRef::Text(text) = value {
+                    Some(text)
+                } else {
+                    None
+                }
+            }),
             Some(expected)
         );
         assert_eq!(
-            block.metadata.roles.contains(&"None"),
+            block.roles().contains("None"),
             mode == CompatibilityMode::Draft
         );
-        let title = serde_json::to_value(&block.title)?;
+        let title = serde_json::to_value(parsed.document_ref())?
+            .pointer("/blocks/0/title")
+            .cloned()
+            .ok_or("missing title")?;
         assert_eq!(
             title
                 .pointer("/0/value")
@@ -119,13 +136,15 @@ fn expanded_shorthand_ids_point_to_the_authored_reference() -> Result<(), Error>
             source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let Some(Block::Paragraph(block)) = parsed.document().blocks.first() else {
+        let Some(BlockKind::Paragraph(block)) =
+            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        else {
             return Err("expected a paragraph".into());
         };
-        let id = block.metadata.id.as_ref().ok_or("missing ID")?;
-        assert_eq!(id.id, "café");
+        let id = block.id().ok_or("missing ID")?;
+        assert_eq!(id.as_str(), "café");
         assert_eq!(
-            source.get(id.location.absolute_start..=id.location.absolute_end),
+            source.get(id.location().absolute_start()..=id.location().absolute_end()),
             Some("{identity}")
         );
     }
@@ -141,7 +160,9 @@ fn preprocessing_and_block_matching_share_shorthand_rules() -> Result<(), Error>
                 &source,
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
-            let Some(Block::Paragraph(block)) = parsed.document().blocks.first() else {
+            let Some(BlockKind::Paragraph(block)) =
+                parsed.document_ref().blocks().next().map(BlockRef::kind)
+            else {
                 return Err("expected a paragraph".into());
             };
             assert_eq!(
@@ -158,10 +179,12 @@ fn preprocessing_and_block_matching_share_shorthand_rules() -> Result<(), Error>
                 .with_compatibility_mode(CompatibilityMode::Draft)
                 .build()?,
         )?;
-        let Some(Block::Paragraph(block)) = parsed.document().blocks.first() else {
+        let Some(BlockKind::Paragraph(block)) =
+            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        else {
             return Err("expected a source paragraph".into());
         };
-        assert_eq!(block.metadata.style, Some("source"));
+        assert_eq!(block.style(), Some("source"));
         assert_eq!(block.source_text(), Some("printf 'café'"));
     }
     Ok(())
@@ -176,8 +199,8 @@ fn draft_anchor_shorthand_marks_discrete_headings() -> Result<(), Error> {
             .build()?,
     )?;
     assert!(matches!(
-        parsed.document().blocks.first(),
-        Some(Block::DiscreteHeader(_))
+        parsed.document_ref().blocks().next().map(BlockRef::kind),
+        Some(BlockKind::DiscreteHeader(_))
     ));
     Ok(())
 }
@@ -191,8 +214,8 @@ fn a_named_none_style_follows_the_mode_during_heading_lookahead() -> Result<(), 
         )?;
         assert_eq!(
             matches!(
-                parsed.document().blocks.first(),
-                Some(Block::DiscreteHeader(_))
+                parsed.document_ref().blocks().next().map(BlockRef::kind),
+                Some(BlockKind::DiscreteHeader(_))
             ),
             mode == CompatibilityMode::Asciidoctor
         );

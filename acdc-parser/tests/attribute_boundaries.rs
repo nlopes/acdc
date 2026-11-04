@@ -1,4 +1,8 @@
-use acdc_parser::{AttributeValue, Block, CompatibilityMode, Options, parse};
+use acdc_parser::{
+    CompatibilityMode, Options,
+    ast::{AttributeValueRef, BlockKind, BlockRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -13,20 +17,25 @@ fn closing_quote_needs_a_separator_in_draft(
         "[data=\"α\"tail,role=after]\nContent.",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [Block::Paragraph(block)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(block)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected a paragraph".into());
     };
     assert_eq!(
-        block.metadata.attributes.get("data").and_then(|value| {
-            if let AttributeValue::String(text) = value {
-                Some(text.as_ref())
+        block.attributes().get("data").and_then(|value| {
+            if let AttributeValueRef::Text(text) = value {
+                Some(text)
             } else {
                 None
             }
         }),
         Some(expected)
     );
-    assert_eq!(block.metadata.roles, ["after"]);
+    assert_eq!(block.roles().iter().collect::<Vec<_>>(), ["after"]);
     Ok(())
 }
 
@@ -37,10 +46,15 @@ fn leading_whitespace_keeps_a_block_attribute_line_as_content() -> Result<(), Er
             "[ source]\nContent.",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let [Block::Paragraph(block)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(block)] = &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected a paragraph".into());
         };
-        assert_eq!(block.metadata.style, None);
+        assert_eq!(block.style(), None);
     }
     Ok(())
 }
@@ -58,7 +72,12 @@ fn preprocessing_uses_the_same_quote_rules_on_fast_and_slow_paths(
             &source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let [Block::Paragraph(block)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(block)] = &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected a paragraph".into());
         };
         assert_eq!(
@@ -68,7 +87,7 @@ fn preprocessing_uses_the_same_quote_rules_on_fast_and_slow_paths(
             keeps_comment
         );
         assert_eq!(
-            block.metadata.style,
+            block.style(),
             Some(if keeps_comment {
                 "source"
             } else {
@@ -86,10 +105,15 @@ fn rejected_attribute_lines_start_source_paragraph_content() -> Result<(), Error
             "[source]\n[ literal body]\n// source comment\n",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let [Block::Paragraph(block)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(block)] = &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected a source paragraph".into());
         };
-        assert_eq!(block.metadata.style, Some("source"));
+        assert_eq!(block.style(), Some("source"));
         assert_eq!(
             block.source_text(),
             Some(if mode == CompatibilityMode::Asciidoctor {
@@ -110,19 +134,32 @@ fn quoted_unicode_content_retains_its_authored_location() -> Result<(), Error> {
             source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let [Block::Paragraph(block)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(block)] = &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected a paragraph".into());
         };
-        let [title] = block.title.as_ref() else {
+        let [title] = &*block
+            .title()
+            .ok_or("missing title")?
+            .inlines()
+            .collect::<Vec<_>>()
+        else {
             return Err("expected a formatted title".into());
         };
         let location = title.location();
         assert_eq!(
-            source.get(location.absolute_start..=location.absolute_end),
+            source.get(location.absolute_start()..=location.absolute_end()),
             Some("*café*")
         );
-        assert_eq!((location.start.line, location.start.column), (1, 20));
-        assert_eq!((location.end.line, location.end.column), (1, 25));
+        assert_eq!(
+            (location.start().line(), location.start().column()),
+            (1, 20)
+        );
+        assert_eq!((location.end().line(), location.end().column()), (1, 25));
     }
     Ok(())
 }
@@ -134,11 +171,16 @@ fn toc_uses_block_macro_boundaries() -> Result<(), Error> {
             "toc::[ levels=2 ]",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let [block] = parsed.document().blocks.as_slice() else {
+        let [block] = &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected one block".into());
         };
         assert_eq!(
-            matches!(block, Block::TableOfContents(_)),
+            matches!(block, BlockKind::TableOfContents(_)),
             mode == CompatibilityMode::Asciidoctor
         );
     }
