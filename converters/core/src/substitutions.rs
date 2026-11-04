@@ -10,104 +10,6 @@ use acdc_parser::{
     ast::{InlineKind, InlineRef, SubstitutionSpecRef},
 };
 
-use crate::TraversalContext;
-
-#[cfg(feature = "pre-spec-subs")]
-use bitflags::bitflags;
-
-/// Expand known attribute references, leaving unresolved references unchanged.
-///
-/// The result borrows `text` when no reference is replaced or escape removed.
-#[must_use]
-pub fn substitute_attributes<'text>(
-    text: &'text str,
-    attributes: &TraversalContext<'_>,
-) -> Cow<'text, str> {
-    attributes.substitute_attributes(text)
-}
-
-#[cfg(feature = "pre-spec-subs")]
-bitflags! {
-    /// Compact representation of the substitutions active for the block a
-    /// converter is currently rendering.
-    ///
-    /// Returned by [`effective_subs_flags`] and stored on the per-converter
-    /// `Processor` so that the inline-rendering hot path can ask
-    /// "is `X` substitution enabled?" in O(1) without traversing a
-    /// `Vec<Substitution>` or paying for runtime borrow tracking.
-    ///
-    /// This is the converter-side counterpart to the parser's internal
-    /// parse-time flags; both types are tiny `u8` bitsets that happen to
-    /// share variant names. The parser only ever needs the parse-time
-    /// subset, so its version stays crate-private.
-    ///
-    /// Only available with `pre-spec-subs`. Disabling this converter feature
-    /// uses converter defaults; parser structural substitutions remain active.
-    ///
-    /// Groups have no flag of their own. Source settings and modifiers expand
-    /// them during resolution.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct SubsFlags: u8 {
-        /// Macros are recognized in the inline grammar.
-        const MACROS = 1 << 0;
-        /// `{attr}` attribute references are expanded.
-        const ATTRIBUTES = 1 << 1;
-        /// Trailing-`+` hard line breaks produce `LineBreak` nodes.
-        const POST_REPLACEMENTS = 1 << 2;
-        /// Inline formatting (`*bold*`, `_italic_`, etc.) is recognized.
-        const QUOTES = 1 << 3;
-        /// `<1>` / `<.>` callout markers are recognized inside verbatim content.
-        const CALLOUTS = 1 << 4;
-        /// HTML-style escaping of `<`, `>`, `&` to entities. Only the HTML
-        /// converter acts on this; other backends ignore it.
-        const SPECIAL_CHARS = 1 << 5;
-        /// Typography substitutions (em-dashes, arrows, ellipses, ©, ™, ®).
-        /// HTML emits entities; terminal/manpage emit Unicode characters.
-        const REPLACEMENTS = 1 << 6;
-    }
-}
-
-#[cfg(feature = "pre-spec-subs")]
-impl Default for SubsFlags {
-    /// All substitutions enabled — matches the asciidoctor default when no
-    /// `[subs="…"]` attribute is present.
-    fn default() -> Self {
-        Self::all()
-    }
-}
-
-#[cfg(feature = "pre-spec-subs")]
-impl SubsFlags {
-    /// Mapping between flag bits and their corresponding
-    /// [`Substitution`] variants. Used by [`Self::from_resolved`] and by
-    /// callers that need to round-trip between the two representations.
-    pub const FLAG_SUBSTITUTIONS: &'static [(SubsFlags, Substitution)] = &[
-        (SubsFlags::MACROS, Substitution::Macros),
-        (SubsFlags::ATTRIBUTES, Substitution::Attributes),
-        (SubsFlags::POST_REPLACEMENTS, Substitution::PostReplacements),
-        (SubsFlags::QUOTES, Substitution::Quotes),
-        (SubsFlags::CALLOUTS, Substitution::Callouts),
-        (SubsFlags::SPECIAL_CHARS, Substitution::SpecialChars),
-        (SubsFlags::REPLACEMENTS, Substitution::Replacements),
-    ];
-
-    /// Project a resolved substitution list (as returned by
-    /// [`SubstitutionSpecRef::resolve`]) into a [`SubsFlags`] bitset.
-    #[must_use]
-    pub(crate) fn from_resolved(subs: &[Substitution]) -> Self {
-        let mut flags = Self::empty();
-        for sub in subs {
-            for (flag, variant) in Self::FLAG_SUBSTITUTIONS {
-                if sub == variant {
-                    flags |= *flag;
-                    break;
-                }
-            }
-        }
-        flags
-    }
-}
-
 /// Resolve optional block settings against normal or verbatim defaults.
 ///
 /// Absence keeps the defaults. An empty explicit list disables substitutions;
@@ -123,26 +25,6 @@ pub fn effective_subs(
         Some(s) => s.resolve(baseline),
         None => baseline.to_vec(),
     }
-}
-
-/// Return the block-kind baseline substitution list, ignoring any `[subs="…"]`
-/// override. Use [`effective_subs`] to include explicit block settings.
-#[must_use]
-pub fn baseline_subs(is_verbatim: bool) -> Vec<Substitution> {
-    let baseline = if is_verbatim { VERBATIM } else { NORMAL };
-    baseline.to_vec()
-}
-
-/// Like [`effective_subs`] but returns a compact [`SubsFlags`] bitset.
-///
-/// Use this when the converter only queries membership. The returned bitset
-/// supports constant-time checks; resolution can still allocate.
-///
-/// Only available when the `pre-spec-subs` feature is enabled.
-#[cfg(feature = "pre-spec-subs")]
-#[must_use]
-pub fn effective_subs_flags(spec: Option<SubstitutionSpecRef<'_>>, is_verbatim: bool) -> SubsFlags {
-    SubsFlags::from_resolved(&effective_subs(spec, is_verbatim))
 }
 
 /// Paragraph boundaries and neighboring text represented by one fragment.
@@ -554,40 +436,6 @@ enum NeighborStop {
     Full,
     Barrier,
     LineBreak,
-}
-
-/// Apply typography [`Replacements`] to `text` only when `subs` includes
-/// [`SubsFlags::REPLACEMENTS`]; otherwise borrow `text` unchanged.
-///
-/// `text_boundaries` records which ends of the fragment touch the surrounding
-/// paragraph boundaries.
-///
-/// Used by the non-HTML converters (terminal, manpage) where typography is
-/// applied at deeply-nested `PlainText` leaves. HTML applies typography at
-/// shallow block-rendering sites and queries `subs` inline instead.
-///
-/// Only available when the `pre-spec-subs` feature is enabled. When the
-/// feature is off, converters fall back to applying typography
-/// unconditionally (the asciidoctor default).
-#[cfg(feature = "pre-spec-subs")]
-#[must_use]
-pub fn apply_replacements<'a>(
-    text: &'a str,
-    subs: SubsFlags,
-    replacements: &Replacements<'_>,
-    text_boundaries: TextBoundaries,
-) -> Cow<'a, str> {
-    if subs.contains(SubsFlags::REPLACEMENTS) {
-        // Quote substitutions own formatting escapes. Replacements in code or
-        // quotes-disabled prose must leave those escapes intact.
-        Cow::Owned(if subs.contains(SubsFlags::QUOTES) {
-            replacements.transform(text, text_boundaries)
-        } else {
-            replacements.transform_verbatim(text, text_boundaries)
-        })
-    } else {
-        Cow::Borrowed(text)
-    }
 }
 
 // Private Use Area placeholders for escaped patterns.
@@ -1276,17 +1124,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn typed_block_settings_keep_defaults_empty_values_and_flags() {
+    fn typed_block_settings_keep_defaults_and_empty_values() {
         use acdc_parser::SubstitutionSpec;
 
         for is_verbatim in [false, true] {
             let defaults = if is_verbatim { VERBATIM } else { NORMAL };
             assert_eq!(effective_subs(None, is_verbatim), defaults);
-            #[cfg(feature = "pre-spec-subs")]
-            assert_eq!(
-                effective_subs_flags(None, is_verbatim),
-                SubsFlags::from_resolved(defaults)
-            );
             for (spec, expected) in [
                 (SubstitutionSpec::Explicit(Vec::new()), Vec::new()),
                 (SubstitutionSpec::Modifiers(Vec::new()), defaults.to_vec()),
@@ -1300,11 +1143,6 @@ mod tests {
                 ),
             ] {
                 assert_eq!(effective_subs(Some((&spec).into()), is_verbatim), expected);
-                #[cfg(feature = "pre-spec-subs")]
-                assert_eq!(
-                    effective_subs_flags(Some((&spec).into()), is_verbatim),
-                    SubsFlags::from_resolved(&expected)
-                );
             }
         }
     }
@@ -1460,31 +1298,6 @@ mod tests {
         assert_eq!(
             restore_escaped_patterns(&strip_backslash_escapes(r"\<- back")),
             "<- back"
-        );
-    }
-
-    // --- apply_replacements tests ---
-
-    #[cfg(feature = "pre-spec-subs")]
-    #[test]
-    fn replacements_leave_formatting_escapes_to_quotes() {
-        assert_eq!(
-            apply_replacements(
-                r"(C) \*literal\*",
-                SubsFlags::REPLACEMENTS,
-                &UNICODE,
-                TextBoundaries::BOTH
-            ),
-            r"© \*literal\*"
-        );
-        assert_eq!(
-            apply_replacements(
-                r"(C) \*literal\*",
-                SubsFlags::REPLACEMENTS | SubsFlags::QUOTES,
-                &UNICODE,
-                TextBoundaries::BOTH
-            ),
-            "© *literal*"
         );
     }
 

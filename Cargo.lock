@@ -35,7 +35,6 @@ name = "acdc-converters-core"
 version = "0.1.0"
 dependencies = [
  "acdc-parser",
- "bitflags",
  "percent-encoding",
  "relative-path 2.0.2",
  "rustc-hash",
