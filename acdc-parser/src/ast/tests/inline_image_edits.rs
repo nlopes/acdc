@@ -1,13 +1,11 @@
-use acdc_parser::{
+use crate::{
     Block, ContentAttribute, ElementId, InlineImage, InlineMacro, InlineMetadata, InlineNode,
     Options, parse,
 };
 
 type Error = Box<dyn std::error::Error>;
 
-fn first_image<'a, 'b>(
-    document: &'b acdc_parser::Document<'a>,
-) -> Result<&'b InlineImage<'a>, Error> {
+fn first_image<'a, 'b>(document: &'b crate::Document<'a>) -> Result<&'b InlineImage<'a>, Error> {
     let Some(Block::Paragraph(paragraph)) = document.blocks.first() else {
         return Err("expected a paragraph".into());
     };

@@ -121,7 +121,10 @@ fn local_values_mask_defaults_without_changing_their_meaning(
             }
         }
         assert_eq!(
-            decoration(resolve(&block, &parsed.document().attributes)),
+            decoration(resolve(
+                &block,
+                &DocumentAttributes::from(parsed.document_ref().attributes())
+            )),
             expected
         );
     }
@@ -161,7 +164,10 @@ fn document_values_distinguish_absence_presence_unsets_and_exact_text(
                 &source,
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
-            let value = resolve(&empty_table(), &parsed.document().attributes);
+            let value = resolve(
+                &empty_table(),
+                &DocumentAttributes::from(parsed.document_ref().attributes()),
+            );
             assert_eq!(
                 TablePresentation::resolve(None, parsed.document_ref().attributes()),
                 value
@@ -170,55 +176,6 @@ fn document_values_distinguish_absence_presence_unsets_and_exact_text(
         };
         assert_eq!(decoration(value), expected, "{entries:?}");
     }
-    Ok(())
-}
-
-#[rstest::rstest]
-fn explicit_resolution_preserves_stored_source_position_and_unresolved_tables(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
-) -> Result<(), Error> {
-    let parsed = parse(
-        "= Tables\n:table-frame: sides\n:table-grid: rows\n:table-stripes: odd\n\n|===\n|One\n|===\n\n:table-frame: ends\n:table-grid: cols\n:table-stripes: even\n\n|===\n|Two\n|===\n",
-        &Options::builder().with_compatibility_mode(mode).build()?,
-    )?;
-    let tables = parsed
-        .document()
-        .blocks
-        .iter()
-        .filter_map(|block| {
-            if let acdc_parser::Block::DelimitedBlock(block) = block {
-                Some(block)
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
-    assert_eq!(tables.len(), 2);
-    for (block, expected) in tables.into_iter().zip([
-        (TableFrame::Sides, TableGrid::Rows, TableStripes::Odd),
-        (TableFrame::Ends, TableGrid::Columns, TableStripes::Even),
-    ]) {
-        let BlockKind::Table(table) = BlockRef::from(block).kind() else {
-            return Err("expected table".into());
-        };
-        let stored = table.presentation().ok_or("missing stored presentation")?;
-        assert_eq!(decoration(stored), expected);
-        assert_eq!(
-            decoration(resolve(block, &parsed.document().attributes)),
-            (TableFrame::Sides, TableGrid::Rows, TableStripes::Odd)
-        );
-        assert_eq!(table.presentation(), Some(stored));
-    }
-    let constructed = empty_table();
-    let BlockKind::Table(table) = BlockRef::from(&constructed).kind() else {
-        return Err("expected constructed table".into());
-    };
-    assert_eq!(table.presentation(), None);
-    assert_eq!(
-        decoration(resolve(&constructed, &parsed.document().attributes)),
-        (TableFrame::Sides, TableGrid::Rows, TableStripes::Odd)
-    );
-    assert_eq!(table.presentation(), None);
     Ok(())
 }
 

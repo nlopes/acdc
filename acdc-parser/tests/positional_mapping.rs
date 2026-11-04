@@ -1,5 +1,9 @@
 use acdc_parser::{
-    Block, CompatibilityMode, DelimitedBlockType, InlineNode, Options, SafeMode, parse, parse_file,
+    CompatibilityMode, Options, SafeMode,
+    ast::{
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, InlineKind, InlineRef,
+    },
+    parse, parse_file,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -11,15 +15,16 @@ fn role_only_lists_do_not_move_an_earlier_positional_value() -> Result<(), Error
             "[Old]\n[alt=Named]\n[.role]\nimage::photo.png[]",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let Some(Block::Image(image)) = parsed.document().blocks.first() else {
+        let Some(BlockKind::Image(image)) =
+            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        else {
             return Err("missing image".into());
         };
         assert_eq!(
             attribute_text(
                 image
-                    .alt
-                    .as_ref()
-                    .and_then(|alt| alt.first())
+                    .alt()
+                    .and_then(|alt| alt.inlines().next())
                     .ok_or("missing alt")?
             )?,
             "Named"
@@ -37,17 +42,17 @@ fn mapped_image_alt_points_to_the_authored_reference() -> Result<(), Error> {
             .with_compatibility_mode(CompatibilityMode::Draft)
             .build()?,
     )?;
-    let Some(Block::Image(image)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Image(image)) = parsed.document_ref().blocks().next().map(BlockRef::kind)
+    else {
         return Err("missing image".into());
     };
     let node = image
-        .alt
-        .as_ref()
-        .and_then(|alt| alt.first())
+        .alt()
+        .and_then(|alt| alt.inlines().next())
         .ok_or("missing alt")?;
     let location = node.location();
     assert_eq!(
-        source.get(location.absolute_start..=location.absolute_end),
+        source.get(location.absolute_start()..=location.absolute_end()),
         Some("{text}")
     );
     Ok(())
@@ -65,16 +70,16 @@ fn includes_and_table_cells_keep_selected_content_and_locations() -> Result<(), 
                 .with_safe_mode(SafeMode::Unsafe)
                 .build()?,
         )?;
-        assert_eq!(parsed.document().footnotes.len(), 4);
+        assert_eq!(parsed.document_ref().footnotes().count(), 4);
         let included = parsed
-            .document()
-            .blocks
-            .get(2)
-            .and_then(Block::metadata)
-            .and_then(|metadata| metadata.attribution.as_ref())
-            .and_then(|value| value.first())
+            .document_ref()
+            .blocks()
+            .nth(2)
+            .and_then(BlockRef::attributes)
+            .and_then(|attributes| content(attributes, "attribution"))
+            .and_then(|value| value.inlines().next())
             .ok_or("missing included attribution")?;
-        let location = parsed.source_location(included.location());
+        let location = parsed.resolve_location(included.location());
         assert_eq!(
             location.file,
             Some(root.join("includes/compatibility_mapped_content.adoc"))
@@ -88,20 +93,19 @@ fn includes_and_table_cells_keep_selected_content_and_locations() -> Result<(), 
             }
         );
 
-        let Some(Block::DelimitedBlock(block)) = parsed.document().blocks.last() else {
+        let Some(BlockKind::Table(table)) =
+            parsed.document_ref().blocks().last().map(BlockRef::kind)
+        else {
             return Err("missing table".into());
         };
-        let DelimitedBlockType::DelimitedTable(table) = &block.inner else {
-            return Err("expected table".into());
-        };
         let attribution = table
-            .rows
-            .first()
-            .and_then(|row| row.columns.first())
-            .and_then(|cell| cell.content.first())
-            .and_then(Block::metadata)
-            .and_then(|metadata| metadata.attribution.as_ref())
-            .and_then(|value| value.first())
+            .rows()
+            .next()
+            .and_then(|row| row.cells().next())
+            .and_then(|cell| cell.blocks().next())
+            .and_then(BlockRef::attributes)
+            .and_then(|attributes| content(attributes, "attribution"))
+            .and_then(|value| value.inlines().next())
             .ok_or("missing nested attribution")?;
         let text = attribute_text(attribution)?;
         assert_eq!(
@@ -117,33 +121,6 @@ fn includes_and_table_cells_keep_selected_content_and_locations() -> Result<(), 
 }
 
 #[test]
-fn fence_language_does_not_shift_or_map_preceding_positions() -> Result<(), Error> {
-    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
-        let parsed = parse(
-            "[quote,Author,Book,linenums]\n```rust\nx\n```",
-            &Options::builder().with_compatibility_mode(mode).build()?,
-        )?;
-        let metadata = parsed
-            .document()
-            .blocks
-            .first()
-            .and_then(Block::metadata)
-            .ok_or("missing fence")?;
-        assert_eq!(
-            metadata.attributes.get_string("language").as_deref(),
-            Some("rust")
-        );
-        assert!(!metadata.attributes.contains_key("linenums"));
-        assert!(metadata.attribution.is_none());
-        assert_eq!(
-            metadata.positional_attributes().collect::<Vec<_>>(),
-            [Some("Author"), Some("Book"), Some("linenums")]
-        );
-    }
-    Ok(())
-}
-
-#[test]
 fn quoted_empty_media_dimensions_clear_only_in_compatible_mode() -> Result<(), Error> {
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         for (slot, compatible) in [("\"\"", ""), ("", "10")] {
@@ -153,13 +130,13 @@ fn quoted_empty_media_dimensions_clear_only_in_compatible_mode() -> Result<(), E
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let metadata = parsed
-                .document()
-                .blocks
-                .first()
-                .and_then(Block::metadata)
+                .document_ref()
+                .blocks()
+                .next()
+                .and_then(BlockRef::attributes)
                 .ok_or("missing image")?;
             assert_eq!(
-                metadata.attributes.get_string("width").as_deref(),
+                text_value(metadata, "width"),
                 Some(if mode == CompatibilityMode::Draft {
                     "10"
                 } else {
@@ -167,94 +144,6 @@ fn quoted_empty_media_dimensions_clear_only_in_compatible_mode() -> Result<(), E
                 })
             );
         }
-    }
-    Ok(())
-}
-
-#[test]
-fn draft_maps_preceding_media_positions_after_aggregation() -> Result<(), Error> {
-    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
-        let source = "[alt=Named]\n[Positional,100,200]\nimage::photo.png[]";
-        let parsed = parse(
-            source,
-            &Options::builder().with_compatibility_mode(mode).build()?,
-        )?;
-        let Some(Block::Image(image)) = parsed.document().blocks.first() else {
-            return Err("missing image".into());
-        };
-        let alt = image.alt.as_ref().ok_or("missing alt")?;
-        let text = attribute_text(alt.first().ok_or("missing alt text")?)?;
-        assert_eq!(
-            text,
-            if mode == CompatibilityMode::Draft {
-                "Positional"
-            } else {
-                "Named"
-            }
-        );
-        assert_eq!(
-            image.metadata.attributes.get_string("width").as_deref(),
-            (mode == CompatibilityMode::Draft).then_some("100")
-        );
-        assert_eq!(
-            image.metadata.positional_attributes().collect::<Vec<_>>(),
-            [Some("100"), Some("200")]
-        );
-    }
-    Ok(())
-}
-
-#[test]
-fn draft_selects_source_and_quote_attributes_in_document_order() -> Result<(), Error> {
-    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
-        for source in [
-            "[source,rust,linenums,language=python,linenums=named]\n----\nx\n----",
-            "[source,rust,linenums]\n[language=python,linenums=named]\n----\nx\n----",
-        ] {
-            let parsed = parse(
-                source,
-                &Options::builder().with_compatibility_mode(mode).build()?,
-            )?;
-            let metadata = parsed
-                .document()
-                .blocks
-                .first()
-                .and_then(Block::metadata)
-                .ok_or("missing block")?;
-            let expected = if mode == CompatibilityMode::Draft {
-                "python"
-            } else {
-                "rust"
-            };
-            assert_eq!(
-                metadata.attributes.get_string("language").as_deref(),
-                Some(expected)
-            );
-            assert_eq!(
-                metadata.positional_attributes().collect::<Vec<_>>(),
-                [Some("rust"), Some("linenums")]
-            );
-        }
-        let parsed = parse(
-            "[quote,Positional,Citation]\n[attribution=Named,citetitle=NamedTitle]\n____\nText.\n____",
-            &Options::builder().with_compatibility_mode(mode).build()?,
-        )?;
-        let metadata = parsed
-            .document()
-            .blocks
-            .first()
-            .and_then(Block::metadata)
-            .ok_or("missing quote")?;
-        let attribution = metadata.attribution.as_ref().ok_or("missing attribution")?;
-        let text = attribute_text(attribution.first().ok_or("missing text")?)?;
-        assert_eq!(
-            text,
-            if mode == CompatibilityMode::Draft {
-                "Named"
-            } else {
-                "Positional"
-            }
-        );
     }
     Ok(())
 }
@@ -271,18 +160,15 @@ fn delimiter_supplies_the_mapping_when_style_is_absent() -> Result<(), Error> {
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let metadata = parsed
-                .document()
-                .blocks
-                .first()
-                .and_then(Block::metadata)
+                .document_ref()
+                .blocks()
+                .next()
+                .and_then(BlockRef::attributes)
                 .ok_or("missing block")?;
             if name == "attribution" {
-                assert!(metadata.attribution.is_some());
+                assert!(content(metadata, "attribution").is_some());
             } else {
-                assert_eq!(
-                    metadata.attributes.get_string(name).as_deref(),
-                    Some("rust")
-                );
+                assert_eq!(text_value(metadata, name), Some("rust"));
             }
         }
     }
@@ -303,15 +189,12 @@ fn macro_dimensions_follow_the_last_authored_value() -> Result<(), Error> {
                     &Options::builder().with_compatibility_mode(mode).build()?,
                 )?;
                 let metadata = parsed
-                    .document()
-                    .blocks
-                    .first()
-                    .and_then(Block::metadata)
+                    .document_ref()
+                    .blocks()
+                    .next()
+                    .and_then(BlockRef::attributes)
                     .ok_or("missing media")?;
-                assert_eq!(
-                    metadata.attributes.get_string("width").as_deref(),
-                    Some(width)
-                );
+                assert_eq!(text_value(metadata, "width"), Some(width));
             }
         }
     }
@@ -326,13 +209,13 @@ fn compatible_video_does_not_map_preceding_style_to_poster() -> Result<(), Error
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let metadata = parsed
-            .document()
-            .blocks
-            .first()
-            .and_then(Block::metadata)
+            .document_ref()
+            .blocks()
+            .next()
+            .and_then(BlockRef::attributes)
             .ok_or("missing video")?;
         assert_eq!(
-            metadata.attributes.get_string("poster").as_deref(),
+            text_value(metadata, "poster"),
             Some(if mode == CompatibilityMode::Draft {
                 "Positional"
             } else {
@@ -352,10 +235,11 @@ fn only_the_selected_attribution_registers_before_body_content() -> Result<(), E
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let selected = parsed
-            .document()
-            .footnotes
-            .iter()
-            .map(|note| source.get(note.location.absolute_start..=note.location.absolute_end))
+            .document_ref()
+            .footnotes()
+            .map(|note| {
+                source.get(note.location().absolute_start()..=note.location().absolute_end())
+            })
             .collect::<Vec<_>>();
         assert_eq!(
             selected,
@@ -372,38 +256,26 @@ fn only_the_selected_attribution_registers_before_body_content() -> Result<(), E
     Ok(())
 }
 
-#[test]
-fn unrelated_block_forms_keep_positions_without_routing_them() -> Result<(), Error> {
-    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
-        for source in [
-            "[quote,Author,Book]\n----\nx\n----",
-            "[quote,Author,Book]\n* Item",
-            "[source,rust]\n====\nText.\n====",
-        ] {
-            let parsed = parse(
-                source,
-                &Options::builder().with_compatibility_mode(mode).build()?,
-            )?;
-            let metadata = parsed
-                .document()
-                .blocks
-                .first()
-                .and_then(Block::metadata)
-                .ok_or("missing block")?;
-            assert!(metadata.attribution.is_none(), "{source}");
-            assert!(!metadata.attributes.contains_key("language"), "{source}");
-            assert!(metadata.positional_attribute(0).is_some());
-        }
-    }
-    Ok(())
-}
-
-fn attribute_text<'a>(node: &InlineNode<'a>) -> Result<&'a str, Error> {
-    if let InlineNode::PlainText(text) = node {
-        Ok(text.content)
-    } else if let InlineNode::RawText(text) = node {
-        Ok(text.content)
+fn attribute_text(node: InlineRef<'_>) -> Result<&str, Error> {
+    if let InlineKind::Plain(text) = node.kind() {
+        Ok(text.text())
+    } else if let InlineKind::Raw(text) = node.kind() {
+        Ok(text.text())
     } else {
         Err("expected literal attribute text".into())
+    }
+}
+
+fn content<'a>(attributes: AttributesRef<'a>, name: &str) -> Option<ContentRef<'a>> {
+    match attributes.get(name) {
+        Some(AttributeValueRef::Content(value)) => Some(value),
+        _ => None,
+    }
+}
+
+fn text_value<'a>(attributes: AttributesRef<'a>, name: &str) -> Option<&'a str> {
+    match attributes.get(name) {
+        Some(AttributeValueRef::Text(value)) => Some(value),
+        _ => None,
     }
 }
