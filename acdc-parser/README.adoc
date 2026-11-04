@@ -477,6 +477,12 @@ Native JSON uses the same node form for an index term and its enclosing inline n
 == Native AST JSON
 
 Native JSON preserves acdc's model; it is not a claim of ASG conformance.
+
+Run `cargo run -p acdc-parser --example asg_schema_audit --all-features --locked --offline`
+from the workspace root for an offline shape audit against the pinned upstream
+schema. It does not rewrite fixtures or export native JSON as ASG. The report
+separates schema failures from invalid or unavailable source locations.
+
 An inline macro uses the same node shape when serialized directly, through its
 concrete owner, or inside an `InlineNode`. Mail links retain unencoded `subject`
 and `body` values, including explicit empty strings. An angle-bracketed autolink

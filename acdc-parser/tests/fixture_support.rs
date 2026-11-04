@@ -344,3 +344,49 @@ fn setext_fixtures_require_mode_partners_in_every_build() -> Result<(), Error> {
     }
     Ok(())
 }
+
+#[test]
+fn discovery_rejects_orphan_expectations() -> Result<(), Error> {
+    for name in [
+        "orphan.json",
+        "orphan.error",
+        "nested/orphan.asciidoctor.json",
+        "orphan.draft.diagnostics.json",
+    ] {
+        let dir = tempfile::tempdir()?;
+        write(dir.path(), name, "{}")?;
+        assert!(discover_sources(dir.path()).is_err(), "{name}");
+    }
+    Ok(())
+}
+
+#[test]
+fn discovery_accepts_owned_expectations_and_ignores_include_support() -> Result<(), Error> {
+    let dir = tempfile::tempdir()?;
+    write(dir.path(), "nested/café.adoc", "Body.")?;
+    write(dir.path(), "nested/café.asciidoctor.json", "{}")?;
+    write(dir.path(), "nested/café.draft.error", "error")?;
+    write(dir.path(), "nested/café.draft.diagnostics.json", "{}")?;
+    write(dir.path(), "includes/support.json", "{}")?;
+    assert_eq!(
+        discover_sources(dir.path())?,
+        [dir.path().join("nested/café.adoc")]
+    );
+    Ok(())
+}
+
+#[test]
+fn fixture_names_can_end_in_variant_and_diagnostic_words() -> Result<(), Error> {
+    let dir = tempfile::tempdir()?;
+    for name in [
+        "case.draft",
+        "case.asciidoctor",
+        "case.diagnostics",
+        "case.v1",
+    ] {
+        write(dir.path(), &format!("{name}.adoc"), "Body.")?;
+        write(dir.path(), &format!("{name}.json"), "{}")?;
+    }
+    assert_eq!(discover_sources(dir.path())?.len(), 4);
+    Ok(())
+}

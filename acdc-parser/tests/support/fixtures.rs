@@ -92,6 +92,24 @@ pub fn discover_sources(root: &Path) -> Result<Vec<PathBuf>, Error> {
             .is_some_and(|extension| extension == "adoc")
         {
             sources.push(path);
+        } else if let Some(name) = path.file_name().and_then(|name| name.to_str()) {
+            let stems = [
+                name.strip_suffix(".json"),
+                name.strip_suffix(".error"),
+                name.strip_suffix(".diagnostics.json"),
+            ];
+            let is_expectation = stems.iter().any(Option::is_some);
+            let has_source = stems.into_iter().flatten().any(|stem| {
+                let without_mode = stem
+                    .strip_suffix(".asciidoctor")
+                    .or_else(|| stem.strip_suffix(".draft"));
+                std::iter::once(stem)
+                    .chain(without_mode)
+                    .any(|stem| path.with_file_name(format!("{stem}.adoc")).is_file())
+            });
+            if is_expectation && !has_source {
+                return Err(format!("orphan fixture expectation: {}", path.display()).into());
+            }
         }
     }
     sources.sort();

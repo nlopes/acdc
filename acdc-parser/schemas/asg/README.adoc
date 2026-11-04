@@ -1,0 +1,90 @@
+= Pinned ASG schema and model inventory
+
+`schema.json` is an unchanged copy of the AsciiDoc ASG draft at
+https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4/asg/schema.json[revision 68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4].
+Its identifier is `https://schemas.asciidoc.org/asg/1-0-0/draft-01`.
+Its SHA-256 is `61fc73c612d7fe79e795dc0db2fd8bf8393d146dfcc8815fa7feca864f769675`;
+its upstream Git blob is `71f41d7b02675c14c9b298b53e85f737a26bf19c`.
+The identifier alone does not pin its contents.
+The accompanying `LICENSE-EPL-2.0` and `NOTICE.adoc` come from the same revision.
+The Rust audit code uses the crate's normal license.
+
+== Run the audit
+
+From the workspace root:
+
+[source,console]
+----
+cargo run -p acdc-parser --example asg_schema_audit --all-features --locked --offline
+----
+
+The command writes a JSON report to stdout and never rewrites fixtures.
+It checks the schema pin, validator controls, fixture pairing, every native
+JSON expectation, and locations throughout the tree, including unsupported
+nodes. Parser diagnostics are separate expectations and are not treated as ASTs.
+Supporting files under `includes/` are excluded from fixture discovery.
+Every outcome or diagnostic expectation needs an owning `.adoc` source.
+There are no orphan exceptions; the former empty `document_title.json` was removed.
+
+A native audit exits successfully when it completes, even when native values
+do not fit the ASG schema. Read `counts`, each file's `schema_errors`, and
+`location_findings`. These are native-format observations, not successful ASG
+exports or AsciiDoc conformance results. File names are relative to the fixture
+root. An unreadable file or invalid fixture layout fails the command.
+Use `--fixtures DIR` to audit a different fixture directory.
+
+To validate supplied ASG JSON, add `--validate FILE...` after `--`.
+This mode exits unsuccessfully if any supplied file is invalid JSON or fails
+schema validation. Errors include both instance and schema JSON Pointer paths.
+Validation does not fetch a moving schema or enable HTTP reference retrieval.
+The validator reads the exact vendored bytes. The schema's `defaults` annotations
+do not insert values or change the input.
+
+The controls include a formatted title, a structurally invalid title, an unknown
+property, and a schema-valid title with deliberately wrong text. The last case
+shows why schema validation cannot prove that an exporter preserved meaning.
+
+== Read the inventory
+
+`support-inventory.json` lists every top-level backing-model struct, enum
+variant and payload, and alias. This includes nonserialized semantic properties
+and separately classified parser/source helpers. A test compares its declaration
+and field coverage with the current Rust sources. The inventory is an internal
+mapping record, not a promise about public AST storage or a checked export API.
+Shared policies are defined once; each property names its policy and any upstream
+schema location.
+
+[cols="1,3",options="header"]
+|===
+|Classification |Meaning
+|`mapping-candidate` |The schema has a possible representation. The owner and every nested semantic value still need a tested, lossless mapping.
+|`context-dependent` |Representation depends on the owner, form, presence, or effective controls. Preserve the meaning or reject it.
+|`reject` |No lossless upstream representation is established. This applies at any nesting depth.
+|`source-only` |Source spelling or temporary parser state can be omitted after its meaning and permitted provenance are preserved.
+|`derived-check` |A catalog can be omitted only when supported exported owners retain everything needed to reconstruct it. Otherwise reject it.
+|===
+
+A compatible child or metadata field does not make an unsupported owner
+representable. Block titles and reference text have inline-array fields in the
+schema. Formatted attribution, citation, caption, alternative text, and tooltips
+must not be flattened into metadata strings just to pass validation.
+Inline images, icons, UI macros, footnotes, index terms, tables, several span
+variants, inline identity/controls, and ordered body assignments need explicit
+support or rejection. Delimited admonitions have a schema form; paragraph
+admonitions must not acquire an invented delimiter.
+
+Block positional slots must come from the authoritative owner, including gaps
+and empty values. Native JSON can omit those slots and other semantic state;
+serializing native JSON and rewriting it is not a complete export strategy.
+Export must not expand attributes, parse strings again, register macros, or run
+a converter. Missing and empty values remain distinct where they carry meaning.
+
+The location audit checks every serialized location and reports nodes without
+one. An unavailable optional location can be omitted by an exporter; a required
+unknown location must fail export. Never invent line zero or replace it with
+one. Line/column validation does not prove original byte-offset correctness,
+include-chain fidelity, or correct source attachment.
+
+Changes to this schema pin require a reviewed mapping and new validator controls.
+Keep extension schemas separately named and versioned; do not edit the upstream
+schema to make native JSON pass.

@@ -1,0 +1,5341 @@
+{
+  "format_version": 1,
+  "schema_revision": "68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4",
+  "schema_sha256": "61fc73c612d7fe79e795dc0db2fd8bf8393d146dfcc8815fa7feca864f769675",
+  "scope": "All top-level backing-model structs, enum variants/payloads, and aliases, including nonserialized semantic fields and explicitly classified parser/source helpers. Mapping candidates are not implemented strict-export coverage.",
+  "types": {
+    "src/model/admonition.rs::Admonition": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "metadata",
+          "variant",
+          "blocks",
+          "title",
+          "location",
+          "paragraph_form"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "delimited-admonitions-have-an-upstream-parent-block",
+        "upstream": "#/$defs/parentBlock"
+      },
+      "properties": {
+        "metadata": {
+          "policy": "use-block-metadata-only-where-the-owning",
+          "upstream": "#/$defs/blockMetadata"
+        },
+        "variant": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/parentBlock"
+        },
+        "blocks": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/parentBlock/properties/blocks"
+        },
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        },
+        "paragraph_form": {
+          "policy": "only-an-authored-delimited-form-has-an"
+        }
+      }
+    },
+    "src/model/admonition.rs::AdmonitionVariant": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Caution": [],
+          "Important": [],
+          "Note": [],
+          "Tip": [],
+          "Warning": []
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/parentBlock"
+      },
+      "properties": {
+        "variant:Caution": {
+          "policy": "candidate",
+          "upstream": "#/$defs/parentBlock"
+        },
+        "variant:Important": {
+          "policy": "candidate",
+          "upstream": "#/$defs/parentBlock"
+        },
+        "variant:Note": {
+          "policy": "candidate",
+          "upstream": "#/$defs/parentBlock"
+        },
+        "variant:Tip": {
+          "policy": "candidate",
+          "upstream": "#/$defs/parentBlock"
+        },
+        "variant:Warning": {
+          "policy": "candidate",
+          "upstream": "#/$defs/parentBlock"
+        }
+      }
+    },
+    "src/model/anchor.rs::Anchor": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "id",
+          "xreflabel",
+          "location",
+          "reftext_source",
+          "bibliography",
+          "bibliography_label"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "id": {
+          "policy": "block-id-reftext-promotion-does-not-cover"
+        },
+        "xreflabel": {
+          "policy": "block-id-reftext-promotion-does-not-cover"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        },
+        "reftext_source": {
+          "policy": "source-state"
+        },
+        "bibliography": {
+          "policy": "block-id-reftext-promotion-does-not-cover"
+        },
+        "bibliography_label": {
+          "policy": "block-id-reftext-promotion-does-not-cover"
+        }
+      }
+    },
+    "src/model/anchor.rs::BibliographyLabel": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "source",
+          "content"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "source": {
+          "policy": "block-id-reftext-promotion-does-not-cover"
+        },
+        "content": {
+          "policy": "block-id-reftext-promotion-does-not-cover"
+        }
+      }
+    },
+    "src/model/anchor.rs::Reference": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "xreflabel",
+          "title",
+          "location",
+          "caption",
+          "section",
+          "bibliography",
+          "automatic_citation"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "derived-catalog"
+      },
+      "properties": {
+        "xreflabel": {
+          "policy": "derived-catalog"
+        },
+        "title": {
+          "policy": "derived-catalog"
+        },
+        "location": {
+          "policy": "derived-catalog"
+        },
+        "caption": {
+          "policy": "derived-catalog"
+        },
+        "section": {
+          "policy": "derived-catalog"
+        },
+        "bibliography": {
+          "policy": "derived-catalog"
+        },
+        "automatic_citation": {
+          "policy": "derived-catalog"
+        }
+      }
+    },
+    "src/model/anchor.rs::SectionReference": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "name",
+          "number"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "derived-catalog"
+      },
+      "properties": {
+        "name": {
+          "policy": "derived-catalog"
+        },
+        "number": {
+          "policy": "derived-catalog"
+        }
+      }
+    },
+    "src/model/anchor.rs::TocEntry": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "id",
+          "title",
+          "level",
+          "xreflabel",
+          "kind",
+          "number",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "derived-catalog"
+      },
+      "properties": {
+        "id": {
+          "policy": "derived-catalog"
+        },
+        "title": {
+          "policy": "derived-catalog"
+        },
+        "level": {
+          "policy": "derived-catalog"
+        },
+        "xreflabel": {
+          "policy": "derived-catalog"
+        },
+        "kind": {
+          "policy": "derived-catalog"
+        },
+        "number": {
+          "policy": "derived-catalog"
+        },
+        "location": {
+          "policy": "derived-catalog"
+        }
+      }
+    },
+    "src/model/attributes.rs::AttributeInlineFragment": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "range",
+          "substitutions",
+          "source"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "range": {
+          "policy": "source-state"
+        },
+        "substitutions": {
+          "policy": "source-state"
+        },
+        "source": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/attributes.rs::AttributeInlineSource": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "text",
+          "references"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "text": {
+          "policy": "source-state"
+        },
+        "references": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/attributes.rs::AttributeName": {
+      "shape": {
+        "kind": "alias",
+        "fields": [],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/blockMetadata/properties/attributes"
+      },
+      "properties": {}
+    },
+    "src/model/attributes.rs::AttributeValue": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Bool": [
+            "0"
+          ],
+          "None": [],
+          "String": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/blockMetadata/properties/attributes"
+      },
+      "properties": {
+        "variant:Bool": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "Bool.0": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "variant:None": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "variant:String": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "String.0": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        }
+      }
+    },
+    "src/model/attributes.rs::DocumentAttributeAssignment": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Set": [
+            "0"
+          ],
+          "Unset": []
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/properties/attributes"
+      },
+      "properties": {
+        "variant:Set": {
+          "policy": "candidate",
+          "upstream": "#/properties/attributes"
+        },
+        "Set.0": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/properties/attributes"
+        },
+        "variant:Unset": {
+          "policy": "candidate",
+          "upstream": "#/properties/attributes"
+        }
+      }
+    },
+    "src/model/attributes.rs::DocumentAttributeStatus": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Absent": [],
+          "Set": [
+            "0"
+          ],
+          "Unset": []
+        }
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "variant:Absent": {
+          "policy": "source-state"
+        },
+        "variant:Set": {
+          "policy": "source-state"
+        },
+        "Set.0": {
+          "policy": "source-state"
+        },
+        "variant:Unset": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/attributes.rs::DocumentAttributeValue": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/properties/attributes"
+      },
+      "properties": {
+        "0": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/properties/attributes"
+        }
+      }
+    },
+    "src/model/attributes.rs::DocumentAttributes": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "entries",
+          "base",
+          "entry_filter"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/properties/attributes"
+      },
+      "properties": {
+        "entries": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/properties/attributes"
+        },
+        "base": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/properties/attributes"
+        },
+        "entry_filter": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/properties/attributes"
+        }
+      }
+    },
+    "src/model/attributes.rs::ElementAttributes": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/blockMetadata/properties/attributes"
+      },
+      "properties": {
+        "0": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        }
+      }
+    },
+    "src/model/attributes.rs::EntryFilter": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "lower",
+          "upper"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "lower": {
+          "policy": "source-state"
+        },
+        "upper": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/attributes.rs::RawAttributes": {
+      "shape": {
+        "kind": "alias",
+        "fields": [],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {}
+    },
+    "src/model/attributes.rs::SerializedDocumentAttributeValue": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Bool": [
+            "0"
+          ],
+          "Integer": [
+            "0"
+          ],
+          "Text": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "variant:Bool": {
+          "policy": "source-state"
+        },
+        "Bool.0": {
+          "policy": "source-state"
+        },
+        "variant:Integer": {
+          "policy": "source-state"
+        },
+        "Integer.0": {
+          "policy": "source-state"
+        },
+        "variant:Text": {
+          "policy": "source-state"
+        },
+        "Text.0": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/attributes.rs::StoredAssignment": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "assignment",
+          "state"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "assignment": {
+          "policy": "source-state"
+        },
+        "state": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/attributes.rs::ValueKind": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Integer": [
+            "value",
+            "source"
+          ],
+          "Passthrough": [
+            "text",
+            "ranges",
+            "fragments"
+          ],
+          "Presence": [],
+          "Text": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/properties/attributes"
+      },
+      "properties": {
+        "variant:Integer": {
+          "policy": "candidate",
+          "upstream": "#/properties/attributes"
+        },
+        "Integer.value": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/properties/attributes"
+        },
+        "Integer.source": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/properties/attributes"
+        },
+        "variant:Passthrough": {
+          "policy": "candidate",
+          "upstream": "#/properties/attributes"
+        },
+        "Passthrough.text": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/properties/attributes"
+        },
+        "Passthrough.ranges": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/properties/attributes"
+        },
+        "Passthrough.fragments": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/properties/attributes"
+        },
+        "variant:Presence": {
+          "policy": "candidate",
+          "upstream": "#/properties/attributes"
+        },
+        "variant:Text": {
+          "policy": "candidate",
+          "upstream": "#/properties/attributes"
+        },
+        "Text.0": {
+          "policy": "use-effective-semantic-values-and-exact-textual",
+          "upstream": "#/properties/attributes"
+        }
+      }
+    },
+    "src/model/attribution.rs::Attribution": {
+      "shape": {
+        "kind": "alias",
+        "fields": [],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "parsed-caption-attribution-citation-content-has-no"
+      },
+      "properties": {}
+    },
+    "src/model/attribution.rs::CiteTitle": {
+      "shape": {
+        "kind": "alias",
+        "fields": [],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "parsed-caption-attribution-citation-content-has-no"
+      },
+      "properties": {}
+    },
+    "src/model/caption.rs::Caption": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Custom": [
+            "0"
+          ],
+          "CustomContent": [
+            "0"
+          ],
+          "Numbered": [
+            "kind",
+            "label",
+            "number"
+          ],
+          "Unnumbered": []
+        }
+      },
+      "representation": {
+        "policy": "parsed-caption-attribution-citation-content-has-no"
+      },
+      "properties": {
+        "variant:Custom": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "Custom.0": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "variant:CustomContent": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "CustomContent.0": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "variant:Numbered": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "Numbered.kind": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "Numbered.label": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "Numbered.number": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "variant:Unnumbered": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        }
+      }
+    },
+    "src/model/caption.rs::CaptionCounters": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "example",
+          "figure",
+          "listing",
+          "table"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "example": {
+          "policy": "source-state"
+        },
+        "figure": {
+          "policy": "source-state"
+        },
+        "listing": {
+          "policy": "source-state"
+        },
+        "table": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/caption.rs::CaptionKind": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Example": [],
+          "Figure": [],
+          "Listing": [],
+          "Table": []
+        }
+      },
+      "representation": {
+        "policy": "parsed-caption-attribution-citation-content-has-no"
+      },
+      "properties": {
+        "variant:Example": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "variant:Figure": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "variant:Listing": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "variant:Table": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        }
+      }
+    },
+    "src/model/caption.rs::CaptionSource": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Custom": [
+            "0"
+          ],
+          "None": [],
+          "Numbered": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "variant:Custom": {
+          "policy": "source-state"
+        },
+        "Custom.0": {
+          "policy": "source-state"
+        },
+        "variant:None": {
+          "policy": "source-state"
+        },
+        "variant:Numbered": {
+          "policy": "source-state"
+        },
+        "Numbered.0": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/content_attribute.rs::ContentAttribute": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlines"
+      },
+      "properties": {
+        "0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlines"
+        }
+      }
+    },
+    "src/model/content_attribute.rs::PendingContentAttribute": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "source",
+          "input",
+          "mode"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "source": {
+          "policy": "source-state"
+        },
+        "input": {
+          "policy": "source-state"
+        },
+        "mode": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/inlines/hyperlinks.rs::Link": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "tooltip",
+          "text",
+          "target",
+          "metadata",
+          "macro_attributes",
+          "location",
+          "hide_uri_scheme"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineRef"
+      },
+      "properties": {
+        "tooltip": {
+          "policy": "alternative-text-and-tooltips-own-parsed-inline"
+        },
+        "text": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractParentInline/properties/inlines"
+        },
+        "target": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/inlineRef/properties/target"
+        },
+        "metadata": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        },
+        "macro_attributes": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        },
+        "hide_uri_scheme": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        }
+      }
+    },
+    "src/model/inlines/hyperlinks.rs::Mailto": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "tooltip",
+          "text",
+          "target",
+          "subject",
+          "body",
+          "metadata",
+          "macro_attributes",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineRef"
+      },
+      "properties": {
+        "tooltip": {
+          "policy": "alternative-text-and-tooltips-own-parsed-inline"
+        },
+        "text": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractParentInline/properties/inlines"
+        },
+        "target": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/inlineRef/properties/target"
+        },
+        "subject": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        },
+        "body": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        },
+        "metadata": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        },
+        "macro_attributes": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/hyperlinks.rs::Url": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "tooltip",
+          "text",
+          "target",
+          "metadata",
+          "macro_attributes",
+          "location",
+          "hide_uri_scheme"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineRef"
+      },
+      "properties": {
+        "tooltip": {
+          "policy": "alternative-text-and-tooltips-own-parsed-inline"
+        },
+        "text": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractParentInline/properties/inlines"
+        },
+        "target": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/inlineRef/properties/target"
+        },
+        "metadata": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        },
+        "macro_attributes": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        },
+        "hide_uri_scheme": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        }
+      }
+    },
+    "src/model/inlines/icon.rs::Icon": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "alt",
+          "tooltip",
+          "target",
+          "metadata",
+          "macro_attributes",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "alt": {
+          "policy": "alternative-text-and-tooltips-own-parsed-inline"
+        },
+        "tooltip": {
+          "policy": "alternative-text-and-tooltips-own-parsed-inline"
+        },
+        "target": {
+          "policy": "unsupported"
+        },
+        "metadata": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        },
+        "macro_attributes": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::Autolink": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "url",
+          "bracketed",
+          "location",
+          "hide_uri_scheme"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineRef"
+      },
+      "properties": {
+        "url": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        },
+        "bracketed": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        },
+        "hide_uri_scheme": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::Button": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "label",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "label": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::CrossReference": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "target",
+          "target_is_local",
+          "text",
+          "location",
+          "xrefstyle",
+          "caption_label",
+          "signifier",
+          "section_signifiers",
+          "metadata",
+          "macro_attributes",
+          "caption_label_snapshot_id",
+          "resolve_natural_target",
+          "source_syntax"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineRef"
+      },
+      "properties": {
+        "target": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/inlineRef/properties/target"
+        },
+        "target_is_local": {
+          "policy": "the-effective-control-remains-semantic-even-if"
+        },
+        "text": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractParentInline/properties/inlines"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        },
+        "xrefstyle": {
+          "policy": "the-effective-control-remains-semantic-even-if"
+        },
+        "caption_label": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        },
+        "signifier": {
+          "policy": "the-effective-control-remains-semantic-even-if"
+        },
+        "section_signifiers": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        },
+        "metadata": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        },
+        "macro_attributes": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        },
+        "caption_label_snapshot_id": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        },
+        "resolve_natural_target": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        },
+        "source_syntax": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineRef"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::Footnote": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "definition_source",
+          "registration_substitutions",
+          "id",
+          "content",
+          "number",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "definition_source": {
+          "policy": "unsupported"
+        },
+        "registration_substitutions": {
+          "policy": "unsupported"
+        },
+        "id": {
+          "policy": "unsupported"
+        },
+        "content": {
+          "policy": "unsupported"
+        },
+        "number": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::IndexTerm": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "kind",
+          "relationship",
+          "catalog",
+          "catalog_substitutions",
+          "metadata",
+          "macro_attributes",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "kind": {
+          "policy": "unsupported"
+        },
+        "relationship": {
+          "policy": "unsupported"
+        },
+        "catalog": {
+          "policy": "unsupported"
+        },
+        "catalog_substitutions": {
+          "policy": "unsupported"
+        },
+        "metadata": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        },
+        "macro_attributes": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::IndexTermKind": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Concealed": [
+            "term",
+            "secondary",
+            "tertiary"
+          ],
+          "Flow": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:Concealed": {
+          "policy": "unsupported"
+        },
+        "Concealed.term": {
+          "policy": "unsupported"
+        },
+        "Concealed.secondary": {
+          "policy": "unsupported"
+        },
+        "Concealed.tertiary": {
+          "policy": "unsupported"
+        },
+        "variant:Flow": {
+          "policy": "unsupported"
+        },
+        "Flow.0": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::IndexTermRelationship": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "See": [
+            "target"
+          ],
+          "SeeAlso": [
+            "targets"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:See": {
+          "policy": "unsupported"
+        },
+        "See.target": {
+          "policy": "unsupported"
+        },
+        "variant:SeeAlso": {
+          "policy": "unsupported"
+        },
+        "SeeAlso.targets": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::Key": {
+      "shape": {
+        "kind": "alias",
+        "fields": [],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {}
+    },
+    "src/model/inlines/macros.rs::Keyboard": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "keys",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "keys": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::Menu": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "target",
+          "items",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "target": {
+          "policy": "unsupported"
+        },
+        "items": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::Pass": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "attribute_fragments",
+          "text",
+          "substitutions",
+          "location",
+          "kind"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "attribute_fragments": {
+          "policy": "unsupported"
+        },
+        "text": {
+          "policy": "unsupported"
+        },
+        "substitutions": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        },
+        "kind": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::PassthroughKind": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "AttributeRef": [],
+          "Double": [],
+          "Macro": [],
+          "Single": [],
+          "Triple": []
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:AttributeRef": {
+          "policy": "unsupported"
+        },
+        "variant:Double": {
+          "policy": "unsupported"
+        },
+        "variant:Macro": {
+          "policy": "unsupported"
+        },
+        "variant:Single": {
+          "policy": "unsupported"
+        },
+        "variant:Triple": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::Stem": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "content",
+          "notation",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "content": {
+          "policy": "unsupported"
+        },
+        "notation": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::XrefCaptionLabel": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "AtReference": [
+            "0"
+          ],
+          "AtTarget": [],
+          "NumberOnly": []
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:AtReference": {
+          "policy": "unsupported"
+        },
+        "AtReference.0": {
+          "policy": "unsupported"
+        },
+        "variant:AtTarget": {
+          "policy": "unsupported"
+        },
+        "variant:NumberOnly": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::XrefSignifier": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "AtReference": [
+            "0"
+          ],
+          "Omitted": [],
+          "Standard": []
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:AtReference": {
+          "policy": "unsupported"
+        },
+        "AtReference.0": {
+          "policy": "unsupported"
+        },
+        "variant:Omitted": {
+          "policy": "unsupported"
+        },
+        "variant:Standard": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::XrefSourceSyntax": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Literal": [],
+          "LocalFragment": [],
+          "Macro": [],
+          "Shorthand": []
+        }
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "variant:Literal": {
+          "policy": "source-state"
+        },
+        "variant:LocalFragment": {
+          "policy": "source-state"
+        },
+        "variant:Macro": {
+          "policy": "source-state"
+        },
+        "variant:Shorthand": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/inlines/macros.rs::XrefStyle": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Basic": [],
+          "Default": [],
+          "Full": [],
+          "Short": []
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:Basic": {
+          "policy": "unsupported"
+        },
+        "variant:Default": {
+          "policy": "unsupported"
+        },
+        "variant:Full": {
+          "policy": "unsupported"
+        },
+        "variant:Short": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/inlines/mod.rs::IndexCatalog": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "kind",
+          "relationship",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "derived-catalog"
+      },
+      "properties": {
+        "kind": {
+          "policy": "derived-catalog"
+        },
+        "relationship": {
+          "policy": "derived-catalog"
+        },
+        "location": {
+          "policy": "derived-catalog"
+        }
+      }
+    },
+    "src/model/inlines/mod.rs::InlineMacro": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Autolink": [
+            "0"
+          ],
+          "Button": [
+            "0"
+          ],
+          "CrossReference": [
+            "0"
+          ],
+          "Footnote": [
+            "0"
+          ],
+          "Icon": [
+            "0"
+          ],
+          "Image": [
+            "0"
+          ],
+          "IndexTerm": [
+            "0"
+          ],
+          "Keyboard": [
+            "0"
+          ],
+          "Link": [
+            "0"
+          ],
+          "Mailto": [
+            "0"
+          ],
+          "Menu": [
+            "0"
+          ],
+          "Pass": [
+            "0"
+          ],
+          "Stem": [
+            "0"
+          ],
+          "Url": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inline"
+      },
+      "properties": {
+        "variant:Autolink": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Autolink.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Button": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Button.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:CrossReference": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "CrossReference.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Footnote": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Footnote.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Icon": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Icon.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Image": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Image.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:IndexTerm": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "IndexTerm.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Keyboard": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Keyboard.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Link": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Link.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Mailto": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Mailto.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Menu": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Menu.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Pass": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Pass.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Stem": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Stem.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Url": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Url.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        }
+      }
+    },
+    "src/model/inlines/mod.rs::InlineNode": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "BoldText": [
+            "0"
+          ],
+          "CalloutRef": [
+            "0"
+          ],
+          "CurvedApostropheText": [
+            "0"
+          ],
+          "CurvedQuotationText": [
+            "0"
+          ],
+          "HighlightText": [
+            "0"
+          ],
+          "InlineAnchor": [
+            "0"
+          ],
+          "ItalicText": [
+            "0"
+          ],
+          "LineBreak": [
+            "0"
+          ],
+          "Macro": [
+            "0"
+          ],
+          "MonospaceText": [
+            "0"
+          ],
+          "PlainText": [
+            "0"
+          ],
+          "RawText": [
+            "0"
+          ],
+          "StandaloneCurvedApostrophe": [
+            "0"
+          ],
+          "SubscriptText": [
+            "0"
+          ],
+          "SuperscriptText": [
+            "0"
+          ],
+          "Symbol": [
+            "0"
+          ],
+          "VerbatimText": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inline"
+      },
+      "properties": {
+        "variant:BoldText": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "BoldText.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:CalloutRef": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "CalloutRef.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:CurvedApostropheText": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "CurvedApostropheText.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:CurvedQuotationText": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "CurvedQuotationText.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:HighlightText": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "HighlightText.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:InlineAnchor": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "InlineAnchor.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:ItalicText": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "ItalicText.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:LineBreak": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "LineBreak.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Macro": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Macro.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:MonospaceText": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "MonospaceText.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:PlainText": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "PlainText.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:RawText": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "RawText.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:StandaloneCurvedApostrophe": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "StandaloneCurvedApostrophe.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:SubscriptText": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "SubscriptText.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:SuperscriptText": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "SuperscriptText.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Symbol": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Symbol.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:VerbatimText": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "VerbatimText.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        }
+      }
+    },
+    "src/model/inlines/symbol.rs::Symbol": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "kind",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineLiteral"
+      },
+      "properties": {
+        "kind": {
+          "policy": "preserve-the-resolved-scalar-value-as-text",
+          "upstream": "#/$defs/inlineLiteral"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/symbol.rs::SymbolKind": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Copyright": [],
+          "CurvedApostrophe": [],
+          "Ellipsis": [],
+          "LeftArrow": [],
+          "LeftDoubleArrow": [],
+          "RegisteredTrademark": [],
+          "RightArrow": [],
+          "RightDoubleArrow": [],
+          "SpacedEmDash": [],
+          "Trademark": [],
+          "WordBoundedEmDash": []
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineLiteral/properties/value"
+      },
+      "properties": {
+        "variant:Copyright": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "variant:CurvedApostrophe": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "variant:Ellipsis": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "variant:LeftArrow": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "variant:LeftDoubleArrow": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "variant:RegisteredTrademark": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "variant:RightArrow": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "variant:RightDoubleArrow": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "variant:SpacedEmDash": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "variant:Trademark": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
+        "variant:WordBoundedEmDash": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::Bold": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "role",
+          "id",
+          "form",
+          "content",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineSpan"
+      },
+      "properties": {
+        "role": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineSpan"
+        },
+        "id": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineSpan"
+        },
+        "form": {
+          "policy": "preserve-constrained-unconstrained-form-without-re-reading",
+          "upstream": "#/$defs/inlineSpan/properties/form"
+        },
+        "content": {
+          "policy": "visit-supported-child-inlines-directly-a-supported",
+          "upstream": "#/$defs/inlines"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::CalloutRef": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "kind",
+          "number",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "kind": {
+          "policy": "unsupported"
+        },
+        "number": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::CalloutRefKind": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Auto": [],
+          "Explicit": []
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:Auto": {
+          "policy": "unsupported"
+        },
+        "variant:Explicit": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::CurvedApostrophe": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "role",
+          "id",
+          "form",
+          "content",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "role": {
+          "policy": "unsupported"
+        },
+        "id": {
+          "policy": "unsupported"
+        },
+        "form": {
+          "policy": "preserve-constrained-unconstrained-form-without-re-reading",
+          "upstream": "#/$defs/inlineSpan/properties/form"
+        },
+        "content": {
+          "policy": "visit-supported-child-inlines-directly-a-supported",
+          "upstream": "#/$defs/inlines"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::CurvedQuotation": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "role",
+          "id",
+          "form",
+          "content",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "role": {
+          "policy": "unsupported"
+        },
+        "id": {
+          "policy": "unsupported"
+        },
+        "form": {
+          "policy": "preserve-constrained-unconstrained-form-without-re-reading",
+          "upstream": "#/$defs/inlineSpan/properties/form"
+        },
+        "content": {
+          "policy": "visit-supported-child-inlines-directly-a-supported",
+          "upstream": "#/$defs/inlines"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::Form": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Constrained": [],
+          "Unconstrained": []
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineSpan/properties/form"
+      },
+      "properties": {
+        "variant:Constrained": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineSpan/properties/form"
+        },
+        "variant:Unconstrained": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineSpan/properties/form"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::Highlight": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "role",
+          "id",
+          "form",
+          "content",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineSpan"
+      },
+      "properties": {
+        "role": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineSpan"
+        },
+        "id": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineSpan"
+        },
+        "form": {
+          "policy": "preserve-constrained-unconstrained-form-without-re-reading",
+          "upstream": "#/$defs/inlineSpan/properties/form"
+        },
+        "content": {
+          "policy": "visit-supported-child-inlines-directly-a-supported",
+          "upstream": "#/$defs/inlines"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::Italic": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "role",
+          "id",
+          "form",
+          "content",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineSpan"
+      },
+      "properties": {
+        "role": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineSpan"
+        },
+        "id": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineSpan"
+        },
+        "form": {
+          "policy": "preserve-constrained-unconstrained-form-without-re-reading",
+          "upstream": "#/$defs/inlineSpan/properties/form"
+        },
+        "content": {
+          "policy": "visit-supported-child-inlines-directly-a-supported",
+          "upstream": "#/$defs/inlines"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::LineBreak": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::Monospace": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "role",
+          "id",
+          "form",
+          "content",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineSpan"
+      },
+      "properties": {
+        "role": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineSpan"
+        },
+        "id": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineSpan"
+        },
+        "form": {
+          "policy": "preserve-constrained-unconstrained-form-without-re-reading",
+          "upstream": "#/$defs/inlineSpan/properties/form"
+        },
+        "content": {
+          "policy": "visit-supported-child-inlines-directly-a-supported",
+          "upstream": "#/$defs/inlines"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::Plain": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "content",
+          "location",
+          "escaped"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineLiteral"
+      },
+      "properties": {
+        "content": {
+          "policy": "preserve-the-resolved-scalar-value-as-text",
+          "upstream": "#/$defs/inlineLiteral"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        },
+        "escaped": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineLiteral"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::Raw": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "content",
+          "location",
+          "subs"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineLiteral"
+      },
+      "properties": {
+        "content": {
+          "policy": "preserve-the-resolved-scalar-value-as-text",
+          "upstream": "#/$defs/inlineLiteral"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        },
+        "subs": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlineLiteral"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::StandaloneCurvedApostrophe": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineLiteral"
+      },
+      "properties": {
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::Subscript": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "role",
+          "id",
+          "form",
+          "content",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "role": {
+          "policy": "unsupported"
+        },
+        "id": {
+          "policy": "unsupported"
+        },
+        "form": {
+          "policy": "preserve-constrained-unconstrained-form-without-re-reading",
+          "upstream": "#/$defs/inlineSpan/properties/form"
+        },
+        "content": {
+          "policy": "visit-supported-child-inlines-directly-a-supported",
+          "upstream": "#/$defs/inlines"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::Superscript": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "role",
+          "id",
+          "form",
+          "content",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "role": {
+          "policy": "unsupported"
+        },
+        "id": {
+          "policy": "unsupported"
+        },
+        "form": {
+          "policy": "preserve-constrained-unconstrained-form-without-re-reading",
+          "upstream": "#/$defs/inlineSpan/properties/form"
+        },
+        "content": {
+          "policy": "visit-supported-child-inlines-directly-a-supported",
+          "upstream": "#/$defs/inlines"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/inlines/text.rs::Verbatim": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "content",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlineLiteral"
+      },
+      "properties": {
+        "content": {
+          "policy": "preserve-the-resolved-scalar-value-as-text",
+          "upstream": "#/$defs/inlineLiteral"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/lists.rs::CalloutList": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "title",
+          "metadata",
+          "items",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/list"
+      },
+      "properties": {
+        "title": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "metadata": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        },
+        "items": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/list/properties/items"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/lists.rs::CalloutListItem": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "callout",
+          "principal",
+          "blocks",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/listItem"
+      },
+      "properties": {
+        "callout": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/listItem"
+        },
+        "principal": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractListItem/properties/principal"
+        },
+        "blocks": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractListItem/properties/blocks"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/lists.rs::DescriptionList": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "title",
+          "metadata",
+          "items",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/dlist"
+      },
+      "properties": {
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "metadata": {
+          "policy": "use-block-metadata-only-where-the-owning",
+          "upstream": "#/$defs/blockMetadata"
+        },
+        "items": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/dlist/properties/items"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/lists.rs::DescriptionListItem": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "anchors",
+          "term",
+          "delimiter",
+          "delimiter_location",
+          "principal_text",
+          "description",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/dlistItem"
+      },
+      "properties": {
+        "anchors": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/dlistItem"
+        },
+        "term": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/dlistItem"
+        },
+        "delimiter": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/dlistItem"
+        },
+        "delimiter_location": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/dlistItem"
+        },
+        "principal_text": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/dlistItem"
+        },
+        "description": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/dlistItem"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/lists.rs::ListItem": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "level",
+          "marker",
+          "checked",
+          "principal",
+          "blocks",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/listItem"
+      },
+      "properties": {
+        "level": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/listItem"
+        },
+        "marker": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractListItem/properties/marker"
+        },
+        "checked": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/listItem"
+        },
+        "principal": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractListItem/properties/principal"
+        },
+        "blocks": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractListItem/properties/blocks"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/lists.rs::ListItemCheckedStatus": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Checked": [],
+          "Unchecked": []
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:Checked": {
+          "policy": "unsupported"
+        },
+        "variant:Unchecked": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/lists.rs::ListLevel": {
+      "shape": {
+        "kind": "alias",
+        "fields": [],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/list"
+      },
+      "properties": {}
+    },
+    "src/model/lists.rs::OrderedList": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "title",
+          "metadata",
+          "items",
+          "marker",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/list"
+      },
+      "properties": {
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "metadata": {
+          "policy": "use-block-metadata-only-where-the-owning",
+          "upstream": "#/$defs/blockMetadata"
+        },
+        "items": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/list/properties/items"
+        },
+        "marker": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/list/properties/marker"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/lists.rs::UnorderedList": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "title",
+          "metadata",
+          "items",
+          "marker",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/list"
+      },
+      "properties": {
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "metadata": {
+          "policy": "use-block-metadata-only-where-the-owning",
+          "upstream": "#/$defs/blockMetadata"
+        },
+        "items": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/list/properties/items"
+        },
+        "marker": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/list/properties/marker"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/location.rs::LeveloffsetRange": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "start_offset",
+          "end_offset",
+          "value"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "start_offset": {
+          "policy": "source-state"
+        },
+        "end_offset": {
+          "policy": "source-state"
+        },
+        "value": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/location.rs::Location": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "absolute_start",
+          "absolute_end",
+          "start",
+          "end"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/location"
+      },
+      "properties": {
+        "absolute_start": {
+          "policy": "upstream-locations-contain-line-column-include-chain"
+        },
+        "absolute_end": {
+          "policy": "upstream-locations-contain-line-column-include-chain"
+        },
+        "start": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        },
+        "end": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/location.rs::Position": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "line",
+          "column",
+          "file"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/locationBoundary"
+      },
+      "properties": {
+        "line": {
+          "policy": "preserve-line-column-and-each-endpoint-include",
+          "upstream": "#/$defs/locationBoundary"
+        },
+        "column": {
+          "policy": "preserve-line-column-and-each-endpoint-include",
+          "upstream": "#/$defs/locationBoundary"
+        },
+        "file": {
+          "policy": "preserve-line-column-and-each-endpoint-include",
+          "upstream": "#/$defs/locationBoundary"
+        }
+      }
+    },
+    "src/model/location.rs::SourceRange": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "start_offset",
+          "end_offset",
+          "file",
+          "file_chain",
+          "start_line",
+          "source_start_offset",
+          "column_shift"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "start_offset": {
+          "policy": "source-state"
+        },
+        "end_offset": {
+          "policy": "source-state"
+        },
+        "file": {
+          "policy": "source-state"
+        },
+        "file_chain": {
+          "policy": "source-state"
+        },
+        "start_line": {
+          "policy": "source-state"
+        },
+        "source_start_offset": {
+          "policy": "source-state"
+        },
+        "column_shift": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/media.rs::Audio": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "title",
+          "source",
+          "metadata",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/blockMacro"
+      },
+      "properties": {
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "source": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/blockMacro/properties/target"
+        },
+        "metadata": {
+          "policy": "use-block-metadata-only-where-the-owning",
+          "upstream": "#/$defs/blockMetadata"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/media.rs::Image": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "alt",
+          "title",
+          "source",
+          "metadata",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/blockMacro"
+      },
+      "properties": {
+        "alt": {
+          "policy": "alternative-text-and-tooltips-own-parsed-inline"
+        },
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "source": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/blockMacro/properties/target"
+        },
+        "metadata": {
+          "policy": "use-block-metadata-only-where-the-owning",
+          "upstream": "#/$defs/blockMetadata"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/media.rs::InlineImage": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "alt",
+          "tooltip",
+          "source",
+          "metadata",
+          "macro_attributes",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "alt": {
+          "policy": "alternative-text-and-tooltips-own-parsed-inline"
+        },
+        "tooltip": {
+          "policy": "alternative-text-and-tooltips-own-parsed-inline"
+        },
+        "source": {
+          "policy": "unsupported"
+        },
+        "metadata": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        },
+        "macro_attributes": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/media.rs::Source": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Name": [
+            "0"
+          ],
+          "Path": [
+            "0"
+          ],
+          "Url": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/blockMacro/properties/target"
+      },
+      "properties": {
+        "variant:Name": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMacro/properties/target"
+        },
+        "Name.0": {
+          "policy": "preserve-the-semantic-target-multiple-youtube-ids",
+          "upstream": "#/$defs/blockMacro/properties/target"
+        },
+        "variant:Path": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMacro/properties/target"
+        },
+        "Path.0": {
+          "policy": "preserve-the-semantic-target-multiple-youtube-ids",
+          "upstream": "#/$defs/blockMacro/properties/target"
+        },
+        "variant:Url": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMacro/properties/target"
+        },
+        "Url.0": {
+          "policy": "preserve-the-semantic-target-multiple-youtube-ids",
+          "upstream": "#/$defs/blockMacro/properties/target"
+        }
+      }
+    },
+    "src/model/media.rs::SourceUrl": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "url",
+          "original"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/blockMacro/properties/target"
+      },
+      "properties": {
+        "url": {
+          "policy": "preserve-the-semantic-target-multiple-youtube-ids",
+          "upstream": "#/$defs/blockMacro/properties/target"
+        },
+        "original": {
+          "policy": "preserve-the-semantic-target-multiple-youtube-ids",
+          "upstream": "#/$defs/blockMacro/properties/target"
+        }
+      }
+    },
+    "src/model/media.rs::Video": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "title",
+          "source",
+          "metadata",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/blockMacro"
+      },
+      "properties": {
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "source": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/blockMacro/properties/target"
+        },
+        "metadata": {
+          "policy": "use-block-metadata-only-where-the-owning",
+          "upstream": "#/$defs/blockMetadata"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/metadata.rs::AttributePosition": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "list_start",
+          "slot"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "list_start": {
+          "policy": "source-state"
+        },
+        "slot": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/metadata.rs::AttributePositions": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "first",
+          "named"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "first": {
+          "policy": "source-state"
+        },
+        "named": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/metadata.rs::BlockMetadata": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "attribute_positions",
+          "document_attributes",
+          "caption",
+          "alt_source",
+          "first_source",
+          "attributes",
+          "reftext",
+          "reftext_source",
+          "positional_attributes",
+          "retained_positional_attributes",
+          "roles",
+          "options",
+          "style",
+          "id",
+          "anchors",
+          "substitutions",
+          "attribution",
+          "citetitle",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/blockMetadata"
+      },
+      "properties": {
+        "attribute_positions": {
+          "policy": "source-state"
+        },
+        "document_attributes": {
+          "policy": "these-retained-ordered-document-assignments-affect-later"
+        },
+        "caption": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "alt_source": {
+          "policy": "source-state"
+        },
+        "first_source": {
+          "policy": "source-state"
+        },
+        "attributes": {
+          "policy": "preserve-literal-string-values-and-permitted-names",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "reftext": {
+          "policy": "promote-the-selected-parsed-reference-label-to",
+          "upstream": "#/$defs/abstractBlock/properties/reftext"
+        },
+        "reftext_source": {
+          "policy": "source-state"
+        },
+        "positional_attributes": {
+          "policy": "read-retained-positional-slots-directly-from-the",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "retained_positional_attributes": {
+          "policy": "read-retained-positional-slots-directly-from-the",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "roles": {
+          "policy": "preserve-the-resolved-token-order-and-empty",
+          "upstream": "#/$defs/blockMetadata/properties/roles"
+        },
+        "options": {
+          "policy": "preserve-the-resolved-token-order-and-empty",
+          "upstream": "#/$defs/blockMetadata/properties/options"
+        },
+        "style": {
+          "policy": "preserve-literal-string-values-and-permitted-names",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "id": {
+          "policy": "promote-a-representable-primary-block-anchor-to",
+          "upstream": "#/$defs/abstractBlock/properties/id"
+        },
+        "anchors": {
+          "policy": "promote-a-representable-primary-block-anchor-to",
+          "upstream": "#/$defs/abstractBlock/properties/id"
+        },
+        "substitutions": {
+          "policy": "export-already-resolved-meaning-a-remaining-language"
+        },
+        "attribution": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "citetitle": {
+          "policy": "parsed-caption-attribution-citation-content-has-no"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/metadata.rs::DocumentAttributeEvents": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "0": {
+          "policy": "the-root-attribute-map-cannot-encode-ordered"
+        }
+      }
+    },
+    "src/model/metadata.rs::ElementId": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "id",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "id": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/metadata.rs::InlineMetadata": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "roles",
+          "id"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "roles": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        },
+        "id": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        }
+      }
+    },
+    "src/model/metadata.rs::InlineMetadataView": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "attributes",
+          "roles",
+          "options",
+          "id"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "attributes": {
+          "policy": "source-state"
+        },
+        "roles": {
+          "policy": "source-state"
+        },
+        "options": {
+          "policy": "source-state"
+        },
+        "id": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/metadata.rs::MacroAttributes": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "attributes",
+          "options"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "attributes": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        },
+        "options": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        }
+      }
+    },
+    "src/model/metadata.rs::PositionalAttribute": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "position",
+          "value",
+          "quoted_empty",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "position": {
+          "policy": "unsupported"
+        },
+        "value": {
+          "policy": "unsupported"
+        },
+        "quoted_empty": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/metadata.rs::ReservedAttribute": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "name"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "name": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/metadata.rs::Role": {
+      "shape": {
+        "kind": "alias",
+        "fields": [],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/blockMetadata/properties/roles"
+      },
+      "properties": {}
+    },
+    "src/model/mod.rs::Author": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "first_name",
+          "middle_name",
+          "last_name",
+          "initials",
+          "email"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/author"
+      },
+      "properties": {
+        "first_name": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/author/properties/firstname"
+        },
+        "middle_name": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/author/properties/middlename"
+        },
+        "last_name": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/author/properties/lastname"
+        },
+        "initials": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/author/properties/initials"
+        },
+        "email": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/author/properties/address"
+        }
+      }
+    },
+    "src/model/mod.rs::Block": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Admonition": [
+            "0"
+          ],
+          "Audio": [
+            "0"
+          ],
+          "CalloutList": [
+            "0"
+          ],
+          "Comment": [
+            "0"
+          ],
+          "DelimitedBlock": [
+            "0"
+          ],
+          "DescriptionList": [
+            "0"
+          ],
+          "DiscreteHeader": [
+            "0"
+          ],
+          "DocumentAttribute": [
+            "0"
+          ],
+          "Image": [
+            "0"
+          ],
+          "OrderedList": [
+            "0"
+          ],
+          "PageBreak": [
+            "0"
+          ],
+          "Paragraph": [
+            "0"
+          ],
+          "Section": [
+            "0"
+          ],
+          "TableOfContents": [
+            "0"
+          ],
+          "ThematicBreak": [
+            "0"
+          ],
+          "UnorderedList": [
+            "0"
+          ],
+          "Video": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/block"
+      },
+      "properties": {
+        "variant:Admonition": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "Admonition.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:Audio": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "Audio.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:CalloutList": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "CalloutList.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:Comment": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "Comment.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedBlock": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedBlock.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DescriptionList": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DescriptionList.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DiscreteHeader": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DiscreteHeader.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DocumentAttribute": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DocumentAttribute.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:Image": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "Image.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:OrderedList": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "OrderedList.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:PageBreak": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "PageBreak.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:Paragraph": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "Paragraph.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:Section": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "Section.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:TableOfContents": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "TableOfContents.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:ThematicBreak": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "ThematicBreak.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:UnorderedList": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "UnorderedList.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:Video": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "Video.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        }
+      }
+    },
+    "src/model/mod.rs::Comment": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "kind",
+          "content",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "kind": {
+          "policy": "source-state"
+        },
+        "content": {
+          "policy": "source-state"
+        },
+        "location": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/mod.rs::CommentKind": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Line": [],
+          "Paragraph": []
+        }
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "variant:Line": {
+          "policy": "source-state"
+        },
+        "variant:Paragraph": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/mod.rs::DelimitedBlock": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "metadata",
+          "inner",
+          "delimiter",
+          "title",
+          "location",
+          "open_delimiter_location",
+          "close_delimiter_location",
+          "source_text"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/block"
+      },
+      "properties": {
+        "metadata": {
+          "policy": "use-block-metadata-only-where-the-owning",
+          "upstream": "#/$defs/blockMetadata"
+        },
+        "inner": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "delimiter": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        },
+        "open_delimiter_location": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "close_delimiter_location": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "source_text": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        }
+      }
+    },
+    "src/model/mod.rs::DelimitedBlockType": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "DelimitedComment": [
+            "0"
+          ],
+          "DelimitedExample": [
+            "0"
+          ],
+          "DelimitedListing": [
+            "0"
+          ],
+          "DelimitedLiteral": [
+            "0"
+          ],
+          "DelimitedOpen": [
+            "0"
+          ],
+          "DelimitedPass": [
+            "0"
+          ],
+          "DelimitedQuote": [
+            "0"
+          ],
+          "DelimitedSidebar": [
+            "0"
+          ],
+          "DelimitedStem": [
+            "0"
+          ],
+          "DelimitedTable": [
+            "0"
+          ],
+          "DelimitedVerse": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/block"
+      },
+      "properties": {
+        "variant:DelimitedComment": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedComment.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedExample": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedExample.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedListing": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedListing.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedLiteral": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedLiteral.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedOpen": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedOpen.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedPass": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedPass.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedQuote": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedQuote.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedSidebar": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedSidebar.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedStem": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedStem.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedTable": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedTable.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedVerse": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedVerse.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        }
+      }
+    },
+    "src/model/mod.rs::DiscreteHeader": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "metadata",
+          "title",
+          "level",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/discreteHeading"
+      },
+      "properties": {
+        "metadata": {
+          "policy": "use-block-metadata-only-where-the-owning",
+          "upstream": "#/$defs/blockMetadata"
+        },
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "level": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractHeading/properties/level"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/mod.rs::Document": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "header",
+          "attributes",
+          "blocks",
+          "footnotes",
+          "toc_entries",
+          "references",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#"
+      },
+      "properties": {
+        "header": {
+          "policy": "direct-property",
+          "upstream": "#/properties/header"
+        },
+        "attributes": {
+          "policy": "direct-property",
+          "upstream": "#/properties/attributes"
+        },
+        "blocks": {
+          "policy": "direct-property",
+          "upstream": "#/properties/blocks"
+        },
+        "footnotes": {
+          "policy": "derived-catalog"
+        },
+        "toc_entries": {
+          "policy": "derived-catalog"
+        },
+        "references": {
+          "policy": "derived-catalog"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/mod.rs::DocumentAttribute": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "name",
+          "location",
+          "assignment",
+          "accepted"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "name": {
+          "policy": "the-root-attribute-map-cannot-encode-ordered"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        },
+        "assignment": {
+          "policy": "the-root-attribute-map-cannot-encode-ordered"
+        },
+        "accepted": {
+          "policy": "the-root-attribute-map-cannot-encode-ordered"
+        }
+      }
+    },
+    "src/model/mod.rs::Header": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "metadata",
+          "title",
+          "subtitle",
+          "authors",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/properties/header"
+      },
+      "properties": {
+        "metadata": {
+          "policy": "the-pinned-inline-span-reference-forms-have"
+        },
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/properties/header/properties/title"
+        },
+        "subtitle": {
+          "policy": "the-pinned-header-has-title-authors-location"
+        },
+        "authors": {
+          "policy": "direct-property",
+          "upstream": "#/properties/header/properties/authors"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/mod.rs::PageBreak": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "title",
+          "metadata",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/break"
+      },
+      "properties": {
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "metadata": {
+          "policy": "use-block-metadata-only-where-the-owning",
+          "upstream": "#/$defs/blockMetadata"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/mod.rs::Paragraph": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "metadata",
+          "title",
+          "content",
+          "location",
+          "source_text"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/leafBlock"
+      },
+      "properties": {
+        "metadata": {
+          "policy": "use-block-metadata-only-where-the-owning",
+          "upstream": "#/$defs/blockMetadata"
+        },
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "content": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/leafBlock"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        },
+        "source_text": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/leafBlock"
+        }
+      }
+    },
+    "src/model/mod.rs::StemContent": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "content",
+          "notation"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/leafBlock"
+      },
+      "properties": {
+        "content": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/leafBlock"
+        },
+        "notation": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/leafBlock"
+        }
+      }
+    },
+    "src/model/mod.rs::StemNotation": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Asciimath": [],
+          "Latexmath": []
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/blockMetadata/properties/attributes"
+      },
+      "properties": {
+        "variant:Asciimath": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "variant:Latexmath": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        }
+      }
+    },
+    "src/model/mod.rs::TableOfContents": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "metadata",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/blockMacro"
+      },
+      "properties": {
+        "metadata": {
+          "policy": "use-block-metadata-only-where-the-owning",
+          "upstream": "#/$defs/blockMetadata"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/mod.rs::ThematicBreak": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "anchors",
+          "title",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/break"
+      },
+      "properties": {
+        "anchors": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/break"
+        },
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/section.rs::NumberingState": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "counters",
+          "part_counter",
+          "appendix_counter",
+          "appendix_letter",
+          "base_level"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "derived-catalog"
+      },
+      "properties": {
+        "counters": {
+          "policy": "derived-catalog"
+        },
+        "part_counter": {
+          "policy": "derived-catalog"
+        },
+        "appendix_counter": {
+          "policy": "derived-catalog"
+        },
+        "appendix_letter": {
+          "policy": "derived-catalog"
+        },
+        "base_level": {
+          "policy": "derived-catalog"
+        }
+      }
+    },
+    "src/model/section.rs::SafeId": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Explicit": [
+            "0"
+          ],
+          "Generated": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "variant:Explicit": {
+          "policy": "source-state"
+        },
+        "Explicit.0": {
+          "policy": "source-state"
+        },
+        "variant:Generated": {
+          "policy": "source-state"
+        },
+        "Generated.0": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/section.rs::Section": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "metadata",
+          "title",
+          "level",
+          "content",
+          "kind",
+          "numbering",
+          "id",
+          "id_generated",
+          "reference_text",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/section"
+      },
+      "properties": {
+        "metadata": {
+          "policy": "use-block-metadata-only-where-the-owning",
+          "upstream": "#/$defs/blockMetadata"
+        },
+        "title": {
+          "policy": "export-the-selected-inline-title-and-its",
+          "upstream": "#/$defs/abstractBlock/properties/title"
+        },
+        "level": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractHeading/properties/level"
+        },
+        "content": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/section"
+        },
+        "kind": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/section"
+        },
+        "numbering": {
+          "policy": "derived-catalog"
+        },
+        "id": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractBlock/properties/id"
+        },
+        "id_generated": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/section"
+        },
+        "reference_text": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/section"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/section.rs::SectionKind": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Abstract": [],
+          "Appendix": [],
+          "Bibliography": [],
+          "Colophon": [],
+          "Dedication": [],
+          "Glossary": [],
+          "Index": [],
+          "Normal": [],
+          "Preface": []
+        }
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/blockMetadata/properties/attributes"
+      },
+      "properties": {
+        "variant:Abstract": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "variant:Appendix": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "variant:Bibliography": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "variant:Colophon": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "variant:Dedication": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "variant:Glossary": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "variant:Index": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "variant:Normal": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        },
+        "variant:Preface": {
+          "policy": "candidate",
+          "upstream": "#/$defs/blockMetadata/properties/attributes"
+        }
+      }
+    },
+    "src/model/section.rs::SectionLevel": {
+      "shape": {
+        "kind": "alias",
+        "fields": [],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/abstractHeading/properties/level"
+      },
+      "properties": {}
+    },
+    "src/model/section.rs::SectionNumber": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "derived-catalog"
+      },
+      "properties": {
+        "0": {
+          "policy": "derived-catalog"
+        }
+      }
+    },
+    "src/model/section.rs::SectionNumbering": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "enabled",
+          "max_level",
+          "number_all",
+          "partnums",
+          "number"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "derived-catalog"
+      },
+      "properties": {
+        "enabled": {
+          "policy": "derived-catalog"
+        },
+        "max_level": {
+          "policy": "derived-catalog"
+        },
+        "number_all": {
+          "policy": "derived-catalog"
+        },
+        "partnums": {
+          "policy": "derived-catalog"
+        },
+        "number": {
+          "policy": "derived-catalog"
+        }
+      }
+    },
+    "src/model/section.rs::SectionNumbers": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "shown",
+          "reference"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "derived-catalog"
+      },
+      "properties": {
+        "shown": {
+          "policy": "derived-catalog"
+        },
+        "reference": {
+          "policy": "derived-catalog"
+        }
+      }
+    },
+    "src/model/substitution.rs::AttributeTextSubstitution": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Attributes": [],
+          "SpecialChars": []
+        }
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "variant:Attributes": {
+          "policy": "source-state"
+        },
+        "variant:SpecialChars": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/substitution.rs::GroupContext": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Block": [],
+          "Passthrough": []
+        }
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "variant:Block": {
+          "policy": "source-state"
+        },
+        "variant:Passthrough": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/substitution.rs::SubsModifier": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Append": [],
+          "Prepend": [],
+          "Remove": []
+        }
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "variant:Append": {
+          "policy": "source-state"
+        },
+        "variant:Prepend": {
+          "policy": "source-state"
+        },
+        "variant:Remove": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/substitution.rs::Substitution": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Attributes": [],
+          "Callouts": [],
+          "Macros": [],
+          "Normal": [],
+          "PostReplacements": [],
+          "Quotes": [],
+          "Replacements": [],
+          "SpecialChars": [],
+          "Verbatim": []
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:Attributes": {
+          "policy": "unsupported"
+        },
+        "variant:Callouts": {
+          "policy": "unsupported"
+        },
+        "variant:Macros": {
+          "policy": "unsupported"
+        },
+        "variant:Normal": {
+          "policy": "unsupported"
+        },
+        "variant:PostReplacements": {
+          "policy": "unsupported"
+        },
+        "variant:Quotes": {
+          "policy": "unsupported"
+        },
+        "variant:Replacements": {
+          "policy": "unsupported"
+        },
+        "variant:SpecialChars": {
+          "policy": "unsupported"
+        },
+        "variant:Verbatim": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/substitution.rs::SubstitutionOp": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Append": [
+            "0"
+          ],
+          "Prepend": [
+            "0"
+          ],
+          "Remove": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:Append": {
+          "policy": "unsupported"
+        },
+        "Append.0": {
+          "policy": "unsupported"
+        },
+        "variant:Prepend": {
+          "policy": "unsupported"
+        },
+        "Prepend.0": {
+          "policy": "unsupported"
+        },
+        "variant:Remove": {
+          "policy": "unsupported"
+        },
+        "Remove.0": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/substitution.rs::SubstitutionPlan": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "ranks"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "ranks": {
+          "policy": "source-state"
+        }
+      }
+    },
+    "src/model/substitution.rs::SubstitutionSpec": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Explicit": [
+            "0"
+          ],
+          "Modifiers": [
+            "0"
+          ],
+          "Source": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:Explicit": {
+          "policy": "unsupported"
+        },
+        "Explicit.0": {
+          "policy": "unsupported"
+        },
+        "variant:Modifiers": {
+          "policy": "unsupported"
+        },
+        "Modifiers.0": {
+          "policy": "unsupported"
+        },
+        "variant:Source": {
+          "policy": "unsupported"
+        },
+        "Source.0": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/tables.rs::ColumnFormat": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "halign",
+          "valign",
+          "width",
+          "style"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "halign": {
+          "policy": "unsupported"
+        },
+        "valign": {
+          "policy": "unsupported"
+        },
+        "width": {
+          "policy": "unsupported"
+        },
+        "style": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/tables.rs::ColumnStyle": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "AsciiDoc": [],
+          "Default": [],
+          "Emphasis": [],
+          "Header": [],
+          "Literal": [],
+          "Monospace": [],
+          "Strong": []
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:AsciiDoc": {
+          "policy": "unsupported"
+        },
+        "variant:Default": {
+          "policy": "unsupported"
+        },
+        "variant:Emphasis": {
+          "policy": "unsupported"
+        },
+        "variant:Header": {
+          "policy": "unsupported"
+        },
+        "variant:Literal": {
+          "policy": "unsupported"
+        },
+        "variant:Monospace": {
+          "policy": "unsupported"
+        },
+        "variant:Strong": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/tables.rs::ColumnWidth": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Auto": [],
+          "Percentage": [
+            "0"
+          ],
+          "Proportional": [
+            "0"
+          ]
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:Auto": {
+          "policy": "unsupported"
+        },
+        "variant:Percentage": {
+          "policy": "unsupported"
+        },
+        "Percentage.0": {
+          "policy": "unsupported"
+        },
+        "variant:Proportional": {
+          "policy": "unsupported"
+        },
+        "Proportional.0": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/tables.rs::HorizontalAlignment": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Center": [],
+          "Left": [],
+          "Right": []
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:Center": {
+          "policy": "unsupported"
+        },
+        "variant:Left": {
+          "policy": "unsupported"
+        },
+        "variant:Right": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/tables.rs::ResolvedTablePresentation": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "defaults",
+          "value"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "defaults": {
+          "policy": "unsupported"
+        },
+        "value": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/tables.rs::Table": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "header",
+          "footer",
+          "rows",
+          "columns",
+          "presentation",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "header": {
+          "policy": "unsupported"
+        },
+        "footer": {
+          "policy": "unsupported"
+        },
+        "rows": {
+          "policy": "unsupported"
+        },
+        "columns": {
+          "policy": "unsupported"
+        },
+        "presentation": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      }
+    },
+    "src/model/tables.rs::TableColumn": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "initial_attributes",
+          "content",
+          "colspan",
+          "rowspan",
+          "halign",
+          "valign",
+          "style"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "initial_attributes": {
+          "policy": "unsupported"
+        },
+        "content": {
+          "policy": "unsupported"
+        },
+        "colspan": {
+          "policy": "unsupported"
+        },
+        "rowspan": {
+          "policy": "unsupported"
+        },
+        "halign": {
+          "policy": "unsupported"
+        },
+        "valign": {
+          "policy": "unsupported"
+        },
+        "style": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/tables.rs::TableFrame": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "All": [],
+          "Ends": [],
+          "None": [],
+          "Sides": []
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:All": {
+          "policy": "unsupported"
+        },
+        "variant:Ends": {
+          "policy": "unsupported"
+        },
+        "variant:None": {
+          "policy": "unsupported"
+        },
+        "variant:Sides": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/tables.rs::TableGrid": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "All": [],
+          "Columns": [],
+          "None": [],
+          "Rows": []
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:All": {
+          "policy": "unsupported"
+        },
+        "variant:Columns": {
+          "policy": "unsupported"
+        },
+        "variant:None": {
+          "policy": "unsupported"
+        },
+        "variant:Rows": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/tables.rs::TablePresentation": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "frame",
+          "grid",
+          "stripes"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "frame": {
+          "policy": "unsupported"
+        },
+        "grid": {
+          "policy": "unsupported"
+        },
+        "stripes": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/tables.rs::TableRow": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "columns"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "columns": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/tables.rs::TableStripes": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "All": [],
+          "Even": [],
+          "Hover": [],
+          "None": [],
+          "Odd": []
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:All": {
+          "policy": "unsupported"
+        },
+        "variant:Even": {
+          "policy": "unsupported"
+        },
+        "variant:Hover": {
+          "policy": "unsupported"
+        },
+        "variant:None": {
+          "policy": "unsupported"
+        },
+        "variant:Odd": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/tables.rs::VerticalAlignment": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Bottom": [],
+          "Middle": [],
+          "Top": []
+        }
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "variant:Bottom": {
+          "policy": "unsupported"
+        },
+        "variant:Middle": {
+          "policy": "unsupported"
+        },
+        "variant:Top": {
+          "policy": "unsupported"
+        }
+      }
+    },
+    "src/model/title.rs::Subtitle": {
+      "shape": {
+        "kind": "alias",
+        "fields": [],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlines"
+      },
+      "properties": {}
+    },
+    "src/model/title.rs::Title": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/inlines"
+      },
+      "properties": {
+        "0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inlines"
+        }
+      }
+    }
+  },
+  "policies": {
+    "alternative-text-and-tooltips-own-parsed-inline": {
+      "handling": "context-dependent",
+      "reason": "Alternative text and tooltips own parsed inline content. A scalar metadata string must not flatten formatting or literal protection. A block image may use a scalar attribute only when that is lossless; inline images and icon macros lack upstream node forms."
+    },
+    "block-id-reftext-promotion-does-not-cover": {
+      "handling": "context-dependent",
+      "reason": "Block id/reftext promotion does not cover inline anchors, multiple independent IDs, bibliography entry labels, or citation meaning. Reject unsupported forms and content."
+    },
+    "candidate": {
+      "handling": "mapping-candidate",
+      "reason": "The pinned schema has this representation. This is a mapping inventory, not implemented exporter support; every nested value and semantic control must also be representable."
+    },
+    "delimited-admonitions-have-an-upstream-parent-block": {
+      "handling": "context-dependent",
+      "reason": "Delimited admonitions have an upstream parent-block form. Paragraph admonitions have no corresponding form; do not invent a delimiter or drop their source form. Reject unsupported forms."
+    },
+    "derived-catalog": {
+      "handling": "derived-check",
+      "reason": "Omit only if supported exported owners preserve everything needed to reconstruct this derived value. Otherwise reject; do not reparse, expand attributes, or register macros during export."
+    },
+    "direct-property": {
+      "handling": "mapping-candidate",
+      "reason": "Map this semantic property directly only when its owner and every nested value are representable; preserve presence and resolved meaning."
+    },
+    "export-already-resolved-meaning-a-remaining-language": {
+      "handling": "context-dependent",
+      "reason": "Export already-resolved meaning. A remaining language operation or meaningful authored policy cannot be silently discarded or rerun during export."
+    },
+    "export-the-selected-inline-title-and-its": {
+      "handling": "mapping-candidate",
+      "reason": "Export the selected inline title and its presence, not authored attribute syntax or rendered markup."
+    },
+    "no-direct-field-mapping-is-established-for": {
+      "handling": "context-dependent",
+      "reason": "No direct field mapping is established for this property. Strict export must preserve its meaning through an explicitly tested mapping or reject it; do not infer permission to omit it from the outer node shape."
+    },
+    "only-an-authored-delimited-form-has-an": {
+      "handling": "context-dependent",
+      "reason": "Only an authored delimited form has an upstream parent-block counterpart. Reject paragraph form rather than fabricate its delimiter."
+    },
+    "parsed-caption-attribution-citation-content-has-no": {
+      "handling": "context-dependent",
+      "reason": "Parsed caption/attribution/citation content has no dedicated upstream field. A scalar metadata string must not replace formatted or protected inline meaning; reject unsupported content or use an independently named extension."
+    },
+    "preserve-constrained-unconstrained-form-without-re-reading": {
+      "handling": "mapping-candidate",
+      "reason": "Preserve constrained/unconstrained form without re-reading delimiters."
+    },
+    "preserve-line-column-and-each-endpoint-include": {
+      "handling": "mapping-candidate",
+      "reason": "Preserve line, column, and each endpoint include chain with the pinned location constraints."
+    },
+    "preserve-literal-string-values-and-permitted-names": {
+      "handling": "context-dependent",
+      "reason": "Preserve literal string values and permitted names. Do not remove semantic quotes, infer arbitrary numbers, or flatten content attributes into this scalar map."
+    },
+    "preserve-the-resolved-scalar-value-as-text": {
+      "handling": "context-dependent",
+      "reason": "Preserve the resolved scalar value as text/raw/character-reference content. Do not apply typography or other language substitutions during export."
+    },
+    "preserve-the-resolved-token-order-and-empty": {
+      "handling": "mapping-candidate",
+      "reason": "Preserve the resolved token order and empty-versus-absent meaning allowed by the schema."
+    },
+    "preserve-the-semantic-target-multiple-youtube-ids": {
+      "handling": "context-dependent",
+      "reason": "Preserve the semantic target. Multiple YouTube IDs remain in one comma-separated target; local/remote/data forms must not lose identity or effective media settings."
+    },
+    "promote-a-representable-primary-block-anchor-to": {
+      "handling": "context-dependent",
+      "reason": "Promote a representable primary block anchor to id/reftext. Additional or inline anchor identity, bibliography meaning, and independent labels need a lossless mapping or rejection."
+    },
+    "promote-the-selected-parsed-reference-label-to": {
+      "handling": "mapping-candidate",
+      "reason": "Promote the selected parsed reference label to block reftext; preserve presence and nested supported inline meaning."
+    },
+    "read-retained-positional-slots-directly-from-the": {
+      "handling": "mapping-candidate",
+      "reason": "Read retained positional slots directly from the owner, including gaps and explicit empty values; metadata keys $1, $2, and so on are allowed. Native serialization is not the source for these values."
+    },
+    "source-state": {
+      "handling": "source-only",
+      "reason": "Parser input, source spelling, or temporary state; omit only after the semantic value and any permitted source coordinates have been preserved."
+    },
+    "the-effective-control-remains-semantic-even-if": {
+      "handling": "context-dependent",
+      "reason": "The effective control remains semantic even if native JSON omits it. Use a tested lossless mapping to an allowed scalar property when possible; otherwise reject. Do not infer support from the outer node alone."
+    },
+    "the-pinned-header-has-title-authors-location": {
+      "handling": "context-dependent",
+      "reason": "The pinned header has title/authors/location only. Preserve any authored subtitle, title identity, metadata, or independent presence semantics through a defined representation or reject it."
+    },
+    "the-pinned-inline-span-reference-forms-have": {
+      "handling": "context-dependent",
+      "reason": "The pinned inline span/reference forms have no identity, roles, options, tooltip, or generic attribute map. Reject any unsupported retained control; do not silently drop it."
+    },
+    "the-root-attribute-map-cannot-encode-ordered": {
+      "handling": "reject",
+      "reason": "The root attribute map cannot encode ordered body or nested assignments. Preserve this semantic state in a defined representation or reject it."
+    },
+    "these-retained-ordered-document-assignments-affect-later": {
+      "handling": "context-dependent",
+      "reason": "These retained ordered document assignments affect later nested content. Preserve their source-position semantics or reject; they are not disposable parsing scratch state."
+    },
+    "unsupported": {
+      "handling": "reject",
+      "reason": "No lossless upstream representation is established. Strict export must reject this value, including when nested in otherwise supported content."
+    },
+    "upstream-locations-contain-line-column-include-chain": {
+      "handling": "source-only",
+      "reason": "Upstream locations contain line/column/include chain, not byte offsets; preserve the coordinate contract in native data."
+    },
+    "use-authored-endpoint-coordinates-omit-an-unavailable": {
+      "handling": "mapping-candidate",
+      "reason": "Use authored endpoint coordinates. Omit an unavailable optional location; reject an unavailable required one. Never fabricate line zero or replace it with line one. Byte offsets are a separate native contract."
+    },
+    "use-block-metadata-only-where-the-owning": {
+      "handling": "context-dependent",
+      "reason": "Use block metadata only where the owning block is representable. Compatible metadata cannot make an unsupported node exportable."
+    },
+    "use-effective-semantic-values-and-exact-textual": {
+      "handling": "context-dependent",
+      "reason": "Use effective semantic values and exact textual presentation. Root document values allow strings/null; block metadata allows only strings with constrained names. Missing, unset, empty, typed defaults, locks, and ordered assignments are different concerns."
+    },
+    "visit-supported-child-inlines-directly-a-supported": {
+      "handling": "mapping-candidate",
+      "reason": "Visit supported child inlines directly; a supported child does not make an unsupported span variant valid."
+    }
+  }
+}
