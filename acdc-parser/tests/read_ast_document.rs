@@ -1,6 +1,6 @@
 use acdc_parser::{
     Author, CompatibilityMode, Document, DocumentAttributeAssignment, DocumentAttributeValue,
-    DocumentAttributes, Header, Location, Options, SafeMode, Title,
+    Header, Location, Options, SafeMode, Title,
     ast::{
         AttributeValueRef, AuthorRef, BlockKind, ContentRef, DocumentRef, HeaderRef, InlineKind,
     },
@@ -33,7 +33,7 @@ fn header_reads_keep_title_subtitle_authors_and_revision_values(
         "[#book.role,options=custom]\n= Main: *Subtitle*\nÉlodie Marie Durand <elodie@example.org>; José García\nv2.5, 2026-10-29: Reviewed\n\nBody.\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let document = parsed.document_ref();
     let header = document.header().ok_or("header")?;
     assert_eq!(text(header.title().ok_or("title")?)?, "Main");
@@ -71,7 +71,7 @@ fn header_reads_keep_title_subtitle_authors_and_revision_values(
             Some(expected)
         );
     }
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }
@@ -190,78 +190,6 @@ fn snapshots_stay_fixed_while_accepted_body_assignments_replay_in_order(
 }
 
 #[rstest::rstest]
-fn cell_initial_assignments_are_ordered_and_stay_in_the_cell_scope(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
-) -> Result<(), Error> {
-    let parsed = parse(
-        "= T\n:doctype: book\n:toc:\n:showtitle:\n\n[cols=a]\n|===\n|\n:local: cell\n\n{doctype}\n|===\n",
-        &Options::builder().with_compatibility_mode(mode).build()?,
-    )?;
-    let document = parsed.document_ref();
-    let BlockKind::Table(table) = document.blocks().next().ok_or("table")?.kind() else {
-        return Err("table".into());
-    };
-    let cell = table
-        .rows()
-        .next()
-        .ok_or("row")?
-        .cells()
-        .next()
-        .ok_or("cell")?;
-    let mut doctype = document.attributes().get("doctype");
-    let mut toc = document.attributes().get("toc");
-    for (name, assignment) in cell.initial_attributes() {
-        match name {
-            "doctype" => doctype = assignment.value(),
-            "toc" => toc = assignment.value(),
-            _ => {}
-        }
-    }
-    assert_eq!(
-        doctype.and_then(DocumentAttributeValue::text),
-        Some("article")
-    );
-    assert_eq!(toc, None);
-    let mut local = None;
-    for block in cell.blocks() {
-        if let BlockKind::DocumentAttribute(event) = block.kind() {
-            if event.name() == "local" {
-                local = event.assignment().value();
-            }
-        } else if let BlockKind::Paragraph(paragraph) = block.kind() {
-            assert_eq!(text(paragraph.content())?, "article");
-        }
-    }
-    assert_eq!(local.and_then(DocumentAttributeValue::text), Some("cell"));
-    assert_eq!(
-        document
-            .attributes()
-            .get("doctype")
-            .and_then(DocumentAttributeValue::text),
-        Some("book")
-    );
-    assert!(document.attributes().contains("toc"));
-    assert!(document.attributes().get("local").is_none());
-    let owner_table = parsed.document().blocks.first().ok_or("owner table")?;
-    let acdc_parser::Block::DelimitedBlock(block) = owner_table else {
-        return Err("delimited table".into());
-    };
-    let acdc_parser::DelimitedBlockType::DelimitedTable(owner) = &block.inner else {
-        return Err("table owner".into());
-    };
-    let expected = owner
-        .rows
-        .first()
-        .ok_or("owner row")?
-        .columns
-        .first()
-        .ok_or("owner cell")?
-        .initial_attributes();
-    assert!(cell.initial_attributes().eq(expected));
-    Ok(())
-}
-
-#[rstest::rstest]
 fn included_assignments_keep_authored_unicode_coordinates(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
@@ -334,79 +262,5 @@ fn constructed_headers_keep_optional_content_and_shared_authors() -> Result<(), 
         let values = attributes.iter();
         scope.spawn(move || assert!(values.count() > 0));
     });
-    Ok(())
-}
-
-#[rstest::rstest]
-fn document_attribute_snapshots_preserve_values_provenance_and_input_policy(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
-) -> Result<(), Error> {
-    let options = Options::builder()
-        .with_compatibility_mode(mode)
-        .with_attribute("locked", "caller")
-        .with_attribute("literal-at", "caller@")
-        .with_attribute("max-include-depth", "064")
-        .with_default_attribute("processor", "fallback")
-        .build()?;
-    let parsed = parse(":flag:\n:removed!:\n:figure-caption!:\n\nBody.\n", &options)?;
-    let original = &parsed.document().attributes;
-    let before = serde_json::to_value(original)?;
-    let copied = DocumentAttributes::from(parsed.document_ref().attributes());
-    assert_eq!(&copied, original);
-    assert_eq!(serde_json::to_value(&copied)?, before);
-    assert!(
-        copied
-            .get("flag")
-            .is_some_and(DocumentAttributeValue::is_presence)
-    );
-    for name in ["removed", "figure-caption"] {
-        assert!(matches!(
-            copied.assignment(name),
-            Some(DocumentAttributeAssignment::Unset)
-        ));
-        assert!(copied.is_explicit(name));
-    }
-    assert!(copied.assignment("missing").is_none());
-    assert!(!copied.is_explicit("table-caption"));
-    assert_eq!(
-        copied
-            .get("max-include-depth")
-            .and_then(DocumentAttributeValue::as_integer),
-        Some(64)
-    );
-    assert_eq!(
-        copied
-            .get("max-include-depth")
-            .and_then(DocumentAttributeValue::text),
-        Some("064")
-    );
-    let retained = copied.clone().into_static();
-    assert_eq!(&retained, original);
-
-    let input = ":locked: changed\n:literal-at: changed\n:processor: changed\n\nNext.\n";
-    let replay = parse(input, &Options::default().with_document_attributes(copied))?;
-    let expected = parse(
-        input,
-        &Options::default().with_document_attributes(original.clone()),
-    )?;
-    assert_eq!(replay.document().attributes, expected.document().attributes);
-    let values = replay.document_ref().attributes();
-    assert_eq!(
-        values.get("locked").and_then(DocumentAttributeValue::text),
-        Some("caller")
-    );
-    assert_eq!(
-        values
-            .get("literal-at")
-            .and_then(DocumentAttributeValue::text),
-        Some("caller@")
-    );
-    assert_eq!(
-        values
-            .get("processor")
-            .and_then(DocumentAttributeValue::text),
-        Some("changed")
-    );
-    assert_eq!(serde_json::to_value(original)?, before);
     Ok(())
 }

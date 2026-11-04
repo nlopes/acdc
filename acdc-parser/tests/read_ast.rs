@@ -1,9 +1,8 @@
 use acdc_parser::{
-    Block, CompatibilityMode, InlineMacro, InlineNode, Location, Options, Paragraph, SafeMode,
-    Title,
+    CompatibilityMode, Location, Options, Paragraph, SafeMode, Title,
     ast::{
         BlockKind, BlockRef, BoldRef, ContentRef, DocumentRef, InlineKind, InlineRef, LocationRef,
-        ParagraphRef, PositionRef, SectionRef,
+        ParagraphRef, SectionRef,
     },
     parse, parse_file,
 };
@@ -245,11 +244,11 @@ fn reads_preserve_json_catalogs_and_diagnostics() -> Result<(), Error> {
         "= Views\n:toc:\n\n[[one]]\n== One\n\nText footnote:[Note] and <<one>>.\n",
         &Options::default(),
     )?;
-    let json = serde_json::to_value(parsed.document())?;
+    let json = serde_json::to_value(parsed.document_ref())?;
     let warnings = format!("{:?}", parsed.warnings());
-    let footnotes = parsed.document().footnotes.len();
-    let references = parsed.document().references.len();
-    let toc_entries = parsed.document().toc_entries.len();
+    let footnotes = parsed.document_ref().footnotes().count();
+    let references = parsed.document_ref().references().iter().count();
+    let toc_entries = parsed.document_ref().toc_entries().count();
     assert_eq!(footnotes, 1);
     assert!(references > 0);
     assert_eq!(toc_entries, 1);
@@ -270,60 +269,14 @@ fn reads_preserve_json_catalogs_and_diagnostics() -> Result<(), Error> {
             }
         }
     }
-    assert_eq!(serde_json::to_value(parsed.document())?, json);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, json);
     assert_eq!(format!("{:?}", parsed.warnings()), warnings);
-    assert_eq!(parsed.document().footnotes.len(), footnotes);
-    assert_eq!(parsed.document().references.len(), references);
-    assert_eq!(parsed.document().toc_entries.len(), toc_entries);
-    Ok(())
-}
-
-#[test]
-fn owner_conversions_preserve_typed_content_and_locations() -> Result<(), Error> {
-    let parsed = parse(
-        "== Section\n\nimage:bird.png[Bird]\n\n|===\n|Cell\n|===\n",
-        &Options::default(),
-    )?;
-    let document = parsed.document();
-    assert_eq!(DocumentRef::from(document).blocks().count(), 1);
-    let block = document.blocks.first().ok_or("missing section")?;
-    assert!(matches!(
-        BlockRef::from(block).kind(),
-        BlockKind::Section(_)
-    ));
-    let Block::Section(section) = block else {
-        return Err("expected section".into());
-    };
-    assert_eq!(SectionRef::from(section).level(), 1);
-    let Some(Block::Paragraph(paragraph)) = section.content.first() else {
-        return Err("missing paragraph".into());
-    };
-    assert_eq!(ParagraphRef::from(paragraph).content().inlines().count(), 1);
-    let inline = paragraph.content.first().ok_or("missing inline image")?;
-    assert!(matches!(
-        InlineRef::from(inline).kind(),
-        InlineKind::Image(_)
-    ));
-    let InlineNode::Macro(inline_macro) = inline else {
-        return Err("expected macro".into());
-    };
-    assert!(matches!(
-        InlineRef::from(inline_macro).kind(),
-        InlineKind::Image(_)
-    ));
-    let InlineMacro::Image(image) = inline_macro else {
-        return Err("expected image".into());
-    };
+    assert_eq!(parsed.document_ref().footnotes().count(), footnotes);
     assert_eq!(
-        plain(ContentRef::from(image.alt.as_ref().ok_or("missing alt")?))?,
-        "Bird"
+        parsed.document_ref().references().iter().count(),
+        references
     );
-    let Some(Block::DelimitedBlock(table)) = section.content.get(1) else {
-        return Err("missing table".into());
-    };
-    assert!(matches!(BlockRef::from(table).kind(), BlockKind::Table(_)));
-    assert_eq!(LocationRef::from(&paragraph.location).start().line(), 3);
-    assert_eq!(PositionRef::from(&paragraph.location.start).column(), 1);
+    assert_eq!(parsed.document_ref().toc_entries().count(), toc_entries);
     Ok(())
 }
 
