@@ -117,11 +117,11 @@
 
 #text("Escaped triple markup: ")#text("+")#text("<mark>")#strong[#text("bold")]#text("</mark>")#text("+")
 
-#text("Escaped single numeric: +©+")
+#text("Escaped single numeric: +")#text("©")#text("+")
 
 #text("Escaped double numeric: ")#text("+&#169;")#text("+")
 
-#text("Escaped triple numeric: ")#text("+")#text("©+++")
+#text("Escaped triple numeric: ")#text("+")#text("©")#text("+++")
 
 #text("Macros disabled escaped single: \\+")#strong[#text("bold")]#text("+")
 

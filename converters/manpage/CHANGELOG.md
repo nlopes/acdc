@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Parsed named and numeric character references render as character values when known, including multi-codepoint names. Unlike Asciidoctor manpages, known named references such as `&copy;` become their displayed characters.
+
 - Constructed character-reference nodes render as characters in prose and code. Known named references are decoded, unlike Asciidoctor manpage output, which leaves most named references as text.
 
 - Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.

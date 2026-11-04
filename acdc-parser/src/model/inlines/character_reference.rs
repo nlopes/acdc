@@ -57,6 +57,14 @@ impl<'a> CharacterReference<'a> {
         Some(Self { kind, location })
     }
 
+    pub(crate) fn name_start(value: char) -> bool {
+        name_start(value)
+    }
+
+    pub(crate) fn name_continue(value: char) -> bool {
+        name_continue(value)
+    }
+
     /// The named identity or numeric value, without source-format distinctions.
     #[must_use]
     pub fn kind(&self) -> CharacterReferenceKind<'a> {

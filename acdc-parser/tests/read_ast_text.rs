@@ -26,7 +26,7 @@ fn paragraph(document: DocumentRef<'_>) -> Result<ContentRef<'_>, Error> {
 }
 
 #[rstest::rstest]
-fn plain_reads_keep_escapes_and_character_references_unrendered(
+fn text_reads_keep_escapes_and_character_reference_identity(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let source = ":value: expanded\n\né \\^literal^ &amp; &#169; &#x3c;\n\n{value}\n";
@@ -38,17 +38,21 @@ fn plain_reads_keep_escapes_and_character_references_unrendered(
     let mut text = String::new();
     let mut escaped = false;
     for inline in paragraph(parsed.document_ref())?.inlines() {
-        let InlineKind::Plain(plain) = inline.kind() else {
-            return Err("expected plain text".into());
-        };
-        shared(plain);
-        text.push_str(plain.text());
-        if plain.is_escaped() {
-            assert!(plain.text().contains('^'));
-            escaped = true;
+        if let InlineKind::Plain(plain) = inline.kind() {
+            shared(plain);
+            text.push_str(plain.text());
+            if plain.is_escaped() {
+                assert!(plain.text().contains('^'));
+                escaped = true;
+            }
+        } else if let InlineKind::CharacterReference(reference) = inline.kind() {
+            shared(reference);
+            text.push_str(&reference.kind().to_string());
+        } else {
+            return Err("expected text or a character reference".into());
         }
     }
-    assert_eq!(text, "é ^literal^ &amp; &#169; &#x3c;");
+    assert_eq!(text, "é ^literal^ &amp; &#169; &#60;");
     assert!(escaped);
     let BlockKind::Paragraph(expanded) = parsed
         .document_ref()

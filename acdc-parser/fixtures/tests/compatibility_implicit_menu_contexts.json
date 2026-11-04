@@ -255,11 +255,77 @@
         {
           "name": "text",
           "type": "string",
-          "value": "\"File > Open\" and \"File > Open\" and \"File > Open\".",
+          "value": "\"File ",
           "location": [
             {
               "line": 10,
               "col": 1
+            },
+            {
+              "line": 10,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "&gt;",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 10,
+              "col": 2
+            },
+            {
+              "line": 10,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " Open\" and \"File ",
+          "location": [
+            {
+              "line": 10,
+              "col": 2
+            },
+            {
+              "line": 10,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "&gt;",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 10,
+              "col": 14
+            },
+            {
+              "line": 10,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " Open\" and \"File > Open\".",
+          "location": [
+            {
+              "line": 10,
+              "col": 14
             },
             {
               "line": 10,

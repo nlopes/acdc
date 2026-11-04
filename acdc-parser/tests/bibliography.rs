@@ -115,10 +115,17 @@ fn bibliography_attribute_values_do_not_become_new_passthroughs() -> Result<(), 
         Some("{raw}".to_owned())
     );
     let label = anchor.bibliography_label().ok_or("missing entry content")?;
-    assert!(
-        matches!(label, [InlineNode::PlainText(plain)] if plain.content == "+++<mark>raw</mark>+++"),
-        "{label:?}"
-    );
+    let mut text = String::new();
+    for node in label {
+        if let InlineNode::PlainText(plain) = node {
+            text.push_str(plain.content);
+        } else if let InlineNode::CharacterReference(reference) = node {
+            text.push_str(&reference.kind().to_string());
+        } else {
+            return Err("bibliography text became markup".into());
+        }
+    }
+    assert_eq!(text, "+++&lt;mark&gt;raw&lt;/mark&gt;+++");
     Ok(())
 }
 

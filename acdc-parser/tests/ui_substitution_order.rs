@@ -9,9 +9,11 @@ fn text(content: &ContentAttribute<'_>) -> String {
         .iter()
         .filter_map(|node| {
             if let InlineNode::PlainText(node) = node {
-                Some(node.content)
+                Some(node.content.to_owned())
             } else if let InlineNode::RawText(node) = node {
-                Some(node.content)
+                Some(node.content.to_owned())
+            } else if let InlineNode::CharacterReference(node) = node {
+                Some(node.kind().to_string())
             } else {
                 None
             }
@@ -63,7 +65,7 @@ fn keyboard_boundaries_follow_attribute_substitution_order(
 #[rstest::rstest]
 #[case("", "Open > Close", &["Open", "Close"])]
 #[case("", "Open,Close", &["Open", "Close"])]
-#[case("[subs=\"macros,attributes,quotes,replacements\"]\n", "Open > Close", &["Open > Close"])]
+#[case("[subs=\"macros,attributes,quotes,replacements\"]\n", "Open > Close", &["Open &gt; Close"])]
 #[case("[subs=\"macros,attributes,quotes,replacements\"]\n", "Open,Close", &["Open,Close"])]
 fn menu_boundaries_follow_attribute_substitution_order(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,

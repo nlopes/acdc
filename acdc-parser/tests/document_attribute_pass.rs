@@ -179,9 +179,12 @@ fn document_attribute_pass_raw_fragments_keep_reference_locations() -> Result<()
                 } else if let InlineNode::MonospaceText(m) = node {
                     nodes.extend(&m.content);
                 }
-                if let InlineNode::RawText(raw) = node {
+                if matches!(
+                    node,
+                    InlineNode::RawText(_) | InlineNode::CharacterReference(_)
+                ) {
                     raw_count += 1;
-                    let location = &raw.location;
+                    let location = node.location();
                     assert_eq!(
                         &parsed.source()[location.absolute_start..=location.absolute_end],
                         "{raw}"

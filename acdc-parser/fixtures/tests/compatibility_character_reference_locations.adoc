@@ -1,0 +1,19 @@
+= Références &copy;
+:ref: &#169;
+
+== Héading &copy;
+
+Préface *bold &copy;* and {ref} and footnote:[Note &amp;].
+
+.Caption &copy;
+[quote,'Attribution &copy;','Citation &#169;']
+Quote &copy;.
+
+include::includes/character_reference_locations.adoc[tag=selected,indent=0]
+
+[cols="1a"]
+|===
+|Cell é *&copy;* and {ref}.
+
+image:picture.svg[alt='Alt &copy;',title='Tip &#169;']
+|===

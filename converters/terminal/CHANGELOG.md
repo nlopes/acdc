@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Parsed named and numeric character references render as character values when known; escaped references remain literal text.
+
 - Constructed character-reference nodes render in plain and formatted text. Unknown names and invalid numeric values remain visible as references.
 
 - Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.

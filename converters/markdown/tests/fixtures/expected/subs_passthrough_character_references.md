@@ -13,7 +13,7 @@ Character references follow substitution order.
 <a id="_description"></a>
 ## DESCRIPTION
 
-P01 &#169; &#xA9; &#000169; &#x000A9;
+P01 &#169; &#169; &#169; &#169;
 
 P02 &amp;#169; &amp;#xA9; &amp;#000169; &amp;#x000A9;
 
@@ -53,7 +53,7 @@ P19 [https://example.org](https://example.org)\[&#169;\]
 
 P20 pass:m,c,r\[https://example.org\[&amp;#169;\]\]
 
-P21 café &#169;Ω &#169;&#xA9;
+P21 café &#169;Ω &#169;&#169;
 
 P22 &#169; — tail
 
@@ -64,7 +64,7 @@ P24 &amp;amp;#169; &amp;amp;
 P25 &amp;amp;#169;
 
 ```
-C01 &#169; <tag> &
+C01 © <tag> &
 C02 &#169; &lt;tag&gt; &amp;
 C03 &#169; \&#169;
 C04 &#9; &#x9; &#0000169; &#X00A9;

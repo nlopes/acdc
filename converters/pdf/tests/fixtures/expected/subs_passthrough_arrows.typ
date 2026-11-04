@@ -109,9 +109,9 @@
 
 #text("R12 ")#text("-")#text(">")#text(" and ")#text("->")#text(".")
 
-#text("R13 ")#text("©")#text(" ")#text("…")#text(" <x> ")#text("&copy;")#text(" \\*Bold\\*")#text(".")
+#text("R13 ")#text("©")#text(" ")#text("…")#text(" <x> ")#text("©")#text(" \\*Bold\\*")#text(".")
 
-#text("R14 ")#text("-")#text(">")#text(" ")#text("=")#text(">")#text(" ")#text("<")#text("-")#text(" ")#text("<")#text("=")#text(".")
+#text("R14 ")#text("-")#text(">")#text(" =")#text(">")#text(" ")#text("<")#text("- ")#text("<")#text("=")#text(".")
 
 #raw(block: true, "R15 → ⇒ ← ⇐ and -> => <- <=.\nR16 -> => <- <=.")
 
@@ -123,7 +123,7 @@
 
 #text("R21 ")#text("->")#text(" ")#text("=>")#text(" ")#text("<-")#text(" ")#text("<=")#text(".")
 
-#text("R22 ")#text("\\")#text("-")#text(">")#text(" \\")#text("=")#text(">")#text(" ")#text("&lt;")#text("-")#text(" ")#text("&lt;")#text("=")#text(".")
+#text("R22 ")#text("\\-")#text(">")#text(" \\=")#text(">")#text(" ")#text("&lt;")#text("-")#text(" ")#text("&lt;")#text("=")#text(".")
 
 #text("R23 ")#text("⇐")#text("→")#text(" ")#text("&")#text(".")
 

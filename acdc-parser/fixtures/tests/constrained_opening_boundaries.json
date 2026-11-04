@@ -2271,11 +2271,131 @@
             {
               "name": "text",
               "type": "string",
-              "value": "P18 &amp;*Bold* &#42;_Italic_ &#x2a;`Code` &gt;#Mark#.",
+              "value": "P18 ",
               "location": [
                 {
                   "line": 46,
                   "col": 1
+                },
+                {
+                  "line": 46,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "charref",
+              "type": "string",
+              "value": "&amp;",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 5
+                },
+                {
+                  "line": 46,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "*Bold* ",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 10
+                },
+                {
+                  "line": 46,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "charref",
+              "type": "string",
+              "value": "&#42;",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 17
+                },
+                {
+                  "line": 46,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "_Italic_ ",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 22
+                },
+                {
+                  "line": 46,
+                  "col": 30
+                }
+              ]
+            },
+            {
+              "name": "charref",
+              "type": "string",
+              "value": "&#42;",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 31
+                },
+                {
+                  "line": 46,
+                  "col": 36
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "`Code` ",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 37
+                },
+                {
+                  "line": 46,
+                  "col": 43
+                }
+              ]
+            },
+            {
+              "name": "charref",
+              "type": "string",
+              "value": "&gt;",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 44
+                },
+                {
+                  "line": 46,
+                  "col": 47
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "#Mark#.",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 48
                 },
                 {
                   "line": 46,

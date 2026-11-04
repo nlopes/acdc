@@ -1,0 +1,58 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 898,
+      "absolute_start": 879,
+      "file": "subs_passthrough_character_references.adoc",
+      "location": [
+        {
+          "col": 5,
+          "line": 50
+        },
+        {
+          "col": 24,
+          "line": 50
+        }
+      ]
+    },
+    "message": "inline passthrough escaping after formatting or macros requires backend markup; value retained literally"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 898,
+        "absolute_start": 879,
+        "file": "subs_passthrough_character_references.adoc",
+        "location": [
+          {
+            "col": 5,
+            "line": 50
+          },
+          {
+            "col": 24,
+            "line": 50
+          }
+        ]
+      },
+      "message": "inline passthrough escaping after formatting or macros requires backend markup; value retained literally"
+    },
+    {
+      "location": {
+        "absolute_end": 987,
+        "absolute_start": 950,
+        "file": "subs_passthrough_character_references.adoc",
+        "location": [
+          {
+            "col": 5,
+            "line": 54
+          },
+          {
+            "col": 42,
+            "line": 54
+          }
+        ]
+      },
+      "message": "inline passthrough escaping after formatting or macros requires backend markup; value retained literally"
+    }
+  ]
+}

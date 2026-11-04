@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Character references follow parser-selected substitutions. Literal numeric-reference text remains literal when replacements are disabled. Known named references such as `&copy;` render as characters; Asciidoctor PDF reports these names as unsupported.
+
 - Constructed character-reference nodes render as text in PDF output, including named references with more than one Unicode character.
 
 - Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.

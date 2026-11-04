@@ -187,6 +187,13 @@ repeated entries. These replace the enclosing block's rules. The reads do not
 decode character references; source locations still identify authored input.
 Curved quotes, standalone apostrophes, and line breaks retain their own kinds.
 
+`CharacterReferenceRef::kind()` distinguishes named and numeric references without
+converting them to display characters. For example, `&#xA9;` becomes
+`CharacterReferenceKind::Numeric(169)`. Asciidoctor mode follows Asciidoctor's
+reference syntax; Draft also accepts XML names and one-digit numbers. Escaped
+references remain literal text. Native JSON uses `charref` nodes and canonical
+decimal numeric spelling; source locations retain the complete authored token.
+
 Document parsing lowers inline passthroughs into raw text or structured inlines.
 `parse_inline()` can retain passthrough macros. Read them through `PassRef` for
 optional `text()`, `kind()`, and requested `substitutions()`. Reading a macro does

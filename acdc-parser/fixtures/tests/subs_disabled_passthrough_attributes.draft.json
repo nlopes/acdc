@@ -1935,7 +1935,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&copy;",
               "location": [
@@ -1965,7 +1965,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&copy;",
               "location": [

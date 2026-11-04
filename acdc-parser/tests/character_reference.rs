@@ -103,3 +103,154 @@ fn asg_character_references_are_checked_values() -> Result<(), Error> {
     }
     Ok(())
 }
+
+#[test]
+fn parsed_character_references_have_authoritative_identity() -> Result<(), Error> {
+    for mode in [
+        acdc_parser::CompatibilityMode::Asciidoctor,
+        acdc_parser::CompatibilityMode::Draft,
+    ] {
+        let options = acdc_parser::Options::builder()
+            .with_compatibility_mode(mode)
+            .build()?;
+        let parsed = acdc_parser::parse_inline("&copy; &#169; &#x1F600;", &options)?;
+        let kinds: Vec<_> = parsed
+            .inlines()
+            .iter()
+            .filter_map(|node| {
+                if let InlineNode::CharacterReference(reference) = node {
+                    Some(reference.kind())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(
+            kinds,
+            [
+                CharacterReferenceKind::Named("copy"),
+                CharacterReferenceKind::Numeric(169),
+                CharacterReferenceKind::Numeric(0x1f600)
+            ]
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn parsed_character_reference_escapes_consume_only_one_backslash() -> Result<(), Error> {
+    let parsed = acdc_parser::parse_inline(r"\\&copy;", &acdc_parser::Options::default())?;
+    let value = serde_json::to_value(parsed.inlines())?;
+    assert!(
+        value.as_array().is_some_and(|nodes| nodes
+            .iter()
+            .any(|node| node["name"] == "raw" && node["value"] == "&copy;")),
+        "{value}"
+    );
+    assert!(
+        value
+            .as_array()
+            .is_some_and(|nodes| nodes.iter().any(|node| node["value"] == r"\")),
+        "{value}"
+    );
+    Ok(())
+}
+
+#[test]
+fn generated_section_ids_omit_character_references() -> Result<(), Error> {
+    for mode in [
+        acdc_parser::CompatibilityMode::Asciidoctor,
+        acdc_parser::CompatibilityMode::Draft,
+    ] {
+        let options = acdc_parser::Options::builder()
+            .with_compatibility_mode(mode)
+            .build()?;
+        for (source, expected) in [
+            ("== Heading &copy;", "_heading"),
+            ("== Heading &#65;", "_heading"),
+            (r"== Heading \&copy;", "_heading_copy"),
+        ] {
+            let parsed = acdc_parser::parse(source, &options)?;
+            let Some(acdc_parser::Block::Section(section)) = parsed.document().blocks.first()
+            else {
+                return Err("missing section".into());
+            };
+            assert_eq!(section.id(), expected);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn passthrough_character_references_respect_later_escaping() -> Result<(), Error> {
+    for mode in [
+        acdc_parser::CompatibilityMode::Asciidoctor,
+        acdc_parser::CompatibilityMode::Draft,
+    ] {
+        let options = acdc_parser::Options::builder()
+            .with_compatibility_mode(mode)
+            .build()?;
+        for (source, expected) in [
+            ("pass:r[&amp;copy;]", 1),
+            ("pass:c,r[&copy; &amp;copy;]", 1),
+            ("pass:r,c[&amp;copy;]", 0),
+            ("pass:[&copy;]", 0),
+            ("pass:c[&copy;]", 0),
+        ] {
+            let parsed = acdc_parser::parse_inline(source, &options)?;
+            let count = parsed
+                .inlines()
+                .iter()
+                .filter(|node| matches!(node, InlineNode::CharacterReference(_)))
+                .count();
+            assert_eq!(count, expected, "{source} ({mode:?})");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn document_and_caller_character_references_expand_once() -> Result<(), Error> {
+    for mode in [
+        acdc_parser::CompatibilityMode::Asciidoctor,
+        acdc_parser::CompatibilityMode::Draft,
+    ] {
+        let options = acdc_parser::Options::builder()
+            .with_compatibility_mode(mode)
+            .build()?;
+        let source = ":reference: &copy;\n:encoded: &amp;copy;\n:escaped: \\&copy;\n\n{reference} {encoded} {escaped}";
+        let parsed = acdc_parser::parse(source, &options)?;
+        let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed.document().blocks.first()
+        else {
+            return Err("missing paragraph".into());
+        };
+        assert_eq!(
+            paragraph
+                .content
+                .iter()
+                .filter(|node| matches!(node, InlineNode::CharacterReference(_)))
+                .count(),
+            1
+        );
+        assert_eq!(paragraph.content.iter().filter(|node| matches!(node, InlineNode::RawText(raw) if raw.content == "&copy;" && raw.subs == [acdc_parser::Substitution::SpecialChars])).count(), 2);
+        let options = acdc_parser::Options::builder()
+            .with_compatibility_mode(mode)
+            .with_attributes([("encoded", "&amp;copy;")])
+            .build()?;
+        let parsed = acdc_parser::parse_inline("{encoded}", &options)?;
+        assert!(
+            matches!(parsed.inlines(), [InlineNode::CharacterReference(reference)] if reference.kind() == CharacterReferenceKind::Named("copy"))
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn later_quotes_span_resolved_character_references() -> Result<(), Error> {
+    let parsed =
+        acdc_parser::parse_inline("pass:c,r,q[*&#169;*]", &acdc_parser::Options::default())?;
+    assert!(
+        matches!(parsed.inlines(), [InlineNode::BoldText(bold)] if matches!(bold.content.as_slice(), [InlineNode::CharacterReference(reference)] if reference.kind() == CharacterReferenceKind::Numeric(169)))
+    );
+    Ok(())
+}

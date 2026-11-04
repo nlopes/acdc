@@ -76,7 +76,7 @@ D18 +*Bold*+ | pass:[*Bold*].
 .sp
 D19 +<café>+ | pass:[&café] | ++*café++.
 .sp
-D20 ++{word}+ &copy;+ | pass:[+{word}+ &copy;].
+D20 ++{word}+ \(co+ | pass:[+{word}+ \(co].
 .sp
 D21 +anchor:target[]footnote:[Note.]indexterm2:[Term]+ | pass:[anchor:target[]footnote:[Note.]indexterm2:[Term]].
 .sp

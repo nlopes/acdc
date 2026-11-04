@@ -157,13 +157,28 @@
           ]
         },
         {
-          "name": "text",
+          "name": "charref",
           "type": "string",
-          "value": "&copy; ",
+          "value": "&copy;",
           "location": [
             {
               "line": 7,
               "col": 28
+            },
+            {
+              "line": 7,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 7,
+              "col": 34
             },
             {
               "line": 7,

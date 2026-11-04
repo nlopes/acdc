@@ -1,0 +1,11 @@
+Named &copy; &NotEqualTilde; &amp; &lt; &gt; &apos; &quot; &unknown;.
+
+Numeric &#65; &#169; &#000065; &#x41; &#x1F600; &#00; &#xD800;.
+
+Boundaries &a; &ab12; &ab123; &#9; &#1234567; &#X41; &#x110000; &éclair; &a_b; &prefix:name;.
+
+Escaped \&copy; \\&copy; \\\&copy; \&#169; \\&#169; \&amp;.
+
+Formatted *&copy;* and _&#169;_ and `&amp;` and &*copy*;.
+
+Plain bare & and unterminated &copy and invalid &#; &a b;.

@@ -119,7 +119,7 @@
 
 #text("P17 =")#text("*")#text("Bold* =")#text("_")#text("Italic_ =")#text("`")#text("Code` =")#text("#")#text("Mark#.")
 
-#text("P18 &amp;*Bold* *_Italic_ *`Code` &gt;#Mark#.")
+#text("P18 ")#text("&")#text("*Bold* ")#text("*")#text("_Italic_ ")#text("*")#text("`Code` ")#text(">")#text("#Mark#.")
 
 #text("P19 :")#strong[#text("Bold")]#text(" ;")#emph[#text("Italic")]#text(" }")#raw("Code")#text(" _")#highlight[#text("Mark")]#text(".")
 

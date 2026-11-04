@@ -942,11 +942,71 @@
         {
           "name": "text",
           "type": "string",
-          "value": " and \"File &#62; Open\" and \"File &#x3e; Open\".",
+          "value": " and \"File ",
           "location": [
             {
               "line": 20,
               "col": 17
+            },
+            {
+              "line": 20,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "charref",
+          "type": "string",
+          "value": "&#62;",
+          "location": [
+            {
+              "line": 20,
+              "col": 28
+            },
+            {
+              "line": 20,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " Open\" and \"File ",
+          "location": [
+            {
+              "line": 20,
+              "col": 33
+            },
+            {
+              "line": 20,
+              "col": 49
+            }
+          ]
+        },
+        {
+          "name": "charref",
+          "type": "string",
+          "value": "&#62;",
+          "location": [
+            {
+              "line": 20,
+              "col": 50
+            },
+            {
+              "line": 20,
+              "col": 55
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " Open\".",
+          "location": [
+            {
+              "line": 20,
+              "col": 56
             },
             {
               "line": 20,

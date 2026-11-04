@@ -243,11 +243,41 @@
               {
                 "name": "text",
                 "type": "string",
-                "value": "Open &#62; Close",
+                "value": "Open ",
                 "location": [
                   {
                     "line": 6,
                     "col": 11
+                  },
+                  {
+                    "line": 6,
+                    "col": 15
+                  }
+                ]
+              },
+              {
+                "name": "charref",
+                "type": "string",
+                "value": "&#62;",
+                "location": [
+                  {
+                    "line": 6,
+                    "col": 16
+                  },
+                  {
+                    "line": 6,
+                    "col": 20
+                  }
+                ]
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "value": " Close",
+                "location": [
+                  {
+                    "line": 6,
+                    "col": 21
                   },
                   {
                     "line": 6,
@@ -308,11 +338,41 @@
               {
                 "name": "text",
                 "type": "string",
-                "value": "Open &amp;gt; Close",
+                "value": "Open ",
                 "location": [
                   {
                     "line": 6,
                     "col": 43
+                  },
+                  {
+                    "line": 6,
+                    "col": 47
+                  }
+                ]
+              },
+              {
+                "name": "charref",
+                "type": "string",
+                "value": "&amp;",
+                "location": [
+                  {
+                    "line": 6,
+                    "col": 48
+                  },
+                  {
+                    "line": 6,
+                    "col": 52
+                  }
+                ]
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "value": "gt; Close",
+                "location": [
+                  {
+                    "line": 6,
+                    "col": 53
                   },
                   {
                     "line": 6,

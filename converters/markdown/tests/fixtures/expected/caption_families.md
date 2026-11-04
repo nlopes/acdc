@@ -9,7 +9,7 @@
 
 ![Caption alternative](missing-caption-image.png)
 
-<strong>**Figure π** *prefix* [Link](https://example.org/image?a=1&b=2) & \<tag\> #\[x\] \\\\ image custom</strong>
+<strong>**Figure π** *prefix* [Link](https://example.org/image?a=1&b=2) &amp; \<tag\> #\[x\] \\\\ image custom</strong>
 
 ![Caption alternative](missing-caption-image.png)
 
@@ -39,7 +39,7 @@
 | :--- | :--- |
 | A | B |
 
-<strong>**Table π** *prefix* [Link](https://example.org/table?a=1&b=2) & \<tag\> #\[x\] \\\\ table custom</strong>
+<strong>**Table π** *prefix* [Link](https://example.org/table?a=1&b=2) &amp; \<tag\> #\[x\] \\\\ table custom</strong>
 
 |  |  |
 | :--- | :--- |
@@ -81,7 +81,7 @@ let value = 1;
 let value = 1;
 ```
 
-<strong>**Listing π** *prefix* [Link](https://example.org/listing?a=1&b=2) & \<tag\> #\[x\] \\\\ listing custom</strong>
+<strong>**Listing π** *prefix* [Link](https://example.org/listing?a=1&b=2) &amp; \<tag\> #\[x\] \\\\ listing custom</strong>
 
 ```rust
 let value = 1;
@@ -121,7 +121,7 @@ let value = 1;
 <!-- Warning: example blocks not natively supported in Markdown, using blockquote -->
 > Example body.
 
-<strong>**Example π** *prefix* [Link](https://example.org/example?a=1&b=2) & \<tag\> #\[x\] \\\\ example custom</strong>
+<strong>**Example π** *prefix* [Link](https://example.org/example?a=1&b=2) &amp; \<tag\> #\[x\] \\\\ example custom</strong>
 
 <!-- Warning: example blocks not natively supported in Markdown, using blockquote -->
 > Example body.

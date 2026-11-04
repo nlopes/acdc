@@ -9,9 +9,11 @@ fn text(content: &ContentAttribute<'_>) -> String {
         .iter()
         .filter_map(|node| {
             if let InlineNode::PlainText(node) = node {
-                Some(node.content)
+                Some(node.content.to_owned())
             } else if let InlineNode::RawText(node) = node {
-                Some(node.content)
+                Some(node.content.to_owned())
+            } else if let InlineNode::CharacterReference(node) = node {
+                Some(node.kind().to_string())
             } else {
                 None
             }
@@ -23,7 +25,7 @@ fn text(content: &ContentAttribute<'_>) -> String {
 #[case("", "Open > Close", &["Open", "Close"])]
 #[case("", "Open &gt; Close", &["Open", "Close"])]
 #[case("", "Open &#62; Close", &["Open &#62; Close"])]
-#[case("", "Open &#x3e; Close", &["Open &#x3e; Close"])]
+#[case("", "Open &#x3e; Close", &["Open &#62; Close"])]
 #[case("", "Open &amp;gt; Close", &["Open &amp;gt; Close"])]
 #[case("[subs=macros]\n", "Open > Close", &["Open > Close"])]
 #[case("[subs=macros]\n", "Open &gt; Close", &["Open", "Close"])]

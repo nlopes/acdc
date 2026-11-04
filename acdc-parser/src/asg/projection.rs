@@ -26,15 +26,7 @@ pub(super) fn inlines(values: &[InlineNode<'_>], path: &str) -> Result<Value, Er
 
 fn inline(value: &InlineNode<'_>, path: &str) -> Result<Value, Error> {
     let mut result = match value {
-        InlineNode::PlainText(text) => {
-            if text.content.contains('&') {
-                return Err(unsupported(
-                    path,
-                    "ordinary text with ampersands needs character-reference classification before strict export",
-                ));
-            }
-            literal("text", text.content)
-        }
+        InlineNode::PlainText(text) => literal("text", text.content),
         InlineNode::VerbatimText(text) => literal("text", text.content),
         InlineNode::Symbol(symbol) => literal("text", symbol.kind.text()),
         InlineNode::CharacterReference(reference) => {

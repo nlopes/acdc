@@ -790,7 +790,11 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     }
 
     fn write_escaped_text(&mut self, text: &str) -> Result<(), Error> {
-        write!(self.writer, "{}", Self::escape_markdown(text))?;
+        write!(
+            self.writer,
+            "{}",
+            Self::escape_markdown(&text.replace('&', "&amp;"))
+        )?;
         Ok(())
     }
 
@@ -2293,6 +2297,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             let role = self.write_role_start(text.role())?;
             let content = InlineTextTransform::default()
                 .line_break("\n")
+                .decode_char_refs(true)
                 .content_to_string(text.content());
             self.write_code_span(&content)?;
             self.write_role_end(role)?;

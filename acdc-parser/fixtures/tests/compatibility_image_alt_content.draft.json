@@ -462,11 +462,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": " &amp; ",
+              "value": " ",
               "location": [
                 {
                   "line": 32,
                   "col": 38
+                },
+                {
+                  "line": 32,
+                  "col": 38
+                }
+              ]
+            },
+            {
+              "name": "charref",
+              "type": "string",
+              "value": "&amp;",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 39
+                },
+                {
+                  "line": 32,
+                  "col": 43
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 44
                 },
                 {
                   "line": 32,
@@ -641,11 +671,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": " &amp; ",
+              "value": " ",
               "location": [
                 {
                   "line": 36,
                   "col": 28
+                },
+                {
+                  "line": 36,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "charref",
+              "type": "string",
+              "value": "&amp;",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 29
+                },
+                {
+                  "line": 36,
+                  "col": 33
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 34
                 },
                 {
                   "line": 36,

@@ -335,24 +335,31 @@ fn asg_rejects_attribute_protection_and_preserves_literal_quotes() -> Result<(),
 }
 
 #[test]
-fn asg_does_not_guess_character_references_or_unset_element_values() -> Result<(), Error> {
-    for source in [
-        "Text &copy;.",
-        "Text &#169;.",
-        "Fish & chips.",
-        "[custom,alpha]\nText.",
-    ] {
-        let parsed = parse(source, &Options::default())?;
-        assert!(
-            matches!(
-                asg::document(parsed.document()),
-                Err(asg::Error::Unsupported { .. })
-            ),
-            "{source}"
-        );
+fn asg_reads_classified_references_and_literal_ampersands() -> Result<(), Error> {
+    for options in modes()? {
+        for (source, name, value) in [
+            ("&copy;", "charref", "&copy;"),
+            ("&#169;", "charref", "&#169;"),
+            ("Fish & chips.", "text", "Fish & chips."),
+            (r"\&copy;", "text", "&copy;"),
+        ] {
+            let parsed = parse(source, &options)?;
+            let exported = asg::document(parsed.document())?;
+            assert_eq!(
+                exported.pointer("/blocks/0/inlines/0/name"),
+                Some(&json!(name))
+            );
+            assert_eq!(
+                exported.pointer("/blocks/0/inlines/0/value"),
+                Some(&json!(value))
+            );
+        }
     }
-    let parsed = parse("Text +fish & chips+.", &Options::default())?;
-    asg::document(parsed.document())?;
+    let parsed = parse("[custom,alpha]\nText.", &Options::default())?;
+    assert!(matches!(
+        asg::document(parsed.document()),
+        Err(asg::Error::Unsupported { .. })
+    ));
     Ok(())
 }
 

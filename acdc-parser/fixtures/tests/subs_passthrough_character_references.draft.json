@@ -213,7 +213,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -247,9 +247,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "&#xA9;",
+              "value": "&#169;",
               "location": [
                 {
                   "line": 16,
@@ -281,9 +281,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "&#000169;",
+              "value": "&#169;",
               "location": [
                 {
                   "line": 16,
@@ -315,9 +315,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "&#x000A9;",
+              "value": "&#169;",
               "location": [
                 {
                   "line": 16,
@@ -518,7 +518,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -551,12 +551,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "<",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&lt;",
               "location": [
                 {
                   "line": 20,
@@ -587,12 +584,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": ">",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&gt;",
               "location": [
                 {
                   "line": 20,
@@ -623,12 +617,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "&",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&amp;",
               "location": [
                 {
                   "line": 20,
@@ -709,12 +700,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "<",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&lt;",
               "location": [
                 {
                   "line": 22,
@@ -746,12 +734,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": ">",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&gt;",
               "location": [
                 {
                   "line": 22,
@@ -783,12 +768,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "&",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&amp;",
               "location": [
                 {
                   "line": 22,
@@ -1040,12 +1022,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#9;",
-              "substitutions": [
-                "special_chars"
-              ],
               "location": [
                 {
                   "line": 28,
@@ -1077,12 +1056,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "&#x9;",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&#9;",
               "location": [
                 {
                   "line": 28,
@@ -1114,12 +1090,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "&#0000169;",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&#169;",
               "location": [
                 {
                   "line": 28,
@@ -1188,12 +1161,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "&#x0000A9;",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&#169;",
               "location": [
                 {
                   "line": 28,
@@ -1262,12 +1232,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&a;",
-              "substitutions": [
-                "special_chars"
-              ],
               "location": [
                 {
                   "line": 28,
@@ -1299,12 +1266,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&ab123;",
-              "substitutions": [
-                "special_chars"
-              ],
               "location": [
                 {
                   "line": 28,
@@ -1336,12 +1300,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&ab1c;",
-              "substitutions": [
-                "special_chars"
-              ],
               "location": [
                 {
                   "line": 28,
@@ -1637,7 +1598,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -1683,7 +1644,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -1729,7 +1690,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -1775,7 +1736,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -1870,7 +1831,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -1922,7 +1883,7 @@
               "form": "constrained",
               "inlines": [
                 {
-                  "name": "raw",
+                  "name": "charref",
                   "type": "string",
                   "value": "&#169;",
                   "location": [
@@ -2066,7 +2027,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -2210,7 +2171,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -2244,7 +2205,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -2259,9 +2220,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "&#xA9;",
+              "value": "&#169;",
               "location": [
                 {
                   "line": 56,
@@ -2305,7 +2266,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -2419,7 +2380,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -2608,7 +2569,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -2642,12 +2603,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "<",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&lt;",
               "location": [
                 {
                   "line": 68,
@@ -2679,12 +2637,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": ">",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&gt;",
               "location": [
                 {
                   "line": 68,
@@ -2716,12 +2671,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "&",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&amp;",
               "location": [
                 {
                   "line": 68,
@@ -2960,12 +2912,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#9;",
-              "substitutions": [
-                "special_chars"
-              ],
               "location": [
                 {
                   "line": 71,
@@ -2997,12 +2946,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "&#x9;",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&#9;",
               "location": [
                 {
                   "line": 71,
@@ -3034,12 +2980,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "&#0000169;",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&#169;",
               "location": [
                 {
                   "line": 71,

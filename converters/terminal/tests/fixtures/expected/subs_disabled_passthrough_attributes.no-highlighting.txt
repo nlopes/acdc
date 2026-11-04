@@ -32,7 +32,7 @@ D16 pass:[one [nested café]] | pass:[café | +café.
 D17 +[1mBold[22m+ | pass:[[1mBold[22m].
 D18 +*Bold*+ | pass:[*Bold*].
 D19 +<café>+ | pass:[&café] | ++*café++.
-D20 ++{word}+ &copy;+ | pass:[+{word}+ &copy;].
+D20 ++{word}+ ©+ | pass:[+{word}+ ©].
 D21 +anchor:target[]footnote:[Note.]indexterm2:[Term]+ | pass:[anchor:target[]footnote:[Note.]indexterm2:[Term]].
 D22 {word} | {word} | café.
 D23 {word} | {word} | café.

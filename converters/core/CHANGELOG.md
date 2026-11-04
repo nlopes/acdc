@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Image and icon alternative-text helpers return the display characters of parsed references, while escaped reference text stays literal.
+
 - Text extraction supports constructed character-reference nodes. `decode_char_refs(true)` decodes known names and valid numeric values; unknown or invalid values keep their reference spelling.
 
 - Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.

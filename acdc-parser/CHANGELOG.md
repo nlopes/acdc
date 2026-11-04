@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Added `InlineNode::CharacterReference` for constructed ASTs, with named/numeric values and `CharacterReferenceRef` reads. Native JSON uses `name: "charref"`; numeric values use canonical decimal reference spelling. Checked ASG export accepts reference nodes and rejects invalid XML numeric characters. Parsing behavior is unchanged.
+- Added `InlineNode::CharacterReference`, with named/numeric values and `CharacterReferenceRef` reads. Native JSON uses `name: "charref"`; numeric values use canonical decimal reference spelling. Checked ASG export accepts reference nodes and rejects invalid XML numeric characters. Parsing now identifies references during replacements. Asciidoctor mode follows its reference syntax; Draft accepts XML names and one-digit numeric references. Escapes, substitution order, expanded attributes, and source ranges retain their meaning. Numeric references no longer retain hexadecimal spelling or zero padding.
 
 - Added the offline `asg_schema_audit` example with a pinned upstream schema, validator controls, and a node/property inventory. It reports native JSON shape differences separately from ASG export or language conformance.
 
@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Block image alt text now contains resolved replacement symbols in Asciidoctor mode. Draft alt text stays literal. JSON consumers must accept symbol nodes in alternative text.
 
 ### Breaking changes
+
+- Parsed references now use `InlineNode::CharacterReference` / `InlineKind::CharacterReference` instead of plain or raw text. Native JSON readers must accept `charref` nodes; numeric references use decimal spelling.
 
 - Removed `strip_quotes`. Read parsed attribute values directly: attribute-list delimiters are already removed, and remaining quote characters are literal text.
 

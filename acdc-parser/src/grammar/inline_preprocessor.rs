@@ -503,15 +503,19 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
         let mut value = String::new();
         let _ = resolved.write_text(&mut value);
+        let raw = resolved.passthrough_ranges();
+        let kind = if document_attributes.is_document_value(attribute_name) {
+            ProcessedKind::DocumentAttribute(raw.into())
+        } else if raw.is_empty() {
+            ProcessedKind::Attribute
+        } else {
+            ProcessedKind::RawAttribute(raw.into())
+        };
         self.source_map.borrow_mut().add_replacement(
             location.absolute_start,
             location.absolute_end,
             value.len(),
-            if resolved.passthrough_ranges().is_empty() {
-                ProcessedKind::Attribute
-            } else {
-                ProcessedKind::RawAttribute(resolved.passthrough_ranges().into())
-            },
+            kind,
         );
         value
     }
@@ -577,6 +581,8 @@ struct SourceMapOrigin {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ProcessedKind {
     Attribute,
+    // Declaration values have a character-escaping stage before body expansion.
+    DocumentAttribute(Box<[Range<usize>]>),
     RawAttribute(Box<[Range<usize>]>),
     Escape,
     /// Removed leading whitespace maps to the first retained byte.
@@ -586,7 +592,10 @@ pub(crate) enum ProcessedKind {
 
 impl ProcessedKind {
     pub(crate) const fn is_attribute(&self) -> bool {
-        matches!(self, Self::Attribute | Self::RawAttribute(_))
+        matches!(
+            self,
+            Self::Attribute | Self::DocumentAttribute(_) | Self::RawAttribute(_)
+        )
     }
 }
 
@@ -712,6 +721,24 @@ impl SourceMap {
         ranges
     }
 
+    pub(crate) fn document_attribute_ranges(&self, original_start: usize) -> Vec<Range<usize>> {
+        let mut original_cursor = original_start;
+        let mut processed_cursor = 0;
+        let mut ranges = Vec::new();
+        for replacement in &self.replacements {
+            if replacement.absolute_start < original_cursor {
+                continue;
+            }
+            processed_cursor += replacement.absolute_start - original_cursor;
+            if matches!(replacement.kind, ProcessedKind::DocumentAttribute(_)) {
+                ranges.push(processed_cursor..processed_cursor + replacement.byte_len);
+            }
+            processed_cursor += replacement.byte_len;
+            original_cursor = replacement.absolute_end;
+        }
+        ranges
+    }
+
     pub(crate) fn raw_attribute_ranges(&self, original_start: usize) -> Vec<Range<usize>> {
         let mut original_cursor = original_start;
         let mut processed_cursor = 0;
@@ -721,7 +748,9 @@ impl SourceMap {
                 continue;
             }
             processed_cursor += replacement.absolute_start - original_cursor;
-            if let ProcessedKind::RawAttribute(raw) = &replacement.kind {
+            if let ProcessedKind::RawAttribute(raw) | ProcessedKind::DocumentAttribute(raw) =
+                &replacement.kind
+            {
                 ranges.extend(
                     raw.iter()
                         .map(|range| range.start + processed_cursor..range.end + processed_cursor),
@@ -772,7 +801,9 @@ impl SourceMap {
                     return Ok(rep.absolute_end.saturating_sub(1));
                 }
                 return match rep.kind {
-                    ProcessedKind::Attribute | ProcessedKind::RawAttribute(_) => {
+                    ProcessedKind::Attribute
+                    | ProcessedKind::DocumentAttribute(_)
+                    | ProcessedKind::RawAttribute(_) => {
                         // All inserted characters map to the left-most original position
                         Ok(rep.absolute_start)
                     }

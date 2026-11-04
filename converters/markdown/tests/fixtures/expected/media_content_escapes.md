@@ -14,7 +14,7 @@
 
 ![Selected macro](photo.png)
 
-![\[3\]](photo.png "A &amp; B &#169;")
+![\[3\]](photo.png "A & B ©")
 
 ![photo](photo.png)
 

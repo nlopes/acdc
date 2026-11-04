@@ -1,0 +1,30 @@
+Default &copy; &amp;copy; &#169; &amp;#169;.
+
+[subs=none]
+&copy; &amp;copy; \&copy; <raw>.
+
+[subs=specialchars]
+&copy; &#169; &amp;.
+
+[subs=replacements]
+&copy; &amp;copy; &#169; &amp;#169; \&copy; \&amp;copy;.
+
+[subs="replacements,specialchars"]
+&copy; &amp;copy; &#169; &amp;#169; \&copy; \&amp;copy;.
+
+[subs="specialchars,replacements"]
+&copy; &amp;copy; &#169; &amp;#169; \&copy; \&amp;copy;.
+
+[subs="specialchars,replacements,specialchars,replacements"]
+&copy; &amp;copy; &#169; &amp;#169;.
+
+Protected +&copy; &#169; &amp;+ and ++&copy; &#169; &amp;++.
+
+Raw +++&copy; &#169; &amp;+++ and pass:[&copy; &#169; &amp;].
+
+Pass pass:c[&copy; &amp;copy;] pass:r[&amp;copy;] pass:c,r[&copy; &amp;copy;] pass:r,c[&amp;copy;].
+
+[subs="specialchars,replacements"]
+----
+Code &copy; &#169; \&copy;.
+----

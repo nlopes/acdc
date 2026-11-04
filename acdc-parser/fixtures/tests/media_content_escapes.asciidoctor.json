@@ -755,11 +755,56 @@
             {
               "name": "text",
               "type": "string",
-              "value": "A &amp; B &#169;",
+              "value": "A ",
               "location": [
                 {
                   "line": 21,
                   "col": 51
+                },
+                {
+                  "line": 21,
+                  "col": 52
+                }
+              ]
+            },
+            {
+              "name": "charref",
+              "type": "string",
+              "value": "&amp;",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 53
+                },
+                {
+                  "line": 21,
+                  "col": 57
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " B ",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 58
+                },
+                {
+                  "line": 21,
+                  "col": 60
+                }
+              ]
+            },
+            {
+              "name": "charref",
+              "type": "string",
+              "value": "&#169;",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 61
                 },
                 {
                   "line": 21,

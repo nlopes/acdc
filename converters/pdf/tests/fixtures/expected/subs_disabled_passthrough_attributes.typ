@@ -123,7 +123,7 @@
 
 #text("D19 +")#text("<")#text("café")#text(">")#text("+ | pass:[")#text("&")#text("café] | ++")#text("*")#text("café++.")
 
-#text("D20 ++{word}+ ")#text("&copy;")#text("+ | pass:[+{word}+ ")#text("&copy;")#text("].")
+#text("D20 ++{word}+ ")#text("©")#text("+ | pass:[+{word}+ ")#text("©")#text("].")
 
 #text("D21 +anchor:target[]footnote:[Note.]indexterm2:[Term]+ | pass:[anchor:target[]footnote:[Note.]indexterm2:[Term]].")
 

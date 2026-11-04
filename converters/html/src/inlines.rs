@@ -1589,7 +1589,8 @@ fn escape_inline_text(text: &str, subs: &[Substitution]) -> String {
     if !subs.contains(&Substitution::SpecialChars) {
         return text.to_owned();
     }
-    let text = escape_ampersands(text)
+    let text = text
+        .replace('&', "&amp;")
         .replace('>', "&gt;")
         .replace('<', "&lt;");
     encode_html_entities(&text)

@@ -884,9 +884,6 @@ impl<'a> Section<'a> {
                 InlineNode::CurvedApostropheText(text) => {
                     Self::append_id_from_inlines(&text.content, out, last_was_underscore);
                 }
-                InlineNode::CharacterReference(reference) => {
-                    Self::append_id_text(&reference.kind().to_string(), out, last_was_underscore);
-                }
                 InlineNode::Symbol(symbol) => {
                     Self::append_id_text(symbol.kind.text(), out, last_was_underscore);
                 }
@@ -896,7 +893,7 @@ impl<'a> Section<'a> {
                 InlineNode::LineBreak(_) => {
                     Self::append_id_text(" ", out, last_was_underscore);
                 }
-                InlineNode::InlineAnchor(_) => {}
+                InlineNode::CharacterReference(_) | InlineNode::InlineAnchor(_) => {}
                 InlineNode::Macro(macro_node) => {
                     Self::append_id_from_macro(macro_node, out, last_was_underscore);
                 }

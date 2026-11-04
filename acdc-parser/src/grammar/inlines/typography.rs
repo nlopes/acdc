@@ -1,3 +1,4 @@
+mod character_references;
 mod encoded_arrows;
 mod neighbors;
 mod split;
@@ -38,7 +39,7 @@ pub(crate) fn resolve_plain<'a>(
     paragraph: bool,
 ) -> Vec<InlineNode<'a>> {
     let nodes = resolve_plain_with_context(nodes, state, paragraph, WordContext::default());
-    split::resolve(nodes, state, paragraph)
+    character_references::resolve(split::resolve(nodes, state, paragraph), state)
 }
 
 fn resolve_plain_with_context<'a>(
@@ -148,7 +149,10 @@ pub(crate) fn resolve_raw<'a>(
     state: &ParserState<'a>,
     edges: Edges,
 ) -> Vec<InlineNode<'a>> {
-    resolve_raw_with_context(raw, state, edges, WordContext::default())
+    character_references::resolve(
+        resolve_raw_with_context(raw, state, edges, WordContext::default()),
+        state,
+    )
 }
 
 fn resolve_raw_with_context<'a>(

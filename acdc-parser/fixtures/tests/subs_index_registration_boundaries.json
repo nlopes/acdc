@@ -433,11 +433,56 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Start >> Target End",
+              "value": "Start ",
               "location": [
                 {
                   "line": 16,
                   "col": 10
+                },
+                {
+                  "line": 16,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "&gt;",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 16
+                },
+                {
+                  "line": 16,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "&gt;",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 16
+                },
+                {
+                  "line": 16,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " Target End",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 16
                 },
                 {
                   "line": 16,
@@ -1142,11 +1187,56 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Start >> Target End",
+              "value": "Start ",
               "location": [
                 {
                   "line": 25,
                   "col": 3
+                },
+                {
+                  "line": 25,
+                  "col": 8
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "&gt;",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 9
+                },
+                {
+                  "line": 25,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "&gt;",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 9
+                },
+                {
+                  "line": 25,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " Target End",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 9
                 },
                 {
                   "line": 25,

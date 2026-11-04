@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Character references follow parser-selected substitutions. Literal ampersands are escaped, and numeric references use equivalent decimal spelling.
+
 - Constructed character-reference nodes render as HTML references without double escaping.
 
 - Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.

@@ -483,7 +483,7 @@ peg::parser! {
         // Bracket escapes belong to active macro labels, not ordinary text.
         // Constrained formatting markers and other single escapable chars
         // Note: ^ and ~ are NOT included here - they require complete patterns above
-        / c:$(['*' | '_' | '#' | '`' | '&']) { c }
+        / c:$(['*' | '_' | '#' | '`']) { c }
         ) { content }
 
         /// Match escaped syntax without consuming - for use in negative lookaheads.
@@ -506,7 +506,7 @@ peg::parser! {
         / "^" [^'^' | ' ' | '\t' | '\n']+ "^"
         / "~" [^'~' | ' ' | '\t' | '\n']+ "~"
         // Single escapable chars (excluding ^ and ~ which need complete patterns)
-        / ['*' | '_' | '#' | '`' | '&'] {}
+        / ['*' | '_' | '#' | '`'] {}
         )
 
         rule footnote() -> InlineNode<'input>

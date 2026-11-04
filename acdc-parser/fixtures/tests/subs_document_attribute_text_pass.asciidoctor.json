@@ -1638,7 +1638,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [
@@ -4398,7 +4398,7 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
               "value": "&#169;",
               "location": [

@@ -828,11 +828,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped single numeric: +&#169;+",
+          "value": "Escaped single numeric: +",
           "location": [
             {
               "line": 25,
               "col": 1
+            },
+            {
+              "line": 25,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "charref",
+          "type": "string",
+          "value": "&#169;",
+          "location": [
+            {
+              "line": 25,
+              "col": 27
+            },
+            {
+              "line": 25,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "+",
+          "location": [
+            {
+              "line": 25,
+              "col": 33
             },
             {
               "line": 25,
@@ -954,13 +984,28 @@
           ]
         },
         {
-          "name": "text",
+          "name": "charref",
           "type": "string",
-          "value": "&#169;+++",
+          "value": "&#169;",
           "location": [
             {
               "line": 29,
               "col": 29
+            },
+            {
+              "line": 29,
+              "col": 34
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "+++",
+          "location": [
+            {
+              "line": 29,
+              "col": 35
             },
             {
               "line": 29,

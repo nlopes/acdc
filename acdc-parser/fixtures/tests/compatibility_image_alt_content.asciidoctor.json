@@ -73,11 +73,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": " &amp; ",
+          "value": " ",
           "location": [
             {
               "line": 3,
               "col": 13
+            },
+            {
+              "line": 3,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "charref",
+          "type": "string",
+          "value": "&amp;",
+          "location": [
+            {
+              "line": 3,
+              "col": 14
+            },
+            {
+              "line": 3,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 3,
+              "col": 19
             },
             {
               "line": 3,
@@ -171,11 +201,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "*Literal* &amp; ",
+          "value": "*Literal* ",
           "location": [
             {
               "line": 6,
               "col": 7
+            },
+            {
+              "line": 6,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "charref",
+          "type": "string",
+          "value": "&amp;",
+          "location": [
+            {
+              "line": 6,
+              "col": 17
+            },
+            {
+              "line": 6,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 6,
+              "col": 22
             },
             {
               "line": 6,
@@ -459,11 +519,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": " &amp; ",
+          "value": " ",
           "location": [
             {
               "line": 19,
               "col": 38
+            },
+            {
+              "line": 19,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "charref",
+          "type": "string",
+          "value": "&amp;",
+          "location": [
+            {
+              "line": 19,
+              "col": 39
+            },
+            {
+              "line": 19,
+              "col": 43
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 19,
+              "col": 44
             },
             {
               "line": 19,
@@ -689,11 +779,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": " &amp; ",
+              "value": " ",
               "location": [
                 {
                   "line": 32,
                   "col": 38
+                },
+                {
+                  "line": 32,
+                  "col": 38
+                }
+              ]
+            },
+            {
+              "name": "charref",
+              "type": "string",
+              "value": "&amp;",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 39
+                },
+                {
+                  "line": 32,
+                  "col": 43
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 44
                 },
                 {
                   "line": 32,
@@ -868,11 +988,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": " &amp; ",
+              "value": " ",
               "location": [
                 {
                   "line": 36,
                   "col": 28
+                },
+                {
+                  "line": 36,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "charref",
+              "type": "string",
+              "value": "&amp;",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 29
+                },
+                {
+                  "line": 36,
+                  "col": 33
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 34
                 },
                 {
                   "line": 36,

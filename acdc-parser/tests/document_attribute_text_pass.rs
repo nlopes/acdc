@@ -105,14 +105,18 @@ fn document_attribute_text_pass_keeps_complete_reference_spans() -> Result<(), E
                     nodes.extend(&italic.content);
                 } else if let InlineNode::MonospaceText(mono) = node {
                     nodes.extend(&mono.content);
-                } else if let InlineNode::RawText(raw) = node {
+                } else if matches!(
+                    node,
+                    InlineNode::RawText(_) | InlineNode::CharacterReference(_)
+                ) {
                     count += 1;
                     assert_eq!(
-                        &parsed.source()[raw.location.absolute_start..=raw.location.absolute_end],
+                        &parsed.source()
+                            [node.location().absolute_start..=node.location().absolute_end],
                         "{raw}"
                     );
-                    assert_eq!(raw.location.start.line, 4);
-                    assert_eq!(raw.location.end.line, 4);
+                    assert_eq!(node.location().start.line, 4);
+                    assert_eq!(node.location().end.line, 4);
                 }
             }
             assert!(count > 0, "{source}");

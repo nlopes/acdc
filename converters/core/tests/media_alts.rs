@@ -65,8 +65,8 @@ fn image_and_icon_fallbacks_keep_distinct_target_policies() -> Result<(), TestEr
 fn explicit_and_empty_alternatives_outlive_temporary_sources() -> Result<(), TestError> {
     for (markup, expected) in [
         ("", ""),
-        ("*Bird* &amp; ->", "Bird &amp; →"),
-        ("*Bird* &#38; ->", "Bird &#38; →"),
+        ("*Bird* &amp; ->", "Bird & →"),
+        ("*Bird* &#38; ->", "Bird & →"),
     ] {
         let (image, icon, typed_image, typed_icon) = {
             let text = String::from(markup);

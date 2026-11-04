@@ -277,7 +277,37 @@
               {
                 "name": "text",
                 "type": "string",
-                "value": "Open > Close",
+                "value": "Open ",
+                "location": [
+                  {
+                    "line": 10,
+                    "col": 28
+                  },
+                  {
+                    "line": 10,
+                    "col": 34
+                  }
+                ]
+              },
+              {
+                "name": "charref",
+                "type": "string",
+                "value": "&gt;",
+                "location": [
+                  {
+                    "line": 10,
+                    "col": 28
+                  },
+                  {
+                    "line": 10,
+                    "col": 34
+                  }
+                ]
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "value": " Close",
                 "location": [
                   {
                     "line": 10,

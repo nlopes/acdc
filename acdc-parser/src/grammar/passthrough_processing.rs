@@ -4,19 +4,20 @@ use bumpalo::Bump;
 use std::{mem::take, rc::Rc};
 
 use crate::{
-    IndexTerm, InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass,
-    PassthroughKind, Plain, ProcessedContent, Raw, Substitution, SubstitutionSpec, Symbol,
-    SymbolKind, Warning,
+    CharacterReference, CharacterReferenceKind, IndexTerm, InlineMacro, InlineNode, LineBreak,
+    Location, ParseInlineResult, Pass, PassthroughKind, Plain, ProcessedContent, Raw, Substitution,
+    SubstitutionSpec, Symbol, SymbolKind, Warning,
     document_attribute::AssignmentState,
     model::substitution::{
         SubstitutionPlan, character_reference_end, escape_attribute_characters,
-        is_restorable_character_reference, resolve_passthrough_substitutions,
+        resolve_passthrough_substitutions,
     },
     parsed::OwnedInput,
 };
 
 use super::{
     ParserState,
+    character_references::{body, whole},
     inlines::{inline_parser, typography::Edges},
     location_mapping::clamp_inline_node_locations,
     state::{InlineContext, InlineRules},
@@ -25,23 +26,33 @@ use super::{
 
 const QUOTES_THEN_MACROS: &[Substitution] = &[Substitution::Quotes, Substitution::Macros];
 
-// Later formatting and macros parse through resolved symbols without losing
-// their semantic kind or original source range.
+// Later formatting and macros can span already-resolved text.
 enum TextFragment<'a> {
     Raw(Raw<'a>),
-    Symbol { text: Raw<'a>, kind: SymbolKind },
+    Symbol {
+        text: Raw<'a>,
+        kind: SymbolKind,
+    },
+    Reference {
+        text: Raw<'a>,
+        kind: CharacterReferenceKind<'a>,
+    },
 }
 
 impl<'a> TextFragment<'a> {
     fn as_raw(&self) -> &Raw<'a> {
         match self {
-            Self::Raw(raw) | Self::Symbol { text: raw, .. } => raw,
+            Self::Raw(raw) | Self::Symbol { text: raw, .. } | Self::Reference { text: raw, .. } => {
+                raw
+            }
         }
     }
 
     fn into_node(self) -> InlineNode<'a> {
         match self {
             Self::Raw(raw) => InlineNode::RawText(raw),
+            Self::Reference { text, kind } => CharacterReference::new(kind, text.location.clone())
+                .map_or(InlineNode::RawText(text), InlineNode::CharacterReference),
             Self::Symbol { text, kind } => InlineNode::Symbol(Symbol {
                 kind,
                 location: text.location,
@@ -470,6 +481,7 @@ fn process_raw_substitutions<'a>(
 fn apply_raw_substitution<'a>(
     mut raw: Raw<'a>,
     substitution: &Substitution,
+    following: &[Substitution],
     state: &ParserState<'a>,
 ) -> Vec<InlineNode<'a>> {
     match substitution {
@@ -484,7 +496,7 @@ fn apply_raw_substitution<'a>(
             vec![InlineNode::RawText(raw)]
         }
         Substitution::Replacements => {
-            if let Some(fragments) = restore_raw_character_references(&raw, state) {
+            if let Some(fragments) = restore_raw_character_references(&raw, following, state) {
                 return fragments;
             }
             if !raw.subs.contains(&Substitution::Replacements) {
@@ -506,6 +518,7 @@ fn apply_raw_substitution<'a>(
 
 fn restore_raw_character_references<'a>(
     raw: &Raw<'a>,
+    following: &[Substitution],
     state: &ParserState<'a>,
 ) -> Option<Vec<InlineNode<'a>>> {
     if !raw.content.contains('&') {
@@ -552,10 +565,10 @@ fn restore_raw_character_references<'a>(
         }
         let escaped = prepared.starts_with('\\');
         let reference = prepared.strip_prefix('\\').unwrap_or(&prepared);
-        if let Some((body, _)) = reference
+        if reference
             .strip_prefix("&amp;")
-            .and_then(|rest| rest.split_once(';'))
-            && is_restorable_character_reference(body)
+            .and_then(|text| body(text, state.options.compatibility_mode))
+            .is_some()
         {
             prepared = if escaped {
                 reference.to_owned()
@@ -569,6 +582,20 @@ fn restore_raw_character_references<'a>(
             prepared.remove(0);
         }
 
+        let location = raw_segment_location(raw, start, end, state);
+        if !escaped
+            && !following.contains(&Substitution::SpecialChars)
+            && let Some(reference) = whole(
+                state.intern_str(&prepared),
+                state.options.compatibility_mode,
+                location.clone(),
+            )
+        {
+            push_raw_segment(&mut fragments, raw, cursor, start, subs.clone(), state);
+            fragments.push(InlineNode::CharacterReference(reference));
+            cursor = end;
+            continue;
+        }
         // Retain an escaping stage for literal references, but remove it from
         // restored ones so every converter sees the same active character.
         let mut reference_subs = Vec::new();
@@ -582,7 +609,7 @@ fn restore_raw_character_references<'a>(
         push_raw_segment(&mut fragments, raw, cursor, start, subs.clone(), state);
         fragments.push(InlineNode::RawText(Raw {
             content: state.intern_str(&prepared),
-            location: raw_segment_location(raw, start, end, state),
+            location,
             subs: reference_subs,
         }));
         cursor = end;
@@ -651,6 +678,17 @@ fn apply_inline_stage<'a>(
                 });
                 continue;
             }
+            if let InlineNode::CharacterReference(reference) = node {
+                fragments.push(TextFragment::Reference {
+                    text: Raw {
+                        content: state.intern_fmt(format_args!("{}", reference.kind())),
+                        location: reference.location.clone(),
+                        subs: Vec::new(),
+                    },
+                    kind: reference.kind(),
+                });
+                continue;
+            }
             result.extend(parse_raw_fragments(take(&mut fragments), plan, state));
             process_inline_children(&mut node, step, state);
             result.push(node);
@@ -662,7 +700,12 @@ fn apply_inline_stage<'a>(
     let mut result = Vec::with_capacity(nodes.len());
     for mut node in nodes {
         if let InlineNode::RawText(raw) = node {
-            result.extend(apply_raw_substitution(raw, substitution, state));
+            result.extend(apply_raw_substitution(
+                raw,
+                substitution,
+                step.following,
+                state,
+            ));
         } else {
             process_inline_children(&mut node, step, state);
             result.push(node);
@@ -1194,7 +1237,9 @@ fn parse_raw_fragments<'a>(
             .into_iter()
             .flat_map(|fragment| match fragment {
                 TextFragment::Raw(raw) => parse_raw_stage(raw, plan, state),
-                symbol @ TextFragment::Symbol { .. } => vec![symbol.into_node()],
+                resolved @ (TextFragment::Symbol { .. } | TextFragment::Reference { .. }) => {
+                    vec![resolved.into_node()]
+                }
             })
             .collect();
     }
@@ -1302,6 +1347,20 @@ fn restore_fragment_substitutions<'a>(
                                 ..raw.location.clone()
                             },
                         }));
+                    } else if let Some(TextFragment::Reference { kind, .. }) = sources.get(index)
+                        && left == span.start
+                        && right == span.end
+                    {
+                        let text = Raw {
+                            content: fragment.content,
+                            location: Location {
+                                absolute_start: span.start,
+                                absolute_end: step_char(text, span.end, RoundDirection::Backward),
+                                ..raw.location.clone()
+                            },
+                            subs: Vec::new(),
+                        };
+                        result.push(TextFragment::Reference { text, kind: *kind }.into_node());
                     } else {
                         result.push(InlineNode::RawText(Raw {
                             content: &raw.content[left - start..right - start],

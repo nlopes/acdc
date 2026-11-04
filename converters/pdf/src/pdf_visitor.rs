@@ -58,8 +58,8 @@ struct CodeText {
 
 impl CodeText {
     fn push_inline_text(&mut self, node: InlineRef<'_>, boundaries: TextBoundaries) {
-        let decode =
-            matches!(node.kind(), InlineKind::Raw(raw) if raw.substitutions().next().is_none());
+        let decode = matches!(node.kind(), InlineKind::CharacterReference(_))
+            || matches!(node.kind(), InlineKind::Raw(raw) if raw.substitutions().next().is_none());
         let _ = InlineTextTransform::default()
             .line_break("\n")
             .rendered()
@@ -1201,7 +1201,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     pub(crate) fn write_plain(&mut self, text: &str) {
         let text = self.normalize_prose_whitespace(text);
-        self.write_text_expr(&acdc_converters_core::decode_numeric_char_refs(&text));
+        self.write_text_expr(&text);
     }
 
     pub(crate) fn write_raw(&mut self, raw: RawRef<'_>) {

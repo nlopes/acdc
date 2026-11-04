@@ -1,0 +1,26 @@
+:reference: &copy;
+:encoded: &amp;copy;
+:escaped: \&copy;
+:name: copy
+:number: 169
+
+Default {reference} {encoded} {escaped} &{name}; &#{number}; {quot} {apos}.
+
+[subs="specialchars,attributes,replacements"]
+{reference} {encoded} {escaped} &{name}; &#{number};.
+
+[subs="specialchars,replacements,attributes"]
+{reference} {encoded} {escaped} &{name}; &#{number};.
+
+[subs="attributes,replacements,specialchars"]
+{reference} {encoded} {escaped} &{name}; &#{number};.
+
+[subs="attributes,specialchars,replacements"]
+{reference} {encoded} {escaped} &{name}; &#{number};.
+
+[subs="replacements,attributes,specialchars"]
+{reference} {encoded} {escaped} &{name}; &#{number};.
+
+Single image:picture.svg[alt='A &copy;',title='Tip &#169;'] and link:https://example.org['Label &copy;',title='Tip &#169;'].
+
+Double image:picture.svg[alt="A &copy;",title="Tip &#169;"] and link:https://example.org["Label &copy;",title="Tip &#169;"].
