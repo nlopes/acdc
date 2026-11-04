@@ -13,7 +13,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     config::{Cli, Config},
-    engine::{Engine, FileRequest, FindRequest, ReadRequest, ResolveRequest},
+    engine::{Common, Engine, FileRequest, FindRequest, ReadRequest, ResolveRequest},
 };
 
 fn write(root: &Path, name: &str, text: &str) {
@@ -826,4 +826,44 @@ fn compatibility_mode_is_part_of_continuation_identity_even_for_identical_conten
     assert!(request.common.cursor.is_some());
     assert!(default.read(&request, true).is_ok());
     assert!(draft.read(&request, true).is_err());
+}
+
+#[test]
+fn tree_and_exact_selectors_share_all_retained_block_ids() {
+    let root = TempDir::new().unwrap();
+    write(
+        root.path(),
+        "identity.adoc",
+        "= Identity\n\n[[anchored,Label]]\nAnchored paragraph.\n\n[#break]\n'''\n\n[#dedicated]\nDedicated paragraph.\n",
+    );
+    let engine = engine(root.path());
+    let tree = records(&engine.tree(&file("identity.adoc")).unwrap());
+    for id in ["anchored", "break", "dedicated"] {
+        let entry = tree
+            .iter()
+            .find(|entry| entry["id"] == id)
+            .unwrap_or_else(|| panic!("missing {id}: {tree:?}"));
+        let selector = entry["selector"].as_str().unwrap();
+        let exact = records(
+            &engine
+                .read(&read("identity.adoc", &format!("#{id}")), false)
+                .unwrap(),
+        );
+        assert!(exact.iter().any(|entry| entry["selector"] == selector));
+        let resolved = records(
+            &engine
+                .resolve(&ResolveRequest {
+                    path: "identity.adoc".into(),
+                    target: format!("#{id}"),
+                    source_path: None,
+                    common: Common::default(),
+                })
+                .unwrap(),
+        );
+        assert!(
+            resolved
+                .iter()
+                .any(|entry| entry["kind"] == "resolved" && entry["selector"] == selector)
+        );
+    }
 }

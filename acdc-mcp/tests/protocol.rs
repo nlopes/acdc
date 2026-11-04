@@ -297,3 +297,78 @@ async fn stdio_compatibility_mode_uses_the_same_startup_choice_for_tool_calls() 
         .unwrap();
     }
 }
+
+#[tokio::test]
+async fn stdio_navigation_uses_retained_ids_and_include_origins() {
+    timeout(Duration::from_secs(20), async {
+        let root = TempDir::new().unwrap();
+        fs::write(
+            root.path().join("guide.adoc"),
+            "= Identity\n\ninclude::chapter.adoc[]\n\n[#break]\n'''\n",
+        )
+        .unwrap();
+        fs::write(
+            root.path().join("chapter.adoc"),
+            "[[included,Label]]\nIncluded paragraph.\n",
+        )
+        .unwrap();
+        let included = root.path().join("chapter.adoc").canonicalize().unwrap();
+        for mode in ["asciidoctor", "draft"] {
+            let mut command = server_command(root.path());
+            command.args(["--compatibility-mode", mode]);
+            let client = ().serve(TokioChildProcess::new(command).unwrap()).await.unwrap();
+            let response = client
+                .call_tool(
+                    CallToolRequestParams::new("adoc_tree")
+                        .with_arguments(json!({"path":"guide.adoc"}).as_object().unwrap().clone()),
+                )
+                .await
+                .unwrap();
+            let response = serde_json::to_value(response).unwrap();
+            assert_ne!(response["isError"], true, "{response}");
+            let page: Value =
+                serde_json::from_str(response["content"][0]["text"].as_str().unwrap()).unwrap();
+            let entries = page["items"].as_array().unwrap();
+            for id in ["included", "break"] {
+                let entry = entries.iter().find(|entry| entry["id"] == id).unwrap();
+                let selector = entry["selector"].as_str().unwrap();
+                if id == "included" {
+                    assert_eq!(entry["source"]["file"], json!(included));
+                }
+                for (tool, arguments) in [
+                    (
+                        "adoc_block",
+                        json!({"path":"guide.adoc", "selector":format!("#{id}")}),
+                    ),
+                    (
+                        "adoc_resolve",
+                        json!({"path":"guide.adoc", "target":format!("#{id}")}),
+                    ),
+                ] {
+                    let response = client
+                        .call_tool(
+                            CallToolRequestParams::new(tool)
+                                .with_arguments(arguments.as_object().unwrap().clone()),
+                        )
+                        .await
+                        .unwrap();
+                    let response = serde_json::to_value(response).unwrap();
+                    assert_ne!(response["isError"], true, "{response}");
+                    let page: Value =
+                        serde_json::from_str(response["content"][0]["text"].as_str().unwrap())
+                            .unwrap();
+                    assert!(
+                        page["items"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .any(|item| item["selector"] == selector)
+                    );
+                }
+            }
+            client.cancel().await.unwrap();
+        }
+    })
+    .await
+    .expect("navigation protocol test timed out");
+}

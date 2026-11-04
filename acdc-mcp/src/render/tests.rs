@@ -4,12 +4,12 @@ use super::{Format, render_many};
 fn media_and_ui_content_use_the_current_parser_model() -> Result<(), acdc_parser::Error> {
     let source = "= Rendering\n:experimental:\n\nbtn:[*Save*] kbd:[Ctrl+S] menu:File[Open > *Recent*] image:icon.svg[*Inline*]\n\nimage::figure.svg[*Block*]\n\nvideo::first,second,third[youtube]";
     let parsed = acdc_parser::parse(source, &acdc_parser::Options::default())?;
-    let plain = render_many(&parsed.document().blocks, Format::Plain);
+    let plain = render_many(parsed.document_ref().blocks(), Format::Plain);
     assert_eq!(
         plain,
         "Save Ctrl+S File > Open > Recent Inline (icon.svg)\n\n*Block* (figure.svg)\n\nfirst,second,third"
     );
-    let adoc = render_many(&parsed.document().blocks, Format::Asciidoc);
+    let adoc = render_many(parsed.document_ref().blocks(), Format::Asciidoc);
     for expected in [
         "**Save**",
         "Ctrl+S",
@@ -30,7 +30,15 @@ fn resolved_symbols_retain_text_in_both_formats() {
         location: acdc_parser::Location::default(),
     })];
     for format in [Format::Plain, Format::Asciidoc] {
-        assert_eq!(super::inline_text(&content, format), "©");
+        assert_eq!(
+            super::inline_text(
+                acdc_parser::ast::ContentRef::from(&acdc_parser::ContentAttribute::new(
+                    content.to_vec()
+                )),
+                format
+            ),
+            "©"
+        );
     }
 }
 
@@ -59,8 +67,24 @@ fn character_references_preserve_asciidoc_and_decode_plain_text() -> Result<(), 
         let content = [InlineNode::CharacterReference(
             CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
         )];
-        assert_eq!(super::inline_text(&content, Format::Asciidoc), spelling);
-        assert_eq!(super::inline_text(&content, Format::Plain), text);
+        assert_eq!(
+            super::inline_text(
+                acdc_parser::ast::ContentRef::from(&acdc_parser::ContentAttribute::new(
+                    content.to_vec()
+                )),
+                Format::Asciidoc
+            ),
+            spelling
+        );
+        assert_eq!(
+            super::inline_text(
+                acdc_parser::ast::ContentRef::from(&acdc_parser::ContentAttribute::new(
+                    content.to_vec()
+                )),
+                Format::Plain
+            ),
+            text
+        );
     }
     Ok(())
 }

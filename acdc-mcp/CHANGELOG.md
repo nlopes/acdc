@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Anchored paragraphs and thematic breaks now appear in the tree and can be selected by their retained IDs. Tree, exact selectors and reference resolution use the same primary and alias identities. Normalized block output retains the primary anchor.
+
 - Character-reference nodes retain their reference spelling in AsciiDoc responses and use character values in plain-text responses.
 
 - Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
