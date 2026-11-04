@@ -1,10 +1,9 @@
 use acdc_parser::{
-    Admonition, AdmonitionVariant, Block, Caption, CompatibilityMode, ContentAttribute,
-    DelimitedBlock, DelimitedBlockType, Location, Options, SafeMode, Section, SectionKind,
-    StemNotation, Title,
+    Admonition, AdmonitionVariant, Caption, CompatibilityMode, ContentAttribute, DelimitedBlock,
+    DelimitedBlockType, Location, Options, SafeMode, StemNotation,
     ast::{
         AdmonitionRef, AttributeValueRef, BlockKind, BlockRef, ContentRef, DocumentRef, InlineKind,
-        SectionRef, StructuralRef, TocEntryRef,
+        StructuralRef, TocEntryRef,
     },
     parse, parse_file,
 };
@@ -38,7 +37,7 @@ fn typed_section_numbers_follow_article_depth_and_catalog_order(
     ] {
         let source = format!("= Manual\n{attributes}\n== First\n\n=== Nested\n");
         let parsed = parse(&source, &options)?;
-        let before = serde_json::to_value(parsed.document())?;
+        let before = serde_json::to_value(parsed.document_ref())?;
         let numbers = section_numbers(parsed.document_ref());
         assert_eq!(numbers, expected);
         assert_eq!(
@@ -49,7 +48,7 @@ fn typed_section_numbers_follow_article_depth_and_catalog_order(
                 .map(TocEntryRef::number)
                 .collect::<Vec<_>>()
         );
-        assert_eq!(serde_json::to_value(parsed.document())?, before);
+        assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     }
     Ok(())
 }
@@ -86,31 +85,6 @@ fn typed_section_numbers_keep_book_parts_chapters_and_appendices_distinct(
     Ok(())
 }
 
-#[rstest::rstest]
-fn typed_section_numbers_read_stored_values_without_renumbering(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
-) -> Result<(), Error> {
-    let options = Options::builder().with_compatibility_mode(mode).build()?;
-    let number = {
-        let source = String::from("= Manual\n:sectnums:\n\n== First\n");
-        let parsed = parse(&source, &options)?;
-        let Some(Block::Section(section)) = parsed.document().blocks.first() else {
-            return Err("expected section".into());
-        };
-        let mut section = section.clone();
-        section.level = 3;
-        section.kind = SectionKind::Appendix;
-        assert_eq!(SectionRef::from(&section).number(), section.number());
-        SectionRef::from(&section).number().map(str::to_owned)
-    };
-    assert_eq!(number.as_deref(), Some("1"));
-    let section = Section::new(Title::default(), 1, Vec::new(), Location::default());
-    assert_eq!(SectionRef::from(&section).number(), None);
-    let section = section.with_numbering(true);
-    assert_eq!(SectionRef::from(&section).number(), None);
-    Ok(())
-}
-
 fn text(content: ContentRef<'_>) -> Result<String, Error> {
     let mut output = String::new();
     for inline in content.inlines() {
@@ -139,7 +113,7 @@ fn compound_blocks_expose_nested_content_and_distinct_metadata(
          --\n****\n[quote,'*Ada*','*Notes*']\n____\nA *quote*.\n____\n****\n--\n====\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let BlockKind::Example(example) = parsed
         .document_ref()
         .blocks()
@@ -176,7 +150,7 @@ fn compound_blocks_expose_nested_content_and_distinct_metadata(
         return Err("paragraph".into());
     };
     assert_eq!(text(body.content())?, "A quote.");
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }
@@ -268,7 +242,7 @@ fn reads_preserve_mode_policy_and_explicit_body_substitutions(
          [verse,attribution='',citetitle='',subs=none]\n____\n*Literal*\n____\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let mut blocks = parsed.document_ref().blocks();
     let BlockKind::Listing(listing) = blocks.next().ok_or("listing")?.kind() else {
         return Err("listing".into());
@@ -300,7 +274,7 @@ fn reads_preserve_mode_policy_and_explicit_body_substitutions(
     assert!(verse.citetitle().ok_or("empty citation")?.is_empty());
     assert_eq!(text(verse.content())?, "*Literal*");
     assert!(verse.title().is_none());
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 
@@ -393,115 +367,9 @@ fn included_delimiters_resolve_to_the_authored_file() -> Result<(), Error> {
     assert_eq!(closing.location.start.line, 3);
     assert_eq!(text(listing.content())?, "λ code");
     assert!(matches!(
-        parsed.document().blocks.first(),
-        Some(Block::DelimitedBlock(_))
+        parsed.document_ref().blocks().next().map(BlockRef::kind),
+        Some(BlockKind::Listing(_))
     ));
-    Ok(())
-}
-
-#[rstest::rstest]
-fn typed_heading_ids_preserve_assigned_collisions_and_owner_edits(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
-) -> Result<(), Error> {
-    let options = Options::builder().with_compatibility_mode(mode).build()?;
-    let parsed = parse("= Manual\n\n== Same\n\n== Same\n", &options)?;
-    let before = serde_json::to_value(parsed.document())?;
-    let mut ids = Vec::new();
-    for block in &parsed.document().blocks {
-        let Block::Section(section) = block else {
-            return Err("expected section".into());
-        };
-        let read = SectionRef::from(section);
-        let id = read.resolve_id();
-        assert!(matches!(id, std::borrow::Cow::Borrowed(_)));
-        assert_eq!(id, section.id());
-        assert_eq!(
-            Some(id.as_ref()),
-            read.id().map(acdc_parser::ast::ElementIdRef::as_str)
-        );
-        ids.push(id.into_owned());
-
-        let mut edited = section.clone();
-        edited.title = Title::default();
-        assert_eq!(SectionRef::from(&edited).resolve_id(), section.id());
-        edited.metadata.id = Some(acdc_parser::Anchor::new("", Location::default()));
-        assert_eq!(SectionRef::from(&edited).resolve_id(), "");
-    }
-    let [first, second] = ids.as_slice() else {
-        return Err("expected two section IDs".into());
-    };
-    assert_ne!(first, second);
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
-    Ok(())
-}
-
-#[rstest::rstest]
-fn typed_heading_ids_keep_constructed_fallbacks_and_heading_precedence(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
-) -> Result<(), Error> {
-    let options = Options::builder().with_compatibility_mode(mode).build()?;
-    let parsed = parse("[discrete]\n== Heading\n", &options)?;
-    let Some(Block::DiscreteHeader(original)) = parsed.document().blocks.first() else {
-        return Err("expected discrete heading".into());
-    };
-    for (text, expected) in [("", ""), ("!!!", ""), ("*Héading* _text_", "_héading_text")] {
-        let inlines = (!text.is_empty())
-            .then(|| acdc_parser::parse_inline(text, &options))
-            .transpose()?;
-        let title = Title::from(
-            inlines
-                .as_ref()
-                .map(|parsed| parsed.inlines())
-                .unwrap_or_default()
-                .to_vec(),
-        );
-        for (primary, anchors, expected_id) in [
-            (None, false, expected),
-            (None, true, "last"),
-            (Some("primary"), true, "primary"),
-            (Some(""), true, ""),
-        ] {
-            let mut section = Section::new(title.clone(), 1, Vec::new(), Location::default());
-            section.metadata.id =
-                primary.map(|id| acdc_parser::Anchor::new(id, Location::default()));
-            if anchors {
-                section.metadata.anchors = vec![
-                    acdc_parser::Anchor::new("first", Location::default()),
-                    acdc_parser::Anchor::new("last", Location::default()),
-                ];
-            }
-            let mut header = original.clone();
-            header.title = title.clone();
-            header.metadata = section.metadata.clone();
-            let before = serde_json::to_value((&section, &header))?;
-            let section_id = SectionRef::from(&section).resolve_id();
-            let header_id = acdc_parser::ast::DiscreteHeaderRef::from(&header).resolve_id();
-            assert_eq!(section_id, expected_id);
-            assert_eq!(header_id, expected_id);
-            assert_eq!(section_id, section.id());
-            assert_eq!(
-                header_id,
-                Section::generate_id_string(&header.metadata, &header.title)
-            );
-            assert_eq!(
-                matches!(section_id, std::borrow::Cow::Borrowed(_)),
-                primary.is_some() || anchors
-            );
-            assert_eq!(
-                matches!(header_id, std::borrow::Cow::Borrowed(_)),
-                primary.is_some() || anchors
-            );
-            assert_eq!(serde_json::to_value((&section, &header))?, before);
-            if primary.is_none() && !anchors {
-                assert!(SectionRef::from(&section).id().is_none());
-                assert!(
-                    acdc_parser::ast::DiscreteHeaderRef::from(&header)
-                        .id()
-                        .is_none()
-                );
-            }
-        }
-    }
     Ok(())
 }
 

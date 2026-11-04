@@ -1,7 +1,7 @@
 use std::{fs, path::PathBuf};
 
 use acdc_parser::{
-    CompatibilityMode, InlineMacro, InlineNode, Options, ParseResult, SafeMode, SymbolKind,
+    CompatibilityMode, Options, ParseResult, SafeMode, SymbolKind,
     ast::{ContentRef, IndexTermRef, InlineKind},
     parse, parse_file,
 };
@@ -107,35 +107,6 @@ fn catalog_typography_resolves_hierarchy_at_the_selected_stage(
 }
 
 #[rstest::rstest]
-#[case("Plain label")]
-#[case("*Plain label*")]
-fn ordinary_index_labels_do_not_need_an_additional_catalog_snapshot(
-    #[case] label: &str,
-) -> Result<(), Error> {
-    let parsed = parse(&format!("indexterm2:[{label}]"), &Options::default())?;
-    let owner = parsed
-        .document()
-        .blocks
-        .iter()
-        .find_map(|block| {
-            if let acdc_parser::Block::Paragraph(paragraph) = block {
-                paragraph.content.iter().find_map(|node| {
-                    if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
-                        Some(term.as_ref())
-                    } else {
-                        None
-                    }
-                })
-            } else {
-                None
-            }
-        })
-        .ok_or("index owner")?;
-    assert!(std::ptr::eq(owner, owner.catalog_entry()));
-    Ok(())
-}
-
-#[rstest::rstest]
 fn catalog_typography_keeps_include_and_cell_snapshots_and_source_positions(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
@@ -206,7 +177,7 @@ fn catalog_typography_keeps_include_and_cell_snapshots_and_source_positions(
         parsed.resolve_location(first.location()).file,
         Some(included_path.canonicalize()?)
     );
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }

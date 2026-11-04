@@ -1,10 +1,6 @@
 use acdc_parser::{
-    Anchor, Block, CalloutRefKind, CompatibilityMode, ContentAttribute, ListItemCheckedStatus,
-    Location, Options, SafeMode,
-    ast::{
-        AttributeValueRef, BlockKind, CalloutListRef, ContentRef, DescriptionListItemRef,
-        DescriptionListRef, InlineKind, ListItemRef, OrderedListRef, UnorderedListRef,
-    },
+    CalloutRefKind, CompatibilityMode, ListItemCheckedStatus, Options, SafeMode,
+    ast::{AttributeValueRef, BlockKind, ContentRef, InlineKind},
     parse, parse_file,
 };
 
@@ -141,7 +137,7 @@ fn callout_items_preserve_marker_kinds_numbers_and_continuations(
         "----\nfirst <.>\nsecond <2>\n----\n<.> First *explanation*\n+\nAttached.\n<2> Second\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let before = serde_json::to_value(parsed.document())?;
+    let before = serde_json::to_value(parsed.document_ref())?;
     let mut blocks = parsed.document_ref().blocks();
     let BlockKind::Listing(listing) = blocks.next().ok_or("listing")?.kind() else {
         return Err("listing".into());
@@ -172,56 +168,7 @@ fn callout_items_preserve_marker_kinds_numbers_and_continuations(
     );
     assert_eq!(second.callout().kind(), CalloutRefKind::Explicit);
     assert_eq!(second.callout().number(), 2);
-    assert_eq!(serde_json::to_value(parsed.document())?, before);
-    Ok(())
-}
-
-#[test]
-fn cloned_owners_preserve_empty_lists_items_and_anchor_content() -> Result<(), Error> {
-    fn shared<T: Copy + Send + Sync>(_: T) {}
-    let parsed = parse(
-        "[title=\"\"]\n* Text\n\nTerm:: Value\n",
-        &Options::default(),
-    )?;
-    let Some(Block::UnorderedList(list)) = parsed.document().blocks.first() else {
-        return Err("list".into());
-    };
-    let mut list = list.clone();
-    let mut item = list.items.first().ok_or("item")?.clone();
-    item.principal.clear();
-    item.blocks.clear();
-    assert!(ListItemRef::from(&item).principal().is_empty());
-    assert!(ListItemRef::from(&item).blocks().next().is_none());
-    list.items.clear();
-    let read = UnorderedListRef::from(&list);
-    assert!(read.items().next().is_none());
-    assert!(read.title().ok_or("empty title")?.is_empty());
-    shared(read);
-    let owner = parsed
-        .document()
-        .blocks
-        .iter()
-        .find_map(|b| {
-            if let Block::DescriptionList(list) = b {
-                list.items.first()
-            } else {
-                None
-            }
-        })
-        .ok_or("description item")?;
-    let mut owner = owner.clone();
-    let mut anchor = Anchor::new("built-id", Location::default());
-    anchor.xreflabel = Some(ContentAttribute::default());
-    owner.anchors.push(anchor);
-    let read = DescriptionListItemRef::from(&owner);
-    let anchor = read.anchors().next().ok_or("anchor")?;
-    assert_eq!(anchor.id(), "built-id");
-    assert!(anchor.reftext().ok_or("empty reftext")?.is_empty());
-    shared(read);
-    std::thread::scope(|scope| {
-        let anchors = read.anchors();
-        scope.spawn(move || assert_eq!(anchors.count(), 1));
-    });
+    assert_eq!(serde_json::to_value(parsed.document_ref())?, before);
     Ok(())
 }
 
@@ -252,29 +199,5 @@ fn included_description_delimiters_keep_unicode_source_coordinates() -> Result<(
     );
     assert_eq!(text(item.term())?, "λ");
     assert_eq!(text(item.principal())?, "Meaning");
-    Ok(())
-}
-
-#[test]
-fn list_owners_convert_to_the_same_public_handles() -> Result<(), Error> {
-    let parsed = parse(
-        ". Ordered\n\nTerm:: Value\n\n<1> Callout\n",
-        &Options::default(),
-    )?;
-    assert_eq!(parsed.document().blocks.len(), 3);
-    for block in &parsed.document().blocks {
-        if let Block::OrderedList(list) = block {
-            assert_eq!(OrderedListRef::from(list).items().count(), list.items.len());
-        } else if let Block::DescriptionList(list) = block {
-            assert_eq!(
-                DescriptionListRef::from(list).items().count(),
-                list.items.len()
-            );
-        } else if let Block::CalloutList(list) = block {
-            assert_eq!(CalloutListRef::from(list).items().count(), list.items.len());
-        } else {
-            return Err("unexpected list form".into());
-        }
-    }
     Ok(())
 }

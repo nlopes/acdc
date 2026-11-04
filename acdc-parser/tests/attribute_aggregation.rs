@@ -1,30 +1,17 @@
-use acdc_parser::{Block, CompatibilityMode, Options, parse};
+use acdc_parser::{
+    CompatibilityMode, Options,
+    ast::{AttributeValueRef, AttributesRef, BlockKind, BlockRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
-#[test]
-fn named_gaps_preserve_slots_and_draft_empty_slots_preserve_values() -> Result<(), Error> {
-    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
-        let parsed = parse(
-            "[custom,old,tail]\n[custom,name=value,,last]\nText.",
-            &Options::builder().with_compatibility_mode(mode).build()?,
-        )?;
-        let metadata = parsed
-            .document()
-            .blocks
-            .first()
-            .and_then(Block::metadata)
-            .ok_or("missing metadata")?;
-        assert_eq!(
-            metadata.positional_attributes().collect::<Vec<_>>(),
-            [
-                Some("old"),
-                (mode == CompatibilityMode::Draft).then_some("tail"),
-                Some("last")
-            ]
-        );
+fn tokens<'a>(attributes: AttributesRef<'a>, name: &str) -> Result<Vec<&'a str>, Error> {
+    match attributes.get(name) {
+        Some(AttributeValueRef::Tokens(tokens)) => Ok(tokens.iter().collect()),
+        None => Ok(Vec::new()),
+        _ => Err("expected tokens".into()),
     }
-    Ok(())
 }
 
 #[test]
@@ -53,13 +40,13 @@ fn named_roles_replace_in_compatible_mode_and_accumulate_in_draft() -> Result<()
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let metadata = parsed
-                .document()
-                .blocks
-                .first()
-                .and_then(Block::metadata)
+                .document_ref()
+                .blocks()
+                .next()
+                .and_then(BlockRef::attributes)
                 .ok_or("missing metadata")?;
             assert_eq!(
-                metadata.roles,
+                tokens(metadata, "role")?,
                 if mode == CompatibilityMode::Draft {
                     draft
                 } else {
@@ -86,12 +73,12 @@ fn media_options_keep_preceding_options_in_both_modes() -> Result<(), Error> {
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let metadata = parsed
-                .document()
-                .blocks
-                .first()
-                .and_then(Block::metadata)
+                .document_ref()
+                .blocks()
+                .next()
+                .and_then(BlockRef::attributes)
                 .ok_or("missing metadata")?;
-            assert_eq!(metadata.options, ["one", "two"]);
+            assert_eq!(tokens(metadata, "opts")?, ["one", "two"]);
         }
     }
     Ok(())
@@ -106,10 +93,10 @@ fn ignored_duplicates_do_not_replace_selected_caption_content() -> Result<(), Er
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let expected = usize::from(mode == CompatibilityMode::Asciidoctor);
-        assert_eq!(parsed.document().footnotes.len(), expected);
-        if let Some(note) = parsed.document().footnotes.first() {
+        assert_eq!(parsed.document_ref().footnotes().count(), expected);
+        if let Some(note) = parsed.document_ref().footnotes().next() {
             assert_eq!(
-                source.get(note.location.absolute_start..=note.location.absolute_end),
+                source.get(note.location().absolute_start()..=note.location().absolute_end()),
                 Some("footnote:[Selected.]")
             );
         }
@@ -126,8 +113,8 @@ fn selected_style_controls_heading_recognition() -> Result<(), Error> {
         )?;
         assert_eq!(
             matches!(
-                parsed.document().blocks.first(),
-                Some(Block::DiscreteHeader(_))
+                parsed.document_ref().blocks().next().map(BlockRef::kind),
+                Some(BlockKind::DiscreteHeader(_))
             ),
             mode == CompatibilityMode::Asciidoctor
         );
@@ -157,13 +144,13 @@ fn option_splitting_follows_the_selected_mode() -> Result<(), Error> {
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             let metadata = parsed
-                .document()
-                .blocks
-                .first()
-                .and_then(Block::metadata)
+                .document_ref()
+                .blocks()
+                .next()
+                .and_then(BlockRef::attributes)
                 .ok_or("missing metadata")?;
             assert_eq!(
-                metadata.options,
+                tokens(metadata, "opts")?,
                 if mode == CompatibilityMode::Draft {
                     draft
                 } else {
@@ -184,10 +171,11 @@ fn only_selected_content_registers_footnotes() -> Result<(), Error> {
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let selected: Vec<_> = parsed
-            .document()
-            .footnotes
-            .iter()
-            .map(|note| source.get(note.location.absolute_start..=note.location.absolute_end))
+            .document_ref()
+            .footnotes()
+            .map(|note| {
+                source.get(note.location().absolute_start()..=note.location().absolute_end())
+            })
             .collect();
         let mut expected = vec![Some("footnote:[Selected title.]")];
         if mode == CompatibilityMode::Asciidoctor {

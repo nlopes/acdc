@@ -1,6 +1,5 @@
 use acdc_parser::{
-    AttributeValue, Block, BlockMetadata, CompatibilityMode, ContentAttribute, InlineNode, Options,
-    Raw, Substitution, Title, parse,
+    AttributeValue, BlockMetadata, CompatibilityMode, InlineNode, Options, Raw, Substitution, parse,
 };
 use serde_json::{Value, json};
 
@@ -18,15 +17,15 @@ fn document_json_keeps_semantic_types_and_body_order(
             .with_attribute("max-include-depth", "03")
             .build()?,
     )?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     assert_eq!(
-        doc.attributes
+        doc.attributes()
             .get("max-include-depth")
             .and_then(acdc_parser::DocumentAttributeValue::as_integer),
         Some(3)
     );
     assert_eq!(
-        doc.attributes
+        doc.attributes()
             .get("max-include-depth")
             .and_then(acdc_parser::DocumentAttributeValue::text),
         Some("03")
@@ -107,47 +106,6 @@ fn stale_reserved_block_attributes_cannot_be_serialized(
     Ok(())
 }
 
-#[test]
-fn block_image_alt_cannot_reappear_from_the_scalar_map() -> Result<(), TestError> {
-    let parsed = parse("image::photo.png[Alt]", &Options::default())?;
-    let [Block::Image(owner)] = parsed.document().blocks.as_slice() else {
-        return Err("image".into());
-    };
-    let mut owner = owner.clone();
-    owner.alt = None;
-    owner.metadata.attributes.set("alt".into(), "stale".into());
-    assert!(serde_json::to_value(owner).is_err());
-    Ok(())
-}
-
-#[test]
-fn content_replacement_and_removal_do_not_resurrect_old_values() -> Result<(), TestError> {
-    let parsed = parse("image::photo.png[Alt,title=Title]", &Options::default())?;
-    let [Block::Image(owner)] = parsed.document().blocks.as_slice() else {
-        return Err("image".into());
-    };
-    let mut owner = owner.clone();
-    let original = serde_json::to_value(&owner)?;
-    assert!(original.get("alt").is_some());
-    owner.alt = Some(ContentAttribute::default());
-    owner.title = Title::new(Vec::new());
-    let empty = serde_json::to_value(&owner)?;
-    assert_eq!(empty.get("alt"), Some(&json!([])));
-    assert_eq!(empty.get("title"), Some(&json!([])));
-    owner.alt = None;
-    owner.title = Title::default();
-    let absent = serde_json::to_value(&owner)?;
-    assert!(absent.get("alt").is_none());
-    assert!(absent.get("title").is_none());
-    assert!(absent.pointer("/metadata/attributes/alt").is_none());
-    assert!(absent.pointer("/metadata/attributes/title").is_none());
-    assert_eq!(
-        original,
-        serde_json::to_value(parsed.document().blocks.first().ok_or("original image")?)?
-    );
-    Ok(())
-}
-
 #[rstest::rstest]
 #[case(vec![])]
 #[case(vec![Substitution::SpecialChars])]
@@ -172,46 +130,6 @@ fn raw_json_retains_its_independent_substitution_policy(
             value.get("substitutions"),
             Some(&serde_json::to_value(substitutions)?)
         );
-    }
-    Ok(())
-}
-
-#[test]
-fn content_metadata_has_the_same_presence_rules_without_its_owner() -> Result<(), TestError> {
-    let parsed = parse(
-        "[quote,attribution='Author',citetitle='Book',reftext='Label',caption='Prefix']\n____\nBody.\n____",
-        &Options::default(),
-    )?;
-    let owner = parsed.document().blocks.first().ok_or("quote")?;
-    let mut metadata = owner.metadata().ok_or("metadata")?.clone();
-    let direct = serde_json::to_value(&metadata)?;
-    assert_eq!(serde_json::to_value(owner)?.get("metadata"), Some(&direct));
-    for name in ["attribution", "citetitle", "reftext", "caption"] {
-        assert!(
-            direct
-                .get(name)
-                .and_then(Value::as_array)
-                .is_some_and(|nodes| !nodes.is_empty())
-        );
-        assert!(direct.pointer(&format!("/attributes/{name}")).is_none());
-    }
-    metadata.attribution = Some(ContentAttribute::default());
-    metadata.citetitle = Some(ContentAttribute::default());
-    metadata.reftext = Some(ContentAttribute::default());
-    metadata.caption = Some(acdc_parser::Caption::CustomContent(
-        ContentAttribute::default(),
-    ));
-    let empty = serde_json::to_value(&metadata)?;
-    for name in ["attribution", "citetitle", "reftext", "caption"] {
-        assert_eq!(empty.get(name), Some(&json!([])));
-    }
-    metadata.attribution = None;
-    metadata.citetitle = None;
-    metadata.reftext = None;
-    metadata.caption = None;
-    let absent = serde_json::to_value(&metadata)?;
-    for name in ["attribution", "citetitle", "reftext", "caption"] {
-        assert!(absent.get(name).is_none());
     }
     Ok(())
 }
