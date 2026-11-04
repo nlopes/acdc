@@ -1895,7 +1895,7 @@ peg::parser! {
         }
 
         rule page_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-            = "<<<" &eol()*<2,2>
+            = "<<<" "<"* &(whitespace()* (eol() / ![_]))
         {
             tracing::debug!("Found page break block");
             let mut metadata = block_metadata.metadata.clone();
@@ -1904,7 +1904,7 @@ peg::parser! {
             Ok(Block::PageBreak(PageBreak {
                 title: block_metadata.title.clone(),
                 metadata,
-                location: state.create_location(start+offset, span_end+offset),
+                location: state.create_block_location(start, span_end, offset),
             }))
         }
 

@@ -341,6 +341,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Recognize page-break lines at end of file, with or without a final newline,
+  including CRLF input. Runs of three or more `<` characters match Asciidoctor.
+  Page-break source ranges end on the marker instead of the next character.
+
 - Bibliography anchors now accept empty and whitespace-only labels, including
   labels in includes and AsciiDoc table cells. Supplied ASCII spaces follow
   Asciidoctor's leading-space rules and remain visible in citations. Empty labels

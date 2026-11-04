@@ -1,0 +1,10 @@
+Before café 😀.
+
+include::includes/page_break_selected.adoc[lines=3,indent=0]
+
+[cols="a"]
+|===
+|<<<
+|===
+
+<<<
