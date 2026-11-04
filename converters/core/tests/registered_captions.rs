@@ -15,7 +15,8 @@ fn registered_caption_content_keeps_formatting_policy_and_recursion_guard() -> R
             "[#target]\n.Title\n[caption='*Préfixe* ->. ']\n====\nBody.\n====\n",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let reference = parsed.document().references.get("target");
+        let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+        let reference = parsed_references.get("target");
         let guard = XrefGuard::default();
         let mut xref = CrossReference::new("target", Location::default());
         xref.xrefstyle = XrefStyle::Short;
@@ -45,12 +46,8 @@ fn empty_or_unnumbered_registered_captions_keep_title_fallback() -> Result<(), E
         "[#target]\n.Title\nimage::photo.png[]\n",
         &Options::default(),
     )?;
-    let mut reference = parsed
-        .document()
-        .references
-        .get("target")
-        .ok_or("target")?
-        .clone();
+    let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+    let mut reference = parsed_references.get("target").ok_or("target")?.clone();
     let mut xref = CrossReference::new("target", Location::default());
     xref.xrefstyle = XrefStyle::Short;
     let guard = XrefGuard::default();

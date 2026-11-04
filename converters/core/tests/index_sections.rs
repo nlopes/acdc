@@ -31,7 +31,12 @@ fn index_detection_is_independent_of_last_section_style() -> Result<(), Error> {
         "= Manual\n\n[index]\n== Index\n\n[bibliography]\n== References\n",
         &Options::default(),
     )?;
-    let blocks = &parsed.document().blocks;
+    let parsed_blocks: Vec<_> = parsed
+        .document_ref()
+        .blocks()
+        .map(acdc_parser::Block::from)
+        .collect();
+    let blocks = &parsed_blocks;
     assert_detection(blocks, true);
     assert!(!last_section_has_style(blocks, "index"));
     assert!(last_section_has_style(blocks, "bibliography"));
@@ -44,7 +49,12 @@ fn index_detection_reaches_sections_inside_book_parts() -> Result<(), Error> {
         "= Manual\n:doctype: book\n\n= Part\n\n== Chapter\n\nText.\n\n[index]\n== Index\n\n= Later Part\n\n== Later Chapter\n",
         &Options::default(),
     )?;
-    assert_detection(&parsed.document().blocks, true);
+    let parsed_blocks: Vec<_> = parsed
+        .document_ref()
+        .blocks()
+        .map(acdc_parser::Block::from)
+        .collect();
+    assert_detection(&parsed_blocks, true);
     Ok(())
 }
 
@@ -56,7 +66,12 @@ fn index_detection_excludes_styled_paragraphs_and_plain_cells() -> Result<(), Er
         "= Manual\n\n[cols=l]\n|===\n| [index]\n== Cell Index\n|===\n",
     ] {
         let parsed = parse(input, &Options::default())?;
-        assert_detection(&parsed.document().blocks, false);
+        let parsed_blocks: Vec<_> = parsed
+            .document_ref()
+            .blocks()
+            .map(acdc_parser::Block::from)
+            .collect();
+        assert_detection(&parsed_blocks, false);
     }
     Ok(())
 }
@@ -79,7 +94,12 @@ fn index_detection_reaches_asciidoc_table_cells() -> Result<(), Error> {
                 .ok_or("missing fixture header")?;
             let input = format!("= Manual\n\n{prefix}{table}{suffix}\n");
             let parsed = parse(&input, &Options::default())?;
-            assert_detection(&parsed.document().blocks, true);
+            let parsed_blocks: Vec<_> = parsed
+                .document_ref()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
+            assert_detection(&parsed_blocks, true);
         }
     }
     Ok(())
@@ -124,7 +144,12 @@ fn index_detection_preserves_constructed_compound_and_list_boundaries() -> Resul
             "----\ncode <1>\n----\n\n<1> Explanation\n",
         ] {
             let parsed = parse(source, &options)?;
-            let mut blocks = parsed.document().blocks.clone();
+            let parsed_blocks: Vec<_> = parsed
+                .document_ref()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
+            let mut blocks = parsed_blocks.clone();
             assert_detection(&blocks, false);
             let list = blocks.last_mut().ok_or("missing list")?;
             let attachments = if let Block::UnorderedList(list) = list {
@@ -158,7 +183,12 @@ fn index_detection_preserves_stored_cell_style_fallback_in_every_row_group() -> 
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse("|===\n| First | Second\n|===\n", &options)?;
-        let Some(Block::DelimitedBlock(block)) = parsed.document().blocks.first() else {
+        let parsed_blocks: Vec<_> = parsed
+            .document_ref()
+            .blocks()
+            .map(acdc_parser::Block::from)
+            .collect();
+        let Some(Block::DelimitedBlock(block)) = parsed_blocks.first() else {
             return Err("missing table block".into());
         };
         let DelimitedBlockType::DelimitedTable(seed) = &block.inner else {

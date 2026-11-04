@@ -14,7 +14,8 @@ type TestError = Box<dyn std::error::Error>;
 #[test]
 fn resolved_title_outlives_the_occurrence_and_keeps_its_guard() -> Result<(), TestError> {
     let parsed = parse("[#target]\n== A *title*\n\nBody.\n", &Options::default())?;
-    let reference = parsed.document().references.get("target");
+    let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+    let reference = parsed_references.get("target");
     let guard = XrefGuard::default();
     let shared = guard.clone();
     let display = {
@@ -43,7 +44,8 @@ fn caption_prefixes_own_temporary_overrides_and_read_current_controls() -> Resul
         "[#target]\n.Photo\nimage::photo.png[]\n",
         &Options::default(),
     )?;
-    let reference = parsed.document().references.get("target");
+    let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+    let reference = parsed_references.get("target");
     let guard = XrefGuard::default();
     let display = {
         let label = String::from("Plate");
@@ -77,12 +79,8 @@ fn caption_prefixes_own_temporary_overrides_and_read_current_controls() -> Resul
 #[test]
 fn empty_labels_and_external_classification_keep_precedence() -> Result<(), TestError> {
     let parsed = parse("[#target]\n== A title\n\nBody.\n", &Options::default())?;
-    let mut reference = parsed
-        .document()
-        .references
-        .get("target")
-        .ok_or("target")?
-        .clone();
+    let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+    let mut reference = parsed_references.get("target").ok_or("target")?.clone();
     reference.xreflabel = Some(ContentAttribute::default());
     let guard = XrefGuard::default();
     let mut occurrence = CrossReference::new("target", Location::default());

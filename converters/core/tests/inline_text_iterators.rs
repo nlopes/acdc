@@ -34,7 +34,12 @@ fn text_policy_preserves_content_and_fragment_context() -> Result<(), Error> {
             ("First +\nsecond.", "First\nsecond.", "First\nsecond."),
         ] {
             let parsed = parse(source, &options)?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let parsed_blocks: Vec<_> = parsed
+                .document_ref()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
+            let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("one paragraph".into());
             };
             for (transform, expected) in [

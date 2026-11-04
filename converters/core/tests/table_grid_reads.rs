@@ -101,7 +101,12 @@ fn typed_grids_preserve_row_roles_combined_spans_and_source_cells() -> TestResul
             source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let block = parsed.document().blocks.first().ok_or("table block")?;
+        let parsed_blocks: Vec<_> = parsed
+            .document_ref()
+            .blocks()
+            .map(acdc_parser::Block::from)
+            .collect();
+        let block = parsed_blocks.first().ok_or("table block")?;
         assert_legacy_matches(block, 4)?;
         let grid = grid_rows(table_ref(block)?, 4);
         let [header, first, second, footer] = grid.as_slice() else {
@@ -173,7 +178,12 @@ fn typed_grids_preserve_empty_rows_and_column_fallbacks() -> TestResult {
 #[test]
 fn typed_grids_preserve_truncation_padding_and_constructed_spans() -> TestResult {
     let parsed = parse("|===\n|Seed\n|===\n", &Options::default())?;
-    let seed_block = parsed.document().blocks.first().ok_or("seed table")?;
+    let parsed_blocks: Vec<_> = parsed
+        .document_ref()
+        .blocks()
+        .map(acdc_parser::Block::from)
+        .collect();
+    let seed_block = parsed_blocks.first().ok_or("seed table")?;
     let seed = owner_table(seed_block)?
         .rows
         .first()

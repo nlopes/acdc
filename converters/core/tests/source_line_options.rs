@@ -159,6 +159,11 @@ fn parsed_source_line_options_keep_modes_and_block_forms() -> Result<(), Box<dyn
                     &source,
                     &Options::builder().with_compatibility_mode(mode).build()?,
                 )?;
+                let parsed_blocks: Vec<_> = parsed
+                    .document_ref()
+                    .blocks()
+                    .map(acdc_parser::Block::from)
+                    .collect();
                 let block = parsed
                     .document_ref()
                     .blocks()
@@ -169,9 +174,7 @@ fn parsed_source_line_options_keep_modes_and_block_forms() -> Result<(), Box<dyn
                 assert_eq!(
                     options,
                     SourceLineOptions::resolve(
-                        parsed
-                            .document()
-                            .blocks
+                        parsed_blocks
                             .first()
                             .ok_or("owner")?
                             .metadata()

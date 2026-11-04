@@ -118,7 +118,12 @@ fn parsed_paragraphs_and_delimited_blocks_keep_language_controls() -> Result<(),
         ] {
             let options = Options::builder().with_compatibility_mode(mode).build()?;
             let parsed = parse(source, &options)?;
-            let block = parsed.document().blocks.first().ok_or("block")?;
+            let parsed_blocks: Vec<_> = parsed
+                .document_ref()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
+            let block = parsed_blocks.first().ok_or("block")?;
             let metadata = if let acdc_parser::Block::Paragraph(paragraph) = block {
                 &paragraph.metadata
             } else if let acdc_parser::Block::DelimitedBlock(block) = block {

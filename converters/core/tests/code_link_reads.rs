@@ -129,7 +129,12 @@ fn check_code_link(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Block::Paragraph(paragraph) = parsed.document().blocks.first().ok_or("paragraph")? else {
+    let parsed_blocks: Vec<_> = parsed
+        .document_ref()
+        .blocks()
+        .map(acdc_parser::Block::from)
+        .collect();
+    let Block::Paragraph(paragraph) = parsed_blocks.first().ok_or("paragraph")? else {
         return Err("paragraph".into());
     };
     let links: Vec<_> = paragraph
@@ -174,7 +179,12 @@ fn check_registered_occurrence(mode: CompatibilityMode) -> Result<(), Error> {
         "link:https://example.org/first[First,id=shared] link:https://example.org/second[Second,id=shared]",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Block::Paragraph(paragraph) = parsed.document().blocks.first().ok_or("paragraph")? else {
+    let parsed_blocks: Vec<_> = parsed
+        .document_ref()
+        .blocks()
+        .map(acdc_parser::Block::from)
+        .collect();
+    let Block::Paragraph(paragraph) = parsed_blocks.first().ok_or("paragraph")? else {
         return Err("paragraph".into());
     };
     let links: Vec<_> = paragraph
@@ -302,8 +312,12 @@ fn code_link_anchors_keep_literal_quotes() -> Result<(), Error> {
             "link:https://example.org[Link,id=\"'code-π'\"]",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let Block::Paragraph(paragraph) = parsed.document().blocks.first().ok_or("paragraph")?
-        else {
+        let parsed_blocks: Vec<_> = parsed
+            .document_ref()
+            .blocks()
+            .map(acdc_parser::Block::from)
+            .collect();
+        let Block::Paragraph(paragraph) = parsed_blocks.first().ok_or("paragraph")? else {
             return Err("paragraph".into());
         };
         let node = paragraph.content.first().ok_or("link")?;
@@ -334,8 +348,12 @@ xref:target[]
 ",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let Block::Paragraph(paragraph) = parsed.document().blocks.first().ok_or("paragraph")?
-        else {
+        let parsed_blocks: Vec<_> = parsed
+            .document_ref()
+            .blocks()
+            .map(acdc_parser::Block::from)
+            .collect();
+        let Block::Paragraph(paragraph) = parsed_blocks.first().ok_or("paragraph")? else {
             return Err("paragraph".into());
         };
         for node in paragraph.content.iter().map(InlineRef::from) {

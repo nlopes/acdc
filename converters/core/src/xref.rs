@@ -455,12 +455,14 @@ mod tests {
             include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_renumber.adoc"),
             &Options::default(),
         )?;
+        let parsed_document = acdc_parser::Document::from(parsed.document_ref());
         let expected = parse(
             include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_appendix.adoc"),
             &Options::default(),
         )?;
+        let expected_document = acdc_parser::Document::from(expected.document_ref());
         assert_eq!(
-            short_prefixes(expected.document()),
+            short_prefixes(&expected_document),
             [
                 "Early Appendix A",
                 "Early Appendix A",
@@ -471,7 +473,7 @@ mod tests {
                 "Early Appendix A",
             ]
         );
-        let mut document = cloned_document(parsed.document());
+        let mut document = cloned_document(&parsed_document);
         for block in &mut document.blocks {
             if let Block::Section(section) = block
                 && section.id() == "target"
@@ -482,12 +484,12 @@ mod tests {
         document.renumber_sections();
         assert_eq!(
             short_prefixes(&document),
-            short_prefixes(expected.document())
+            short_prefixes(&expected_document)
         );
         document.renumber_sections();
         assert_eq!(
             short_prefixes(&document),
-            short_prefixes(expected.document())
+            short_prefixes(&expected_document)
         );
 
         for block in &mut document.blocks {
@@ -498,7 +500,7 @@ mod tests {
             }
         }
         document.renumber_sections();
-        assert_eq!(short_prefixes(&document), short_prefixes(parsed.document()));
+        assert_eq!(short_prefixes(&document), short_prefixes(&parsed_document));
         Ok(())
     }
 
@@ -508,6 +510,7 @@ mod tests {
             include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_renumber.adoc"),
             &Options::default(),
         )?;
+        let parsed_document = acdc_parser::Document::from(parsed.document_ref());
         for (signifier, expected) in [
             (XrefSignifier::Standard, "Appendix A"),
             (XrefSignifier::AtReference("Chapter"), "Chapter A"),
@@ -515,7 +518,7 @@ mod tests {
             (XrefSignifier::AtReference(""), " A"),
             (XrefSignifier::Omitted, "A"),
         ] {
-            let mut document = cloned_document(parsed.document());
+            let mut document = cloned_document(&parsed_document);
             for footnote in &mut document.footnotes {
                 for inline in &mut footnote.content {
                     if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
@@ -553,7 +556,8 @@ mod tests {
         signifier: XrefSignifier<'static>,
     ) -> Result<(&'static str, String), Error> {
         let parsed = book()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
         Ok(
             match resolve_xref(
@@ -601,10 +605,11 @@ mod tests {
             ),
             &Options::default(),
         )?;
+        let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
         let guard = XrefGuard::default();
         assert!(matches!(
             resolve_xref(
-                parsed.document().references.get("_preface"),
+                parsed_references.get("_preface"),
                 &xref("_preface", XrefStyle::Short),
                 &guard,
             ),
@@ -673,7 +678,8 @@ mod tests {
         // `[[labelled,A label]]` sits on an inline anchor, which has no title;
         // a section with both is covered by the html and terminal fixtures.
         let parsed = catalog()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
         assert!(matches!(
             resolve_xref(
@@ -689,7 +695,8 @@ mod tests {
     #[test]
     fn title_resolves_when_there_is_no_label() -> Result<(), Error> {
         let parsed = catalog()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
         assert!(matches!(
             resolve_xref(
@@ -705,7 +712,8 @@ mod tests {
     #[test]
     fn captioned_target_resolves_short_and_full_styles() -> Result<(), Error> {
         let parsed = catalog()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
 
         assert!(matches!(
@@ -741,10 +749,10 @@ mod tests {
             ":figure-caption: BeforeFigure\n:table-caption: BeforeTable\n:example-caption: BeforeExample\n:listing-caption: BeforeListing\n:xrefstyle: short\n\nForward: <<figure>>; <<table>>; <<example>>; <<listing>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n:example-caption: TargetExample\n:listing-caption: TargetListing\n\n[[figure]]\n.Figure title\nimage::figure.svg[]\n\n[[table]]\n.Table title\n|===\n|Cell\n|===\n\n[[example]]\n.Example title\n====\nBody.\n====\n\n[[listing]]\n.Listing title\n----\nbody\n----\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:example-caption: AfterExample\n:listing-caption: AfterListing\n\nBackward: <<figure>>; <<table>>; <<example>>; <<listing>>.\n",
             &Options::default(),
         )?;
-        let references = &parsed.document().references;
+        let parsed_document = acdc_parser::Document::from(parsed.document_ref());
+        let references = &parsed_document.references;
         let guard = XrefGuard::default();
-        let prefixes = parsed
-            .document()
+        let prefixes = parsed_document
             .blocks
             .iter()
             .filter_map(|block| {
@@ -789,7 +797,8 @@ mod tests {
             ":figure-caption!:\n\n[[disabled]]\n.Disabled title\nimage::disabled.svg[]\n\n[[custom]]\n.Custom title\n[caption=\"Exhibit: \"]\nimage::custom.svg[]\n",
             &Options::default(),
         )?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
 
         assert!(matches!(
@@ -822,7 +831,8 @@ mod tests {
     #[test]
     fn untitled_target_falls_back_to_its_id() -> Result<(), Error> {
         let parsed = catalog()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
         assert!(matches!(
             resolve_xref(
@@ -847,11 +857,12 @@ mod tests {
     #[test]
     fn external_reference_ignores_a_matching_local_catalog_entry() -> Result<(), Error> {
         let parsed = catalog()?;
+        let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
         let mut external = xref("titled", XrefStyle::Basic);
         external.target_is_local = false;
         let guard = XrefGuard::default();
         assert!(matches!(
-            resolve_xref(parsed.document().references.get("titled"), &external, &guard),
+            resolve_xref(parsed_references.get("titled"), &external, &guard),
             XrefDisplay::External(target) if target == "titled"
         ));
         Ok(())
@@ -942,7 +953,8 @@ mod tests {
     #[test]
     fn reference_inside_reference_text_is_nested() -> Result<(), Error> {
         let parsed = catalog()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
 
         let display = resolve_xref(
@@ -978,7 +990,8 @@ mod tests {
     #[test]
     fn clones_of_a_guard_share_one_resolution() -> Result<(), Error> {
         let parsed = catalog()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
         let clone = guard.clone();
 

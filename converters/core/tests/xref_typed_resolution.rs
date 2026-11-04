@@ -91,7 +91,7 @@ fn check_mode(mode: CompatibilityMode) -> Result<(), Error> {
         SOURCE,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let document = parsed.document();
+    let document = &acdc_parser::Document::from(parsed.document_ref());
     let outer = CrossReference::new("labelled", Location::default());
     let outer_reference = document.references.get("labelled").ok_or("labelled")?;
     for target in [
@@ -155,7 +155,8 @@ fn check_mode(mode: CompatibilityMode) -> Result<(), Error> {
 #[test]
 fn typed_xrefs_preserve_empty_titles_labels_and_temporary_overrides() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
-    let original = parsed.document().references.get("figure").ok_or("figure")?;
+    let parsed_references = std::collections::HashMap::from(parsed.document_ref().references());
+    let original = parsed_references.get("figure").ok_or("figure")?;
     for title in [
         None,
         Some(Title::default()),

@@ -445,9 +445,12 @@ mod tests {
             let options = acdc_parser::Options::default();
             let parsed = acdc_parser::parse(adoc, &options)?;
             let parsed: &'static acdc_parser::ParseResult = Box::leak(Box::new(parsed));
-            parsed
-                .document()
-                .blocks
+            let parsed_blocks: Vec<_> = parsed
+                .document_ref()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
+            parsed_blocks
                 .iter()
                 .find_map(|block| {
                     if let Block::DelimitedBlock(db) = block

@@ -14,20 +14,23 @@ type Overlay<'doc> = FxHashMap<&'doc str, &'doc DocumentAttributeAssignment<'doc
 ///
 /// ```
 /// use std::convert::Infallible;
-/// use acdc_converters_core::{TraversalContext, visitor::Visitor};
-/// use acdc_parser::{Options, Paragraph, parse};
+/// use acdc_converters_core::{TraversalContext, visitor::{BlockVisitor, DocumentVisitor}};
+/// use acdc_parser::{Options, ast::{BlockKind, BlockRef}, parse};
 ///
 /// #[derive(Default)]
 /// struct Directories<'doc>(Vec<&'doc str>);
 ///
-/// impl<'doc> Visitor<'doc> for Directories<'doc> {
+/// impl<'doc> BlockVisitor<'doc> for Directories<'doc> {
 ///     type Error = Infallible;
 ///
-///     fn visit_paragraph(
+///     fn visit_block(
 ///         &mut self,
 ///         context: &mut TraversalContext<'doc>,
-///         _: &Paragraph<'_>,
+///         block: BlockRef<'doc>,
 ///     ) -> Result<(), Self::Error> {
+///         if !matches!(block.kind(), BlockKind::Paragraph(_)) {
+///             return Ok(());
+///         }
 ///         if let Some(directory) = context.get("imagesdir").and_then(|value| value.as_str()) {
 ///             self.0.push(directory);
 ///         }
@@ -35,12 +38,14 @@ type Overlay<'doc> = FxHashMap<&'doc str, &'doc DocumentAttributeAssignment<'doc
 ///     }
 /// }
 ///
+/// impl<'doc> DocumentVisitor<'doc> for Directories<'doc> {}
+///
 /// let parsed = parse(
 ///     "= Title\n:imagesdir: first\n\nOne.\n\n:imagesdir: second\n\nTwo.\n",
 ///     &Options::default(),
 /// )?;
-/// let document = parsed.document();
-/// let mut context = TraversalContext::new(&document.attributes);
+/// let document = parsed.document_ref();
+/// let mut context = TraversalContext::new(document.attributes());
 /// let mut directories = Directories::default();
 /// directories.visit_document(&mut context, document)?;
 /// assert_eq!(directories.0, ["first", "second"]);
@@ -230,7 +235,7 @@ mod tests {
             "= Header\n:present:\n:name: \"quoted\"\n:removed!:\n\nBody.\n",
             &options,
         )?;
-        let header = &parsed.document().attributes;
+        let header = parsed.document_ref().attributes();
         let context = TraversalContext::new(header);
         let depth = context.get("max-include-depth").ok_or("missing depth")?;
         assert_eq!(depth.as_integer(), Some(3));
@@ -344,7 +349,7 @@ mod tests {
             "= Header\n:name: header\n\nBody.\n\n:name: first\n:name: second\n:name!:\n:name: false\n",
             &Options::default(),
         )?;
-        let document = parsed.document();
+        let document = &acdc_parser::Document::from(parsed.document_ref());
         let mut context = TraversalContext::new(&document.attributes);
         let mut observer = Observer::default();
         context.visit_blocks(&mut observer, &document.blocks)?;
@@ -373,13 +378,19 @@ mod tests {
             "= Header\n:name: header\n\nBody.\n\n:name: parent\n",
             &Options::default(),
         )?;
+        let parent_document = acdc_parser::Document::from(parent.document_ref());
         let child = parse("Body.\n\n:name: child\n", &Options::default())?;
-        let mut context = TraversalContext::new(&parent.document().attributes);
+        let child_blocks: Vec<_> = child
+            .document_ref()
+            .blocks()
+            .map(acdc_parser::Block::from)
+            .collect();
+        let mut context = TraversalContext::new(&parent_document.attributes);
         let mut observer = Observer::default();
-        context.visit_blocks(&mut observer, &parent.document().blocks)?;
+        context.visit_blocks(&mut observer, &parent_document.blocks)?;
         for fail in [false, true] {
             let result = context.with_scope(|context| {
-                let Ok(()) = context.visit_blocks(&mut observer, &child.document().blocks);
+                let Ok(()) = context.visit_blocks(&mut observer, &child_blocks);
                 assert!(context.is_nested_document());
                 assert_eq!(context.substitute_attributes("{name}"), "child");
                 if fail {
@@ -401,8 +412,8 @@ mod tests {
             "= T\n:doctype: book\n:toc: left\n\n[cols=a]\n|===\n|\nCell.\n|===\n",
             &Options::default(),
         )?;
-        let Block::DelimitedBlock(block) = parsed
-            .document()
+        let parsed_document = acdc_parser::Document::from(parsed.document_ref());
+        let Block::DelimitedBlock(block) = parsed_document
             .blocks
             .first()
             .ok_or("missing table block")?
@@ -412,7 +423,7 @@ mod tests {
         let acdc_parser::DelimitedBlockType::DelimitedTable(table) = &block.inner else {
             return Err("missing table".into());
         };
-        let mut context = TraversalContext::new(&parsed.document().attributes);
+        let mut context = TraversalContext::new(&parsed_document.attributes);
         for fail in [false, true] {
             let result = context.with_table_cell(
                 table
