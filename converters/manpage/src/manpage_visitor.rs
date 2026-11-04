@@ -2,9 +2,6 @@
 
 use std::{io::Write, mem::replace};
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::{SubsFlags, effective_subs_flags};
-
 use acdc_converters_core::{
     Diagnostics, TraversalContext, document_attribute_text,
     substitutions::TextBoundaries,
@@ -27,16 +24,6 @@ pub(super) fn attribute_text<'doc>(
 ) -> Option<&'doc str> {
     match attributes.get(name) {
         Some(AttributeValueRef::Text(value)) => Some(acdc_parser::strip_quotes(value)),
-        _ => None,
-    }
-}
-
-#[cfg(feature = "pre-spec-subs")]
-pub(super) fn substitutions(
-    attributes: AttributesRef<'_>,
-) -> Option<acdc_parser::ast::SubstitutionSpecRef<'_>> {
-    match attributes.get("subs") {
-        Some(AttributeValueRef::Substitutions(spec)) => Some(spec),
         _ => None,
     }
 }
@@ -150,15 +137,6 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
     ) -> Result<(), Error> {
         let previous_boundaries = self.text_boundaries;
-        #[cfg(feature = "pre-spec-subs")]
-        let replacements = self
-            .processor
-            .current_subs
-            .get()
-            .contains(SubsFlags::REPLACEMENTS);
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let replacements = true;
-
         let context_nodes = nodes.clone();
         let result = (|| {
             let mut after_hard_break = false;
@@ -169,7 +147,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
                     previous_boundaries
                 };
                 self.text_boundaries = boundaries
-                    .with_ordinary_replacements(replacements)
+                    .with_ordinary_replacements(false)
                     .for_inline_refs(
                         Some(node),
                         context_nodes.clone().take(i).rev(),
@@ -300,16 +278,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
                     manify(&prefix, EscapeMode::Collapse)
                 )?;
             }
-            // A title uses normal substitutions even when its block's body disables them.
-            #[cfg(feature = "pre-spec-subs")]
-            let previous_subs = visitor
-                .processor
-                .current_subs
-                .replace(effective_subs_flags(None, false));
-            let result = visitor.render_title_inlines(traversal, title);
-            #[cfg(feature = "pre-spec-subs")]
-            visitor.processor.current_subs.set(previous_subs);
-            result
+            visitor.render_title_inlines(traversal, title)
         })?;
         writeln!(self.writer_mut())?;
         writeln!(self.writer_mut(), ".br")?;

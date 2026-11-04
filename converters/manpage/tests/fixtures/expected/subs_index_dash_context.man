@@ -226,8 +226,6 @@ S63 prefix \(em tail \c
 .br
 \-
 .br
- \(em
-.br
 \-\-
 .br
 \-\-\-

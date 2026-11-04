@@ -40,8 +40,6 @@ use std::{
     rc::Rc,
 };
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, Doctype, Options, TraversalContext,
     section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
@@ -106,16 +104,6 @@ pub struct Processor<'a> {
     pub(crate) inline_role_warning: Rc<Cell<bool>>,
     pub(crate) index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
     pub(crate) has_valid_index_section: bool,
-    /// Substitutions active for the block currently being rendered, resolved
-    /// from `[subs="…"]` (or the block-kind baseline when absent). Shared
-    /// across clones so sub-visitors inherit the outer block's effective
-    /// subs. `Cell<SubsFlags>` is a single-byte load/store with no borrow
-    /// tracking.
-    ///
-    /// Only present when the `pre-spec-subs` feature is enabled; otherwise
-    /// the converter applies typography unconditionally (asciidoctor default).
-    #[cfg(feature = "pre-spec-subs")]
-    pub(crate) current_subs: Rc<Cell<SubsFlags>>,
 }
 
 impl Processor<'_> {
@@ -161,8 +149,6 @@ impl Processor<'_> {
             inline_role_warning: Rc::new(Cell::new(false)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: contains_index_section(document.blocks()),
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
         let mut traversal = TraversalContext::new(document.attributes());
         let mut visitor = ManpageVisitor::new(writer, &processor, diagnostics.reborrow());
@@ -214,8 +200,6 @@ impl<'a> Converter<'a> for Processor<'a> {
             inline_role_warning: Rc::new(Cell::new(false)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: false,
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: Rc::new(Cell::new(SubsFlags::all())),
         })
     }
 

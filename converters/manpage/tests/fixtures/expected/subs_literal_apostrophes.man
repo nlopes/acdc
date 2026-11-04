@@ -96,4 +96,4 @@ m
 .RE
 .SH "NOTES"
 .IP [1] 4
-Sam\(cqs
+Sam\(aqs

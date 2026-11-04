@@ -1,0 +1,63 @@
+'\" t
+.\"     Title: selected-text
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-01-01
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "SELECTED\-TEXT" "1" "2026-01-01" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+selected\-text \- parser selected text
+.SH "SYNOPSIS"
+.sp
+\fBselected\-text\fR
+.SH "DESCRIPTION"
+.sp
+R01 X *word* (C) \->\&.
+.sp
+R02 X \e*word* (C) \-> *literal*.
+.sp
+R03 X \e*word* (C) \-> *literal*.
+.EX
+R04 tail \(co \(-> \(em
+.EE
+.EX
+R05 X \e*word* (C) \->
+.EE
+.sp
+R06 \e*word* \(co \(->\&.
+.sp
+\fBTitle \(co \fBbold\fB\fR
+.br
+.RS 3
+.ll -.6i
+.sp
+R07 Body (C) *literal*.
+.br
+.RE
+.ll
+.sp
+R08 Normal \(co \(-> \(em end.
+.sp
+R09 \e*literal* \e\(aqword\e\(aq \(co \(->\&.

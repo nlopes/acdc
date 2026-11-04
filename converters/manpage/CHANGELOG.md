@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Block `subs=` settings now work in every build. Literal content, escaped
+  punctuation, and titles use the parser-selected text without a second
+  typography pass. Footnotes and generated index labels also retain disabled
+  or escaped typography.
+
 - Plain-text headings retain curved quotation marks around their content.
 
 - Enabled typography resolves consistently in verbatim-only profiles. Generated

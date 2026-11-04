@@ -6,11 +6,53 @@ use acdc_converters_core::{
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_manpage::{ManpageVisitor, Processor};
-use acdc_parser::{Options as ParserOptions, parse, parse_file};
+use acdc_parser::{CompatibilityMode, Options as ParserOptions, parse, parse_file};
 
 type Error = Box<dyn std::error::Error>;
 
-#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn resolved_text_and_substitution_profiles_work_in_every_build() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/subs_resolved_text.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        let processor = Processor::new(
+            ConverterOptions::builder().embedded(true).build(),
+            ParserOptions::builder().with_compatibility_mode(mode),
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let warning_source = WarningSource::new("manpage");
+        processor.write_to(
+            parsed.document(),
+            &mut output,
+            None,
+            None,
+            &mut Diagnostics::new(&warning_source, &mut warnings),
+        )?;
+        let output = String::from_utf8(output)?;
+        for expected in [
+            r"R02 X \e*word* (C) \-> *literal*.",
+            r"R03 X \e*word* (C) \-> *literal*.",
+            r"R04 tail \(co \(-> \(em",
+            r"R05 X \e*word* (C) \->",
+            r"R07 Body (C) *literal*.",
+            r"Title \(co",
+            r"R08 Normal \(co \(-> \(em end.",
+            r"R09 \e*literal* \e\(aqword\e\(aq \(co \(->",
+        ] {
+            assert!(output.contains(expected), "missing {expected}: {output}");
+        }
+        assert!(!output.contains('\u{e000}'), "{output}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+    Ok(())
+}
+
 #[rstest::rstest]
 fn styled_titles_keep_substitutions_separate_from_the_body(
     #[values("quote", "verse")] style: &str,
@@ -46,7 +88,6 @@ fn styled_titles_keep_substitutions_separate_from_the_body(
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn code_typography_omits_generated_trailing_space() -> Result<(), Error> {
     for (subs, input, expected) in [
@@ -78,7 +119,6 @@ fn code_typography_omits_generated_trailing_space() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_links_keep_roff_commands_outside_arguments() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -205,15 +245,6 @@ fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Resu
         .file_stem()
         .and_then(|s| s.to_str())
         .ok_or("Invalid fixture file name")?;
-
-    // Fixtures whose name contains `subs` test `[subs="…"]` behavior, which
-    // only takes effect under the `pre-spec-subs` feature. When the feature
-    // is off, skip — the expected output captures the feature-on behavior
-    // and cannot match.
-    #[cfg(not(feature = "pre-spec-subs"))]
-    if file_name.contains("subs") {
-        return Ok(());
-    }
 
     let expected_path = expected_dir.join(file_name).with_extension("man");
 

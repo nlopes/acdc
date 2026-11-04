@@ -5,44 +5,13 @@
 use std::io::Write;
 
 use acdc_converters_core::TraversalContext;
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_parser::ast::{AttributesRef, ContentRef, ParagraphRef};
 
-#[cfg(feature = "pre-spec-subs")]
-use crate::manpage_visitor::substitutions;
 use crate::{Error, ManpageVisitor, document::extract_verbatim_text, escape::EscapeMode};
 
 impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     /// Render a paragraph with its style-specific manpage layout.
     pub(crate) fn render_paragraph(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        para: ParagraphRef<'_>,
-    ) -> Result<(), Error> {
-        #[cfg(feature = "pre-spec-subs")]
-        {
-            // Resolve `[subs="…"]` for the paragraph so inline rendering knows
-            // whether to apply typography. Literal/listing/source styles use
-            // verbatim substitutions; verse keeps normal substitutions.
-            // Snapshot/restore via the processor's shared cell so nested renders
-            // (and sub-visitors that clone the processor) don't leak state.
-            let is_verbatim = matches!(para.style(), Some("literal" | "listing" | "source"));
-            let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-                substitutions(para.attributes()),
-                is_verbatim,
-            ));
-
-            let result = self.render_paragraph_inner(traversal, para);
-
-            self.processor.current_subs.set(previous_subs);
-            result
-        }
-        #[cfg(not(feature = "pre-spec-subs"))]
-        self.render_paragraph_inner(traversal, para)
-    }
-
-    fn render_paragraph_inner(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         para: ParagraphRef<'_>,
@@ -179,7 +148,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         self.write_sp()?;
         self.render_captioned_title(traversal, para.title(), para.attributes())?;
-        self.render_verse_content(traversal, para.content(), para.attributes())?;
+        self.render_verse_content(traversal, para.content())?;
 
         // Render attribution if present
         self.render_attribution(
@@ -197,21 +166,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         &mut self,
         traversal: &mut TraversalContext<'a>,
         nodes: ContentRef<'_>,
-        attributes: AttributesRef<'_>,
     ) -> Result<(), Error> {
-        #[cfg(feature = "pre-spec-subs")]
-        let previous_subs = self
-            .processor
-            .current_subs
-            .replace(effective_subs_flags(substitutions(attributes), false));
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let _ = attributes;
         let mut output = Vec::new();
         let mut visitor = self.nested_visitor(&mut output);
         visitor.text_escape_mode = EscapeMode::Preserve;
         let result = visitor.write_content(traversal, nodes);
-        #[cfg(feature = "pre-spec-subs")]
-        visitor.processor.current_subs.set(previous_subs);
         result?;
         let w = self.writer_mut();
         writeln!(w, ".nf")?;

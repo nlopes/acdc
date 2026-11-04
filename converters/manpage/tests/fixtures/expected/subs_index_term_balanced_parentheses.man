@@ -97,7 +97,7 @@ Attribute (R)
 .RE
 .SS "C"
 .RS 4
-Code \(rg
+Code (R)
 .br
 Code \(rg
 .br

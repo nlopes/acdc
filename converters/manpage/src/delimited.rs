@@ -2,10 +2,8 @@
 //!
 //! Handles listing, literal, example, sidebar, quote, and other delimited blocks.
 
-use std::{borrow::Cow, io::Write};
+use std::io::Write;
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::{SubsFlags, effective_subs_flags};
 use acdc_converters_core::{InlineTextTransform, TraversalContext};
 use acdc_parser::{
     SymbolKind,
@@ -19,9 +17,6 @@ use crate::{
     inlines::{contains_link, replacements},
     manpage_visitor::{IndexCollection, attribute_text},
 };
-
-#[cfg(feature = "pre-spec-subs")]
-use crate::manpage_visitor::substitutions;
 
 impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     pub(crate) fn render_delimited_block(
@@ -61,7 +56,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 )
             }
             BlockKind::Verse(node) => {
-                self.render_verse_content(traversal, node.content(), node.attributes())?;
+                self.render_verse_content(traversal, node.content())?;
                 self.render_attribution(
                     traversal,
                     node.attributes(),
@@ -155,20 +150,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         nodes: ContentRef<'_>,
         attributes: AttributesRef<'_>,
     ) -> Result<String, Error> {
-        // Link labels inherit the verbatim block's substitution settings.
-        #[cfg(feature = "pre-spec-subs")]
-        let previous_subs = self
-            .processor
-            .current_subs
-            .replace(effective_subs_flags(substitutions(attributes), true));
         let mut output = Vec::new();
         let mut visitor = self.nested_visitor(&mut output);
         // Block callers already collected terms; rendering link labels must not add them again.
         visitor.index_collection = IndexCollection::Disabled;
-        let result = visitor.write_verbatim_nodes(traversal, nodes, Some(attributes));
-        #[cfg(feature = "pre-spec-subs")]
-        visitor.processor.current_subs.set(previous_subs);
-        result?;
+        visitor.write_verbatim_nodes(traversal, nodes, Some(attributes))?;
         Ok(String::from_utf8_lossy(&output).into_owned())
     }
 
@@ -181,20 +167,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let comment_prefix =
             attributes.and_then(|attributes| attribute_text(attributes, "line-comment"));
         let previous_boundaries = self.text_boundaries;
-        #[cfg(feature = "pre-spec-subs")]
-        let replacements = self
-            .processor
-            .current_subs
-            .get()
-            .contains(SubsFlags::REPLACEMENTS);
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let replacements = false;
-
         let result = (|| {
             let siblings = nodes.inlines();
             for (index, node) in nodes.inlines().enumerate() {
                 self.text_boundaries = previous_boundaries
-                    .with_ordinary_replacements(replacements)
+                    .with_ordinary_replacements(false)
                     .for_inline_refs(
                         Some(node),
                         siblings.clone().take(index).rev(),
@@ -236,28 +213,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     }
 
     fn write_verbatim_text(&mut self, text: &str) -> Result<(), Error> {
-        #[cfg(feature = "pre-spec-subs")]
-        let text = if self
-            .processor
-            .current_subs
-            .get()
-            .contains(SubsFlags::REPLACEMENTS)
-        {
-            let mut replaced =
-                crate::inlines::replacements().transform_verbatim(text, self.text_boundaries);
-            // Like prose, omit the space generated after a final em dash while
-            // retaining authored trailing whitespace in verbatim content.
-            if self.text_boundaries.at_paragraph_end()
-                && text.ends_with("--")
-                && replaced.ends_with(' ')
-            {
-                replaced.pop();
-            }
-            Cow::Owned(replaced)
-        } else {
-            Cow::Borrowed(text)
-        };
-        write!(self.writer_mut(), "{}", manify(&text, EscapeMode::Preserve))?;
+        write!(self.writer_mut(), "{}", manify(text, EscapeMode::Preserve))?;
         Ok(())
     }
 

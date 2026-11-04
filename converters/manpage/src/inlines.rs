@@ -4,8 +4,6 @@
 
 use std::{borrow::Cow, io::Write, rc::Rc};
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     TraversalContext, decode_numeric_char_refs,
     link::{link_fallback, mailto_fallback, mailto_target},
@@ -102,35 +100,6 @@ fn has_degraded_role(role: Option<&str>) -> bool {
                 "underline" | "subtitle" | "big" | "small" | "highlight"
             )
         })
-}
-
-/// Apply manpage typography replacements to a `PlainText` leaf.
-///
-/// When `pre-spec-subs` is enabled, defers to
-/// [`apply_replacements`](acdc_converters_core::substitutions::apply_replacements)
-/// so that `[subs="-replacements"]` can suppress the transform. Otherwise,
-/// always applies — matching the asciidoctor default.
-#[cfg(feature = "pre-spec-subs")]
-fn transform_plain<'a>(
-    text: &'a str,
-    visitor: &ManpageVisitor<'_, '_, impl Write>,
-    text_boundaries: TextBoundaries,
-) -> Cow<'a, str> {
-    apply_replacements(
-        text,
-        visitor.processor.current_subs.get(),
-        &replacements(),
-        text_boundaries,
-    )
-}
-
-#[cfg(not(feature = "pre-spec-subs"))]
-fn transform_plain<'a>(
-    text: &'a str,
-    _visitor: &ManpageVisitor<'_, '_, impl Write>,
-    text_boundaries: TextBoundaries,
-) -> Cow<'a, str> {
-    Cow::Owned(replacements().transform(text, text_boundaries))
 }
 
 /// Apply the casing the surrounding context asks for, keeping inline markup.
@@ -428,12 +397,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         } else {
             text
         };
-        let mut content = transform_plain(content, self, self.text_boundaries);
-        if self.text_boundaries.at_paragraph_end() && text.ends_with("--") && content.ends_with(' ')
-        {
-            content.to_mut().pop();
-        }
-        let content = apply_text_case(content, self.text_case);
+        let content = apply_text_case(Cow::Borrowed(content), self.text_case);
         let escaped = manify(&content, self.text_escape_mode);
         let w = self.writer_mut();
         if let Some(restored) = restore_em_dash_line_prefixes(&content, &escaped) {
