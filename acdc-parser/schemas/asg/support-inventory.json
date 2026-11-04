@@ -982,7 +982,7 @@
           "upstream": "#/$defs/inlineRef"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "references"
     },
     "src/model/inlines/hyperlinks.rs::Mailto": {
       "shape": {
@@ -1035,7 +1035,7 @@
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "references"
     },
     "src/model/inlines/hyperlinks.rs::Url": {
       "shape": {
@@ -1083,7 +1083,7 @@
           "upstream": "#/$defs/inlineRef"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "references"
     },
     "src/model/inlines/icon.rs::Icon": {
       "shape": {
@@ -1157,7 +1157,7 @@
           "upstream": "#/$defs/inlineRef"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "references"
     },
     "src/model/inlines/macros.rs::Button": {
       "shape": {
@@ -1256,7 +1256,7 @@
           "upstream": "#/$defs/inlineRef"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "references"
     },
     "src/model/inlines/macros.rs::Footnote": {
       "shape": {
@@ -1599,7 +1599,7 @@
           "policy": "unsupported"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "references"
     },
     "src/model/inlines/macros.rs::XrefSignifier": {
       "shape": {
@@ -1630,7 +1630,7 @@
           "policy": "unsupported"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "references"
     },
     "src/model/inlines/macros.rs::XrefSourceSyntax": {
       "shape": {
@@ -1660,7 +1660,7 @@
           "policy": "source-state"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "references"
     },
     "src/model/inlines/macros.rs::XrefStyle": {
       "shape": {
@@ -1690,7 +1690,7 @@
           "policy": "unsupported"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "references"
     },
     "src/model/inlines/mod.rs::IndexCatalog": {
       "shape": {
@@ -3305,7 +3305,7 @@
           "upstream": "#/$defs/blockMacro/properties/target"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "references"
     },
     "src/model/media.rs::SourceUrl": {
       "shape": {
@@ -3330,7 +3330,7 @@
           "upstream": "#/$defs/blockMacro/properties/target"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "references"
     },
     "src/model/media.rs::Video": {
       "shape": {
@@ -5663,6 +5663,10 @@
         {
           "file": "src/asg/projection.rs",
           "name": "unresolved_macro_and_callout_owners_are_rejected"
+        },
+        {
+          "file": "tests/asg_references.rs",
+          "name": "reference_forms_preserve_targets_and_effective_labels"
         }
       ]
     },
@@ -5740,7 +5744,7 @@
       ]
     },
     "inline-controls": {
-      "handling": "Current macro owners are rejected in full; IDs and roles on otherwise supported spans are rejected at their exact property.",
+      "handling": "References reject populated identity, roles/options, scalar controls and tooltips; supported spans reject IDs/roles. Other unsupported macro owners are rejected in full.",
       "tests": [
         {
           "file": "tests/asg.rs",
@@ -5749,6 +5753,10 @@
         {
           "file": "tests/asg_support.rs",
           "name": "unsupported_inline_owners_are_rejected_inside_supported_paragraphs"
+        },
+        {
+          "file": "tests/asg_references.rs",
+          "name": "unsupported_reference_properties_fail_at_the_property"
         }
       ]
     },
@@ -5770,6 +5778,43 @@
         {
           "file": "tests/asg.rs",
           "name": "asg_rejects_independent_header_and_catalog_values"
+        }
+      ]
+    },
+    "references": {
+      "handling": "Links/URLs/mailto/autolinks preserve targets and effective labels; xrefs retain explicit inline labels or empty automatic labels. Populated metadata, nondefault xref controls and unrepresentable target classification are rejected. Target helpers remain rejected on unsupported media owners.",
+      "tests": [
+        {
+          "file": "tests/asg_references.rs",
+          "name": "reference_forms_preserve_targets_and_effective_labels"
+        },
+        {
+          "file": "tests/asg_references.rs",
+          "name": "formatted_and_nested_labels_remain_inline_trees"
+        },
+        {
+          "file": "tests/asg_references.rs",
+          "name": "bracketed_email_keeps_brackets_outside_the_reference"
+        },
+        {
+          "file": "tests/asg_references.rs",
+          "name": "automatic_xrefs_keep_empty_labels_and_exported_target_content"
+        },
+        {
+          "file": "tests/asg_references.rs",
+          "name": "mailto_queries_keep_unrelated_headers_and_encode_values"
+        },
+        {
+          "file": "tests/asg_references.rs",
+          "name": "scheme_hiding_changes_only_automatic_display_text"
+        },
+        {
+          "file": "tests/asg_references.rs",
+          "name": "unsupported_reference_properties_fail_at_the_property"
+        },
+        {
+          "file": "tests/asg_references.rs",
+          "name": "target_classification_cannot_be_silently_changed"
         }
       ]
     }

@@ -105,7 +105,8 @@ macros, or invokes a converter. Native JSON and parsing behavior stay unchanged.
 The initial subset includes document attributes, headers/authors, paragraphs,
 ordinary unnumbered sections, plain text, raw text without remaining
 operations, raw text with exactly one escaping stage, resolved typographic
-symbols, and strong/emphasis/code/mark spans without inline IDs or roles.
+symbols, strong/emphasis/code/mark spans without inline IDs or roles, and supported
+links and cross-references.
 Titles and reference labels retain their inline structure and empty presence.
 Document presence is an empty string, explicit unsets are null, and integers
 retain their attribute-reference spelling. Protected document values are rejected
@@ -119,7 +120,7 @@ scalar values, multiple IDs, bibliography meaning, and independent reference
 labels are rejected. A primary block ID and its selected reftext are promoted
 to the block. Source coordinates of the ID token have no upstream field.
 
-Unsupported values include lists, other block forms, inline macros, missing span
+Unsupported values include lists, other block forms, other inline macros, missing span
 variants, inline identities/controls, subtitles/header metadata, ordered body
 assignments, captions, attribution/citation, explicit block substitutions, and
 nondefault section category/numbering. Verbatim content requires a supported
@@ -165,9 +166,31 @@ The property inventory remains authoritative for each declaration.
 |`decorations` |12 |Accept default section policy; reject numbering, category, captions and attribution/citation.
 |`body-assignments` |2 |Reject ordered assignments and retained events.
 |`inline-controls` |4 |Reject identities/roles on supported spans and populated controls on unsupported macros.
-|`unsupported-owners` |67 |Reject the entire block, inline, macro or payload without inventing a form.
+|`references` |11 |Preserve link/xref targets and effective labels; reject unsupported controls and ambiguous target classification.
+|`unsupported-owners` |56 |Reject the entire block, inline, macro or payload without inventing a form.
 |===
 
 The evidence covers positive mappings, rejected owners/properties and permitted
 omissions. Adding a model declaration or field requires an inventory decision;
 adding a mapping also requires semantic assertions beyond schema validity.
+
+== References
+
+Links, URL macros, mail links and autolinks export as `ref` with variant `link`.
+Explicit labels keep their inline tree. Automatic link labels become their effective
+text, including URI scheme hiding, without changing the destination. Generated
+label text has no invented source location. Bracketed email autolinks keep their
+angle brackets as text outside the reference.
+
+Mail query values are percent-encoded in the destination; body line endings become
+CRLF. Existing unrelated query headers retain their spelling. Positional subject
+or body values replace only the corresponding query headers, including explicit
+empty values. The visible fallback label still uses the original destination.
+
+Cross-references export as variant `xref`. An empty `inlines` array retains automatic
+label selection; the exported target owns its title and reftext. Export does not
+copy a computed label into the reference or resolve it again. Nondefault styles,
+caption labels and signifiers fail because upstream references have no fields for
+them. Unchanged built-in signifier snapshots are default behavior and can be omitted. A target whose local/external classification cannot be recovered from its
+text also fails. Populated reference metadata and tooltips are rejected at their
+exact property, including explicitly empty values.

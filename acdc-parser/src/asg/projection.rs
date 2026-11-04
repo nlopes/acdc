@@ -8,7 +8,7 @@ use crate::{
     Title,
 };
 
-use super::{Error, diagnostics, metadata, pointer, unsupported};
+use super::{Error, diagnostics, metadata, pointer, references, unsupported};
 
 type Node = Map<String, Value>;
 
@@ -17,12 +17,20 @@ fn node(name: &str, kind: &str) -> Node {
 }
 
 pub(super) fn inlines(values: &[InlineNode<'_>], path: &str) -> Result<Value, Error> {
-    values
-        .iter()
-        .enumerate()
-        .map(|(index, value)| inline(value, &pointer(path, &index.to_string())))
-        .collect::<Result<Vec<_>, _>>()
-        .map(Value::Array)
+    let mut result = Vec::new();
+    for value in values {
+        let bracketed_email = matches!(value, InlineNode::Macro(crate::InlineMacro::Autolink(link))
+            if link.bracketed && references::mailto_address(&link.url.to_string()).is_some());
+        if bracketed_email {
+            result.push(Value::Object(literal("text", "<")));
+        }
+        let at = pointer(path, &result.len().to_string());
+        result.push(inline(value, &at)?);
+        if bracketed_email {
+            result.push(Value::Object(literal("text", ">")));
+        }
+    }
+    Ok(Value::Array(result))
 }
 
 fn inline(value: &InlineNode<'_>, path: &str) -> Result<Value, Error> {
@@ -96,13 +104,13 @@ fn inline_value(value: &InlineNode<'_>, path: &str) -> Result<Value, Error> {
             &span.content,
             path,
         )?,
+        InlineNode::Macro(value) => references::project(value, path)?,
         InlineNode::SubscriptText(_)
         | InlineNode::SuperscriptText(_)
         | InlineNode::CurvedQuotationText(_)
         | InlineNode::CurvedApostropheText(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
         | InlineNode::CalloutRef(_) => {
             return Err(unsupported(
                 path,

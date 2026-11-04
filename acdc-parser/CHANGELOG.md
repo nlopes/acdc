@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Checked ASG export supports links, URL macros, mail links, autolinks and default cross-references. Formatted labels stay structured; automatic link labels, URI scheme hiding and encoded mail subjects/bodies retain their meaning. Unsupported reference controls and ambiguous target classification fail with property paths.
+
 - Checked ASG export omits ordinary delimited comments, like line comments, while rejecting comment titles or semantic metadata. Unsupported section settings and unresolved content report their exact properties. Protected document-attribute errors do not invent declaration coordinates.
 
 - Checked ASG export identifies unsupported owners and known source coordinates in its errors, with exact property paths for span IDs/roles and missing header titles. Scalar attributes cannot shadow dedicated block metadata. Schema-validation failures use the separate `asg::Error::Projection` variant; match error fields with `..` to allow diagnostic context.

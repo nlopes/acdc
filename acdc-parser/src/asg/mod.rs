@@ -7,6 +7,7 @@
 mod diagnostics;
 mod metadata;
 mod projection;
+mod references;
 
 use std::sync::OnceLock;
 
