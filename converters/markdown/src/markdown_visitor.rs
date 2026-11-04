@@ -109,7 +109,10 @@ fn escape_link_destination(destination: &str) -> String {
 }
 
 fn escape_link_title(title: &str) -> String {
-    title.replace('\\', "\\\\").replace('"', "\\\"")
+    title
+        .replace('&', "&amp;")
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
 }
 
 fn max_backtick_run(text: &str) -> usize {
@@ -204,58 +207,6 @@ fn is_linked_image(node: InlineRef<'_>) -> bool {
     matches!(node.kind(), InlineKind::Image(image) if attribute_text(image.attributes(), "link").is_some())
 }
 
-fn raw_content(content: ContentRef<'_>) -> (String, Option<InlineRef<'_>>) {
-    let mut output = String::new();
-    let mut unknown = None;
-    for node in content.inlines() {
-        match node.kind() {
-            InlineKind::Verbatim(text) => output.push_str(text.text()),
-            InlineKind::Raw(text) => output.push_str(text.text()),
-            InlineKind::Plain(text) => output.push_str(text.text()),
-            InlineKind::CharacterReference(reference) => output.push_str(
-                &acdc_converters_core::character_reference_text(reference.kind()),
-            ),
-            InlineKind::LineBreak(_) => output.push('\n'),
-            InlineKind::Callout(callout) => {
-                let _ = write!(output, "({})", callout.number());
-            }
-            InlineKind::Bold(_)
-            | InlineKind::Italic(_)
-            | InlineKind::Monospace(_)
-            | InlineKind::Highlight(_)
-            | InlineKind::Subscript(_)
-            | InlineKind::Superscript(_)
-            | InlineKind::CurvedQuotation(_)
-            | InlineKind::CurvedApostrophe(_)
-            | InlineKind::StandaloneCurvedApostrophe(_)
-            | InlineKind::Symbol(_)
-            | InlineKind::Anchor(_)
-            | InlineKind::Footnote(_)
-            | InlineKind::Icon(_)
-            | InlineKind::Image(_)
-            | InlineKind::Keyboard(_)
-            | InlineKind::Button(_)
-            | InlineKind::Menu(_)
-            | InlineKind::Url(_)
-            | InlineKind::Link(_)
-            | InlineKind::Mailto(_)
-            | InlineKind::Autolink(_)
-            | InlineKind::CrossReference(_)
-            | InlineKind::Pass(_)
-            | InlineKind::Stem(_)
-            | InlineKind::IndexTerm(_) => {
-                let _ = InlineTextTransform::default()
-                    .line_break("\n")
-                    .write_inlines(&mut output, std::iter::once(node));
-            }
-            _ => {
-                unknown.get_or_insert(node);
-            }
-        }
-    }
-    (output, unknown)
-}
-
 fn source_content<'inline>(
     content: ContentRef<'inline>,
     language: Option<&str>,
@@ -322,6 +273,7 @@ fn source_content<'inline>(
             | InlineKind::Stem(_)
             | InlineKind::IndexTerm(_) => {
                 let _ = InlineTextTransform::default()
+                    .decode_char_refs(true)
                     .line_break("\n")
                     .write_inlines(&mut output, std::iter::once(node));
             }
@@ -944,6 +896,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         inlines: ContentRef<'_>,
     ) -> Result<IndexTermLabel, Error> {
         let plain = InlineTextTransform::default()
+            .decode_char_refs(true)
             .references(&self.processor.references)
             .content_to_string(inlines);
         let mut output = Vec::new();
@@ -1019,8 +972,64 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(())
     }
 
+    fn raw_content(content: ContentRef<'_>) -> (String, Option<InlineRef<'_>>) {
+        let mut output = String::new();
+        let mut unknown = None;
+        for node in content.inlines() {
+            match node.kind() {
+                InlineKind::Verbatim(text) => output.push_str(text.text()),
+                InlineKind::Raw(text) => output
+                    .push_str(&Self::passthrough_content(text.text(), || {
+                        text.substitutions()
+                    })),
+                InlineKind::Plain(text) => output.push_str(text.text()),
+                InlineKind::CharacterReference(reference) => {
+                    let _ = write!(output, "{}", reference.kind());
+                }
+                InlineKind::LineBreak(_) => output.push('\n'),
+                InlineKind::Callout(callout) => {
+                    let _ = write!(output, "({})", callout.number());
+                }
+                InlineKind::Bold(_)
+                | InlineKind::Italic(_)
+                | InlineKind::Monospace(_)
+                | InlineKind::Highlight(_)
+                | InlineKind::Subscript(_)
+                | InlineKind::Superscript(_)
+                | InlineKind::CurvedQuotation(_)
+                | InlineKind::CurvedApostrophe(_)
+                | InlineKind::StandaloneCurvedApostrophe(_)
+                | InlineKind::Symbol(_)
+                | InlineKind::Anchor(_)
+                | InlineKind::Footnote(_)
+                | InlineKind::Icon(_)
+                | InlineKind::Image(_)
+                | InlineKind::Keyboard(_)
+                | InlineKind::Button(_)
+                | InlineKind::Menu(_)
+                | InlineKind::Url(_)
+                | InlineKind::Link(_)
+                | InlineKind::Mailto(_)
+                | InlineKind::Autolink(_)
+                | InlineKind::CrossReference(_)
+                | InlineKind::Pass(_)
+                | InlineKind::Stem(_)
+                | InlineKind::IndexTerm(_) => {
+                    let _ = InlineTextTransform::default()
+                        .decode_char_refs(true)
+                        .line_break("\n")
+                        .write_inlines(&mut output, std::iter::once(node));
+                }
+                _ => {
+                    unknown.get_or_insert(node);
+                }
+            }
+        }
+        (output, unknown)
+    }
+
     fn write_raw_block_content(&mut self, content: ContentRef<'_>) -> Result<(), Error> {
-        let (content, unknown) = raw_content(content);
+        let (content, unknown) = Self::raw_content(content);
         if let Some(node) = unknown {
             self.warn_unknown_inline_node_ref(node);
         }
@@ -1528,6 +1537,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         let section_title = section.title().map_or_else(String::new, |title| {
             InlineTextTransform::default()
+                .decode_char_refs(true)
                 .references(&self.processor.references)
                 .content_to_string(title)
         });
@@ -1936,7 +1946,9 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         self.warn_static_media_fallback();
 
         let title = if let Some(title) = video.title() {
-            InlineTextTransform::default().content_to_string(title)
+            InlineTextTransform::default()
+                .decode_char_refs(true)
+                .content_to_string(title)
         } else {
             video
                 .source()
@@ -1950,7 +1962,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             write!(
                 self.writer,
                 "![{}]({})",
-                Self::escape_markdown(&format!("Video poster: {title}")),
+                Self::escape_markdown(&format!("Video poster: {title}").replace('&', "&amp;")),
                 escape_link_destination(&poster)
             )?;
             writeln!(self.writer)?;
@@ -1963,7 +1975,8 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             traversal,
         );
         self.write_link(&target, |visitor| {
-            write!(visitor.writer, "Video: {}", Self::escape_markdown(&title))?;
+            write!(visitor.writer, "Video: ")?;
+            visitor.write_escaped_text(&title)?;
             Ok(())
         })?;
         writeln!(self.writer)?;
@@ -1983,7 +1996,9 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             audio.attributes(),
         );
         let title = if let Some(title) = audio.title() {
-            InlineTextTransform::default().content_to_string(title)
+            InlineTextTransform::default()
+                .decode_char_refs(true)
+                .content_to_string(title)
         } else {
             audio
                 .source()
@@ -1991,7 +2006,8 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 .map_or_else(|| audio.source().to_string(), str::to_owned)
         };
         self.write_link(&target, |visitor| {
-            write!(visitor.writer, "Audio: {}", Self::escape_markdown(&title))?;
+            write!(visitor.writer, "Audio: ")?;
+            visitor.write_escaped_text(&title)?;
             Ok(())
         })?;
         writeln!(self.writer)?;
@@ -2666,7 +2682,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         write!(
             self.writer,
             "![{}]({}",
-            Self::escape_markdown(alt),
+            Self::escape_markdown(&alt.replace('&', "&amp;")),
             escape_link_destination(&target)
         )?;
         if let Some(title) = title {

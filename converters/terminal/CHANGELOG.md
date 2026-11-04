@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Audio/video labels, captions, and index labels use displayed characters for resolved references while escaped references stay literal.
+
 - Parsed named and numeric character references render as character values when known; escaped references remain literal text.
 
 - Constructed character-reference nodes render in plain and formatted text. Unknown names and invalid numeric values remain visible as references.

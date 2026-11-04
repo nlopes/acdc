@@ -1122,7 +1122,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         // so nested sections pop back correctly.
         let previous_section_title = self.current_section_title.take();
         self.current_section_title = Some(data.title().map_or_else(String::new, |content| {
-            acdc_converters_core::InlineTextTransform::default().content_to_string(content)
+            acdc_converters_core::InlineTextTransform::default()
+                .decode_char_refs(true)
+                .content_to_string(content)
         }));
         let result = self.render_section(traversal, section);
         self.current_section_title = previous_section_title;

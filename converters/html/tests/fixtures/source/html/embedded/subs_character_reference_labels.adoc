@@ -1,0 +1,54 @@
+= reference-labels(1)
+:doctype: manpage
+:revdate: 2026-01-01
+:acdc-index:
+:toc:
+
+== Name
+
+reference-labels - resolved references in display text
+
+== Description
+
+== Heading &#169;
+
+P01 Code `&amp;` and `&#169;` and `\&amp;`.
+
+P02 Buffered ^xref:other.adoc[Label&#169;]^ and ~xref:other.adoc[Low&#169;]~.
+
+.Audio &#169; and \&#169;
+audio::sample.ogg[]
+
+.Video &#169; and \&#169;
+video::sample.mp4[]
+
+[caption="Prefix &#169; "]
+.Image caption
+image::missing-reference-image.png[Alt &#169; and \&#169;]
+
+P03 Inline image: image:missing-inline-reference.png[Alt &#169; and \&#169;].
+
+[cols="a,l"]
+|===
+|Interpreted &#169; |Literal &#169;.
+|===
+
+Term &#169;:: Description.
+Term &#46;:: Description with a full stop.
+
+[subs="specialchars,replacements"]
+++++
+P04 Passthrough &#169; and \&#169;.
+++++
+
+[subs="specialchars,quotes,replacements"]
+----
+P05 *Nested &#169;* and \&#169;.
+----
+
+P06 ((Zebra)) and ((&#65;lpha)) and ((&copy;)) and ((\&copy;)).
+
+P07 image:missing-tooltip.png[Alt,title="Tip &#169; and \&#169;"] and https://example.org[Label,title="Tip &#169; and \&#169;"].
+
+[index]
+== Index

@@ -1,6 +1,7 @@
 // (fixture_name, has_osc8_variant [, requires: <cfg>])
 terminal_fixture_catalog!([
     (subs_character_references, true),
+    (subs_character_reference_labels, true),
     (image_text_contexts, true),
     (metadata_text_boundaries, true),
     (caption_families, true),

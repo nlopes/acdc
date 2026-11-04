@@ -1579,7 +1579,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         visitor.visit_content(traversal, inlines)?;
         let html = String::from_utf8(visitor.into_writer()).map_err(io::Error::other)?;
         Ok(IndexTermLabel {
-            plain: InlineTextTransform::default().content_to_string(inlines),
+            plain: InlineTextTransform::default()
+                .decode_char_refs(true)
+                .content_to_string(inlines),
             html,
         })
     }

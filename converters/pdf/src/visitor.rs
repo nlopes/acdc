@@ -508,7 +508,9 @@ impl<'a> PdfVisitor<'a, '_, '_> {
                 self.writer.string_literal(&path);
                 self.writer.raw(", width: 36pt, alt: ");
                 let alt = admon.caption_content().map(|content| {
-                    acdc_converters_core::InlineTextTransform::default().content_to_string(content)
+                    acdc_converters_core::InlineTextTransform::default()
+                        .decode_char_refs(true)
+                        .content_to_string(content)
                 });
                 self.writer.string_literal(alt.as_deref().unwrap_or(kind));
                 self.writer.raw("))[\n");

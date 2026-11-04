@@ -1,6 +1,6 @@
 # Media escapes and registration
 
-![\*Literal\* \] & \< \>](photo.png "A \"quote\"")
+![\*Literal\* \] &amp; \< \>](photo.png "A \"quote\"")
 
 [A "quote"]
 
@@ -14,7 +14,7 @@
 
 ![Selected macro](photo.png)
 
-![\[3\]](photo.png "A & B ©")
+![\[3\]](photo.png "A &amp; B ©")
 
 ![photo](photo.png)
 

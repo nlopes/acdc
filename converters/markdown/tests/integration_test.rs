@@ -1522,3 +1522,75 @@ fn constructed_character_references_render_in_plain_and_formatted_content() -> R
     assert!(warnings.is_empty(), "{warnings:?}");
     Ok(())
 }
+
+#[test]
+fn resolved_reference_display_text_preserves_escaped_literals() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/subs_character_reference_labels.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = ParserOptions::builder()
+            .with_compatibility_mode(mode)
+            .build()?;
+        let parsed = parse(input, &options)?;
+        for variant in [MarkdownVariant::CommonMark, MarkdownVariant::GitHubFlavored] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&WarningSource::new("markdown"), &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let events = parse_markdown(&output, variant);
+            let text = events
+                .iter()
+                .filter_map(|event| {
+                    if let Event::Text(text) = event {
+                        Some(text.as_ref())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<String>();
+            for expected in [
+                "Audio: Audio © and &#169;",
+                "Video: Video © and &#169;",
+                "Alt © and &#169;",
+                "P04 Passthrough © and &#169;.",
+            ] {
+                assert!(
+                    text.contains(expected),
+                    "missing {expected}: {mode:?} {variant:?}: {output}"
+                );
+            }
+            for expected in ["&", "©", "&amp;"] {
+                assert!(
+                    events.iter().any(
+                        |event| matches!(event, Event::Code(text) if text.as_ref() == expected)
+                    ),
+                    "{output}"
+                );
+            }
+            let titles = events
+                .iter()
+                .filter_map(|event| {
+                    if let Event::Start(Tag::Link { title, .. } | Tag::Image { title, .. }) = event
+                    {
+                        Some(title.as_ref())
+                    } else {
+                        None
+                    }
+                })
+                .filter(|title| *title == "Tip © and &#169;")
+                .count();
+            assert_eq!(titles, 2, "{mode:?} {variant:?}: {output}");
+        }
+    }
+    Ok(())
+}

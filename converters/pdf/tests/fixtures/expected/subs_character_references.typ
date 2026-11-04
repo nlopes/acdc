@@ -91,7 +91,7 @@
 
 #text("R02 Literal &a; &ab123; &#9; &#X41; and bare & between words.")
 
-#text("R03 Escaped ")#text("&copy;")#text(" \\")#text("&copy;")#text(" ")#text("&#169;")#text(" and formatted ")#strong[#text("©")]#text(" ")#emph[#text("©")]#text(" ")#raw("&amp;")#text(".")
+#text("R03 Escaped ")#text("&copy;")#text(" \\")#text("&copy;")#text(" ")#text("&#169;")#text(" and formatted ")#strong[#text("©")]#text(" ")#emph[#text("©")]#text(" ")#raw("&")#text(".")
 
 #text("R04 ")#text("©")#text(" ")#text("©")#text(" ")#text("&copy;")#text(" ")#text("&copy;")#text(".")
 

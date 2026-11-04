@@ -242,9 +242,11 @@ impl Processor<'_> {
                 Some(format!("{label} {number}. "))
             }
             CaptionRef::Custom(prefix) => Some(prefix.to_owned()),
-            CaptionRef::CustomContent(content) => {
-                Some(InlineTextTransform::default().content_to_string(content))
-            }
+            CaptionRef::CustomContent(content) => Some(
+                InlineTextTransform::default()
+                    .decode_char_refs(true)
+                    .content_to_string(content),
+            ),
             CaptionRef::Unnumbered | _ => None,
         }
     }

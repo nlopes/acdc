@@ -37,6 +37,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             || caption.clone(),
             |content| {
                 acdc_converters_core::InlineTextTransform::default()
+                    .decode_char_refs(true)
                     .rendered()
                     .content_to_string(content)
             },

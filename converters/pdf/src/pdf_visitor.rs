@@ -1010,7 +1010,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         nodes: ContentRef<'_>,
     ) -> Result<CodeText, Error> {
         let mut code = CodeText::default();
-        let transform = InlineTextTransform::default().rendered();
+        let transform = InlineTextTransform::default()
+            .rendered()
+            .decode_char_refs(true);
         for node in nodes.inlines() {
             if let InlineKind::Anchor(anchor) = node.kind() {
                 code.links.push(CodeSpan {
@@ -2010,6 +2012,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn write_verbatim_string(&mut self, content: ContentRef<'_>) {
         let text = InlineTextTransform::default()
+            .decode_char_refs(true)
             .line_break("\n")
             .rendered()
             .content_to_string(content);
@@ -2980,7 +2983,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
             self.writer.raw("#strong[");
             self.write_content(traversal, subject.term())?;
-            let subject_text = InlineTextTransform::default().content_to_string(subject.term());
+            let subject_text = InlineTextTransform::default()
+                .decode_char_refs(true)
+                .content_to_string(subject.term());
             let has_stop = subject_text
                 .trim_end()
                 .chars()
@@ -4275,7 +4280,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         inlines: ContentRef<'_>,
     ) -> Result<CatalogTerm, Error> {
-        let plain = InlineTextTransform::default().content_to_string(inlines);
+        let plain = InlineTextTransform::default()
+            .decode_char_refs(true)
+            .content_to_string(inlines);
         let output = replace(&mut self.writer, Writer::new());
         let previous = self.index_catalog.set_suspended(true);
         let boundaries = replace(&mut self.text_boundaries, TextBoundaries::BOTH);
@@ -5206,7 +5213,11 @@ pub(super) fn attribute_text<'doc>(
 fn inline_image_fallback_text(image: InlineImageRef<'_>) -> String {
     image.alt().map_or_else(
         || format!("[image: {}]", image.source()),
-        |content| InlineTextTransform::default().content_to_string(content),
+        |content| {
+            InlineTextTransform::default()
+                .decode_char_refs(true)
+                .content_to_string(content)
+        },
     )
 }
 
@@ -5381,7 +5392,9 @@ fn literal_table_cell_text<'doc>(blocks: impl Iterator<Item = BlockRef<'doc>>) -
         if index > 0 {
             text.push_str("\n\n");
         }
-        let transform = InlineTextTransform::default().line_break("\n");
+        let transform = InlineTextTransform::default()
+            .decode_char_refs(true)
+            .line_break("\n");
         let _ = transform.write_inlines(&mut text, paragraph.content().inlines());
     }
     Some(text)

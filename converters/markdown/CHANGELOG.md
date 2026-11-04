@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Audio/video links, image alternatives, and tooltips preserve escaped reference text. Code and passthrough blocks use resolved references consistently.
+
 - Parsed character references retain their meaning in prose and code. Literal ampersands are escaped so Markdown readers do not interpret them as references.
 
 - Constructed character-reference nodes render as references in prose and as character values in code fences.

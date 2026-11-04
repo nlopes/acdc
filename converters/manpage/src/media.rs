@@ -20,7 +20,9 @@ fn media_title(
     fallback: &str,
 ) -> String {
     if let Some(title) = title {
-        InlineTextTransform::default().content_to_string(title)
+        InlineTextTransform::default()
+            .decode_char_refs(true)
+            .content_to_string(title)
     } else {
         source.map_or_else(
             || fallback.to_string(),

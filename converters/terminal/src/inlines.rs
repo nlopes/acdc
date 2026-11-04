@@ -866,7 +866,9 @@ pub(crate) fn register_index_term<'a>(
     let term = term.catalog();
     let mut render_label = |inlines: ContentRef<'_>| -> Result<IndexTermLabel, Error> {
         Ok(IndexTermLabel {
-            plain: InlineTextTransform::default().content_to_string(inlines),
+            plain: InlineTextTransform::default()
+                .decode_char_refs(true)
+                .content_to_string(inlines),
             rendered: render_content_with_styles_to_owned(inlines, processor, traversal)?,
         })
     };
@@ -962,7 +964,9 @@ fn render_cross_reference_to_writer<'a, W: Write + ?Sized>(
             XrefDisplay::External(target) => format!("[{target}]"),
         }
     } else {
-        InlineTextTransform::default().content_to_string(xref.text())
+        InlineTextTransform::default()
+            .decode_char_refs(true)
+            .content_to_string(xref.text())
     };
     w.queue(PrintStyledContent(
         text.with(processor.appearance.colors.link).underlined(),

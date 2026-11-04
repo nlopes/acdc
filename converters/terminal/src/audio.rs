@@ -26,7 +26,9 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         }
         target = with_time_range_from_attributes(&target, audio.attributes());
         let title = if let Some(title) = audio.title() {
-            acdc_converters_core::InlineTextTransform::default().content_to_string(title)
+            acdc_converters_core::InlineTextTransform::default()
+                .decode_char_refs(true)
+                .content_to_string(title)
         } else {
             audio
                 .source()

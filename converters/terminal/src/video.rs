@@ -22,7 +22,9 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         }
 
         let title = if let Some(title) = video.title() {
-            acdc_converters_core::InlineTextTransform::default().content_to_string(title)
+            acdc_converters_core::InlineTextTransform::default()
+                .decode_char_refs(true)
+                .content_to_string(title)
         } else {
             video
                 .source()
