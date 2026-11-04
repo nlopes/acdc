@@ -112,8 +112,13 @@ fn head_resources_keep_cell_overrides_and_column_defaults_after_owner_edits() ->
         (ColumnStyle::Default, None, (true, true, false)),
     ] {
         let mut document = Document::default();
-        document.attributes = parsed.document().attributes.clone();
-        document.blocks = parsed.document().blocks.clone();
+        document.attributes =
+            acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
+        document.blocks = parsed
+            .document_ref()
+            .blocks()
+            .map(acdc_parser::Block::from)
+            .collect();
         for block in &mut document.blocks {
             if let Block::DelimitedBlock(block) = block
                 && let DelimitedBlockType::DelimitedTable(table) = &mut block.inner
@@ -149,7 +154,11 @@ fn head_resources_use_stored_cell_order_for_spanning_column_defaults() -> Result
         &Options::default(),
     )?;
     let mut document = Document::default();
-    document.blocks = parsed.document().blocks.clone();
+    document.blocks = parsed
+        .document_ref()
+        .blocks()
+        .map(acdc_parser::Block::from)
+        .collect();
     let Some(Block::DelimitedBlock(block)) = document.blocks.first_mut() else {
         return Err("expected a table".into());
     };

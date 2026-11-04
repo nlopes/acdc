@@ -1811,7 +1811,10 @@ mod tests {
                 .build(),
             ParserOptions::builder()
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                        .into_inputs(),
+                ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -1877,8 +1880,10 @@ mod tests {
         let parsed = parse(input, &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -1895,8 +1900,10 @@ mod tests {
         let parsed = parse(input, &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             plain: true,
@@ -1980,8 +1987,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2008,8 +2017,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             theme: Some(theme.path().to_path_buf()),
@@ -2039,8 +2050,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             theme: Some(theme.path().to_path_buf()),
@@ -2073,8 +2086,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             theme: Some(theme.path().to_path_buf()),
@@ -2104,8 +2119,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2130,8 +2147,10 @@ mod tests {
         let parsed = parse(forced_break, &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2157,8 +2176,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2194,8 +2215,10 @@ mod tests {
             let parsed = parse(&input, &ParserOptions::default())?;
             let processor = Processor::new(
                 Options::default(),
-                ParserOptions::builder()
-                    .with_attributes(parsed.document().attributes.clone().into_inputs()),
+                ParserOptions::builder().with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                        .into_inputs(),
+                ),
             )?;
             let source = WarningSource::new("pdf");
             let mut warnings = Vec::new();
@@ -2222,8 +2245,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2271,8 +2296,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2306,8 +2333,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2335,8 +2364,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             page: Some(PageSize::A5),
@@ -2374,22 +2405,24 @@ mod tests {
             &ParserOptions::default(),
         )?;
 
-        let render = |document: &Document<'_>| -> Result<String, Box<dyn StdError>> {
+        let render = |document: DocumentRef<'_>| -> Result<String, Box<dyn StdError>> {
             let processor = Processor::new(
                 Options::default(),
-                ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+                ParserOptions::builder().with_attributes(
+                    acdc_parser::DocumentAttributes::from(document.attributes()).into_inputs(),
+                ),
             )?;
             let source = WarningSource::new("pdf");
             let mut warnings = Vec::new();
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-            let typst = processor.convert_to_typst_source(document.into(), &mut diagnostics)?;
+            let typst = processor.convert_to_typst_source(document, &mut diagnostics)?;
             Ok(typst)
         };
 
         let helper = "#let _acdc_unbreakable(body) = layout";
         let wrapper = "#_acdc_unbreakable[";
-        let supported = render(supported.document())?;
-        let unsupported = render(unsupported.document())?;
+        let supported = render(supported.document_ref())?;
+        let unsupported = render(unsupported.document_ref())?;
 
         assert!(supported.contains(helper));
         assert_eq!(supported.matches(wrapper).count(), 19);
@@ -2419,24 +2452,26 @@ mod tests {
             &ParserOptions::default(),
         )?;
 
-        let render = |document: &Document<'_>| -> Result<String, Box<dyn StdError>> {
+        let render = |document: DocumentRef<'_>| -> Result<String, Box<dyn StdError>> {
             let processor = Processor::new(
                 Options::default(),
-                ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+                ParserOptions::builder().with_attributes(
+                    acdc_parser::DocumentAttributes::from(document.attributes()).into_inputs(),
+                ),
             )?;
             let source = WarningSource::new("pdf");
             let mut warnings = Vec::new();
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-            let typst = processor.convert_to_typst_source(document.into(), &mut diagnostics)?;
+            let typst = processor.convert_to_typst_source(document, &mut diagnostics)?;
             assert!(warnings.is_empty(), "{warnings:?}");
             Ok(typst)
         };
 
         let helper = "#let _acdc_autofit_code";
         let call = "#_acdc_autofit_code";
-        let local = render(local.document())?;
-        let global = render(global.document())?;
-        let unsupported = render(unsupported.document())?;
+        let local = render(local.document_ref())?;
+        let global = render(global.document_ref())?;
+        let unsupported = render(unsupported.document_ref())?;
 
         assert!(local.contains(helper), "{local}");
         assert_eq!(local.matches(call).count(), 7, "{local}");
@@ -2474,8 +2509,10 @@ mod tests {
         let parsed = parse(&input, &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2506,8 +2543,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let mut theme = Theme::default();
         theme.typography.code_size_em = 0.9;
@@ -2630,8 +2669,10 @@ mod tests {
         let parsed = parse("text", &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let assets = ImageMap::new();
         let theme = Theme::default();
@@ -2714,8 +2755,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2743,8 +2786,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2808,8 +2853,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2843,8 +2890,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2867,8 +2916,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let mut theme = Theme::default();
         theme.index.columns = 3;
@@ -2929,8 +2980,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2969,8 +3022,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3038,8 +3093,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3111,7 +3168,10 @@ mod tests {
                 .build(),
             ParserOptions::builder()
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                        .into_inputs(),
+                ),
         )?
         .with_pdf_options(PdfOptions {
             emit_typst: Some(typst_path.clone()),
@@ -3255,15 +3315,16 @@ mod tests {
             "[example]\n====\nContent.\n====\n",
             &ParserOptions::default(),
         )?;
-        let Some(Block::DelimitedBlock(mut title_added)) =
-            parsed.document().blocks.first().cloned()
+        let parsed_stored = acdc_parser::Document::from(parsed.document_ref());
+        let Some(Block::DelimitedBlock(mut title_added)) = parsed_stored.blocks.first().cloned()
         else {
             return Err(IoError::other("expected a delimited example").into());
         };
         title_added.title = title("Added later");
 
         let mut document = Document::default();
-        document.attributes = parsed.document().attributes.clone();
+        document.attributes =
+            acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
         document.blocks = vec![
             Block::DelimitedBlock(caller_built),
             Block::DelimitedBlock(title_added),
@@ -3334,7 +3395,8 @@ mod tests {
             ".Parsed table\n|===\n|Cell\n|===\n",
             &ParserOptions::default(),
         )?;
-        let Some(Block::DelimitedBlock(parsed_table)) = parsed.document().blocks.first() else {
+        let parsed_stored = acdc_parser::Document::from(parsed.document_ref());
+        let Some(Block::DelimitedBlock(parsed_table)) = parsed_stored.blocks.first() else {
             return Err(IoError::other("expected a delimited table").into());
         };
         let caller_built =
@@ -3342,7 +3404,8 @@ mod tests {
                 .with_title(title("Caller-built table"));
 
         let mut document = Document::default();
-        document.attributes = parsed.document().attributes.clone();
+        document.attributes =
+            acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
         document.blocks = vec![
             Block::DelimitedBlock(parsed_table.clone()),
             Block::DelimitedBlock(caller_built),
@@ -3372,14 +3435,16 @@ mod tests {
             ".Parsed figure\nimage::missing-one.svg[First]\n",
             &ParserOptions::default(),
         )?;
+        let parsed_stored = acdc_parser::Document::from(parsed.document_ref());
         let caller_built = Image::new(Source::Name("missing-two.svg"), Location::default())
             .with_title(title("Caller-built figure"));
-        let Some(parsed_figure) = parsed.document().blocks.first().cloned() else {
+        let Some(parsed_figure) = parsed_stored.blocks.first().cloned() else {
             return Err(IoError::other("expected a block image").into());
         };
 
         let mut document = Document::default();
-        document.attributes = parsed.document().attributes.clone();
+        document.attributes =
+            acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
         document.blocks = vec![parsed_figure, Block::Image(caller_built)];
         let processor = Processor::new(
             Options::default(),
@@ -3407,8 +3472,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3444,8 +3511,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3485,8 +3554,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3542,8 +3613,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3611,8 +3684,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3658,8 +3733,10 @@ mod tests {
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3719,8 +3796,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             title: Some("Explicit Header".to_owned()),
@@ -3792,8 +3871,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3834,18 +3915,19 @@ mod tests {
         )?;
         assert_eq!(
             parsed
-                .document()
-                .footnotes
-                .iter()
-                .map(|footnote| footnote.number)
+                .document_ref()
+                .footnotes()
+                .map(acdc_parser::ast::FootnoteDefinitionRef::number)
                 .collect::<Vec<_>>(),
             [1, 2]
         );
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3913,18 +3995,19 @@ mod tests {
         )?;
         assert_eq!(
             parsed
-                .document()
-                .footnotes
-                .iter()
-                .map(|footnote| footnote.id)
+                .document_ref()
+                .footnotes()
+                .map(acdc_parser::ast::FootnoteDefinitionRef::id)
                 .collect::<Vec<_>>(),
             [None, Some("single"), Some("multiple")]
         );
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3957,10 +4040,9 @@ mod tests {
         )?;
         assert_eq!(
             parsed
-                .document()
-                .footnotes
-                .iter()
-                .map(|footnote| (footnote.id, footnote.number))
+                .document_ref()
+                .footnotes()
+                .map(|footnote| (footnote.id(), footnote.number()))
                 .collect::<Vec<_>>(),
             [
                 (Some("title"), 1),
@@ -3972,8 +4054,10 @@ mod tests {
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4056,8 +4140,10 @@ mod tests {
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             theme: Some(theme_file.path().to_path_buf()),
@@ -4081,8 +4167,10 @@ mod tests {
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4103,8 +4191,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4148,8 +4238,10 @@ mod tests {
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4190,8 +4282,10 @@ mod tests {
         let parsed = parse(input, &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4246,8 +4340,10 @@ mod tests {
         let fallback = parse("stem:[x]\n", &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(fallback.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(fallback.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             strict_assets: true,
@@ -4269,8 +4365,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(missing.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(missing.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             strict_assets: true,
@@ -4438,8 +4536,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4457,8 +4557,10 @@ mod tests {
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             logo: Some(PathBuf::from("missing-pdf-logo.png")),
@@ -4500,7 +4602,10 @@ mod tests {
                 .build(),
             ParserOptions::builder()
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                        .into_inputs(),
+                ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4535,8 +4640,10 @@ mod tests {
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();

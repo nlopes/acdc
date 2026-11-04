@@ -432,8 +432,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = processor.warning_source();
         let mut warnings = Vec::new();
@@ -473,8 +475,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let source = processor.warning_source();
         let mut warnings = Vec::new();

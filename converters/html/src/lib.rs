@@ -1280,8 +1280,10 @@ mod tests {
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
             let processor = Processor::new(
                 Options::default(),
-                ParserOptions::builder()
-                    .with_attributes(parsed.document().attributes.clone().into_inputs()),
+                ParserOptions::builder().with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                        .into_inputs(),
+                ),
             )?
             .with_variant(variant)?;
             let html = processor.convert_to_string(
@@ -1318,8 +1320,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(parsed.document_ref(), &RenderOptions::default())?;
 
@@ -1345,17 +1349,19 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let render_options = RenderOptions {
             embedded: true,
             ..RenderOptions::default()
         };
-        let html = processor.convert_to_string(doc.into(), &render_options)?;
+        let html = processor.convert_to_string(doc, &render_options)?;
 
         // Should NOT contain document frame elements
         assert!(!html.contains("<!DOCTYPE"), "should not contain DOCTYPE");
@@ -1420,13 +1426,15 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             html.contains(">Section One</h2>"),
@@ -1448,13 +1456,15 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             html.contains(">1. Section One</h2>"),
@@ -1488,13 +1498,15 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             html.contains(">1. Chapter One</h2>"),
@@ -1533,13 +1545,15 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             html.contains(">1. Chapter One</h2>"),
@@ -1571,13 +1585,15 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             html.contains(">1. Introduction</h2>"),
@@ -1611,13 +1627,15 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // TOC should exist
         assert!(html.contains("<div id=\"toc\""), "should have TOC");
@@ -1643,13 +1661,15 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // TOC should have numbered entries
         assert!(
@@ -1682,13 +1702,15 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // TOC should have Introduction numbered as 1
         assert!(
@@ -1722,13 +1744,15 @@ This is a paragraph.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             html.contains("<a href=\"#_chapter_one\">1. Chapter One</a>"),
@@ -1754,13 +1778,15 @@ This is a paragraph.
         let content = "= Title\n:dark-mode:\n\nHello world.\n";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             html.contains(r#"<meta name="color-scheme" content="dark">"#),
@@ -1783,16 +1809,18 @@ This is a paragraph.
 
     fn convert(content: &str, embedded: bool) -> Result<String, Box<dyn StdError>> {
         let parsed = parse(content, &ParserOptions::default())?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let render_options = RenderOptions {
             embedded,
             ..RenderOptions::default()
         };
-        Ok(processor.convert_to_string(doc.into(), &render_options)?)
+        Ok(processor.convert_to_string(doc, &render_options)?)
     }
 
     #[test]
@@ -1867,13 +1895,15 @@ This is a paragraph.
         let content = "= Title\n:light-mode:\n\nHello world.\n";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             !html.contains(r#"<meta name="color-scheme" content="dark">"#),
@@ -1895,13 +1925,15 @@ This is a paragraph.
         let content = "= Title\n\nHello world.\n";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             !html.contains("color-scheme:dark"),
@@ -1919,13 +1951,15 @@ This is a paragraph.
         let content = "= Title\n:!dark-mode:\n\nHello world.\n";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             !html.contains("color-scheme:dark"),
@@ -1939,13 +1973,15 @@ This is a paragraph.
         let content = "= Book Title\n:doctype: book\n\nSome content.\n";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             html.contains("<body class=\"book\">"),
@@ -1967,13 +2003,15 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             html.contains("<h1 id=\"_part_one\" class=\"sect0\">Part One</h1>"),
@@ -2010,13 +2048,15 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             html.contains("<ul class=\"sectlevel0\">"),
@@ -2047,13 +2087,15 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert_eq!(html.matches("Unit 1. First Chapter").count(), 2, "{html}");
         assert_eq!(html.matches("1.1. Detail").count(), 2, "{html}");
@@ -2088,13 +2130,15 @@ More appendix content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // Appendix sections should be demoted to sect1 with h2
         assert!(
@@ -2149,13 +2193,15 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // TOC should have appendix entries with letter prefix
         assert!(
@@ -2201,13 +2247,15 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // Body headings.
         for expected in [
@@ -2255,13 +2303,15 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
             html.contains(">Annexe A: First Appendix</h2>"),
@@ -2284,13 +2334,15 @@ Content.
 ";
         let parser_options = ParserOptions::default();
         let parsed = parse(content, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
-        let html = processor.convert_to_string(doc.into(), &RenderOptions::default())?;
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // Demoted to sect1/h2; with the caption disabled the heading still shows
         // the bare letter numeral ("A. "), matching asciidoctor.

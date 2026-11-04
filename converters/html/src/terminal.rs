@@ -1323,14 +1323,16 @@ mod tests {
     ) -> Result<(String, Vec<Warning>), Box<dyn Error>> {
         let parser_options = ParserOptions::default();
         let parsed = acdc_parser::parse(input, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .safe_mode(safe_mode)
             .build();
         let processor = Processor::new_with_variant(
             options,
-            acdc_parser::Options::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            acdc_parser::Options::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
             variant,
         )?;
         let mut output = Vec::new();
@@ -1338,7 +1340,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.convert_to_writer(
-            doc.into(),
+            doc,
             &mut output,
             &RenderOptions::default(),
             &mut diagnostics,

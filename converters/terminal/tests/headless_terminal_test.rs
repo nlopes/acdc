@@ -107,18 +107,19 @@ fn render_to_grid(asciidoc: &str, cols: u16, rows: u16) -> Result<RenderedGrid, 
     crossterm::style::force_color_output(true);
     let parser_options = ParserOptions::default();
     let parsed = acdc_parser::parse(asciidoc, &parser_options)?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
 
     let processor = Processor::new(
         ConverterOptions::default(),
-        acdc_parser::Options::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        acdc_parser::Options::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(usize::from(cols));
     let mut output = Vec::new();
     let source = acdc_converters_core::WarningSource::new("terminal");
     let mut warnings = Vec::new();
     let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
 
     let mut terminal = Terminal::new(cols, rows)?;
     terminal.set_scrollback_max_bytes(Some(0))?;

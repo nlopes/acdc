@@ -116,10 +116,11 @@ fn render_terminal(
 ) -> Result<(String, Vec<String>), Error> {
     crossterm::style::force_color_output(true);
     let parsed = parse(input, &ParserOptions::default())?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(width)
     .with_dark_mode(true)
@@ -128,7 +129,7 @@ fn render_terminal(
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
     Ok((
         String::from_utf8(output)?,
         warnings
@@ -161,18 +162,20 @@ fn buffered_blocks_share_attributes_but_asciidoc_cells_restore_them() -> Result<
     ] {
         let source = format!("= T\n\n{wrapper}\n:imagesdir: inside\n\nContent.\n{close}\n");
         let parsed = parse(&source, &ParserOptions::default())?;
-        let document = parsed.document();
+        let document = parsed.document_ref();
         let processor = Processor::new(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(document.attributes()).into_inputs(),
+            ),
         )?
         .with_terminal_capabilities(TEXT_TERMINAL);
-        let mut traversal = TraversalContext::new(&document.attributes);
+        let mut traversal = TraversalContext::new(document.attributes());
         let source = WarningSource::new("terminal");
         let mut warnings = Vec::new();
         let diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut visitor = TerminalVisitor::new(Vec::new(), &processor, diagnostics);
-        visitor.visit_document(&mut traversal, document.into())?;
+        visitor.visit_document(&mut traversal, document)?;
         drop(visitor);
         assert_eq!(
             traversal.get("imagesdir").and_then(|value| value.text()),
@@ -186,11 +189,12 @@ fn buffered_blocks_share_attributes_but_asciidoc_cells_restore_them() -> Result<
 #[test]
 fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
     let parsed = parse("Paragraph.\n", &ParserOptions::default())?;
-    let doc = parsed.document();
-    let block = doc.blocks.first().ok_or("missing test block")?;
+    let doc = parsed.document_ref();
+    let block = doc.blocks().next().ok_or("missing test block")?;
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
@@ -201,7 +205,7 @@ fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
             acdc_converters_core::Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(&mut output, &processor, diagnostics.reborrow());
-        visitor.visit_unhandled_block(&mut traversal, block.into())?;
+        visitor.visit_unhandled_block(&mut traversal, block)?;
     }
 
     assert_eq!(output, [] as [u8; 0]);
@@ -287,7 +291,7 @@ fn test_fixture_variant(fixture_name: &str, osc8: bool) -> Result<(), Error> {
         .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .build()?;
     let parsed = acdc_parser::parse_file(&input_path, &parser_options)?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
 
     // Convert to Terminal output
     let mut output = Vec::new();
@@ -297,7 +301,7 @@ fn test_fixture_variant(fixture_name: &str, osc8: bool) -> Result<(), Error> {
             .build(),
         ParserOptions::builder()
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .with_attributes(doc.attributes.clone().into_inputs()),
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(80)
     .with_dark_mode(true)
@@ -309,7 +313,7 @@ fn test_fixture_variant(fixture_name: &str, osc8: bool) -> Result<(), Error> {
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.write_to(
-        doc.into(),
+        doc,
         &mut output,
         Some(input_path.as_path()),
         None,
@@ -389,17 +393,19 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
         let input = format!("[{style}]\n. one\n. two\n. three\n");
         let parser_options = ParserOptions::default();
         let parsed = parse(&input, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let mut output = Vec::new();
         let processor = Processor::new(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?
         .with_terminal_width(80);
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
         for marker in expected_markers {
             assert!(
@@ -416,17 +422,18 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
     let input = ":figure-caption: BeforeFigure\n:table-caption: BeforeTable\n:xrefstyle: short\n\nForward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nForward full: <<figure-target>> and <<table-target>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n\n[[figure-target]]\n.A figure title\nimage::figure.svg[]\n\n[[table-target]]\n.A table title\n|===\n|Cell\n|===\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:xrefstyle: short\n\nBackward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nBackward full: <<figure-target>> and <<table-target>>.\n";
     let parser_options = ParserOptions::default();
     let parsed = parse(input, &parser_options)?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(80);
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for expected in [
@@ -449,17 +456,18 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
 fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Error> {
     let input = "Empty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n";
     let parsed = parse(input, &ParserOptions::default())?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(80);
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for expected in [
@@ -480,17 +488,18 @@ fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Er
 fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Error> {
     let input = "Title macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n";
     let parsed = parse(input, &ParserOptions::default())?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(80);
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for resolved in ["Pass raw Title", "Plus raw Title"] {
@@ -516,17 +525,18 @@ fn none_ordered_list_style_suppresses_marker() -> Result<(), Error> {
     let input = ". numbered\n\n[none]\n. unmarked\n";
     let parser_options = ParserOptions::default();
     let parsed = parse(input, &parser_options)?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(80);
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
     let actual = String::from_utf8(output)?;
 
     assert!(actual.contains("1. numbered"), "{actual}");
@@ -540,17 +550,19 @@ fn markerless_ordered_list_styles_suppress_markers() -> Result<(), Error> {
         let input = format!("[{style}]\n. unmarked\n");
         let parser_options = ParserOptions::default();
         let parsed = parse(&input, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let mut output = Vec::new();
         let processor = Processor::new(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?
         .with_terminal_width(80);
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
 
         assert!(actual.lines().any(|line| line == "unmarked"), "{actual}");
@@ -564,17 +576,19 @@ fn markerless_unordered_list_styles_suppress_markers() -> Result<(), Error> {
         let input = format!("[{style}]\n* unmarked\n");
         let parser_options = ParserOptions::default();
         let parsed = parse(&input, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let mut output = Vec::new();
         let processor = Processor::new(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?
         .with_terminal_width(80);
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
 
         assert!(actual.lines().any(|line| line == "unmarked"), "{actual}");
@@ -588,17 +602,19 @@ fn markerless_checklist_styles_keep_the_checkbox() -> Result<(), Error> {
         let input = format!("[{style}]\n* [ ] task\n");
         let parser_options = ParserOptions::default();
         let parsed = parse(&input, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let mut output = Vec::new();
         let processor = Processor::new(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?
         .with_terminal_width(80);
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
 
         assert!(actual.contains("[ ]"), "{actual}");
@@ -615,15 +631,16 @@ fn markerless_checklist_styles_keep_the_checkbox() -> Result<(), Error> {
 fn image_failure_warning_is_returned_in_conversion_result() -> Result<(), Error> {
     let parser_options = ParserOptions::default();
     let parsed = parse("image::definitely-missing-image.png[]\n", &parser_options)?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(80);
     let output_path = temp_output_path("terminal-warning", "txt");
 
-    let result = processor.convert_to_file(doc.into(), None, &output_path)?;
+    let result = processor.convert_to_file(doc, None, &output_path)?;
     let _ = std::fs::remove_file(&output_path);
 
     assert!(result.warnings().iter().any(|warning| {

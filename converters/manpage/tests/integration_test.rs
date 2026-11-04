@@ -62,7 +62,7 @@ fn styled_titles_keep_substitutions_separate_from_the_body(
         "= title-subs(1)\n:doctype: manpage\n:revdate: 2026-10-04\n\n== Name\n\ntitle-subs - title substitutions\n\n== Synopsis\n\n.Title (C) *Bold* footnote:named[Title note.]\n[{style},subs=\"none\"]\nBody (C) *Bold* footnote:[Inactive note.].\n\nAfter (C).\n"
     );
     let parsed = parse(&source, &ParserOptions::default())?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     let processor = Processor::new(
         ConverterOptions::builder().embedded(embedded).build(),
         ParserOptions::builder(),
@@ -138,8 +138,9 @@ fn verbatim_links_keep_roff_commands_outside_arguments() -> Result<(), Error> {
     let parsed = parse_file(&path, &ParserOptions::default())?;
     let processor = Processor::new(
         ConverterOptions::builder().embedded(true).build(),
-        ParserOptions::builder()
-            .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        ParserOptions::builder().with_attributes(
+            acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes()).into_inputs(),
+        ),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
@@ -226,11 +227,12 @@ fn temp_output_path(name: &str, extension: &str) -> PathBuf {
 #[test]
 fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
     let parsed = parse("Paragraph.\n", &ParserOptions::default())?;
-    let doc = parsed.document();
-    let block = doc.blocks.first().ok_or("missing test block")?;
+    let doc = parsed.document_ref();
+    let block = doc.blocks().next().ok_or("missing test block")?;
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
@@ -241,7 +243,7 @@ fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
             acdc_converters_core::Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = ManpageVisitor::new(&mut output, &processor, diagnostics.reborrow());
-        visitor.visit_unhandled_block(&mut traversal, block.into())?;
+        visitor.visit_unhandled_block(&mut traversal, block)?;
     }
 
     assert_eq!(output, [] as [u8; 0]);
@@ -265,7 +267,7 @@ fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Resu
         .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .build()?;
     let parsed = parse_file(path, &parser_options)?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
 
     // Convert to manpage output
     let mut output = Vec::new();
@@ -278,12 +280,12 @@ fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Resu
         converter_options,
         ParserOptions::builder()
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .with_attributes(doc.attributes.clone().into_inputs()),
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, Some(path), None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, Some(path), None, &mut diagnostics)?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
@@ -325,14 +327,15 @@ fn section_order_warning_is_returned_in_conversion_result() -> Result<(), Error>
         "= cmd(1)\n:doctype: manpage\n\n== OVERVIEW\n\ntext\n",
         &parser_options,
     )?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let output_path = temp_output_path("manpage-warning", "1");
 
-    let result = processor.convert_to_file(doc.into(), None, &output_path)?;
+    let result = processor.convert_to_file(doc, None, &output_path)?;
     let _ = std::fs::remove_file(&output_path);
 
     assert!(result.warnings().iter().any(|warning| {
@@ -349,14 +352,15 @@ fn custom_name_section_title_is_not_out_of_order() -> Result<(), Error> {
     let source_path = Path::new("tests/fixtures/source/manpage_name_front_matter.adoc");
     let parser_options = ParserOptions::default();
     let parsed = parse_file(source_path, &parser_options)?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let output_path = temp_output_path("manpage-custom-name-section", "1");
 
-    let result = processor.convert_to_file(doc.into(), Some(source_path), &output_path)?;
+    let result = processor.convert_to_file(doc, Some(source_path), &output_path)?;
     let _ = std::fs::remove_file(&output_path);
 
     assert!(result.warnings().is_empty(), "{:?}", result.warnings());
@@ -367,17 +371,18 @@ fn custom_name_section_title_is_not_out_of_order() -> Result<(), Error> {
 fn static_media_playback_warning_is_deduplicated() -> Result<(), Error> {
     let input = include_str!("fixtures/source/video_audio.adoc");
     let parsed = parse(input, &ParserOptions::default())?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
 
     assert_eq!(warnings.len(), 1, "unexpected warnings: {warnings:?}");
     let warning = warnings.first().ok_or("missing playback warning")?;
@@ -422,17 +427,18 @@ table-warnings
 |===
 ";
     let parsed = parse(input, &ParserOptions::default())?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
 
     assert_eq!(warnings.len(), 3, "unexpected warnings: {warnings:?}");
     for expected in [
@@ -453,23 +459,18 @@ table-warnings
 fn inline_role_fallback_warning_is_deduplicated() -> Result<(), Error> {
     let source_path = Path::new("tests/fixtures/source/sections_inline_roles.adoc");
     let parsed = parse_file(source_path, &ParserOptions::default())?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-    processor.write_to(
-        doc.into(),
-        &mut output,
-        Some(source_path),
-        None,
-        &mut diagnostics,
-    )?;
+    processor.write_to(doc, &mut output, Some(source_path), None, &mut diagnostics)?;
 
     assert_eq!(warnings.len(), 1, "unexpected warnings: {warnings:?}");
     let warning = warnings.first().ok_or("missing inline role warning")?;
@@ -537,16 +538,17 @@ Backward full: <<figure-target>> and <<table-target>>.
 ";
     let parser_options = ParserOptions::default();
     let parsed = parse(input, &parser_options)?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for expected in [
@@ -571,16 +573,17 @@ Backward full: <<figure-target>> and <<table-target>>.
 fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Error> {
     let input = "= xref-targets(1)\n:doctype: manpage\n\n== NAME\n\nxref-targets - verify xref targets\n\n== SYNOPSIS\n\nEmpty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n";
     let parsed = parse(input, &ParserOptions::default())?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for expected in [
@@ -601,16 +604,17 @@ fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Er
 fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Error> {
     let input = "= passthrough-xrefs(1)\n:doctype: manpage\n\n== NAME\n\npassthrough-xrefs - verify passthrough natural references\n\n== SYNOPSIS\n\nTitle macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n";
     let parsed = parse(input, &ParserOptions::default())?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for expected in [
@@ -643,17 +647,19 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
         let input = format!("[{style}]\n. one\n. two\n. three\n");
         let parser_options = ParserOptions::default();
         let parsed = parse(&input, &parser_options)?;
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let mut output = Vec::new();
         let converter_options = ConverterOptions::builder().embedded(true).build();
         let processor = Processor::new(
             converter_options,
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let mut warnings = Vec::new();
         let source = WarningSource::new("manpage");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
         for tag in expected_tags {
             assert!(

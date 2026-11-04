@@ -25,7 +25,10 @@ fn decoded_media_links_and_asset_names_reach_pdf() -> Result<(), Error> {
         let processor = cli_fixture_processor(
             Options::builder()
                 .with_compatibility_mode(mode)
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                        .into_inputs(),
+                ),
         )?;
         let mut output = Vec::new();
         let mut warnings = Vec::new();
@@ -87,7 +90,10 @@ fn caption_families_preserve_text_styles_links_and_numbering() -> Result<(), Err
         let processor = cli_fixture_processor(
             Options::builder()
                 .with_compatibility_mode(mode)
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                        .into_inputs(),
+                ),
         )?;
         let mut output = Vec::new();
         let mut warnings = Vec::new();
@@ -239,8 +245,12 @@ fn unresolved_tables_preserve_body_and_nested_cell_decoration() -> Result<(), Er
         &Options::default(),
     )?;
     let mut stored = Document::default();
-    stored.attributes = parsed.document().attributes.clone();
-    stored.blocks = parsed.document().blocks.clone();
+    stored.attributes = acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
+    stored.blocks = parsed
+        .document_ref()
+        .blocks()
+        .map(acdc_parser::Block::from)
+        .collect();
     let mut unresolved = Document::default();
     unresolved.attributes = stored.attributes.clone();
     unresolved.blocks = stored.blocks.clone();
@@ -546,7 +556,10 @@ fn asciidoctor_theme_page_settings_respect_document_and_caller_overrides() -> Re
         }
         let processor = Processor::new(
             ConverterOptions::default(),
-            Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
+            Options::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
         )?
         .with_pdf_options(options);
         let source = WarningSource::new("pdf");
@@ -679,7 +692,7 @@ fn page_break_layout_changes_keep_layout_and_warn_on_invalid_values() -> Result<
         ":pdf-page-layout: landscape\n\nFirst.\n\n[page-layout=invalid,role=portrait]\n<<<\n\nSecond.\n\n[page-layout=,role=portrait]\n<<<\n\nThird.\n\n[.portrait.landscape]\n<<<\n\nFourth.\n",
         &Options::default(),
     )?;
-    let (pdf, warnings) = render_document_with_warnings(parsed.document())?;
+    let (pdf, warnings) = render_document_with_warnings(parsed.document_ref())?;
     assert_pdf_page_layouts(
         &pdf,
         PageSize::A4,
@@ -720,7 +733,7 @@ fn page_break_layout_changes_keep_layout_when_margins_do_not_fit() -> Result<(),
         ":pdf-page-size: A5\n:pdf-page-layout: landscape\n:pdf-page-margin: [0.5in, 3in, 0.5in, 3in]\n\nFirst.\n\n[.portrait]\n<<<\n\nSecond.\n",
         &Options::default(),
     )?;
-    let (pdf, warnings) = render_document_with_warnings(parsed.document())?;
+    let (pdf, warnings) = render_document_with_warnings(parsed.document_ref())?;
     assert_pdf_page_layouts(
         &pdf,
         PageSize::A5,
@@ -756,9 +769,9 @@ fn page_break_layout_changes_update_image_widths_and_code_wrapping() -> Result<(
     let parsed = parse(&input, &Options::default())?;
     let output_dir = tempfile::tempdir()?;
     let typst_path = output_dir.path().join("layout.typ");
-    let processor = cli_fixture_processor(
-        Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
-    )?
+    let processor = cli_fixture_processor(Options::builder().with_attributes(
+        acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes()).into_inputs(),
+    ))?
     .with_pdf_options(PdfOptions {
         emit_typst: Some(typst_path.clone()),
         ..PdfOptions::default()
@@ -1096,7 +1109,7 @@ fn pdf_text_fonts(pdf: &PdfDocument) -> Result<Vec<(String, String)>, Error> {
 fn spacing_accents_keep_pdf_positions_and_font_diagnostics() -> Result<(), Error> {
     let source = include_str!("fixtures/source/pdf_glyph_coverage.adoc");
     let parsed = parse(source, &Options::default())?;
-    let (pdf, warnings) = render_document_with_warnings(parsed.document())?;
+    let (pdf, warnings) = render_document_with_warnings(parsed.document_ref())?;
     assert_missing_glyph_codes(&warnings, &["U+4E2D", "U+65E5", "U+D55C"]);
     let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
     let text = pdf.extract_text(&pages)?;
@@ -1158,7 +1171,7 @@ fn incomplete_links_omit_pdf_annotations_for_unfinished_targets() -> Result<(), 
 fn named_index_delimiters_keep_pdf_annotations_and_one_note() -> Result<(), Error> {
     let source = "= Index labels\n\nindexterm2:[Before https://example.org[Link] footnote:one[Only note.] anchor:inner[] after].\n\nReuse footnote:one[] and <<inner,Inner>>.\n\n<<<\n\n[index]\n== Index\n";
     let parsed = parse(source, &Options::default())?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     let pdf = render_parsed(&parsed)?;
     assert_eq!(pdf.extract_text(&[1])?.matches("Only note.").count(), 1);
     let links = external_link_rects(&pdf, 1)?;
@@ -1172,7 +1185,7 @@ fn named_index_delimiters_keep_pdf_annotations_and_one_note() -> Result<(), Erro
 fn link_formatting_boundaries_keep_pdf_links_and_one_note() -> Result<(), Error> {
     let source = "= Links\n\n*Before https://outer.example[*Bold mailto:inner@example.org[Inner] footnote:one[Only note.] tail* after] end*.\n\nReuse footnote:one[].\n";
     let parsed = parse(source, &Options::default())?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     let pdf = render_parsed(&parsed)?;
     let text = pdf.extract_text(&[1])?;
     assert_eq!(text.matches("Only note.").count(), 1, "{text}");
@@ -1198,7 +1211,7 @@ fn verse_keeps_pdf_line_positions_and_macro_targets(
         "= Verse\n\n[verse]\n{fence}First (C).\n  anchor:verse-target[]Second (TM).\n{stanza}Third (R). link:https://example.org/verse[Link] footnote:note[Verse note.]\n{fence}\nAfter <<verse-target,Target>> and footnote:note[].\n"
     );
     let parsed = parse(&source, &Options::default())?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     let pdf = render_parsed(&parsed)?;
     let text = pdf.extract_text(&[1])?;
     for content in ["First ©.", "Second ™.", "Third ®."] {
@@ -1228,7 +1241,7 @@ fn verse_keeps_pdf_line_positions_and_macro_targets(
 fn title_substitutions_keep_pdf_links_and_footnotes() -> Result<(), Error> {
     let source = "= Titles\n\n.Title link:https://example.org/title[Link (C)] footnote:note[Note (R).]\n[#target]\n[subs=\"none\"]\nBody (C) footnote:[Inactive note.].\n\nReuse footnote:note[] and see <<target,Target>>.\n";
     let parsed = parse(source, &Options::default())?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document_ref().footnotes().count(), 1);
     let pdf = render_parsed(&parsed)?;
     let text = pdf.extract_text(&[1])?;
     assert!(text.contains("Link ©"), "{text}");
@@ -1835,8 +1848,8 @@ fn named_pdf_destinations_keep_caller_built_document_titles() -> Result<(), Erro
         include_str!("fixtures/source/named_destinations.adoc"),
         &Options::default(),
     )?;
-    let header = parsed
-        .document()
+    let parsed_stored = acdc_parser::Document::from(parsed.document_ref());
+    let header = parsed_stored
         .header
         .as_ref()
         .ok_or("missing fixture header")?;
@@ -1845,8 +1858,8 @@ fn named_pdf_destinations_keep_caller_built_document_titles() -> Result<(), Erro
         acdc_parser::Header::new(header.title.clone(), header.location.clone())
             .with_metadata(header.metadata.clone())?,
     );
-    document.attributes = parsed.document().attributes.clone();
-    let pdf = render_document(&document)?;
+    document.attributes = acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
+    let pdf = render_document((&document).into())?;
     let destinations = named_destinations(&pdf)?;
     assert!(destinations.contains_key("document-top"));
     assert!(!destinations.contains_key("unused-header"));
@@ -1907,7 +1920,7 @@ fn named_pdf_destinations_omit_unrendered_targets_and_copied_titles() -> Result<
     let parsed = parse(source, &Options::default())?;
     for id in ["omitted", "_empty_index"] {
         assert!(
-            parsed.document().references.contains_key(id),
+            parsed.document_ref().references().contains(id),
             "missing catalog control {id}"
         );
     }
@@ -3104,7 +3117,7 @@ fn verbatim_link_ids_and_wrapped_links_compile() -> Result<(), Error> {
         include_str!("fixtures/source/subs_verbatim_links.adoc"),
         &Options::default(),
     )?;
-    let (pdf, warnings) = render_document_with_warnings(parsed.document())?;
+    let (pdf, warnings) = render_document_with_warnings(parsed.document_ref())?;
     assert_missing_glyph_codes(&warnings, &["U+65E5", "U+672C", "U+8A9E"]);
     let text = pdf
         .extract_text(&pdf.get_pages().keys().copied().collect::<Vec<_>>())?
@@ -3125,7 +3138,7 @@ fn verbatim_link_ids_and_wrapped_links_compile() -> Result<(), Error> {
         include_str!("fixtures/source/subs_verbatim_links_highlighting.adoc"),
         &Options::default(),
     )?;
-    let (pdf, warnings) = render_document_with_warnings(parsed.document())?;
+    let (pdf, warnings) = render_document_with_warnings(parsed.document_ref())?;
     assert_missing_glyph_codes(&warnings, &["U+65E5", "U+672C", "U+8A9E"]);
     let page = *pdf.get_pages().get(&1).ok_or("missing page")?;
     let mut tops = Vec::new();
@@ -3156,27 +3169,29 @@ fn render_input(input: &str) -> Result<PdfDocument, Error> {
 }
 
 fn render_parsed(parsed: &ParseResult) -> Result<PdfDocument, Error> {
-    render_document(parsed.document())
+    render_document(parsed.document_ref())
 }
 
-fn render_document(document: &Document<'_>) -> Result<PdfDocument, Error> {
+fn render_document(document: acdc_parser::ast::DocumentRef<'_>) -> Result<PdfDocument, Error> {
     let (pdf, warnings) = render_document_with_warnings(document)?;
     assert!(warnings.is_empty(), "{warnings:?}");
     Ok(pdf)
 }
 
 fn render_document_with_warnings(
-    document: &Document<'_>,
+    document: acdc_parser::ast::DocumentRef<'_>,
 ) -> Result<(PdfDocument, Vec<Warning>), Error> {
     let processor = Processor::new(
         ConverterOptions::default(),
-        Options::builder().with_attributes(document.attributes.clone().into_inputs()),
+        Options::builder().with_attributes(
+            acdc_parser::DocumentAttributes::from(document.attributes()).into_inputs(),
+        ),
     )?;
     let source = WarningSource::new("pdf");
     let mut warnings = Vec::new();
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     let mut output = Vec::new();
-    processor.write_to(document.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(document, &mut output, None, None, &mut diagnostics)?;
     Ok((PdfDocument::load_mem(&output)?, warnings))
 }
 
@@ -3745,8 +3760,8 @@ fn anchors_in_repeated_table_headers_resolve_to_the_first_page() -> Result<(), E
     Ok(())
 }
 
-fn fixture_theme(doc: &acdc_parser::Document<'_>) -> Option<PathBuf> {
-    doc.attributes
+fn fixture_theme(doc: acdc_parser::ast::DocumentRef<'_>) -> Option<PathBuf> {
+    doc.attributes()
         .get("acdc-pdf-test-theme")
         .and_then(|value| value.text())
         .map(|name| {
@@ -3814,12 +3829,12 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
     let parsed = parse_file(path, bootstrap.parser_options())?;
     let output_dir = tempfile::tempdir()?;
     let typst_path = output_dir.path().join("actual.typ");
-    let processor = cli_fixture_processor(
-        Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
-    )?
+    let processor = cli_fixture_processor(Options::builder().with_attributes(
+        acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes()).into_inputs(),
+    ))?
     .with_pdf_options(PdfOptions {
         emit_typst: Some(typst_path.clone()),
-        theme: fixture_theme(parsed.document()),
+        theme: fixture_theme(parsed.document_ref()),
         ..PdfOptions::default()
     });
     let mut pdf = Vec::new();
@@ -3930,7 +3945,9 @@ fn link_macro_ids_are_named_pdf_destinations() -> Result<(), Error> {
     let parsed = parse_file(path, bootstrap.parser_options())?;
     let processor = Processor::new(
         ConverterOptions::default(),
-        Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
+        Options::builder().with_attributes(
+            acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes()).into_inputs(),
+        ),
     )?;
     let mut pdf = Vec::new();
     let mut warnings = Vec::new();
@@ -3988,7 +4005,10 @@ fn image_alt_text_reaches_pdf_structure() -> Result<(), Error> {
             .build(),
         Options::builder()
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            .with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes())
+                    .into_inputs(),
+            ),
     )?;
     let mut pdf = Vec::new();
     let mut warnings = Vec::new();

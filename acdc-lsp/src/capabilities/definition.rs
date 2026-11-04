@@ -441,15 +441,15 @@ Content.
     fn content_attributes_participate_in_definition_lookup() -> Result<(), Error> {
         let source = "[alt='image:nested.svg[] <<target>>']\nimage::outer.svg[]\n\nimage:other.svg[title=\"anchor:target[Target]\"]";
         let parsed = parse(source, &Options::default())?;
-        let document = parsed.document();
-        assert!(collect_anchors(document.into()).contains_key("target"));
+        let document = parsed.document_ref();
+        assert!(collect_anchors(document).contains_key("target"));
         assert_eq!(
-            collect_xrefs(document.into())
+            collect_xrefs(document)
                 .first()
                 .map(|reference| reference.0.as_str()),
             Some("target")
         );
-        let sources = collect_media_sources(document.into());
+        let sources = collect_media_sources(document);
         assert_eq!(sources.len(), 3);
         assert!(sources.iter().any(|(_, location)| {
             source.get(location.absolute_start..=location.absolute_end)

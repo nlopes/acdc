@@ -569,7 +569,8 @@ mod tests {
         for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
             let options = Options::builder().with_compatibility_mode(mode).build()?;
             let parsed = acdc_parser::parse("prefixindexterm2:[--]tail", &options)?;
-            let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed.document().blocks.first()
+            let parsed_stored = acdc_parser::Document::from(parsed.document_ref());
+            let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed_stored.blocks.first()
             else {
                 return Err("expected paragraph".into());
             };

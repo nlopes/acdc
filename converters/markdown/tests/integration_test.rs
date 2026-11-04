@@ -527,7 +527,7 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
         .build()?;
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
     let expected_path = Path::new("tests/fixtures/expected").join(format!("{file_name}.md"));
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
 
     // Convert to Markdown (GFM variant)
     let mut output = Vec::new();
@@ -539,13 +539,13 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
         converter_options,
         ParserOptions::builder()
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .with_attributes(doc.attributes.clone().into_inputs()),
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_variant(MarkdownVariant::GitHubFlavored);
     let mut warnings = Vec::new();
     let source = WarningSource::new("markdown");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, Some(&path), None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, Some(&path), None, &mut diagnostics)?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
@@ -578,7 +578,7 @@ fn test_commonmark_variant(
     let parser_options = ParserOptions::default();
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
     let expected_path = Path::new("tests/fixtures/expected").join(format!("{file_name}.md"));
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
 
     // Convert to Markdown (CommonMark variant)
     let mut output = Vec::new();
@@ -587,13 +587,14 @@ fn test_commonmark_variant(
         .build();
     let processor = Processor::new(
         converter_options,
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_variant(MarkdownVariant::CommonMark);
     let mut warnings = Vec::new();
     let source = WarningSource::new("markdown");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, Some(&path), None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, Some(&path), None, &mut diagnostics)?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
@@ -618,7 +619,7 @@ fn convert_str_with_variant(
 ) -> Result<(String, Vec<Warning>), Error> {
     let parser_options = ParserOptions::default();
     let parsed = parse(input, &parser_options)?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
 
     let mut output = Vec::new();
     let converter_options = ConverterOptions::builder()
@@ -626,13 +627,14 @@ fn convert_str_with_variant(
         .build();
     let processor = Processor::new(
         converter_options,
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_variant(variant);
     let mut warnings = Vec::new();
     let source = WarningSource::new("markdown");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
 
     Ok((String::from_utf8(output)?, warnings))
 }
@@ -644,7 +646,7 @@ fn convert_str(input: &str) -> Result<(String, Vec<Warning>), Error> {
 fn convert_html_str(input: &str) -> Result<(String, Vec<Warning>), Error> {
     let parser_options = ParserOptions::default();
     let parsed = parse(input, &parser_options)?;
-    let doc = parsed.document();
+    let doc = parsed.document_ref();
 
     let mut output = Vec::new();
     let converter_options = ConverterOptions::builder()
@@ -653,12 +655,13 @@ fn convert_html_str(input: &str) -> Result<(String, Vec<Warning>), Error> {
         .build();
     let processor = HtmlProcessor::new(
         converter_options,
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut warnings = Vec::new();
     let source = WarningSource::new("html");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc.into(), &mut output, None, None, &mut diagnostics)?;
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
 
     Ok((String::from_utf8(output)?, warnings))
 }
@@ -1445,11 +1448,12 @@ fn document_wide_fallback_warnings_are_deduplicated_across_subvisitors() -> Resu
 #[test]
 fn unhandled_blocks_emit_a_structured_warning_with_source_context() -> Result<(), Error> {
     let parsed = parse("Paragraph.\n", &ParserOptions::default())?;
-    let doc = parsed.document();
-    let block = doc.blocks.first().ok_or("missing test block")?;
+    let doc = parsed.document_ref();
+    let block = doc.blocks().next().ok_or("missing test block")?;
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
@@ -1460,7 +1464,7 @@ fn unhandled_blocks_emit_a_structured_warning_with_source_context() -> Result<()
             acdc_converters_core::Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = MarkdownVisitor::new(&mut output, &processor, diagnostics.reborrow());
-        visitor.visit_unhandled_block(&mut traversal, block.into())?;
+        visitor.visit_unhandled_block(&mut traversal, block)?;
     }
 
     assert_eq!(output, [] as [u8; 0]);

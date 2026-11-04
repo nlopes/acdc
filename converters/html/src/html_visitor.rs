@@ -1537,7 +1537,8 @@ mod title_media_tests {
                 "[subs=none]\n++++\nTRIGGER\n++++\n",
             ] {
                 let parsed = parse(input, &ParserOptions::default())?;
-                let block = parsed.document().blocks.first().ok_or("expected block")?;
+                let parsed_stored = acdc_parser::Document::from(parsed.document_ref());
+                let block = parsed_stored.blocks.first().ok_or("expected block")?;
                 let mut visitor = HtmlVisitor::new(
                     RejectCellText,
                     processor.clone(),
@@ -1546,7 +1547,7 @@ mod title_media_tests {
                 );
                 visitor.current_subs = vec![Substitution::SpecialChars];
                 visitor.render_options.inlines_verbatim = true;
-                let mut context = TraversalContext::new(&parsed.document().attributes);
+                let mut context = TraversalContext::new(parsed.document_ref().attributes());
                 let Err(error) = context.visit_block(&mut visitor, BlockRef::from(block)) else {
                     return Err(format!("body must reach the failing writer: {input}").into());
                 };
@@ -1565,8 +1566,9 @@ mod title_media_tests {
             &ParserOptions::default(),
         )?;
         let mut document = Document::default();
-        document.attributes = parsed.document().attributes.clone();
-        document.footnotes = parsed.document().footnotes.clone();
+        document.attributes =
+            acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
+        document.footnotes = acdc_parser::Document::from(parsed.document_ref()).footnotes;
         document.footnotes.reverse();
         let retained = document.footnotes.clone();
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
@@ -1629,7 +1631,8 @@ mod title_media_tests {
             "[quote,Author,Book]\n____\nTRIGGER\n____\n",
         ] {
             let parsed = parse(input, &ParserOptions::default())?;
-            let block = parsed.document().blocks.first().ok_or("expected block")?;
+            let parsed_stored = acdc_parser::Document::from(parsed.document_ref());
+            let block = parsed_stored.blocks.first().ok_or("expected block")?;
             let mut visitor = HtmlVisitor::new(
                 RejectCellText,
                 processor.clone(),
@@ -1638,7 +1641,7 @@ mod title_media_tests {
             );
             visitor.current_subs = vec![Substitution::SpecialChars];
             visitor.render_options.inlines_verbatim = true;
-            let mut context = TraversalContext::new(&parsed.document().attributes);
+            let mut context = TraversalContext::new(parsed.document_ref().attributes());
             let Err(error) = context.visit_block(&mut visitor, BlockRef::from(block)) else {
                 return Err("body must reach the failing writer".into());
             };
@@ -1658,8 +1661,13 @@ mod title_media_tests {
         )?;
         for (author, citation) in [(false, false), (true, false), (false, true), (true, true)] {
             let mut document = acdc_parser::Document::default();
-            document.attributes = parsed.document().attributes.clone();
-            document.blocks = parsed.document().blocks.clone();
+            document.attributes =
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
+            document.blocks = parsed
+                .document_ref()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
             for block in &mut document.blocks {
                 let metadata = if let Block::Paragraph(node) = block {
                     &mut node.metadata
@@ -1736,7 +1744,7 @@ mod title_media_tests {
         );
         visitor.section_style = Some("parent-style".into());
         visitor.current_section_title = Some("Parent title".into());
-        let mut context = TraversalContext::new(&parsed.document().attributes);
+        let mut context = TraversalContext::new(parsed.document_ref().attributes());
         let Err(error) = context.visit_block(&mut visitor, section) else {
             return Err("nested section text must reach the failing writer".into());
         };
@@ -1753,10 +1761,12 @@ mod title_media_tests {
     fn constructed_section_and_discrete_ids_keep_fallbacks_and_role_order() -> Result<(), TestError>
     {
         let parsed = parse("== *Heading*\n", &ParserOptions::default())?;
-        let Some(Block::Section(section)) = parsed.document().blocks.first() else {
+        let parsed_stored = acdc_parser::Document::from(parsed.document_ref());
+        let Some(Block::Section(section)) = parsed_stored.blocks.first() else {
             return Err("expected section".into());
         };
         let discrete = parse("[discrete]\n== *Heading*\n", &ParserOptions::default())?;
+        let discrete_stored = acdc_parser::Document::from(discrete.document_ref());
         for (primary, fallback, expected) in [
             (None, false, "_heading"),
             (None, true, "fallback"),
@@ -1764,7 +1774,8 @@ mod title_media_tests {
             (Some(""), true, ""),
         ] {
             let mut document = acdc_parser::Document::default();
-            document.attributes = parsed.document().attributes.clone();
+            document.attributes =
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
             document.blocks = vec![
                 Block::Section(Section::new(
                     section.title.clone(),
@@ -1772,8 +1783,7 @@ mod title_media_tests {
                     Vec::new(),
                     Location::default(),
                 )),
-                discrete
-                    .document()
+                discrete_stored
                     .blocks
                     .first()
                     .ok_or("expected discrete heading")?
@@ -1932,8 +1942,13 @@ mod title_media_tests {
                 &options,
             )?;
             let mut document = acdc_parser::Document::default();
-            document.attributes = parsed.document().attributes.clone();
-            document.blocks = parsed.document().blocks.clone();
+            document.attributes =
+                acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
+            document.blocks = parsed
+                .document_ref()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
             for block in &mut document.blocks {
                 let metadata = if let Block::Image(image) = block {
                     &mut image.metadata
@@ -2013,7 +2028,7 @@ mod title_media_tests {
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
-        let mut context = TraversalContext::new(&parsed.document().attributes);
+        let mut context = TraversalContext::new(parsed.document_ref().attributes());
         let Err(error) = context.visit_block(&mut visitor, block) else {
             return Err("cell text must reach the failing writer".into());
         };
@@ -2032,8 +2047,13 @@ mod title_media_tests {
             &ParserOptions::default(),
         )?;
         let mut document = acdc_parser::Document::default();
-        document.attributes = parsed.document().attributes.clone();
-        document.blocks = parsed.document().blocks.clone();
+        document.attributes =
+            acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes());
+        document.blocks = parsed
+            .document_ref()
+            .blocks()
+            .map(acdc_parser::Block::from)
+            .collect();
         for block in &mut document.blocks {
             let metadata = if let Block::Admonition(admonition) = block {
                 &mut admonition.metadata

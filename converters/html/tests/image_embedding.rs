@@ -21,8 +21,9 @@ fn convert(
     let parsed = parse(source, &parser_options)?;
     let processor = Processor::new_with_variant(
         Options::builder().safe_mode(safe_mode).build(),
-        ParserOptions::builder()
-            .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        ParserOptions::builder().with_attributes(
+            acdc_parser::DocumentAttributes::from(parsed.document_ref().attributes()).into_inputs(),
+        ),
         HtmlVariant::Standard,
     )?;
     let options = RenderOptions {
@@ -346,7 +347,7 @@ fn image_text_survives_embedding_and_fallback_modes() -> Result<(), Error> {
                         assert!(html.contains("title=\"© → --\""), "{html}");
                         assert!(warnings.is_empty(), "{warnings:?}");
                     }
-                    assert_eq!(parsed.document().footnotes.len(), 0);
+                    assert_eq!(parsed.document_ref().footnotes().count(), 0);
                 }
             }
         }

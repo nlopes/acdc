@@ -1082,8 +1082,8 @@ mod tests {
             let parsed = acdc_parser::parse(":probe: document\n\n{probe}\n", &options)?;
             assert_eq!(
                 parsed
-                    .document()
-                    .attributes
+                    .document_ref()
+                    .attributes()
                     .get("probe")
                     .and_then(|value| value.text()),
                 Some("document")
