@@ -252,7 +252,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         attributes: AttributesRef<'_>,
     ) -> Result<(), Error> {
         let transform = InlineTextTransform::default()
-            .rendered_replacements(false)
+            .rendered()
             .decode_char_refs(true);
         let content = |name| match attributes.get(name) {
             Some(AttributeValueRef::Content(content)) => Some(transform.content_to_string(content)),

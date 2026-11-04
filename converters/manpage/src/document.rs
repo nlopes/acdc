@@ -80,7 +80,7 @@ pub(crate) fn extract_verbatim_text(nodes: ContentRef<'_>) -> String {
     InlineTextTransform::default()
         .line_break("\n")
         .decode_char_refs(true)
-        .rendered_replacements(false)
+        .rendered()
         .content_to_string(nodes)
 }
 

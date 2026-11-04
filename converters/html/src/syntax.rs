@@ -410,7 +410,7 @@ pub(crate) fn extract_text_and_callouts<'inline>(
                     let _ = InlineTextTransform::default()
                         .line_break("\n")
                         .decode_char_refs(true)
-                        .rendered_replacements(false)
+                        .rendered()
                         .text_boundaries(
                             boundaries
                                 .with_ordinary_replacements(false)

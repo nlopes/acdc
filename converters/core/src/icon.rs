@@ -72,7 +72,7 @@ fn resolve_alt<'a>(
     if let Some(content) = content {
         return Cow::Owned(
             crate::inline_text::InlineTextTransform::default()
-                .rendered_replacements(false)
+                .rendered()
                 .decode_char_refs(true)
                 .content_to_string(content),
         );

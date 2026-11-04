@@ -109,7 +109,7 @@ pub fn image_alt<'a>(source: &Source<'_>, alt: Option<&ContentAttribute<'_>>) ->
 pub fn image_alt_from_content(source: SourceRef<'_>, alt: Option<ContentRef<'_>>) -> String {
     if let Some(alt) = alt {
         return crate::inline_text::InlineTextTransform::default()
-            .rendered_replacements(false)
+            .rendered()
             .decode_char_refs(true)
             .content_to_string(alt);
     }

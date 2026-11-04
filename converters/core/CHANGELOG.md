@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Text extraction keeps resolved ordinary and verbatim text literal, including when `subs=none` disables formatting. Use `InlineTextTransform::rendered()` for Raw fragments with remaining substitutions; it replaces `rendered_replacements(bool)` and cannot reapply typography to resolved text.
+
 - Document text attributes and media directories retain literal quote characters; only attribute-list syntax removes its enclosing delimiters.
 
 - Media playback controls retain literal quotes in start/end values, playlists, language and hashes. A quoted provider name remains a local poster value, matching Asciidoctor. Code-link anchors keep their parsed IDs.

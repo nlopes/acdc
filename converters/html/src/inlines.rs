@@ -1592,7 +1592,7 @@ fn escape_inline_text(text: &str, subs: &[Substitution]) -> String {
 pub(crate) fn tooltip_attribute(content: Option<ContentRef<'_>>) -> String {
     content.map_or_else(String::new, |content| {
         let text = InlineTextTransform::default()
-            .rendered_replacements(false)
+            .rendered()
             .decode_char_refs(true)
             .content_to_string(content);
         format!(

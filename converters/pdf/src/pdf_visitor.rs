@@ -62,7 +62,7 @@ impl CodeText {
             matches!(node.kind(), InlineKind::Raw(raw) if raw.substitutions().next().is_none());
         let _ = InlineTextTransform::default()
             .line_break("\n")
-            .rendered_replacements(false)
+            .rendered()
             .text_boundaries(boundaries)
             .decode_char_refs(decode)
             .write_inlines(&mut self.source, std::iter::once(node));
@@ -1010,7 +1010,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         nodes: ContentRef<'_>,
     ) -> Result<CodeText, Error> {
         let mut code = CodeText::default();
-        let transform = InlineTextTransform::default().rendered_replacements(false);
+        let transform = InlineTextTransform::default().rendered();
         for node in nodes.inlines() {
             if let InlineKind::Anchor(anchor) = node.kind() {
                 code.links.push(CodeSpan {
@@ -2011,7 +2011,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_verbatim_string(&mut self, content: ContentRef<'_>) {
         let text = InlineTextTransform::default()
             .line_break("\n")
-            .rendered_replacements(false)
+            .rendered()
             .content_to_string(content);
         self.writer.string_literal(&text);
     }

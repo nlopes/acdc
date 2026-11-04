@@ -901,7 +901,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                 text.clear();
                 let _ = acdc_converters_core::InlineTextTransform::default()
                     .line_break("\n")
-                    .rendered_replacements(false)
+                    .rendered()
                     .text_boundaries(boundaries(index))
                     .write_inlines(&mut text, std::iter::once(node));
             }

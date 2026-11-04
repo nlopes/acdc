@@ -40,9 +40,7 @@ fn text_policy_preserves_content_and_fragment_context() -> Result<(), Error> {
             for (transform, expected) in [
                 (InlineTextTransform::default().line_break("\n"), semantic),
                 (
-                    InlineTextTransform::default()
-                        .line_break("\n")
-                        .rendered_replacements(true),
+                    InlineTextTransform::default().line_break("\n").rendered(),
                     rendered,
                 ),
             ] {

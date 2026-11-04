@@ -17,11 +17,12 @@ fn resolved_text_reads_do_not_depend_on_converter_replacement_settings() {
             location: Location::default(),
         }),
     ]);
-    for enabled in [false, true] {
+    for transform in [
+        InlineTextTransform::default(),
+        InlineTextTransform::default().rendered(),
+    ] {
         assert_eq!(
-            InlineTextTransform::default()
-                .rendered_replacements(enabled)
-                .content_to_string(ContentRef::from(&content)),
+            transform.content_to_string(ContentRef::from(&content)),
             "©…’",
         );
     }

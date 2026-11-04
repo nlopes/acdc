@@ -279,7 +279,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 let _ = InlineTextTransform::default()
                     .line_break("\n")
                     .decode_char_refs(true)
-                    .rendered_replacements(false)
+                    .rendered()
                     .text_boundaries(self.text_boundaries)
                     .write_inlines(&mut text, std::iter::once(node));
                 write!(self.writer_mut(), "{}", manify(&text, EscapeMode::Preserve))?;

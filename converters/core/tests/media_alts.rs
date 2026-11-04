@@ -189,7 +189,7 @@ fn image_alternatives_preserve_parser_selected_boundaries() -> Result<(), TestEr
         );
         assert_eq!(
             acdc_converters_core::inline_text::InlineTextTransform::default()
-                .rendered_replacements(false)
+                .rendered()
                 .decode_char_refs(true)
                 .content_to_string(tooltip.into()),
             expected

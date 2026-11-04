@@ -2229,7 +2229,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 .tooltip()
                 .map(|value| {
                     InlineTextTransform::default()
-                        .rendered_replacements(false)
+                        .rendered()
                         .decode_char_refs(true)
                         .content_to_string(value)
                 })
@@ -2591,7 +2591,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         write!(self.writer, "]({}", escape_link_destination(destination))?;
         if let Some(tooltip) = tooltip {
             let title = InlineTextTransform::default()
-                .rendered_replacements(false)
+                .rendered()
                 .decode_char_refs(true)
                 .content_to_string(tooltip);
             write!(self.writer, " \"{}\"", escape_link_title(&title))?;

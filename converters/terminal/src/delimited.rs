@@ -551,9 +551,7 @@ pub(crate) fn render_preformatted_inlines<'inline>(
 }
 
 pub(crate) fn code_text_transform() -> InlineTextTransform<'static, 'static> {
-    InlineTextTransform::default()
-        .line_break("\n")
-        .rendered_replacements(false)
+    InlineTextTransform::default().line_break("\n").rendered()
 }
 
 fn source_with_callout_placeholders(

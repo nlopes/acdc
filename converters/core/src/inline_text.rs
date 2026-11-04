@@ -23,10 +23,9 @@ use crate::{
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Typography {
+enum TextProjection {
     Source,
-    Passthroughs,
-    All,
+    Rendered,
 }
 
 /// Plain-text extraction policy for inline nodes.
@@ -34,7 +33,7 @@ enum Typography {
 pub struct InlineTextTransform<'t, 'd> {
     line_break: &'t str,
     decode_char_refs: bool,
-    typography: Typography,
+    projection: TextProjection,
     text_boundaries: TextBoundaries,
     references: Option<&'t HashMap<&'d str, Reference<'d>>>,
     /// Set while extracting a target's reference text, so a cross-reference
@@ -48,7 +47,7 @@ impl Default for InlineTextTransform<'_, '_> {
         Self {
             line_break: " ",
             decode_char_refs: false,
-            typography: Typography::Source,
+            projection: TextProjection::Source,
             text_boundaries: TextBoundaries::BOTH,
             references: None,
             resolving_xref: false,
@@ -74,20 +73,14 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
         self
     }
 
-    /// Apply typography when extracting rendered text.
+    /// Apply the remaining substitutions carried by Raw fragments.
     ///
-    /// Raw fragments use their own profiles. `ordinary_text` also enables
-    /// replacements in ordinary text. The default retains semantic source text.
+    /// Resolved plain and verbatim text stay unchanged. The default keeps Raw
+    /// source text without applying its remaining substitutions.
     #[must_use]
-    pub fn rendered_replacements(mut self, ordinary_text: bool) -> Self {
-        self.text_boundaries = self
-            .text_boundaries
-            .with_ordinary_replacements(ordinary_text);
-        self.typography = if ordinary_text {
-            Typography::All
-        } else {
-            Typography::Passthroughs
-        };
+    pub fn rendered(mut self) -> Self {
+        self.text_boundaries = self.text_boundaries.with_ordinary_replacements(false);
+        self.projection = TextProjection::Rendered;
         self
     }
 
@@ -172,9 +165,9 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
 
     fn write_inline<W: Write + ?Sized>(self, w: &mut W, node: InlineRef<'_>) -> fmt::Result {
         match node.kind() {
-            InlineKind::Plain(text) => self.write_text(w, text.text()),
+            InlineKind::Plain(text) => w.write_str(text.text()),
             InlineKind::Raw(text) => {
-                let content = if self.typography == Typography::Source {
+                let content = if self.projection == TextProjection::Source {
                     Cow::Borrowed(text.text())
                 } else {
                     apply_passthrough_replacements_iter(
@@ -192,7 +185,7 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
                     w.write_str(&content)
                 }
             }
-            InlineKind::Verbatim(text) => self.write_text(w, text.text()),
+            InlineKind::Verbatim(text) => w.write_str(text.text()),
             InlineKind::Bold(span) => self.write_content(w, span.content()),
             InlineKind::Italic(span) => self.write_content(w, span.content()),
             InlineKind::Monospace(span) => self.write_content(w, span.content()),
@@ -257,14 +250,6 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
             InlineKind::Footnote(footnote) => write!(w, "[{}]", footnote.number()),
             InlineKind::Stem(stem) => w.write_str(stem.text()),
             InlineKind::Anchor(_) | InlineKind::IndexTerm(_) | _ => Ok(()),
-        }
-    }
-
-    fn write_text<W: Write + ?Sized>(self, w: &mut W, text: &str) -> fmt::Result {
-        if self.typography == Typography::All {
-            w.write_str(&Replacements::unicode().transform_verbatim(text, self.text_boundaries))
-        } else {
-            w.write_str(text)
         }
     }
 
@@ -387,11 +372,7 @@ mod tests {
                     return Err("expected one paragraph".into());
                 };
                 let transform = super::InlineTextTransform::default();
-                for policy in [
-                    transform,
-                    transform.rendered_replacements(false),
-                    transform.rendered_replacements(true),
-                ] {
+                for policy in [transform, transform.rendered()] {
                     assert_eq!(
                         policy.to_string(&paragraph.content),
                         expected,
@@ -432,9 +413,7 @@ mod tests {
             "A bold [Bird]\u{2009}—\u{2009}end."
         );
         assert_eq!(
-            transform
-                .rendered_replacements(true)
-                .content_to_string(content),
+            transform.rendered().content_to_string(content),
             "A bold [Bird]\u{2009}—\u{2009}end.",
         );
         Ok(())
@@ -480,7 +459,7 @@ mod tests {
             let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
-            let transform = super::InlineTextTransform::default().rendered_replacements(true);
+            let transform = super::InlineTextTransform::default().rendered();
             assert_eq!(
                 transform.to_string(&paragraph.content),
                 expected,
@@ -525,9 +504,7 @@ mod tests {
                             format!("{prefix}{label}{suffix}").replace("--", "—\u{200b}");
                         assert_eq!(source, expected, "{input}");
                         assert_eq!(
-                            transform
-                                .rendered_replacements(true)
-                                .to_string(&paragraph.content),
+                            transform.rendered().to_string(&paragraph.content),
                             expected,
                             "{input}"
                         );
@@ -562,7 +539,7 @@ mod tests {
             };
             assert_eq!(
                 super::InlineTextTransform::default()
-                    .rendered_replacements(true)
+                    .rendered()
                     .to_string(&paragraph.content),
                 expected,
                 "{input}"
@@ -624,7 +601,7 @@ mod tests {
             };
             let source = super::InlineTextTransform::default().to_string(&paragraph.content);
             let rendered = super::InlineTextTransform::default()
-                .rendered_replacements(true)
+                .rendered()
                 .to_string(&paragraph.content);
             assert_eq!(rendered, expected, "{input}");
             assert_eq!(
@@ -636,7 +613,7 @@ mod tests {
     }
 
     #[test]
-    fn fragmented_replacement_context_matches_unsplit_text() {
+    fn resolved_text_fragments_keep_literal_text_at_every_split() {
         for input in [
             "a -- b",
             "a--b",
@@ -653,15 +630,12 @@ mod tests {
             "a --\n--\n-- b",
             "-- -- -- -- -- -- -- -- -- -- --",
         ] {
-            let whole = [plain(input)];
-            let expected = super::InlineTextTransform::default()
-                .rendered_replacements(true)
-                .to_string(&whole);
+            let expected = input;
             for split in input.char_indices().map(|(index, _)| index).skip(1) {
                 let fragments = [plain(&input[..split]), plain(&input[split..])];
                 assert_eq!(
                     super::InlineTextTransform::default()
-                        .rendered_replacements(true)
+                        .rendered()
                         .to_string(&fragments),
                     expected,
                     "{input:?} at {split}"
@@ -674,7 +648,7 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(
                 super::InlineTextTransform::default()
-                    .rendered_replacements(true)
+                    .rendered()
                     .to_string(&fragments),
                 expected,
                 "{input:?} split by character"
@@ -722,7 +696,7 @@ mod tests {
             };
             assert_eq!(
                 super::InlineTextTransform::default()
-                    .rendered_replacements(false)
+                    .rendered()
                     .to_string(&paragraph.content),
                 expected,
                 "{input}"
@@ -732,13 +706,13 @@ mod tests {
     }
 
     #[test]
-    fn rendered_code_typography_preserves_unrelated_escapes() {
+    fn resolved_code_text_keeps_literal_tokens_and_escapes() {
         let nodes = [plain(r"(C) \(R) \*literal\* \->")];
         let source = super::InlineTextTransform::default();
         assert_eq!(source.to_string(&nodes), r"(C) \(R) \*literal\* \->");
         assert_eq!(
-            source.rendered_replacements(true).to_string(&nodes),
-            r"© (R) \*literal\* ->"
+            source.rendered().to_string(&nodes),
+            r"(C) \(R) \*literal\* \->"
         );
     }
 
@@ -758,9 +732,7 @@ mod tests {
                 r"© (R) \*literal\* \->"
             );
             assert_eq!(
-                transform
-                    .rendered_replacements(false)
-                    .to_string(&paragraph.content),
+                transform.rendered().to_string(&paragraph.content),
                 r"© (R) \*literal\* \->"
             );
             assert_eq!(
@@ -788,9 +760,7 @@ mod tests {
             let transform = super::InlineTextTransform::default();
             assert_eq!(transform.to_string(&paragraph.content), expected);
             assert_eq!(
-                transform
-                    .rendered_replacements(false)
-                    .to_string(&paragraph.content),
+                transform.rendered().to_string(&paragraph.content),
                 expected,
                 "{profile}",
             );
@@ -827,9 +797,7 @@ mod tests {
                 transform.to_string(&paragraph.content),
                 format!("α {arrow} ω")
             );
-            let rendered = transform
-                .rendered_replacements(false)
-                .to_string(&paragraph.content);
+            let rendered = transform.rendered().to_string(&paragraph.content);
             assert_eq!(rendered, format!("α {arrow} ω"));
             assert_eq!(
                 transform.to_string(&paragraph.content),
@@ -848,7 +816,7 @@ mod tests {
         };
         assert_eq!(
             super::InlineTextTransform::default()
-                .rendered_replacements(true)
+                .rendered()
                 .to_string(&paragraph.content),
             "(C) ® (TM)"
         );
