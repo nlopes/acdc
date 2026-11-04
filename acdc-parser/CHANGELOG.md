@@ -335,6 +335,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Visible bibliography labels resolve typography with the surrounding block's
+  substitution profile and retain authored symbol locations.
+
 - Inline `[[id,label]]` anchors accept single closing brackets inside their
   labels, matching Asciidoctor. Nested macro syntax stays in the reference label
   instead of rendering or registering as body content.

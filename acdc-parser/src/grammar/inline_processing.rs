@@ -551,8 +551,9 @@ fn parse_bibliography_label<'a>(
         }
         state.add_warning(warning);
     }
-    let mut content =
+    let content =
         parsed.map_err(|error| adjust_peg_error_position(&error, label, offset, state))?;
+    let mut content = super::inlines::typography::resolve_plain(content, &child, false);
     for inline in &mut content {
         super::location_walk::walk_inline_locations_mut(inline, &mut |location| {
             location.absolute_start += offset;

@@ -8,7 +8,7 @@ use std::{
 };
 
 #[cfg(feature = "highlighting")]
-use acdc_converters_core::substitutions::{Replacements, TextBoundaries};
+use acdc_converters_core::substitutions::TextBoundaries;
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, Options, TraversalContext, WarningSource,
     section::contains_index_section, xref::XrefGuard,
@@ -19,12 +19,12 @@ use acdc_parser::{
     Options as ParserOptions, Reference, Substitution, TocEntry,
     ast::{
         AttributeValueRef, AttributesRef, ContentRef, DocumentAttributesRef, DocumentRef,
-        ElementIdRef, InlineRef,
+        ElementIdRef,
     },
 };
 
 #[cfg(feature = "highlighting")]
-use acdc_parser::ast::InlineKind;
+use acdc_parser::ast::{InlineKind, InlineRef};
 
 mod admonition;
 mod audio;
@@ -864,8 +864,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
     visitor: &mut HtmlVisitor<'a, '_, W>,
     subs: &[Substitution],
 ) -> Result<(Vec<Option<String>>, Vec<syntax::HighlightedLink>), Error> {
-    let text_boundaries =
-        TextBoundaries::BOTH.with_ordinary_replacements(subs.contains(&Substitution::Replacements));
+    let text_boundaries = TextBoundaries::BOTH.with_ordinary_replacements(false);
     let boundaries = |index| {
         text_boundaries.for_inline_refs(
             text_context.get(index).copied(),
@@ -930,7 +929,6 @@ fn capture_code_inlines<'a, W: std::io::Write>(
             let inline = node;
             let text = syntax::extract_text_and_callouts(
                 std::iter::once(inline),
-                subs.contains(&Substitution::Replacements),
                 boundaries(index),
                 &std::iter::once(inline),
                 None,
@@ -993,43 +991,7 @@ fn render_highlighted_code<'a, W: std::io::Write>(
     subs: &[Substitution],
     options: syntax::HighlightOptions<'_>,
 ) -> Result<(), Error> {
-    // Replace ordinary text before highlighting, so token colors and captured
-    // macro offsets both refer to the text that will be displayed. Raw fragments
-    // and formatted labels retain their own rendering path in the capture step.
-    let typography = subs.contains(&Substitution::Replacements).then(|| {
-        highlight_inlines
-            .iter()
-            .copied()
-            .enumerate()
-            .map(|(index, node)| {
-                let text = if let InlineKind::Plain(text) = node.kind() {
-                    text.text()
-                } else if let InlineKind::Verbatim(text) = node.kind() {
-                    text.text()
-                } else {
-                    return None;
-                };
-                Some(Replacements::unicode().transform_verbatim(
-                    text,
-                    TextBoundaries::BOTH.for_inline_refs(
-                        Some(node),
-                        highlight_inlines.iter().copied().take(index).rev(),
-                        highlight_inlines.iter().copied().skip(index + 1),
-                    ),
-                ))
-            })
-            .collect::<Vec<_>>()
-    });
-    let prepared = typography
-        .as_ref()
-        .map(|text| code_nodes_with_text(highlight_inlines, text));
-    // All fragments use the original source context. Earlier replacements
-    // must not hide spaces or dash halves from another fragment's owner.
     let text_context = highlight_inlines;
-    let projected = prepared
-        .as_ref()
-        .map(|nodes| source::replaced_inlines(highlight_inlines, nodes).collect::<Vec<_>>());
-    let highlight_inlines = projected.as_deref().unwrap_or(highlight_inlines);
     let (labels, links) =
         capture_code_inlines(traversal, highlight_inlines, text_context, visitor, subs)?;
     let resolved = code_nodes_with_text(highlight_inlines, &labels);
@@ -1046,7 +1008,6 @@ fn render_highlighted_code<'a, W: std::io::Write>(
             ..options
         },
         &links,
-        subs.contains(&Substitution::Replacements),
         Some(&mut visitor.diagnostics),
     )
 }

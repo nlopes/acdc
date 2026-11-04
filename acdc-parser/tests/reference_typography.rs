@@ -186,3 +186,49 @@ fn natural_reference_targets_keep_their_authored_spelling(
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
+
+#[rstest::rstest]
+#[case("specialcharacters,quotes,replacements,macros", true)]
+#[case("specialcharacters,quotes,macros,replacements", true)]
+#[case("specialcharacters,quotes,macros", false)]
+fn visible_bibliography_labels_resolve_the_selected_body_profile(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[case] profile: &str,
+    #[case] enabled: bool,
+) -> Result<(), Error> {
+    let source = format!("[bibliography,subs=\"{profile}\"]\n* [[[target,café (C)]]] Citation.");
+    let parsed = parse(
+        &source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let label = parsed
+        .document_ref()
+        .content_occurrences()
+        .flat_map(|field| field.content().inlines())
+        .find_map(|node| {
+            if let InlineKind::Anchor(anchor) = node.kind() {
+                anchor.bibliography_label()
+            } else {
+                None
+            }
+        })
+        .ok_or("visible bibliography label")?;
+    let found = symbols(label);
+    assert_eq!(
+        found.iter().map(|symbol| symbol.kind()).collect::<Vec<_>>(),
+        if enabled {
+            vec![SymbolKind::Copyright]
+        } else {
+            vec![]
+        }
+    );
+    for symbol in found {
+        assert_eq!(
+            source.get(symbol.location().absolute_start()..=symbol.location().absolute_end()),
+            Some("(C)")
+        );
+    }
+    assert_eq!(parsed.document().footnotes.len(), 0);
+    assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+    Ok(())
+}

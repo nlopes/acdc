@@ -124,6 +124,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Plain text, tooltips, and highlighted code keep the parser's resolved
+  typography and escapes. Highlighted and plain XML code preserve comment
+  delimiters around callouts with `subs=+replacements`. Callout comment guards
+  remain literal when replacements follow macros. These guards differ from
+  Asciidoctor. Empty attributes expanded after replacements no longer trigger
+  another dash replacement, matching Asciidoctor.
+
 - Generated indexes sort and combine entries by their resolved labels. Catalog
   typography uses each label's own boundaries and registration-time substitutions.
 

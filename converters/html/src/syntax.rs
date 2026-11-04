@@ -83,7 +83,6 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     attributes: Option<AttributesRef<'_>>,
     options: HighlightOptions<'_>,
     links: &[HighlightedLink],
-    replacements: bool,
     diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> Result<(), Error> {
     let HighlightOptions {
@@ -95,7 +94,6 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     } = options;
     let (code, callouts) = extract_text_and_callouts(
         inlines.iter().copied(),
-        replacements,
         TextBoundaries::BOTH,
         &text_context.unwrap_or(inlines).iter().copied(),
         diagnostics,
@@ -374,12 +372,10 @@ fn html_escape(s: &str) -> String {
 /// Returns the code text with a space standing in for each callout, plus the
 /// placeholders' byte offsets and callout numbers in source order.
 /// Ordinary fragments and captured labels must already contain display text.
-/// Visible index labels retain their profiles and use `replacements` for
-/// ordinary label text.
+/// Visible index labels retain their own raw-text profiles.
 #[cfg(feature = "highlighting")]
 pub(crate) fn extract_text_and_callouts<'inline>(
     inlines: impl Iterator<Item = InlineRef<'inline>>,
-    replacements: bool,
     boundaries: TextBoundaries,
     text_context: &(impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone),
     mut diagnostics: Option<&mut Diagnostics<'_>>,
@@ -411,16 +407,13 @@ pub(crate) fn extract_text_and_callouts<'inline>(
             }
             InlineKind::IndexTerm(term) => {
                 if term.is_visible() {
-                    // Index labels remain structured until text extraction, so
-                    // apply their display substitutions here. Catalog labels
-                    // are registered independently from the original nodes.
                     let _ = InlineTextTransform::default()
                         .line_break("\n")
                         .decode_char_refs(true)
-                        .rendered_replacements(replacements)
+                        .rendered_replacements(false)
                         .text_boundaries(
                             boundaries
-                                .with_ordinary_replacements(replacements)
+                                .with_ordinary_replacements(false)
                                 .for_inline_refs(
                                     text_context.clone().nth(index),
                                     text_context.clone().take(index).rev(),
@@ -473,7 +466,7 @@ mod tests {
     use super::*;
     use acdc_parser::{
         CalloutRef, CalloutRefKind, CompatibilityMode, InlineNode, LineBreak, Location, Options,
-        Plain, Raw, Substitution, Verbatim, parse_inline,
+        Plain, Raw, Substitution, Verbatim,
     };
 
     fn create_verbatim_inlines(content: &str) -> Vec<InlineNode<'_>> {
@@ -496,7 +489,6 @@ mod tests {
         let inlines = create_verbatim_inlines("fn main() {\n    println!(\"Hello\");\n}");
         let (text, callouts) = extract_text_and_callouts(
             inlines.iter().map(InlineRef::from),
-            false,
             TextBoundaries::BOTH,
             &inlines.iter().map(InlineRef::from),
             None,
@@ -526,7 +518,6 @@ mod tests {
 
         let (text, callouts) = extract_text_and_callouts(
             inlines.iter().map(InlineRef::from),
-            false,
             TextBoundaries::BOTH,
             &inlines.iter().map(InlineRef::from),
             None,
@@ -558,25 +549,27 @@ mod tests {
             create_callout_ref(7),
             create_callout_ref(2),
         ];
-        for replacements in [false, true] {
-            let (text, callouts) = extract_text_and_callouts(
-                inlines.iter().map(InlineRef::from),
-                replacements,
-                TextBoundaries::BOTH,
-                &inlines.iter().map(InlineRef::from),
-                None,
-            );
-            assert_eq!(text, "été -- (C)日本語\n  ");
-            assert_eq!(callouts, [(22, 7), (23, 2)]);
-        }
+        let (text, callouts) = extract_text_and_callouts(
+            inlines.iter().map(InlineRef::from),
+            TextBoundaries::BOTH,
+            &inlines.iter().map(InlineRef::from),
+            None,
+        );
+        assert_eq!(text, "été -- (C)日本語\n  ");
+        assert_eq!(callouts, [(22, 7), (23, 2)]);
     }
 
     #[test]
-    fn extraction_uses_original_index_siblings() -> Result<(), Box<dyn std::error::Error>> {
+    fn extraction_keeps_resolved_index_typography_after_text_projection()
+    -> Result<(), Box<dyn std::error::Error>> {
         for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
             let options = Options::builder().with_compatibility_mode(mode).build()?;
-            let parsed = parse_inline("prefixindexterm2:[--]tail", &options)?;
-            let [_, term, tail] = parsed.inlines() else {
+            let parsed = acdc_parser::parse("prefixindexterm2:[--]tail", &options)?;
+            let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed.document().blocks.first()
+            else {
+                return Err("expected paragraph".into());
+            };
+            let [_, term, tail] = paragraph.content.as_slice() else {
                 return Err("expected three inline fragments".into());
             };
             let prepared = [
@@ -587,17 +580,14 @@ mod tests {
                 term.clone(),
                 tail.clone(),
             ];
-            for (replacements, expected) in [(false, " --tail"), (true, " —\u{200b}tail")] {
-                let (text, callouts) = extract_text_and_callouts(
-                    prepared.iter().map(InlineRef::from),
-                    replacements,
-                    TextBoundaries::BOTH,
-                    &parsed.content().inlines(),
-                    None,
-                );
-                assert_eq!(text, expected, "{mode:?} {replacements}");
-                assert_eq!(callouts, []);
-            }
+            let (text, callouts) = extract_text_and_callouts(
+                prepared.iter().map(InlineRef::from),
+                TextBoundaries::BOTH,
+                &paragraph.content.iter().map(InlineRef::from),
+                None,
+            );
+            assert_eq!(text, " —\u{200b}tail", "{mode:?}");
+            assert_eq!(callouts, []);
         }
         Ok(())
     }
@@ -631,7 +621,6 @@ mod tests {
                 text_context: None,
             },
             &[],
-            false,
             None,
         )?;
 
@@ -671,7 +660,6 @@ mod tests {
                 text_context: None,
             },
             &[],
-            false,
             None,
         )?;
 
@@ -703,7 +691,6 @@ mod tests {
                 text_context: None,
             },
             &[],
-            false,
             None,
         )?;
 
@@ -737,7 +724,6 @@ mod tests {
                 text_context: None,
             },
             &[],
-            false,
             None,
         )?;
 
@@ -782,7 +768,6 @@ mod tests {
                 text_context: None,
             },
             &[],
-            false,
             None,
         )?;
 

@@ -1,0 +1,15 @@
+= Bibliography typography
+
+[bibliography,subs="specialcharacters,quotes,replacements,macros"]
+* [[[early,café (C)]]] Early profile.
+
+[bibliography,subs="specialcharacters,quotes,macros,replacements"]
+* [[[late,café (R)]]] Late profile.
+
+[bibliography,subs="specialcharacters,quotes,macros"]
+* [[[disabled,café (TM)]]] Disabled replacements.
+
+[bibliography]
+* [[[escaped,café \(C)]]] Escaped token.
+
+See <<early>>, <<late>>, <<disabled>>, and <<escaped>>.

@@ -1,46 +1,8 @@
-//! Inline content rendering for HTML conversion.
+//! Render resolved inline content as HTML.
 //!
-//! # Security Model and HTML Escaping
-//!
-//! `AsciiDoc` follows a **trusted document author** model, similar to Markdown. The document
-//! author is trusted to create safe content, and certain features intentionally allow raw HTML
-//! output for flexibility.
-//!
-//! ## Escaping Behavior by Content Type
-//!
-//! ### `PlainText`
-//! - **Always escaped**: HTML special characters (`<`, `>`, `&`, `"`, `'`) are converted to entities
-//! - **Typography applied**: Em-dashes, ellipses, and smart quotes (unless in basic/verbatim mode)
-//! - Example: `<script>` → `&lt;script&gt;`
-//!
-//! ### `RawText` (Passthrough Content)
-//! - **Never escaped by default**: Intentionally outputs raw HTML
-//! - Used for passthrough blocks (`++++...++++`) and inline passthroughs (`pass:[]`, `+++...+++`)
-//! - **Escaping when verbatim**: Only escaped when in verbatim context (listing/literal blocks)
-//! - Example: `pass:[<strong>test</strong>]` → `<strong>test</strong>` (raw HTML)
-//!
-//! ### `VerbatimText` (Code Blocks)
-//! - **Always escaped**: Used in listing and literal blocks to display code
-//! - **Callout processing**: Handles `<1>`, `<2>` markers specially
-//! - Example in listing block: `<h1>` → `&lt;h1&gt;`
-//!
-//! ### Passthrough with `SpecialChars` Substitution
-//! - `pass:c[...]` or `pass:specialchars[...]` → HTML is escaped
-//! - Example: `pass:c[<strong>test</strong>]` → `&lt;strong&gt;test&lt;/strong&gt;`
-//!
-//! ## Why This Design?
-//!
-//! This matches asciidoctor's security model where:
-//! 1. Document authors are trusted (like Markdown, not like user-generated HTML)
-//! 2. Passthrough is a feature for intentionally embedding raw HTML
-//! 3. Regular content is always escaped for safety
-//! 4. Code blocks escape HTML to display it correctly
-//!
-//! ## ID Attributes
-//!
-//! Currently, acdc auto-generates section IDs from titles rather than accepting custom IDs.
-//! This is inherently safe. When custom ID support is added, asciidoctor does NOT escape
-//! IDs, trusting the document author to provide safe values.
+//! Plain and verbatim text retain the parser's formatting and typography decisions.
+//! Block substitutions control output escaping. Raw text uses its own profile,
+//! including intentional HTML. IDs and attribute values are escaped when written.
 
 use std::{
     io::{self, Write},
@@ -50,10 +12,7 @@ use std::{
 use acdc_converters_core::{
     InlineTextTransform, TraversalContext,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
-    substitutions::{
-        Replacements, TextBoundaries, apply_passthrough_replacements_iter,
-        protect_replacement_escapes, restore_escaped_patterns, strip_backslash_escapes,
-    },
+    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
@@ -375,9 +334,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     previous_boundaries
                 };
                 self.text_boundaries = boundaries
-                    .with_ordinary_replacements(
-                        self.current_subs.contains(&Substitution::Replacements),
-                    )
+                    .with_ordinary_replacements(false)
                     .for_inline_refs(
                         Some(node),
                         siblings.clone().take(index).rev(),
@@ -454,8 +411,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        // The parser selects formatting, including explicit attribute profiles
-        // in code. Block substitutions still govern text escaping and typography.
         match node.kind() {
             InlineKind::Plain(p) => self.render_plain(p, options, subs),
             InlineKind::Symbol(symbol) => {
@@ -467,7 +422,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 Ok(())
             }
             InlineKind::Raw(r) => self.render_raw(r),
-            InlineKind::Verbatim(v) => self.render_verbatim(traversal, v, options, subs),
+            InlineKind::Verbatim(v) => self.render_verbatim(v, subs),
             InlineKind::Callout(c) => self.render_callout_ref(traversal, c),
             InlineKind::Bold(b) => self.render_bold(traversal, b, options),
             InlineKind::Italic(i) => self.render_italic(traversal, i, options),
@@ -613,13 +568,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         if p.text().is_empty() {
             return Ok(());
         }
-        let text = substitution_text(
-            p.text(),
-            subs,
-            options,
-            self.text_boundaries(),
-            p.is_escaped(),
-        );
+        let text = escape_inline_text(p.text(), subs);
         let w = self.writer_mut();
         if options.hardbreaks {
             write!(w, "{}", text.replace('\n', "<br>"))?;
@@ -630,8 +579,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     }
 
     fn render_raw(&mut self, r: RawRef<'_>) -> Result<(), Error> {
-        // RawText comes from passthroughs — attribute expansion was already handled (or
-        // explicitly skipped) by the preprocessor. Do NOT apply block subs.
         let text = passthrough_substitution_text(r, self.text_boundaries());
         if let Some(captured) = self.captured_raw_fragments.as_mut() {
             let index = captured.len();
@@ -643,28 +590,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         Ok(())
     }
 
-    fn render_verbatim(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        v: VerbatimRef<'_>,
-        options: &RenderOptions,
-        subs: &[Substitution],
-    ) -> Result<(), Error> {
-        // The parser has already applied quotes and attributes in the requested order.
-        // Re-parsing this text would activate markup introduced by late attributes.
-        let verbatim_options = RenderOptions {
-            inlines_verbatim: true,
-            ..options.clone()
-        };
-
-        let text = substitution_text(
-            v.text(),
-            subs,
-            &verbatim_options,
-            self.text_boundaries(),
-            false,
-        );
-        write!(self.writer_mut(), "{text}")?;
+    fn render_verbatim(&mut self, v: VerbatimRef<'_>, subs: &[Substitution]) -> Result<(), Error> {
+        write!(self.writer_mut(), "{}", escape_inline_text(v.text(), subs))?;
         Ok(())
     }
 
@@ -1614,7 +1541,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 .enumerate()
                 .try_for_each(|(index, inline)| {
                     self.text_boundaries = boundaries
-                        .with_ordinary_replacements(subs.contains(&Substitution::Replacements))
+                        .with_ordinary_replacements(false)
                         .for_inline_refs(
                             Some(inline),
                             siblings.clone().take(index).rev(),
@@ -1654,84 +1581,20 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     }
 }
 
-fn substitution_text(
-    text: &str,
-    subs: &[Substitution],
-    options: &RenderOptions,
-    text_boundaries: TextBoundaries,
-    escaped: bool,
-) -> String {
-    debug_assert!(
-        !text.is_empty(),
-        "substitution_text called with empty text - caller should filter empty content"
-    );
-    if text.is_empty() {
-        tracing::debug!(
-            "substitution_text called with empty text - caller should filter empty content"
-        );
-        return String::new();
+fn escape_inline_text(text: &str, subs: &[Substitution]) -> String {
+    if !subs.contains(&Substitution::SpecialChars) {
+        return text.to_owned();
     }
-
-    let should_escape = subs.contains(&Substitution::SpecialChars);
-
-    // Determine if we should apply typography replacements
-    // Based on substitutions list, skip for basic mode (passthrough)
-    let should_apply_replacements =
-        subs.contains(&Substitution::Replacements) && !options.inlines_basic && !escaped;
-
-    // Strip backslash escapes first (before any other processing)
-    // Only needed when replacements are applied (escape sequences only matter for replacements)
-    let text = if should_apply_replacements {
-        if options.inlines_verbatim || !subs.contains(&Substitution::Quotes) {
-            protect_replacement_escapes(text, true).into_owned()
-        } else {
-            strip_backslash_escapes(text)
-        }
-    } else {
-        text.to_string()
-    };
-
-    // Escape source ampersands before replacements so entities produced by the
-    // replacement table remain valid HTML.
-    let text = if should_escape {
-        escape_ampersands(&text)
-    } else {
-        text
-    };
-
-    // Apply all typography replacements (em-dashes, arrows, symbols, ellipsis, apostrophes)
-    // This must happen after & escaping (replacements produce & entities) and before <> escaping
-    let text = if should_apply_replacements {
-        replacements().apply(&text, text_boundaries)
-    } else {
-        text
-    };
-
-    // Restore escaped patterns (convert placeholders back to literal forms)
-    // This must happen after typography substitutions but BEFORE escaping < and >
-    // so that restored patterns like => and <- don't get their angle brackets escaped
-    let text = if should_apply_replacements {
-        restore_escaped_patterns(&text)
-    } else {
-        text
-    };
-
-    if !should_escape {
-        return text;
-    }
-
-    // Escape < and > after restore so that restored patterns (e.g., \=> → =>) keep literal chars
-    let text = text.replace('>', "&gt;").replace('<', "&lt;");
-
-    // Encode non-ASCII Unicode characters as HTML numeric entities
-    // to match asciidoctor's output format
+    let text = escape_ampersands(text)
+        .replace('>', "&gt;")
+        .replace('<', "&lt;");
     encode_html_entities(&text)
 }
 
 pub(crate) fn tooltip_attribute(content: Option<ContentRef<'_>>) -> String {
     content.map_or_else(String::new, |content| {
         let text = InlineTextTransform::default()
-            .rendered_replacements(true)
+            .rendered_replacements(false)
             .decode_char_refs(true)
             .content_to_string(content);
         format!(

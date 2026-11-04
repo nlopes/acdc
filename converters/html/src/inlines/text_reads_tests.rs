@@ -43,7 +43,7 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
                 location: Location::default(),
             };
             visitor.render_plain((&plain).into(), &options, &[Substitution::Replacements])?;
-            visitor.render_verbatim(&mut traversal, (&verbatim).into(), &options, &[])?;
+            visitor.render_verbatim((&verbatim).into(), &[])?;
             let callout = CalloutRef::explicit(3, Location::default());
             visitor.render_callout_ref(&traversal, (&callout).into())?;
             let source = String::from(

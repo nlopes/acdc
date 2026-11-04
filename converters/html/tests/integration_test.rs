@@ -49,6 +49,44 @@ fn rendered_code_texts(output: &str) -> Result<Vec<String>, Error> {
         .collect()
 }
 
+#[test]
+fn resolved_xml_delimiters_survive_plain_and_highlighted_rendering() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/html/embedded/subs_resolved_code_text.adoc");
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        for settings in [
+            vec![("source-highlighter", AttributeValue::Bool(false))],
+            vec![(
+                "source-highlighter",
+                AttributeValue::String("syntect".into()),
+            )],
+            vec![
+                (
+                    "source-highlighter",
+                    AttributeValue::String("syntect".into()),
+                ),
+                ("highlight-css", AttributeValue::String("class".into())),
+            ],
+            vec![
+                (
+                    "source-highlighter",
+                    AttributeValue::String("syntect".into()),
+                ),
+                (
+                    "highlight-style",
+                    AttributeValue::String("missing-theme".into()),
+                ),
+            ],
+        ] {
+            let output = convert_string_with_variant(source, &settings, variant)?;
+            assert_eq!(
+                rendered_code_texts(&output)?,
+                ["<tag>café ©</tag> <!--(1)-->"]
+            );
+        }
+    }
+    Ok(())
+}
+
 #[rstest::rstest]
 #[case("highlighted_callout_positions")]
 #[case("callout_icon_guards")]
