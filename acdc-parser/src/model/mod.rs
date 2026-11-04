@@ -989,13 +989,13 @@ impl<'a> Paragraph<'a> {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct DelimitedBlock<'a> {
-    pub metadata: BlockMetadata<'a>,
-    pub inner: DelimitedBlockType<'a>,
-    pub delimiter: &'a str,
-    pub title: Title<'a>,
-    pub location: Location,
-    pub open_delimiter_location: Option<Location>,
-    pub close_delimiter_location: Option<Location>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) inner: DelimitedBlockType<'a>,
+    pub(crate) delimiter: &'a str,
+    pub(crate) title: Title<'a>,
+    pub(crate) location: Location,
+    pub(crate) open_delimiter_location: Option<Location>,
+    pub(crate) close_delimiter_location: Option<Location>,
     pub(crate) source_text: Option<&'a str>,
 }
 
@@ -1074,8 +1074,74 @@ impl<'a> DelimitedBlock<'a> {
     /// Set the title.
     #[must_use]
     pub fn with_title(mut self, title: Title<'a>) -> Self {
-        self.title = title;
+        self.set_title(title);
         self
+    }
+
+    /// Copy metadata to prepare a checked replacement without copying the body.
+    #[must_use]
+    pub fn clone_metadata(&self) -> BlockMetadata<'a> {
+        self.metadata.clone()
+    }
+
+    /// Remove metadata and refresh table decoration from its source-position defaults.
+    #[must_use]
+    pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
+        let metadata = std::mem::take(&mut self.metadata);
+        if let DelimitedBlockType::DelimitedTable(table) = &mut self.inner {
+            table.refresh_presentation(&self.metadata);
+        }
+        metadata
+    }
+
+    /// Replace the title, including an explicitly empty value.
+    pub fn set_title(&mut self, title: Title<'a>) {
+        self.title = title;
+    }
+
+    /// Remove the title, leaving it absent.
+    #[must_use]
+    pub fn take_title(&mut self) -> Title<'a> {
+        std::mem::take(&mut self.title)
+    }
+
+    /// Copy the body to prepare a replacement without copying metadata.
+    #[must_use]
+    pub fn clone_body(&self) -> DelimitedBlockType<'a> {
+        self.inner.clone()
+    }
+
+    /// Consume the block and transfer its body with the original source lifetime.
+    #[must_use]
+    pub fn into_body(self) -> DelimitedBlockType<'a> {
+        self.inner
+    }
+
+    /// Replace the prepared body and return the previous one.
+    ///
+    /// The delimiter, source snapshot and registrations are retained. An incoming
+    /// table resolves local decoration against its own source-position defaults.
+    pub fn replace_body(&mut self, mut body: DelimitedBlockType<'a>) -> DelimitedBlockType<'a> {
+        if let DelimitedBlockType::DelimitedTable(table) = &mut body {
+            table.refresh_presentation(&self.metadata);
+        }
+        std::mem::replace(&mut self.inner, body)
+    }
+
+    /// Replace delimiter spelling without reparsing the body or relocating its spans.
+    pub fn set_delimiter(&mut self, delimiter: &'a str) {
+        self.delimiter = delimiter;
+    }
+
+    /// Replace delimiter spans without relocating the body or the block span.
+    pub fn set_delimiter_locations(&mut self, open: Option<Location>, close: Option<Location>) {
+        self.open_delimiter_location = open;
+        self.close_delimiter_location = close;
+    }
+
+    /// Replace the block span without relocating its body or delimiters.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 }
 

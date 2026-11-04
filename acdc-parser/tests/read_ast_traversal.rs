@@ -349,7 +349,7 @@ fn deep_traversal_uses_a_heap_stack_and_can_cross_threads() -> Result<(), Error>
     });
     // Drop the constructed tree iteratively too, so the test measures traversal stack use.
     while let Block::DelimitedBlock(block) = tree {
-        let DelimitedBlockType::DelimitedOpen(mut blocks) = block.inner else {
+        let DelimitedBlockType::DelimitedOpen(mut blocks) = block.into_body() else {
             return Err("open block".into());
         };
         if blocks.is_empty() {

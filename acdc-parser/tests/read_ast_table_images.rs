@@ -260,15 +260,15 @@ fn constructed_tables_preserve_presence_and_exact_scalar_values() -> Result<(), 
     .with_title(Title::new(Vec::new()));
     let text = String::from("\"literal quotes\"");
     let pointer = text.as_ptr();
-    block
-        .metadata
+    let mut metadata = block.take_metadata();
+    metadata
         .attributes
         .set("frame".into(), AttributeValue::String(Cow::Owned(text)));
-    block.metadata.attributes.set("grid".into(), false.into());
-    block
-        .metadata
+    metadata.attributes.set("grid".into(), false.into());
+    metadata
         .attributes
         .set("stripes".into(), AttributeValue::None);
+    block.set_metadata(metadata)?;
     let table = table(BlockRef::from(&block))?;
     assert!(table.title().is_some_and(ContentRef::is_empty));
     assert_eq!(

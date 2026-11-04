@@ -17,7 +17,8 @@ fn decoration(value: TablePresentation) -> Decoration {
 }
 
 fn resolve(block: &DelimitedBlock<'_>, defaults: &DocumentAttributes<'_>) -> TablePresentation {
-    let expected = TablePresentation::from_attributes(&block.metadata, |name| defaults.get(name));
+    let expected =
+        TablePresentation::from_attributes(&block.clone_metadata(), |name| defaults.get(name));
     let actual = TablePresentation::resolve(BlockRef::from(block).attributes(), defaults.into());
     assert_eq!(actual, expected);
     assert_eq!(
@@ -116,9 +117,11 @@ fn local_values_mask_defaults_without_changing_their_meaning(
     ] {
         let mut block = empty_table();
         if let Some(local) = local {
+            let mut metadata = block.take_metadata();
             for name in ["frame", "grid", "stripes"] {
-                block.metadata.attributes.set(name.into(), local.clone());
+                metadata.attributes.set(name.into(), local.clone());
             }
+            block.set_metadata(metadata)?;
         }
         assert_eq!(
             decoration(resolve(
@@ -209,7 +212,7 @@ fn lookup_resolution_uses_body_assignments_and_unsets_without_updating_tables(
             assert_eq!(Some(resolved), stored);
             assert_eq!(
                 resolved,
-                TablePresentation::from_attributes(&unresolved.metadata, lookup)
+                TablePresentation::from_attributes(&unresolved.clone_metadata(), lookup)
             );
             assert_eq!(table.presentation(), stored);
             assert_eq!(constructed.presentation(), None);
@@ -232,16 +235,18 @@ fn lookup_resolution_uses_body_assignments_and_unsets_without_updating_tables(
 }
 
 #[test]
-fn local_values_mask_lookup_defaults_without_requesting_them() {
+fn local_values_mask_lookup_defaults_without_requesting_them() -> Result<(), Error> {
     for value in [
         AttributeValue::None,
         AttributeValue::Bool(false),
         AttributeValue::from(""),
     ] {
         let mut block = empty_table();
+        let mut metadata = block.take_metadata();
         for name in ["frame", "grid", "stripes"] {
-            block.metadata.attributes.set(name.into(), value.clone());
+            metadata.attributes.set(name.into(), value.clone());
         }
+        block.set_metadata(metadata)?;
         let mut requested = Vec::new();
         let resolved =
             TablePresentation::resolve_with(BlockRef::from(&block).attributes(), |name| {
@@ -256,4 +261,5 @@ fn local_values_mask_lookup_defaults_without_requesting_them() {
         };
         assert_eq!(decoration(resolved), expected);
     }
+    Ok(())
 }

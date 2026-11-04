@@ -20,11 +20,11 @@ fn table_ref<'a>(block: &'a Block<'a>) -> TestResult<TableRef<'a>> {
     Ok(table)
 }
 
-fn owner_table<'a>(block: &'a Block<'a>) -> TestResult<&'a Table<'a>> {
+fn owner_table<'a>(block: &'a Block<'a>) -> TestResult<Table<'a>> {
     let Block::DelimitedBlock(block) = block else {
         return Err("expected delimited block".into());
     };
-    let DelimitedBlockType::DelimitedTable(table) = &block.inner else {
+    let DelimitedBlockType::DelimitedTable(table) = block.clone_body() else {
         return Err("expected table".into());
     };
     Ok(table)
@@ -41,10 +41,10 @@ fn table_block(table: Table<'_>) -> Block<'_> {
 fn assert_legacy_matches(block: &Block<'_>, width: usize) -> TestResult {
     let table = table_ref(block)?;
     let owner = owner_table(block)?;
-    assert_eq!(column_count(table), determine_column_count(owner));
-    assert_eq!(has_spans(table), table_has_spans(owner));
+    assert_eq!(column_count(table), determine_column_count(&owner));
+    assert_eq!(has_spans(table), table_has_spans(&owner));
     let typed = grid_rows(table, width);
-    let legacy = build_grid(owner, width);
+    let legacy = build_grid(&owner, width);
     assert_eq!(typed.len(), legacy.len());
     for (typed, legacy) in typed.iter().zip(&legacy) {
         assert_eq!(typed.cells, legacy.cells);
@@ -184,7 +184,8 @@ fn typed_grids_preserve_truncation_padding_and_constructed_spans() -> TestResult
         .map(acdc_parser::Block::from)
         .collect();
     let seed_block = parsed_blocks.first().ok_or("seed table")?;
-    let seed = owner_table(seed_block)?
+    let seed_table = owner_table(seed_block)?;
+    let seed = seed_table
         .rows
         .first()
         .and_then(|row| row.columns.first())
@@ -208,7 +209,7 @@ fn typed_grids_preserve_truncation_padding_and_constructed_spans() -> TestResult
     );
     assert_eq!(column_count(table_ref(&block)?), 3);
     assert!(has_spans(table_ref(&block)?));
-    let inferred_spans = table_block(owner_table(&block)?.clone().with_columns(Vec::new()));
+    let inferred_spans = table_block(owner_table(&block)?.with_columns(Vec::new()));
     assert_eq!(column_count(table_ref(&inferred_spans)?), 9);
     assert_legacy_matches(&inferred_spans, 9)?;
     for width in [0, 1, 2, 3, 8, 10] {

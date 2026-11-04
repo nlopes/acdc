@@ -3524,7 +3524,8 @@ fn unresolved_table_decoration_matches_the_parsed_presentation() -> Result<(), E
             let Some(Block::DelimitedBlock(block)) = blocks.first_mut() else {
                 return Err("expected table block".into());
             };
-            let DelimitedBlockType::DelimitedTable(table) = &mut block.inner else {
+            let mut body = block.clone_body();
+            let DelimitedBlockType::DelimitedTable(table) = &mut body else {
                 return Err("expected table".into());
             };
             assert!(table.presentation().is_some());
@@ -3533,6 +3534,7 @@ fn unresolved_table_decoration_matches_the_parsed_presentation() -> Result<(), E
                 .with_footer(table.footer.clone())
                 .with_columns(table.columns.clone());
             assert!(table.presentation().is_none());
+            block.replace_body(body);
             unresolved.set_blocks(blocks);
             for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
                 let processor = Processor::new_with_variant(
@@ -3606,7 +3608,7 @@ fn checked_table_metadata_edits_reach_rendered_decoration(
                 }
             })
             .ok_or("missing table")?;
-        let mut metadata = block.metadata.clone();
+        let mut metadata = block.clone_metadata();
         for (name, value) in ["frame", "grid", "stripes"].into_iter().zip(
             declarations.map_or([None; 3], |(frame, grid, stripes)| {
                 [Some(frame), Some(grid), Some(stripes)]

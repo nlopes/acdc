@@ -428,7 +428,7 @@ mod tests {
         let Block::DelimitedBlock(block) = blocks.first().ok_or("missing table block")? else {
             return Err("missing table block".into());
         };
-        let acdc_parser::DelimitedBlockType::DelimitedTable(table) = &block.inner else {
+        let acdc_parser::DelimitedBlockType::DelimitedTable(table) = &block.clone_body() else {
             return Err("missing table".into());
         };
         let mut context = TraversalContext::new(DocumentRef::from(&parsed_document).attributes());

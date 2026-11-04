@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `DelimitedBlock` and `Admonition` fields are private. Read through
+  typed block handles and edit prepared values with owned methods. Delimited
+  body transfers retain source lifetimes; edits keep the original source snapshot
+  and form. Removing metadata or replacing a table body refreshes decoration
+  against that table's source-position defaults. Edits do not rebuild catalogs.
+
 - **Breaking:** block `Image`, `Audio`, and `Video` fields are private. Use their
   `ast` readers and owned edit methods. `replace_source` transfers the complete
   previous target without splitting playlists. Image alt content stays separate

@@ -454,9 +454,9 @@ mod tests {
                 .iter()
                 .find_map(|block| {
                     if let Block::DelimitedBlock(db) = block
-                        && let DelimitedBlockType::DelimitedTable(table) = &db.inner
+                        && let DelimitedBlockType::DelimitedTable(table) = db.clone_body()
                     {
-                        return Some(table.clone());
+                        return Some(table);
                     }
                     None
                 })

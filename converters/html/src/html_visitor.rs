@@ -1402,7 +1402,7 @@ mod title_media_tests {
                 let mut metadata = if let Block::Paragraph(node) = block {
                     node.clone_metadata()
                 } else if let Block::DelimitedBlock(node) = block {
-                    node.metadata.clone()
+                    node.clone_metadata()
                 } else {
                     return Err("expected quote".into());
                 };
@@ -1421,7 +1421,10 @@ mod title_media_tests {
                     metadata.attributes.remove("citetitle");
                     node.set_metadata(metadata)?;
                 } else if let Block::DelimitedBlock(node) = block {
-                    node.metadata = metadata;
+                    assert!(node.set_metadata(metadata.clone()).is_err());
+                    metadata.attributes.remove("attribution");
+                    metadata.attributes.remove("citetitle");
+                    node.set_metadata(metadata)?;
                 }
             }
             document.set_blocks(blocks);
@@ -1807,10 +1810,10 @@ mod title_media_tests {
         document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
         let mut blocks: Vec<_> = document.take_blocks().collect();
         for block in &mut blocks {
-            let metadata = if let Block::Admonition(admonition) = block {
-                &mut admonition.metadata
+            let mut metadata = if let Block::Admonition(admonition) = block {
+                admonition.clone_metadata()
             } else if let Block::DelimitedBlock(block) = block {
-                &mut block.metadata
+                block.clone_metadata()
             } else {
                 return Err("expected compound block".into());
             };
@@ -1828,6 +1831,13 @@ mod title_media_tests {
             metadata
                 .attributes
                 .set("icon".into(), AttributeValue::Bool(false));
+            if let Block::Admonition(admonition) = block {
+                admonition.set_metadata(metadata)?;
+            } else if let Block::DelimitedBlock(block) = block {
+                block.set_metadata(metadata)?;
+            } else {
+                return Err("expected compound block".into());
+            }
         }
         document.set_blocks(blocks);
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {

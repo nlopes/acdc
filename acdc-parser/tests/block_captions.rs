@@ -18,7 +18,7 @@ fn caption<'a>(block: &Block<'a>) -> Option<Caption<'a>> {
         return paragraph.clone_metadata().caption;
     }
     if let Block::DelimitedBlock(delimited) = block {
-        return delimited.metadata.caption.clone();
+        return delimited.clone_metadata().caption;
     }
     if let Block::Image(image) = block {
         return image.clone_metadata().caption;
@@ -123,7 +123,7 @@ fn nested_examples_are_numbered_inner_first() -> Result<(), Error> {
     let Block::DelimitedBlock(delimited) = outer else {
         return Err("expected a delimited example".into());
     };
-    let DelimitedExample(inner_blocks) = &delimited.inner else {
+    let DelimitedExample(inner_blocks) = &delimited.clone_body() else {
         return Err("expected example content".into());
     };
     let inner = inner_blocks.first().ok_or("expected an inner block")?;
@@ -199,7 +199,7 @@ fn table_headers_do_not_consume_body_and_footer_caption_numbers() -> Result<(), 
     let Some(Block::DelimitedBlock(delimited)) = blocks.first() else {
         return Err(format!("expected a table, got {blocks:?}").into());
     };
-    let DelimitedBlockType::DelimitedTable(table) = &delimited.inner else {
+    let DelimitedBlockType::DelimitedTable(table) = &delimited.clone_body() else {
         return Err("expected table content".into());
     };
 
@@ -506,7 +506,14 @@ fn renumber_captions_restores_numbering_after_a_mutation() -> Result<(), Error> 
             };
             numbered(block)
                 .and_then(|(_, _, number)| number)
-                .map(|number| (delimited.location.absolute_start, number))
+                .map(|number| {
+                    (
+                        acdc_parser::ast::BlockRef::from(delimited)
+                            .location()
+                            .absolute_start(),
+                        number,
+                    )
+                })
         })
         .collect();
     let [(first_start, first_number), (second_start, second_number)] = placed.as_slice() else {
@@ -887,7 +894,8 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
     let Some(Block::DelimitedBlock(delimited)) = blocks.first_mut() else {
         return Err("expected a table".into());
     };
-    let DelimitedBlockType::DelimitedTable(table) = &mut delimited.inner else {
+    let mut body = delimited.clone_body();
+    let DelimitedBlockType::DelimitedTable(table) = &mut body else {
         return Err("expected table content".into());
     };
     let block = table
@@ -915,6 +923,7 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
         number: NonZeroU32::new(77),
     });
     paragraph.set_metadata(metadata)?;
+    delimited.replace_body(body);
     document.set_blocks(blocks);
     assert_eq!(document.highest_caption_number(CaptionKind::Example), 77);
     document.renumber_captions();

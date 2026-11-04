@@ -9,20 +9,22 @@ use serde::{
 
 use crate::{Error, SourceLocation};
 
-use super::location::{Location, Position};
-use super::metadata::BlockMetadata;
-use super::title::Title;
-use super::{Block, Paragraph};
+use super::{
+    Block, Paragraph,
+    location::{Location, Position},
+    metadata::BlockMetadata,
+    title::Title,
+};
 
 /// An `Admonition` represents an admonition in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Admonition<'a> {
-    pub metadata: BlockMetadata<'a>,
-    pub variant: AdmonitionVariant,
-    pub blocks: Vec<Block<'a>>,
-    pub title: Title<'a>,
-    pub location: Location,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) variant: AdmonitionVariant,
+    pub(crate) blocks: Vec<Block<'a>>,
+    pub(crate) title: Title<'a>,
+    pub(crate) location: Location,
     pub(crate) paragraph_form: bool,
 }
 
@@ -114,16 +116,78 @@ impl<'a> Admonition<'a> {
         mut self,
         metadata: BlockMetadata<'a>,
     ) -> Result<Self, crate::ReservedAttribute> {
-        metadata.validate_attributes(&["title"])?;
-        self.metadata = metadata;
+        self.set_metadata(metadata)?;
         Ok(self)
     }
 
     /// Set the title.
     #[must_use]
     pub fn with_title(mut self, title: Title<'a>) -> Self {
-        self.title = title;
+        self.set_title(title);
         self
+    }
+
+    /// Replace metadata without shadowing dedicated fields.
+    ///
+    /// # Errors
+    /// Rejects conflicting scalar attributes without changing the admonition.
+    pub fn set_metadata(
+        &mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<(), crate::ReservedAttribute> {
+        metadata.validate_attributes(&["title"])?;
+        self.metadata = metadata;
+        Ok(())
+    }
+
+    /// Copy metadata to prepare a checked replacement without copying children.
+    #[must_use]
+    pub fn clone_metadata(&self) -> BlockMetadata<'a> {
+        self.metadata.clone()
+    }
+
+    /// Remove metadata without changing children or their substitution settings.
+    #[must_use]
+    pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
+        mem::take(&mut self.metadata)
+    }
+
+    /// Replace the title, including an explicitly empty value.
+    pub fn set_title(&mut self, title: Title<'a>) {
+        self.title = title;
+    }
+
+    /// Remove the title, leaving it absent.
+    #[must_use]
+    pub fn take_title(&mut self) -> Title<'a> {
+        mem::take(&mut self.title)
+    }
+
+    /// Replace prepared children without changing source form or registrations.
+    pub fn set_blocks(&mut self, blocks: impl IntoIterator<Item = Block<'a>>) {
+        self.blocks = blocks.into_iter().collect();
+    }
+
+    /// Append a prepared child without changing source form or registrations.
+    pub fn push_block(&mut self, block: Block<'a>) {
+        self.blocks.push(block);
+    }
+
+    /// Remove children, retaining source form and each child's source lifetime.
+    pub fn take_blocks(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = Block<'a>> + ExactSizeIterator + use<'a> {
+        mem::take(&mut self.blocks).into_iter()
+    }
+
+    /// Replace the admonition category without rewriting child metadata.
+    pub fn set_variant(&mut self, variant: AdmonitionVariant) {
+        self.variant = variant;
+    }
+
+    /// Replace the block span without relocating children.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 }
 

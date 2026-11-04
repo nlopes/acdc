@@ -81,7 +81,7 @@ fn block_copies_keep_source_position_table_defaults_and_edit_isolation(
             copied.close_delimiter_location(),
             original.close_delimiter_location()
         );
-        let mut metadata = copy.metadata.clone();
+        let mut metadata = copy.clone_metadata();
         metadata.attributes.set("frame".into(), "none".into());
         copy.set_metadata(metadata)?;
         let BlockKind::Table(copied) = BlockRef::from(&copy).kind() else {

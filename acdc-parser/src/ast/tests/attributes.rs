@@ -175,3 +175,37 @@ fn block_audio_title_content_suppresses_stale_scalar_metadata() -> Result<(), Er
     assert_content(read.attributes(), "title", read.title());
     Ok(())
 }
+
+#[test]
+fn delimited_quote_content_suppresses_stale_scalar_attribution() -> Result<(), Error> {
+    use crate::{AttributeValue, DelimitedBlock, DelimitedBlockType};
+
+    for (author, citation) in [(false, false), (true, false), (false, true), (true, true)] {
+        let mut block = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedQuote(Vec::new()),
+            "____",
+            Location::default(),
+        );
+        block.metadata.attribution = author.then(ContentAttribute::default);
+        block.metadata.citetitle = citation.then(ContentAttribute::default);
+        block
+            .metadata
+            .attributes
+            .set("attribution".into(), AttributeValue::from("SHADOW AUTHOR"));
+        block
+            .metadata
+            .attributes
+            .set("citetitle".into(), AttributeValue::from("SHADOW BOOK"));
+        block.metadata.roles = vec!["", "one", "one"];
+        let BlockKind::Quote(quote) = BlockRef::from(&block).kind() else {
+            return Err("quote".into());
+        };
+        assert_eq!(quote.attribution().is_some(), author);
+        assert_eq!(quote.citetitle().is_some(), citation);
+        assert_eq!(quote.roles().iter().collect::<Vec<_>>(), ["", "one", "one"]);
+        assert_content(quote.attributes(), "attribution", quote.attribution());
+        assert_content(quote.attributes(), "citetitle", quote.citetitle());
+        assert_inventory(quote.attributes());
+    }
+    Ok(())
+}

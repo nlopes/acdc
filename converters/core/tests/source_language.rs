@@ -123,7 +123,7 @@ fn parsed_paragraphs_and_delimited_blocks_keep_language_controls() -> Result<(),
             let metadata = if let acdc_parser::Block::Paragraph(paragraph) = block {
                 paragraph.clone_metadata()
             } else if let acdc_parser::Block::DelimitedBlock(block) = block {
-                block.metadata.clone()
+                block.clone_metadata()
             } else {
                 return Err("expected source or listing block".into());
             };

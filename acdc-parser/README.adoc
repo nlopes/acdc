@@ -151,6 +151,15 @@ absent versus empty content. Audio and video retain scalar `alt` as an extension
 attribute. Images reject it in scalar metadata because they have dedicated
 content for it.
 
+Delimited blocks and admonitions also use checked metadata and prepared title
+edits. `DelimitedBlock::replace_body` returns the previous body;
+`clone_body` prepares an independent replacement and `into_body` consumes the
+owner. Table decoration uses the incoming table's source-position defaults and
+the owner's local metadata. Removing metadata restores those defaults.
+Admonition `set_blocks`, `take_blocks`, and `push_block` keep the original source form.
+Body edits retain source snapshots and do not rebuild document registrations;
+delimiter and span setters do not reparse or relocate children.
+
 `IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
 option tokens. An icon ID is retained even when a converter does not emit it.
 To construct an icon, use `Icon::new(target, location)` and edit its content and

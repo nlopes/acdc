@@ -31,7 +31,7 @@ fn constructed_tables_remain_unresolved_after_metadata_edits() -> Result<(), Err
         table(&block)?.declared_frame(),
         Some(AttributeValueRef::Text("none"))
     );
-    let mut metadata = block.metadata.clone();
+    let mut metadata = block.clone_metadata();
     metadata.attributes.remove("frame");
     let block = block.with_metadata(metadata)?;
     assert_eq!(table(&block)?.presentation(), None);

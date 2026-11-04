@@ -196,7 +196,7 @@ fn index_detection_preserves_stored_cell_style_fallback_in_every_row_group() -> 
         let Some(Block::DelimitedBlock(block)) = parsed_blocks.first() else {
             return Err("missing table block".into());
         };
-        let DelimitedBlockType::DelimitedTable(seed) = &block.inner else {
+        let DelimitedBlockType::DelimitedTable(seed) = &block.clone_body() else {
             return Err("missing table".into());
         };
         let mut row = seed.rows.first().ok_or("missing table row")?.clone();

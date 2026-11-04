@@ -219,7 +219,8 @@ fn unresolved_tables_preserve_body_and_nested_cell_decoration() -> Result<(), Er
             let acdc_parser::Block::DelimitedBlock(block) = block else {
                 continue;
             };
-            let acdc_parser::DelimitedBlockType::DelimitedTable(table) = &mut block.inner else {
+            let mut body = block.clone_body();
+            let acdc_parser::DelimitedBlockType::DelimitedTable(table) = &mut body else {
                 continue;
             };
             for row in table
@@ -237,6 +238,7 @@ fn unresolved_tables_preserve_body_and_nested_cell_decoration() -> Result<(), Er
                     .with_header(table.header.take())
                     .with_footer(table.footer.take())
                     .with_columns(std::mem::take(&mut table.columns));
+            block.replace_body(body);
         }
     }
 

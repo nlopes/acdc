@@ -312,8 +312,10 @@ fn constructed_blocks_keep_empty_content_and_optional_source() -> Result<(), Err
         "",
         Location::default(),
     );
-    owner.metadata.attribution = Some(ContentAttribute::default());
-    owner.metadata.caption = Some(Caption::CustomContent(ContentAttribute::default()));
+    let mut metadata = owner.take_metadata();
+    metadata.attribution = Some(ContentAttribute::default());
+    metadata.caption = Some(Caption::CustomContent(ContentAttribute::default()));
+    owner.set_metadata(metadata)?;
     let BlockKind::Quote(quote) = BlockRef::from(&owner).kind() else {
         return Err("quote".into());
     };

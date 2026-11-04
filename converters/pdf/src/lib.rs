@@ -3294,7 +3294,7 @@ mod tests {
         let Some(Block::DelimitedBlock(mut title_added)) = parsed_blocks.first().cloned() else {
             return Err(IoError::other("expected a delimited example").into());
         };
-        title_added.title = title("Added later");
+        title_added.set_title(title("Added later"));
 
         let mut document = Document::default();
         document.set_attributes(acdc_parser::DocumentAttributes::from(
@@ -3390,7 +3390,7 @@ mod tests {
             return Err(IoError::other("expected a delimited table").into());
         };
         let caller_built =
-            DelimitedBlock::new(parsed_table.inner.clone(), "|===", Location::default())
+            DelimitedBlock::new(parsed_table.clone_body(), "|===", Location::default())
                 .with_title(title("Caller-built table"));
 
         let mut document = Document::default();
