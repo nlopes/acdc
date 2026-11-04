@@ -1,4 +1,8 @@
-use acdc_parser::{Block, DocumentAttributeValue, InlineNode, Options, parse};
+use acdc_parser::{
+    DocumentAttributeValue, Options,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -31,8 +35,8 @@ fn document_attribute_text_pass_stores_definition_time_results() -> Result<(), E
     ] {
         assert_eq!(
             parsed
-                .document()
-                .attributes
+                .document_ref()
+                .attributes()
                 .get(name)
                 .and_then(DocumentAttributeValue::text),
             Some(expected),
@@ -77,8 +81,8 @@ fn document_attribute_text_pass_preserves_caller_policy() -> Result<(), Error> {
         let parsed = parse(source, &options)?;
         assert_eq!(
             parsed
-                .document()
-                .attributes
+                .document_ref()
+                .attributes()
                 .get("value")
                 .and_then(DocumentAttributeValue::text),
             Some(expected)
@@ -93,30 +97,35 @@ fn document_attribute_text_pass_keeps_complete_reference_spans() -> Result<(), E
         for marker in ["", "*", "_", "`"] {
             let source = format!("= T\n:raw: pass:c[{value}]\n\nα {marker}{{raw}}{marker} ω.\n");
             let parsed = parse(&source, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let [BlockKind::Paragraph(paragraph)] = &*parsed
+                .document_ref()
+                .blocks()
+                .map(BlockRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err("expected paragraph".into());
             };
-            let mut nodes: Vec<_> = paragraph.content.iter().collect();
+            let mut nodes: Vec<_> = paragraph.content().inlines().collect();
             let mut count = 0;
             while let Some(node) = nodes.pop() {
-                if let InlineNode::BoldText(bold) = node {
-                    nodes.extend(&bold.content);
-                } else if let InlineNode::ItalicText(italic) = node {
-                    nodes.extend(&italic.content);
-                } else if let InlineNode::MonospaceText(mono) = node {
-                    nodes.extend(&mono.content);
+                if let InlineKind::Bold(bold) = node.kind() {
+                    nodes.extend(bold.content().inlines());
+                } else if let InlineKind::Italic(italic) = node.kind() {
+                    nodes.extend(italic.content().inlines());
+                } else if let InlineKind::Monospace(mono) = node.kind() {
+                    nodes.extend(mono.content().inlines());
                 } else if matches!(
-                    node,
-                    InlineNode::RawText(_) | InlineNode::CharacterReference(_)
+                    node.kind(),
+                    InlineKind::Raw(_) | InlineKind::CharacterReference(_)
                 ) {
                     count += 1;
                     assert_eq!(
                         &parsed.source()
-                            [node.location().absolute_start..=node.location().absolute_end],
+                            [node.location().absolute_start()..=node.location().absolute_end()],
                         "{raw}"
                     );
-                    assert_eq!(node.location().start.line, 4);
-                    assert_eq!(node.location().end.line, 4);
+                    assert_eq!(node.location().start().line(), 4);
+                    assert_eq!(node.location().end().line(), 4);
                 }
             }
             assert!(count > 0, "{source}");
@@ -149,11 +158,16 @@ fn document_attribute_text_pass_resolves_include_targets() -> Result<(), Error> 
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
             .build()?,
     )?;
-    let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(paragraph)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected included paragraph".into());
     };
     assert!(
-        matches!(paragraph.content.as_slice(), [InlineNode::PlainText(text)] if text.content == "Included.")
+        matches!(&*paragraph.content().inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Plain(text)] if text.text() == "Included.")
     );
     Ok(())
 }

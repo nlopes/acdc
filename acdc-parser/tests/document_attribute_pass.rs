@@ -1,12 +1,16 @@
-use acdc_parser::{AttributeValue, Block, DocumentAttributeValue, InlineNode, Options, parse};
+use acdc_parser::{
+    AttributeValue, DocumentAttributeValue, Options,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
-fn plain_text<'a>(node: &InlineNode<'a>) -> Result<&'a str, Error> {
-    if let InlineNode::PlainText(text) = node {
-        Ok(text.content)
-    } else if let InlineNode::RawText(text) = node {
-        Ok(text.content)
+fn plain_text(node: InlineRef<'_>) -> Result<&str, Error> {
+    if let InlineKind::Plain(text) = node.kind() {
+        Ok(text.text())
+    } else if let InlineKind::Raw(text) = node.kind() {
+        Ok(text.text())
     } else {
         Err(format!("expected text, got {node:?}").into())
     }
@@ -32,8 +36,8 @@ fn document_attribute_pass_resolves_once_at_definition() -> Result<(), Error> {
     ] {
         assert_eq!(
             parsed
-                .document()
-                .attributes
+                .document_ref()
+                .attributes()
                 .get(name)
                 .and_then(DocumentAttributeValue::text),
             Some(expected),
@@ -71,19 +75,21 @@ fn document_attribute_pass_preserves_caller_policy() -> Result<(), Error> {
         let parsed = parse(source, &options)?;
         assert_eq!(
             parsed
-                .document()
-                .attributes
+                .document_ref()
+                .attributes()
                 .get("value")
                 .and_then(DocumentAttributeValue::text),
             Some(expected_header)
         );
-        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.last() else {
+        let Some(BlockKind::Paragraph(paragraph)) =
+            parsed.document_ref().blocks().last().map(BlockRef::kind)
+        else {
             return Err("expected body paragraph".into());
         };
         assert_eq!(
             paragraph
-                .content
-                .iter()
+                .content()
+                .inlines()
                 .map(plain_text)
                 .collect::<Result<String, Error>>()?,
             expected_body
@@ -92,9 +98,9 @@ fn document_attribute_pass_preserves_caller_policy() -> Result<(), Error> {
     let options = Options::builder().with_attribute("value", false).build()?;
     assert!(
         !parse(source, &options)?
-            .document()
-            .attributes
-            .contains_key("value")
+            .document_ref()
+            .attributes()
+            .contains("value")
     );
     Ok(())
 }
@@ -106,22 +112,21 @@ fn document_attribute_pass_is_available_to_conditionals() -> Result<(), Error> {
         let parsed = parse(&source, &Options::default())?;
         assert_eq!(
             parsed
-                .document()
-                .attributes
+                .document_ref()
+                .attributes()
                 .get("value")
                 .and_then(DocumentAttributeValue::text),
             Some("{name}")
         );
-        assert!(parsed.document().attributes.contains_key("empty"));
+        assert!(parsed.document_ref().attributes().contains("empty"));
         let text: String = parsed
-            .document()
-            .blocks
-            .iter()
+            .document_ref()
+            .blocks()
             .filter_map(|block| {
-                if let Block::Paragraph(p) = block {
+                if let BlockKind::Paragraph(p) = block.kind() {
                     Some(
-                        p.content
-                            .iter()
+                        p.content()
+                            .inlines()
                             .map(plain_text)
                             .collect::<Result<String, Error>>(),
                     )
@@ -146,13 +151,18 @@ fn document_attribute_pass_is_available_to_include_targets() -> Result<(), Error
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
             .build()?,
     )?;
-    let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(paragraph)] = &*parsed
+        .document_ref()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected included paragraph".into());
     };
     assert_eq!(
         paragraph
-            .content
-            .iter()
+            .content()
+            .inlines()
             .map(plain_text)
             .collect::<Result<String, Error>>()?,
         "Included."
@@ -166,31 +176,36 @@ fn document_attribute_pass_raw_fragments_keep_reference_locations() -> Result<()
         for marker in ["", "*", "_", "`"] {
             let source = format!("= T\n:raw: pass:[{value}]\n\nα {marker}{{raw}}{marker} ω.\n");
             let parsed = parse(&source, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let [BlockKind::Paragraph(paragraph)] = &*parsed
+                .document_ref()
+                .blocks()
+                .map(BlockRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err("expected paragraph".into());
             };
-            let mut nodes: Vec<_> = paragraph.content.iter().collect();
+            let mut nodes: Vec<_> = paragraph.content().inlines().collect();
             let mut raw_count = 0;
             while let Some(node) = nodes.pop() {
-                if let InlineNode::BoldText(b) = node {
-                    nodes.extend(&b.content);
-                } else if let InlineNode::ItalicText(i) = node {
-                    nodes.extend(&i.content);
-                } else if let InlineNode::MonospaceText(m) = node {
-                    nodes.extend(&m.content);
+                if let InlineKind::Bold(b) = node.kind() {
+                    nodes.extend(b.content().inlines());
+                } else if let InlineKind::Italic(i) = node.kind() {
+                    nodes.extend(i.content().inlines());
+                } else if let InlineKind::Monospace(m) = node.kind() {
+                    nodes.extend(m.content().inlines());
                 }
                 if matches!(
-                    node,
-                    InlineNode::RawText(_) | InlineNode::CharacterReference(_)
+                    node.kind(),
+                    InlineKind::Raw(_) | InlineKind::CharacterReference(_)
                 ) {
                     raw_count += 1;
                     let location = node.location();
                     assert_eq!(
-                        &parsed.source()[location.absolute_start..=location.absolute_end],
+                        &parsed.source()[location.absolute_start()..=location.absolute_end()],
                         "{raw}"
                     );
-                    assert_eq!(location.start.line, 4);
-                    assert_eq!(location.end.line, 4);
+                    assert_eq!(location.start().line(), 4);
+                    assert_eq!(location.end().line(), 4);
                 }
             }
             assert!(raw_count > 0, "{source}");
@@ -207,8 +222,8 @@ fn document_attribute_pass_explicit_quotes_do_not_expand_attributes() -> Result<
     )?;
     assert_eq!(
         parsed
-            .document()
-            .attributes
+            .document_ref()
+            .attributes()
             .get("value")
             .and_then(DocumentAttributeValue::text),
         Some("*{name}*")

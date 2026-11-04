@@ -1,4 +1,8 @@
-use acdc_parser::{Block, CompatibilityMode, InlineMacro, InlineNode, Options, parse};
+use acdc_parser::{
+    CompatibilityMode, Options,
+    ast::{BlockKind, BlockRef, ContentRef, InlineKind, InlineRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -18,20 +22,27 @@ fn formatted_values_keep_missing_and_escaped_references_literal(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.last() else {
+    let Some(BlockKind::Paragraph(paragraph)) =
+        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    else {
         return Err("missing paragraph".into());
     };
-    let [InlineNode::BoldText(bold)] = paragraph.content.as_slice() else {
-        return Err(format!("missing bold span: {:?}", paragraph.content).into());
+    let [InlineKind::Bold(bold)] = &*paragraph
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err(format!("missing bold span: {:?}", paragraph.content()).into());
     };
     let text = bold
-        .content
-        .iter()
+        .content()
+        .inlines()
         .filter_map(|node| {
-            if let InlineNode::RawText(text) = node {
-                Some(text.content)
-            } else if let InlineNode::PlainText(text) = node {
-                Some(text.content)
+            if let InlineKind::Raw(text) = node.kind() {
+                Some(text.text())
+            } else if let InlineKind::Plain(text) = node.kind() {
+                Some(text.text())
             } else {
                 None
             }
@@ -39,19 +50,19 @@ fn formatted_values_keep_missing_and_escaped_references_literal(
         .collect::<String>();
     assert_eq!(text, expected);
     assert_eq!(
-        source.get(bold.location.absolute_start..=bold.location.absolute_end),
+        source.get(bold.location().absolute_start()..=bold.location().absolute_end()),
         Some(format!("{{{name}}}").as_str())
     );
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }
 
-fn active_stage(nodes: &[InlineNode<'_>], stage: &str) -> usize {
-    nodes.iter().filter(|node| match stage {
-        "q" => matches!(node, InlineNode::BoldText(_)),
-        "m" => matches!(node, InlineNode::Macro(InlineMacro::Url(_) | InlineMacro::Link(_) | InlineMacro::Autolink(_))),
-        "r" => matches!(node, InlineNode::Symbol(symbol) if symbol.kind == acdc_parser::SymbolKind::Copyright),
-        "p" => matches!(node, InlineNode::LineBreak(_)),
+fn active_stage(nodes: ContentRef<'_>, stage: &str) -> usize {
+    nodes.inlines().filter(|node| match stage {
+        "q" => matches!(node.kind(), InlineKind::Bold(_)),
+        "m" => matches!(node.kind(), InlineKind::Url(_) | InlineKind::Link(_) | InlineKind::Autolink(_)),
+        "r" => matches!(node.kind(), InlineKind::Symbol(symbol) if symbol.kind() == acdc_parser::SymbolKind::Copyright),
+        "p" => matches!(node.kind(), InlineKind::LineBreak(_)),
         _ => false,
     }).count()
 }
@@ -77,11 +88,10 @@ fn formatted_values_apply_stages_in_declared_order(
             .build()?,
     )?;
     let paragraphs: Vec<_> = parsed
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .filter_map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return None;
             };
             Some(paragraph)
@@ -90,22 +100,28 @@ fn formatted_values_apply_stages_in_declared_order(
     assert_eq!(paragraphs.len(), 2);
     assert_eq!(
         active_stage(
-            &paragraphs.first().ok_or("missing first paragraph")?.content,
+            paragraphs
+                .first()
+                .ok_or("missing first paragraph")?
+                .content(),
             stage
         ),
         0
     );
     assert_eq!(
         active_stage(
-            &paragraphs.last().ok_or("missing second paragraph")?.content,
+            paragraphs
+                .last()
+                .ok_or("missing second paragraph")?
+                .content(),
             stage
         ),
         1
     );
     assert_eq!(
         parsed
-            .document()
-            .attributes
+            .document_ref()
+            .attributes()
             .get("first")
             .and_then(acdc_parser::DocumentAttributeValue::text),
         Some(input)
@@ -122,24 +138,24 @@ fn formatted_values_preserve_macro_stage_bodies_without_unused_registrations(
         include_str!("../fixtures/tests/compatibility_formatted_attribute_snapshots.adoc"),
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [note] = parsed.document().footnotes.as_slice() else {
+    let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
         return Err("expected only the used named note".into());
     };
     let text = note
-        .content
-        .iter()
+        .content()
+        .inlines()
         .filter_map(|node| {
-            if let InlineNode::PlainText(text) = node {
-                Some(text.content)
-            } else if let InlineNode::RawText(text) = node {
-                Some(text.content)
+            if let InlineKind::Plain(text) = node.kind() {
+                Some(text.text())
+            } else if let InlineKind::Raw(text) = node.kind() {
+                Some(text.text())
             } else {
                 None
             }
         })
         .collect::<String>();
     assert_eq!(text, "{name}");
-    assert!(!parsed.document().references.contains_key("unused"));
+    assert!(!parsed.document_ref().references().contains("unused"));
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }

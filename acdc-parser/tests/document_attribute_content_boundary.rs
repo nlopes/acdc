@@ -1,7 +1,9 @@
 use std::borrow::Cow;
 
 use acdc_parser::{
-    AttributeValue, Block, CompatibilityMode, DocumentAttributeValue, InlineNode, Options, parse,
+    AttributeValue, CompatibilityMode, DocumentAttributeValue, DocumentAttributes, Options,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -17,7 +19,7 @@ fn document_value_inputs_preserve_text_presence_unsets_and_integer_spelling() ->
             "= T\n:toclevels: 0003\n:present:\n:empty: pass:[]\n:unset!:\n:formatted: pass:q[*Early*]\n:raw: pass:[<raw> &]\n:alias: {formatted} / {raw}\n\nBody.\n",
             &options,
         )?;
-        let attributes = &parsed.document().attributes;
+        let attributes = parsed.document_ref().attributes();
         for (name, expected) in [
             ("toclevels", "0003"),
             ("max-include-depth", "0003"),
@@ -49,7 +51,8 @@ fn document_value_inputs_preserve_text_presence_unsets_and_integer_spelling() ->
             AttributeValue::from(attributes.assignment("unset").ok_or("missing unset")?),
             AttributeValue::Bool(false)
         );
-        let inputs: std::collections::HashMap<_, _> = attributes.clone().into_inputs().collect();
+        let inputs: std::collections::HashMap<_, _> =
+            DocumentAttributes::from(attributes).into_inputs().collect();
         assert_eq!(inputs.get("toclevels"), Some(&AttributeValue::from("0003")));
         assert_eq!(inputs.get("unset"), Some(&AttributeValue::None));
     }
@@ -66,7 +69,7 @@ fn parsed_snapshots_retain_prepared_fragments_and_definition_time_references() -
                 "= T\n:name: Early\n:formatted: pass:a,q[*{name}*]\n:raw: pass:[<raw> &]\n:alias: {formatted} / {raw}\n\n:name: Late\n\nBody.\n",
                 &options,
             )?;
-            parsed.document().attributes.clone().into_static()
+            DocumentAttributes::from(parsed.document_ref().attributes()).into_static()
         };
         assert_eq!(
             snapshot.get("name").and_then(DocumentAttributeValue::text),
@@ -74,16 +77,19 @@ fn parsed_snapshots_retain_prepared_fragments_and_definition_time_references() -
         );
         let options = options.with_document_attributes(snapshot);
         let parsed = parse(".Title {alias}\nBody.\n\n{alias}\n", &options)?;
-        let [Block::Paragraph(titled), Block::Paragraph(body)] =
-            parsed.document().blocks.as_slice()
+        let [BlockKind::Paragraph(titled), BlockKind::Paragraph(body)] = &*parsed
+            .document_ref()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
         else {
             return Err("expected two paragraphs".into());
         };
-        for nodes in [titled.title.as_ref(), body.content.as_slice()] {
-            assert!(nodes.iter().any(|node| matches!(node, InlineNode::BoldText(bold) if matches!(bold.content.as_slice(), [InlineNode::RawText(text)] if text.content == "Early"))));
-            assert!(nodes.iter().any(|node| matches!(node, InlineNode::RawText(text) if text.content == "<raw> &" && text.subs.is_empty())));
+        for nodes in [titled.title().ok_or("missing title")?, body.content()] {
+            assert!(nodes.inlines().any(|node| matches!(node.kind(), InlineKind::Bold(bold) if matches!(&*bold.content().inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Raw(text)] if text.text() == "Early"))));
+            assert!(nodes.inlines().any(|node| matches!(node.kind(), InlineKind::Raw(text) if text.text() == "<raw> &" && text.substitutions().next().is_none())));
         }
-        assert_eq!(parsed.document().footnotes, []);
+        assert!(parsed.document_ref().footnotes().next().is_none());
     }
     Ok(())
 }

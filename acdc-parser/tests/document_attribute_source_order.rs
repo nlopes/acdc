@@ -1,7 +1,8 @@
 use std::fmt::Write;
 
 use acdc_parser::{
-    AttributeValue, Block, DocumentAttributeAssignment, DocumentAttributeValue, Options, SafeMode,
+    AttributeValue, DocumentAttributeAssignment, DocumentAttributeValue, Options, SafeMode,
+    ast::{BlockKind, BlockRef},
     parse,
 };
 
@@ -13,26 +14,25 @@ fn document_attributes_are_the_header_snapshot() -> Result<(), Error> {
         "= Header\n:imagesdir: header\n\nimage::before.png[]\n\n:imagesdir: body\n\nimage::after.png[]\n",
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = parsed.document_ref();
 
     assert_eq!(
         document
-            .attributes
+            .attributes()
             .get("imagesdir")
             .and_then(|value| value.text()),
         Some("header")
     );
     let event = document
-        .blocks
-        .iter()
+        .blocks()
         .find_map(|block| {
-            let Block::DocumentAttribute(attribute) = block else {
+            let BlockKind::DocumentAttribute(attribute) = block.kind() else {
                 return None;
             };
             Some(attribute)
         })
         .ok_or("expected a body attribute event")?;
-    assert_eq!(event.name, "imagesdir");
+    assert_eq!(event.name(), "imagesdir");
     assert_eq!(
         *event.assignment(),
         DocumentAttributeAssignment::Set(DocumentAttributeValue::from("body"))
@@ -49,9 +49,9 @@ fn untitled_document_attributes_are_the_header_snapshot() -> Result<(), Error> {
 
     assert!(
         parsed
-            .document()
-            .attributes
-            .contains_key("hardbreaks-option")
+            .document_ref()
+            .attributes()
+            .contains("hardbreaks-option")
     );
     Ok(())
 }
@@ -62,28 +62,29 @@ fn metadata_adjacent_assignment_precedes_its_block() -> Result<(), Error> {
         include_str!("../fixtures/tests/document_attributes_source_order.adoc"),
         &Options::default(),
     )?;
-    let document = parsed.document();
+    let document = parsed.document_ref();
 
     assert_eq!(
         document
-            .attributes
+            .attributes()
             .get("metadata-value")
             .and_then(|value| value.text()),
         Some("header")
     );
     let event_index = document
-        .blocks
-        .iter()
-        .position(|block| matches!(block, Block::DocumentAttribute(_)))
+        .blocks()
+        .position(|block| matches!(block.kind(), BlockKind::DocumentAttribute(_)))
         .ok_or("expected a metadata-adjacent event")?;
     assert!(matches!(
-        document.blocks.get(event_index + 1),
-        Some(Block::Paragraph(_))
+        document.blocks().nth(event_index + 1).map(BlockRef::kind),
+        Some(BlockKind::Paragraph(_))
     ));
-    let Some(Block::DocumentAttribute(event)) = document.blocks.get(event_index) else {
+    let Some(BlockKind::DocumentAttribute(event)) =
+        document.blocks().nth(event_index).map(BlockRef::kind)
+    else {
         return Err("expected a document attribute".into());
     };
-    assert_eq!(event.name, "metadata-value");
+    assert_eq!(event.name(), "metadata-value");
     assert_eq!(
         event
             .assignment()
@@ -103,10 +104,9 @@ fn rejected_body_assignment_is_not_an_ast_event() -> Result<(), Error> {
 
     assert!(
         parsed
-            .document()
-            .blocks
-            .iter()
-            .all(|block| !matches!(block, Block::DocumentAttribute(_)))
+            .document_ref()
+            .blocks()
+            .all(|block| !matches!(block.kind(), BlockKind::DocumentAttribute(_)))
     );
     Ok(())
 }
@@ -176,16 +176,16 @@ fn assignments_follow_caller_precedence_in_source_order(
     };
 
     let parsed = parse(&source, &options)?;
-    let document = parsed.document();
-    let mut active = document.attributes.get(family);
+    let document = parsed.document_ref();
+    let mut active = document.attributes().get(family);
     assert_eq!(active.and_then(DocumentAttributeValue::text), header);
     let mut observed = Vec::new();
-    for block in &document.blocks {
-        if let Block::DocumentAttribute(event) = block
-            && event.name == family
+    for block in document.blocks() {
+        if let BlockKind::DocumentAttribute(event) = block.kind()
+            && event.name() == family
         {
             active = event.assignment().value();
-        } else if matches!(block, Block::Paragraph(_)) {
+        } else if matches!(block.kind(), BlockKind::Paragraph(_)) {
             observed.push(active.and_then(DocumentAttributeValue::text));
         }
     }
