@@ -1262,8 +1262,9 @@ mod title_media_tests {
                 "[subs=none]\n++++\nTRIGGER\n++++\n",
             ] {
                 let parsed = parse(input, &ParserOptions::default())?;
-                let parsed_stored = acdc_parser::Document::from(parsed.document());
-                let block = parsed_stored.blocks.first().ok_or("expected block")?;
+                let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+                let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
+                let block = parsed_blocks.first().ok_or("expected block")?;
                 let mut visitor = HtmlVisitor::new(
                     RejectCellText,
                     processor.clone(),
@@ -1291,10 +1292,15 @@ mod title_media_tests {
             &ParserOptions::default(),
         )?;
         let mut document = Document::default();
-        document.attributes = acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-        document.footnotes = acdc_parser::Document::from(parsed.document()).footnotes;
-        document.footnotes.reverse();
-        let retained = document.footnotes.clone();
+        document.set_attributes(acdc_parser::DocumentAttributes::from(
+            parsed.document().attributes(),
+        ));
+        let mut footnotes: Vec<_> = acdc_parser::Document::from(parsed.document())
+            .take_footnotes()
+            .collect();
+        footnotes.reverse();
+        let retained = footnotes.clone();
+        document.set_footnotes(footnotes);
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
             let processor = Rc::new(
                 Processor::new(ConverterOptions::default(), ParserOptions::builder())?
@@ -1312,7 +1318,8 @@ mod title_media_tests {
                 },
                 Diagnostics::new(&source, &mut warnings),
             );
-            let mut context = TraversalContext::new(&document.attributes);
+            let mut context =
+                TraversalContext::new(acdc_parser::ast::DocumentRef::from(&document).attributes());
             visitor.visit_document_supplements(&mut context, DocumentRef::from(&document))?;
             let output = String::from_utf8(output)?;
             assert!(
@@ -1338,7 +1345,7 @@ mod title_media_tests {
                     .is_err()
             );
         }
-        assert_eq!(document.footnotes, retained);
+        assert_eq!(document.take_footnotes().collect::<Vec<_>>(), retained);
         Ok(())
     }
 
@@ -1355,8 +1362,9 @@ mod title_media_tests {
             "[quote,Author,Book]\n____\nTRIGGER\n____\n",
         ] {
             let parsed = parse(input, &ParserOptions::default())?;
-            let parsed_stored = acdc_parser::Document::from(parsed.document());
-            let block = parsed_stored.blocks.first().ok_or("expected block")?;
+            let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+            let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
+            let block = parsed_blocks.first().ok_or("expected block")?;
             let mut visitor = HtmlVisitor::new(
                 RejectCellText,
                 processor.clone(),
@@ -1385,14 +1393,12 @@ mod title_media_tests {
         )?;
         for (author, citation) in [(false, false), (true, false), (false, true), (true, true)] {
             let mut document = acdc_parser::Document::default();
-            document.attributes =
-                acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-            document.blocks = parsed
-                .document()
-                .blocks()
-                .map(acdc_parser::Block::from)
-                .collect();
-            for block in &mut document.blocks {
+            document.set_attributes(acdc_parser::DocumentAttributes::from(
+                parsed.document().attributes(),
+            ));
+            document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+            let mut blocks: Vec<_> = document.take_blocks().collect();
+            for block in &mut blocks {
                 let metadata = if let Block::Paragraph(node) = block {
                     &mut node.metadata
                 } else if let Block::DelimitedBlock(node) = block {
@@ -1410,6 +1416,7 @@ mod title_media_tests {
                     .set("citetitle".into(), AttributeValue::from("SHADOW BOOK"));
                 metadata.roles = vec!["", "one", "one"];
             }
+            document.set_blocks(blocks);
             for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
                 let processor =
                     Processor::new(ConverterOptions::default(), ParserOptions::builder())?
@@ -1485,12 +1492,14 @@ mod title_media_tests {
     fn constructed_section_and_discrete_ids_keep_fallbacks_and_role_order() -> Result<(), TestError>
     {
         let parsed = parse("== *Heading*\n", &ParserOptions::default())?;
-        let parsed_stored = acdc_parser::Document::from(parsed.document());
-        let Some(Block::Section(section)) = parsed_stored.blocks.first() else {
+        let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+        let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
+        let Some(Block::Section(section)) = parsed_blocks.first() else {
             return Err("expected section".into());
         };
         let discrete = parse("[discrete]\n== *Heading*\n", &ParserOptions::default())?;
-        let discrete_stored = acdc_parser::Document::from(discrete.document());
+        let mut discrete_stored = acdc_parser::Document::from(discrete.document());
+        let discrete_blocks: Vec<_> = discrete_stored.take_blocks().collect();
         for (primary, fallback, expected) in [
             (None, false, "_heading"),
             (None, true, "fallback"),
@@ -1498,22 +1507,23 @@ mod title_media_tests {
             (Some(""), true, ""),
         ] {
             let mut document = acdc_parser::Document::default();
-            document.attributes =
-                acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-            document.blocks = vec![
+            document.set_attributes(acdc_parser::DocumentAttributes::from(
+                parsed.document().attributes(),
+            ));
+            document.set_blocks(vec![
                 Block::Section(Section::new(
                     section.title.clone(),
                     1,
                     Vec::new(),
                     Location::default(),
                 )),
-                discrete_stored
-                    .blocks
+                discrete_blocks
                     .first()
                     .ok_or("expected discrete heading")?
                     .clone(),
-            ];
-            for block in &mut document.blocks {
+            ]);
+            let mut blocks: Vec<_> = document.take_blocks().collect();
+            for block in &mut blocks {
                 let metadata = if let Block::Section(section) = block {
                     &mut section.metadata
                 } else if let Block::DiscreteHeader(header) = block {
@@ -1530,6 +1540,7 @@ mod title_media_tests {
                 }
                 metadata.roles = vec!["one", "one"];
             }
+            document.set_blocks(blocks);
             for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
                 let processor =
                     Processor::new(ConverterOptions::default(), ParserOptions::builder())?
@@ -1666,14 +1677,12 @@ mod title_media_tests {
                 &options,
             )?;
             let mut document = acdc_parser::Document::default();
-            document.attributes =
-                acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-            document.blocks = parsed
-                .document()
-                .blocks()
-                .map(acdc_parser::Block::from)
-                .collect();
-            for block in &mut document.blocks {
+            document.set_attributes(acdc_parser::DocumentAttributes::from(
+                parsed.document().attributes(),
+            ));
+            document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+            let mut blocks: Vec<_> = document.take_blocks().collect();
+            for block in &mut blocks {
                 let metadata = if let Block::Image(image) = block {
                     &mut image.metadata
                 } else if let Block::Audio(audio) = block {
@@ -1699,6 +1708,7 @@ mod title_media_tests {
                     .attributes
                     .set("link".into(), AttributeValue::Bool(false));
             }
+            document.set_blocks(blocks);
             for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
                 let processor =
                     Processor::new(ConverterOptions::default(), ParserOptions::builder())?
@@ -1767,13 +1777,12 @@ mod title_media_tests {
             &ParserOptions::default(),
         )?;
         let mut document = acdc_parser::Document::default();
-        document.attributes = acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-        document.blocks = parsed
-            .document()
-            .blocks()
-            .map(acdc_parser::Block::from)
-            .collect();
-        for block in &mut document.blocks {
+        document.set_attributes(acdc_parser::DocumentAttributes::from(
+            parsed.document().attributes(),
+        ));
+        document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+        let mut blocks: Vec<_> = document.take_blocks().collect();
+        for block in &mut blocks {
             let metadata = if let Block::Admonition(admonition) = block {
                 &mut admonition.metadata
             } else if let Block::DelimitedBlock(block) = block {
@@ -1796,6 +1805,7 @@ mod title_media_tests {
                 .attributes
                 .set("icon".into(), AttributeValue::Bool(false));
         }
+        document.set_blocks(blocks);
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
             let processor = Processor::new(ConverterOptions::default(), ParserOptions::builder())?
                 .with_variant(variant)?;

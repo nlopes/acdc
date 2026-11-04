@@ -25,14 +25,17 @@ fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         for (explicit, expected_id) in [(false, "last"), (true, "first")] {
             let mut document = Document::default();
-            let original = parsed_stored.header.as_ref().ok_or("expected a header")?;
-            document.header = Some(
+            let original = Document::from(acdc_parser::ast::DocumentRef::from(&parsed_stored))
+                .take_header()
+                .ok_or("expected a header")?;
+            document.set_header(Some(
                 Header::new(original.title.as_ref().to_vec().into(), Location::default())
                     .with_metadata(original.metadata.clone())?,
-            );
-            document.attributes =
-                acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-            let header = document.header.as_mut().ok_or("expected a header")?;
+            ));
+            document.set_attributes(acdc_parser::DocumentAttributes::from(
+                parsed.document().attributes(),
+            ));
+            let mut header = document.take_header().ok_or("expected a header")?;
             assert_eq!(header.metadata.anchors.len(), 2);
             header.metadata.id = if explicit {
                 header.metadata.anchors.first().cloned()
@@ -40,6 +43,7 @@ fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
                 None
             };
             header.metadata.roles = vec!["alpha", "beta", "alpha"];
+            document.set_header(Some(header));
             let processor = Processor::new_with_variant(
                 ConverterOptions::default(),
                 Options::builder()
@@ -166,7 +170,11 @@ fn frame_propagates_writer_failure_before_css_signature_validation() -> Result<(
 fn headerless_frame_uses_processor_toc_placement_for_its_wrapper() -> Result<(), TestError> {
     let parsed = parse("== Section\n\nBody.\n", &Options::default())?;
     let parsed_stored = acdc_parser::Document::from(parsed.document());
-    assert!(parsed_stored.header.is_none());
+    assert!(
+        acdc_parser::ast::DocumentRef::from(&parsed_stored)
+            .header()
+            .is_none()
+    );
     assert_eq!(parsed.document().toc_entries().len(), 1);
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         for (processor_placement, replay_placement, has_wrapper) in

@@ -19,11 +19,13 @@ fn local_levels_keep_exact_text_parsing_and_document_fallback() -> Result<(), Er
         "= Manual\n:toc: macro\n:toclevels: 4\n\ntoc::[]\n",
         &Options::default(),
     )?;
-    let document = &acdc_parser::Document::from(parsed.document());
-    let Some(Block::TableOfContents(seed)) = document.blocks.first() else {
+    let mut document = acdc_parser::Document::from(parsed.document());
+    let blocks: Vec<_> = document.take_blocks().collect();
+    let Some(Block::TableOfContents(seed)) = blocks.first() else {
         return Err("missing TOC macro".into());
     };
-    let context = TraversalContext::new(&document.attributes);
+    let context =
+        TraversalContext::new(acdc_parser::ast::DocumentRef::from(&document).attributes());
     for (local, expected) in [
         (None, 4),
         (Some(AttributeValue::Bool(false)), 4),
@@ -95,8 +97,9 @@ fn numbering_keeps_catalog_alignment_parts_specials_and_appendix_controls() -> R
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse(BOOK, &options)?;
-        let document = &acdc_parser::Document::from(parsed.document());
-        let entries = &document.toc_entries;
+        let mut document = acdc_parser::Document::from(parsed.document());
+        let entries: Vec<_> = document.take_toc_entries().collect();
+        let entries = &entries;
         assert_eq!(entries.len(), 7);
         assert!(has_real_parts(entries));
         assert!(has_parts(parsed.document().toc_entries()));
@@ -115,7 +118,8 @@ fn numbering_keeps_catalog_alignment_parts_specials_and_appendix_controls() -> R
         assert_eq!(effective_level(preface, true), 0);
         assert_eq!(effective_level(part, false), 0);
         assert_eq!(preface.kind, SectionKind::Preface);
-        let context = TraversalContext::new(&document.attributes);
+        let context =
+            TraversalContext::new(acdc_parser::ast::DocumentRef::from(&document).attributes());
         assert_eq!(
             section_numbers(
                 entries,
@@ -138,12 +142,10 @@ fn numbering_keeps_catalog_alignment_parts_specials_and_appendix_controls() -> R
         ] {
             let source = BOOK.replacen(":partnums:\n", &format!(":partnums:\n{declaration}"), 1);
             let parsed = parse(&source, &options)?;
-            let parsed_document = acdc_parser::Document::from(parsed.document());
+            let mut parsed_document = acdc_parser::Document::from(parsed.document());
+            let entries: Vec<_> = parsed_document.take_toc_entries().collect();
             let context = TraversalContext::new(parsed.document().attributes());
-            let numbers = section_numbers(
-                &parsed_document.toc_entries,
-                &NumberingConfig::new(&context, None, None),
-            );
+            let numbers = section_numbers(&entries, &NumberingConfig::new(&context, None, None));
             assert_eq!(
                 numbers.get(5).ok_or("missing appendix prefix")?.as_deref(),
                 Some(expected)
@@ -172,7 +174,8 @@ fn typed_catalog_helpers_accept_single_pass_and_temporary_inputs() -> Result<(),
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse(BOOK, &options)?;
-        let parsed_document = acdc_parser::Document::from(parsed.document());
+        let mut parsed_document = acdc_parser::Document::from(parsed.document());
+        let entries: Vec<_> = parsed_document.take_toc_entries().collect();
         let mut remaining = parsed.document().toc_entries();
         let mut pulled = 0;
         let input = std::iter::from_fn(|| {
@@ -196,10 +199,7 @@ fn typed_catalog_helpers_accept_single_pass_and_temporary_inputs() -> Result<(),
         });
         let numbers = number_prefixes(input, &config);
         assert_eq!(pulled, 7);
-        assert_eq!(
-            numbers,
-            section_numbers(&parsed_document.toc_entries, &config)
-        );
+        assert_eq!(numbers, section_numbers(&entries, &config));
         assert_eq!(
             number_prefixes(std::iter::empty(), &config),
             Vec::<Option<String>>::new()

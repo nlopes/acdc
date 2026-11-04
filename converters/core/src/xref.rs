@@ -392,14 +392,9 @@ mod tests {
         xref
     }
 
-    fn cloned_document<'a>(document: &Document<'a>) -> Document<'a> {
-        let mut cloned = Document::default();
-        cloned.attributes = document.attributes.clone();
-        cloned.blocks = document.blocks.clone();
-        cloned.footnotes = document.footnotes.clone();
-        cloned.toc_entries = document.toc_entries.clone();
-        cloned.references = document.references.clone();
-        cloned.location = document.location.clone();
+    fn cloned_document<'a>(document: &'a Document<'a>) -> Document<'a> {
+        let mut cloned = Document::from(acdc_parser::ast::DocumentRef::from(document));
+        cloned.set_header(None);
         cloned
     }
 
@@ -422,8 +417,12 @@ mod tests {
     }
 
     fn short_prefixes(document: &Document<'_>) -> Vec<String> {
-        let mut xrefs = paragraph_xrefs(&document.blocks);
-        for footnote in &document.footnotes {
+        let mut snapshot = Document::from(acdc_parser::ast::DocumentRef::from(document));
+        let blocks: Vec<_> = snapshot.take_blocks().collect();
+        let footnotes: Vec<_> = snapshot.take_footnotes().collect();
+        let references: std::collections::HashMap<_, _> = snapshot.take_references().collect();
+        let mut xrefs = paragraph_xrefs(&blocks);
+        for footnote in &footnotes {
             xrefs.extend(footnote.content.iter().filter_map(|inline| {
                 if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
                     Some(xref.as_ref())
@@ -439,7 +438,7 @@ mod tests {
                 // Include references whose style was basic when parsed.
                 xref.xrefstyle = XrefStyle::Short;
                 let guard = XrefGuard::default();
-                let display = resolve_xref(document.references.get(xref.target), &xref, &guard);
+                let display = resolve_xref(references.get(xref.target), &xref, &guard);
                 if let XrefDisplay::ShortCaption(prefix) = display {
                     prefix
                 } else {
@@ -474,13 +473,15 @@ mod tests {
             ]
         );
         let mut document = cloned_document(&parsed_document);
-        for block in &mut document.blocks {
+        let mut blocks: Vec<_> = document.take_blocks().collect();
+        for block in &mut blocks {
             if let Block::Section(section) = block
                 && section.id() == "target"
             {
                 section.kind = SectionKind::Appendix;
             }
         }
+        document.set_blocks(blocks);
         document.renumber_sections();
         assert_eq!(
             short_prefixes(&document),
@@ -492,13 +493,15 @@ mod tests {
             short_prefixes(&expected_document)
         );
 
-        for block in &mut document.blocks {
+        let mut blocks: Vec<_> = document.take_blocks().collect();
+        for block in &mut blocks {
             if let Block::Section(section) = block
                 && section.id() == "target"
             {
                 section.kind = SectionKind::Normal;
             }
         }
+        document.set_blocks(blocks);
         document.renumber_sections();
         assert_eq!(short_prefixes(&document), short_prefixes(&parsed_document));
         Ok(())
@@ -519,20 +522,24 @@ mod tests {
             (XrefSignifier::Omitted, "A"),
         ] {
             let mut document = cloned_document(&parsed_document);
-            for footnote in &mut document.footnotes {
+            let mut footnotes: Vec<_> = document.take_footnotes().collect();
+            for footnote in &mut footnotes {
                 for inline in &mut footnote.content {
                     if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
                         xref.set_signifier(signifier);
                     }
                 }
             }
-            for block in &mut document.blocks {
+            let mut blocks: Vec<_> = document.take_blocks().collect();
+            for block in &mut blocks {
                 if let Block::Section(section) = block
                     && section.id() == "target"
                 {
                     section.kind = SectionKind::Appendix;
                 }
             }
+            document.set_footnotes(footnotes);
+            document.set_blocks(blocks);
             // Cloning must preserve explicit overrides, including the original word.
             let mut document = cloned_document(&document);
             document.renumber_sections();
@@ -750,10 +757,12 @@ mod tests {
             &Options::default(),
         )?;
         let parsed_document = acdc_parser::Document::from(parsed.document());
-        let references = &parsed_document.references;
+        let mut parsed_document = parsed_document;
+        let references: std::collections::HashMap<_, _> =
+            parsed_document.take_references().collect();
+        let blocks: Vec<_> = parsed_document.take_blocks().collect();
         let guard = XrefGuard::default();
-        let prefixes = parsed_document
-            .blocks
+        let prefixes = blocks
             .iter()
             .filter_map(|block| {
                 let Block::Paragraph(paragraph) = block else {

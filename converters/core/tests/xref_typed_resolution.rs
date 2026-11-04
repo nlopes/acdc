@@ -91,9 +91,10 @@ fn check_mode(mode: CompatibilityMode) -> Result<(), Error> {
         SOURCE,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let document = &acdc_parser::Document::from(parsed.document());
+    let mut document = acdc_parser::Document::from(parsed.document());
+    let references: std::collections::HashMap<_, _> = document.take_references().collect();
     let outer = CrossReference::new("labelled", Location::default());
-    let outer_reference = document.references.get("labelled").ok_or("labelled")?;
+    let outer_reference = references.get("labelled").ok_or("labelled")?;
     for target in [
         "plain",
         "chapter",
@@ -129,7 +130,7 @@ fn check_mode(mode: CompatibilityMode) -> Result<(), Error> {
                 let mut xref = CrossReference::new(target, Location::default());
                 xref.xrefstyle = style;
                 xref.target_is_local = local;
-                let reference = document.references.get(target);
+                let reference = references.get(target);
                 let owner = resolve_xref(reference, &xref, &owner_guard);
                 let typed = resolve_reference(
                     reference.map(ReferenceRef::from),

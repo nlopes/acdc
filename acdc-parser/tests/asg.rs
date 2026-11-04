@@ -23,11 +23,11 @@ fn modes() -> Result<[Options<'static>; 2], Error> {
 fn asg_preserves_present_empty_header_titles() -> Result<(), Error> {
     let parsed = parse("Text.", &Options::default())?;
     let mut document = Document::default();
-    document.location = Location::from(parsed.document().location());
-    document.header = Some(Header::new(
+    document.set_location(Location::from(parsed.document().location()));
+    document.set_header(Some(Header::new(
         Title::new(Vec::new()),
-        document.location.clone(),
-    ));
+        Location::from(acdc_parser::ast::DocumentRef::from(&document).location()),
+    )));
     let value = asg::document((&document).into())?;
     assert_eq!(value.pointer("/header/title"), Some(&json!([])));
     Ok(())
@@ -132,18 +132,19 @@ fn asg_does_not_run_pending_passthrough_operations() {
 #[test]
 fn asg_omits_unknown_optional_locations_and_rejects_partial_ones() -> Result<(), Error> {
     let mut document = Document::default();
-    document.blocks.push(Block::Paragraph(Paragraph::new(
+    document.push_block(Block::Paragraph(Paragraph::new(
         Vec::new(),
         Location::default(),
     )));
     let value = asg::document((&document).into())?;
     assert!(value.get("location").is_none());
     assert!(value.pointer("/blocks/0/location").is_none());
-    let Block::Paragraph(paragraph) = document.blocks.first_mut().ok_or("missing paragraph")?
-    else {
+    let mut blocks: Vec<_> = document.take_blocks().collect();
+    let Block::Paragraph(paragraph) = blocks.first_mut().ok_or("missing paragraph")? else {
         return Err("wrong block".into());
     };
     paragraph.location.start.line = 1;
+    document.set_blocks(blocks);
     assert!(
         matches!(asg::document((&document).into()), Err(asg::Error::InvalidLocation { path, .. }) if path == "/blocks/0/location/1")
     );
@@ -255,14 +256,12 @@ fn asg_exports_use_the_audited_schema_pin() -> Result<(), Error> {
 fn asg_distinguishes_absent_and_present_empty_section_titles() -> Result<(), Error> {
     for (title, present) in [(Title::default(), false), (Title::new(Vec::new()), true)] {
         let mut document = Document::default();
-        document
-            .blocks
-            .push(Block::Section(acdc_parser::Section::new(
-                title,
-                1,
-                Vec::new(),
-                Location::default(),
-            )));
+        document.push_block(Block::Section(acdc_parser::Section::new(
+            title,
+            1,
+            Vec::new(),
+            Location::default(),
+        )));
         let result = asg::document((&document).into());
         if present {
             assert_eq!(result?.pointer("/blocks/0/title"), Some(&json!([])));
@@ -287,7 +286,7 @@ fn asg_rejects_verbatim_without_a_literal_block_mapping() {
         matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))), Err(asg::Error::Unsupported { path, .. }) if path == "/0")
     );
     let mut document = Document::default();
-    document.blocks.push(Block::Paragraph(Paragraph::new(
+    document.push_block(Block::Paragraph(Paragraph::new(
         nodes.to_vec(),
         Location::default(),
     )));

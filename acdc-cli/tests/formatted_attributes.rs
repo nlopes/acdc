@@ -26,7 +26,7 @@ fn formatted_attribute_document_can_be_parsed_once_for_three_backends() -> Resul
     let doc = parsed.document();
     let text = serde_json::to_value(DocumentAttributes::from(doc.attributes()))?;
     let tree = serde_json::to_value(doc)?;
-    let notes = Document::from(doc).footnotes;
+    let notes = Document::from(doc).take_footnotes().collect::<Vec<_>>();
     let html = acdc_converters_html::Processor::new(
         ConverterOptions::builder().embedded(true).build(),
         Options::builder(),
@@ -45,6 +45,9 @@ fn formatted_attribute_document_can_be_parsed_once_for_three_backends() -> Resul
         serde_json::to_value(DocumentAttributes::from(doc.attributes()))?
     );
     assert_eq!(tree, serde_json::to_value(doc)?);
-    assert_eq!(notes, Document::from(doc).footnotes);
+    assert_eq!(
+        notes,
+        Document::from(doc).take_footnotes().collect::<Vec<_>>()
+    );
     Ok(())
 }

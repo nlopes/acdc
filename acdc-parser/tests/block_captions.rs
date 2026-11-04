@@ -8,7 +8,7 @@ use std::num::NonZeroU32;
 use acdc_parser::{
     AttributeValue, Block, BlockMetadata, Caption, CaptionKind, DelimitedBlockType,
     DelimitedBlockType::DelimitedExample, Document, InlineNode, Location, Options, Plain, Title,
-    parse,
+    ast::DocumentRef, parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -64,7 +64,11 @@ fn classification_follows_the_effective_block_context() -> Result<(), Error> {
         let source = format!("= T\n:listing-caption: Listing\n\n.Title\n{body}\n");
         let parsed = parse(&source, &Options::default())?;
         let document = Document::from(parsed.document());
-        let block = document.blocks.first().ok_or("expected a block")?;
+        let blocks: Vec<_> = DocumentRef::from(&document)
+            .blocks()
+            .map(Block::from)
+            .collect();
+        let block = blocks.first().ok_or("expected a block")?;
         let kind = numbered(block).map(|(kind, _, _)| kind);
         assert_eq!(kind, expected, "source: {body:?}");
     }
@@ -85,7 +89,11 @@ fn styled_paragraphs_take_the_caption_their_style_names() -> Result<(), Error> {
         let source = format!("= T\n:listing-caption: Listing\n\n.Title\n{body}\n");
         let parsed = parse(&source, &Options::default())?;
         let document = Document::from(parsed.document());
-        let block = document.blocks.first().ok_or("expected a block")?;
+        let blocks: Vec<_> = DocumentRef::from(&document)
+            .blocks()
+            .map(Block::from)
+            .collect();
+        let block = blocks.first().ok_or("expected a block")?;
         assert_eq!(
             numbered(block).map(|(kind, _, _)| kind),
             expected,
@@ -104,8 +112,12 @@ fn nested_examples_are_numbered_inner_first() -> Result<(), Error> {
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
-    let [outer, after] = document.blocks.as_slice() else {
-        return Err(format!("expected two blocks, got {:?}", document.blocks).into());
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let [outer, after] = blocks.as_slice() else {
+        return Err(format!("expected two blocks, got {blocks:?}").into());
     };
 
     let Block::DelimitedBlock(delimited) = outer else {
@@ -129,8 +141,12 @@ fn collapsible_examples_do_not_consume_example_numbers() -> Result<(), Error> {
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
-    let [before, block, paragraph, open, after] = document.blocks.as_slice() else {
-        return Err(format!("expected five blocks, got {:?}", document.blocks).into());
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let [before, block, paragraph, open, after] = blocks.as_slice() else {
+        return Err(format!("expected five blocks, got {blocks:?}").into());
     };
 
     assert_eq!(numbered(before).and_then(|(_, _, n)| n), Some(1));
@@ -149,8 +165,12 @@ fn a_list_continuation_block_takes_a_caption() -> Result<(), Error> {
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
-    let Some(Block::UnorderedList(list)) = document.blocks.first() else {
-        return Err(format!("expected a list, got {:?}", document.blocks).into());
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let Some(Block::UnorderedList(list)) = blocks.first() else {
+        return Err(format!("expected a list, got {blocks:?}").into());
     };
     let block = list
         .items
@@ -172,8 +192,12 @@ fn table_headers_do_not_consume_body_and_footer_caption_numbers() -> Result<(), 
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
-    let Some(Block::DelimitedBlock(delimited)) = document.blocks.first() else {
-        return Err(format!("expected a table, got {:?}", document.blocks).into());
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let Some(Block::DelimitedBlock(delimited)) = blocks.first() else {
+        return Err(format!("expected a table, got {blocks:?}").into());
     };
     let DelimitedBlockType::DelimitedTable(table) = &delimited.inner else {
         return Err("expected table content".into());
@@ -215,8 +239,12 @@ fn an_attribute_inside_a_block_changes_that_blocks_own_caption() -> Result<(), E
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
-    let [first, second] = document.blocks.as_slice() else {
-        return Err(format!("expected two blocks, got {:?}", document.blocks).into());
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let [first, second] = blocks.as_slice() else {
+        return Err(format!("expected two blocks, got {blocks:?}").into());
     };
 
     assert_eq!(
@@ -237,16 +265,19 @@ fn blocks_keep_the_caption_active_at_their_source_position() -> Result<(), Error
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
     assert_eq!(
-        document
-            .attributes
+        DocumentRef::from(&document)
+            .attributes()
             .get("example-caption")
             .and_then(|value| value.text()),
         Some("Header")
     );
 
-    let captions: Vec<_> = document
-        .blocks
+    let captions: Vec<_> = blocks
         .iter()
         .filter(|block| matches!(block, Block::Paragraph(_)))
         .map(|block| caption(block).map(caption_value))
@@ -280,14 +311,17 @@ fn a_metadata_line_applies_to_its_own_block() -> Result<(), Error> {
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
     assert!(matches!(
-        document.blocks.first(),
+        blocks.first(),
         Some(Block::DocumentAttribute(attribute))
             if attribute.name == "example-caption" && attribute.assignment().value().and_then(acdc_parser::DocumentAttributeValue::text) == Some("Metadata")
     ));
 
-    let labels: Vec<_> = document
-        .blocks
+    let labels: Vec<_> = blocks
         .iter()
         .filter_map(|block| numbered(block).map(|(_, label, number)| (label, number)))
         .collect();
@@ -308,8 +342,12 @@ fn untitled_caption_capable_blocks_consume_no_ordinal() -> Result<(), Error> {
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
-    let [untitled, titled] = document.blocks.as_slice() else {
-        return Err(format!("expected two blocks, got {:?}", document.blocks).into());
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let [untitled, titled] = blocks.as_slice() else {
+        return Err(format!("expected two blocks, got {blocks:?}").into());
     };
 
     // The label still comes from the untitled block's own source position, so a consumer that
@@ -330,7 +368,11 @@ fn a_listing_takes_no_caption_until_its_label_is_set() -> Result<(), Error> {
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
-    let block = document.blocks.first().ok_or("expected a block")?;
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let block = blocks.first().ok_or("expected a block")?;
     assert_eq!(caption(block), Some(&Caption::Unnumbered));
 
     let parsed = parse(
@@ -338,7 +380,11 @@ fn a_listing_takes_no_caption_until_its_label_is_set() -> Result<(), Error> {
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
-    let block = document.blocks.first().ok_or("expected a block")?;
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let block = blocks.first().ok_or("expected a block")?;
     assert_eq!(
         numbered(block),
         Some((CaptionKind::Listing, "Listing".to_string(), Some(1)))
@@ -353,8 +399,11 @@ fn caption_precedence_covers_element_generic_and_type_specific() -> Result<(), E
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
-    let captions: Vec<_> = document
-        .blocks
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let captions: Vec<_> = blocks
         .iter()
         .filter(|block| matches!(block, Block::Paragraph(_)))
         .map(|block| caption(block).map(caption_value))
@@ -393,7 +442,11 @@ fn figures_and_tables_count_separately() -> Result<(), Error> {
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
-    let captions: Vec<_> = document.blocks.iter().filter_map(numbered).collect();
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let captions: Vec<_> = blocks.iter().filter_map(numbered).collect();
 
     assert_eq!(
         captions,
@@ -410,10 +463,10 @@ fn figures_and_tables_count_separately() -> Result<(), Error> {
 #[test]
 fn renumber_captions_restores_numbering_after_a_mutation() -> Result<(), Error> {
     fn ordinals(document: &Document<'_>) -> Vec<Option<u32>> {
-        document
-            .blocks
-            .iter()
-            .filter_map(|block| numbered(block).map(|(_, _, number)| number))
+        DocumentRef::from(document)
+            .blocks()
+            .map(Block::from)
+            .filter_map(|block| numbered(&block).map(|(_, _, number)| number))
             .collect()
     }
 
@@ -422,21 +475,30 @@ fn renumber_captions_restores_numbering_after_a_mutation() -> Result<(), Error> 
         &Options::default(),
     )?;
     let mut document = Document::default();
-    document.attributes = acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-    document.blocks = parsed.document().blocks().map(Block::from).collect();
+    document.set_attributes(acdc_parser::DocumentAttributes::from(
+        parsed.document().attributes(),
+    ));
+    document.set_blocks(parsed.document().blocks().map(Block::from));
     assert_eq!(ordinals(&document), vec![Some(1), Some(2), Some(3), None]);
 
     // Removing a numbered block closes the gap it left.
-    document.blocks.remove(0);
+    let mut blocks: Vec<_> = document.take_blocks().collect();
+    blocks.remove(0);
+    document.set_blocks(blocks);
     document.renumber_captions();
     assert_eq!(ordinals(&document), vec![Some(1), Some(2), None]);
 
     // Reordering renumbers by tree order, not source order: after the swap the block that sits
     // later in the source holds the first ordinal.
-    document.blocks.swap(0, 1);
+    let mut blocks: Vec<_> = document.take_blocks().collect();
+    blocks.swap(0, 1);
+    document.set_blocks(blocks);
     document.renumber_captions();
-    let placed: Vec<_> = document
-        .blocks
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let placed: Vec<_> = blocks
         .iter()
         .filter_map(|block| {
             let Block::DelimitedBlock(delimited) = block else {
@@ -454,14 +516,16 @@ fn renumber_captions_restores_numbering_after_a_mutation() -> Result<(), Error> 
     assert_eq!((*first_number, *second_number), (1, 2));
 
     // A title added after parsing earns an ordinal on the next run.
-    let Some(Block::Paragraph(paragraph)) = document.blocks.last_mut() else {
-        return Err(format!("expected the untitled paragraph, got {:?}", document.blocks).into());
+    let mut blocks: Vec<_> = document.take_blocks().collect();
+    let Some(Block::Paragraph(paragraph)) = blocks.last_mut() else {
+        return Err(format!("expected the untitled paragraph, got {blocks:?}").into());
     };
     paragraph.title = Title::new(vec![InlineNode::PlainText(Plain {
         content: "Added later",
         location: Location::default(),
         escaped: false,
     })]);
+    document.set_blocks(blocks);
     assert_eq!(ordinals(&document), vec![Some(1), Some(2), None]);
     document.renumber_captions();
     assert_eq!(ordinals(&document), vec![Some(1), Some(2), Some(3)]);
@@ -483,8 +547,11 @@ fn caption_labels_keep_their_quote_characters() -> Result<(), Error> {
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
-    let labels: Vec<_> = document
-        .blocks
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let labels: Vec<_> = blocks
         .iter()
         .filter_map(|block| match caption(block)? {
             Caption::Numbered { label, .. } | Caption::Custom(label) => Some(label.to_string()),
@@ -530,12 +597,11 @@ fn a_bare_caption_marker_is_ignored() -> Result<(), Error> {
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
-    let captions: Vec<_> = document
-        .blocks
-        .iter()
-        .filter_map(caption)
-        .cloned()
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
         .collect();
+    let captions: Vec<_> = blocks.iter().filter_map(caption).cloned().collect();
 
     assert_eq!(
         captions,
@@ -564,7 +630,11 @@ fn caller_built_metadata_carries_no_caption() -> Result<(), Error> {
 
     let parsed = parse("= T\n\n.Parsed\n====\nc\n====\n", &Options::default())?;
     let document = Document::from(parsed.document());
-    let block = document.blocks.first().ok_or("expected a block")?;
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let block = blocks.first().ok_or("expected a block")?;
     assert!(caption(block).is_some());
     assert_eq!(document.highest_caption_number(CaptionKind::Example), 1);
     assert_eq!(document.highest_caption_number(CaptionKind::Listing), 0);
@@ -578,8 +648,12 @@ fn an_empty_element_caption_takes_no_prefix_and_no_ordinal() -> Result<(), Error
         &Options::default(),
     )?;
     let document = Document::from(parsed.document());
-    let [empty, after] = document.blocks.as_slice() else {
-        return Err(format!("expected two blocks, got {:?}", document.blocks).into());
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let [empty, after] = blocks.as_slice() else {
+        return Err(format!("expected two blocks, got {blocks:?}").into());
     };
 
     assert_eq!(
@@ -604,7 +678,11 @@ fn caption_labels_come_from_api_supplied_attributes() -> Result<(), Error> {
         &Options::builder().with_attributes(attributes).build()?,
     )?;
     let document = Document::from(parsed.document());
-    let block = document.blocks.first().ok_or("expected a block")?;
+    let blocks: Vec<_> = DocumentRef::from(&document)
+        .blocks()
+        .map(Block::from)
+        .collect();
+    let block = blocks.first().ok_or("expected a block")?;
     assert_eq!(
         numbered(block),
         Some((CaptionKind::Example, "Sample".to_string(), Some(1)))
@@ -804,8 +882,9 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
         &Options::default(),
     )?;
     let mut document = Document::default();
-    document.blocks = parsed.document().blocks().map(Block::from).collect();
-    let Some(Block::DelimitedBlock(delimited)) = document.blocks.first_mut() else {
+    document.set_blocks(parsed.document().blocks().map(Block::from));
+    let mut blocks: Vec<_> = document.take_blocks().collect();
+    let Some(Block::DelimitedBlock(delimited)) = blocks.first_mut() else {
         return Err("expected a table".into());
     };
     let DelimitedBlockType::DelimitedTable(table) = &mut delimited.inner else {
@@ -832,6 +911,7 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
         label: "Example".into(),
         number: NonZeroU32::new(77),
     });
+    document.set_blocks(blocks);
     assert_eq!(document.highest_caption_number(CaptionKind::Example), 77);
     document.renumber_captions();
     assert_eq!(document.highest_caption_number(CaptionKind::Example), 1);

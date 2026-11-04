@@ -684,7 +684,7 @@ fn constructed_character_references_render_in_plain_and_formatted_content() -> R
     });
     content.push(bold);
     let mut doc = Document::default();
-    doc.blocks.push(Block::Paragraph(Paragraph::new(
+    doc.push_block(Block::Paragraph(Paragraph::new(
         content,
         Location::default(),
     )));

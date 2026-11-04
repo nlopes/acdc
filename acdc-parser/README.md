@@ -113,6 +113,12 @@ and TOC entries; it does not add or remove catalog entries. `renumber_captions()
 updates automatic block ordinals, keeping their stored prefixes. It does not
 update caption snapshots in the reference catalog.
 
+`Document` keeps its storage private. Use `DocumentRef::from(&document)` for
+reads. Use `push_block` to append a block or `set_blocks`, `set_header`, and the
+other `set_*` methods to replace owned parts. Their `take_*` counterparts transfer existing parts without tying
+them to a borrow of the old document. You can edit those parts and put them back;
+registrations stay unchanged until you replace them or reparse the source.
+
 `IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
 option tokens. An icon ID is retained even when a converter does not emit it.
 To construct an icon, use `Icon::new(target, location)` and edit its content and
@@ -673,7 +679,7 @@ earlier application inputs; `with_defaults()` replaces earlier defaults.
 `Options::with_document_attributes()` instead reuses an existing snapshot without
 changing its assignment precedence.
 
-`Document::attributes` stops at the end of the header. Read later
+`DocumentRef::attributes()` stops at the end of the header. Read later
 `Block::DocumentAttribute` nodes in source order and match `assignment()` on
 `Set(value)` or `Unset`. Attribute maps no longer expose mutation methods or
 `get_string()`. Use `as_str()` for text, `as_integer()` for validated numbers,
@@ -1098,7 +1104,7 @@ references to the current file or fully included sources resolve within the same
 document. By default, partial includes remain external, as in Asciidoctor. `CrossReference::target`
 contains the effective fragment ID, and `target_is_local` distinguishes it from an
 external resource even when the ID contains punctuation. An empty local target
-addresses the document top; the empty entry in `Document::references` supplies its
+addresses the document top; the empty entry in `DocumentRef::references()` supplies its
 reference text. Converters must check the local flag before treating a target as
 a filename. When changing a destination, update both fields.
 
@@ -1117,7 +1123,7 @@ scopes anchors and resolves references before conversion; its prepared source
 does not need this override. The option is disabled by default.
 
 The parser records the effective attributes at the end of the document header in
-`Document::attributes`. Later accepted set and unset entries appear as ordered
+`DocumentRef::attributes()`. Later accepted set and unset entries appear as ordered
 `Block::DocumentAttribute` nodes and do not change that header snapshot. Each node
 exposes `assignment()`, which returns `DocumentAttributeAssignment::Set` or `Unset`.
 A set value provides `as_str()`, `as_integer()`, and `is_presence()` for semantic

@@ -17,7 +17,7 @@ fn parsed_and_constructed_documents_share_conversion_entrypoints()
     )?;
     let parsed = parse("Hello.", processor.parser_options())?;
     let mut constructed = Document::default();
-    constructed.blocks.push(Block::Paragraph(Paragraph::new(
+    constructed.push_block(Block::Paragraph(Paragraph::new(
         vec![InlineNode::PlainText(Plain {
             content: "Hello.",
             location: Location::default(),

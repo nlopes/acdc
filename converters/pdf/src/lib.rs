@@ -3289,22 +3289,29 @@ mod tests {
             "[example]\n====\nContent.\n====\n",
             &ParserOptions::default(),
         )?;
-        let parsed_stored = acdc_parser::Document::from(parsed.document());
-        let Some(Block::DelimitedBlock(mut title_added)) = parsed_stored.blocks.first().cloned()
-        else {
+        let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+        let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
+        let Some(Block::DelimitedBlock(mut title_added)) = parsed_blocks.first().cloned() else {
             return Err(IoError::other("expected a delimited example").into());
         };
         title_added.title = title("Added later");
 
         let mut document = Document::default();
-        document.attributes = acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-        document.blocks = vec![
+        document.set_attributes(acdc_parser::DocumentAttributes::from(
+            parsed.document().attributes(),
+        ));
+        document.set_blocks(vec![
             Block::DelimitedBlock(caller_built),
             Block::DelimitedBlock(title_added),
-        ];
+        ]);
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(
+                    acdc_parser::ast::DocumentRef::from(&document).attributes(),
+                )
+                .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3337,15 +3344,22 @@ mod tests {
         styled_paragraph.metadata.style = Some("source");
 
         let mut document = Document::default();
-        document.attributes = ParserOptions::with_attributes([("listing-caption", "Listing")])?
-            .into_document_attributes();
-        document.blocks = vec![
+        document.set_attributes(
+            ParserOptions::with_attributes([("listing-caption", "Listing")])?
+                .into_document_attributes(),
+        );
+        document.set_blocks(vec![
             Block::DelimitedBlock(listing),
             Block::Paragraph(styled_paragraph),
-        ];
+        ]);
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(
+                    acdc_parser::ast::DocumentRef::from(&document).attributes(),
+                )
+                .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3368,8 +3382,9 @@ mod tests {
             ".Parsed table\n|===\n|Cell\n|===\n",
             &ParserOptions::default(),
         )?;
-        let parsed_stored = acdc_parser::Document::from(parsed.document());
-        let Some(Block::DelimitedBlock(parsed_table)) = parsed_stored.blocks.first() else {
+        let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+        let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
+        let Some(Block::DelimitedBlock(parsed_table)) = parsed_blocks.first() else {
             return Err(IoError::other("expected a delimited table").into());
         };
         let caller_built =
@@ -3377,14 +3392,21 @@ mod tests {
                 .with_title(title("Caller-built table"));
 
         let mut document = Document::default();
-        document.attributes = acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-        document.blocks = vec![
+        document.set_attributes(acdc_parser::DocumentAttributes::from(
+            parsed.document().attributes(),
+        ));
+        document.set_blocks(vec![
             Block::DelimitedBlock(parsed_table.clone()),
             Block::DelimitedBlock(caller_built),
-        ];
+        ]);
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(
+                    acdc_parser::ast::DocumentRef::from(&document).attributes(),
+                )
+                .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3407,19 +3429,27 @@ mod tests {
             ".Parsed figure\nimage::missing-one.svg[First]\n",
             &ParserOptions::default(),
         )?;
-        let parsed_stored = acdc_parser::Document::from(parsed.document());
+        let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+        let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
         let caller_built = Image::new(Source::Name("missing-two.svg"), Location::default())
             .with_title(title("Caller-built figure"));
-        let Some(parsed_figure) = parsed_stored.blocks.first().cloned() else {
+        let Some(parsed_figure) = parsed_blocks.first().cloned() else {
             return Err(IoError::other("expected a block image").into());
         };
 
         let mut document = Document::default();
-        document.attributes = acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-        document.blocks = vec![parsed_figure, Block::Image(caller_built)];
+        document.set_attributes(acdc_parser::DocumentAttributes::from(
+            parsed.document().attributes(),
+        ));
+        document.set_blocks(vec![parsed_figure, Block::Image(caller_built)]);
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(
+                    acdc_parser::ast::DocumentRef::from(&document).attributes(),
+                )
+                .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4632,7 +4662,7 @@ mod tests {
         });
         content.push(bold);
         let mut doc = Document::default();
-        doc.blocks.push(Block::Paragraph(Paragraph::new(
+        doc.push_block(Block::Paragraph(Paragraph::new(
             content,
             Location::default(),
         )));

@@ -307,15 +307,19 @@ fn typed_and_constructed_lifecycles_agree_in_both_modes() -> Result<(), Error> {
 #[test]
 fn attribute_only_preambles_remain_unwrapped_after_owner_edits() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
-    let parsed_document = acdc_parser::Document::from(parsed.document());
+    let mut parsed_document = acdc_parser::Document::from(parsed.document());
     let mut document = Document::default();
-    let header = parsed_document.header.as_ref().ok_or("header")?;
-    document.header = Some(Header::new(header.title.clone(), header.location.clone()));
-    document.attributes = parsed_document.attributes.clone();
-    document.blocks = parsed_document.blocks.clone();
-    document
-        .blocks
-        .retain(|block| !matches!(block, Block::Paragraph(_)));
+    let header = parsed_document.take_header().ok_or("header")?;
+    document.set_header(Some(Header::new(
+        header.title.clone(),
+        header.location.clone(),
+    )));
+    document.set_attributes(parsed_document.take_attributes());
+    document.set_blocks(
+        parsed_document
+            .take_blocks()
+            .filter(|block| !matches!(block, Block::Paragraph(_))),
+    );
     let read = DocumentRef::from(&document);
     let mut owner = ConstructedTrace::default();
     let mut typed = TypedTrace::default();

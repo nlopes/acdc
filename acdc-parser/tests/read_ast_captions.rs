@@ -44,17 +44,22 @@ fn highest_caption_numbers_use_stored_tree_values_without_allocating(
         );
     }
     let mut document = Document::default();
-    document.blocks = parsed.document().blocks().map(Block::from).collect();
-    document.references = parsed.document().references().into();
-    document
-        .references
-        .get_mut("figure")
-        .ok_or("reference")?
-        .caption = Some(Caption::Numbered {
+    document.set_blocks(parsed.document().blocks().map(Block::from));
+    document.set_references(
+        parsed
+            .document()
+            .references()
+            .iter()
+            .map(|(id, reference)| (id, acdc_parser::Reference::from(reference))),
+    );
+    let mut references: std::collections::HashMap<_, _> = document.take_references().collect();
+    references.get_mut("figure").ok_or("reference")?.caption = Some(Caption::Numbered {
         kind: CaptionKind::Figure,
         label: "Catalog".into(),
         number: NonZeroU32::new(99),
     });
+
+    document.set_references(references);
 
     for (caption, expected_figure, expected_example) in [
         (None, 0, 1),
@@ -88,8 +93,8 @@ fn highest_caption_numbers_use_stored_tree_values_without_allocating(
             17,
         ),
     ] {
-        let image = document
-            .blocks
+        let mut blocks: Vec<_> = document.take_blocks().collect();
+        let image = blocks
             .iter_mut()
             .find_map(|block| {
                 if let Block::Image(image) = block {
@@ -101,6 +106,7 @@ fn highest_caption_numbers_use_stored_tree_values_without_allocating(
             .ok_or("image")?;
         image.title = acdc_parser::Title::default();
         image.metadata.caption = caption;
+        document.set_blocks(blocks);
         let before = serde_json::to_value(&document)?;
         let region = Region::new(ALLOCATOR);
         let handle = DocumentRef::from(&document);
@@ -175,16 +181,20 @@ fn constructed_caption_states_do_not_gain_content_or_ordinals() -> Result<(), Er
 fn caption_reads_preserve_registered_snapshots_after_owner_edits() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
     let mut document = Document::default();
-    document.blocks = parsed.document().blocks().map(Block::from).collect();
-    document.references = parsed.document().references().into();
-    document.references.insert(
-        "alias",
-        document
-            .references
-            .get("figure")
-            .ok_or("alias target")?
-            .clone(),
+    document.set_blocks(parsed.document().blocks().map(Block::from));
+    document.set_references(
+        parsed
+            .document()
+            .references()
+            .iter()
+            .map(|(id, reference)| (id, acdc_parser::Reference::from(reference))),
     );
+    let mut references: std::collections::HashMap<_, _> = document.take_references().collect();
+    references.insert(
+        "alias",
+        references.get("figure").ok_or("alias target")?.clone(),
+    );
+    document.set_references(references);
     assert_eq!(
         DocumentRef::from(&document)
             .references()
@@ -197,8 +207,8 @@ fn caption_reads_preserve_registered_snapshots_after_owner_edits() -> Result<(),
             .ok_or("figure")?
             .caption()
     );
-    let image = document
-        .blocks
+    let mut blocks: Vec<_> = document.take_blocks().collect();
+    let image = blocks
         .iter_mut()
         .find_map(|block| {
             if let Block::Image(image) = block {
@@ -209,14 +219,16 @@ fn caption_reads_preserve_registered_snapshots_after_owner_edits() -> Result<(),
         })
         .ok_or("image")?;
     image.metadata.caption = Some(Caption::Custom("Changed tree".into()));
+    document.set_blocks(blocks);
     assert!(
         matches!(DocumentRef::from(&document).references().get("figure").ok_or("figure")?.caption(), Some(CaptionRef::Numbered { number: Some(number), .. }) if number.get() == 1)
     );
-    document
-        .references
+    let mut references: std::collections::HashMap<_, _> = document.take_references().collect();
+    references
         .get_mut("figure")
         .ok_or("registered figure")?
         .caption = Some(Caption::Custom("Changed catalog".into()));
+    document.set_references(references);
     assert_eq!(
         DocumentRef::from(&document)
             .references()

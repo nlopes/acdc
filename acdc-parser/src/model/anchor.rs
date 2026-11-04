@@ -197,7 +197,7 @@ pub(crate) struct SectionReference {
 /// Reference metadata for a cross-reference target.
 ///
 /// Collected during parsing into the `id → Reference` map on
-/// [`Document::references`](crate::Document), so a `<<id>>` reference resolves
+/// [`DocumentRef::references`](crate::ast::DocumentRef::references), so a `<<id>>` reference resolves
 /// to its target's text in O(1). The id is the map key.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]

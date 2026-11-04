@@ -89,7 +89,7 @@ fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(
     paragraph.metadata.roles = vec!["one", "two"];
     paragraph.metadata.options = vec!["first", "second"];
     let mut document = Document::default();
-    document.blocks.push(Block::Paragraph(paragraph));
+    document.push_block(Block::Paragraph(paragraph));
     let projected = asg::document((&document).into())?;
     assert_eq!(
         projected.pointer("/blocks/0/metadata/attributes"),
@@ -112,7 +112,7 @@ fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(
             .metadata
             .attributes
             .set(property.into(), attribute);
-        document.blocks = vec![Block::Paragraph(paragraph)];
+        document.set_blocks(vec![Block::Paragraph(paragraph)]);
         assert!(
             matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..})
             if path == format!("/blocks/0/metadata/attributes/{property}"))
@@ -143,7 +143,7 @@ fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(
             }
             _ => return Err("unknown metadata test property".into()),
         }
-        document.blocks = vec![Block::Paragraph(paragraph)];
+        document.set_blocks(vec![Block::Paragraph(paragraph)]);
         assert!(
             matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..})
             if path == format!("/blocks/0/metadata/{property}"))

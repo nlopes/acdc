@@ -32,7 +32,7 @@ fn tree(width: usize, depth: usize) -> Block<'static> {
 #[test]
 fn direct_children_and_flat_walks_do_not_allocate() {
     let mut document = Document::default();
-    document.blocks = (0..4096).map(|_| paragraph()).collect();
+    document.set_blocks((0..4096).map(|_| paragraph()));
     let root = DocumentRef::from(&document);
     let region = Region::new(ALLOCATOR);
     let mut children = 0;

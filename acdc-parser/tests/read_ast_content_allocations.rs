@@ -52,9 +52,9 @@ fn direct_field_reads_do_not_allocate() -> Result<(), Box<dyn Error>> {
 
 fn flat_document(width: usize) -> Document<'static> {
     let mut doc = Document::default();
-    doc.blocks = (0..width)
-        .map(|_| Block::Paragraph(Paragraph::new(Vec::new(), Location::default())))
-        .collect();
+    doc.set_blocks(
+        (0..width).map(|_| Block::Paragraph(Paragraph::new(Vec::new(), Location::default()))),
+    );
     doc
 }
 

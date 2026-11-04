@@ -120,7 +120,7 @@ fn media_targets_and_retained_slots_are_read_from_owners() -> Result<(), Error> 
         }
     }
     let mut document = Document::default();
-    document.blocks.push(Block::Image(Image::new(
+    document.push_block(Block::Image(Image::new(
         Source::Name("photo.png"),
         Location::default(),
     )));
@@ -190,13 +190,11 @@ fn missing_forms_and_unsupported_semantics_fail_explicitly() -> Result<(), Error
         );
     }
     let mut document = Document::default();
-    document
-        .blocks
-        .push(Block::DelimitedBlock(DelimitedBlock::new(
-            DelimitedBlockType::DelimitedQuote(Vec::new()),
-            ">",
-            Location::default(),
-        )));
+    document.push_block(Block::DelimitedBlock(DelimitedBlock::new(
+        DelimitedBlockType::DelimitedQuote(Vec::new()),
+        ">",
+        Location::default(),
+    )));
     assert!(
         matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/delimiter")
     );
@@ -232,7 +230,7 @@ fn uncaptioned_library_listing_forms_are_supported() -> Result<(), Error> {
             Block::Paragraph(paragraph)
         };
         let mut document = Document::default();
-        document.blocks.push(block);
+        document.push_block(block);
         let value = asg::document((&document).into())?;
         assert_eq!(value.pointer("/blocks/0/name"), Some(&json!("listing")));
         assert_eq!(

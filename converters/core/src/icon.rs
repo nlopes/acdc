@@ -13,7 +13,7 @@
 //! use acdc_converters_core::icon::IconMode;
 //! use acdc_parser::DocumentAttributes;
 //!
-//! let attrs = document.attributes;
+//! let attrs = DocumentAttributes::from(document.attributes());
 //! let mode = IconMode::from(&attrs);
 //! match mode {
 //!     IconMode::Font => println!("Using font or built-in glyph icons"),

@@ -129,7 +129,9 @@ mod tests {
     #[test]
     fn test_render_document() -> Result<(), Error> {
         let doc = Document::default();
-        let processor = create_test_processor_with(doc.attributes.clone());
+        let processor = create_test_processor_with(acdc_parser::DocumentAttributes::from(
+            acdc_parser::ast::DocumentRef::from(&doc).attributes(),
+        ));
         let buffer = Vec::new();
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
@@ -151,12 +153,16 @@ mod tests {
             location: Location::default(),
             escaped: false,
         })]);
-        doc.header = Some(Header::new(title, Location::default()).with_authors(vec![
+        doc.set_header(Some(Header::new(title, Location::default()).with_authors(
+            vec![
             Author::from_parts("John", Some("M"), "Doe", "JMD").with_email("johndoe@example.com"),
-        ]));
-        doc.blocks = vec![];
+        ],
+        )));
+        doc.set_blocks(vec![]);
         let buffer = Vec::new();
-        let processor = create_test_processor_with(doc.attributes.clone());
+        let processor = create_test_processor_with(acdc_parser::DocumentAttributes::from(
+            acdc_parser::ast::DocumentRef::from(&doc).attributes(),
+        ));
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -172,7 +178,7 @@ mod tests {
     #[test]
     fn test_render_document_with_blocks() -> Result<(), Error> {
         let mut doc = Document::default();
-        doc.blocks = vec![
+        doc.set_blocks(vec![
             Block::Paragraph(Paragraph::new(
                 vec![InlineNode::PlainText(Plain {
                     content: "Hello, world!",
@@ -198,9 +204,11 @@ mod tests {
                 ))],
                 Location::default(),
             )),
-        ];
+        ]);
         let buffer = Vec::new();
-        let processor = create_test_processor_with(doc.attributes.clone());
+        let processor = create_test_processor_with(acdc_parser::DocumentAttributes::from(
+            acdc_parser::ast::DocumentRef::from(&doc).attributes(),
+        ));
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);

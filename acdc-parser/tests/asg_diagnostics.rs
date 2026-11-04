@@ -8,7 +8,7 @@ type Error = Box<dyn std::error::Error + Send + Sync>;
 #[test]
 fn absent_header_title_reports_the_required_property() {
     let mut document = Document::default();
-    document.header = Some(Header::new(Title::default(), Location::default()));
+    document.set_header(Some(Header::new(Title::default(), Location::default())));
     assert!(
         matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/header/title")
     );
@@ -23,7 +23,7 @@ fn dedicated_metadata_cannot_be_shadowed_by_scalar_attributes() {
         .attributes
         .set("style".into(), AttributeValue::String("source".into()));
     let mut document = Document::default();
-    document.blocks.push(Block::Paragraph(paragraph));
+    document.push_block(Block::Paragraph(paragraph));
     assert!(
         matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/metadata/attributes/style")
     );
@@ -67,8 +67,10 @@ fn unsupported_nested_content_keeps_its_own_source() -> Result<(), Error> {
 #[test]
 fn unknown_inline_source_does_not_borrow_the_parents_coordinates() {
     let mut document = Document::default();
-    document.location.start.line = 1;
-    document.location.end.line = 10;
+    let mut location = Location::default();
+    location.start.line = 1;
+    location.end.line = 10;
+    document.set_location(location.clone());
     let mut paragraph = Paragraph::new(
         vec![acdc_parser::InlineNode::VerbatimText(
             acdc_parser::Verbatim {
@@ -76,10 +78,10 @@ fn unknown_inline_source_does_not_borrow_the_parents_coordinates() {
                 location: Location::default(),
             },
         )],
-        document.location.clone(),
+        location,
     );
     paragraph.location.end.line = 2;
-    document.blocks.push(Block::Paragraph(paragraph));
+    document.push_block(Block::Paragraph(paragraph));
     assert!(matches!(
         asg::document((&document).into()),
         Err(asg::Error::Unsupported {
@@ -95,9 +97,7 @@ fn invalid_locations_are_distinct_from_unsupported_values() {
     let mut location = Location::default();
     location.start.line = 1;
     let mut document = Document::default();
-    document
-        .blocks
-        .push(Block::Paragraph(Paragraph::new(Vec::new(), location)));
+    document.push_block(Block::Paragraph(Paragraph::new(Vec::new(), location)));
     assert!(
         matches!(asg::document((&document).into()), Err(asg::Error::InvalidLocation {
         path, construct: Some("paragraph"), location: None, ..
@@ -178,7 +178,7 @@ fn section_policy_errors_identify_the_native_property() {
                 .with_numbering(numbered);
         section.kind = kind;
         let mut document = Document::default();
-        document.blocks.push(Block::Section(section));
+        document.push_block(Block::Section(section));
         assert!(
             matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {
             path, construct: Some("section"), ..

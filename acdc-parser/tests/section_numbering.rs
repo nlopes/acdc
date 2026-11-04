@@ -1,6 +1,6 @@
 use acdc_parser::{
     Block, Document, Location, Options, Section, Title,
-    ast::{BlockKind, BlockRef, SectionRef, TocEntryRef},
+    ast::{BlockKind, BlockRef, DocumentRef, SectionRef, TocEntryRef},
     parse,
 };
 
@@ -171,7 +171,7 @@ fn special_sections_follow_the_numbering_mode() -> Result<(), Error> {
 #[test]
 fn caller_created_sections_are_explicit_and_renumberable() -> Result<(), Error> {
     let mut document = Document::default();
-    document.blocks = vec![
+    document.set_blocks(vec![
         Block::Section(Section::new(
             Title::default(),
             1,
@@ -181,21 +181,38 @@ fn caller_created_sections_are_explicit_and_renumberable() -> Result<(), Error> 
         Block::Section(
             Section::new(Title::default(), 1, Vec::new(), Location::default()).with_numbering(true),
         ),
-    ];
+    ]);
 
     document.renumber_sections();
-    let first = section(document.blocks.first().ok_or("expected first section")?)?;
-    let second = section(document.blocks.get(1).ok_or("expected second section")?)?;
+    let first = section(
+        DocumentRef::from(&document)
+            .blocks()
+            .next()
+            .ok_or("expected first section")?,
+    )?;
+    let second = section(
+        DocumentRef::from(&document)
+            .blocks()
+            .nth(1)
+            .ok_or("expected second section")?,
+    )?;
     assert_eq!(number(first), None);
     assert_eq!(number(second), Some("1"));
 
-    document.blocks.swap(0, 1);
+    let mut blocks: Vec<_> = document.take_blocks().collect();
+    blocks.swap(0, 1);
+    document.set_blocks(blocks);
     document.renumber_sections();
-    let numbered = section(document.blocks.first().ok_or("expected numbered section")?)?;
+    let numbered = section(
+        DocumentRef::from(&document)
+            .blocks()
+            .next()
+            .ok_or("expected numbered section")?,
+    )?;
     let unnumbered = section(
-        document
-            .blocks
-            .get(1)
+        DocumentRef::from(&document)
+            .blocks()
+            .nth(1)
             .ok_or("expected unnumbered section")?,
     )?;
     assert_eq!(number(numbered), Some("1"));

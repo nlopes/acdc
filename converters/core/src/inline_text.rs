@@ -933,12 +933,12 @@ mod tests {
     }
 
     /// The inline nodes of the document's first body paragraph.
-    fn body_inlines<'a>(doc: &'a acdc_parser::Document<'a>) -> &'a [InlineNode<'a>] {
-        doc.blocks
-            .iter()
+    fn body_inlines<'a>(doc: &'a acdc_parser::Document<'a>) -> Vec<InlineNode<'a>> {
+        acdc_parser::ast::DocumentRef::from(doc)
+            .blocks()
             .find_map(|block| {
-                if let acdc_parser::Block::Paragraph(paragraph) = block {
-                    Some(paragraph.content.as_slice())
+                if let acdc_parser::Block::Paragraph(paragraph) = acdc_parser::Block::from(block) {
+                    Some(paragraph.content)
                 } else {
                     None
                 }
@@ -951,7 +951,7 @@ mod tests {
         // All an inter-document reference has is its target.
         let parsed = document("See <<titled>>.")?;
         let doc = &acdc_parser::Document::from(parsed.document());
-        assert_eq!(inlines_to_string(body_inlines(doc)), "See titled.");
+        assert_eq!(inlines_to_string(&body_inlines(doc)), "See titled.");
         Ok(())
     }
 
@@ -961,8 +961,8 @@ mod tests {
         let doc = &acdc_parser::Document::from(parsed.document());
         assert_eq!(
             InlineTextTransform::default()
-                .references((&doc.references).into())
-                .to_string(body_inlines(doc)),
+                .references(acdc_parser::ast::DocumentRef::from(doc).references())
+                .to_string(&body_inlines(doc)),
             "See A title, A label, [untitled], and [missing]."
         );
         Ok(())
@@ -978,8 +978,8 @@ mod tests {
 
         assert_eq!(
             InlineTextTransform::default()
-                .references((&doc.references).into())
-                .to_string(body_inlines(doc)),
+                .references(acdc_parser::ast::DocumentRef::from(doc).references())
+                .to_string(&body_inlines(doc)),
             "Named: Custom Label. Explicit: Chosen text. Title: [Actual Title]. ID: Custom Label."
         );
         Ok(())
@@ -991,8 +991,8 @@ mod tests {
         let doc = &acdc_parser::Document::from(parsed.document());
         assert_eq!(
             InlineTextTransform::default()
-                .references((&doc.references).into())
-                .to_string(body_inlines(doc)),
+                .references(acdc_parser::ast::DocumentRef::from(doc).references())
+                .to_string(&body_inlines(doc)),
             "See See [recursive] again."
         );
         Ok(())
@@ -1003,7 +1003,7 @@ mod tests {
         let parsed = document("See https://example.com[the site] and https://bare.example[].")?;
         let doc = &acdc_parser::Document::from(parsed.document());
         assert_eq!(
-            inlines_to_string(body_inlines(doc)),
+            inlines_to_string(&body_inlines(doc)),
             "See the site and https://bare.example."
         );
         Ok(())
@@ -1014,7 +1014,7 @@ mod tests {
         let parsed = document("Choose menu:File[Open > Recent].")?;
         let doc = &acdc_parser::Document::from(parsed.document());
         assert_eq!(
-            inlines_to_string(body_inlines(doc)),
+            inlines_to_string(&body_inlines(doc)),
             "Choose File > Open > Recent."
         );
         Ok(())
@@ -1025,11 +1025,11 @@ mod tests {
         let parsed = document("It{apos}s here.")?;
         let doc = &acdc_parser::Document::from(parsed.document());
         let inlines = body_inlines(doc);
-        assert_eq!(inlines_to_string(inlines), "It&#39;s here.");
+        assert_eq!(inlines_to_string(&inlines), "It&#39;s here.");
         assert_eq!(
             InlineTextTransform::default()
                 .decode_char_refs(true)
-                .to_string(inlines),
+                .to_string(&inlines),
             "It's here."
         );
         Ok(())

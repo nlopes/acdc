@@ -205,7 +205,7 @@ fn block_image_metadata_cannot_shadow_promoted_content() {
             .attributes
             .set(name.into(), AttributeValue::String("shadow".into()));
         let mut document = Document::default();
-        document.blocks.push(Block::Image(image));
+        document.push_block(Block::Image(image));
         for profile in [asg::Profile::Upstream, asg::Profile::Acdc] {
             assert!(
                 matches!(asg::document_with_profile((&document).into(),profile),Err(asg::Error::Unsupported {path,..}) if path==format!("/blocks/0/metadata/attributes/{name}"))

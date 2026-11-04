@@ -31,7 +31,9 @@ fn removing_content_and_renumbering_do_not_rebuild_catalog_membership(
     )?;
     let before = serde_json::to_value(parsed.document())?;
     let mut document = Document::from(parsed.document());
-    document.blocks.remove(0);
+    let mut blocks: Vec<_> = document.take_blocks().collect();
+    blocks.remove(0);
+    document.set_blocks(blocks);
     document.renumber_sections();
 
     let read = DocumentRef::from(&document);
@@ -63,13 +65,15 @@ fn caption_renumbering_keeps_declaration_prefixes_and_reference_snapshots(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let mut document = Document::from(parsed.document());
-    document.blocks.retain(|block| {
+    let blocks = document.take_blocks();
+    document.set_blocks(blocks.filter(|block| {
         BlockRef::from(block)
             .id()
             .is_none_or(|id| id.as_str() != "one")
-    });
-    document.attributes =
-        Options::with_attributes([("figure-caption", "Now")])?.into_document_attributes();
+    }));
+    document.set_attributes(
+        Options::with_attributes([("figure-caption", "Now")])?.into_document_attributes(),
+    );
     document.renumber_captions();
     let read = DocumentRef::from(&document);
     let image = read
@@ -103,8 +107,9 @@ fn author_and_document_attribute_edits_do_not_reinterpret_registered_content(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let mut document = Document::from(parsed.document());
-    document.header.as_mut().ok_or("header")?.authors =
-        vec![Author::from_parts("Bob", None, "Jones", "BJ")];
+    let mut header = document.take_header().ok_or("header")?;
+    header.authors = vec![Author::from_parts("Bob", None, "Jones", "BJ")];
+    document.set_header(Some(header));
     assert_eq!(
         DocumentRef::from(&document)
             .attributes()
@@ -112,8 +117,9 @@ fn author_and_document_attribute_edits_do_not_reinterpret_registered_content(
             .and_then(|value| value.text()),
         Some("Alice Smith")
     );
-    document.attributes =
-        Options::with_attributes([("label", "Changed")])?.into_document_attributes();
+    document.set_attributes(
+        Options::with_attributes([("label", "Changed")])?.into_document_attributes(),
+    );
     let read = DocumentRef::from(&document);
     let term = read
         .blocks()
@@ -193,7 +199,8 @@ fn nonidentity_edits_keep_parser_assigned_collision_ids(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let mut document = Document::from(parsed.document());
-    let Block::Section(second) = document.blocks.get_mut(1).ok_or("second section")? else {
+    let mut blocks: Vec<_> = document.take_blocks().collect();
+    let Block::Section(second) = blocks.get_mut(1).ok_or("second section")? else {
         return Err("section".into());
     };
     second.metadata.roles.push("highlighted");
@@ -201,6 +208,7 @@ fn nonidentity_edits_keep_parser_assigned_collision_ids(
     let section = SectionRef::from(&*second);
     assert_eq!(section.id().ok_or("assigned ID")?.as_str(), "_same_2");
     assert!(section.title().is_some_and(ContentRef::is_empty));
+    document.set_blocks(blocks);
     assert_eq!(
         text(
             DocumentRef::from(&document)

@@ -30,7 +30,8 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
-        let mut traversal = TraversalContext::new(&document.attributes);
+        let mut traversal =
+            TraversalContext::new(acdc_parser::ast::DocumentRef::from(&document).attributes());
         let options = RenderOptions::default();
         {
             let text = String::from("temporary <text>");
@@ -188,7 +189,8 @@ fn span_warning_order_and_inline_state_survive_a_write_error() -> Result<(), Tes
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
-        let mut traversal = TraversalContext::new(&document.attributes);
+        let mut traversal =
+            TraversalContext::new(acdc_parser::ast::DocumentRef::from(&document).attributes());
         {
             let role = String::from("big \t small big");
             let node = InlineNode::HighlightText(Highlight {
@@ -237,7 +239,8 @@ fn rich_inline_sequences_restore_context_after_write_errors() -> Result<(), Test
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
-        let mut traversal = TraversalContext::new(&document.attributes);
+        let mut traversal =
+            TraversalContext::new(acdc_parser::ast::DocumentRef::from(&document).attributes());
         let boundaries = acdc_converters_core::substitutions::TextBoundaries::NONE;
         visitor.text_boundaries = boundaries;
         {
@@ -283,7 +286,8 @@ fn typed_content_can_be_dropped_before_the_visitor_in_each_render_mode() -> Resu
                 },
                 Diagnostics::new(&source, &mut warnings),
             );
-            let mut traversal = TraversalContext::new(&document.attributes);
+            let mut traversal =
+                TraversalContext::new(acdc_parser::ast::DocumentRef::from(&document).attributes());
             let boundaries = visitor.text_boundaries;
             {
                 let source = String::from(
@@ -360,7 +364,8 @@ fn resolved_symbols_keep_html_encoding_without_reinterpreting_source() -> Result
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
-        let mut traversal = TraversalContext::new(&document.attributes);
+        let mut traversal =
+            TraversalContext::new(acdc_parser::ast::DocumentRef::from(&document).attributes());
         let options = RenderOptions::default();
         let mut expected_output = String::new();
         for (kind, expected) in [

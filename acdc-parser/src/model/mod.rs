@@ -64,13 +64,13 @@ pub use title::{Subtitle, Title};
 #[derive(Default, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Document<'a> {
-    pub header: Option<Header<'a>>,
+    pub(crate) header: Option<Header<'a>>,
     /// Effective end-of-header values. Later accepted changes are ordered
     /// [`Block::DocumentAttribute`] nodes and do not update this snapshot.
-    pub attributes: DocumentAttributes<'a>,
-    pub blocks: Vec<Block<'a>>,
-    pub footnotes: Vec<Footnote<'a>>,
-    pub toc_entries: Vec<TocEntry<'a>>,
+    pub(crate) attributes: DocumentAttributes<'a>,
+    pub(crate) blocks: Vec<Block<'a>>,
+    pub(crate) footnotes: Vec<Footnote<'a>>,
+    pub(crate) toc_entries: Vec<TocEntry<'a>>,
     /// Cross-reference targets keyed by id, for O(1) `<<id>>` resolution.
     /// Covers sections, blocks, explicit inline anchors, and IDs on formatted
     /// inline spans; collected during parsing. `toc_entries` remains the ordered
@@ -78,11 +78,97 @@ pub struct Document<'a> {
     /// document title or label when a reference addresses the document top.
     /// Like `toc_entries` and
     /// `footnotes`, this is not serialized.
-    pub references: HashMap<&'a str, Reference<'a>>,
-    pub location: Location,
+    pub(crate) references: HashMap<&'a str, Reference<'a>>,
+    pub(crate) location: Location,
 }
 
-impl Document<'_> {
+impl<'a> Document<'a> {
+    /// Replace the header without updating author-derived document attributes.
+    pub fn set_header(&mut self, header: Option<Header<'a>>) {
+        self.header = header;
+    }
+
+    /// Remove and return the header without updating derived attributes.
+    #[must_use]
+    pub fn take_header(&mut self) -> Option<Header<'a>> {
+        self.header.take()
+    }
+
+    /// Replace the end-of-header snapshot without reinterpreting stored content.
+    pub fn set_attributes(&mut self, attributes: DocumentAttributes<'a>) {
+        self.attributes = attributes;
+    }
+
+    /// Remove the end-of-header snapshot, leaving empty document attributes.
+    #[must_use]
+    pub fn take_attributes(&mut self) -> DocumentAttributes<'a> {
+        std::mem::take(&mut self.attributes)
+    }
+
+    /// Replace the block tree without rebuilding registrations or numbering.
+    pub fn set_blocks(&mut self, blocks: impl IntoIterator<Item = Block<'a>>) {
+        self.blocks = blocks.into_iter().collect();
+    }
+
+    /// Append a block without rebuilding registrations or numbering.
+    pub fn push_block(&mut self, block: Block<'a>) {
+        self.blocks.push(block);
+    }
+
+    /// Remove the block tree, retaining the source lifetime of each owned block.
+    pub fn take_blocks(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = Block<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.blocks).into_iter()
+    }
+
+    /// Replace prepared footnote registrations without changing tree occurrences.
+    pub fn set_footnotes(&mut self, footnotes: impl IntoIterator<Item = Footnote<'a>>) {
+        self.footnotes = footnotes.into_iter().collect();
+    }
+
+    /// Remove footnote registrations without changing tree occurrences.
+    pub fn take_footnotes(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = Footnote<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.footnotes).into_iter()
+    }
+
+    /// Replace prepared TOC entries without changing the section tree.
+    pub fn set_toc_entries(&mut self, entries: impl IntoIterator<Item = TocEntry<'a>>) {
+        self.toc_entries = entries.into_iter().collect();
+    }
+
+    /// Remove TOC entries without changing the section tree.
+    pub fn take_toc_entries(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = TocEntry<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.toc_entries).into_iter()
+    }
+
+    /// Replace prepared reference snapshots without registering tree targets.
+    ///
+    /// If a key occurs more than once, the last value wins. Stored title presence
+    /// and source identity are preserved; catalog coherence is not checked.
+    pub fn set_references(
+        &mut self,
+        references: impl IntoIterator<Item = (&'a str, Reference<'a>)>,
+    ) {
+        self.references = references.into_iter().collect();
+    }
+
+    /// Remove reference snapshots without changing target elements.
+    pub fn take_references(
+        &mut self,
+    ) -> impl ExactSizeIterator<Item = (&'a str, Reference<'a>)> + use<'a> {
+        std::mem::take(&mut self.references).into_iter()
+    }
+
+    /// Replace the document span without relocating its children or catalogs.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+
     /// Reassign section numbers from the current section tree.
     ///
     /// Parsing does this automatically. Call it after changing the section tree or a

@@ -3507,17 +3507,21 @@ fn unresolved_table_decoration_matches_the_parsed_presentation() -> Result<(), E
                     .build()?,
             )?;
             let mut resolved = acdc_parser::Document::default();
-            resolved.attributes =
-                acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-            resolved.blocks = parsed
-                .document()
-                .blocks()
-                .map(acdc_parser::Block::from)
-                .collect();
+            resolved.set_attributes(acdc_parser::DocumentAttributes::from(
+                parsed.document().attributes(),
+            ));
+            resolved.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
             let mut unresolved = acdc_parser::Document::default();
-            unresolved.attributes = resolved.attributes.clone();
-            unresolved.blocks = resolved.blocks.clone();
-            let Some(Block::DelimitedBlock(block)) = unresolved.blocks.first_mut() else {
+            unresolved.set_attributes(acdc_parser::DocumentAttributes::from(
+                acdc_parser::ast::DocumentRef::from(&resolved).attributes(),
+            ));
+            unresolved.set_blocks(
+                acdc_parser::ast::DocumentRef::from(&resolved)
+                    .blocks()
+                    .map(acdc_parser::Block::from),
+            );
+            let mut blocks: Vec<_> = unresolved.take_blocks().collect();
+            let Some(Block::DelimitedBlock(block)) = blocks.first_mut() else {
                 return Err("expected table block".into());
             };
             let DelimitedBlockType::DelimitedTable(table) = &mut block.inner else {
@@ -3529,6 +3533,7 @@ fn unresolved_table_decoration_matches_the_parsed_presentation() -> Result<(), E
                 .with_footer(table.footer.clone())
                 .with_columns(table.columns.clone());
             assert!(table.presentation().is_none());
+            unresolved.set_blocks(blocks);
             for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
                 let processor = Processor::new_with_variant(
                     ConverterOptions::default(),
@@ -3578,12 +3583,10 @@ fn checked_table_metadata_edits_reach_rendered_decoration(
             .build()?,
     )?;
     let mut document = acdc_parser::Document::default();
-    document.attributes = acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-    document.blocks = parsed
-        .document()
-        .blocks()
-        .map(acdc_parser::Block::from)
-        .collect();
+    document.set_attributes(acdc_parser::DocumentAttributes::from(
+        parsed.document().attributes(),
+    ));
+    document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
     for (declarations, classes) in [
         (Some(("none", "none", "none")), "frame-none grid-none"),
         (
@@ -3592,8 +3595,8 @@ fn checked_table_metadata_edits_reach_rendered_decoration(
         ),
         (None, "frame-sides grid-rows stripes-even"),
     ] {
-        let block = document
-            .blocks
+        let mut blocks: Vec<_> = document.take_blocks().collect();
+        let block = blocks
             .iter_mut()
             .find_map(|block| {
                 if let Block::DelimitedBlock(block) = block {
@@ -3616,6 +3619,7 @@ fn checked_table_metadata_edits_reach_rendered_decoration(
             }
         }
         block.set_metadata(metadata)?;
+        document.set_blocks(blocks);
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
             let output = render_fixture_document((&document).into(), variant, true)?;
             let prefix = match variant {
@@ -3646,7 +3650,7 @@ fn constructed_character_references_render_without_double_escaping() -> Result<(
             CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
         ));
     }
-    doc.blocks.push(Block::Paragraph(Paragraph::new(
+    doc.push_block(Block::Paragraph(Paragraph::new(
         content,
         Location::default(),
     )));

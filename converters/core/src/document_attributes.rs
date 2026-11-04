@@ -204,7 +204,11 @@ impl<'doc> TraversalContext<'doc> {
 mod tests {
     use std::{convert::Infallible, fmt, ptr::eq};
 
-    use acdc_parser::{Block, DocumentAttributes, Options, ast::BlockRef, parse};
+    use acdc_parser::{
+        Block, DocumentAttributes, Options,
+        ast::{BlockRef, DocumentRef},
+        parse,
+    };
 
     use super::*;
     use crate::{document_attribute_text, visitor::BlockVisitor};
@@ -354,9 +358,9 @@ mod tests {
             &Options::default(),
         )?;
         let document = &acdc_parser::Document::from(parsed.document());
-        let mut context = TraversalContext::new(&document.attributes);
+        let mut context = TraversalContext::new(DocumentRef::from(document).attributes());
         let mut observer = Observer::default();
-        context.visit_blocks(&mut observer, &document.blocks)?;
+        context.visit_blocks(&mut observer, DocumentRef::from(document).blocks())?;
         assert_eq!(
             observer.values,
             [
@@ -389,9 +393,9 @@ mod tests {
             .blocks()
             .map(acdc_parser::Block::from)
             .collect();
-        let mut context = TraversalContext::new(&parent_document.attributes);
+        let mut context = TraversalContext::new(DocumentRef::from(&parent_document).attributes());
         let mut observer = Observer::default();
-        context.visit_blocks(&mut observer, &parent_document.blocks)?;
+        context.visit_blocks(&mut observer, DocumentRef::from(&parent_document).blocks())?;
         for fail in [false, true] {
             let result = context.with_scope(|context| {
                 let Ok(()) = context.visit_blocks(&mut observer, &child_blocks);
@@ -417,17 +421,17 @@ mod tests {
             &Options::default(),
         )?;
         let parsed_document = acdc_parser::Document::from(parsed.document());
-        let Block::DelimitedBlock(block) = parsed_document
-            .blocks
-            .first()
-            .ok_or("missing table block")?
-        else {
+        let blocks: Vec<_> = DocumentRef::from(&parsed_document)
+            .blocks()
+            .map(Block::from)
+            .collect();
+        let Block::DelimitedBlock(block) = blocks.first().ok_or("missing table block")? else {
             return Err("missing table block".into());
         };
         let acdc_parser::DelimitedBlockType::DelimitedTable(table) = &block.inner else {
             return Err("missing table".into());
         };
-        let mut context = TraversalContext::new(&parsed_document.attributes);
+        let mut context = TraversalContext::new(DocumentRef::from(&parsed_document).attributes());
         for fail in [false, true] {
             let result = context.with_table_cell(
                 table

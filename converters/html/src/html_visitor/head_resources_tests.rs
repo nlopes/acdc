@@ -112,13 +112,12 @@ fn head_resources_keep_cell_overrides_and_column_defaults_after_owner_edits() ->
         (ColumnStyle::Default, None, (true, true, false)),
     ] {
         let mut document = Document::default();
-        document.attributes = acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-        document.blocks = parsed
-            .document()
-            .blocks()
-            .map(acdc_parser::Block::from)
-            .collect();
-        for block in &mut document.blocks {
+        document.set_attributes(acdc_parser::DocumentAttributes::from(
+            parsed.document().attributes(),
+        ));
+        document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+        let mut blocks: Vec<_> = document.take_blocks().collect();
+        for block in &mut blocks {
             if let Block::DelimitedBlock(block) = block
                 && let DelimitedBlockType::DelimitedTable(table) = &mut block.inner
             {
@@ -137,6 +136,7 @@ fn head_resources_keep_cell_overrides_and_column_defaults_after_owner_edits() ->
                 }
             }
         }
+        document.set_blocks(blocks);
         let resources = HeadResources::collect((&document).into());
         assert_eq!(
             (resources.stem, resources.font_icons, resources.nested_stem),
@@ -153,12 +153,9 @@ fn head_resources_use_stored_cell_order_for_spanning_column_defaults() -> Result
         &Options::default(),
     )?;
     let mut document = Document::default();
-    document.blocks = parsed
-        .document()
-        .blocks()
-        .map(acdc_parser::Block::from)
-        .collect();
-    let Some(Block::DelimitedBlock(block)) = document.blocks.first_mut() else {
+    document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+    let mut blocks: Vec<_> = document.take_blocks().collect();
+    let Some(Block::DelimitedBlock(block)) = blocks.first_mut() else {
         return Err("expected a table".into());
     };
     let DelimitedBlockType::DelimitedTable(table) = &mut block.inner else {
@@ -189,6 +186,7 @@ fn head_resources_use_stored_cell_order_for_spanning_column_defaults() -> Result
         format
     })
     .collect();
+    document.set_blocks(blocks);
     let resources = HeadResources::collect((&document).into());
     assert_eq!(
         (resources.stem, resources.font_icons, resources.nested_stem),

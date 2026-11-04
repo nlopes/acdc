@@ -245,22 +245,25 @@ fn unresolved_tables_preserve_body_and_nested_cell_decoration() -> Result<(), Er
         &Options::default(),
     )?;
     let mut stored = Document::default();
-    stored.attributes = acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-    stored.blocks = parsed
-        .document()
-        .blocks()
-        .map(acdc_parser::Block::from)
-        .collect();
-    let mut unresolved = Document::default();
-    unresolved.attributes = stored.attributes.clone();
-    unresolved.blocks = stored.blocks.clone();
-    clear_table_presentations(&mut unresolved.blocks);
+    stored.set_attributes(acdc_parser::DocumentAttributes::from(
+        parsed.document().attributes(),
+    ));
+    stored.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+    let mut unresolved = Document::from(acdc_parser::ast::DocumentRef::from(&stored));
+    let mut blocks: Vec<_> = unresolved.take_blocks().collect();
+    clear_table_presentations(&mut blocks);
+    unresolved.set_blocks(blocks);
     let directory = tempfile::tempdir()?;
     let mut rendered = Vec::new();
     for (name, document) in [("stored", &stored), ("unresolved", &unresolved)] {
         let typst = directory.path().join(name).with_extension("typ");
         let processor = cli_fixture_processor(
-            Options::builder().with_attributes(document.attributes.clone().into_inputs()),
+            Options::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(
+                    acdc_parser::ast::DocumentRef::from(document).attributes(),
+                )
+                .into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             emit_typst: Some(typst.clone()),
@@ -1847,17 +1850,18 @@ fn named_pdf_destinations_keep_caller_built_document_titles() -> Result<(), Erro
         include_str!("fixtures/source/named_destinations.adoc"),
         &Options::default(),
     )?;
-    let parsed_stored = acdc_parser::Document::from(parsed.document());
+    let mut parsed_stored = acdc_parser::Document::from(parsed.document());
     let header = parsed_stored
-        .header
-        .as_ref()
+        .take_header()
         .ok_or("missing fixture header")?;
     let mut document = Document::default();
-    document.header = Some(
+    document.set_header(Some(
         acdc_parser::Header::new(header.title.clone(), header.location.clone())
             .with_metadata(header.metadata.clone())?,
-    );
-    document.attributes = acdc_parser::DocumentAttributes::from(parsed.document().attributes());
+    ));
+    document.set_attributes(acdc_parser::DocumentAttributes::from(
+        parsed.document().attributes(),
+    ));
     let pdf = render_document((&document).into())?;
     let destinations = named_destinations(&pdf)?;
     assert!(destinations.contains_key("document-top"));

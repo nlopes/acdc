@@ -57,7 +57,7 @@ fn content_presence_and_caption_variants_do_not_collapse() -> Result<(), Error> 
         ),
     ] {
         paragraph.metadata.caption = caption;
-        document.blocks = vec![Block::Paragraph(paragraph.clone())];
+        document.set_blocks(vec![Block::Paragraph(paragraph.clone())]);
         let value = export((&document).into())?;
         assert_eq!(value.pointer("/blocks/0/title"), Some(&json!([])));
         assert_eq!(value.pointer("/blocks/0/attribution"), Some(&json!([])));
@@ -78,7 +78,7 @@ fn programmatic_literal_content_is_not_parsed_again() -> Result<(), Error> {
         }),
     ]));
     let mut document = Document::default();
-    document.blocks.push(Block::Paragraph(paragraph));
+    document.push_block(Block::Paragraph(paragraph));
     let value = export((&document).into())?;
     assert_eq!(
         value.pointer("/blocks/0/attribution/0/value"),

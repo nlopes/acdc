@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `Document` storage fields are private. Read through
+  `ast::DocumentRef::from(&document)` and edit with `set_header`, `set_attributes`,
+  `set_blocks`, `set_footnotes`, `set_toc_entries`, `set_references`, and
+  `set_location`; use `push_block` to append. The `take_*` methods transfer parts while
+  preserving source lifetimes. These edits do not repair registered snapshots.
+
 - Clarified detached editing: changes do not rebuild registered targets, TOC
   membership, footnotes, or author-derived attributes. Explicit renumbering has
   a limited scope; reparse changed source for complete registration updates.
