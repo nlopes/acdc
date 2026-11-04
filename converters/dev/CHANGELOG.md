@@ -8,5 +8,7 @@
 
 ### Changed
 
+- Fixture-generator callbacks now receive `ast::DocumentRef`. Read attributes with `document.attributes()` and pass the handle directly to converters. Generated output and fixture selection are unchanged.
+
 - Fixture generation uses Unsafe mode to match the Asciidoctor CLI.
   Includes still expand when the parser default changes to Secure.

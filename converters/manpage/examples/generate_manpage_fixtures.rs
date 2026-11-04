@@ -29,12 +29,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             options,
             acdc_parser::Options::builder()
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .with_attributes(doc.attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+                ),
         )?;
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("manpage");
         let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        processor.write_document(doc.into(), output, None, &mut diagnostics)?;
+        processor.write_document(doc, output, None, &mut diagnostics)?;
         Ok(())
     })
 }

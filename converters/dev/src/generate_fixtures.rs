@@ -13,7 +13,9 @@
 //!     .generate(|subdir, doc, output| {
 //!         let embedded = subdir == Some("embedded");
 //!         let options = Options::builder().embedded(embedded).build();
-//!         let processor = Processor::new(options, doc.attributes.clone())?;
+//!         let attributes = acdc_parser::DocumentAttributes::from(doc.attributes());
+//!         let processor = Processor::new(options, ParserOptions::builder()
+//!             .with_attributes(attributes.into_inputs()))?;
 //!         processor.convert_to_writer(doc, output)?;
 //!         Ok(())
 //!     })?;
@@ -35,7 +37,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_parser::{Document, Options};
+use acdc_parser::{Options, ast::DocumentRef};
 use crossterm::style::{PrintStyledContent, Stylize};
 
 /// Builder for generating expected fixture output files.
@@ -145,7 +147,7 @@ impl FixtureGenerator {
     /// Returns an error if parsing, conversion, directory creation, or file I/O fails.
     pub fn generate<F>(&self, convert_fn: F) -> Result<(), Box<dyn Error>>
     where
-        F: Fn(Option<&str>, &Document, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
+        F: Fn(Option<&str>, DocumentRef<'_>, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
     {
         let base_source = self.source_dir();
         let base_expected = self.expected_dir();
@@ -174,7 +176,7 @@ impl FixtureGenerator {
         convert_fn: &F,
     ) -> Result<(), Box<dyn Error>>
     where
-        F: Fn(&Document, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
+        F: Fn(DocumentRef<'_>, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
     {
         // Ensure output directory exists
         fs::create_dir_all(output_dir)?;
@@ -226,7 +228,7 @@ impl FixtureGenerator {
 
             // Convert using the provided function
             let mut output = Vec::new();
-            if let Err(e) = convert_fn(parsed.document(), &mut output) {
+            if let Err(e) = convert_fn(parsed.document_ref(), &mut output) {
                 println!(
                     "{} Error converting {} to {}: {e}",
                     PrintStyledContent("❌".red()),
@@ -313,7 +315,7 @@ mod tests {
             &output,
             &|document, bytes| {
                 bytes.extend_from_slice(b"converted");
-                if document.attributes.contains_key("fail") {
+                if document.attributes().contains("fail") {
                     Err("conversion failed after writing partial output".into())
                 } else {
                     Ok(())
@@ -364,6 +366,41 @@ mod tests {
             })?;
         assert_eq!(fs::read_to_string(output.join("good.txt"))?, "converted");
         assert!(!output.join("bad.txt").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn typed_callback_reads_attributes_and_retained_source() -> Result<(), Box<dyn Error>> {
+        let temp = tempfile::tempdir()?;
+        let input = temp.path().join("source");
+        let output = temp.path().join("expected");
+        fs::create_dir_all(&input)?;
+        fs::write(input.join("typed.adoc"), ":control: value\n\n*Text* λ 😀.")?;
+        FixtureGenerator::new("test", "txt").generate_dir(
+            &input,
+            &output,
+            &|document: DocumentRef<'_>, bytes| {
+                assert_eq!(
+                    document
+                        .attributes()
+                        .get("control")
+                        .and_then(|value| value.text()),
+                    Some("value")
+                );
+                let block = document.blocks().next().ok_or("missing paragraph")?;
+                let acdc_parser::ast::BlockKind::Paragraph(paragraph) = block.kind() else {
+                    return Err("expected paragraph".into());
+                };
+                assert!(!paragraph.content().is_empty());
+                bytes
+                    .extend_from_slice(paragraph.source_text().ok_or("missing source")?.as_bytes());
+                Ok(())
+            },
+        )?;
+        assert_eq!(
+            fs::read_to_string(output.join("typed.txt"))?,
+            "*Text* λ 😀."
+        );
         Ok(())
     }
 

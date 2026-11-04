@@ -520,7 +520,7 @@ fn fixture_expectations_follow_effective_header_highlighter(
         "example.html"
     };
     assert_eq!(
-        support::expected_fixture_path(Path::new("expected"), "example", parsed.document()),
+        support::expected_fixture_path(Path::new("expected"), "example", parsed.document_ref()),
         Path::new("expected").join(expected)
     );
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
@@ -1390,13 +1390,14 @@ fn run_fixture_test(
     )?;
     // Require both baselines even in highlighting-enabled CI, so new inputs
     // cannot omit the plain rendering coverage.
-    if support::has_highlighter(parsed.document()) {
+    if support::has_highlighter(parsed.document_ref()) {
         let plain_path = expected_dir
             .join(file_name)
             .with_extension("no-highlighting.html");
         assert!(plain_path.is_file(), "missing {}", plain_path.display());
     }
-    let expected_path = support::expected_fixture_path(expected_dir, file_name, parsed.document());
+    let expected_path =
+        support::expected_fixture_path(expected_dir, file_name, parsed.document_ref());
 
     let actual = render_fixture_document(parsed.document(), variant, embedded)?;
     let expected = read_to_string(&expected_path)?;

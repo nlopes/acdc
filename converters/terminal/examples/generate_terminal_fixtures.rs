@@ -65,7 +65,9 @@ fn generate(
                 .build(),
             acdc_parser::Options::builder()
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .with_attributes(doc.attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+                ),
         )?
         .with_terminal_width(80)
         .with_dark_mode(true)
@@ -76,7 +78,7 @@ fn generate(
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("terminal");
         let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc.into(), output, None, None, &mut diagnostics)?;
+        processor.write_to(doc, output, None, None, &mut diagnostics)?;
         Ok(())
     })
 }

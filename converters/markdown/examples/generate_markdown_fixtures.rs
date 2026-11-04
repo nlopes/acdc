@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build()?;
         let parsed = acdc_parser::parse_file(&input_path, &parser_options)?;
         let output_path = expected_dir.join(format!("{stem}.md"));
-        let doc = parsed.document();
+        let doc = parsed.document_ref();
         let variant = if stem.starts_with("commonmark_") {
             MarkdownVariant::CommonMark
         } else {
@@ -59,20 +59,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             options,
             acdc_parser::Options::builder()
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .with_attributes(doc.attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+                ),
         )?
         .with_variant(variant);
         let mut output = Vec::new();
         let mut warnings = Vec::new();
         let source = WarningSource::new("markdown").with_variant(variant.as_str());
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(
-            doc.into(),
-            &mut output,
-            Some(&input_path),
-            None,
-            &mut diagnostics,
-        )?;
+        processor.write_to(doc, &mut output, Some(&input_path), None, &mut diagnostics)?;
         fs::write(output_path, output)?;
     }
 

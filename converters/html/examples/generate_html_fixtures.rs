@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         .with_safe_mode(acdc_parser::SafeMode::Unsafe)
                         .build()?,
                 )?;
-                let doc = parsed.document();
+                let doc = parsed.document_ref();
                 if !cfg!(feature = "highlighting") && !fixture_support::has_highlighter(doc) {
                     continue;
                 }
@@ -61,7 +61,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                     options,
                     ParserOptions::builder()
                         .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                        .with_attributes(doc.attributes.clone().into_inputs()),
+                        .with_attributes(
+                            acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+                        ),
                     variant,
                 )?;
                 let render_options = RenderOptions {
@@ -73,12 +75,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 let mut warnings = Vec::new();
                 let source = WarningSource::new("html").with_variant(variant.as_str());
                 let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-                processor.convert_to_writer(
-                    doc.into(),
-                    &mut output,
-                    &render_options,
-                    &mut diagnostics,
-                )?;
+                processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
                 fs::create_dir_all(&expected_dir)?;
                 fs::write(&output_path, output)?;
                 println!("Generated {}", output_path.display());
