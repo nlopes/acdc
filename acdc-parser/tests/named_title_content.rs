@@ -1,4 +1,8 @@
-use acdc_parser::{Block, CompatibilityMode, InlineNode, Options, SafeMode, parse, parse_file};
+use acdc_parser::{
+    CompatibilityMode, Options, SafeMode,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse, parse_file,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -12,15 +16,17 @@ fn title_passthroughs_keep_the_authored_line(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Paragraph(block)) = parsed.document().blocks.last() else {
+    let Some(BlockKind::Paragraph(block)) =
+        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    else {
         return Err("missing paragraph".into());
     };
-    for node in &block.title {
+    for node in block.title().ok_or("missing title")?.inlines() {
         let location = node.location();
-        assert_eq!(location.start.line, 3);
-        assert_eq!(location.end.line, 3);
-        assert!(location.start.column >= 9);
-        assert!(location.end.column <= u32::try_from(8 + value.len())?);
+        assert_eq!(location.start().line(), 3);
+        assert_eq!(location.end().line(), 3);
+        assert!(location.start().column() >= 9);
+        assert!(location.end().column() <= u32::try_from(8 + value.len())?);
     }
     Ok(())
 }
@@ -33,11 +39,13 @@ fn explicit_passthrough_expansion_keeps_the_title_snapshot(
         ":inner: Before\n:outer: \\{inner}\n\n[title='pass:a[{outer}]']\n:inner: After\nText.",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Paragraph(block)) = parsed.document().blocks.last() else {
+    let Some(BlockKind::Paragraph(block)) =
+        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    else {
         return Err("missing paragraph".into());
     };
     assert!(
-        matches!(block.title.as_ref(), [InlineNode::RawText(text)] if text.content == "Before")
+        matches!(&*block.title().ok_or("missing title")?.inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Raw(text)] if text.text() == "Before")
     );
     Ok(())
 }
@@ -52,13 +60,21 @@ fn authored_single_character_title_content_excludes_its_delimiters(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Paragraph(block)) = parsed.document().blocks.last() else {
+    let Some(BlockKind::Paragraph(block)) =
+        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    else {
         return Err("missing paragraph".into());
     };
-    let outer = block.title.first().ok_or("missing title")?;
-    let (inner, content) = if let InlineNode::BoldText(bold) = outer {
+    let outer = block
+        .title()
+        .and_then(|title| title.inlines().next())
+        .ok_or("missing title")?;
+    let (inner, content) = if let InlineKind::Bold(bold) = outer.kind() {
         (
-            bold.content.first().ok_or("missing bold content")?,
+            bold.content()
+                .inlines()
+                .next()
+                .ok_or("missing bold content")?,
             value.trim_matches('*'),
         )
     } else {
@@ -66,9 +82,9 @@ fn authored_single_character_title_content_excludes_its_delimiters(
     };
     let location = inner.location();
     let start = source.find(content).ok_or("missing authored content")?;
-    assert_eq!(location.absolute_start, start);
-    assert_eq!(location.absolute_end, start);
-    assert_eq!(location.start, location.end);
+    assert_eq!(location.absolute_start(), start);
+    assert_eq!(location.absolute_end(), start);
+    assert_eq!(location.start(), location.end());
     Ok(())
 }
 
@@ -82,15 +98,25 @@ fn named_titles_interpret_the_expanded_value(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Paragraph(block)) = parsed.document().blocks.last() else {
+    let Some(BlockKind::Paragraph(block)) =
+        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    else {
         return Err("missing paragraph".into());
     };
     if mode == CompatibilityMode::Draft && quote != "'" {
         assert!(
-            matches!(block.title.as_ref(), [InlineNode::RawText(text)] if text.content == "*Bold*")
+            matches!(&*block.title().ok_or("missing title")?.inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Raw(text)] if text.text() == "*Bold*")
         );
     } else {
-        assert!(matches!(block.title.as_ref(), [InlineNode::BoldText(_)]));
+        assert!(matches!(
+            &*block
+                .title()
+                .ok_or("missing title")?
+                .inlines()
+                .map(InlineRef::kind)
+                .collect::<Vec<_>>(),
+            [InlineKind::Bold(_)]
+        ));
     }
     Ok(())
 }
@@ -105,22 +131,28 @@ fn expanded_title_nodes_keep_the_full_authored_reference(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Paragraph(block)) = parsed.document().blocks.last() else {
+    let Some(BlockKind::Paragraph(block)) =
+        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    else {
         return Err("missing paragraph".into());
     };
-    let node = block.title.first().ok_or("missing title")?;
+    let node = block
+        .title()
+        .and_then(|title| title.inlines().next())
+        .ok_or("missing title")?;
     let start = source.find("{word}").ok_or("missing reference")?;
-    for node in std::iter::once(node).chain(if let InlineNode::BoldText(bold) = node {
-        bold.content.iter()
+    let children = if let InlineKind::Bold(bold) = node.kind() {
+        bold.content().inlines().collect::<Vec<_>>()
     } else {
-        [].iter()
-    }) {
+        Vec::new()
+    };
+    for node in std::iter::once(node).chain(children) {
         let location = node.location();
-        assert_eq!(location.absolute_start, start);
-        assert_eq!(location.absolute_end, start + "{word}".len() - 1);
-        assert_eq!(location.start.line, 3);
-        assert_eq!(location.start.column, 9);
-        assert_eq!(location.end.column, 14);
+        assert_eq!(location.absolute_start(), start);
+        assert_eq!(location.absolute_end(), start + "{word}".len() - 1);
+        assert_eq!(location.start().line(), 3);
+        assert_eq!(location.start().column(), 9);
+        assert_eq!(location.end().column(), 14);
     }
     Ok(())
 }
@@ -133,11 +165,13 @@ fn passthroughs_protect_the_value_after_list_expansion(
         ":word: *Bold*\n\n[title='++{word}++']\nText.",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::Paragraph(block)) = parsed.document().blocks.last() else {
+    let Some(BlockKind::Paragraph(block)) =
+        parsed.document_ref().blocks().last().map(BlockRef::kind)
+    else {
         return Err("missing paragraph".into());
     };
     assert!(
-        matches!(block.title.as_ref(), [InlineNode::RawText(text)] if text.content == "*Bold*")
+        matches!(&*block.title().ok_or("missing title")?.inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Raw(text)] if text.text() == "*Bold*")
     );
     Ok(())
 }
@@ -151,7 +185,7 @@ fn only_selected_named_titles_register_footnotes(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     assert_eq!(
-        parsed.document().footnotes.len(),
+        parsed.document_ref().footnotes().count(),
         if mode == CompatibilityMode::Asciidoctor {
             4
         } else {
@@ -174,25 +208,26 @@ fn selected_include_titles_keep_their_source_file(
             .build()?,
     )?;
     let title = parsed
-        .document()
-        .blocks
-        .iter()
+        .document_ref()
+        .blocks()
         .filter_map(|block| {
-            if let Block::Paragraph(paragraph) = block {
-                Some(&paragraph.title)
+            if let BlockKind::Paragraph(paragraph) = block.kind() {
+                paragraph.title()
             } else {
                 None
             }
         })
-        .find(|title| title.iter().any(|node| {
-            matches!(node, InlineNode::Macro(acdc_parser::InlineMacro::Footnote(note)) if note.id == Some("included"))
-        }))
+        .find(|title| {
+            title.inlines().any(|node| {
+            matches!(node.kind(), InlineKind::Footnote(note) if note.id() == Some("included"))
+        })
+        })
         .ok_or("missing included title")?;
     let bold = title
-        .iter()
-        .find(|node| matches!(node, InlineNode::BoldText(_)))
+        .inlines()
+        .find(|node| matches!(node.kind(), InlineKind::Bold(_)))
         .ok_or("missing expanded bold text")?;
-    let origin = parsed.source_location(bold.location());
+    let origin = parsed.resolve_location(bold.location());
     assert_eq!(
         origin.file,
         Some(root.join("includes/compatibility_title_locations.adoc"))
@@ -200,7 +235,7 @@ fn selected_include_titles_keep_their_source_file(
     assert_eq!(origin.location.start.line, 2);
     assert_eq!(origin.location.end.line, 2);
     assert_eq!(origin.location.end.column - origin.location.start.column, 5);
-    assert_eq!(parsed.document().footnotes.len(), 2);
+    assert_eq!(parsed.document_ref().footnotes().count(), 2);
     Ok(())
 }
 
@@ -213,21 +248,18 @@ fn expanded_title_notes_keep_the_first_definition_and_authored_warnings(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [note] = parsed.document().footnotes.as_slice() else {
+    let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
         return Err("expected one selected note".into());
     };
-    assert_eq!(note.number, 1);
+    assert_eq!(note.number(), 1);
     assert_eq!(
-        source.get(note.location.absolute_start..=note.location.absolute_end),
+        source.get(note.location().absolute_start()..=note.location().absolute_end()),
         Some("{first}")
     );
     assert_eq!(
-        note.content
-            .iter()
-            .filter(|node| matches!(
-                node,
-                InlineNode::Macro(acdc_parser::InlineMacro::IndexTerm(_))
-            ))
+        note.content()
+            .inlines()
+            .filter(|node| matches!(node.kind(), InlineKind::IndexTerm(_)))
             .count(),
         1
     );

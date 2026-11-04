@@ -1,4 +1,8 @@
-use acdc_parser::{Block, InlineMacro, InlineNode, Options, WarningKind, parse};
+use acdc_parser::{
+    Options, WarningKind,
+    ast::{BlockKind, BlockRef, FootnoteDefinitionRef, InlineKind, InlineRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -16,7 +20,7 @@ fn titled_paragraph_macros_register_once() -> Result<(), Error> {
             "= T\n\n{metadata}.Named footnote:named[First note.]\nParagraph.\n\n.Anonymous footnote:[Second note.]\nParagraph.\n\nBody footnote:[Third note.] and footnote:named[].\n"
         );
         let parsed = parse(&source, &Options::default())?;
-        let notes = &parsed.document().footnotes;
+        let notes = parsed.document_ref().footnotes().collect::<Vec<_>>();
         assert_eq!(notes.len(), 3, "{metadata}: {notes:?}");
         for (index, (note, expected)) in notes
             .iter()
@@ -27,29 +31,32 @@ fn titled_paragraph_macros_register_once() -> Result<(), Error> {
             ])
             .enumerate()
         {
-            assert_eq!(note.number as usize, index + 1);
-            assert_ne!(note.content, []);
+            assert_eq!(note.number() as usize, index + 1);
+            assert!(!note.content().is_empty());
             assert_eq!(
-                source.get(note.location.absolute_start..=note.location.absolute_end),
+                source.get(note.location().absolute_start()..=note.location().absolute_end()),
                 Some(expected)
             );
         }
-        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+        let Some(BlockKind::Paragraph(paragraph)) =
+            parsed.document_ref().blocks().next().map(BlockRef::kind)
+        else {
             return Err("expected titled paragraph".into());
         };
         let note = paragraph
-            .title
-            .iter()
+            .title()
+            .ok_or("missing title")?
+            .inlines()
             .find_map(|node| {
-                if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+                if let InlineKind::Footnote(note) = node.kind() {
                     Some(note)
                 } else {
                     None
                 }
             })
             .ok_or("missing defining note in title")?;
-        assert!(!note.content.is_empty(), "{metadata}: {note:?}");
-        assert_eq!(note.number, 1);
+        assert!(!note.content().is_empty(), "{metadata}: {note:?}");
+        assert_eq!(note.number(), 1);
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     }
     Ok(())
@@ -59,18 +66,18 @@ fn titled_paragraph_macros_register_once() -> Result<(), Error> {
 fn title_note_reuse_keeps_one_conflict_and_the_first_body() -> Result<(), Error> {
     let source = "= T\n\n[#target]\n.Éva footnote:shared[First ((Index term)) note.]\nParagraph.\n\n.Equal footnote:shared[First ((Index term)) note.]\nParagraph.\n\n.Changed footnote:shared[Different note.]\nParagraph.\n\n.Reused footnote:shared[]\nParagraph.\n";
     let parsed = parse(source, &Options::default())?;
-    let [note] = parsed.document().footnotes.as_slice() else {
+    let [note] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
         return Err("expected one shared note".into());
     };
-    assert_eq!(note.number, 1);
+    assert_eq!(note.number(), 1);
     assert_eq!(
-        source.get(note.location.absolute_start..=note.location.absolute_end),
+        source.get(note.location().absolute_start()..=note.location().absolute_end()),
         Some("footnote:shared[First ((Index term)) note.]")
     );
     assert_eq!(
-        note.content
-            .iter()
-            .filter(|node| matches!(node, InlineNode::Macro(InlineMacro::IndexTerm(_))))
+        note.content()
+            .inlines()
+            .filter(|node| matches!(node.kind(), InlineKind::IndexTerm(_)))
             .count(),
         1
     );
@@ -96,16 +103,21 @@ fn metadata_attributes_apply_before_the_selected_title_registers() -> Result<(),
             "= T\n:note-text: Header note.\n\n{metadata}Paragraph.\n\nBody footnote:[Body note.] and footnote:selected[].\n"
         );
         let parsed = parse(&source, &Options::default())?;
-        let [note, body] = parsed.document().footnotes.as_slice() else {
-            return Err(format!("expected two notes: {:?}", parsed.document().footnotes).into());
+        let [note, body] = &*parsed.document_ref().footnotes().collect::<Vec<_>>() else {
+            return Err(format!(
+                "expected two notes: {:?}",
+                parsed.document_ref().footnotes().collect::<Vec<_>>()
+            )
+            .into());
         };
-        assert_eq!((note.number, body.number), (1, 2));
-        let Some(InlineNode::PlainText(text)) = note.content.first() else {
+        assert_eq!((note.number(), body.number()), (1, 2));
+        let Some(InlineKind::Plain(text)) = note.content().inlines().next().map(InlineRef::kind)
+        else {
             return Err("expected plain note body".into());
         };
-        assert_eq!(text.content, "Selected note.");
+        assert_eq!(text.text(), "Selected note.");
         assert_eq!(
-            source.get(note.location.absolute_start..=note.location.absolute_end),
+            source.get(note.location().absolute_start()..=note.location().absolute_end()),
             Some("footnote:selected[{note-text}]")
         );
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
@@ -127,13 +139,12 @@ fn selected_heading_macros_register_once() -> Result<(), Error> {
             "= T\n\n{metadata}== Heading footnote:[Heading note.]\n\nBody footnote:[Body note.]\n"
         );
         let parsed = parse(&source, &Options::default())?;
-        assert_eq!(parsed.document().footnotes.len(), 2, "{metadata}");
+        assert_eq!(parsed.document_ref().footnotes().count(), 2, "{metadata}");
         assert_eq!(
             parsed
-                .document()
-                .footnotes
-                .iter()
-                .map(|note| note.number)
+                .document_ref()
+                .footnotes()
+                .map(FootnoteDefinitionRef::number)
                 .collect::<Vec<_>>(),
             [1, 2]
         );
@@ -149,14 +160,14 @@ fn title_macros_register_once_with_setext_enabled() -> Result<(), Error> {
         "-".repeat(title.chars().count())
     );
     let parsed = parse(&source, &Options::builder().build()?)?;
-    assert_eq!(parsed.document().footnotes.len(), 4);
+    assert_eq!(parsed.document_ref().footnotes().count(), 4);
     assert!(matches!(
-        parsed.document().blocks.first(),
-        Some(Block::Section(_))
+        parsed.document_ref().blocks().next().map(BlockRef::kind),
+        Some(BlockKind::Section(_))
     ));
-    for (index, note) in parsed.document().footnotes.iter().enumerate() {
-        assert_eq!(note.number as usize, index + 1);
-        assert_ne!(note.content, []);
+    for (index, note) in parsed.document_ref().footnotes().enumerate() {
+        assert_eq!(note.number() as usize, index + 1);
+        assert!(!note.content().is_empty());
     }
     Ok(())
 }

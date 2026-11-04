@@ -1,14 +1,29 @@
-use acdc_parser::{Block, CompatibilityMode, InlineNode, Options, SafeMode, parse, parse_file};
+use acdc_parser::{
+    CompatibilityMode, Options, SafeMode,
+    ast::{
+        AttributeValueRef, AttributesRef, BlockRef, ContentRef, FootnoteDefinitionRef, InlineKind,
+        InlineRef,
+    },
+    parse, parse_file,
+};
 
 type Error = Box<dyn std::error::Error>;
 
-fn plain_text(node: &InlineNode<'_>) -> Result<String, Error> {
-    if let InlineNode::PlainText(text) = node {
-        Ok(text.content.to_owned())
-    } else if let InlineNode::RawText(text) = node {
-        Ok(text.content.to_owned())
+fn plain_text(node: InlineRef<'_>) -> Result<String, Error> {
+    if let InlineKind::Plain(text) = node.kind() {
+        Ok(text.text().to_owned())
+    } else if let InlineKind::Raw(text) = node.kind() {
+        Ok(text.text().to_owned())
     } else {
         Err(format!("expected text, got {node:?}").into())
+    }
+}
+
+fn content<'doc>(attributes: AttributesRef<'doc>, name: &str) -> Option<ContentRef<'doc>> {
+    if let Some(AttributeValueRef::Content(content)) = attributes.get(name) {
+        Some(content)
+    } else {
+        None
     }
 }
 
@@ -31,20 +46,21 @@ fn nested_references_use_the_selected_declaration_snapshot(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let metadata = parsed
-        .document()
-        .blocks
-        .iter()
-        .find_map(Block::metadata)
+        .document_ref()
+        .blocks()
+        .find_map(BlockRef::attributes)
         .ok_or("missing quote")?;
     let expected = if mode == CompatibilityMode::Asciidoctor {
         "Before"
     } else {
         "{other}"
     };
-    for content in [&metadata.attribution, &metadata.citetitle] {
+    for content in [
+        content(metadata, "attribution"),
+        content(metadata, "citetitle"),
+    ] {
         let node = content
-            .as_ref()
-            .and_then(|content| content.first())
+            .and_then(|content| content.inlines().next())
             .ok_or("missing content")?;
         assert_eq!(plain_text(node)?, expected);
     }
@@ -68,24 +84,21 @@ fn body_substitutions_do_not_disable_quote_attribute_formatting(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let metadata = parsed
-        .document()
-        .blocks
-        .iter()
-        .find_map(Block::metadata)
+        .document_ref()
+        .blocks()
+        .find_map(BlockRef::attributes)
         .ok_or("missing quote")?;
     assert!(matches!(
-        metadata
-            .attribution
-            .as_ref()
-            .and_then(|content| content.first()),
-        Some(InlineNode::BoldText(_))
+        content(metadata, "attribution")
+            .and_then(|content| content.inlines().next())
+            .map(InlineRef::kind),
+        Some(InlineKind::Bold(_))
     ));
     assert!(matches!(
-        metadata
-            .citetitle
-            .as_ref()
-            .and_then(|content| content.first()),
-        Some(InlineNode::ItalicText(_))
+        content(metadata, "citetitle")
+            .and_then(|content| content.inlines().next())
+            .map(InlineRef::kind),
+        Some(InlineKind::Italic(_))
     ));
     Ok(())
 }
@@ -107,24 +120,25 @@ fn single_character_quote_content_keeps_its_authored_byte_span(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let metadata = parsed
-        .document()
-        .blocks
-        .iter()
-        .find_map(Block::metadata)
+        .document_ref()
+        .blocks()
+        .find_map(BlockRef::attributes)
         .ok_or("missing quote")?;
     let offsets = source.match_indices(value).map(|(offset, _)| offset);
-    for (content, offset) in [&metadata.attribution, &metadata.citetitle]
-        .into_iter()
-        .zip(offsets)
+    for (content, offset) in [
+        content(metadata, "attribution"),
+        content(metadata, "citetitle"),
+    ]
+    .into_iter()
+    .zip(offsets)
     {
         let location = content
-            .as_ref()
-            .and_then(|content| content.first())
+            .and_then(|content| content.inlines().next())
             .ok_or("missing content")?
             .location();
-        assert_eq!(location.absolute_start, offset);
-        assert_eq!(location.absolute_end, offset);
-        assert_eq!(location.start, location.end);
+        assert_eq!(location.absolute_start(), offset);
+        assert_eq!(location.absolute_end(), offset);
+        assert_eq!(location.start(), location.end());
     }
     Ok(())
 }
@@ -142,25 +156,24 @@ fn included_expanded_attribution_retains_the_reference_and_file(
             .build()?,
     )?;
     let included = parsed
-        .document()
-        .blocks
-        .iter()
-        .filter_map(Block::metadata)
-        .filter_map(|metadata| metadata.attribution.as_ref())
-        .filter_map(|content| content.first())
+        .document_ref()
+        .blocks()
+        .filter_map(BlockRef::attributes)
+        .filter_map(|metadata| content(metadata, "attribution"))
+        .filter_map(|content| content.inlines().next())
         .find(|node| {
             parsed
-                .source_location(node.location())
+                .resolve_location(node.location())
                 .file
                 .as_ref()
                 .is_some_and(|file| file.ends_with("includes/compatibility_quote_locations.adoc"))
         })
         .ok_or("missing included attribution")?;
-    let InlineNode::BoldText(bold) = included else {
+    let InlineKind::Bold(bold) = included.kind() else {
         return Err("expected formatted attribution".into());
     };
-    for node in std::iter::once(included).chain(bold.content.iter()) {
-        let location = parsed.source_location(node.location());
+    for node in std::iter::once(included).chain(bold.content().inlines()) {
+        let location = parsed.resolve_location(node.location());
         assert_eq!(
             location.file,
             Some(root.join("includes/compatibility_quote_locations.adoc"))
@@ -170,7 +183,7 @@ fn included_expanded_attribution_retains_the_reference_and_file(
         assert_eq!(location.location.start.column, 21);
         assert_eq!(location.location.end.column, 28);
     }
-    assert_eq!(parsed.document().footnotes.len(), 2);
+    assert_eq!(parsed.document_ref().footnotes().count(), 2);
     Ok(())
 }
 
@@ -190,10 +203,9 @@ fn only_selected_quote_content_registers_footnotes(
     };
     assert_eq!(
         parsed
-            .document()
-            .footnotes
-            .iter()
-            .map(|note| note.id)
+            .document_ref()
+            .footnotes()
+            .map(FootnoteDefinitionRef::id)
             .collect::<Vec<_>>(),
         [
             Some(selected),
