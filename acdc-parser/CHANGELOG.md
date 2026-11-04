@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** discrete headings, page/thematic breaks, TOC placements, comments,
+  and document-attribute event fields are private. Read through their typed `ast`
+  handles. Boundary constructors and owned edits preserve empty titles, literal
+  comment text and anchor order. Accepted attribute names and assignments remain
+  parse decisions; reparse source to change them. `set_location` changes only a span.
+
 - **Breaking:** `DelimitedBlock` and `Admonition` fields are private. Read through
   typed block handles and edit prepared values with owned methods. Delimited
   body transfers retain source lifetimes; edits keep the original source snapshot

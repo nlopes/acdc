@@ -160,6 +160,14 @@ Admonition `set_blocks`, `take_blocks`, and `push_block` keep the original sourc
 Body edits retain source snapshots and do not rebuild document registrations;
 delimiter and span setters do not reparse or relocate children.
 
+Discrete headings, page breaks, TOC placements, thematic breaks and comments
+have constructors and owned edit methods too. Their typed `ast` handles provide
+reads. Titles keep absent and empty values distinct; thematic-break anchor
+transfers keep their order; comment edits preserve literal text. Accepted
+attribute events keep the names, values and policy decisions made during parsing.
+Reparse source to change those assignments. Their `set_location` method changes
+only the event span.
+
 `IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
 option tokens. An icon ID is retained even when a converter does not emit it.
 To construct an icon, use `Icon::new(target, location)` and edit its content and

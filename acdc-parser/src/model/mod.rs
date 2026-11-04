@@ -12,6 +12,7 @@ mod anchor;
 pub(crate) use anchor::{BibliographyLabel, SectionReference};
 mod attributes;
 mod attribution;
+mod boundaries;
 pub(crate) mod caption;
 pub(crate) mod content_attribute;
 mod inlines;
@@ -492,13 +493,13 @@ pub enum CommentKind {
 /// A comment in a document that produces no output.
 ///
 /// Either a `//` single-line comment or a `[comment]`-styled paragraph; the
-/// [`kind`](Comment::kind) distinguishes them.
+/// [`ast::CommentRef::kind`](crate::ast::CommentRef::kind) distinguishes them.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Comment<'a> {
-    pub kind: CommentKind,
-    pub content: &'a str,
-    pub location: Location,
+    pub(crate) kind: CommentKind,
+    pub(crate) content: &'a str,
+    pub(crate) location: Location,
 }
 
 /// A `Block` represents a block in a document.
@@ -683,8 +684,8 @@ impl Block<'_> {
 #[derive(Clone, PartialEq)]
 #[non_exhaustive]
 pub struct DocumentAttribute<'a> {
-    pub name: AttributeName<'a>,
-    pub location: Location,
+    pub(crate) name: AttributeName<'a>,
+    pub(crate) location: Location,
     assignment: DocumentAttributeAssignment<'a>,
     accepted: bool,
 }
@@ -756,19 +757,19 @@ impl Serialize for DocumentAttribute<'_> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct DiscreteHeader<'a> {
-    pub metadata: BlockMetadata<'a>,
-    pub title: Title<'a>,
-    pub level: u8,
-    pub location: Location,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) title: Title<'a>,
+    pub(crate) level: u8,
+    pub(crate) location: Location,
 }
 
 /// A `ThematicBreak` represents a thematic break in a document.
 #[derive(Clone, Default, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ThematicBreak<'a> {
-    pub anchors: Vec<Anchor<'a>>,
-    pub title: Title<'a>,
-    pub location: Location,
+    pub(crate) anchors: Vec<Anchor<'a>>,
+    pub(crate) title: Title<'a>,
+    pub(crate) location: Location,
 }
 
 impl Serialize for ThematicBreak<'_> {
@@ -795,9 +796,9 @@ impl Serialize for ThematicBreak<'_> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct PageBreak<'a> {
-    pub title: Title<'a>,
-    pub metadata: BlockMetadata<'a>,
-    pub location: Location,
+    pub(crate) title: Title<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) location: Location,
 }
 
 impl Serialize for PageBreak<'_> {
@@ -844,8 +845,8 @@ impl Serialize for Comment<'_> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct TableOfContents<'a> {
-    pub metadata: BlockMetadata<'a>,
-    pub location: Location,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) location: Location,
 }
 
 impl Serialize for TableOfContents<'_> {

@@ -7,8 +7,10 @@ use std::num::NonZeroU32;
 
 use acdc_parser::{
     AttributeValue, Block, BlockMetadata, Caption, CaptionKind, DelimitedBlockType,
-    DelimitedBlockType::DelimitedExample, Document, InlineNode, Location, Options, Plain, Title,
-    ast::DocumentRef, parse,
+    DelimitedBlockType::DelimitedExample,
+    Document, InlineNode, Location, Options, Plain, Title,
+    ast::{DocumentAttributeRef, DocumentRef},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -318,7 +320,8 @@ fn a_metadata_line_applies_to_its_own_block() -> Result<(), Error> {
     assert!(matches!(
         blocks.first(),
         Some(Block::DocumentAttribute(attribute))
-            if attribute.name == "example-caption" && attribute.assignment().value().and_then(acdc_parser::DocumentAttributeValue::text) == Some("Metadata")
+            if DocumentAttributeRef::from(attribute).name() == "example-caption"
+                && DocumentAttributeRef::from(attribute).assignment().value().and_then(acdc_parser::DocumentAttributeValue::text) == Some("Metadata")
     ));
 
     let labels: Vec<_> = blocks

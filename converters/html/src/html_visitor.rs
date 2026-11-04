@@ -1538,7 +1538,7 @@ mod title_media_tests {
                 let mut metadata = if let Block::Section(section) = block {
                     section.clone_metadata()
                 } else if let Block::DiscreteHeader(header) = block {
-                    header.metadata.clone()
+                    header.clone_metadata()
                 } else {
                     return Err("expected heading".into());
                 };
@@ -1553,7 +1553,7 @@ mod title_media_tests {
                 if let Block::Section(section) = block {
                     section.set_metadata(metadata)?;
                 } else if let Block::DiscreteHeader(header) = block {
-                    header.metadata = metadata;
+                    header.set_metadata(metadata)?;
                 }
             }
             document.set_blocks(blocks);
