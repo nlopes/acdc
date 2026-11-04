@@ -375,3 +375,48 @@ fn asg_exports_use_the_audited_schema_pin() -> Result<(), Error> {
     assert_eq!(schema.get("$id"), Some(&json!(asg::SCHEMA_ID)));
     Ok(())
 }
+
+#[test]
+fn asg_distinguishes_absent_and_present_empty_section_titles() -> Result<(), Error> {
+    for (title, present) in [(Title::default(), false), (Title::new(Vec::new()), true)] {
+        let mut document = Document::default();
+        document
+            .blocks
+            .push(Block::Section(acdc_parser::Section::new(
+                title,
+                1,
+                Vec::new(),
+                Location::default(),
+            )));
+        let result = asg::document(&document);
+        if present {
+            assert_eq!(result?.pointer("/blocks/0/title"), Some(&json!([])));
+        } else {
+            assert!(
+                matches!(result, Err(asg::Error::Unsupported { path, .. }) if path == "/blocks/0/title")
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn asg_rejects_verbatim_without_a_literal_block_mapping() {
+    let nodes = [acdc_parser::InlineNode::VerbatimText(
+        acdc_parser::Verbatim {
+            content: "  literal\ntext  ",
+            location: Location::default(),
+        },
+    )];
+    assert!(
+        matches!(asg::inlines(&nodes), Err(asg::Error::Unsupported { path, .. }) if path == "/0")
+    );
+    let mut document = Document::default();
+    document.blocks.push(Block::Paragraph(Paragraph::new(
+        nodes.to_vec(),
+        Location::default(),
+    )));
+    assert!(
+        matches!(asg::document(&document), Err(asg::Error::Unsupported { path, .. }) if path == "/blocks/0/inlines/0")
+    );
+}

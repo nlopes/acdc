@@ -27,7 +27,12 @@ pub(super) fn inlines(values: &[InlineNode<'_>], path: &str) -> Result<Value, Er
 fn inline(value: &InlineNode<'_>, path: &str) -> Result<Value, Error> {
     let mut result = match value {
         InlineNode::PlainText(text) => literal("text", text.content),
-        InlineNode::VerbatimText(text) => literal("text", text.content),
+        InlineNode::VerbatimText(_) => {
+            return Err(unsupported(
+                path,
+                "verbatim presentation requires a supported literal or listing block mapping",
+            ));
+        }
         InlineNode::Symbol(symbol) => literal("text", symbol.kind.text()),
         InlineNode::CharacterReference(reference) => {
             if let crate::CharacterReferenceKind::Numeric(value) = reference.kind()
@@ -254,6 +259,12 @@ impl<'a, 'doc> Export<'a, 'doc> {
                         return Err(unsupported(
                             &at,
                             "section category or numbering requires a defined semantic mapping",
+                        ));
+                    }
+                    if !section.title.is_present() {
+                        return Err(unsupported(
+                            &pointer(&at, "title"),
+                            "the upstream section requires a present title",
                         ));
                     }
                     let mut result = node("section", "block");
