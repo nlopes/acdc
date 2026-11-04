@@ -2,11 +2,70 @@
 
 use acdc_parser::{
     ColumnStyle, ColumnWidth, CompatibilityMode, Options,
-    ast::{BlockKind, BlockRef},
+    ast::{BlockKind, BlockRef, ColumnFormatRef},
     parse,
 };
 
 type Error = Box<dyn std::error::Error>;
+
+fn table_shape(input: &str, options: &Options) -> Result<(Vec<ColumnWidth>, Vec<usize>), Error> {
+    let parsed = parse(input, options)?;
+    let Some(BlockKind::Table(table)) = parsed.document().blocks().next().map(BlockRef::kind)
+    else {
+        return Err("table".into());
+    };
+    let widths = table.columns().map(ColumnFormatRef::width).collect();
+    let cells = table
+        .header()
+        .into_iter()
+        .chain(table.rows())
+        .chain(table.footer())
+        .map(|row| row.cells().count())
+        .collect();
+    Ok((widths, cells))
+}
+
+#[rstest::rstest]
+#[case("3")]
+#[case("\"3\"")]
+#[case("\" 3 \"")]
+fn integer_cols_gives_equal_columns(
+    #[case] cols: &str,
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    let source = format!("[cols={cols}]\n|===\n|A |B |C\n\n|1 |2 |3\n|===\n");
+    let shape = table_shape(&source, &options)?;
+    let multiplied = table_shape(
+        "[cols=\"3*\"]\n|===\n|A |B |C\n\n|1 |2 |3\n|===\n",
+        &options,
+    )?;
+    assert_eq!(shape, multiplied);
+    assert_eq!(shape, (vec![ColumnWidth::Proportional(1); 3], vec![3, 3]));
+    Ok(())
+}
+
+#[rstest::rstest]
+fn zero_cols_takes_columns_from_first_row(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    let shape = table_shape("[cols=0]\n|===\n|A |B |C\n\n|1 |2 |3\n|===\n", &options)?;
+    let implicit = table_shape("|===\n|A |B |C\n\n|1 |2 |3\n|===\n", &options)?;
+    assert_eq!(shape, implicit);
+    assert_eq!(shape, (Vec::new(), vec![3, 3]));
+    Ok(())
+}
+
+#[rstest::rstest]
+fn cols_with_leading_zero_is_one_column_spec(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    let shape = table_shape("[cols=03]\n|===\n|A |B |C\n\n|1 |2 |3\n|===\n", &options)?;
+    assert_eq!(shape, (vec![ColumnWidth::Proportional(3)], vec![1; 6]));
+    Ok(())
+}
 
 #[rstest::rstest]
 #[case("'1a'")]
