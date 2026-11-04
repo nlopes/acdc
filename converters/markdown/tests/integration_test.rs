@@ -18,6 +18,65 @@ mod support;
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn link_tooltips_preserve_parser_selected_text() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/inline_text_projections.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            input,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&WarningSource::new("markdown"), &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let events = parse_markdown(&output, variant);
+            let titles = events
+                .iter()
+                .filter_map(|event| {
+                    if let Event::Start(Tag::Link { title, .. }) = event {
+                        Some(title.as_ref())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                titles.iter().filter(|&&title| title == "© → --").count(),
+                4,
+                "{output}"
+            );
+            assert_eq!(
+                titles.iter().filter(|&&title| title.is_empty()).count(),
+                2,
+                "{output}"
+            );
+            assert!(
+                output.contains("[Empty](https://example.org \"\")"),
+                "{output}"
+            );
+            assert!(output.contains("[Absent](https://example.org)"), "{output}");
+            assert!(titles.contains(&"© ->\u{2009}—\u{2009}"), "{output}");
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn curved_quotes_preserve_punctuation_and_inline_identity() -> Result<(), Error> {
     let input = include_str!("fixtures/source/resolved_curved_quotes.adoc");
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {

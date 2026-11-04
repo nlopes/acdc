@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Link, URL, mail, and linked-icon tooltips preserve parser-selected text and literal trailing dashes.
+
 - Inline image alternatives and tooltips preserve literal trailing dashes instead of replacing them with an em dash.
 
 ### Changed

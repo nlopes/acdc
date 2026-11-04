@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Inline icon alternatives preserve literal trailing dashes, matching Asciidoctor.
+
 - Inline image alternatives preserve literal trailing dashes in normal images, embedded images, and SVG fallbacks.
 
 ### Changed

@@ -1,0 +1,22 @@
+= Inline text projections
+:icons: image
+
+icon:heart[alt="(C) -> --",title="(C) -> --"].
+
+link:https://example.org[Link,title="(C) -> --"].
+
+mailto:team@example.org[Mail,title="(C) -> --"].
+
+https://example.org[URL,title="(C) -> --"].
+
+icon:heart[alt="(C) -> --",title="(C) -> --",link=https://example.org].
+
+link:https://example.org[Empty,title=""].
+
+link:https://example.org[Absent].
+
+icon:heart[alt="",title=""].
+
+icon:heart[alt="*Bold* & <tag>",title="*Tip* & <tag>"].
+
+link:https://example.org[Raw,title="pass:r[(C) -> --]"].

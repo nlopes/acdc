@@ -63,10 +63,10 @@ fn image_and_icon_fallbacks_keep_distinct_target_policies() -> Result<(), TestEr
 
 #[test]
 fn explicit_and_empty_alternatives_outlive_temporary_sources() -> Result<(), TestError> {
-    for (markup, image_text, icon_text) in [
-        ("", "", ""),
-        ("*Bird* &amp; ->", "Bird &amp; ->", "Bird &amp; →"),
-        ("*Bird* &#38; ->", "Bird &#38; ->", "Bird &#38; →"),
+    for (markup, expected) in [
+        ("", ""),
+        ("*Bird* &amp; ->", "Bird &amp; ->"),
+        ("*Bird* &#38; ->", "Bird &#38; ->"),
     ] {
         let (image, icon, typed_image, typed_icon) = {
             let text = String::from(markup);
@@ -92,10 +92,10 @@ fn explicit_and_empty_alternatives_outlive_temporary_sources() -> Result<(), Tes
             )
         };
         assert!(matches!(image, Cow::Owned(_)));
-        assert_eq!(image, image_text);
-        assert_eq!(icon, icon_text);
-        assert_eq!(typed_image, image_text);
-        assert_eq!(typed_icon, icon_text);
+        assert_eq!(image, expected);
+        assert_eq!(icon, expected);
+        assert_eq!(typed_image, expected);
+        assert_eq!(typed_icon, expected);
     }
     Ok(())
 }
@@ -126,7 +126,7 @@ fn typed_icon_alternatives_do_not_borrow_temporary_content() -> Result<(), TestE
         icon::alt_from_content(target, Some(ContentRef::from(&content)))
     };
     assert!(matches!(alt, Cow::Owned(_)));
-    assert_eq!(alt, "Bird →");
+    assert_eq!(alt, "Bird ->");
     Ok(())
 }
 
@@ -193,6 +193,32 @@ fn image_alternatives_preserve_parser_selected_boundaries() -> Result<(), TestEr
                 .decode_char_refs(true)
                 .content_to_string(tooltip.into()),
             expected
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn icon_alternatives_preserve_parser_selected_boundaries() -> Result<(), TestError> {
+    for mode in [
+        acdc_parser::CompatibilityMode::Asciidoctor,
+        acdc_parser::CompatibilityMode::Draft,
+    ] {
+        let parsed = parse_inline(
+            "icon:heart[alt=\"(C) -> --\",title=\"(C) -> --\"]",
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let [InlineNode::Macro(acdc_parser::InlineMacro::Icon(icon))] = parsed.inlines() else {
+            return Err("expected icon".into());
+        };
+        let alt = icon.alt.as_ref().ok_or("missing alt")?;
+        assert_eq!(
+            acdc_converters_core::icon::alt(&icon.target, Some(alt)),
+            "© → --"
+        );
+        assert_eq!(
+            acdc_converters_core::icon::alt_from_content((&icon.target).into(), Some(alt.into())),
+            "© → --"
         );
     }
     Ok(())
