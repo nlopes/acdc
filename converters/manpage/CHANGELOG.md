@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document attribute values keep literal quotes in text labels and media paths. Literal quotes in cross-reference labels and style names now follow Asciidoctor.
+
 - Image and icon links and video poster names retain literal quote characters. Quoted role names no longer enable an unrelated built-in text style.
 
 - Inline image alternatives preserve literal trailing dashes in fallback text.

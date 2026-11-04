@@ -82,7 +82,6 @@ pub fn resolve_target(target: &str, attributes: &TraversalContext<'_>) -> String
     } else if let Some(images_dir) = attributes
         .get("imagesdir")
         .and_then(|value| value.text())
-        .map(acdc_parser::strip_quotes)
         .filter(|images_dir| !images_dir.is_empty())
     {
         let images_dir = images_dir.replace('\\', "/");
@@ -188,6 +187,8 @@ mod tests {
                 "media/library/demo%20file.mp4",
             ),
             ("./demo.mp4", Some("."), "./demo.mp4"),
+            ("demo.mp4", Some("'assets π'"), "'assets%20π'/demo.mp4"),
+            ("demo.mp4", Some("\"assets"), "\"assets/demo.mp4"),
             ("demo.mp4", Some("./assets"), "./assets/demo.mp4"),
             (
                 "../clips/./demo.mp4",

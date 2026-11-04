@@ -40,7 +40,6 @@ use std::{
 use acdc_parser::{
     AttributeValue, DelimitedBlockType, Document, DocumentAttributeValue, DocumentAttributes,
     Error, Options as ParserOptions, OptionsBuilder as ParserOptionsBuilder, SafeMode,
-    strip_quotes,
 };
 
 mod backend;
@@ -69,17 +68,14 @@ pub use document_attributes::TraversalContext;
 pub use inline_text::{InlineTextTransform, inlines_to_string};
 pub use warning::{Diagnostics, Warning, WarningSource};
 
-/// Return text without surrounding quotes, or empty text for presence.
+/// Return stored text, or empty text for presence.
 /// Integer values return none.
 #[must_use]
 pub fn document_attribute_text<'a>(
     value: Option<&'a DocumentAttributeValue<'_>>,
 ) -> Option<&'a str> {
     let value = value?;
-    value
-        .as_str()
-        .map(strip_quotes)
-        .or_else(|| value.is_presence().then_some(""))
+    value.as_str().or_else(|| value.is_presence().then_some(""))
 }
 
 /// Whether a delimited block shows its title as a visible caption.

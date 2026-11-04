@@ -206,6 +206,22 @@ mod tests {
     type Error = Box<dyn std::error::Error>;
 
     #[test]
+    fn literal_document_text_is_borrowed_without_dequoting() -> Result<(), Error> {
+        for text in ["", "plain", "'π'", "\"π\"", "''", "\"α\"tail", "head'"] {
+            let attributes = Options::builder()
+                .with_attribute("label", text)
+                .build()?
+                .into_document_attributes();
+            let value = attributes.get("label").ok_or("label")?;
+            let actual = document_attribute_text(Some(value)).ok_or("text")?;
+            assert_eq!(actual, text);
+            assert!(eq(actual, value.as_str().ok_or("stored text")?));
+        }
+        assert!(document_attribute_text(None).is_none());
+        Ok(())
+    }
+
+    #[test]
     fn attribute_reads_preserve_values_spelling_and_borrowing() -> Result<(), Error> {
         let options = Options::builder()
             .with_attribute("max-include-depth", "03")
@@ -231,7 +247,10 @@ mod tests {
                 .is_some_and(DocumentAttributeValue::is_presence)
         );
         assert_eq!(document_attribute_text(context.get("present")), Some(""));
-        assert_eq!(document_attribute_text(context.get("name")), Some("quoted"));
+        assert_eq!(
+            document_attribute_text(context.get("name")),
+            Some("\"quoted\"")
+        );
         assert_eq!(document_attribute_text(Some(depth)), None);
         assert!(context.is_explicit("removed"));
         assert!(!context.contains_key("removed"));

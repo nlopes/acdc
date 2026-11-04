@@ -397,7 +397,7 @@ impl<'a> ParserState<'a> {
         let label = |name| match self.document_attributes.get(name) {
             Some(resolved) => match resolved.as_str() {
                 Some(value) => {
-                    let value = self.intern_str(crate::strip_quotes(value));
+                    let value = self.intern_str(value);
                     if value.is_empty() {
                         XrefCaptionLabel::NumberOnly
                     } else {
@@ -423,7 +423,7 @@ impl<'a> ParserState<'a> {
             DocumentAttributeStatus::Set(value) => {
                 let mut word = String::new();
                 let _ = value.write_text(&mut word);
-                XrefSignifier::AtReference(self.intern_str(crate::strip_quotes(&word)))
+                XrefSignifier::AtReference(self.intern_str(&word))
             }
             DocumentAttributeStatus::Unset => XrefSignifier::Omitted,
             DocumentAttributeStatus::Absent => XrefSignifier::Standard,

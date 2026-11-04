@@ -1322,8 +1322,7 @@ peg::parser! {
                 state
                     .document_attributes
                     .get("xrefstyle")
-                    .map(|value| value.text().unwrap_or_default())
-                    .map(crate::strip_quotes),
+                    .map(|value| value.text().unwrap_or_default()),
             );
             if xref.text.is_empty() {
                 xref.caption_label_snapshot_id = Some(state.capture_xref_caption_labels());
@@ -1392,8 +1391,10 @@ peg::parser! {
                 macro_text
                     .xrefstyle
                     .as_deref()
-                    .or_else(|| state.document_attributes.get("xrefstyle").map(|value| value.text().unwrap_or_default()))
-                    .map(crate::strip_quotes),
+                    .or_else(|| {
+                        state.document_attributes.get("xrefstyle")
+                            .map(|value| value.text().unwrap_or_default())
+                    }),
             );
             xref.metadata = metadata;
             xref.macro_attributes = macro_attributes;

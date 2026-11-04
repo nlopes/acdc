@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document attribute values keep literal quotes in text labels and media paths. Literal quotes in cross-reference labels and style names now follow Asciidoctor.
+
 - Image and icon links, dimensions, poster names and icon overrides retain literal quote characters. Asset preparation uses the same names as rendering; quoted role names no longer select a built-in style.
 
 - Hyperlink IDs with literal quotes now retain their named PDF destinations, including links in code blocks.
