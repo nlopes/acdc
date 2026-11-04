@@ -239,14 +239,12 @@ already been processed; these reads do not reconstruct consumed source.
 
 | Feature | Default | Effect |
 | --- | --- | --- |
-| `pre-spec-subs` | On | Compatibility alias; has no effect on parsing. |
-| `setext` | Off | Compatibility alias with no effect. Underlined headings follow `CompatibilityMode`. |
 | `network` | Off | Compiles built-in HTTP(S) include support outside bare WebAssembly. Caller permission and safe mode still apply. |
 
 Block `subs=` settings work in every parser build and both compatibility modes.
 Draft mode supports these explicit controls as an acdc extension.
-The `pre-spec-subs` feature remains for callers that already enable it;
-converter crates still use their own feature of the same name.
+The `pre-spec-subs` and `setext` Cargo features have been removed. Remove them
+from dependency feature lists; language behavior follows `CompatibilityMode`.
 
 ## Compatibility modes
 
@@ -404,7 +402,6 @@ headings. Safe mode, network access, and output format stay separate.
 The former `Options::setext` field and `OptionsBuilder::with_setext()` method
 have been removed. Select `CompatibilityMode::Asciidoctor` for legacy
 underlined headings, or `CompatibilityMode::Draft` for ATX-only headings.
-The `setext` Cargo feature remains as a compatibility alias with no effect.
 
 Both modes support Markdown-style hash headings, `>` blockquotes, and fenced
 code blocks. acdc accepts fences of three or more backticks with a matching
@@ -553,8 +550,8 @@ places metadata under `metadata` and retains mail `subject` and `body` separatel
 - `Attribution` and `CiteTitle` are aliases of `ContentAttribute`. Existing
   constructors and slice access remain available.
 - `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` are
-  available without `pre-spec-subs`. Remove conditional compilation used only
-  to access this API. `None` is omitted from JSON; an explicit empty list is
+  available in every build. Remove conditional compilation used only to access
+  this API. `None` is omitted from JSON; an explicit empty list is
   serialized as `[]`. Parsing and
   `BlockMetadata::uses_substitution()` honor block settings in every build.
 
@@ -782,9 +779,8 @@ A STEM block can opt in to attribute expansion with
 `source_text()`. STEM supports attribute expansion and output escaping; other
 requested stages produce a source-recovery warning and leave their markup as
 formula text. This differs from Asciidoctor, which can insert formatting tags
-into formulas. HTML conversion escapes formula text by default. The HTML
-converter still requires its own `pre-spec-subs` feature for
-`[stem,subs=none]` to preserve authored raw HTML.
+into formulas. HTML conversion escapes formula text by default;
+`[stem,subs=none]` preserves authored raw HTML in every build.
 
 Source locations cover the original macro or block, including escaped brackets
 and dollar delimiters. Nested includes and line selections retain the source

@@ -168,11 +168,9 @@ jobs:
           sudo apt-get install -y groff mandoc
       - name: Run converter tests
         run: cargo nextest run -p acdc-converters-core -p acdc-converters-html -p acdc-converters-manpage -p acdc-converters-terminal -p acdc-converters-markdown --all-features --verbose
-      - name: Run HTML tests - substitutions without highlighting
-        run: cargo nextest run -p acdc-converters-html --no-default-features --features pre-spec-subs --verbose
       - name: Run HTML tests - no default features
         run: cargo nextest run -p acdc-converters-html --no-default-features --verbose
-      - name: Run HTML tests - highlighting without substitutions
+      - name: Run HTML tests - highlighting
         run: cargo nextest run -p acdc-converters-html --no-default-features --features highlighting --verbose
       - name: Run Markdown tests - no default features
         run: cargo nextest run -p acdc-converters-markdown --no-default-features --verbose
@@ -211,8 +209,8 @@ jobs:
         run: cargo nextest run -p acdc-cli -p acdc-execute --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
       - name: Run execute-only tests
         run: cargo nextest run -p acdc-cli -p acdc-execute --no-default-features --features execute --verbose --test-threads 1
-      - name: Test execute with parser-only substitution features
-        run: cargo nextest run -p acdc-execute --no-default-features --features acdc-parser/pre-spec-subs -E 'test(substitution_follows_the_parser_feature_even_when_features_are_unified)' --verbose
+      - name: Test execute with the parser network capability
+        run: cargo nextest run -p acdc-execute --no-default-features --features acdc-parser/network -E 'test(substitution_is_independent_of_optional_capabilities)' --verbose
       - name: Smoke-test backend-only CLI builds
         shell: bash
         run: |

@@ -174,13 +174,13 @@ PDF converters directly into `acdc-lsp`. Release binaries include both. No separ
 `acdc` executable or Node.js runtime is required. To build with HTML preview only:
 
 ```bash
-cargo build -p acdc-lsp --no-default-features --features pre-spec-subs,preview
+cargo build -p acdc-lsp --no-default-features --features preview
 ```
 
-To build without preview while retaining default parser compatibility:
+To build without preview:
 
 ```bash
-cargo build -p acdc-lsp --no-default-features --features pre-spec-subs
+cargo build -p acdc-lsp --no-default-features
 ```
 
 Clients may also call `workspace/executeCommand` with command `acdc.preview`

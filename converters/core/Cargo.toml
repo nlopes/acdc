@@ -6,11 +6,6 @@ description = "Core traits and utilities for acdc document converters"
 license = "MIT OR Apache-2.0"
 publish = false
 
-[features]
-default = ["pre-spec-subs"]
-# Compatibility alias; parsed content determines substitutions.
-pre-spec-subs = ["acdc-parser/pre-spec-subs"]
-
 [dependencies]
 acdc-parser.workspace = true
 percent-encoding.workspace = true

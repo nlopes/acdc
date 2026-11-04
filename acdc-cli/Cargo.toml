@@ -43,20 +43,7 @@ tempfile.workspace = true
 
 [features]
 # Default features - HTML converter is always included as the primary output format
-default = ["html", "lint", "pre-spec-subs", "setext"]
-
-# Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
-# Forwarded to every converter dependency that honors subs=.
-pre-spec-subs = [
-    "acdc-parser/pre-spec-subs",
-    "acdc-converters-core/pre-spec-subs",
-    "acdc-converters-html?/pre-spec-subs",
-    "acdc-converters-manpage?/pre-spec-subs",
-    "acdc-converters-pdf?/pre-spec-subs",
-    "acdc-converters-terminal?/pre-spec-subs",
-    "acdc-execute?/pre-spec-subs",
-    "acdc-lint?/pre-spec-subs",
-]
+default = ["html", "lint"]
 
 # Output converters
 html = ["dep:acdc-converters-html"]            # HTML5 converter with Asciidoctor-compatible styling
@@ -88,8 +75,7 @@ execute = ["dep:acdc-execute", "dep:regex"]  # Run command blocks from AsciiDoc 
 inspect = []  # AST inspection tool for debugging parser output
 tck = []      # Technology Compatibility Kit for spec compliance testing
 
-# Compatibility features
-setext = ["acdc-parser/setext", "acdc-execute?/setext", "acdc-lint?/setext"]  # Compatibility alias; headings follow parser mode
+# Network access
 network = ["acdc-parser/network", "acdc-execute?/network", "acdc-lint?/network", "acdc-converters-pdf?/network", "acdc-converters-html?/network"]  # Enable remote includes and embedded HTML/PDF images
 
 # Feature groups for convenience

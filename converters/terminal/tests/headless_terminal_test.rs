@@ -283,7 +283,6 @@ fn paragraph_roles_survive_terminal_emulation() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_quotes_survive_line_numbers_and_terminal_emulation() -> Result<(), Error> {
     // ANSI snapshots alone cannot show whether numbering reset an active style.

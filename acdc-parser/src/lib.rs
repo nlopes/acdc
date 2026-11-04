@@ -32,10 +32,8 @@
 //!
 //! # Cargo features
 //!
-//! - `pre-spec-subs` (default): compatibility alias with no effect on parsing.
-//!   Block `subs=` settings and substitution types are available in every build.
-//! - `setext` (off by default): compatibility alias with no effect on parsing.
-//!   Asciidoctor mode recognizes legacy underlined headings; Draft uses ATX.
+//! Language behavior follows [`CompatibilityMode`] in every build.
+//!
 //! - `network` (off by default): HTTP(S) includes, subject to safe mode and caller permission.
 //!
 //! The parser uses the draft `AsciiDoc` specification and Asciidoctor as references;

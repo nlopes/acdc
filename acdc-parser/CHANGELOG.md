@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+
 - Table `cols` settings now use complete column specifications, matching Asciidoctor: malformed records are ignored, count shorthand and semicolon separators work, and literal quotes cannot select widths or styles. If no valid records remain, column inference stays enabled. The existing 100-column limit still applies.
 
 - Author/email and manpage name/purpose fields keep literal quotes. Quoted document `leveloffset` values no longer shift headings or included sections; quoted include arguments still work. The string-input `filetype` override derives its flag from the same literal value.

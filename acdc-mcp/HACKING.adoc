@@ -121,10 +121,8 @@ Full-text search, backlinks, graph queries, Antora resource resolution, persiste
 
 == Cargo features
 
-The default features are `pre-spec-subs` and `setext`, matching the standalone server's parsing behavior.
-`pre-spec-subs`, `setext`, and `network` forward to the parser's corresponding features.
-Setext headings follow the default Asciidoctor mode in every build; the
-`setext` feature is a compatibility alias.
+There are no default Cargo features. `network` compiles the parser's HTTP client.
+Language behavior follows the selected compatibility mode in every build.
 Remote includes remain disabled for every feature combination.
 
 == Development checks

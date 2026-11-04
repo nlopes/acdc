@@ -10,16 +10,6 @@ publish = false
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-# Do not forward `network`: browsers cannot use the parser's native HTTP client.
-default = ["pre-spec-subs", "setext"]
-pre-spec-subs = [
-    "acdc-parser/pre-spec-subs",
-    "acdc-converters-core/pre-spec-subs",
-    "acdc-converters-html/pre-spec-subs",
-]
-setext = ["acdc-parser/setext"]
-
 [dependencies]
 acdc-parser.workspace = true
 acdc-converters-core.workspace = true

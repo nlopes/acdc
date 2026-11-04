@@ -11,11 +11,8 @@ categories = ["development-tools", "text-processing"]
 publish = false
 
 [features]
-default = ["pre-spec-subs"]
-# Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
-pre-spec-subs = ["acdc-parser/pre-spec-subs"]
+default = []
 network = ["acdc-parser/network"]
-setext = ["acdc-parser/setext"]
 
 [dependencies]
 acdc-parser.workspace = true

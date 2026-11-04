@@ -7,8 +7,7 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [features]
-default = ["pre-spec-subs"]
-pre-spec-subs = ["acdc-parser/pre-spec-subs", "acdc-converters-core/pre-spec-subs"]
+default = []
 # Fetch remote http(s) images referenced by the document. Off by default;
 # without it remote images are reported as per-image failures.
 network = ["acdc-pdf-images/network"]

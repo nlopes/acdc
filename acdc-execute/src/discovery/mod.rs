@@ -742,24 +742,16 @@ mod tests {
     }
 
     #[test]
-    fn substitution_follows_the_parser_feature_even_when_features_are_unified() {
-        let mut parsed = parse(
+    fn substitution_is_independent_of_optional_capabilities() {
+        let parsed = parse(
             ":value: expanded\n\n[.command,id=run,subs=attributes]\n----\nprintf '{value}'\n----\n",
         );
-        let unsupported = parsed.source_recovery().is_some();
-        parsed.take_warnings();
-        let result = CommandGraph::try_from(&parsed);
-        if unsupported {
-            assert!(matches!(
-                result,
-                Err(DiscoveryError::RecoveredSource { .. })
-            ));
-        } else {
-            assert_eq!(find(&result.unwrap(), "run").script, "printf 'expanded'\n");
-        }
+        assert!(parsed.source_recovery().is_none());
+        assert_eq!(parsed.warnings(), []);
+        let graph = CommandGraph::try_from(&parsed).unwrap();
+        assert_eq!(find(&graph, "run").script, "printf 'expanded'\n");
     }
 
-    #[cfg(feature = "pre-spec-subs")]
     mod attribute_substitution {
         use super::*;
 

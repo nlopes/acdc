@@ -11,9 +11,7 @@ categories = ["development-tools", "text-processing"]
 publish = false
 
 [features]
-default = ["pre-spec-subs", "setext"]
-pre-spec-subs = ["acdc-parser/pre-spec-subs"]
-setext = ["acdc-parser/setext"]
+default = []
 network = ["acdc-parser/network"]
 
 [dependencies]

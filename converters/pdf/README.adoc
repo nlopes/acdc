@@ -463,7 +463,7 @@ but does not cover every language.
 Literal backticks and spacing acute accents retain their positions instead of
 attaching to the preceding letter. Combining accents remain enabled.
 
-With the default `pre-spec-subs` feature, block-level `subs=` controls PDF text substitutions in the same way as the other compatible converters.
+Block-level `subs=` controls PDF text substitutions in every build.
 In particular, `subs=-replacements` suppresses typography replacements and `subs=+replacements` enables them in literal/listing content.
 
 Titles use normal substitutions independently of the block body, matching

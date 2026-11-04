@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+
 - Removed the obsolete `SubsFlags`, `effective_subs_flags`, `apply_replacements`, and `baseline_subs` APIs. Use `effective_subs` for block output settings and retained Raw profiles for deferred text substitutions. The free `substitutions::substitute_attributes` wrapper is replaced by `TraversalContext::substitute_attributes` for raw source templates.
 
 - Text extraction keeps resolved ordinary and verbatim text literal, including when `subs=none` disables formatting. Use `InlineTextTransform::rendered()` for Raw fragments with remaining substitutions; it replaces `rendered_replacements(bool)` and cannot reapply typography to resolved text.

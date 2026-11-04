@@ -418,8 +418,7 @@ An empty value is allowed, and only the first `=` separates the name from its va
 These options leave the calling process unchanged.
 `-S`/`--safe-mode` limits what the document may include while parsing; it does not sandbox the executed commands.
 A build with the `execute` feature only is available via `cargo build -p acdc-cli --no-default-features --features execute`.
-Add `pre-spec-subs` to that feature list to enable command attribute substitutions.
-Without this feature, documents that request any `subs` setting are rejected before execution.
+Command attribute substitution follows each block's `subs=` setting in every build.
 
 === `tck`
 
@@ -444,14 +443,6 @@ echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' \
 | `lint`
 | yes
 | Lint command.
-
-| `pre-spec-subs`
-| yes
-| Asciidoctor-compatible pre-spec `subs=` behavior, forwarded through selected components.
-
-| `setext`
-| yes
-| Compatibility alias with no effect. Conversion recognizes legacy underlined headings by default, matching Asciidoctor.
 
 | `manpage`, `markdown`, `pdf`, `terminal`
 | no

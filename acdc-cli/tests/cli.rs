@@ -1543,7 +1543,6 @@ mod execution {
         Ok(())
     }
 
-    #[cfg(feature = "pre-spec-subs")]
     #[test]
     fn execute_dry_run_and_interpreter_use_the_same_attribute_substitutions()
     -> Result<(), Box<dyn Error>> {
@@ -1579,7 +1578,6 @@ mod execution {
         Ok(())
     }
 
-    #[cfg(feature = "pre-spec-subs")]
     #[test]
     fn execute_keeps_disabled_attribute_substitutions_literal() -> Result<(), Box<dyn Error>> {
         for substitutions in ["none", "-attributes"] {
@@ -1600,7 +1598,6 @@ mod execution {
         Ok(())
     }
 
-    #[cfg(feature = "pre-spec-subs")]
     #[test]
     fn execute_rejects_missing_attributes_in_unselected_commands_before_starting()
     -> Result<(), Box<dyn Error>> {
@@ -1626,7 +1623,6 @@ mod execution {
         Ok(())
     }
 
-    #[cfg(feature = "pre-spec-subs")]
     #[test]
     fn execute_attribute_substitutions_follow_source_order() -> Result<(), Box<dyn Error>> {
         let directory = tempfile::tempdir()?;
@@ -1648,26 +1644,6 @@ mod execution {
         let output = run_document(directory.path(), source, &[])?;
         assert!(output.status.success(), "{}", output_text(&output.stderr));
         assert_eq!(output.stdout, b"first\nsecond\n");
-        Ok(())
-    }
-
-    #[cfg(not(feature = "pre-spec-subs"))]
-    #[test]
-    fn execute_without_substitution_support_rejects_explicit_subs_before_starting()
-    -> Result<(), Box<dyn Error>> {
-        for substitutions in ["attributes", "none"] {
-            let directory = tempfile::tempdir()?;
-            let source = format!(
-                "[.command,id=first]\n----\nprintf ran > marker\n----\n\n\
-                 [.command,id=unsupported,subs={substitutions}]\n----\nprintf '%s' '{{value}}'\n----\n"
-            );
-            let output = run_document(directory.path(), &source, &["--id", "first"])?;
-            assert_eq!(output.status.code(), Some(1));
-            let stderr = output_text(&output.stderr);
-            assert!(stderr.contains("subs"), "{stderr}");
-            assert!(stderr.contains("commands.adoc"), "{stderr}");
-            assert!(!directory.path().join("marker").exists());
-        }
         Ok(())
     }
 

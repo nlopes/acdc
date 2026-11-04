@@ -92,5 +92,5 @@ Available groups are:
 
 == Features
 
-`pre-spec-subs` is default-on and forwarded to `acdc-parser`.
-`setext` and `network` are available for parser compatibility with the rest of the workspace.
+`network` enables the parser's HTTP client. There are no default Cargo features.
+Language behavior follows the selected compatibility mode in every build.

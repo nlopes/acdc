@@ -21,11 +21,8 @@ exclude = [
 ]
 
 [features]
-default = ["pre-spec-subs"]
+default = []
 network = ["dep:ureq"]
-setext = []  # Compatibility alias; headings follow CompatibilityMode
-# Compatibility alias. Block subs= processing is always available.
-pre-spec-subs = []
 
 [dependencies]
 bitflags = "2.11"

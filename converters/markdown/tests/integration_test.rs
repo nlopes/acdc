@@ -13,8 +13,6 @@ use pulldown_cmark::{
     Tag, TagEnd,
 };
 
-mod support;
-
 type Error = Box<dyn std::error::Error>;
 
 #[test]
@@ -334,60 +332,6 @@ fn resolved_escapes_survive_markdown_parsing_in_both_modes() -> Result<(), Error
 }
 
 #[test]
-fn fixture_paths_preserve_stems_and_ignore_unrelated_warnings() -> Result<(), Error> {
-    for input in ["Body.\n", "= T\n:value: pass:q,c[*Bold*]\n\nBody.\n"] {
-        let parsed = parse(input, &ParserOptions::default())?;
-        for stem in ["subs_case", "commonmark_subs_case", "case.v1", "café"] {
-            assert_eq!(
-                support::expected_fixture_path(Path::new("expected"), stem, parsed.warnings()),
-                Path::new("expected").join(format!("{stem}.md"))
-            );
-        }
-    }
-    Ok(())
-}
-
-#[test]
-fn fixture_paths_ignore_unrelated_content_recovery() -> Result<(), Error> {
-    let parsed = parse("ifdef::missing[]\nBody.\n", &ParserOptions::default())?;
-    assert!(parsed.warnings().iter().any(|warning| matches!(
-        warning.kind,
-        acdc_parser::WarningKind::ContentRecovery { .. }
-    )));
-    assert_eq!(
-        support::expected_fixture_path(Path::new("expected"), "subs_case", parsed.warnings()),
-        Path::new("expected/subs_case.md")
-    );
-    Ok(())
-}
-
-#[test]
-fn fixture_paths_follow_parser_substitution_behavior() -> Result<(), Error> {
-    let parsed = parse("[subs=\"none\"]\n*Bold*.\n", &ParserOptions::default())?;
-    let block = parsed
-        .document()
-        .blocks
-        .first()
-        .ok_or("missing paragraph")?;
-    let extension = if block
-        .metadata()
-        .ok_or("missing paragraph metadata")?
-        .uses_substitution(&acdc_parser::Substitution::Quotes, acdc_parser::NORMAL)
-    {
-        "no-subs.md"
-    } else {
-        "md"
-    };
-    for stem in ["subs_case", "commonmark_subs_case", "case.v1", "café"] {
-        assert_eq!(
-            support::expected_fixture_path(Path::new("expected"), stem, parsed.warnings()),
-            Path::new("expected").join(format!("{stem}.{extension}"))
-        );
-    }
-    Ok(())
-}
-
-#[test]
 fn legacy_substitution_fixtures_keep_their_source_and_active_expectation() -> Result<(), Error> {
     let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let mut count = 0;
@@ -582,11 +526,7 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
         .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .build()?;
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
-    let expected_path = support::expected_fixture_path(
-        Path::new("tests/fixtures/expected"),
-        file_name,
-        parsed.warnings(),
-    );
+    let expected_path = Path::new("tests/fixtures/expected").join(format!("{file_name}.md"));
     let doc = parsed.document();
 
     // Convert to Markdown (GFM variant)
@@ -637,11 +577,7 @@ fn test_commonmark_variant(
     // Parse the AsciiDoc input
     let parser_options = ParserOptions::default();
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
-    let expected_path = support::expected_fixture_path(
-        Path::new("tests/fixtures/expected"),
-        file_name,
-        parsed.warnings(),
-    );
+    let expected_path = Path::new("tests/fixtures/expected").join(format!("{file_name}.md"));
     let doc = parsed.document();
 
     // Convert to Markdown (CommonMark variant)
