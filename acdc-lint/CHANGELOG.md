@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Delimiter-shortening advice retains body-collision checks and authored opening ranges across delimited forms. Repeated-title advice still exempts the exact `doctype=book` value.
+
 - Heading checks retain formatting-aware capitalization, separate monospace advice, and their existing table-cell exclusion in both compatibility modes.
 
 - List-marker checks retain nesting context and diagnostic order through all list families, attached containers, and table cells in both compatibility modes.

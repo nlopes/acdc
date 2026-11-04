@@ -1,4 +1,4 @@
-use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Location};
+use acdc_parser::ast::{BlockKind, BlockRef, DocumentRef, LocationRef, StructuralRef};
 
 use super::{LintEmitter, SourceLine, delimiter_token, is_block_attribute_line, split_first_char};
 
@@ -64,61 +64,68 @@ fn previous_source_line<'a>(lines: &'a [SourceLine<'a>], index: usize) -> Option
 
 pub(crate) fn lint_blocks(
     emitter: &mut LintEmitter<'_>,
-    blocks: &[Block<'_>],
+    document: DocumentRef<'_>,
     lines: &[SourceLine<'_>],
 ) {
-    for block in blocks {
-        match block {
-            Block::Admonition(block) => lint_blocks(emitter, &block.blocks, lines),
-            Block::CalloutList(list) => {
-                for item in &list.items {
-                    lint_blocks(emitter, &item.blocks, lines);
-                }
-            }
-            Block::DescriptionList(list) => {
-                for item in &list.items {
-                    lint_blocks(emitter, &item.description, lines);
-                }
-            }
-            Block::DelimitedBlock(block) => lint_delimited_block(emitter, block, lines),
-            Block::OrderedList(list) => {
-                for item in &list.items {
-                    lint_blocks(emitter, &item.blocks, lines);
-                }
-            }
-            Block::Section(section) => lint_blocks(emitter, &section.content, lines),
-            Block::UnorderedList(list) => {
-                for item in &list.items {
-                    lint_blocks(emitter, &item.blocks, lines);
-                }
-            }
-            Block::Audio(_)
-            | Block::Comment(_)
-            | Block::DiscreteHeader(_)
-            | Block::DocumentAttribute(_)
-            | Block::Image(_)
-            | Block::PageBreak(_)
-            | Block::Paragraph(_)
-            | Block::TableOfContents(_)
-            | Block::ThematicBreak(_)
-            | Block::Video(_)
-            | _ => {}
+    for node in document.descendants() {
+        if let StructuralRef::Block(block) = node
+            && let Some(source) = DelimitedBlockSource::from_block(block)
+        {
+            lint_delimited_block(emitter, source, lines);
         }
+    }
+}
+
+#[derive(Clone, Copy)]
+struct DelimitedBlockSource<'doc> {
+    delimiter: &'doc str,
+    open: Option<LocationRef<'doc>>,
+    close: Option<LocationRef<'doc>>,
+    location: LocationRef<'doc>,
+}
+
+impl<'doc> DelimitedBlockSource<'doc> {
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "Only delimited forms carry delimiter spelling and ranges"
+    )]
+    fn from_block(block: BlockRef<'doc>) -> Option<Self> {
+        macro_rules! source {
+            ($node:ident) => {
+                Self {
+                    delimiter: $node.delimiter(),
+                    open: $node.open_delimiter_location(),
+                    close: $node.close_delimiter_location(),
+                    location: $node.location(),
+                }
+            };
+        }
+        Some(match block.kind() {
+            BlockKind::Listing(node) => source!(node),
+            BlockKind::Literal(node) => source!(node),
+            BlockKind::Example(node) => source!(node),
+            BlockKind::Open(node) => source!(node),
+            BlockKind::Sidebar(node) => source!(node),
+            BlockKind::Quote(node) => source!(node),
+            BlockKind::Verse(node) => source!(node),
+            BlockKind::Passthrough(node) => source!(node),
+            BlockKind::DelimitedComment(node) => source!(node),
+            BlockKind::Stem(node) => source!(node),
+            BlockKind::Table(node) => source!(node),
+            _ => return None,
+        })
     }
 }
 
 fn lint_delimited_block(
     emitter: &mut LintEmitter<'_>,
-    block: &DelimitedBlock<'_>,
+    block: DelimitedBlockSource<'_>,
     lines: &[SourceLine<'_>],
 ) {
     if let Some(minimum) = shortest_safe_delimiter_len(block, lines) {
         let actual = block.delimiter.chars().count();
         if actual > minimum {
-            let location = block
-                .open_delimiter_location
-                .as_ref()
-                .unwrap_or(&block.location);
+            let location = block.open.unwrap_or(block.location);
             emitter.emit(
                 LintId::DelimitedBlockMinimalDelimiter,
                 format!(
@@ -129,32 +136,6 @@ fn lint_delimited_block(
                 Some(emitter.source_location(location)),
             );
         }
-    }
-
-    match &block.inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks) => lint_blocks(emitter, blocks, lines),
-        DelimitedBlockType::DelimitedTable(table) => {
-            for row in table
-                .header
-                .iter()
-                .chain(table.rows.iter())
-                .chain(table.footer.iter())
-            {
-                for column in &row.columns {
-                    lint_blocks(emitter, &column.content, lines);
-                }
-            }
-        }
-        DelimitedBlockType::DelimitedComment(_)
-        | DelimitedBlockType::DelimitedListing(_)
-        | DelimitedBlockType::DelimitedLiteral(_)
-        | DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        | DelimitedBlockType::DelimitedVerse(_)
-        | _ => {}
     }
 }
 
@@ -191,7 +172,7 @@ impl DelimiterShape {
 }
 
 fn shortest_safe_delimiter_len(
-    block: &DelimitedBlock<'_>,
+    block: DelimitedBlockSource<'_>,
     lines: &[SourceLine<'_>],
 ) -> Option<usize> {
     let shape = delimiter_shape(block.delimiter)?;
@@ -200,7 +181,7 @@ fn shortest_safe_delimiter_len(
 }
 
 fn block_body_contains_delimiter_len(
-    block: &DelimitedBlock<'_>,
+    block: DelimitedBlockSource<'_>,
     lines: &[SourceLine<'_>],
     len: usize,
 ) -> bool {
@@ -211,20 +192,18 @@ fn block_body_contains_delimiter_len(
 }
 
 fn block_body_lines<'a>(
-    block: &DelimitedBlock<'_>,
+    block: DelimitedBlockSource<'_>,
     lines: &'a [SourceLine<'a>],
 ) -> impl Iterator<Item = SourceLine<'a>> + 'a {
     let start_line = block
-        .open_delimiter_location
-        .as_ref()
+        .open
         .and_then(location_start_line)
         .and_then(|line| line.checked_add(1));
     let end_line = block
-        .close_delimiter_location
-        .as_ref()
+        .close
         .and_then(location_start_line)
         .and_then(|line| line.checked_sub(1))
-        .or_else(|| location_end_line(&block.location));
+        .or_else(|| location_end_line(block.location));
 
     lines.iter().copied().filter(move |line| {
         start_line
@@ -233,18 +212,18 @@ fn block_body_lines<'a>(
     })
 }
 
-fn location_start_line(location: &Location) -> Option<usize> {
-    if location.start.file.is_some() {
+fn location_start_line(location: LocationRef<'_>) -> Option<usize> {
+    if location.start().include_chain().is_some() {
         return None;
     }
-    usize::try_from(location.start.line).ok()
+    usize::try_from(location.start().line()).ok()
 }
 
-fn location_end_line(location: &Location) -> Option<usize> {
-    if location.end.file.is_some() {
+fn location_end_line(location: LocationRef<'_>) -> Option<usize> {
+    if location.end().include_chain().is_some() {
         return None;
     }
-    usize::try_from(location.end.line).ok()
+    usize::try_from(location.end().line()).ok()
 }
 
 fn delimiter_shape(delimiter: &str) -> Option<DelimiterShape> {
