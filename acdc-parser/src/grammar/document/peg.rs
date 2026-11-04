@@ -2034,7 +2034,8 @@ peg::parser! {
           !(
               &eol()
               / &at_list_item_start()
-              / &"+"
+              // Only a standalone plus continues a list; `+ text` is item text.
+              / &("+" whitespace()* (eol() / ![_]))
               / &at_section_start()
               / &at_list_separator_content()
               / &nested_unordered_child_after_metadata(offset, current_marker, parent_ordered_marker)
@@ -2047,7 +2048,8 @@ peg::parser! {
           !(
               &eol()
               / &at_list_item_start()
-              / &"+"
+              // Only a standalone plus continues a list; `+ text` is item text.
+              / &("+" whitespace()* (eol() / ![_]))
               / &at_section_start()
               / &at_list_separator_content()
               / &nested_ordered_child_after_metadata(offset, current_marker, parent_unordered_marker)
@@ -3025,7 +3027,7 @@ peg::parser! {
              !at_callout_list_item()
              !check_line_is_description_list(offset)
              !(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())  // not a list item
-             !("+" (whitespace() / eol() / ![_]))      // not a continuation marker
+             !("+" whitespace()* (eol() / ![_]))       // not a continuation marker
              !example_delimiter()                      // not a block delimiter
              !listing_delimiter()
              !literal_delimiter()

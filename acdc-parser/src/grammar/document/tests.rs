@@ -2647,3 +2647,123 @@ fn test_unterminated_example_through_parse_entry() {
         res.warnings(),
     );
 }
+
+/// The text of plain inline nodes, joined.
+fn plain_text(inlines: &[InlineNode<'_>]) -> String {
+    inlines
+        .iter()
+        .filter_map(|node| {
+            if let InlineNode::PlainText(plain) = node {
+                Some(plain.content)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// Only a `+` alone on its line continues a list item. A line that starts with `+` and
+/// goes on, such as `+ (+).`, is part of the item's text, as in Asciidoctor.
+#[test]
+fn test_plus_followed_by_text_stays_in_unordered_list_item() -> Result<(), Error> {
+    let input = "* Zoom In\n+ (+).\n* Fit.\n";
+    let result = parse(input, &Options::default())?;
+    let doc = result.document();
+    assert_eq!(doc.blocks.len(), 1, "one unordered list: {:?}", doc.blocks);
+    let list = doc
+        .blocks
+        .iter()
+        .find_map(|block| {
+            if let Block::UnorderedList(list) = block {
+                Some(list)
+            } else {
+                None
+            }
+        })
+        .expect("an unordered list");
+    assert_eq!(list.items.len(), 2);
+    assert_eq!(plain_text(&list.items[0].principal), "Zoom In\n+ (+).");
+    assert_eq!(list.items[0].blocks, []);
+    assert_eq!(plain_text(&list.items[1].principal), "Fit.");
+    Ok(())
+}
+
+#[test]
+fn test_plus_followed_by_text_stays_in_ordered_list_item() -> Result<(), Error> {
+    let input = ". One\n+ more words\n. Two\n";
+    let result = parse(input, &Options::default())?;
+    let doc = result.document();
+    assert_eq!(doc.blocks.len(), 1, "one ordered list: {:?}", doc.blocks);
+    let list = doc
+        .blocks
+        .iter()
+        .find_map(|block| {
+            if let Block::OrderedList(list) = block {
+                Some(list)
+            } else {
+                None
+            }
+        })
+        .expect("an ordered list");
+    assert_eq!(list.items.len(), 2);
+    assert_eq!(plain_text(&list.items[0].principal), "One\n+ more words");
+    assert_eq!(list.items[0].blocks, []);
+    assert_eq!(plain_text(&list.items[1].principal), "Two");
+    Ok(())
+}
+
+#[test]
+fn test_plus_followed_by_text_stays_in_description_list_item() -> Result<(), Error> {
+    let input = "Term:: Zoom In\n+ (+).\nOther:: Fit.\n";
+    let result = parse(input, &Options::default())?;
+    let doc = result.document();
+    assert_eq!(
+        doc.blocks.len(),
+        1,
+        "one description list: {:?}",
+        doc.blocks
+    );
+    let list = doc
+        .blocks
+        .iter()
+        .find_map(|block| {
+            if let Block::DescriptionList(list) = block {
+                Some(list)
+            } else {
+                None
+            }
+        })
+        .expect("a description list");
+    assert_eq!(list.items.len(), 2);
+    assert_eq!(plain_text(&list.items[0].principal_text), "Zoom In\n+ (+).");
+    assert_eq!(plain_text(&list.items[1].term), "Other");
+    assert_eq!(plain_text(&list.items[1].principal_text), "Fit.");
+    Ok(())
+}
+
+/// A `+` alone, with trailing spaces, still attaches the next block to the item.
+#[test]
+fn test_standalone_plus_with_trailing_spaces_still_continues_list_item() -> Result<(), Error> {
+    let input = "* Item\n+  \nAttached paragraph.\n* Next\n";
+    let result = parse(input, &Options::default())?;
+    let doc = result.document();
+    assert_eq!(doc.blocks.len(), 1, "one unordered list: {:?}", doc.blocks);
+    let list = doc
+        .blocks
+        .iter()
+        .find_map(|block| {
+            if let Block::UnorderedList(list) = block {
+                Some(list)
+            } else {
+                None
+            }
+        })
+        .expect("an unordered list");
+    assert_eq!(list.items.len(), 2);
+    assert_eq!(plain_text(&list.items[0].principal), "Item");
+    assert!(matches!(
+        list.items[0].blocks.as_slice(),
+        [Block::Paragraph(_)]
+    ));
+    Ok(())
+}
