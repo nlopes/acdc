@@ -3,7 +3,7 @@ use std::{
     path::Path,
 };
 
-use acdc_parser::{Document, InlineNode, Warning};
+use acdc_parser::{InlineNode, Warning, ast::DocumentRef};
 use serde_json::{Value, json};
 
 #[derive(Debug, thiserror::Error)]
@@ -40,7 +40,7 @@ impl Format {
     }
 }
 
-pub fn document(value: &Document<'_>, format: Format) -> Result<Value, Error> {
+pub fn document(value: DocumentRef<'_>, format: Format) -> Result<Value, Error> {
     match format {
         Format::NativeJson => Ok(serde_json::to_value(value)?),
         #[cfg(feature = "asg")]

@@ -492,7 +492,7 @@ Native JSON uses the same node form for an index term and its enclosing inline n
 
 ## Native AST JSON
 
-With the optional `asg` feature, `asg::document(parsed.document())` and
+With the optional `asg` feature, `asg::document(parsed.document_ref())` and
 `asg::inlines(parsed.inlines())` export a separate, checked draft ASG value.
 Unsupported semantic values return typed errors with JSON Pointer paths; export
 never changes the AST. The current subset covers headers and authors, unnumbered
@@ -502,7 +502,7 @@ inline span types. Literal reference-shaped text stays text. See
 [the support contract](schemas/asg/README.adoc) for exact limits.
 
 For the named acdc extension, call
-`asg::document_with_profile(parsed.document(), asg::Profile::Acdc)`.
+`asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc)`.
 Its output identifies `urn:acdc:asg:1` and preserves resolved captions,
 attribution, citation content and images. Use
 `asg::inlines_with_profile(parsed.inlines(), asg::Profile::Acdc)` for standalone

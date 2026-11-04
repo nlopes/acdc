@@ -15,7 +15,7 @@ use std::sync::OnceLock;
 
 use serde_json::{Map, Value};
 
-use crate::{Document, InlineNode, Location, Source};
+use crate::{InlineNode, Location, Source, ast::DocumentRef};
 
 /// Schema identifier used by this exporter.
 pub const SCHEMA_ID: &str = "https://schemas.asciidoc.org/asg/1-0-0/draft-01";
@@ -89,7 +89,7 @@ pub enum Error {
 /// partial output is returned. Success preserves the documented supported
 /// semantics and validates against [`SCHEMA_REVISION`]; it does not establish
 /// source round-trip fidelity or complete language conformance.
-pub fn document(document: &Document<'_>) -> Result<Value, Error> {
+pub fn document(document: DocumentRef<'_>) -> Result<Value, Error> {
     document_with_profile(document, Profile::Upstream)
 }
 
@@ -102,7 +102,8 @@ pub fn document(document: &Document<'_>) -> Result<Value, Error> {
 /// # Errors
 /// Returns an error for unsupported nested values, invalid locations, or output
 /// that does not validate against the selected schema. No partial output is returned.
-pub fn document_with_profile(document: &Document<'_>, profile: Profile) -> Result<Value, Error> {
+pub fn document_with_profile(document: DocumentRef<'_>, profile: Profile) -> Result<Value, Error> {
+    let document = document.as_document();
     let value = projection::document(document, profile)
         .map_err(|error| error.with_context("document", &document.location))?;
     validate(&value, "", profile)?;

@@ -23,7 +23,7 @@ fn unsupported_block_owners_do_not_acquire_invented_forms() -> Result<(), Error>
         ] {
             let parsed = parse(source, &options)?;
             assert!(
-                matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {
+                matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {
                 path, construct: Some(actual), ..
             }) if path == format!("/blocks/0/{suffix}") && actual == owner),
                 "{mode:?}: {owner}: {source}"
@@ -86,7 +86,7 @@ fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(
     paragraph.metadata.options = vec!["first", "second"];
     let mut document = Document::default();
     document.blocks.push(Block::Paragraph(paragraph));
-    let projected = asg::document(&document)?;
+    let projected = asg::document((&document).into())?;
     assert_eq!(
         projected.pointer("/blocks/0/metadata/attributes"),
         Some(&json!({"empty":"", "flag":""}))
@@ -110,7 +110,7 @@ fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(
             .set(property.into(), attribute);
         document.blocks = vec![Block::Paragraph(paragraph)];
         assert!(
-            matches!(asg::document(&document), Err(asg::Error::Unsupported {path, ..})
+            matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..})
             if path == format!("/blocks/0/metadata/attributes/{property}"))
         );
     }
@@ -141,7 +141,7 @@ fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(
         }
         document.blocks = vec![Block::Paragraph(paragraph)];
         assert!(
-            matches!(asg::document(&document), Err(asg::Error::Unsupported {path, ..})
+            matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..})
             if path == format!("/blocks/0/metadata/{property}"))
         );
     }
@@ -155,7 +155,7 @@ fn source_comments_are_omitted_without_dropping_their_neighbors() -> Result<(), 
         "////\ncomment\n////\n\nBefore.\n\nAfter.",
     ] {
         let parsed = parse(source, &Options::default())?;
-        let value = asg::document(parsed.document())?;
+        let value = asg::document(parsed.document_ref())?;
         let blocks = value
             .get("blocks")
             .and_then(serde_json::Value::as_array)
@@ -187,7 +187,7 @@ fn comment_metadata_cannot_disappear_with_source_comments() -> Result<(), Error>
     ] {
         let parsed = parse(source, &Options::default())?;
         assert!(
-            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..})
+            matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {path, ..})
             if path == format!("/blocks/0/{property}"))
         );
     }

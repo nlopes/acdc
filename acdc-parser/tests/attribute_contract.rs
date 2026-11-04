@@ -21,7 +21,7 @@ fn attribute_meaning_agrees_across_reads_native_json_and_checked_export() -> Res
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let native = serde_json::to_value(parsed.document())?;
-        let graph = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let graph = asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc)?;
         for (pointer, expected) in [
             ("/blocks/0/title/0/variant", json!("strong")),
             ("/blocks/0/title/0/inlines/0/value", json!("Declared")),
@@ -86,11 +86,11 @@ fn attribute_meaning_agrees_across_reads_native_json_and_checked_export() -> Res
         );
         assert_eq!(serde_json::to_value(parsed.document())?, native);
         assert_eq!(
-            asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?,
+            asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc)?,
             graph
         );
         assert!(
-            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/1/metadata/caption")
+            matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/1/metadata/caption")
         );
         let mut wrong = graph.clone();
         *wrong
@@ -154,7 +154,7 @@ fn snapshot_and_selected_content_survive_projection_without_side_effects() -> Re
             parsed.document().footnotes.first().ok_or("footnote")?.id,
             Some("kept")
         );
-        assert!(asg::document_with_profile(parsed.document(), asg::Profile::Acdc).is_err());
+        assert!(asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc).is_err());
         assert_eq!(serde_json::to_value(parsed.document())?, before);
     }
     Ok(())
@@ -168,7 +168,7 @@ fn mode_specific_literal_content_and_empty_presence_have_distinct_graphs() -> Re
              image:photo.png[alt=\"\",title=\"\"] and image:photo.png[]",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let graph = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let graph = asg::document_with_profile(parsed.document_ref(), asg::Profile::Acdc)?;
         let title = graph.pointer("/blocks/0/title/0").ok_or("title")?;
         if mode == CompatibilityMode::Asciidoctor {
             assert_eq!(title.get("variant"), Some(&json!("strong")));

@@ -46,7 +46,7 @@ fn real_delimited_blocks_preserve_names_and_delimiters() -> Result<(), Error> {
         ] {
             let parsed = parse(source, &options)?;
             let before = serde_json::to_value(parsed.document())?;
-            let value = asg::document(parsed.document())?;
+            let value = asg::document(parsed.document_ref())?;
             assert_eq!(
                 value.pointer("/blocks/0/name"),
                 Some(&json!(name)),
@@ -79,7 +79,7 @@ fn paragraph_and_indented_leaf_forms_have_no_delimiters() -> Result<(), Error> {
         ("[pass]\n<b>Raw</b>", "pass", "paragraph"),
     ] {
         let parsed = parse(source, &Options::default())?;
-        let value = asg::document(parsed.document())?;
+        let value = asg::document(parsed.document_ref())?;
         assert_eq!(
             value.pointer("/blocks/0/name"),
             Some(&json!(name)),
@@ -109,7 +109,7 @@ fn media_targets_and_retained_slots_are_read_from_owners() -> Result<(), Error> 
             ),
         ] {
             let parsed = parse(source, &options)?;
-            let value = asg::document(parsed.document())?;
+            let value = asg::document(parsed.document_ref())?;
             assert_eq!(value.pointer("/blocks/0/name"), Some(&json!(name)));
             assert_eq!(value.pointer("/blocks/0/form"), Some(&json!("macro")));
             assert_eq!(
@@ -125,11 +125,11 @@ fn media_targets_and_retained_slots_are_read_from_owners() -> Result<(), Error> 
         Location::default(),
     )));
     assert_eq!(
-        asg::document(&document)?.pointer("/blocks/0/target"),
+        asg::document((&document).into())?.pointer("/blocks/0/target"),
         Some(&json!("photo.png"))
     );
     let parsed = parse("video::movie.mp4[youtube,640,\"\"]", &Options::default())?;
-    let value = asg::document(parsed.document())?;
+    let value = asg::document(parsed.document_ref())?;
     assert_eq!(
         value.pointer("/blocks/0/metadata/attributes/poster"),
         Some(&json!("youtube"))
@@ -156,7 +156,7 @@ fn toc_discrete_heading_and_breaks_use_their_schema_forms() -> Result<(), Error>
         ("'''", "break", "variant", json!("thematic")),
     ] {
         let parsed = parse(source, &Options::default())?;
-        let value = asg::document(parsed.document())?;
+        let value = asg::document(parsed.document_ref())?;
         assert_eq!(
             value.pointer("/blocks/0/name"),
             Some(&json!(name)),
@@ -184,7 +184,7 @@ fn missing_forms_and_unsupported_semantics_fail_explicitly() -> Result<(), Error
     ] {
         let parsed = parse(source, &Options::default())?;
         assert!(
-            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..})
+            matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {path, ..})
             if path == format!("/blocks/0/{property}")),
             "{source}"
         );
@@ -198,7 +198,7 @@ fn missing_forms_and_unsupported_semantics_fail_explicitly() -> Result<(), Error
             Location::default(),
         )));
     assert!(
-        matches!(asg::document(&document), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/delimiter")
+        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/delimiter")
     );
     Ok(())
 }
@@ -207,7 +207,7 @@ fn missing_forms_and_unsupported_semantics_fail_explicitly() -> Result<(), Error
 fn nested_block_failures_keep_their_paths_and_owner() -> Result<(), Error> {
     let parsed = parse("--\nimage:photo.png[Alt]\n--", &Options::default())?;
     assert!(
-        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, construct: Some("inline image"), ..})
+        matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {path, construct: Some("inline image"), ..})
         if path == "/blocks/0/blocks/0/inlines/0")
     );
     Ok(())
@@ -233,7 +233,7 @@ fn uncaptioned_library_listing_forms_are_supported() -> Result<(), Error> {
         };
         let mut document = Document::default();
         document.blocks.push(block);
-        let value = asg::document(&document)?;
+        let value = asg::document((&document).into())?;
         assert_eq!(value.pointer("/blocks/0/name"), Some(&json!("listing")));
         assert_eq!(
             value.pointer("/blocks/0/form"),
@@ -247,7 +247,7 @@ fn uncaptioned_library_listing_forms_are_supported() -> Result<(), Error> {
     for source in ["----\nText\n----", "[source,rust]\nText"] {
         let parsed = parse(source, &Options::default())?;
         assert!(
-            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..})
+            matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {path, ..})
             if path == "/blocks/0/metadata/caption")
         );
     }

@@ -54,7 +54,7 @@ pub fn run(args: &Args) -> Result<(), Error> {
                 acdc_parser::parse_file(&args.input, &options)?
             };
             json::warnings(parsed.warnings())?;
-            json::document(parsed.document(), args.format)?
+            json::document(parsed.document_ref(), args.format)?
         }
         InputKind::Inline => {
             let mut source = String::new();

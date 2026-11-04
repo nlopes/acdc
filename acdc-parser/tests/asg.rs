@@ -28,7 +28,7 @@ fn asg_preserves_present_empty_header_titles() -> Result<(), Error> {
         Title::new(Vec::new()),
         document.location.clone(),
     ));
-    let value = asg::document(&document)?;
+    let value = asg::document((&document).into())?;
     assert_eq!(value.pointer("/header/title"), Some(&json!([])));
     Ok(())
 }
@@ -40,7 +40,7 @@ fn asg_preserves_explicit_unsets_and_numeric_spelling() -> Result<(), Error> {
             "= Title\n:flag!:\n:toclevels: 03\n:text: 001\n\nText.\n",
             &options,
         )?;
-        let value = asg::document(parsed.document())?;
+        let value = asg::document(parsed.document_ref())?;
         assert_eq!(value.pointer("/attributes/flag"), Some(&Value::Null));
         assert_eq!(value.pointer("/attributes/toclevels"), Some(&json!("03")));
         assert_eq!(value.pointer("/attributes/text"), Some(&json!("001")));
@@ -61,7 +61,7 @@ fn asg_reads_retained_positional_slots() -> Result<(), Error> {
             .metadata
             .clone()
             .with_attributes(acdc_parser::ElementAttributes::default())?;
-        let value = asg::document(&document)?;
+        let value = asg::document((&document).into())?;
         assert_eq!(
             value.pointer("/blocks/0/metadata/attributes/$1"),
             Some(&json!("alpha"))
@@ -104,7 +104,7 @@ fn asg_preserves_formatted_titles_reftext_and_ids() -> Result<(), Error> {
         let before = serde_json::to_value(parsed.document())?;
         let references = parsed.document().references.clone();
         let toc = parsed.document().toc_entries.clone();
-        let value = asg::document(parsed.document())?;
+        let value = asg::document(parsed.document_ref())?;
         assert_eq!(
             value.pointer("/header/title/0/variant"),
             Some(&json!("strong"))
@@ -127,7 +127,7 @@ fn asg_preserves_formatted_titles_reftext_and_ids() -> Result<(), Error> {
                 .pointer("/blocks/0/blocks/0/metadata/attributes/title")
                 .is_none()
         );
-        assert_eq!(asg::document(parsed.document())?, value);
+        assert_eq!(asg::document(parsed.document_ref())?, value);
         assert_eq!(serde_json::to_value(parsed.document())?, before);
         assert_eq!(parsed.document().references, references);
         assert_eq!(parsed.document().toc_entries, toc);
@@ -141,7 +141,7 @@ fn asg_preserves_literal_text_raw_text_and_resolved_typography() -> Result<(), E
         "Text +<literal>+ and +++<b>raw</b>+++ ... (C).",
         &Options::default(),
     )?;
-    let value = asg::document(parsed.document())?;
+    let value = asg::document(parsed.document_ref())?;
     let content = value
         .pointer("/blocks/0/inlines")
         .and_then(Value::as_array)
@@ -190,7 +190,7 @@ fn asg_rejects_unsupported_meaning_at_any_depth() -> Result<(), Error> {
         ] {
             let parsed = parse(source, &options)?;
             let before = serde_json::to_value(parsed.document())?;
-            let Err(error) = asg::document(parsed.document()) else {
+            let Err(error) = asg::document(parsed.document_ref()) else {
                 return Err(format!("unsupported source was accepted: {source}").into());
             };
             let asg::Error::Unsupported { path, .. } = error else {
@@ -223,7 +223,7 @@ fn asg_omits_unknown_optional_locations_and_rejects_partial_ones() -> Result<(),
         Vec::new(),
         Location::default(),
     )));
-    let value = asg::document(&document)?;
+    let value = asg::document((&document).into())?;
     assert!(value.get("location").is_none());
     assert!(value.pointer("/blocks/0/location").is_none());
     let Block::Paragraph(paragraph) = document.blocks.first_mut().ok_or("missing paragraph")?
@@ -232,7 +232,7 @@ fn asg_omits_unknown_optional_locations_and_rejects_partial_ones() -> Result<(),
     };
     paragraph.location.start.line = 1;
     assert!(
-        matches!(asg::document(&document), Err(asg::Error::InvalidLocation { path, .. }) if path == "/blocks/0/location/1")
+        matches!(asg::document((&document).into()), Err(asg::Error::InvalidLocation { path, .. }) if path == "/blocks/0/location/1")
     );
     Ok(())
 }
@@ -284,7 +284,7 @@ fn asg_rejects_independent_header_and_catalog_values() -> Result<(), Error> {
         let parsed = parse(source, &Options::default())?;
         assert!(
             matches!(
-                asg::document(parsed.document()),
+                asg::document(parsed.document_ref()),
                 Err(asg::Error::Unsupported { .. })
             ),
             "{source}"
@@ -292,14 +292,14 @@ fn asg_rejects_independent_header_and_catalog_values() -> Result<(), Error> {
     }
     let parsed = parse("[#one]\n== Heading\n\nText.", &Options::default())?;
     let mut document = owned_blocks(&parsed);
-    asg::document(&document)?;
+    asg::document((&document).into())?;
     document
         .references
         .get_mut("one")
         .ok_or("missing reference")?
         .title = Some(Title::new(Vec::new()));
     assert!(
-        matches!(asg::document(&document), Err(asg::Error::Unsupported { path, .. }) if path == "/references/one")
+        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported { path, .. }) if path == "/references/one")
     );
     let mut document = owned_blocks(&parsed);
     document
@@ -308,7 +308,7 @@ fn asg_rejects_independent_header_and_catalog_values() -> Result<(), Error> {
         .ok_or("missing TOC entry")?
         .level = 4;
     assert!(
-        matches!(asg::document(&document), Err(asg::Error::Unsupported { path, .. }) if path == "/toc_entries/0")
+        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported { path, .. }) if path == "/toc_entries/0")
     );
     Ok(())
 }
@@ -320,13 +320,13 @@ fn asg_rejects_attribute_protection_and_preserves_literal_quotes() -> Result<(),
         &Options::default(),
     )?;
     assert!(
-        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported { path, .. }) if path == "/attributes/protected")
+        matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported { path, .. }) if path == "/attributes/protected")
     );
     let parsed = parse(
         "= Title\n:quoted: \"literal\"\n:enabled:\n\nText.",
         &Options::default(),
     )?;
-    let value = asg::document(parsed.document())?;
+    let value = asg::document(parsed.document_ref())?;
     assert_eq!(
         value.pointer("/attributes/quoted"),
         Some(&json!("\"literal\""))
@@ -345,7 +345,7 @@ fn asg_reads_classified_references_and_literal_ampersands() -> Result<(), Error>
             (r"\&copy;", "text", "&copy;"),
         ] {
             let parsed = parse(source, &options)?;
-            let exported = asg::document(parsed.document())?;
+            let exported = asg::document(parsed.document_ref())?;
             assert_eq!(
                 exported.pointer("/blocks/0/inlines/0/name"),
                 Some(&json!(name))
@@ -358,7 +358,7 @@ fn asg_reads_classified_references_and_literal_ampersands() -> Result<(), Error>
     }
     let parsed = parse("[custom,alpha]\nText.", &Options::default())?;
     assert!(matches!(
-        asg::document(parsed.document()),
+        asg::document(parsed.document_ref()),
         Err(asg::Error::Unsupported { .. })
     ));
     Ok(())
@@ -389,7 +389,7 @@ fn asg_distinguishes_absent_and_present_empty_section_titles() -> Result<(), Err
                 Vec::new(),
                 Location::default(),
             )));
-        let result = asg::document(&document);
+        let result = asg::document((&document).into());
         if present {
             assert_eq!(result?.pointer("/blocks/0/title"), Some(&json!([])));
         } else {
@@ -418,6 +418,6 @@ fn asg_rejects_verbatim_without_a_literal_block_mapping() {
         Location::default(),
     )));
     assert!(
-        matches!(asg::document(&document), Err(asg::Error::Unsupported { path, .. }) if path == "/blocks/0/inlines/0")
+        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported { path, .. }) if path == "/blocks/0/inlines/0")
     );
 }

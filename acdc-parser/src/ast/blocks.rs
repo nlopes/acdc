@@ -364,6 +364,21 @@ impl<'doc> ParagraphRef<'doc> {
     }
 }
 
+impl<'doc> DocumentRef<'doc> {
+    pub(crate) fn as_document(self) -> &'doc Document<'doc> {
+        self.node
+    }
+}
+
+impl serde::Serialize for DocumentRef<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.as_document().serialize(serializer)
+    }
+}
+
 impl<'doc> From<&'doc Document<'doc>> for DocumentRef<'doc> {
     fn from(document: &'doc Document<'doc>) -> Self {
         Self::new(document)

@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
 fn export(document: &Document<'_>) -> Result<Value, asg::Error> {
-    asg::document_with_profile(document, asg::Profile::Acdc)
+    asg::document_with_profile(document.into(), asg::Profile::Acdc)
 }
 
 #[test]
@@ -65,7 +65,7 @@ fn inline_image_metadata_and_content_are_preserved() -> Result<(), Error> {
         assert!(value.pointer("/blocks/0/inlines/0/location").is_some());
         assert_eq!(serde_json::to_value(parsed.document())?, before);
         assert!(
-            matches!(asg::document(parsed.document()),Err(asg::Error::Unsupported {path,construct:Some("inline image"),..}) if path=="/blocks/0/inlines/0")
+            matches!(asg::document(parsed.document_ref()),Err(asg::Error::Unsupported {path,construct:Some("inline image"),..}) if path=="/blocks/0/inlines/0")
         );
     }
     Ok(())
@@ -120,7 +120,7 @@ fn block_image_alternative_content_stays_separate_from_its_caption() -> Result<(
             Some(&asg::inlines(image.alt.as_ref().ok_or("alt")?)?)
         );
         assert!(
-            matches!(asg::document(parsed.document()),Err(asg::Error::Unsupported {path,..}) if path=="/blocks/0/alt")
+            matches!(asg::document(parsed.document_ref()),Err(asg::Error::Unsupported {path,..}) if path=="/blocks/0/alt")
         );
     }
     Ok(())
@@ -280,7 +280,7 @@ fn block_image_metadata_cannot_shadow_promoted_content() {
         document.blocks.push(Block::Image(image));
         for profile in [asg::Profile::Upstream, asg::Profile::Acdc] {
             assert!(
-                matches!(asg::document_with_profile(&document,profile),Err(asg::Error::Unsupported {path,..}) if path==format!("/blocks/0/metadata/attributes/{name}"))
+                matches!(asg::document_with_profile((&document).into(),profile),Err(asg::Error::Unsupported {path,..}) if path==format!("/blocks/0/metadata/attributes/{name}"))
             );
         }
     }

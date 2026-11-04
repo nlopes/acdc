@@ -1,5 +1,8 @@
 //! AST nodes and content.
 //!
+//! Serializing `DocumentRef` with Serde writes native AST JSON. The `asg` module
+//! provides separate checked ASG export when that feature is enabled.
+//!
 //! Start with [`crate::ParseResult::document_ref`]. Handles borrow the tree;
 //! copying a handle does not copy the tree. Iterators remain valid after the
 //! handle is dropped, as long as the tree remains alive.

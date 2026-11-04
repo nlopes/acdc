@@ -144,7 +144,7 @@ fn automatic_xrefs_keep_empty_labels_and_exported_target_content() -> Result<(),
         "[#target,reftext='Read *this*']\n== Heading\n\nSee <<target>>.",
         &Options::default(),
     )?;
-    let value = asg::document(parsed.document())?;
+    let value = asg::document(parsed.document_ref())?;
     assert_eq!(value.pointer("/blocks/0/id"), Some(&json!("target")));
     assert_eq!(
         value.pointer("/blocks/0/reftext/1/variant"),
@@ -285,7 +285,7 @@ fn customized_signifier_snapshots_are_not_mistaken_for_defaults() -> Result<(), 
         &Options::default(),
     )?;
     assert!(
-        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..})
+        matches!(asg::document(parsed.document_ref()), Err(asg::Error::Unsupported {path, ..})
         if path == "/blocks/0/blocks/0/inlines/1/signifier")
     );
     Ok(())

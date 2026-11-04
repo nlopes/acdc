@@ -208,7 +208,7 @@ impl Case {
         match parse_file(&self.source, &options) {
             Ok(parsed) => Ok(Observation {
                 kind: OutcomeKind::Json,
-                output: serde_json::to_string_pretty(parsed.document())?,
+                output: serde_json::to_string_pretty(&parsed.document_ref())?,
                 diagnostics: serde_json::to_string_pretty(&json!({
                     "warnings": parsed.warnings().iter().map(|warning| self.warning(warning)).collect::<Vec<_>>(),
                     "recovery": parsed.source_recovery().map(|warning| self.warning(warning)),
