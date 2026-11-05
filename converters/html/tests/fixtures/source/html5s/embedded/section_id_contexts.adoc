@@ -1,0 +1,21 @@
+= Contextual Section IDs
+:idprefix: Before_
+:idseparator: -
+
+See <<Parent Words>>, <<Included Words>>, <<Cell Words>>, and <<Tail Words>>.
+
+== Parent Words
+
+:idprefix: Nested.
+:idseparator: .
+
+include::includes/section_id_controls.adoc[tag=selected]
+
+[cols=a]
+|===
+|== Cell Words
+
+cell
+|===
+
+== Tail Words

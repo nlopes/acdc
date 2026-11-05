@@ -4579,6 +4579,7 @@
           "numbering",
           "id",
           "id_generated",
+          "id_settings",
           "reference_text",
           "location"
         ],
@@ -4620,6 +4621,9 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/section"
         },
+        "id_settings": {
+          "policy": "derived-catalog"
+        },
         "reference_text": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/section"
@@ -4630,6 +4634,28 @@
         }
       },
       "strict_export_group": "core"
+    },
+    "src/model/section.rs::SectionIdSettings": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "prefix",
+          "separator"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "derived-catalog"
+      },
+      "properties": {
+        "prefix": {
+          "policy": "derived-catalog"
+        },
+        "separator": {
+          "policy": "derived-catalog"
+        }
+      },
+      "strict_export_group": "decorations"
     },
     "src/model/section.rs::SectionKind": {
       "shape": {

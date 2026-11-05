@@ -1,0 +1,459 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Contextual Section IDs",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 24
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 15
+      }
+    ]
+  },
+  "attributes": {
+    "idprefix": "Before_",
+    "idseparator": "-"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "See ",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "Before_parent-words",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 5,
+              "col": 5
+            },
+            {
+              "line": 5,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 5,
+              "col": 21
+            },
+            {
+              "line": 5,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "Nested.included.words",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 5,
+              "col": 23
+            },
+            {
+              "line": 5,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 5,
+              "col": 41
+            },
+            {
+              "line": 5,
+              "col": 42
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "Nested.cell.words",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 5,
+              "col": 43
+            },
+            {
+              "line": 5,
+              "col": 56
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", and ",
+          "location": [
+            {
+              "line": 5,
+              "col": 57
+            },
+            {
+              "line": 5,
+              "col": 62
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "Nested.tail.words",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 5,
+              "col": 63
+            },
+            {
+              "line": 5,
+              "col": 76
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 5,
+              "col": 77
+            },
+            {
+              "line": 5,
+              "col": 77
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 77
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Parent Words",
+          "location": [
+            {
+              "line": 7,
+              "col": 4
+            },
+            {
+              "line": 7,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "idprefix",
+          "type": "attribute",
+          "value": "Nested.",
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "idseparator",
+          "type": "attribute",
+          "value": ".",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Included Words",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 5,
+                  "file": [
+                    "includes/section_id_controls.adoc"
+                  ]
+                },
+                {
+                  "line": 4,
+                  "col": 18,
+                  "file": [
+                    "includes/section_id_controls.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "blocks": [
+            {
+              "name": "table",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "|===",
+              "metadata": {
+                "attributes": {
+                  "cols": "a"
+                }
+              },
+              "content": {
+                "header": null,
+                "footer": null,
+                "rows": [
+                  {
+                    "columns": [
+                      {
+                        "content": [
+                          {
+                            "name": "section",
+                            "type": "block",
+                            "title": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Cell Words",
+                                "location": [
+                                  {
+                                    "line": 16,
+                                    "col": 5
+                                  },
+                                  {
+                                    "line": 16,
+                                    "col": 14
+                                  }
+                                ]
+                              }
+                            ],
+                            "level": 1,
+                            "blocks": [
+                              {
+                                "name": "paragraph",
+                                "type": "block",
+                                "inlines": [
+                                  {
+                                    "name": "text",
+                                    "type": "string",
+                                    "value": "cell",
+                                    "location": [
+                                      {
+                                        "line": 18,
+                                        "col": 1
+                                      },
+                                      {
+                                        "line": 18,
+                                        "col": 4
+                                      }
+                                    ]
+                                  }
+                                ],
+                                "location": [
+                                  {
+                                    "line": 18,
+                                    "col": 1
+                                  },
+                                  {
+                                    "line": 18,
+                                    "col": 4
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 16,
+                                "col": 2
+                              },
+                              {
+                                "line": 18,
+                                "col": 4
+                              }
+                            ]
+                          }
+                        ],
+                        "style": "asciidoc"
+                      }
+                    ]
+                  }
+                ],
+                "columns": [
+                  {
+                    "style": "asciidoc"
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 15,
+                    "col": 1
+                  },
+                  {
+                    "line": 19,
+                    "col": 4
+                  }
+                ]
+              },
+              "location": [
+                {
+                  "line": 14,
+                  "col": 1
+                },
+                {
+                  "line": 19,
+                  "col": 4
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 1,
+              "file": [
+                "includes/section_id_controls.adoc"
+              ]
+            },
+            {
+              "line": 19,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Tail Words",
+          "location": [
+            {
+              "line": 21,
+              "col": 4
+            },
+            {
+              "line": 21,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 21,
+          "col": 13
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 21,
+      "col": 13
+    }
+  ]
+}

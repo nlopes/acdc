@@ -98,7 +98,7 @@ pub(super) fn insert_reference<'a>(
 
 pub(super) struct ReferenceCatalog<'a> {
     pub(super) entries: HashMap<&'a str, Reference<'a>>,
-    pub(super) next_suffix: HashMap<&'a str, usize>,
+    pub(super) next_suffix: HashMap<(&'a str, Option<char>), usize>,
     pub(super) natural_targets: HashMap<&'a str, &'a str>,
 }
 
@@ -124,14 +124,22 @@ impl<'a> ReferenceCatalog<'a> {
         if let Some(id) = Section::explicit_id(&section.metadata) {
             return id;
         }
-        let base = Section::generate_id(state.arena, &section.metadata, section.title.as_inlines())
-            .as_arena_str(state.arena);
-        if base.is_empty() || !self.entries.contains_key(base) {
+        let base = section.id_settings.generate(
+            state.arena,
+            &section.metadata,
+            section.title.as_inlines(),
+        );
+        if !self.entries.contains_key(base) {
             return base;
         }
-        let next = self.next_suffix.entry(base).or_insert(2);
+        let separator = section.id_settings.separator;
+        let next = self.next_suffix.entry((base, separator)).or_insert(2);
         loop {
-            let candidate = format!("{base}_{next}");
+            let candidate = if let Some(separator) = separator {
+                format!("{base}{separator}{next}")
+            } else {
+                format!("{base}{next}")
+            };
             *next += 1;
             if !self.entries.contains_key(candidate.as_str()) {
                 return state.intern_str(&candidate);
@@ -251,6 +259,13 @@ pub(super) fn metadata_natural_label<'a>(
     crate::grammar::reference_text::text(state, source)
 }
 
+pub(super) struct ParsedSectionHeader<'a> {
+    pub(super) title: Title<'a>,
+    pub(super) numbering: section::SectionNumbering,
+    pub(super) reference_text: &'a str,
+    pub(super) id_settings: section::SectionIdSettings<'a>,
+}
+
 pub(super) fn register_section_header<'a>(
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata<'a>,
@@ -259,7 +274,7 @@ pub(super) fn register_section_header<'a>(
     level: SectionLevel,
     location: Location,
     direct_parent_section_kind: Option<SectionKind>,
-) -> (Title<'a>, section::SectionNumbering, &'a str) {
+) -> ParsedSectionHeader<'a> {
     let reference_text = metadata_natural_label(state, &block_metadata.metadata)
         .filter(|label| !label.trim().is_empty())
         .unwrap_or(natural_title);
@@ -276,7 +291,14 @@ pub(super) fn register_section_header<'a>(
     warn_for_nested_special_section(state, direct_parent_section_kind, location);
 
     let numbering = section::SectionNumbering::from_attributes(&state.document_attributes);
-    (title, numbering, reference_text)
+    let id_settings =
+        section::SectionIdSettings::from_attributes(state.arena, &state.document_attributes);
+    ParsedSectionHeader {
+        title,
+        numbering,
+        reference_text,
+        id_settings,
+    }
 }
 
 // Resolve against files that preprocessing already included. Cross-references never

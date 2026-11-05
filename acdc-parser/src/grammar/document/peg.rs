@@ -39,11 +39,11 @@ use crate::{
             },
             paragraph::{ParagraphParams, build_paragraph},
             references::{
-                ReferenceCatalog, collect_inline_references, collect_metadata_references,
-                collect_references, finalize_inline_semantics, header_reference_title,
-                insert_reference, metadata_natural_label, metadata_xreflabel,
-                normalize_bibliography_lists, register_document_top, register_section_header,
-                resolve_source_target, resolve_xref_target,
+                ParsedSectionHeader, ReferenceCatalog, collect_inline_references,
+                collect_metadata_references, collect_references, finalize_inline_semantics,
+                header_reference_title, insert_reference, metadata_natural_label,
+                metadata_xreflabel, normalize_bibliography_lists, register_document_top,
+                register_section_header, resolve_source_target, resolve_xref_target,
             },
             revision::{IgnoredRevisionFields, RevisionInfo, process_revision_info},
             sections::{apply_leveloffset, expected_child_level},
@@ -1049,7 +1049,7 @@ peg::parser! {
         section_header:(title:section_title(offset, &block_metadata) title_end:position!() &(eol()*<1,2> / ![_]) {
             let (title, natural_title) = title?;
             let location = state.create_block_location(section_level_start, title_end, offset);
-            Ok::<(Title<'input>, section::SectionNumbering, &'input str), Error>(register_section_header(
+            Ok::<ParsedSectionHeader<'input>, Error>(register_section_header(
                 state,
                 &block_metadata,
                 title,
@@ -1065,7 +1065,7 @@ peg::parser! {
             is_book_doctype(&state.document_attributes),
         )), Some(SectionKind::from_style(block_metadata.metadata.style)))?
         {
-            let (title, numbering, reference_text) = section_header?;
+            let ParsedSectionHeader { title, numbering, reference_text, id_settings } = section_header?;
             tracing::debug!(offset, "parsing section block");
 
             if let Some(parent_level) = parent_section_level {
@@ -1110,6 +1110,7 @@ peg::parser! {
                 location,
             );
             section.reference_text = Some(reference_text);
+            section.id_settings = id_settings;
             Ok(Block::Section(section))
         }
 
@@ -1184,7 +1185,7 @@ peg::parser! {
                 process_inlines(state, &block_metadata, title_start, title_end, offset, title)?;
             let title = Title::new(processed_title);
             let location = state.create_block_location(title_start, title_end, offset);
-            Ok::<(Title<'input>, section::SectionNumbering, &'input str), Error>(register_section_header(
+            Ok::<ParsedSectionHeader<'input>, Error>(register_section_header(
                 state,
                 &block_metadata,
                 title,
@@ -1200,7 +1201,7 @@ peg::parser! {
             is_book_doctype(&state.document_attributes),
         )), Some(SectionKind::from_style(block_metadata.metadata.style)))?
         {
-            let (title, numbering, reference_text) = section_header?;
+            let ParsedSectionHeader { title, numbering, reference_text, id_settings } = section_header?;
             let location = state.create_block_location(span_start, span_end, offset);
 
             // Classify the section by its style (see the ATX section rule).
@@ -1216,6 +1217,7 @@ peg::parser! {
                 location,
             );
             section.reference_text = Some(reference_text);
+            section.id_settings = id_settings;
             Ok(Block::Section(section))
         }
 

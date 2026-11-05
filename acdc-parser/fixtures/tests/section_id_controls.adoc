@@ -1,0 +1,36 @@
+= Section Identity
+:idprefix: custom_
+:idseparator: -
+
+[[custom_same-words]]
+Reserved target.
+
+Forward: <<Same Words>>, <<Empty Words>>, <<Tail Words>>.
+
+== Same Words
+
+== Same Words
+
+:idprefix:
+:idseparator:
+
+== Empty Words
+
+== Empty Words
+
+:idprefix: FINAL.
+:idseparator: .
+
+== Tail Words
+
+== Tail Words
+
+[id=authored_id]
+== Explicit Identity
+
+:idprefix:
+:idseparator:
+
+== !
+
+== ?

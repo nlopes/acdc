@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Generated section IDs honor `idprefix` and `idseparator` at each heading,
+  including empty values and duplicate-title suffixes. TOC entries and natural
+  cross-references use the same IDs, matching Asciidoctor.
+
 - **Breaking:** inline parse results use `content()` for typed reads; the public
   backing-slice getter and macro content-attribute callback are removed. Copy a
   selected node with `InlineNode::from(inline_ref)`, or selected content with
