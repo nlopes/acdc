@@ -185,6 +185,9 @@ fn inline_value(
         {
             images::inline(image, path, settings.profile)?
         }
+        InlineNode::InlineAnchor(anchor) if settings.profile == Profile::Acdc => {
+            super::identities::inline(anchor, path)?
+        }
         InlineNode::Macro(value) => references::project(value, path, settings)?,
         InlineNode::SubscriptText(_)
         | InlineNode::SuperscriptText(_)
@@ -285,7 +288,7 @@ fn project_header(header: &Header<'_>, profile: Profile) -> Result<Value, Error>
     }
     let mut projected = Map::new();
     if profile == Profile::Acdc {
-        metadata::apply(profile, &mut projected, &header.metadata, "/header")?;
+        metadata::apply_heading(profile, &mut projected, &header.metadata, "/header")?;
         if let Some(subtitle) = &header.subtitle {
             projected.insert(
                 "subtitle".into(),
@@ -368,7 +371,13 @@ pub(super) fn document(value: &Document<'_>, profile: Profile) -> Result<Value, 
         targets: BTreeMap::new(),
     };
     if let (Some(header), Some(title)) = (&value.header, &header_target_title) {
-        export.target(&header.metadata, Some(title), None, "/header")?;
+        export.target(
+            &header.metadata,
+            Some(title),
+            None,
+            header.metadata.heading_anchor(),
+            "/header",
+        )?;
         if value.references.contains_key("") {
             export.insert_target(
                 String::new(),
@@ -385,13 +394,17 @@ pub(super) fn document(value: &Document<'_>, profile: Profile) -> Result<Value, 
     result.insert("blocks".into(), export.blocks(&value.blocks, "/blocks")?);
     if profile == Profile::Acdc {
         for field in crate::ast::DocumentRef::from(value).content_occurrences() {
-            for inline in field.content().inlines() {
-                if let Some(id) = inline.id() {
+            for inline in field.content().as_inlines() {
+                if let Some(id) = crate::ast::InlineRef::from(inline).id() {
                     export.insert_target(
                         id.as_str().to_owned(),
                         Target {
                             title: None,
-                            label: None,
+                            label: if let InlineNode::InlineAnchor(anchor) = inline {
+                                anchor.xreflabel.as_ref()
+                            } else {
+                                None
+                            },
                             section: None,
                             caption: None,
                         },
@@ -542,7 +555,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             ));
         }
         let mut result = node("section", "block");
-        metadata::apply(self.profile, &mut result, &section.metadata, at)?;
+        metadata::apply_heading(self.profile, &mut result, &section.metadata, at)?;
         result.insert("id".into(), Value::String(section.id().into_owned()));
         result.insert(
             "title".into(),
@@ -553,7 +566,13 @@ impl<'a, 'doc> Export<'a, 'doc> {
             )?,
         );
         result.insert("level".into(), section.level.into());
-        self.target(&section.metadata, Some(&section.title), Some(section), at)?;
+        self.target(
+            &section.metadata,
+            Some(&section.title),
+            Some(section),
+            section.metadata.heading_anchor(),
+            at,
+        )?;
         result.insert(
             "blocks".into(),
             self.blocks(&section.content, &pointer(at, "blocks"))?,
@@ -566,11 +585,12 @@ impl<'a, 'doc> Export<'a, 'doc> {
         metadata: &'a BlockMetadata<'doc>,
         title: Option<&'a Title<'doc>>,
         section: Option<&'a Section<'doc>>,
+        primary: Option<&'a crate::Anchor<'doc>>,
         path: &str,
     ) -> Result<(), Error> {
         let id = section
             .map(|section| section.id().into_owned())
-            .or_else(|| metadata::anchor(metadata).map(|anchor| anchor.id.to_string()));
+            .or_else(|| primary.map(|anchor| anchor.id.to_string()));
         if let Some(id) = id {
             let target = Target {
                 title: title.filter(|title| title.is_present()),

@@ -199,6 +199,16 @@
       "delimiter": "======",
       "form": "delimited",
       "id": "bounded",
+      "id_location": [
+        {
+          "col": 6,
+          "line": 7
+        },
+        {
+          "col": 12,
+          "line": 7
+        }
+      ],
       "location": [
         {
           "col": 1,

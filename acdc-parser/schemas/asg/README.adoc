@@ -391,6 +391,27 @@ The named acdc profile adds three closed forms:
 Strict export rejects them where the pin has no corresponding form. Unsupported
 nested meaning still reports its complete property path.
 
+== Anchor declarations
+
+The named profile adds ordinary inline `anchor` nodes with `id`, optional parsed
+`reftext`, and known source location. On blocks and headers, `id_location` records
+the selected authored ID's known range. A generated ID has no fabricated range.
+Extra retained declarations appear in ordered `anchors`, each with its own ID,
+optional label and known location. Absent and empty labels stay distinct.
+
+These declarations are not automatically registered reference targets. acdc's
+existing primary selection is the dedicated ID or first anchor on ordinary
+blocks, and the dedicated ID or last anchor on headings. Asciidoctor selects the
+last stacked anchor on ordinary blocks too; this export does not change acdc's
+parser or converter behavior. A block's effective `reftext` stays separate from
+labels retained on its extra declarations. An unused label on the selected
+anchor does not replace the effective block label.
+
+Strict export still rejects additional identities and inline anchors. Pending
+labels and bibliography anchors remain explicit unsupported cases. The source
+and checked JSON in `fixtures/asg/anchors.adoc` show declarations, formatted
+inline labels, primary selection, and unresolved extra declarations.
+
 == Index terms
 
 The named profile adds an `indexterm` inline with `visibility` (`visible` or

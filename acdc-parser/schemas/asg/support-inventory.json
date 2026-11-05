@@ -138,30 +138,30 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-anchor-declarations"
       },
       "properties": {
         "id": {
-          "policy": "block-id-reftext-promotion-does-not-cover"
+          "policy": "named-anchor-declarations"
         },
         "xreflabel": {
-          "policy": "block-id-reftext-promotion-does-not-cover"
+          "policy": "named-anchor-declarations"
         },
         "location": {
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         },
         "reftext_source": {
-          "policy": "source-state"
+          "policy": "named-anchor-declarations"
         },
         "bibliography": {
-          "policy": "block-id-reftext-promotion-does-not-cover"
+          "policy": "named-anchor-declarations"
         },
         "bibliography_label": {
-          "policy": "block-id-reftext-promotion-does-not-cover"
+          "policy": "named-anchor-declarations"
         }
       },
-      "strict_export_group": "block-metadata"
+      "strict_export_group": "anchor-declarations"
     },
     "src/model/anchor.rs::BibliographyLabel": {
       "shape": {
@@ -3625,12 +3625,10 @@
           "upstream": "#/$defs/blockMetadata/properties/attributes"
         },
         "id": {
-          "policy": "promote-a-representable-primary-block-anchor-to",
-          "upstream": "#/$defs/abstractBlock/properties/id"
+          "policy": "named-anchor-declarations"
         },
         "anchors": {
-          "policy": "promote-a-representable-primary-block-anchor-to",
-          "upstream": "#/$defs/abstractBlock/properties/id"
+          "policy": "named-anchor-declarations"
         },
         "substitutions": {
           "policy": "export-already-resolved-meaning-a-remaining-language"
@@ -5749,6 +5747,10 @@
     "named-index-labels-and-capture": {
       "handling": "context-dependent",
       "reason": "Strict export rejects index terms. The named profile retains visible/hidden labels, absent/empty hierarchy, typed relationships and common inline controls. A distinct catalog label/location snapshot remains separate from display labels; equal captures are implicit. Captured controls are history, not a second indexing value. Export never registers or reparses labels; pending substitution plans reject."
+    },
+    "named-anchor-declarations": {
+      "handling": "context-dependent",
+      "reason": "The named profile preserves ordinary inline anchors, extra block declarations and known primary-ID spans. Heading and ordinary primary selection remain distinct. Extra declarations do not imply target registration; effective block reftext remains separate from their labels. Pending and bibliography anchors reject in this slice. Strict export still rejects inline/additional anchors."
     }
   },
   "strict_export_groups": {
@@ -6211,6 +6213,35 @@
           "name": "index_schema_closes_labels_snapshots_and_relationship_variants"
         }
       ]
+    },
+    "anchor-declarations": {
+      "handling": "The named profile preserves ordinary inline anchors, extra block declarations and known primary-ID spans. Heading and ordinary primary selection remain distinct. Extra declarations do not imply target registration; effective block reftext remains separate from their labels. Pending and bibliography anchors reject in this slice. Strict export still rejects inline/additional anchors.",
+      "tests": [
+        {
+          "file": "tests/asg_anchors.rs",
+          "name": "retained_declarations_preserve_primary_selection_labels_and_locations"
+        },
+        {
+          "file": "tests/asg_anchors.rs",
+          "name": "header_primary_uses_the_heading_anchor_selection"
+        },
+        {
+          "file": "tests/asg_anchors.rs",
+          "name": "prepared_declarations_keep_duplicate_ids_and_empty_labels_without_inventing_spans"
+        },
+        {
+          "file": "tests/asg_anchors.rs",
+          "name": "anchor_children_and_bibliography_keep_explicit_boundaries"
+        },
+        {
+          "file": "tests/asg_anchors.rs",
+          "name": "anchor_schema_closes_declarations_and_inline_owners"
+        },
+        {
+          "file": "tests/asg_anchors.rs",
+          "name": "unused_primary_anchor_label_does_not_replace_effective_reference_text"
+        }
+      ]
     }
   },
   "extension_profiles": {
@@ -6583,6 +6614,35 @@
             "asg_index_terms.rs::selected_titles_and_cells_keep_index_owners_and_footnote_registration",
             "asg_index_terms.rs::unsupported_label_children_keep_the_nested_owner_path",
             "asg_index_terms.rs::index_schema_closes_labels_snapshots_and_relationship_variants"
+          ]
+        },
+        "anchor-declarations": {
+          "owners": {
+            "Anchor": [
+              "id",
+              "xreflabel",
+              "location"
+            ],
+            "BlockMetadata": [
+              "id",
+              "anchors",
+              "reftext"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/acdcAnchor",
+            "#/$defs/acdcInlineAnchor",
+            "#/$defs/abstractBlock/properties/anchors",
+            "#/$defs/abstractBlock/properties/id_location"
+          ],
+          "handling": "The named profile preserves ordinary inline anchors, extra block declarations and known primary-ID spans. Heading and ordinary primary selection remain distinct. Extra declarations do not imply target registration; effective block reftext remains separate from their labels. Pending and bibliography anchors reject in this slice. Strict export still rejects inline/additional anchors.",
+          "tests": [
+            "asg_anchors.rs::retained_declarations_preserve_primary_selection_labels_and_locations",
+            "asg_anchors.rs::header_primary_uses_the_heading_anchor_selection",
+            "asg_anchors.rs::prepared_declarations_keep_duplicate_ids_and_empty_labels_without_inventing_spans",
+            "asg_anchors.rs::anchor_children_and_bibliography_keep_explicit_boundaries",
+            "asg_anchors.rs::anchor_schema_closes_declarations_and_inline_owners",
+            "asg_anchors.rs::unused_primary_anchor_label_does_not_replace_effective_reference_text"
           ]
         }
       }

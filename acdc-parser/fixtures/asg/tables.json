@@ -193,6 +193,16 @@
         ]
       },
       "id": "record",
+      "id_location": [
+        {
+          "col": 5,
+          "line": 6
+        },
+        {
+          "col": 10,
+          "line": 6
+        }
+      ],
       "location": [
         {
           "col": 1,

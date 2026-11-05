@@ -127,7 +127,7 @@ pub(super) fn check(value: &BlockMetadata<'_>, path: &str, profile: Profile) -> 
             ));
         }
     }
-    if usize::from(value.id.is_some()) + value.anchors.len() > 1 {
+    if profile == Profile::Upstream && usize::from(value.id.is_some()) + value.anchors.len() > 1 {
         return Err(unsupported(
             &pointer(&at, "anchors"),
             "multiple block identities need a lossless mapping",
@@ -140,7 +140,8 @@ pub(super) fn check(value: &BlockMetadata<'_>, path: &str, profile: Profile) -> 
                 "bibliography identity has no supported upstream mapping",
             ));
         }
-        if let (Some(selected), Some(other)) = (&value.reftext, &anchor.xreflabel)
+        if profile == Profile::Upstream
+            && let (Some(selected), Some(other)) = (&value.reftext, &anchor.xreflabel)
             && selected != other
         {
             return Err(unsupported(
@@ -170,11 +171,34 @@ pub(super) fn apply(
     value: &BlockMetadata<'_>,
     path: &str,
 ) -> Result<(), Error> {
+    apply_with_primary(profile, node, value, anchor(value), path)
+}
+
+pub(super) fn apply_heading(
+    profile: Profile,
+    node: &mut Map<String, Value>,
+    value: &BlockMetadata<'_>,
+    path: &str,
+) -> Result<(), Error> {
+    apply_with_primary(profile, node, value, value.heading_anchor(), path)
+}
+
+fn apply_with_primary(
+    profile: Profile,
+    node: &mut Map<String, Value>,
+    value: &BlockMetadata<'_>,
+    primary: Option<&Anchor<'_>>,
+    path: &str,
+) -> Result<(), Error> {
     check(value, path, profile)?;
     content::apply(node, value, path, profile)?;
-    if let Some(anchor) = anchor(value) {
-        node.insert("id".into(), anchor.id.into());
-    }
+    super::identities::apply(
+        node,
+        primary,
+        value.id.iter().chain(value.anchors.iter()),
+        profile,
+        path,
+    )?;
     if let Some(label) = label(value) {
         node.insert(
             "reftext".into(),

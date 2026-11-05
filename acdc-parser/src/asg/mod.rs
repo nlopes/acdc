@@ -8,6 +8,7 @@ mod attributes;
 mod content;
 mod diagnostics;
 mod footnotes;
+mod identities;
 mod images;
 mod index_terms;
 mod metadata;

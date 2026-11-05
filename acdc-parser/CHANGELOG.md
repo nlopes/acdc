@@ -56,6 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The named ASG profile retains ordinary inline anchors, extra block anchor
+  declarations and known primary-ID locations. It preserves acdc's primary-ID
+  selection: ordinary blocks use the first anchor, headings use the last.
+  Asciidoctor also uses the last anchor for ordinary stacked block anchors.
+
 - The named ASG profile retains visible/hidden index terms, hierarchy,
   see/see-also relationships, and distinct registration-time labels when later
   substitutions or prepared edits change the displayed text.

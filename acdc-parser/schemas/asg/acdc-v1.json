@@ -75,6 +75,21 @@
         },
         "subtitle": {
           "$ref": "#/$defs/inlines"
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/$defs/acdcAnchor"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        },
+        "id_location": {
+          "$ref": "#/$defs/location"
         }
       }
     },
@@ -138,6 +153,21 @@
         },
         "caption": {
           "$ref": "#/$defs/acdcCaption"
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/$defs/acdcAnchor"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        },
+        "id_location": {
+          "$ref": "#/$defs/location"
         }
       }
     },
@@ -701,6 +731,9 @@
         },
         {
           "$ref": "#/$defs/acdcIndexTerm"
+        },
+        {
+          "$ref": "#/$defs/acdcInlineAnchor"
         }
       ]
     },
@@ -1630,6 +1663,44 @@
           }
         }
       ]
+    },
+    "acdcAnchor": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "reftext": {
+          "$ref": "#/$defs/inlines"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "acdcInlineAnchor": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/acdcAnchor"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "const": "anchor"
+        },
+        "type": {
+          "const": "inline"
+        }
+      }
     }
   }
 }

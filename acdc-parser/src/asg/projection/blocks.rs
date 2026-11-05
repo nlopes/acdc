@@ -20,7 +20,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
         if let Some(title) = title {
             metadata::title(result, title, path, self.profile)?;
         }
-        self.target(value, title, None, path)
+        self.target(value, title, None, metadata::anchor(value), path)
     }
 
     pub(super) fn admonition(
@@ -233,12 +233,19 @@ impl<'a, 'doc> Export<'a, 'doc> {
         title: Option<&'a Title<'doc>>,
         path: &str,
     ) -> Result<(), Error> {
-        if anchors.len() > 1 {
+        if self.profile == Profile::Upstream && anchors.len() > 1 {
             return Err(unsupported(
                 &pointer(path, "anchors"),
                 "multiple item identities need a lossless mapping",
             ));
         }
+        super::super::identities::apply(
+            result,
+            anchors.first(),
+            anchors.iter(),
+            self.profile,
+            path,
+        )?;
         if let Some(anchor) = anchors.first() {
             if anchor.is_bibliography() {
                 return Err(unsupported(

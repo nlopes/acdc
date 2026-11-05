@@ -1,0 +1,14 @@
+= Anchor declarations
+
+[[para-first,First label]]
+[[para-last,Last label]]
+.Block title
+Paragraph with [[inline,*Inline*]] an anchor.
+
+References: <<para-first>>, <<para-last>>, <<inline>>.
+
+[[section-first,Earlier label]]
+[[section-last,Final label]]
+== Section title
+
+References: <<section-first>>, <<section-last>>.

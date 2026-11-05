@@ -182,7 +182,13 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         ("/$defs/listItem/properties", &["checked"]),
         (
             "/$defs/abstractBlock/properties",
-            &["attribution", "citetitle", "caption"],
+            &[
+                "attribution",
+                "citetitle",
+                "caption",
+                "anchors",
+                "id_location",
+            ],
         ),
         ("/$defs/inlineSpan/properties", &["id", "metadata"]),
         (
@@ -194,6 +200,8 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
             &[
                 "id",
                 "reftext",
+                "anchors",
+                "id_location",
                 "metadata",
                 "attribution",
                 "citetitle",
@@ -204,6 +212,8 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         (
             "/$defs",
             &[
+                "acdcAnchor",
+                "acdcInlineAnchor",
                 "acdcIndexTerm",
                 "acdcIndexLabels",
                 "acdcIndexRelationship",
@@ -236,7 +246,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         }
     }
     for (path, count) in [
-        ("/$defs/inline/oneOf", 3),
+        ("/$defs/inline/oneOf", 4),
         ("/$defs/list/allOf", 1),
         ("/$defs/blockMacro/allOf", 1),
         ("/$defs/inlineSpan/properties/variant/enum", 1),
