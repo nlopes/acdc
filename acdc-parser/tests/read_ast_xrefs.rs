@@ -40,8 +40,14 @@ fn cross_reference_reads_keep_labels_and_controls_separate(
     let id = node.id().ok_or("ID")?;
     assert_eq!(id.as_str(), "référence中");
     let start = source.find("référence中").ok_or("ID source")?;
-    assert_eq!(id.location().absolute_start(), start);
-    assert_eq!(id.location().absolute_end(), start + "référence".len());
+    assert_eq!(
+        id.location().ok_or("ID source location")?.absolute_start(),
+        start
+    );
+    assert_eq!(
+        id.location().ok_or("ID source location")?.absolute_end(),
+        start + "référence".len()
+    );
     let attributes = node.attributes();
     for (key, value) in [
         ("title", "Hover *text*"),
@@ -264,7 +270,7 @@ fn xref_ids_follow_expansion_includes_and_table_cells(
     let node = xref(paragraph.content())?;
     let id = node.id().ok_or("included ID")?;
     assert_eq!(id.as_str(), "expanded");
-    let resolved = parsed.resolve_location(id.location());
+    let resolved = parsed.resolve_location(id.location().ok_or("ID source location")?);
     assert_eq!(resolved.file, Some(include));
     assert_eq!(resolved.location.start.line, 3);
     assert_eq!(
@@ -296,6 +302,6 @@ fn xref_ids_follow_expansion_includes_and_table_cells(
     };
     let id = xref(paragraph.content())?.id().ok_or("cell ID")?;
     assert_eq!(id.as_str(), "cell");
-    assert_eq!(id.location().start().line(), 7);
+    assert_eq!(id.location().ok_or("ID source location")?.start().line(), 7);
     Ok(())
 }

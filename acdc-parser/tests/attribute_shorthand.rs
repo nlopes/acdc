@@ -68,7 +68,11 @@ fn draft_anchor_shorthand_keeps_reftext_and_uses_the_last_id() -> Result<(), Err
     );
     assert!(parsed.document().references().contains("late"));
     assert!(!parsed.document().references().contains("early"));
-    let location = block.id().ok_or("missing ID")?.location();
+    let location = block
+        .id()
+        .ok_or("missing ID")?
+        .location()
+        .ok_or("ID source location")?;
     assert_eq!(
         source.get(location.absolute_start()..=location.absolute_end()),
         Some("late")
@@ -143,7 +147,10 @@ fn expanded_shorthand_ids_point_to_the_authored_reference() -> Result<(), Error>
         let id = block.id().ok_or("missing ID")?;
         assert_eq!(id.as_str(), "café");
         assert_eq!(
-            source.get(id.location().absolute_start()..=id.location().absolute_end()),
+            source.get(
+                id.location().ok_or("ID source location")?.absolute_start()
+                    ..=id.location().ok_or("ID source location")?.absolute_end()
+            ),
             Some("{identity}")
         );
     }

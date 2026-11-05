@@ -23,7 +23,11 @@ fn index_metadata_has_one_owner_and_consistent_reads(
     let node = IndexTermRef::from(owner.as_ref());
     assert_eq!(node.id().ok_or("ID")?.as_str(), "entry");
     assert_eq!(
-        node.id().ok_or("ID")?.location().absolute_start(),
+        node.id()
+            .ok_or("ID")?
+            .location()
+            .ok_or("ID source location")?
+            .absolute_start(),
         source.find("entry").ok_or("ID source")?
     );
     assert_eq!(node.roles().iter().collect::<Vec<_>>(), ["one", "two"]);
@@ -212,7 +216,7 @@ fn index_ids_follow_expansion_includes_and_table_cells(
     let node = term(paragraph.content())?;
     let id = node.id().ok_or("included ID")?;
     assert_eq!(id.as_str(), "expanded");
-    let resolved = parsed.resolve_location(id.location());
+    let resolved = parsed.resolve_location(id.location().ok_or("ID source location")?);
     assert_eq!(resolved.file, Some(include));
     assert_eq!(resolved.location.start.line, 3);
     assert_eq!(
@@ -244,7 +248,7 @@ fn index_ids_follow_expansion_includes_and_table_cells(
     };
     let id = term(paragraph.content())?.id().ok_or("cell ID")?;
     assert_eq!(id.as_str(), "cell");
-    assert_eq!(id.location().start().line(), 7);
+    assert_eq!(id.location().ok_or("ID source location")?.start().line(), 7);
     Ok(())
 }
 

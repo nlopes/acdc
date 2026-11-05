@@ -131,8 +131,8 @@ fn passthrough_ids_map_to_the_authored_token_once(#[case] spelling: &str) -> Res
                 spelling
             }
         );
-        let start = id.location().absolute_start();
-        let end = id.location().absolute_end();
+        let start = id.location().ok_or("ID source location")?.absolute_start();
+        let end = id.location().ok_or("ID source location")?.absolute_end();
         let end_width = source
             .get(end..)
             .and_then(|text| text.chars().next())
@@ -196,7 +196,7 @@ fn passthrough_id_locations_retain_the_include_chain() -> Result<(), Error> {
         .find(|raw| raw.id().is_some_and(|id| id.as_str() == "included"))
         .ok_or("included passthrough")?;
     let id = raw.id().ok_or("included ID")?;
-    let location = id.location();
+    let location = id.location().ok_or("ID source location")?;
     assert_eq!((location.start().line(), location.start().column()), (2, 9));
     assert_eq!((location.end().line(), location.end().column()), (2, 16));
     assert_eq!(

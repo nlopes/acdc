@@ -7,7 +7,7 @@ use crate::{
 };
 
 use super::{
-    AnchorRef, AttributeValueRef, ContentListRef, ContentRef, ElementIdRef, LocationRef,
+    AnchorRef, AttributeValueRef, ContentListRef, ContentRef, ElementIdRef, IdOrigin, LocationRef,
     SubstitutionSpecRef, TokensRef,
 };
 
@@ -669,11 +669,14 @@ impl<'doc> AttributesRef<'doc> {
                 .map(ElementIdRef::from)
                 .or_else(|| {
                     node.id.map(|id| {
-                        if node.id_generated {
-                            ElementIdRef::generated(id, &node.location)
-                        } else {
-                            ElementIdRef::new(id, &node.location)
-                        }
+                        ElementIdRef::without_location(
+                            id,
+                            if node.id_generated {
+                                IdOrigin::Generated
+                            } else {
+                                IdOrigin::Explicit
+                            },
+                        )
                     })
                 }),
             Owner::Header(node) => node.metadata.heading_anchor().map(ElementIdRef::from),

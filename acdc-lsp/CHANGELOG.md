@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- IDs without recorded source coordinates no longer produce navigation targets
+  at line zero. Generated section IDs still navigate to their heading.
+
 - Semantic highlighting marks section IDs supplied through `[#id]` or `[[id]]` as definitions. Generated section IDs remain unmarked.
 
 - Document symbols show resolved typography in block titles, including em dashes.

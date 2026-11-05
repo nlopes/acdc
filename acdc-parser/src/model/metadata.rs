@@ -463,6 +463,7 @@ fn serialize_caption_content<S: serde::Serializer>(
 #[non_exhaustive]
 pub struct ElementId<'a> {
     pub id: &'a str,
+    #[serde(skip_serializing_if = "Location::is_unknown")]
     pub location: Location,
 }
 

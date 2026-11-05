@@ -117,10 +117,7 @@ fn generated_section_ids_are_retained_collision_checked_and_not_authored_anchors
         let id = block.id().ok_or("generated ID")?;
         assert_eq!(id.as_str(), expected);
         assert_eq!(id.origin(), IdOrigin::Generated);
-        assert_eq!(
-            id.location().absolute_start(),
-            block.location().absolute_start()
-        );
+        assert!(id.location().is_none());
         assert_eq!(section.id().ok_or("typed ID")?.as_str(), expected);
         assert_eq!(
             section.attributes().get("id"),
@@ -264,7 +261,11 @@ fn inline_identity_is_separate_from_reference_targets_and_footnote_keys(
         } else if let InlineKind::Anchor(anchor) = inline.kind() {
             assert_eq!(anchor.element_id().as_str(), anchor.id());
             assert_eq!(
-                anchor.element_id().location().absolute_start(),
+                anchor
+                    .element_id()
+                    .location()
+                    .ok_or("ID source location")?
+                    .absolute_start(),
                 anchor.location().absolute_start()
             );
         } else if let InlineKind::Footnote(_) = inline.kind() {
@@ -338,8 +339,14 @@ fn expanded_unicode_ids_keep_include_and_table_source_provenance(
         .ok_or("section")?;
     let id = section.id().ok_or("expanded ID")?;
     assert_eq!(id.origin(), IdOrigin::Explicit);
-    assert_eq!(id.location().start().line(), 3);
-    assert!(id.location().start().include_chain().is_some());
+    assert_eq!(id.location().ok_or("ID source location")?.start().line(), 3);
+    assert!(
+        id.location()
+            .ok_or("ID source location")?
+            .start()
+            .include_chain()
+            .is_some()
+    );
     let table_paragraph = blocks
         .iter()
         .find(|block| block.id().is_some_and(|id| id.as_str() == "table-id"))
@@ -349,6 +356,7 @@ fn expanded_unicode_ids_keep_include_and_table_source_provenance(
             .id()
             .ok_or("table ID")?
             .location()
+            .ok_or("ID source location")?
             .start()
             .line(),
         8
@@ -363,10 +371,19 @@ fn expanded_unicode_ids_keep_include_and_table_source_provenance(
         .ok_or("span")?;
     let id = span.id().ok_or("span ID")?;
     let start = child.find("span").ok_or("authored ID")?;
-    assert_eq!(id.location().absolute_start(), start);
-    assert_eq!(id.location().absolute_end(), start + 3);
-    assert_eq!(id.location().start().line(), 9);
-    assert_eq!(id.location().start().column(), 8);
+    assert_eq!(
+        id.location().ok_or("ID source location")?.absolute_start(),
+        start
+    );
+    assert_eq!(
+        id.location().ok_or("ID source location")?.absolute_end(),
+        start + 3
+    );
+    assert_eq!(id.location().ok_or("ID source location")?.start().line(), 9);
+    assert_eq!(
+        id.location().ok_or("ID source location")?.start().column(),
+        8
+    );
     Ok(())
 }
 

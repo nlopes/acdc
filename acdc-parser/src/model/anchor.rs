@@ -115,7 +115,10 @@ impl<'a> Anchor<'a> {
         if let Some(label) = self.bibliography_label() {
             map.serialize_entry("bibliography_label", label)?;
         }
-        map.serialize_entry("location", &self.location)
+        if !self.location.is_unknown() {
+            map.serialize_entry("location", &self.location)?;
+        }
+        Ok(())
     }
 
     /// Create a new anchor with the given ID and location.

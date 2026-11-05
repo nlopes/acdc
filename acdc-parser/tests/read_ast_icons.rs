@@ -121,7 +121,7 @@ fn icon_ids_follow_expansion_includes_and_table_cells(
     let icon = first_icon(paragraph.content())?;
     let id = icon.id().ok_or("included id")?;
     assert_eq!(id.as_str(), "expanded");
-    let resolved = parsed.resolve_location(id.location());
+    let resolved = parsed.resolve_location(id.location().ok_or("ID source location")?);
     assert_eq!(resolved.file, Some(include));
     assert_eq!(resolved.location.start.line, 3);
     assert_eq!(
@@ -153,6 +153,6 @@ fn icon_ids_follow_expansion_includes_and_table_cells(
     };
     let id = first_icon(paragraph.content())?.id().ok_or("cell id")?;
     assert_eq!(id.as_str(), "cell");
-    assert_eq!(id.location().start().line(), 7);
+    assert_eq!(id.location().ok_or("ID source location")?.start().line(), 7);
     Ok(())
 }

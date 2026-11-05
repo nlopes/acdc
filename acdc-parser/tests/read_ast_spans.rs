@@ -48,8 +48,14 @@ fn concrete_spans_keep_content_form_identity_and_tokens(
             assert_eq!(node.form(), expected_form);
             let id = node.id().ok_or("id")?;
             assert_eq!(id.as_str(), "span");
-            assert_eq!(id.location().absolute_start(), 9);
-            assert_eq!(id.location().absolute_end(), 12);
+            assert_eq!(
+                id.location().ok_or("ID source location")?.absolute_start(),
+                9
+            );
+            assert_eq!(
+                id.location().ok_or("ID source location")?.absolute_end(),
+                12
+            );
             assert_eq!(
                 node.roles().iter().collect::<Vec<_>>(),
                 ["one", "two", "one"]

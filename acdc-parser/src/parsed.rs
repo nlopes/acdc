@@ -5,12 +5,10 @@
 //! from both, and any warnings the parser produced — all bound together so
 //! callers can hold the AST past the caller's input slice without any
 //! `into_static()` copy. Drop releases the arena, source, and warnings in
-//! one shot. `ParseInlineResult` plays the same role for the inline-only
-//! entry point used by TCK tests and the HTML converter's quotes-only
-//! fallback.
+//! one shot. `ParseInlineResult` plays the same role for standalone inline content.
 //!
-//! Consumers reach the AST via `.document()` (or `.inlines()`); bumpalo
-//! never appears in a public signature.
+//! Consumers reach the AST via `.document()` or `.content()`; bumpalo never
+//! appears in a public signature.
 //!
 //! `OwnedSource` covers the parse-failure case (we have the text but no
 //! AST) without paying for an empty arena.
@@ -257,9 +255,8 @@ impl ParseInlineResult {
         })
     }
 
-    /// Infallible variant for callers that don't need warnings (e.g. the
-    /// HTML converter's quotes-only fallback via `parse_text_for_quotes`).
-    /// `warnings` is always empty.
+    /// Build inline content without fallible parsing or diagnostics.
+    /// Used by [`crate::parse_text_for_quotes`].
     pub(crate) fn from_infallible(
         owner: OwnedInput,
         builder: impl for<'a> FnOnce(&'a OwnedInput) -> Vec<InlineNode<'a>>,

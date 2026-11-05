@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- ID source locations are optional. Generated section IDs and caller-built IDs
+  without recorded coordinates return `None` from `ElementIdRef::location()`.
+  Native JSON omits unknown anchor and inline-ID locations instead of writing
+  line-zero coordinates; known source ranges remain unchanged.
+
 - Admonition JSON distinguishes paragraph, indented, and delimited forms, retaining
   the actual opening delimiter. Read source form with `AdmonitionRef::form()`;
   library-built compound admonitions need `with_form` to supply known provenance.

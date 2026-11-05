@@ -220,7 +220,7 @@ fn hyperlink_target_and_location_edits_preserve_other_prepared_values() -> Resul
                 assert_eq!(read.target().kind(), SourceKind::Url(source.as_str()));
                 assert_eq!(Location::from(read.location()), replacement);
                 assert_eq!(
-                    read.id().map(|id| Location::from(id.location())),
+                    read.id().and_then(|id| id.location()).map(Location::from),
                     Some(id_location.clone())
                 );
                 assert_eq!(

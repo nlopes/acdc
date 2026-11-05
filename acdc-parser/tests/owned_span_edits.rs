@@ -145,7 +145,7 @@ fn span_id_transfers_keep_their_own_locations_and_source_lifetimes() {
                 let read = $read::from(&span);
                 assert_eq!(Location::from(read.location()), span_location);
                 assert_eq!(
-                    read.id().map(|id| Location::from(id.location())),
+                    read.id().and_then(|id| id.location()).map(Location::from),
                     Some(id_location.clone())
                 );
                 let id = span.take_id();

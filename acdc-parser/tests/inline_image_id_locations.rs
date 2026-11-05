@@ -132,13 +132,25 @@ fn image_id_fixture_uses_original_source_locations(
             id.as_str()
         };
         if id.as_str() == "included-picture" {
-            assert_source_span(&included, id.location(), spelling, false)?;
+            assert_source_span(
+                &included,
+                id.location().ok_or("ID source location")?,
+                spelling,
+                false,
+            )?;
             assert_eq!(
-                parsed.resolve_location(id.location()).file,
+                parsed
+                    .resolve_location(id.location().ok_or("ID source location")?)
+                    .file,
                 Some(child.canonicalize()?)
             );
         } else {
-            assert_source_span(&source, id.location(), spelling, true)?;
+            assert_source_span(
+                &source,
+                id.location().ok_or("ID source location")?,
+                spelling,
+                true,
+            )?;
         }
     }
     Ok(())
@@ -169,7 +181,12 @@ fn retained_macro_ids_map_once_after_prior_blocks_and_unicode(
         return Err(format!("expected one ID in {markup}: {ids:?}").into());
     };
     assert_eq!(id.as_str(), "target");
-    assert_source_span(&source, id.location(), "target", true)
+    assert_source_span(
+        &source,
+        id.location().ok_or("ID source location")?,
+        "target",
+        true,
+    )
 }
 
 #[rstest::rstest]
@@ -197,7 +214,12 @@ fn nested_image_ids_keep_literal_and_expanded_spelling(
             spelling
         }
     );
-    assert_source_span(&source, id.location(), spelling, true)
+    assert_source_span(
+        &source,
+        id.location().ok_or("ID source location")?,
+        spelling,
+        true,
+    )
 }
 
 #[rstest::rstest]
@@ -225,10 +247,15 @@ fn nested_selected_includes_keep_image_id_file_and_byte_offsets(
     let [id] = ids.as_slice() else {
         return Err("expected included ID".into());
     };
-    assert_source_span(child, id.location(), "selected-picture", true)?;
+    assert_source_span(
+        child,
+        id.location().ok_or("ID source location")?,
+        "selected-picture",
+        true,
+    )?;
     assert_eq!(
         parsed
-            .resolve_location(id.location())
+            .resolve_location(id.location().ok_or("ID source location")?)
             .file
             .ok_or("included source")?
             .canonicalize()?,
@@ -236,6 +263,7 @@ fn nested_selected_includes_keep_image_id_file_and_byte_offsets(
     );
     assert_eq!(
         id.location()
+            .ok_or("ID source location")?
             .start()
             .include_chain()
             .ok_or("include chain")?

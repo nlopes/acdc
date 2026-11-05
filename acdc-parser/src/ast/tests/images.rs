@@ -81,6 +81,7 @@ fn images_preserve_independent_content_and_identity(
             .id()
             .ok_or("missing block ID")?
             .location()
+            .ok_or("ID source location")?
             .start()
             .line(),
         2
@@ -97,7 +98,13 @@ fn images_preserve_independent_content_and_identity(
         return Err("missing owner image".into());
     };
     assert_eq!(
-        parsed.resolve_location(inline.id().ok_or("missing inline ID")?.location()),
+        parsed.resolve_location(
+            inline
+                .id()
+                .ok_or("missing inline ID")?
+                .location()
+                .ok_or("ID source location")?
+        ),
         parsed.source_location(
             &owner
                 .metadata
@@ -118,6 +125,7 @@ fn images_preserve_independent_content_and_identity(
             .id()
             .ok_or("missing table ID")?
             .location()
+            .ok_or("ID source location")?
             .start()
             .line(),
         8

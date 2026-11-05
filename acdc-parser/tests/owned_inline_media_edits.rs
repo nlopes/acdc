@@ -202,7 +202,7 @@ fn media_location_edits_keep_id_and_content_locations() -> Result<(), Error> {
             let read = $read::from(&node);
             assert_eq!(Location::from(read.location()), replacement);
             assert_eq!(
-                read.id().map(|id| Location::from(id.location())),
+                read.id().and_then(|id| id.location()).map(Location::from),
                 Some(id_location.clone())
             );
             assert_eq!(

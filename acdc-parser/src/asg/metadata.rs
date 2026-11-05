@@ -21,7 +21,7 @@ pub(super) fn location_property(
     value: &Location,
     path: &str,
 ) -> Result<(), Error> {
-    if value == &Location::default() {
+    if value.is_unknown() {
         return Ok(());
     }
     let path = pointer(path, property);

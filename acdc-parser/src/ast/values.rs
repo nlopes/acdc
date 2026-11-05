@@ -55,11 +55,11 @@ pub enum IdOrigin {
     Generated,
 }
 
-/// An element ID and its recorded source location.
+/// An element ID with its origin and optional recorded source location.
 #[derive(Clone, Copy, Debug)]
 pub struct ElementIdRef<'doc> {
     text: &'doc str,
-    location: LocationRef<'doc>,
+    location: Option<LocationRef<'doc>>,
     origin: IdOrigin,
 }
 
@@ -67,15 +67,16 @@ impl<'doc> ElementIdRef<'doc> {
     pub(super) fn new(text: &'doc str, location: &'doc crate::Location) -> Self {
         Self {
             text,
-            location: LocationRef::from(location),
+            location: (!location.is_unknown()).then(|| LocationRef::from(location)),
             origin: IdOrigin::Explicit,
         }
     }
 
-    pub(super) fn generated(text: &'doc str, location: &'doc crate::Location) -> Self {
+    pub(super) fn without_location(text: &'doc str, origin: IdOrigin) -> Self {
         Self {
-            origin: IdOrigin::Generated,
-            ..Self::new(text, location)
+            text,
+            location: None,
+            origin,
         }
     }
 
@@ -91,11 +92,11 @@ impl<'doc> ElementIdRef<'doc> {
         self.text
     }
 
-    /// The recorded source range, which may cover the whole owning node.
-    /// Generated IDs use the section's range. Explicit IDs may contain expanded
-    /// attributes or caller-supplied text; this is not a safe replacement range.
+    /// The recorded source range, absent for generated or unlocated IDs.
+    /// Expanded attributes may supply the value; a known range is not necessarily
+    /// a safe replacement range. Read the owning node's location for navigation.
     #[must_use]
-    pub fn location(self) -> LocationRef<'doc> {
+    pub fn location(self) -> Option<LocationRef<'doc>> {
         self.location
     }
 }

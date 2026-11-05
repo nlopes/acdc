@@ -58,10 +58,12 @@ pub(crate) fn occurrences(doc: DocumentRef<'_>) -> impl Iterator<Item = IdOccurr
         .chain(blocks)
         .chain(terms)
         .chain(inlines)
-        .map(|(id, location)| IdOccurrence {
-            id: id.as_str(),
-            origin: id.origin(),
-            location: location.unwrap_or_else(|| id.location().into()),
+        .filter_map(|(id, location)| {
+            Some(IdOccurrence {
+                id: id.as_str(),
+                origin: id.origin(),
+                location: location.or_else(|| id.location().map(Location::from))?,
+            })
         })
 }
 
@@ -74,4 +76,22 @@ pub(super) fn heading_location(section: SectionRef<'_>) -> Location {
         location.end = end.end;
     }
     location
+}
+
+#[cfg(test)]
+mod tests {
+    use acdc_parser::{Anchor, Block, Document, InlineNode, Location, Paragraph};
+
+    #[test]
+    fn ids_without_source_ranges_do_not_create_navigation_targets() {
+        let mut document = Document::default();
+        document.push_block(Block::Paragraph(Paragraph::new(
+            vec![InlineNode::InlineAnchor(Anchor::new(
+                "unlocated",
+                Location::default(),
+            ))],
+            Location::default(),
+        )));
+        assert!(super::occurrences((&document).into()).next().is_none());
+    }
 }

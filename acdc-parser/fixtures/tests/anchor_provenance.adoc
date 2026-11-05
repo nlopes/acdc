@@ -1,0 +1,18 @@
+= Anchor provenance
+
+[#authored]
+== Authored title
+
+Body.
+
+== Generated title
+
+Generated body.
+
+[#paragraph]
+.Referenced title
+Paragraph.
+
+See <<authored>>, <<_generated_title>> and <<paragraph>>.
+
+include::includes/anchor_provenance.adoc[lines=3..8]

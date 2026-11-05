@@ -147,7 +147,12 @@ fn formatting_ids_keep_exact_authored_spans(
             spelling
         }
     );
-    assert_source_span(&source, id.location(), spelling, true)
+    assert_source_span(
+        &source,
+        id.location().ok_or("ID source location")?,
+        spelling,
+        true,
+    )
 }
 
 #[rstest::rstest]
@@ -178,7 +183,12 @@ fn nested_formatting_ids_map_once(
         } else {
             id.as_str()
         };
-        assert_source_span(&source, id.location(), spelling, true)?;
+        assert_source_span(
+            &source,
+            id.location().ok_or("ID source location")?,
+            spelling,
+            true,
+        )?;
     }
     Ok(())
 }
@@ -208,17 +218,27 @@ fn formatting_id_fixture_keeps_include_provenance(
             id.as_str()
         };
         if id.as_str() == "included-span" {
-            assert_source_span(&included, id.location(), spelling, false)?;
+            assert_source_span(
+                &included,
+                id.location().ok_or("ID source location")?,
+                spelling,
+                false,
+            )?;
             assert_eq!(
                 parsed
-                    .resolve_location(id.location())
+                    .resolve_location(id.location().ok_or("ID source location")?)
                     .file
                     .ok_or("included source")?
                     .canonicalize()?,
                 child.canonicalize()?
             );
         } else {
-            assert_source_span(&source, id.location(), spelling, true)?;
+            assert_source_span(
+                &source,
+                id.location().ok_or("ID source location")?,
+                spelling,
+                true,
+            )?;
         }
     }
     Ok(())
@@ -248,10 +268,15 @@ fn selected_nested_include_keeps_formatting_id_offsets(
     let [id] = ids.as_slice() else {
         return Err("expected included ID".into());
     };
-    assert_source_span(source, id.location(), "selected-span", true)?;
+    assert_source_span(
+        source,
+        id.location().ok_or("ID source location")?,
+        "selected-span",
+        true,
+    )?;
     assert_eq!(
         parsed
-            .resolve_location(id.location())
+            .resolve_location(id.location().ok_or("ID source location")?)
             .file
             .ok_or("included source")?
             .canonicalize()?,
@@ -276,7 +301,10 @@ fn duplicate_id_spelling_uses_the_winning_token(
     let start = source.find("#same]*").ok_or("winning token")? + 1;
     assert_eq!(id.as_str(), "same");
     assert_eq!(
-        (id.location().absolute_start(), id.location().absolute_end()),
+        (
+            id.location().ok_or("ID source location")?.absolute_start(),
+            id.location().ok_or("ID source location")?.absolute_end()
+        ),
         (start, start + 3)
     );
     Ok(())
@@ -311,5 +339,10 @@ fn generated_formatting_id_retains_its_reference_span(
             "expanded-suffix"
         }
     );
-    assert_source_span(&source, id.location(), spelling, true)
+    assert_source_span(
+        &source,
+        id.location().ok_or("ID source location")?,
+        spelling,
+        true,
+    )
 }

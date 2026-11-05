@@ -22,6 +22,7 @@ fn retained_id_origin_survives_direct_metadata_edits() -> Result<(), Error> {
         .id()
         .ok_or("retained explicit ID")?;
     assert_eq!((id.as_str(), id.origin()), ("explicit", IdOrigin::Explicit));
+    assert!(id.location().is_none());
     let crate::Block::Section(generated) = owners.next().ok_or("generated")? else {
         return Err("section".into());
     };
@@ -42,6 +43,7 @@ fn retained_id_origin_survives_direct_metadata_edits() -> Result<(), Error> {
         (id.as_str(), id.origin()),
         ("_generated", IdOrigin::Generated)
     );
+    assert!(id.location().is_none());
     assert!(
         SectionRef::from(&generated.with_metadata(BlockMetadata::default())?)
             .id()

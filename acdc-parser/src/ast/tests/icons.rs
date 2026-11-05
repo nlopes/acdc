@@ -59,9 +59,12 @@ fn icon_reads_preserve_identity_content_and_controls(
     let id = icon.id().ok_or("id")?;
     assert_eq!(id.as_str(), "étoile中");
     let start = source.find("étoile中").ok_or("source id")?;
-    assert_eq!(id.location().absolute_start(), start);
     assert_eq!(
-        id.location().absolute_end(),
+        id.location().ok_or("ID source location")?.absolute_start(),
+        start
+    );
+    assert_eq!(
+        id.location().ok_or("ID source location")?.absolute_end(),
         start
             + "étoile中"
                 .char_indices()
@@ -70,7 +73,7 @@ fn icon_reads_preserve_identity_content_and_controls(
                 .0
     );
     assert_eq!(
-        id.location().start().column(),
+        id.location().ok_or("ID source location")?.start().column(),
         u32::try_from(source[..start].chars().count())? + 1
     );
     assert_eq!(icon.roles().iter().collect::<Vec<_>>(), ["one", "two"]);

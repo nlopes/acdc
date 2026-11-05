@@ -124,8 +124,10 @@ Index terms keep display labels separate from registration-time labels.
 
 Locations identify recorded source ranges. Expanded text may point to the
 authored attribute reference rather than an editable literal. IDs have their own
-ranges and distinguish authored from generated section IDs. Changing a location
-does not move child locations. Use the original source before offering an edit.
+ranges and distinguish authored from generated section IDs. `ElementIdRef::location()`
+returns `None` for generated IDs and caller-built IDs without a recorded range;
+use the owning node's location for navigation. Changing a location does not move
+child locations. Use the original source before offering an edit.
 
 [#construction-and-editing]
 === Construction and editing

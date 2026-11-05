@@ -53,8 +53,14 @@ fn hyperlink_reads_preserve_metadata_and_content(
             let id = node.id().ok_or("ID")?;
             assert_eq!(id.as_str(), "étoile中");
             let start = source.find("étoile中").ok_or("ID source")?;
-            assert_eq!(id.location().absolute_start(), start);
-            assert_eq!(id.location().absolute_end(), start + "étoile".len());
+            assert_eq!(
+                id.location().ok_or("ID source location")?.absolute_start(),
+                start
+            );
+            assert_eq!(
+                id.location().ok_or("ID source location")?.absolute_end(),
+                start + "étoile".len()
+            );
             let attributes = node.attributes();
             assert_eq!(
                 attributes.get("title"),
