@@ -1,0 +1,834 @@
+{
+  "attributes": {
+    "label": "Expanded"
+  },
+  "blocks": [
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 4
+            },
+            {
+              "col": 8,
+              "line": 4
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Visible "
+        },
+        {
+          "location": [
+            {
+              "col": 9,
+              "line": 4
+            },
+            {
+              "col": 26,
+              "line": 4
+            }
+          ],
+          "name": "indexterm",
+          "term": [
+            {
+              "location": [
+                {
+                  "col": 11,
+                  "line": 4
+                },
+                {
+                  "col": 18,
+                  "line": 4
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Visible "
+            },
+            {
+              "form": "constrained",
+              "inlines": [
+                {
+                  "location": [
+                    {
+                      "col": 20,
+                      "line": 4
+                    },
+                    {
+                      "col": 23,
+                      "line": 4
+                    }
+                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "bold"
+                }
+              ],
+              "location": [
+                {
+                  "col": 19,
+                  "line": 4
+                },
+                {
+                  "col": 24,
+                  "line": 4
+                }
+              ],
+              "name": "span",
+              "type": "inline",
+              "variant": "strong"
+            }
+          ],
+          "type": "inline",
+          "visibility": "visible"
+        },
+        {
+          "location": [
+            {
+              "col": 27,
+              "line": 4
+            },
+            {
+              "col": 27,
+              "line": 4
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 4
+        },
+        {
+          "col": 27,
+          "line": 4
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 6
+            },
+            {
+              "col": 10,
+              "line": 6
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Concealed "
+        },
+        {
+          "location": [
+            {
+              "col": 11,
+              "line": 6
+            },
+            {
+              "col": 42,
+              "line": 6
+            }
+          ],
+          "name": "indexterm",
+          "secondary": [
+            {
+              "location": [
+                {
+                  "col": 22,
+                  "line": 6
+                },
+                {
+                  "col": 30,
+                  "line": 6
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Secondary"
+            }
+          ],
+          "term": [
+            {
+              "location": [
+                {
+                  "col": 14,
+                  "line": 6
+                },
+                {
+                  "col": 20,
+                  "line": 6
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Primary"
+            }
+          ],
+          "tertiary": [
+            {
+              "location": [
+                {
+                  "col": 32,
+                  "line": 6
+                },
+                {
+                  "col": 39,
+                  "line": 6
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Tertiary"
+            }
+          ],
+          "type": "inline",
+          "visibility": "hidden"
+        },
+        {
+          "location": [
+            {
+              "col": 43,
+              "line": 6
+            },
+            {
+              "col": 43,
+              "line": 6
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 6
+        },
+        {
+          "col": 43,
+          "line": 6
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "id": "entry",
+          "location": [
+            {
+              "col": 1,
+              "line": 8
+            },
+            {
+              "col": 80,
+              "line": 8
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "custom": "kept"
+            },
+            "options": [
+              "a",
+              "b"
+            ],
+            "roles": [
+              "one",
+              "two"
+            ]
+          },
+          "name": "indexterm",
+          "relationship": {
+            "kind": "see",
+            "target": [
+              {
+                "form": "constrained",
+                "inlines": [
+                  {
+                    "location": [
+                      {
+                        "col": 26,
+                        "line": 8
+                      },
+                      {
+                        "col": 31,
+                        "line": 8
+                      }
+                    ],
+                    "name": "text",
+                    "type": "string",
+                    "value": "Target"
+                  }
+                ],
+                "location": [
+                  {
+                    "col": 25,
+                    "line": 8
+                  },
+                  {
+                    "col": 32,
+                    "line": 8
+                  }
+                ],
+                "name": "span",
+                "type": "inline",
+                "variant": "strong"
+              }
+            ]
+          },
+          "term": [
+            {
+              "location": [
+                {
+                  "col": 13,
+                  "line": 8
+                },
+                {
+                  "col": 19,
+                  "line": 8
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Visible"
+            }
+          ],
+          "type": "inline",
+          "visibility": "visible"
+        },
+        {
+          "location": [
+            {
+              "col": 81,
+              "line": 8
+            },
+            {
+              "col": 81,
+              "line": 8
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 8
+        },
+        {
+          "col": 81,
+          "line": 8
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 10
+            },
+            {
+              "col": 53,
+              "line": 10
+            }
+          ],
+          "name": "indexterm",
+          "relationship": {
+            "kind": "see-also",
+            "targets": [
+              [
+                {
+                  "location": [
+                    {
+                      "col": 42,
+                      "line": 10
+                    },
+                    {
+                      "col": 44,
+                      "line": 10
+                    }
+                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "One"
+                }
+              ],
+              [
+                {
+                  "form": "constrained",
+                  "inlines": [
+                    {
+                      "location": [
+                        {
+                          "col": 48,
+                          "line": 10
+                        },
+                        {
+                          "col": 50,
+                          "line": 10
+                        }
+                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Two"
+                    }
+                  ],
+                  "location": [
+                    {
+                      "col": 47,
+                      "line": 10
+                    },
+                    {
+                      "col": 51,
+                      "line": 10
+                    }
+                  ],
+                  "name": "span",
+                  "type": "inline",
+                  "variant": "emphasis"
+                }
+              ]
+            ]
+          },
+          "secondary": [],
+          "term": [
+            {
+              "location": [
+                {
+                  "col": 12,
+                  "line": 10
+                },
+                {
+                  "col": 18,
+                  "line": 10
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Primary"
+            }
+          ],
+          "tertiary": [
+            {
+              "location": [
+                {
+                  "col": 23,
+                  "line": 10
+                },
+                {
+                  "col": 30,
+                  "line": 10
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Tertiary"
+            }
+          ],
+          "type": "inline",
+          "visibility": "hidden"
+        },
+        {
+          "location": [
+            {
+              "col": 54,
+              "line": 10
+            },
+            {
+              "col": 54,
+              "line": 10
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 10
+        },
+        {
+          "col": 54,
+          "line": 10
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 12
+            },
+            {
+              "col": 22,
+              "line": 12
+            }
+          ],
+          "name": "indexterm",
+          "relationship": {
+            "kind": "see",
+            "target": []
+          },
+          "term": [],
+          "type": "inline",
+          "visibility": "visible"
+        },
+        {
+          "location": [
+            {
+              "col": 23,
+              "line": 12
+            },
+            {
+              "col": 23,
+              "line": 12
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 12
+        },
+        {
+          "col": 23,
+          "line": 12
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "catalog": {
+            "location": [
+              {
+                "col": 1,
+                "line": 15
+              },
+              {
+                "col": 28,
+                "line": 15
+              }
+            ],
+            "term": [
+              {
+                "location": [
+                  {
+                    "col": 13,
+                    "line": 15
+                  },
+                  {
+                    "col": 27,
+                    "line": 15
+                  }
+                ],
+                "name": "text",
+                "type": "string",
+                "value": "{label} *label*"
+              }
+            ],
+            "visibility": "visible"
+          },
+          "location": [
+            {
+              "col": 1,
+              "line": 15
+            },
+            {
+              "col": 28,
+              "line": 15
+            }
+          ],
+          "name": "indexterm",
+          "term": [
+            {
+              "location": [
+                {
+                  "col": 13,
+                  "line": 15
+                },
+                {
+                  "col": 20,
+                  "line": 15
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Expanded "
+            },
+            {
+              "form": "constrained",
+              "inlines": [
+                {
+                  "location": [
+                    {
+                      "col": 22,
+                      "line": 15
+                    },
+                    {
+                      "col": 26,
+                      "line": 15
+                    }
+                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "label"
+                }
+              ],
+              "location": [
+                {
+                  "col": 21,
+                  "line": 15
+                },
+                {
+                  "col": 27,
+                  "line": 15
+                }
+              ],
+              "name": "span",
+              "type": "inline",
+              "variant": "strong"
+            }
+          ],
+          "type": "inline",
+          "visibility": "visible"
+        },
+        {
+          "location": [
+            {
+              "col": 29,
+              "line": 15
+            },
+            {
+              "col": 29,
+              "line": 15
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 14
+        },
+        {
+          "col": 29,
+          "line": 15
+        }
+      ],
+      "metadata": {
+        "location": [
+          {
+            "col": 1,
+            "line": 14
+          },
+          {
+            "col": 52,
+            "line": 14
+          }
+        ]
+      },
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "catalog": {
+            "location": [
+              {
+                "col": 1,
+                "line": 18
+              },
+              {
+                "col": 26,
+                "line": 18
+              }
+            ],
+            "term": [
+              {
+                "location": [
+                  {
+                    "col": 13,
+                    "line": 18
+                  },
+                  {
+                    "col": 25,
+                    "line": 18
+                  }
+                ],
+                "name": "text",
+                "type": "string",
+                "value": "Copyright (C)"
+              }
+            ],
+            "visibility": "visible"
+          },
+          "location": [
+            {
+              "col": 1,
+              "line": 18
+            },
+            {
+              "col": 26,
+              "line": 18
+            }
+          ],
+          "name": "indexterm",
+          "term": [
+            {
+              "location": [
+                {
+                  "col": 13,
+                  "line": 18
+                },
+                {
+                  "col": 22,
+                  "line": 18
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Copyright "
+            },
+            {
+              "location": [
+                {
+                  "col": 23,
+                  "line": 18
+                },
+                {
+                  "col": 25,
+                  "line": 18
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "©"
+            }
+          ],
+          "type": "inline",
+          "visibility": "visible"
+        },
+        {
+          "location": [
+            {
+              "col": 27,
+              "line": 18
+            },
+            {
+              "col": 27,
+              "line": 18
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 17
+        },
+        {
+          "col": 27,
+          "line": 18
+        }
+      ],
+      "metadata": {
+        "location": [
+          {
+            "col": 1,
+            "line": 17
+          },
+          {
+            "col": 47,
+            "line": 17
+          }
+        ]
+      },
+      "name": "paragraph",
+      "type": "block"
+    }
+  ],
+  "header": {
+    "location": [
+      {
+        "col": 1,
+        "line": 1
+      },
+      {
+        "col": 16,
+        "line": 2
+      }
+    ],
+    "title": [
+      {
+        "location": [
+          {
+            "col": 3,
+            "line": 1
+          },
+          {
+            "col": 15,
+            "line": 1
+          }
+        ],
+        "name": "text",
+        "type": "string",
+        "value": "Index entries"
+      }
+    ]
+  },
+  "location": [
+    {
+      "col": 1,
+      "line": 1
+    },
+    {
+      "col": 27,
+      "line": 18
+    }
+  ],
+  "name": "document",
+  "profile": "urn:acdc:asg:1",
+  "type": "block"
+}

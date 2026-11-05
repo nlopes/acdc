@@ -9,6 +9,7 @@ mod content;
 mod diagnostics;
 mod footnotes;
 mod images;
+mod index_terms;
 mod metadata;
 mod projection;
 mod references;

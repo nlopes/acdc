@@ -698,6 +698,9 @@
         },
         {
           "$ref": "#/$defs/acdcFootnote"
+        },
+        {
+          "$ref": "#/$defs/acdcIndexTerm"
         }
       ]
     },
@@ -1495,6 +1498,138 @@
           "$ref": "#/$defs/inlines"
         }
       }
+    },
+    "acdcIndexLabels": {
+      "type": "object",
+      "required": [
+        "visibility",
+        "term"
+      ],
+      "properties": {
+        "visibility": {
+          "enum": [
+            "visible",
+            "hidden"
+          ]
+        },
+        "term": {
+          "$ref": "#/$defs/inlines"
+        },
+        "secondary": {
+          "$ref": "#/$defs/inlines"
+        },
+        "tertiary": {
+          "$ref": "#/$defs/inlines"
+        },
+        "relationship": {
+          "$ref": "#/$defs/acdcIndexRelationship"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "visibility": {
+                "const": "visible"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "secondary"
+                  ]
+                },
+                {
+                  "required": [
+                    "tertiary"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "acdcIndexTerm": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/acdcIndexLabels"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "const": "indexterm"
+        },
+        "type": {
+          "const": "inline"
+        },
+        "id": {
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/acdcInlineMetadata"
+        },
+        "catalog": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/$defs/acdcIndexLabels"
+            }
+          ],
+          "unevaluatedProperties": false
+        }
+      }
+    },
+    "acdcIndexRelationship": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "target"
+          ],
+          "properties": {
+            "kind": {
+              "const": "see"
+            },
+            "target": {
+              "$ref": "#/$defs/inlines"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "targets"
+          ],
+          "properties": {
+            "kind": {
+              "const": "see-also"
+            },
+            "targets": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/inlines"
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

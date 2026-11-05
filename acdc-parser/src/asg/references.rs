@@ -83,6 +83,9 @@ pub(super) fn project(
             reference("link", &target, &[], Some(display), path, settings)
         }
         InlineMacro::CrossReference(xref) => cross_reference(xref, path, settings),
+        InlineMacro::IndexTerm(value) if settings.profile == Profile::Acdc => {
+            super::index_terms::project(value, path, settings)
+        }
         InlineMacro::Footnote(note) if settings.profile == Profile::Acdc => {
             super::footnotes::occurrence(note, path)
         }

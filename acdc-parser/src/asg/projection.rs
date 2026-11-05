@@ -41,7 +41,7 @@ pub(super) struct InlineContext {
 }
 
 impl InlineContext {
-    const fn normal(profile: Profile) -> Self {
+    pub(super) const fn normal(profile: Profile) -> Self {
         Self {
             profile,
             literal: false,

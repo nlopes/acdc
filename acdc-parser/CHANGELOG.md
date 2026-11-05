@@ -56,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The named ASG profile retains visible/hidden index terms, hierarchy,
+  see/see-also relationships, and distinct registration-time labels when later
+  substitutions or prepared edits change the displayed text.
+
 - The named ASG profile exports registered footnote bodies once, with linked
   definition/reference occurrences, including unresolved references and notes
   in selected titles. Stale registrations report an error without renumbering.

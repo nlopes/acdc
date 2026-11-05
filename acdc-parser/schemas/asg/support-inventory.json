@@ -1443,33 +1443,33 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-index-labels-and-capture"
       },
       "properties": {
         "kind": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         },
         "relationship": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         },
         "catalog": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         },
         "catalog_substitutions": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         },
         "metadata": {
-          "policy": "the-pinned-inline-span-reference-forms-have"
+          "policy": "named-index-labels-and-capture"
         },
         "macro_attributes": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         },
         "location": {
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "index-terms"
     },
     "src/model/inlines/macros.rs::IndexTermKind": {
       "shape": {
@@ -1487,29 +1487,29 @@
         }
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-index-labels-and-capture"
       },
       "properties": {
         "variant:Concealed": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         },
         "Concealed.term": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         },
         "Concealed.secondary": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         },
         "Concealed.tertiary": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         },
         "variant:Flow": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         },
         "Flow.0": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "index-terms"
     },
     "src/model/inlines/macros.rs::IndexTermRelationship": {
       "shape": {
@@ -1525,23 +1525,23 @@
         }
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-index-labels-and-capture"
       },
       "properties": {
         "variant:See": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         },
         "See.target": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         },
         "variant:SeeAlso": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         },
         "SeeAlso.targets": {
-          "policy": "unsupported"
+          "policy": "named-index-labels-and-capture"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "index-terms"
     },
     "src/model/inlines/macros.rs::Key": {
       "shape": {
@@ -5745,6 +5745,10 @@
     "named-footnote-graph": {
       "handling": "context-dependent",
       "reason": "Strict export rejects footnotes. The named profile keeps canonical bodies once in native catalog order and links definition/reference occurrences by number and optional ID. Zero remains unresolved; stale, duplicate, cyclic and pending registrations reject without repair. Discarded definition source is diagnostic history. Standalone inline export requires document registration context."
+    },
+    "named-index-labels-and-capture": {
+      "handling": "context-dependent",
+      "reason": "Strict export rejects index terms. The named profile retains visible/hidden labels, absent/empty hierarchy, typed relationships and common inline controls. A distinct catalog label/location snapshot remains separate from display labels; equal captures are implicit. Captured controls are history, not a second indexing value. Export never registers or reparses labels; pending substitution plans reject."
     }
   },
   "strict_export_groups": {
@@ -6178,6 +6182,35 @@
           "name": "footnote_schema_keeps_closed_bodies_and_linked_occurrences"
         }
       ]
+    },
+    "index-terms": {
+      "handling": "Strict export rejects index owners. The named profile retains their selected labels and independent captured labels without registration or mutation.",
+      "tests": [
+        {
+          "file": "tests/asg_index_terms.rs",
+          "name": "labels_hierarchy_relationships_and_controls_keep_their_own_fields"
+        },
+        {
+          "file": "tests/asg_index_terms.rs",
+          "name": "prepared_display_edits_keep_catalog_labels_without_reparsing"
+        },
+        {
+          "file": "tests/asg_index_terms.rs",
+          "name": "absent_and_empty_hierarchy_and_relationship_targets_remain_distinct"
+        },
+        {
+          "file": "tests/asg_index_terms.rs",
+          "name": "selected_titles_and_cells_keep_index_owners_and_footnote_registration"
+        },
+        {
+          "file": "tests/asg_index_terms.rs",
+          "name": "unsupported_label_children_keep_the_nested_owner_path"
+        },
+        {
+          "file": "tests/asg_index_terms.rs",
+          "name": "index_schema_closes_labels_snapshots_and_relationship_variants"
+        }
+      ]
     }
   },
   "extension_profiles": {
@@ -6510,6 +6543,46 @@
             "asg_footnotes.rs::selected_titles_and_nested_cells_preserve_existing_registration_order",
             "asg_footnotes.rs::canonical_body_errors_and_standalone_context_are_explicit",
             "asg_footnotes.rs::footnote_schema_keeps_closed_bodies_and_linked_occurrences"
+          ]
+        },
+        "index-terms": {
+          "owners": {
+            "IndexTerm": [
+              "kind",
+              "relationship",
+              "catalog",
+              "metadata",
+              "macro_attributes",
+              "location"
+            ],
+            "IndexTermKind": [
+              "variant:Flow",
+              "Flow.0",
+              "variant:Concealed",
+              "Concealed.term",
+              "Concealed.secondary",
+              "Concealed.tertiary"
+            ],
+            "IndexTermRelationship": [
+              "variant:See",
+              "See.target",
+              "variant:SeeAlso",
+              "SeeAlso.targets"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/acdcIndexTerm",
+            "#/$defs/acdcIndexLabels",
+            "#/$defs/acdcIndexRelationship"
+          ],
+          "handling": "Strict export rejects index terms. The named profile retains visible/hidden labels, absent/empty hierarchy, typed relationships and common inline controls. A distinct catalog label/location snapshot remains separate from display labels; equal captures are implicit. Captured controls are history, not a second indexing value. Export never registers or reparses labels; pending substitution plans reject.",
+          "tests": [
+            "asg_index_terms.rs::labels_hierarchy_relationships_and_controls_keep_their_own_fields",
+            "asg_index_terms.rs::prepared_display_edits_keep_catalog_labels_without_reparsing",
+            "asg_index_terms.rs::absent_and_empty_hierarchy_and_relationship_targets_remain_distinct",
+            "asg_index_terms.rs::selected_titles_and_cells_keep_index_owners_and_footnote_registration",
+            "asg_index_terms.rs::unsupported_label_children_keep_the_nested_owner_path",
+            "asg_index_terms.rs::index_schema_closes_labels_snapshots_and_relationship_variants"
           ]
         }
       }

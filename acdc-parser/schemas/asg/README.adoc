@@ -391,6 +391,25 @@ The named acdc profile adds three closed forms:
 Strict export rejects them where the pin has no corresponding form. Unsupported
 nested meaning still reports its complete property path.
 
+== Index terms
+
+The named profile adds an `indexterm` inline with `visibility` (`visible` or
+`hidden`), parsed primary `term`, and optional `secondary` and `tertiary` arrays.
+Missing levels differ from empty ones. A typed `relationship` holds either a
+`see` target or ordered `see-also` targets. Common inline metadata retains IDs,
+roles, options and scalar controls separately from labels.
+
+A distinct registration snapshot appears in `catalog`, with the same label and
+relationship fields and its own known location. This matters when substitutions
+run after index registration or a prepared edit changes display content. When
+registration labels and location equal the occurrence, the catalog value is
+implicit rather than another copy. Captured scalar controls are not another
+indexing value. Export reads the existing labels without registering or parsing
+anything; pending registration substitutions fail explicitly.
+
+Strict rejection is unchanged. `fixtures/asg/index_terms.adoc` and its checked
+JSON show both ordinary labels and differences introduced after registration.
+
 == Footnotes
 
 The named profile stores registered bodies once in document `footnotes`, in native
