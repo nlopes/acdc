@@ -1,5 +1,6 @@
 mod blocks;
 mod lists;
+mod tables;
 
 use std::collections::BTreeMap;
 
@@ -441,7 +442,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
 
     fn block(&mut self, value: &'a Block<'doc>, at: &str) -> Result<Option<Value>, Error> {
         let projected = match value {
-            Block::Paragraph(paragraph) => self.paragraph(paragraph, at)?,
+            Block::Paragraph(paragraph) => self.paragraph(paragraph, at, false)?,
             Block::Section(section) => self.section(section, at)?,
             Block::UnorderedList(list) => {
                 let mut result = self.list(&list.items, list.marker, "unordered", at)?;

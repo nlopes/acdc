@@ -260,6 +260,9 @@
         },
         {
           "$ref": "#/$defs/acdcMarkedQuote"
+        },
+        {
+          "$ref": "#/$defs/acdcTable"
         }
       ]
     },
@@ -1175,6 +1178,212 @@
         },
         "blocks": {
           "$ref": "#/$defs/nonSectionBlockBody"
+        }
+      }
+    },
+    "acdcTableWidth": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "enum": [
+                "proportional",
+                "percentage"
+              ]
+            },
+            "value": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 4294967295
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind"
+          ],
+          "properties": {
+            "kind": {
+              "const": "auto"
+            }
+          }
+        }
+      ]
+    },
+    "acdcTableColumnFormat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "halign",
+        "valign",
+        "style",
+        "width"
+      ],
+      "properties": {
+        "halign": {
+          "enum": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "valign": {
+          "enum": [
+            "top",
+            "middle",
+            "bottom"
+          ]
+        },
+        "style": {
+          "enum": [
+            "default",
+            "emphasis",
+            "header",
+            "literal",
+            "monospace",
+            "strong"
+          ]
+        },
+        "width": {
+          "$ref": "#/$defs/acdcTableWidth"
+        }
+      }
+    },
+    "acdcTableCell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "blocks"
+      ],
+      "properties": {
+        "blocks": {
+          "$ref": "#/$defs/nonSectionBlockBody"
+        },
+        "colspan": {
+          "const": 1
+        },
+        "rowspan": {
+          "const": 1
+        },
+        "halign": {
+          "$ref": "#/$defs/acdcTableColumnFormat/properties/halign"
+        },
+        "valign": {
+          "$ref": "#/$defs/acdcTableColumnFormat/properties/valign"
+        },
+        "style": {
+          "$ref": "#/$defs/acdcTableColumnFormat/properties/style"
+        }
+      }
+    },
+    "acdcTableRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cells"
+      ],
+      "properties": {
+        "cells": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/acdcTableCell"
+          }
+        }
+      }
+    },
+    "acdcTablePresentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frame",
+        "grid",
+        "stripes"
+      ],
+      "properties": {
+        "frame": {
+          "enum": [
+            "all",
+            "ends",
+            "sides",
+            "none"
+          ]
+        },
+        "grid": {
+          "enum": [
+            "all",
+            "rows",
+            "columns",
+            "none"
+          ]
+        },
+        "stripes": {
+          "enum": [
+            "none",
+            "all",
+            "odd",
+            "even",
+            "hover"
+          ]
+        }
+      }
+    },
+    "acdcTable": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/abstractBlock"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "required": [
+        "name",
+        "form",
+        "delimiter",
+        "columns",
+        "rows"
+      ],
+      "properties": {
+        "name": {
+          "const": "table"
+        },
+        "form": {
+          "const": "delimited"
+        },
+        "delimiter": {
+          "type": "string",
+          "minLength": 1
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/acdcTableColumnFormat"
+          }
+        },
+        "header": {
+          "$ref": "#/$defs/acdcTableRow"
+        },
+        "rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/acdcTableRow"
+          }
+        },
+        "footer": {
+          "$ref": "#/$defs/acdcTableRow"
+        },
+        "presentation": {
+          "$ref": "#/$defs/acdcTablePresentation"
+        },
+        "delimited_location": {
+          "$ref": "#/$defs/location"
         }
       }
     }

@@ -5179,23 +5179,23 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-basic-table-structure"
       },
       "properties": {
         "halign": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "valign": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "width": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "style": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "tables"
     },
     "src/model/tables.rs::ColumnStyle": {
       "shape": {
@@ -5212,32 +5212,32 @@
         }
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-basic-table-structure"
       },
       "properties": {
         "variant:AsciiDoc": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Default": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Emphasis": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Header": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Literal": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Monospace": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Strong": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "tables"
     },
     "src/model/tables.rs::ColumnWidth": {
       "shape": {
@@ -5254,26 +5254,26 @@
         }
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-basic-table-structure"
       },
       "properties": {
         "variant:Auto": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Percentage": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "Percentage.0": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Proportional": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "Proportional.0": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "tables"
     },
     "src/model/tables.rs::HorizontalAlignment": {
       "shape": {
@@ -5286,20 +5286,20 @@
         }
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-basic-table-structure"
       },
       "properties": {
         "variant:Center": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Left": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Right": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "tables"
     },
     "src/model/tables.rs::ResolvedTablePresentation": {
       "shape": {
@@ -5337,30 +5337,29 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-basic-table-structure"
       },
       "properties": {
         "header": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "footer": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "rows": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "columns": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "presentation": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "location": {
-          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
-          "upstream": "#/$defs/location"
+          "policy": "named-basic-table-structure"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "tables"
     },
     "src/model/tables.rs::TableColumn": {
       "shape": {
@@ -5377,32 +5376,32 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-basic-table-structure"
       },
       "properties": {
         "initial_attributes": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "content": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "colspan": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "rowspan": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "halign": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "valign": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "style": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "tables"
     },
     "src/model/tables.rs::TableFrame": {
       "shape": {
@@ -5416,23 +5415,23 @@
         }
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-basic-table-structure"
       },
       "properties": {
         "variant:All": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Ends": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:None": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Sides": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "tables"
     },
     "src/model/tables.rs::TableGrid": {
       "shape": {
@@ -5446,23 +5445,23 @@
         }
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-basic-table-structure"
       },
       "properties": {
         "variant:All": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Columns": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:None": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Rows": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "tables"
     },
     "src/model/tables.rs::TablePresentation": {
       "shape": {
@@ -5475,20 +5474,20 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-basic-table-structure"
       },
       "properties": {
         "frame": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "grid": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "stripes": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "tables"
     },
     "src/model/tables.rs::TableRow": {
       "shape": {
@@ -5499,14 +5498,14 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-basic-table-structure"
       },
       "properties": {
         "columns": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "tables"
     },
     "src/model/tables.rs::TableStripes": {
       "shape": {
@@ -5521,26 +5520,26 @@
         }
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-basic-table-structure"
       },
       "properties": {
         "variant:All": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Even": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Hover": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:None": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Odd": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "tables"
     },
     "src/model/tables.rs::VerticalAlignment": {
       "shape": {
@@ -5553,20 +5552,20 @@
         }
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-basic-table-structure"
       },
       "properties": {
         "variant:Bottom": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Middle": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         },
         "variant:Top": {
-          "policy": "unsupported"
+          "policy": "named-basic-table-structure"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "tables"
     },
     "src/model/title.rs::Subtitle": {
       "shape": {
@@ -5738,6 +5737,10 @@
     "visit-supported-child-inlines-directly-a-supported": {
       "handling": "mapping-candidate",
       "reason": "Visit supported child inlines directly; a supported child does not make an unsupported span variant valid."
+    },
+    "named-basic-table-structure": {
+      "handling": "context-dependent",
+      "reason": "Strict export rejects table owners. The named profile preserves ordered table/row/cell structure, column widths/alignment/styles, title/caption/metadata, known spans and current resolved presentation. Basic export rejects non-unit spans and nested AsciiDoc cell scopes. Row/cell ranges are not fabricated; original presentation defaults are edit history, while the current captured value is exported."
     }
   },
   "strict_export_groups": {
@@ -6113,6 +6116,35 @@
           "name": "non_utf8_video_paths_are_rejected_without_replacement_characters"
         }
       ]
+    },
+    "tables": {
+      "handling": "Strict table export rejects the owning table at inner. The named profile maps basic source forms and prepared values without fabricating defaults or flattening cell blocks; unsupported spans, nested scopes and content retain explicit paths.",
+      "tests": [
+        {
+          "file": "tests/asg_tables.rs",
+          "name": "basic_tables_preserve_sections_cells_and_formatting"
+        },
+        {
+          "file": "tests/asg_tables.rs",
+          "name": "empty_table_parts_keep_presence_and_prepared_column_values"
+        },
+        {
+          "file": "tests/asg_tables.rs",
+          "name": "literal_column_context_preserves_prepared_verbatim_paragraphs"
+        },
+        {
+          "file": "tests/asg_tables.rs",
+          "name": "table_decoration_keeps_source_defaults_after_prepared_metadata_edits"
+        },
+        {
+          "file": "tests/asg_tables.rs",
+          "name": "strict_tables_spans_nested_scopes_and_unsupported_content_reject"
+        },
+        {
+          "file": "tests/asg_tables.rs",
+          "name": "table_schema_rejects_unknown_fields_wrong_types_and_unsupported_spans"
+        }
+      ]
     }
   },
   "extension_profiles": {
@@ -6345,6 +6377,65 @@
             "asg_checklists.rs::prepared_item_state_is_independent_of_marker_and_principal",
             "asg_checklists.rs::strict_checklists_and_unsupported_nested_values_remain_errors",
             "asg_checklists.rs::checklist_schema_rejects_wrong_states_and_callout_checkboxes"
+          ]
+        },
+        "tables": {
+          "owners": {
+            "DelimitedBlock": [
+              "delimiter",
+              "inner",
+              "metadata",
+              "title",
+              "location"
+            ],
+            "Table": [
+              "header",
+              "footer",
+              "rows",
+              "columns",
+              "presentation",
+              "location"
+            ],
+            "TableRow": [
+              "columns"
+            ],
+            "TableColumn": [
+              "content",
+              "colspan",
+              "rowspan",
+              "halign",
+              "valign",
+              "style",
+              "initial_attributes"
+            ],
+            "ColumnFormat": [
+              "halign",
+              "valign",
+              "width",
+              "style"
+            ],
+            "TablePresentation": [
+              "frame",
+              "grid",
+              "stripes"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/acdcTable",
+            "#/$defs/acdcTableRow",
+            "#/$defs/acdcTableCell",
+            "#/$defs/acdcTableColumnFormat",
+            "#/$defs/acdcTableWidth",
+            "#/$defs/acdcTablePresentation"
+          ],
+          "handling": "Preserve actual delimiter, complete/delimited spans, table sections, column formats, cell block owners and literal context. Optional resolved presentation is a source-position snapshot, distinct from explicit metadata controls. Original edit defaults are not another graph value. Empty/present parts remain distinct. Unit spans only; nested AsciiDoc scopes and initial assignments still reject.",
+          "tests": [
+            "asg_tables.rs::basic_tables_preserve_sections_cells_and_formatting",
+            "asg_tables.rs::empty_table_parts_keep_presence_and_prepared_column_values",
+            "asg_tables.rs::literal_column_context_preserves_prepared_verbatim_paragraphs",
+            "asg_tables.rs::table_decoration_keeps_source_defaults_after_prepared_metadata_edits",
+            "asg_tables.rs::strict_tables_spans_nested_scopes_and_unsupported_content_reject",
+            "asg_tables.rs::table_schema_rejects_unknown_fields_wrong_types_and_unsupported_spans"
           ]
         }
       }

@@ -1,0 +1,24 @@
+:table-frame: sides
+:table-grid: rows
+:table-stripes: odd
+
+.Table data
+[id=record,cols="2,1",options="header,footer",frame=none,grid=none,stripes=even]
+|====
+|Name |Value
+|One |*Bold*
+^.^|Centered |Two
+|Total |2
+|====
+
+:table-frame: ends
+
+[cols="s,e,m,l"]
+|===
+|Strong |Emphasis |*literal code* |<raw>
+|===
+
+[cols="~h,~d"]
+|===
+|Heading-like |
+|===

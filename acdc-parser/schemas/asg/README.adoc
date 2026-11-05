@@ -373,7 +373,7 @@ Single ordinary identities use the same rules as other supported owners.
 Every semantic property must still have a mapping. Parsed captions, including
 unnumbered caption state, and explicit image alternative content are rejected until
 supported by a named content extension. Uncaptioned library-built listings, examples
-and images can be exported. Tables and block STEM remain unsupported.
+and images can be exported. Strict export rejects tables and block STEM.
 
 Delimited admonitions retain their actual opening delimiter in both profiles,
 including open-block `--` and longer example delimiters. Source-free library
@@ -390,6 +390,31 @@ The named acdc profile adds three closed forms:
 `fixtures/asg/block_forms.adoc` and its checked JSON demonstrate these forms.
 Strict export rejects them where the pin has no corresponding form. Unsupported
 nested meaning still reports its complete property path.
+
+== Basic tables
+
+The named acdc profile adds a closed `table` block with its actual delimiter,
+ordered `columns`, body `rows`, and optional `header` and `footer`. Each row has
+`cells`; each cell retains its native child `blocks`, including paragraph inline
+trees. Export does not flatten them or create paragraph wrappers. Empty cells
+and rows remain empty arrays, and a present empty header/footer stays present.
+
+Column widths distinguish proportional, percentage and auto values. Column
+formats and cell overrides retain alignment and style. Literal cell/column style
+preserves verbatim presentation without changing the paragraph owner. The optional
+`presentation` records frame, grid and stripes captured at the table's source
+position; it is not recomputed from the end-of-header snapshot. Explicit metadata
+controls remain separate from this contextual result. Prepared metadata edits use
+the native captured defaults. That edit history is not another exported value.
+
+`location` covers the complete block, while `delimited_location` retains the native
+table span excluding its title/metadata. Unknown spans are omitted. Rows and cells
+have no independent native ranges, so export does not invent them.
+
+Basic export accepts unit spans only. Non-unit spans, AsciiDoc cell scopes, initial
+cell assignments, and nested cell blocks fail explicitly. Strict table rejection
+is unchanged. `fixtures/asg/tables.adoc` and its checked JSON cover table sections,
+empty cells, formatting, alignment, widths, captions, and changing document defaults.
 
 == Video targets
 

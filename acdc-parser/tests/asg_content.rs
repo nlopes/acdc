@@ -212,6 +212,12 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
                 "acdcParagraphParentBlock",
                 "acdcMarkedQuote",
                 "acdcAttributeEvent",
+                "acdcTable",
+                "acdcTableRow",
+                "acdcTableCell",
+                "acdcTableColumnFormat",
+                "acdcTableWidth",
+                "acdcTablePresentation",
             ],
         ),
     ];
@@ -229,7 +235,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         ("/$defs/list/allOf", 1),
         ("/$defs/blockMacro/allOf", 1),
         ("/$defs/inlineSpan/properties/variant/enum", 1),
-        ("/$defs/block/oneOf", 4),
+        ("/$defs/block/oneOf", 5),
     ] {
         let variants = restored
             .pointer_mut(path)

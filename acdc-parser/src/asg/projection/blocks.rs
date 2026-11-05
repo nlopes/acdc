@@ -73,6 +73,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
         &mut self,
         value: &'a Paragraph<'doc>,
         path: &str,
+        literal: bool,
     ) -> Result<Node, Error> {
         let name = match value.metadata.style {
             Some("source" | "listing") => "listing",
@@ -106,7 +107,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             &value.content,
             &value.metadata,
             path,
-            matches!(name, "listing" | "literal" | "verse"),
+            literal || matches!(name, "listing" | "literal" | "verse"),
             self.profile,
         )?;
         result.insert("inlines".into(), content);
@@ -170,9 +171,8 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 "blocks",
                 self.nonsection_blocks(content, &pointer(path, "blocks"))?,
             ),
-            DelimitedBlockType::DelimitedComment(_)
-            | DelimitedBlockType::DelimitedTable(_)
-            | DelimitedBlockType::DelimitedStem(_) => {
+            DelimitedBlockType::DelimitedTable(table) => return self.table(value, table, path),
+            DelimitedBlockType::DelimitedComment(_) | DelimitedBlockType::DelimitedStem(_) => {
                 return Err(unsupported(
                     &pointer(path, "inner"),
                     "this block body has no supported upstream mapping",

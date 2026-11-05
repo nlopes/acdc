@@ -12,10 +12,19 @@ pub(super) fn location(
     value: &Location,
     path: &str,
 ) -> Result<(), Error> {
+    location_property(node, "location", value, path)
+}
+
+pub(super) fn location_property(
+    node: &mut Map<String, Value>,
+    property: &str,
+    value: &Location,
+    path: &str,
+) -> Result<(), Error> {
     if value == &Location::default() {
         return Ok(());
     }
-    let path = pointer(path, "location");
+    let path = pointer(path, property);
     let mut boundaries = Vec::with_capacity(2);
     for (index, position) in [&value.start, &value.end].into_iter().enumerate() {
         if position.line == 0 || position.file.as_ref().is_some_and(|chain| chain.is_empty()) {
@@ -39,7 +48,7 @@ pub(super) fn location(
         }
         boundaries.push(Value::Object(boundary));
     }
-    node.insert("location".into(), Value::Array(boundaries));
+    node.insert(property.into(), Value::Array(boundaries));
     Ok(())
 }
 
