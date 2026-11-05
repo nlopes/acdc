@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** cross-reference and index occurrence fields are private. Read
+  through typed handles and use selected `From` copies for edits. Prepared text,
+  hierarchy, relationship, metadata and option transfers replace backing slices
+  and maps. Checked scalar replacement retains the existing reserved names.
+  Xref destination changes keep classification until explicitly set. Index
+  edits retain stored registration labels; they do not rebuild the catalog.
+
+- **Breaking:** button, keyboard, and menu fields are private. Read through
+  their typed handles and use selected `From` copies for edits. Prepared
+  constructors and label, key, menu-item and span transfers preserve source
+  lifetimes, empty positions and existing allocations. Edits do not parse
+  labels, split separators or update document registrations.
+
 - **Breaking:** link, URL, email, and autolink storage is private. Read with typed
   handles and copy selected values with `From`. Use prepared label, tooltip,
   metadata, target, display-setting, and option edits; scalar maps use checked

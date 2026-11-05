@@ -78,7 +78,7 @@ fn link_formatting_boundaries_keep_complete_labels_and_source_spans(
     } else if let InlineNode::Macro(InlineMacro::Mailto(link)) = node {
         link.clone().take_text()
     } else if let InlineNode::Macro(InlineMacro::CrossReference(link)) = node {
-        link.text.clone()
+        link.clone().take_text()
     } else {
         return Err(format!("expected a complete link: {node:?}").into());
     };

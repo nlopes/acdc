@@ -1,25 +1,26 @@
 use acdc_parser::{
-    CompatibilityMode, IndexTerm, InlineMacro, InlineNode, Options, ast::InlineKind, parse,
-    parse_inline,
+    CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, Options,
+    ast::{ContentRef, IndexTermRef, InlineKind},
+    parse, parse_inline,
 };
 
 type Error = Box<dyn std::error::Error>;
 
-fn index<'a>(nodes: &'a [InlineNode<'a>]) -> Result<&'a IndexTerm<'a>, Error> {
+fn index<'a>(nodes: &'a [InlineNode<'a>]) -> Result<IndexTermRef<'a>, Error> {
     match nodes {
-        [InlineNode::Macro(InlineMacro::IndexTerm(term))] => Ok(term),
+        [InlineNode::Macro(InlineMacro::IndexTerm(term))] => Ok(IndexTermRef::from(term.as_ref())),
         _ => Err(format!("expected one index term: {nodes:?}").into()),
     }
 }
 
-fn text(nodes: &[InlineNode<'_>]) -> Result<String, Error> {
+fn text(nodes: ContentRef<'_>) -> Result<String, Error> {
     nodes
-        .iter()
+        .inlines()
         .map(|node| {
-            let InlineNode::PlainText(node) = node else {
+            let InlineKind::Plain(text) = node.kind() else {
                 return Err(format!("expected plain label: {node:?}").into());
             };
-            Ok(acdc_parser::ast::PlainRef::from(node).text())
+            Ok(text.text())
         })
         .collect()
 }
@@ -44,7 +45,7 @@ fn named_index_controls_stay_out_of_visible_labels(
     let term = index(parsed.inlines())?;
     assert!(term.is_visible());
     assert_eq!(text(term.term())?, expected);
-    assert_eq!(text(term.catalog_entry().term())?, expected);
+    assert_eq!(text(term.catalog().term())?, expected);
     Ok(())
 }
 
@@ -120,16 +121,22 @@ fn named_index_controls_preserve_complete_child_labels() -> Result<(), Error> {
     let source = "indexterm2:[Before link:guide.adoc[Child,role=child] after,custom=outer]";
     let parsed = parse_inline(source, &Options::default())?;
     let term = index(parsed.inlines())?;
+    let content = ContentAttribute::from(term.term()).into_inlines();
     let [
         InlineNode::PlainText(before),
         InlineNode::Macro(InlineMacro::Link(link)),
         InlineNode::PlainText(after),
-    ] = term.term()
+    ] = content.as_slice()
     else {
         return Err(format!("expected complete child link: {:?}", term.term()).into());
     };
     assert_eq!(acdc_parser::ast::PlainRef::from(before).text(), "Before ");
-    assert_eq!(text(&link.clone().take_text())?, "Child");
+    assert_eq!(
+        text(ContentRef::from(&ContentAttribute::new(
+            link.clone().take_text()
+        )))?,
+        "Child"
+    );
     assert_eq!(link.clone_metadata().roles, ["child"]);
     assert_eq!(acdc_parser::ast::PlainRef::from(after).text(), " after");
     assert_eq!(

@@ -21,13 +21,13 @@ fn registered_caption_content_keeps_formatting_policy_and_recursion_guard() -> R
             .map(acdc_parser::ast::ReferenceRef::from);
         let guard = XrefGuard::default();
         let mut xref = CrossReference::new("target", Location::default());
-        xref.xrefstyle = XrefStyle::Short;
+        xref.set_xrefstyle(XrefStyle::Short);
         assert!(matches!(
             resolve_reference(reference, &xref, &guard),
             XrefDisplay::ShortCaption(prefix) if prefix == "Préfixe →"
         ));
         assert!(!guard.is_resolving());
-        xref.xrefstyle = XrefStyle::Full;
+        xref.set_xrefstyle(XrefStyle::Full);
         let display = resolve_reference(reference, &xref, &guard);
         assert!(
             matches!(&display, XrefDisplay::FullCaption(prefix, _, _) if prefix == "Préfixe →")
@@ -51,7 +51,7 @@ fn empty_or_unnumbered_registered_captions_keep_title_fallback() -> Result<(), E
     let parsed_references = std::collections::HashMap::from(parsed.document().references());
     let mut reference = parsed_references.get("target").ok_or("target")?.clone();
     let mut xref = CrossReference::new("target", Location::default());
-    xref.xrefstyle = XrefStyle::Short;
+    xref.set_xrefstyle(XrefStyle::Short);
     let guard = XrefGuard::default();
     for caption in [
         None,

@@ -132,3 +132,9 @@ impl<'doc> From<&'doc IndexTerm<'doc>> for IndexTermRef<'doc> {
         Self::new(owner)
     }
 }
+
+impl<'doc> From<IndexTermRef<'doc>> for IndexTerm<'doc> {
+    fn from(read: IndexTermRef<'doc>) -> Self {
+        read.node.clone()
+    }
+}

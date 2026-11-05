@@ -211,7 +211,7 @@ fn constructed_and_cloned_owners_use_the_same_reads() -> Result<(), Error> {
     for inline in parsed.inlines() {
         if let InlineNode::Macro(InlineMacro::Button(owner)) = inline {
             let mut owner = owner.clone();
-            owner.label = ContentAttribute::default();
+            owner.replace_label(ContentAttribute::default());
             assert!(ButtonRef::from(&owner).label().is_empty());
             families += 1;
         } else if let InlineNode::Macro(InlineMacro::Keyboard(owner)) = inline {
@@ -225,8 +225,8 @@ fn constructed_and_cloned_owners_use_the_same_reads() -> Result<(), Error> {
             families += 1;
         } else if let InlineNode::Macro(InlineMacro::Menu(owner)) = inline {
             let mut owner = owner.clone();
-            owner.target = ContentAttribute::default();
-            owner.items = vec![ContentAttribute::default()];
+            owner.replace_target(ContentAttribute::default());
+            owner.replace_items(vec![ContentAttribute::default()]);
             assert!(MenuRef::from(&owner).target().is_empty());
             assert!(
                 MenuRef::from(&owner)

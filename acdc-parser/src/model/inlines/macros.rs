@@ -164,28 +164,46 @@ impl<'a> Footnote<'a> {
 }
 
 /// A `Button` represents an inline button in a document.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Button, ContentAttribute, Location};
+/// let mut owner = Button::new(ContentAttribute::default(), Location::default());
+/// owner.label = ContentAttribute::default();
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Button<'a> {
-    pub label: ContentAttribute<'a>,
-    pub location: Location,
+    pub(crate) label: ContentAttribute<'a>,
+    pub(crate) location: Location,
 }
 
 /// A `Menu` represents an inline menu in a document.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Menu, ContentAttribute, Location};
+/// let mut owner = Menu::new(ContentAttribute::default(), Vec::new(), Location::default());
+/// owner.items = Vec::new();
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Menu<'a> {
-    pub target: ContentAttribute<'a>,
-    pub items: Vec<ContentAttribute<'a>>,
-    pub location: Location,
+    pub(crate) target: ContentAttribute<'a>,
+    pub(crate) items: Vec<ContentAttribute<'a>>,
+    pub(crate) location: Location,
 }
 
 /// A `Keyboard` represents an inline keyboard shortcut in a document.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Keyboard, ContentAttribute, Location};
+/// let mut owner = Keyboard::new(Vec::new(), Location::default());
+/// owner.keys = Vec::new();
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Keyboard<'a> {
-    pub keys: Vec<Key<'a>>,
-    pub location: Location,
+    pub(crate) keys: Vec<Key<'a>>,
+    pub(crate) location: Location,
 }
 
 impl<'a> Keyboard<'a> {
@@ -196,12 +214,111 @@ impl<'a> Keyboard<'a> {
     }
 }
 
+impl<'a> Button<'a> {
+    /// Construct a button from a prepared label, including an empty label.
+    #[must_use]
+    pub fn new(label: ContentAttribute<'a>, location: Location) -> Self {
+        Self { label, location }
+    }
+
+    /// Replace prepared label content without parsing or registration.
+    pub fn replace_label(&mut self, label: ContentAttribute<'a>) -> ContentAttribute<'a> {
+        std::mem::replace(&mut self.label, label)
+    }
+
+    /// Replace the node span, keeping child locations separate.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+}
+
+impl<'a> Menu<'a> {
+    /// Construct a menu from a prepared target and ordered item labels.
+    #[must_use]
+    pub fn new(
+        target: ContentAttribute<'a>,
+        items: Vec<ContentAttribute<'a>>,
+        location: Location,
+    ) -> Self {
+        Self {
+            target,
+            items,
+            location,
+        }
+    }
+
+    /// Replace the prepared menu name without interpreting its content.
+    pub fn replace_target(&mut self, target: ContentAttribute<'a>) -> ContentAttribute<'a> {
+        std::mem::replace(&mut self.target, target)
+    }
+
+    /// Transfer prepared item labels, retaining their allocation and empty positions.
+    pub fn replace_items(&mut self, items: Vec<ContentAttribute<'a>>) -> Vec<ContentAttribute<'a>> {
+        std::mem::replace(&mut self.items, items)
+    }
+
+    /// Transfer the item sequence, leaving it empty.
+    pub fn take_items(&mut self) -> Vec<ContentAttribute<'a>> {
+        std::mem::take(&mut self.items)
+    }
+
+    /// Append one prepared item without splitting or parsing it.
+    pub fn push_item(&mut self, item: ContentAttribute<'a>) {
+        self.items.push(item);
+    }
+
+    /// Replace the node span, keeping target and item locations separate.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+}
+
+impl<'a> Keyboard<'a> {
+    /// Transfer prepared keys, retaining their allocation and empty positions.
+    pub fn replace_keys(&mut self, keys: Vec<Key<'a>>) -> Vec<Key<'a>> {
+        std::mem::replace(&mut self.keys, keys)
+    }
+
+    /// Transfer the key sequence, leaving it empty.
+    pub fn take_keys(&mut self) -> Vec<Key<'a>> {
+        std::mem::take(&mut self.keys)
+    }
+
+    /// Append one prepared key without interpreting separators or parsing it.
+    pub fn push_key(&mut self, key: Key<'a>) {
+        self.keys.push(key);
+    }
+
+    /// Replace the node span, keeping key locations separate.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+}
+
 /// One key label in a keyboard shortcut.
 pub type Key<'a> = ContentAttribute<'a>;
 
 /// A `CrossReference` represents an inline cross-reference (xref) in a document.
 ///
 /// Equality and debug output omit parser-only state.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{CrossReference, Location};
+/// let mut node = CrossReference::new("target", Location::default());
+/// node.text = Vec::new();
+/// ```
+///
+/// ```compile_fail,E0624
+/// use acdc_parser::{CrossReference, Location};
+/// let mut node = CrossReference::new("target", Location::default());
+/// let _ = node.attributes();
+/// ```
+///
+/// ```compile_fail,E0599
+/// use acdc_parser::{CrossReference, Location};
+/// let mut node = CrossReference::new("target", Location::default());
+/// node.options_mut().push("option");
+/// ```
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct CrossReference<'a> {
@@ -209,17 +326,17 @@ pub struct CrossReference<'a> {
     /// matching ID; references to fully included sources contain the fragment ID.
     /// An empty local target addresses the document top. Unresolved references
     /// retain their reference text or fragment ID.
-    pub target: &'a str,
+    pub(crate) target: &'a str,
     /// Whether `target` addresses this document, even when its ID is missing.
     /// Set this together with `target` when changing a reference destination.
-    pub target_is_local: bool,
-    pub text: Vec<InlineNode<'a>>,
-    pub location: Location,
-    pub xrefstyle: XrefStyle,
-    pub caption_label: XrefCaptionLabel<'a>,
+    pub(crate) target_is_local: bool,
+    pub(crate) text: Vec<InlineNode<'a>>,
+    pub(crate) location: Location,
+    pub(crate) xrefstyle: XrefStyle,
+    pub(crate) caption_label: XrefCaptionLabel<'a>,
     signifier: XrefSignifier<'a>,
     pub(crate) section_signifiers: Option<&'a [XrefSignifier<'a>; REFSIG_ATTRIBUTES.len()]>,
-    pub metadata: InlineMetadata<'a>,
+    pub(crate) metadata: InlineMetadata<'a>,
     pub(crate) macro_attributes: MacroAttributes<'a>,
     pub(crate) caption_label_snapshot_id: Option<NonZeroUsize>,
     pub(crate) resolve_natural_target: bool,
@@ -229,7 +346,7 @@ pub struct CrossReference<'a> {
 impl<'a> CrossReference<'a> {
     /// Creates a new `CrossReference` with the given target. Bare IDs default
     /// to local targets; paths with extensions or schemes default to external.
-    /// Set `target_is_local` explicitly for an ID that resembles a filename.
+    /// Use `set_target_is_local` for an ID that resembles a filename.
     #[must_use]
     pub fn new(target: &'a str, location: Location) -> Self {
         Self {
@@ -251,7 +368,7 @@ impl<'a> CrossReference<'a> {
 
     /// Scalar controls and extensions, excluding identity, roles, options, and xref style.
     #[must_use]
-    pub fn attributes(&self) -> &ElementAttributes<'a> {
+    pub(crate) fn attributes(&self) -> &ElementAttributes<'a> {
         &self.macro_attributes.attributes
     }
 
@@ -259,7 +376,7 @@ impl<'a> CrossReference<'a> {
     ///
     /// # Errors
     /// Rejects `xrefstyle`, `id`, `role`/`roles`, and `opts`/`options`.
-    /// Update their dedicated fields instead.
+    /// Use the dedicated edit methods instead.
     pub fn set_attribute(
         &mut self,
         name: AttributeName<'a>,
@@ -281,13 +398,110 @@ impl<'a> CrossReference<'a> {
 
     /// Option tokens in their retained order.
     #[must_use]
-    pub fn options(&self) -> &[&'a str] {
+    pub(crate) fn options(&self) -> &[&'a str] {
         &self.macro_attributes.options
     }
 
-    /// Edit option tokens without creating attribute-map aliases.
-    pub fn options_mut(&mut self) -> &mut Vec<&'a str> {
-        &mut self.macro_attributes.options
+    /// Replace scalar controls after validating the complete map.
+    ///
+    /// # Errors
+    /// Rejects `xrefstyle`, `id`, `role`/`roles`, and `opts`/`options`.
+    /// On error, this node stays unchanged.
+    pub fn set_attributes(
+        &mut self,
+        attributes: ElementAttributes<'a>,
+    ) -> Result<(), ReservedAttribute> {
+        self.macro_attributes.replace(attributes, &["xrefstyle"])
+    }
+
+    /// Copy scalar controls without copying content, identity, roles or options.
+    #[must_use]
+    pub fn clone_attributes(&self) -> ElementAttributes<'a> {
+        self.macro_attributes.attributes.clone()
+    }
+
+    /// Transfer scalar controls, leaving none.
+    #[must_use]
+    pub fn take_attributes(&mut self) -> ElementAttributes<'a> {
+        std::mem::take(&mut self.macro_attributes.attributes)
+    }
+
+    /// Replace prepared option names, retaining their order and source lifetimes.
+    pub fn replace_options(&mut self, options: Vec<&'a str>) -> Vec<&'a str> {
+        std::mem::replace(&mut self.macro_attributes.options, options)
+    }
+
+    /// Transfer option names, leaving none.
+    pub fn take_options(&mut self) -> Vec<&'a str> {
+        std::mem::take(&mut self.macro_attributes.options)
+    }
+
+    /// Append a prepared option name without interpreting or splitting it.
+    pub fn push_option(&mut self, option: &'a str) {
+        self.macro_attributes.options.push(option);
+    }
+
+    /// Set prepared identity and roles without registering them in a document.
+    pub fn set_metadata(&mut self, metadata: InlineMetadata<'a>) {
+        self.metadata = metadata;
+    }
+
+    /// Copy identity and roles, keeping scalar controls and content separate.
+    #[must_use]
+    pub fn clone_metadata(&self) -> InlineMetadata<'a> {
+        self.metadata.clone()
+    }
+
+    /// Transfer identity and roles, leaving them absent.
+    #[must_use]
+    pub fn take_metadata(&mut self) -> InlineMetadata<'a> {
+        std::mem::take(&mut self.metadata)
+    }
+
+    /// Replace prepared explicit text; empty text selects automatic display.
+    pub fn replace_text(&mut self, text: Vec<InlineNode<'a>>) -> Vec<InlineNode<'a>> {
+        std::mem::replace(&mut self.text, text)
+    }
+
+    /// Transfer explicit text, leaving automatic display selected.
+    pub fn take_text(&mut self) -> Vec<InlineNode<'a>> {
+        std::mem::take(&mut self.text)
+    }
+
+    /// Append one prepared inline without parsing or registration.
+    pub fn push_inline(&mut self, inline: InlineNode<'a>) {
+        self.text.push(inline);
+    }
+
+    /// Replace the effective destination, keeping its local/external classification.
+    /// Use `set_target_is_local` to change that classification explicitly.
+    pub fn replace_target(&mut self, target: &'a str) -> &'a str {
+        self.resolve_natural_target = false;
+        self.source_syntax = XrefSourceSyntax::Literal;
+        std::mem::replace(&mut self.target, target)
+    }
+
+    /// Set destination classification without resolving or registering the target.
+    pub fn set_target_is_local(&mut self, local: bool) {
+        self.target_is_local = local;
+        self.resolve_natural_target = false;
+        self.source_syntax = XrefSourceSyntax::Literal;
+    }
+
+    /// Set the display style, keeping explicit text and declaration snapshots.
+    pub fn set_xrefstyle(&mut self, style: XrefStyle) {
+        self.xrefstyle = style;
+    }
+
+    /// Set the caption label policy without replaying declaration attributes.
+    pub fn set_caption_label(&mut self, label: XrefCaptionLabel<'a>) {
+        self.caption_label = label;
+        self.caption_label_snapshot_id = None;
+    }
+
+    /// Replace the node span, keeping ID and content locations separate.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 
     pub(crate) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
@@ -309,7 +523,7 @@ impl<'a> CrossReference<'a> {
     /// Sets the cross-reference display text as inline nodes.
     #[must_use]
     pub fn with_text(mut self, text: Vec<InlineNode<'a>>) -> Self {
-        self.text = text;
+        self.replace_text(text);
         self
     }
 
@@ -618,20 +832,38 @@ pub enum IndexTermRelationship<'a> {
 }
 
 /// An `IndexTerm` represents an index term in a document.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{IndexTerm, IndexTermKind, Location};
+/// let mut node = IndexTerm::new(IndexTermKind::Flow(Vec::new()), Location::default());
+/// node.kind = IndexTermKind::Flow(Vec::new());
+/// ```
+///
+/// ```compile_fail,E0624
+/// use acdc_parser::{IndexTerm, IndexTermKind, Location};
+/// let mut node = IndexTerm::new(IndexTermKind::Flow(Vec::new()), Location::default());
+/// let _ = node.term();
+/// ```
+///
+/// ```compile_fail,E0624
+/// use acdc_parser::{IndexTerm, IndexTermKind, Location};
+/// let mut node = IndexTerm::new(IndexTermKind::Flow(Vec::new()), Location::default());
+/// let _ = node.catalog_entry();
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct IndexTerm<'a> {
     /// The kind and content of this index term.
-    pub kind: IndexTermKind<'a>,
+    pub(crate) kind: IndexTermKind<'a>,
     /// The relationship from this entry to other index terms.
-    pub relationship: Option<IndexTermRelationship<'a>>,
+    pub(crate) relationship: Option<IndexTermRelationship<'a>>,
     /// Resolved catalog labels at registration, before later substitutions.
     pub(crate) catalog: Option<Box<IndexTerm<'a>>>,
     /// Substitutions selected when the term is registered.
     pub(crate) catalog_substitutions: Option<crate::model::substitution::SubstitutionPlan>,
-    pub metadata: InlineMetadata<'a>,
+    pub(crate) metadata: InlineMetadata<'a>,
     pub(crate) macro_attributes: MacroAttributes<'a>,
-    pub location: Location,
+    pub(crate) location: Location,
 }
 
 impl<'a> IndexTerm<'a> {
@@ -651,7 +883,7 @@ impl<'a> IndexTerm<'a> {
 
     /// Scalar controls and extensions, excluding identity, roles, options, and labels.
     #[must_use]
-    pub fn attributes(&self) -> &ElementAttributes<'a> {
+    pub(crate) fn attributes(&self) -> &ElementAttributes<'a> {
         &self.macro_attributes.attributes
     }
 
@@ -659,7 +891,7 @@ impl<'a> IndexTerm<'a> {
     ///
     /// # Errors
     /// Rejects `terms`, `see`, `see-also`, `id`, `role`/`roles`, and `opts`/`options`.
-    /// Update their dedicated fields instead.
+    /// Use the dedicated edit methods instead.
     pub fn set_attribute(
         &mut self,
         name: AttributeName<'a>,
@@ -683,13 +915,88 @@ impl<'a> IndexTerm<'a> {
 
     /// Option tokens in their retained order.
     #[must_use]
-    pub fn options(&self) -> &[&'a str] {
+    pub(crate) fn options(&self) -> &[&'a str] {
         &self.macro_attributes.options
     }
 
-    /// Edit option tokens without creating attribute-map aliases.
-    pub fn options_mut(&mut self) -> &mut Vec<&'a str> {
-        &mut self.macro_attributes.options
+    /// Replace scalar controls after validating the complete map.
+    ///
+    /// # Errors
+    /// Rejects `terms`, `see`, `see-also`, `id`, `role`/`roles`, and `opts`/`options`.
+    /// On error, this node stays unchanged.
+    pub fn set_attributes(
+        &mut self,
+        attributes: ElementAttributes<'a>,
+    ) -> Result<(), ReservedAttribute> {
+        self.macro_attributes
+            .replace(attributes, &["terms", "see", "see-also"])
+    }
+
+    /// Copy scalar controls without copying content, identity, roles or options.
+    #[must_use]
+    pub fn clone_attributes(&self) -> ElementAttributes<'a> {
+        self.macro_attributes.attributes.clone()
+    }
+
+    /// Transfer scalar controls, leaving none.
+    #[must_use]
+    pub fn take_attributes(&mut self) -> ElementAttributes<'a> {
+        std::mem::take(&mut self.macro_attributes.attributes)
+    }
+
+    /// Replace prepared option names, retaining their order and source lifetimes.
+    pub fn replace_options(&mut self, options: Vec<&'a str>) -> Vec<&'a str> {
+        std::mem::replace(&mut self.macro_attributes.options, options)
+    }
+
+    /// Transfer option names, leaving none.
+    pub fn take_options(&mut self) -> Vec<&'a str> {
+        std::mem::take(&mut self.macro_attributes.options)
+    }
+
+    /// Append a prepared option name without interpreting or splitting it.
+    pub fn push_option(&mut self, option: &'a str) {
+        self.macro_attributes.options.push(option);
+    }
+
+    /// Set prepared identity and roles without registering them in a document.
+    pub fn set_metadata(&mut self, metadata: InlineMetadata<'a>) {
+        self.metadata = metadata;
+    }
+
+    /// Copy identity and roles, keeping scalar controls and content separate.
+    #[must_use]
+    pub fn clone_metadata(&self) -> InlineMetadata<'a> {
+        self.metadata.clone()
+    }
+
+    /// Transfer identity and roles, leaving them absent.
+    #[must_use]
+    pub fn take_metadata(&mut self) -> InlineMetadata<'a> {
+        std::mem::take(&mut self.metadata)
+    }
+
+    /// Replace prepared visible or hierarchical content, retaining registered labels.
+    pub fn replace_kind(&mut self, kind: IndexTermKind<'a>) -> IndexTermKind<'a> {
+        std::mem::replace(&mut self.kind, kind)
+    }
+
+    /// Replace the occurrence relationship, keeping its registration snapshot.
+    pub fn replace_relationship(
+        &mut self,
+        relationship: Option<IndexTermRelationship<'a>>,
+    ) -> Option<IndexTermRelationship<'a>> {
+        std::mem::replace(&mut self.relationship, relationship)
+    }
+
+    /// Transfer the occurrence relationship, leaving it absent.
+    pub fn take_relationship(&mut self) -> Option<IndexTermRelationship<'a>> {
+        self.relationship.take()
+    }
+
+    /// Replace the occurrence span, keeping label and ID locations separate.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 
     pub(crate) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
@@ -734,13 +1041,13 @@ impl<'a> IndexTerm<'a> {
     /// These can differ from the displayed term when substitutions run after
     /// index registration. The returned entry is not another occurrence.
     #[must_use]
-    pub fn catalog_entry(&self) -> &Self {
+    pub(crate) fn catalog_entry(&self) -> &Self {
         self.catalog.as_deref().unwrap_or(self)
     }
 
     /// Returns the primary term.
     #[must_use]
-    pub fn term(&self) -> &[InlineNode<'a>] {
+    pub(crate) fn term(&self) -> &[InlineNode<'a>] {
         match &self.kind {
             IndexTermKind::Flow(term) | IndexTermKind::Concealed { term, .. } => term,
         }
@@ -748,7 +1055,7 @@ impl<'a> IndexTerm<'a> {
 
     /// Returns the secondary term, if any.
     #[must_use]
-    pub fn secondary(&self) -> Option<&[InlineNode<'a>]> {
+    pub(crate) fn secondary(&self) -> Option<&[InlineNode<'a>]> {
         match &self.kind {
             IndexTermKind::Flow(_) => None,
             IndexTermKind::Concealed { secondary, .. } => secondary.as_deref(),
@@ -757,7 +1064,7 @@ impl<'a> IndexTerm<'a> {
 
     /// Returns the tertiary term, if any.
     #[must_use]
-    pub fn tertiary(&self) -> Option<&[InlineNode<'a>]> {
+    pub(crate) fn tertiary(&self) -> Option<&[InlineNode<'a>]> {
         match &self.kind {
             IndexTermKind::Flow(_) => None,
             IndexTermKind::Concealed { tertiary, .. } => tertiary.as_deref(),
@@ -914,5 +1221,62 @@ mod prepared_note_tests {
         note.replace_id(Some("new"));
         assert!(note.definition_source.is_none());
         assert!(note.registration_substitutions.is_none());
+    }
+}
+
+#[cfg(test)]
+mod ownership_tests {
+    use super::*;
+    use crate::{
+        Plain, Substitution,
+        ast::{CrossReferenceRef, IndexTermRef},
+        model::substitution::SubstitutionPlan,
+    };
+
+    #[test]
+    fn explicit_xref_edits_discard_pending_parser_hints() {
+        let mut node = CrossReference::new("target", Location::default());
+        node.resolve_natural_target = true;
+        node.source_syntax = XrefSourceSyntax::Macro;
+        node.caption_label_snapshot_id = NonZeroUsize::new(1);
+        let mut copied = CrossReference::from(CrossReferenceRef::from(&node));
+        assert!(copied.resolve_natural_target);
+        assert!(matches!(copied.source_syntax, XrefSourceSyntax::Macro));
+        assert_eq!(copied.caption_label_snapshot_id, NonZeroUsize::new(1));
+        copied.replace_target("new");
+        assert!(!copied.resolve_natural_target);
+        assert!(matches!(copied.source_syntax, XrefSourceSyntax::Literal));
+        copied.set_caption_label(XrefCaptionLabel::NumberOnly);
+        assert!(copied.caption_label_snapshot_id.is_none());
+        assert!(node.resolve_natural_target);
+        assert_eq!(node.caption_label_snapshot_id, NonZeroUsize::new(1));
+        node.set_target_is_local(false);
+        assert!(!node.resolve_natural_target);
+        assert!(matches!(node.source_syntax, XrefSourceSyntax::Literal));
+    }
+
+    #[test]
+    fn prepared_index_edits_keep_registration_plan_and_labels() {
+        let kind = |text| {
+            IndexTermKind::Flow(vec![InlineNode::PlainText(Plain::new(
+                text,
+                Location::default(),
+            ))])
+        };
+        let mut node = IndexTerm::new(kind("Displayed"), Location::default());
+        node.catalog = Some(Box::new(IndexTerm::new(
+            kind("Registered"),
+            Location::default(),
+        )));
+        let plan =
+            SubstitutionPlan::from_substitutions(&[Substitution::Macros, Substitution::Attributes]);
+        node.catalog_substitutions = Some(plan);
+        let mut copied = IndexTerm::from(IndexTermRef::from(&node));
+        assert_eq!(copied.catalog, node.catalog);
+        assert_eq!(copied.catalog_substitutions, Some(plan));
+        copied.replace_kind(kind("Edited"));
+        copied.replace_relationship(Some(IndexTermRelationship::See { target: Vec::new() }));
+        assert_eq!(copied.catalog, node.catalog);
+        assert_eq!(copied.catalog_substitutions, Some(plan));
     }
 }

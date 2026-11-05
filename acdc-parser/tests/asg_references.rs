@@ -276,8 +276,8 @@ fn unsupported_reference_properties_fail_at_the_property() -> Result<(), Error> 
 #[test]
 fn target_classification_cannot_be_silently_changed() {
     let mut xref = CrossReference::new("file.adoc", Location::default());
-    xref.target_is_local = true;
-    xref.xrefstyle = XrefStyle::Default;
+    xref.set_target_is_local(true);
+    xref.set_xrefstyle(XrefStyle::Default);
     assert!(
         matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref)))]))), Err(asg::Error::Unsupported {path, ..})
         if path == "/0/target_is_local")

@@ -321,7 +321,8 @@ fn source_document_stem(path: &str, has_fragment: bool) -> Option<&str> {
 mod tests {
     use acdc_parser::{
         Block, CrossReference, Document, Error, InlineMacro, InlineNode, Location, Options,
-        ParseResult, SectionKind, XrefCaptionLabel, XrefSignifier, XrefStyle, parse,
+        ParseResult, SectionKind, XrefCaptionLabel, XrefSignifier, XrefStyle,
+        ast::CrossReferenceRef, parse,
     };
 
     use super::{
@@ -359,7 +360,7 @@ mod tests {
 
     fn xref(target: &'static str, style: XrefStyle) -> CrossReference<'static> {
         let mut xref = CrossReference::new(target, Location::default());
-        xref.xrefstyle = style;
+        xref.set_xrefstyle(style);
         xref
     }
 
@@ -428,9 +429,13 @@ mod tests {
             .map(|xref| {
                 let mut xref = xref.clone();
                 // Include references whose style was basic when parsed.
-                xref.xrefstyle = XrefStyle::Short;
+                xref.set_xrefstyle(XrefStyle::Short);
                 let guard = XrefGuard::default();
-                let display = resolve_xref(references.get(xref.target), &xref, &guard);
+                let display = resolve_xref(
+                    references.get(CrossReferenceRef::from(&xref).target()),
+                    &xref,
+                    &guard,
+                );
                 if let XrefDisplay::ShortCaption(prefix) = display {
                     prefix
                 } else {
@@ -742,7 +747,7 @@ mod tests {
                     && matches!(title.inlines().map(acdc_parser::ast::InlineRef::kind).collect::<Vec<_>>().as_slice(), [acdc_parser::ast::InlineKind::Plain(text)] if text.text() == "A title")
         ));
         let mut number_only = xref("titled", XrefStyle::Short);
-        number_only.caption_label = XrefCaptionLabel::NumberOnly;
+        number_only.set_caption_label(XrefCaptionLabel::NumberOnly);
         assert!(matches!(
             resolve_xref(references.get("titled"), &number_only, &guard),
             XrefDisplay::ShortCaption(prefix) if prefix == "1"
@@ -775,9 +780,11 @@ mod tests {
                 let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
                     return None;
                 };
-                let XrefDisplay::ShortCaption(prefix) =
-                    resolve_xref(references.get(xref.target), xref.as_ref(), &guard)
-                else {
+                let XrefDisplay::ShortCaption(prefix) = resolve_xref(
+                    references.get(CrossReferenceRef::from(xref.as_ref()).target()),
+                    xref.as_ref(),
+                    &guard,
+                ) else {
                     return None;
                 };
                 Some(prefix)
@@ -868,7 +875,7 @@ mod tests {
         let parsed = catalog()?;
         let parsed_references = std::collections::HashMap::from(parsed.document().references());
         let mut external = xref("titled", XrefStyle::Basic);
-        external.target_is_local = false;
+        external.set_target_is_local(false);
         let guard = XrefGuard::default();
         assert!(matches!(
             resolve_xref(parsed_references.get("titled"), &external, &guard),
@@ -884,7 +891,7 @@ mod tests {
         let references = parsed.document().references();
         for (target, expected) in [("labelled", "A label"), ("titled", "A title")] {
             let mut external = xref(target, XrefStyle::Full);
-            external.target_is_local = false;
+            external.set_target_is_local(false);
             let guard = XrefGuard::default();
             assert!(
                 matches!(resolve_reference(references.get(target), &external, &guard), XrefDisplay::External(value) if value == target)
@@ -910,8 +917,11 @@ mod tests {
             );
             drop(display);
             assert!(!guard.is_resolving());
-            assert!(!external.target_is_local);
-            assert_eq!(external.xrefstyle, XrefStyle::Full);
+            assert!(!CrossReferenceRef::from(&external).target_is_local());
+            assert_eq!(
+                CrossReferenceRef::from(&external).xrefstyle(),
+                XrefStyle::Full
+            );
         }
         Ok(())
     }
@@ -925,7 +935,7 @@ mod tests {
             ("other.adoc#part", "[other.adoc#part]"),
         ] {
             let mut external = xref(target, XrefStyle::Basic);
-            external.target_is_local = false;
+            external.set_target_is_local(false);
             assert!(
                 matches!(resolve_local_reference(None, &external, &guard), XrefDisplay::Unresolved(value) if value == expected)
             );

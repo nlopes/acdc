@@ -73,3 +73,9 @@ impl<'doc> From<&'doc CrossReference<'doc>> for CrossReferenceRef<'doc> {
         Self::new(owner)
     }
 }
+
+impl<'doc> From<CrossReferenceRef<'doc>> for CrossReference<'doc> {
+    fn from(read: CrossReferenceRef<'doc>) -> Self {
+        read.node.clone()
+    }
+}

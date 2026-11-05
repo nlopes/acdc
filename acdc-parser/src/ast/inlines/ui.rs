@@ -47,3 +47,21 @@ impl<'doc> From<&'doc Menu<'doc>> for MenuRef<'doc> {
         Self::new(owner)
     }
 }
+
+impl<'doc> From<ButtonRef<'doc>> for Button<'doc> {
+    fn from(read: ButtonRef<'doc>) -> Self {
+        read.node.clone()
+    }
+}
+
+impl<'doc> From<MenuRef<'doc>> for Menu<'doc> {
+    fn from(read: MenuRef<'doc>) -> Self {
+        read.node.clone()
+    }
+}
+
+impl<'doc> From<KeyboardRef<'doc>> for Keyboard<'doc> {
+    fn from(read: KeyboardRef<'doc>) -> Self {
+        read.node.clone()
+    }
+}

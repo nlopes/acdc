@@ -4,7 +4,8 @@ use std::error::Error;
 
 use acdc_converters_core::{InlineTextTransform, code::code_inline_content};
 use acdc_parser::{
-    CompatibilityMode, InlineMacro, InlineNode, Options, ast::InlineRef, parse_inline,
+    CompatibilityMode, IndexTermKind, InlineMacro, InlineNode, Options, ast::InlineRef,
+    parse_inline,
 };
 
 fn code_inline_children<'source>(node: &InlineNode<'source>) -> Option<Vec<InlineNode<'source>>> {
@@ -17,8 +18,13 @@ fn code_inline_children<'source>(node: &InlineNode<'source>) -> Option<Vec<Inlin
         InlineNode::SuperscriptText(mut span) => span.take_content(),
         InlineNode::CurvedQuotationText(mut span) => span.take_content(),
         InlineNode::CurvedApostropheText(mut span) => span.take_content(),
-        InlineNode::Macro(InlineMacro::IndexTerm(term)) if term.is_visible() => {
-            term.term().to_vec()
+        InlineNode::Macro(InlineMacro::IndexTerm(mut term)) if term.is_visible() => {
+            if let IndexTermKind::Flow(content) = term.replace_kind(IndexTermKind::Flow(Vec::new()))
+            {
+                content
+            } else {
+                return None;
+            }
         }
         InlineNode::PlainText(_)
         | InlineNode::Symbol(_)

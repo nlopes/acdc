@@ -212,9 +212,11 @@ fn hyperlink_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>> {
 #[test]
 fn cross_reference_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>> {
     let mut owner = acdc_parser::CrossReference::new("target", Location::default());
-    owner.xrefstyle = acdc_parser::XrefStyle::Short;
-    owner.metadata.roles.push("resource");
-    owner.options_mut().push("nofollow");
+    owner.set_xrefstyle(acdc_parser::XrefStyle::Short);
+    let mut metadata = owner.take_metadata();
+    metadata.roles.push("resource");
+    owner.set_metadata(metadata);
+    owner.push_option("nofollow");
     owner.set_attribute(String::from("custom").into(), String::from("owned").into())?;
     let region = Region::new(ALLOCATOR);
     let node = acdc_parser::ast::CrossReferenceRef::from(&owner);

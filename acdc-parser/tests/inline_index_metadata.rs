@@ -55,7 +55,7 @@ fn index_metadata_has_one_owner_and_consistent_reads(
     for name in [
         "id", "role", "roles", "opts", "options", "terms", "see", "see-also",
     ] {
-        assert!(owner.attributes().get(name).is_none(), "{name}");
+        assert!(owner.clone_attributes().get(name).is_none(), "{name}");
     }
     Ok(())
 }
@@ -73,8 +73,10 @@ fn index_control_edits_cannot_shadow_labels_or_metadata() -> Result<(), Error> {
         assert!(owner.remove_attribute(name).is_err(), "{name}");
     }
     owner.set_attribute("custom".into(), "".into())?;
-    owner.metadata.roles.push("entry");
-    owner.options_mut().push("retained");
+    let mut metadata = owner.take_metadata();
+    metadata.roles.push("entry");
+    owner.set_metadata(metadata);
+    owner.push_option("retained");
     let node = IndexTermRef::from(&owner);
     assert_eq!(
         node.attributes().get("custom"),
@@ -264,8 +266,10 @@ fn index_quoted_labels_keep_authored_escape_ranges(
     let [_, InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed.inlines() else {
         return Err("index term".into());
     };
-    let [InlineNode::PlainText(label)] = owner.term() else {
-        return Err(format!("label: {:?}", owner.term()).into());
+    let content = acdc_parser::ContentAttribute::from(IndexTermRef::from(owner.as_ref()).term())
+        .into_inlines();
+    let [InlineNode::PlainText(label)] = content.as_slice() else {
+        return Err(format!("label: {:?}", content.as_slice()).into());
     };
     assert_eq!(acdc_parser::ast::PlainRef::from(label).text(), expected);
     assert_eq!(

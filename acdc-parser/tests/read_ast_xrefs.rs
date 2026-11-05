@@ -151,12 +151,14 @@ fn xref_updates_have_one_owner_and_keep_reference_policy() -> Result<(), Error> 
             name
         );
     }
-    owner.metadata.roles.push("resource");
-    owner.options_mut().push("nofollow");
+    let mut metadata = owner.take_metadata();
+    metadata.roles.push("resource");
+    owner.set_metadata(metadata);
+    owner.push_option("nofollow");
     owner.set_attribute("title".into(), "".into())?;
     owner.set_attribute("reftext".into(), "extension".into())?;
-    owner.xrefstyle = XrefStyle::Full;
-    owner.caption_label = XrefCaptionLabel::NumberOnly;
+    owner.set_xrefstyle(XrefStyle::Full);
+    owner.set_caption_label(XrefCaptionLabel::NumberOnly);
     owner.set_signifier(XrefSignifier::AtReference("Part"));
     let node = CrossReferenceRef::from(&owner);
     assert_eq!(
@@ -190,8 +192,8 @@ fn xref_source_aliases_share_token_ownership() -> Result<(), Error> {
     assert_eq!(node.id().ok_or("ID")?.as_str(), "last");
     assert_eq!(node.roles().iter().collect::<Vec<_>>(), ["one", "two"]);
     assert_eq!(node.options().iter().collect::<Vec<_>>(), ["new", "other"]);
-    assert!(owner.attributes().get("roles").is_none());
-    assert!(owner.attributes().get("xrefstyle").is_none());
+    assert!(owner.clone_attributes().get("roles").is_none());
+    assert!(owner.clone_attributes().get("xrefstyle").is_none());
     Ok(())
 }
 

@@ -57,19 +57,19 @@ fn caption_prefixes_own_temporary_overrides_and_read_current_controls() -> Resul
     let display = {
         let label = String::from("Plate");
         let mut occurrence = CrossReference::new("target", Location::default());
-        occurrence.xrefstyle = XrefStyle::Short;
-        occurrence.caption_label = XrefCaptionLabel::AtReference(&label);
+        occurrence.set_xrefstyle(XrefStyle::Short);
+        occurrence.set_caption_label(XrefCaptionLabel::AtReference(&label));
         assert!(matches!(
             resolve_reference(reference, CrossReferenceRef::from(&occurrence), &guard),
             XrefDisplay::ShortCaption(prefix) if prefix == "Plate 1"
         ));
-        occurrence.caption_label = XrefCaptionLabel::NumberOnly;
+        occurrence.set_caption_label(XrefCaptionLabel::NumberOnly);
         assert!(matches!(
             resolve_reference(reference, CrossReferenceRef::from(&occurrence), &guard),
             XrefDisplay::ShortCaption(prefix) if prefix == "1"
         ));
-        occurrence.caption_label = XrefCaptionLabel::AtReference(&label);
-        occurrence.xrefstyle = XrefStyle::Full;
+        occurrence.set_caption_label(XrefCaptionLabel::AtReference(&label));
+        occurrence.set_xrefstyle(XrefStyle::Full);
         resolve_reference(reference, CrossReferenceRef::from(&occurrence), &guard)
     };
     let XrefDisplay::FullCaption(prefix, content, scope) = display else {
@@ -107,7 +107,7 @@ fn empty_labels_and_external_classification_keep_precedence() -> Result<(), Test
         ""
     );
     drop(scope);
-    occurrence.target_is_local = false;
+    occurrence.set_target_is_local(false);
     assert!(matches!(
         resolve_reference(Some(acdc_parser::ast::ReferenceRef::from(&reference)), CrossReferenceRef::from(&occurrence), &guard),
         XrefDisplay::External(target) if target == "target"

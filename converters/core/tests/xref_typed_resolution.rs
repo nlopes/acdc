@@ -135,8 +135,8 @@ fn check_mode(mode: CompatibilityMode) -> Result<(), Error> {
                     )
                 });
                 let mut xref = CrossReference::new(target, Location::default());
-                xref.xrefstyle = style;
-                xref.target_is_local = local;
+                xref.set_xrefstyle(style);
+                xref.set_target_is_local(local);
                 let reference = references.get(target);
                 let owner = resolve_xref(reference, &xref, &owner_guard);
                 let typed = resolve_reference(
@@ -184,8 +184,8 @@ fn typed_xrefs_preserve_empty_titles_labels_and_temporary_overrides() -> Result<
                 let caption = String::from("Plate");
                 let signifier = String::from("Unit");
                 let mut xref = CrossReference::new("figure", Location::default());
-                xref.xrefstyle = XrefStyle::Full;
-                xref.caption_label = XrefCaptionLabel::AtReference(&caption);
+                xref.set_xrefstyle(XrefStyle::Full);
+                xref.set_caption_label(XrefCaptionLabel::AtReference(&caption));
                 xref.set_signifier(XrefSignifier::AtReference(&signifier));
                 resolve_xref(Some(&reference), &xref, &guard)
             };
@@ -193,8 +193,8 @@ fn typed_xrefs_preserve_empty_titles_labels_and_temporary_overrides() -> Result<
                 let caption = String::from("Plate");
                 let signifier = String::from("Unit");
                 let mut xref = CrossReference::new("figure", Location::default());
-                xref.xrefstyle = XrefStyle::Full;
-                xref.caption_label = XrefCaptionLabel::AtReference(&caption);
+                xref.set_xrefstyle(XrefStyle::Full);
+                xref.set_caption_label(XrefCaptionLabel::AtReference(&caption));
                 xref.set_signifier(XrefSignifier::AtReference(&signifier));
                 resolve_reference(Some(ReferenceRef::from(&independent)), &xref, &other_guard)
             };

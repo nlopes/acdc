@@ -149,17 +149,22 @@ fn cross_reference_model_equality_ignores_parser_state() -> Result<(), Error> {
     let [InlineNode::Macro(InlineMacro::CrossReference(actual))] = parsed.inlines() else {
         return Err(format!("expected one cross-reference, got {:?}", parsed.inlines()).into());
     };
-    let expected = CrossReference::new("id", actual.location.clone());
+    let expected = CrossReference::new(
+        "id",
+        acdc_parser::Location::from(
+            acdc_parser::ast::CrossReferenceRef::from(actual.as_ref()).location(),
+        ),
+    );
 
     assert_eq!(actual.as_ref(), &expected);
     let mut differing_destination = expected.clone();
-    differing_destination.target_is_local = false;
+    differing_destination.set_target_is_local(false);
     assert_ne!(actual.as_ref(), &differing_destination);
     let mut differing_style = expected.clone();
-    differing_style.xrefstyle = XrefStyle::Full;
+    differing_style.set_xrefstyle(XrefStyle::Full);
     assert_ne!(actual.as_ref(), &differing_style);
     let mut differing_label = expected;
-    differing_label.caption_label = XrefCaptionLabel::NumberOnly;
+    differing_label.set_caption_label(XrefCaptionLabel::NumberOnly);
     assert_ne!(actual.as_ref(), &differing_label);
     Ok(())
 }
@@ -170,7 +175,12 @@ fn cross_reference_model_debug_ignores_parser_state() -> Result<(), Error> {
     let [InlineNode::Macro(InlineMacro::CrossReference(actual))] = parsed.inlines() else {
         return Err(format!("expected one cross-reference, got {:?}", parsed.inlines()).into());
     };
-    let expected = CrossReference::new("id", actual.location.clone());
+    let expected = CrossReference::new(
+        "id",
+        acdc_parser::Location::from(
+            acdc_parser::ast::CrossReferenceRef::from(actual.as_ref()).location(),
+        ),
+    );
     let actual_debug = format!("{actual:?}");
 
     assert_eq!(actual_debug, format!("{expected:?}"));
@@ -189,7 +199,12 @@ fn cross_reference_model_serialization_ignores_parser_state() -> Result<(), Erro
     let [InlineNode::Macro(InlineMacro::CrossReference(actual))] = parsed.inlines() else {
         return Err(format!("expected one cross-reference, got {:?}", parsed.inlines()).into());
     };
-    let expected = CrossReference::new("id", actual.location.clone());
+    let expected = CrossReference::new(
+        "id",
+        acdc_parser::Location::from(
+            acdc_parser::ast::CrossReferenceRef::from(actual.as_ref()).location(),
+        ),
+    );
 
     assert_eq!(
         serde_json::to_value(actual)?,

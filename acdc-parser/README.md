@@ -356,6 +356,19 @@ explicitly. Autolinks have target, source-form, and display-setting edits;
 they have no attribute list. These edits do not parse labels, encode queries,
 fetch targets, or update document catalogs.
 
+Button, keyboard, and menu owners use typed reads and selected `From` copies.
+Construct them from prepared labels; replace or transfer labels, key sequences,
+and menu paths through owned methods. Empty labels and sequence positions remain
+present. These edits do not split separators, parse content, or register notes.
+Changing the node span leaves each label's source location unchanged.
+
+Cross-reference owners provide prepared target, classification, text, style,
+caption-policy, metadata, and option edits. Replacing a target keeps its local
+classification until `set_target_is_local` changes it. Index owners transfer
+prepared `IndexTermKind` and optional relationships. Selected copies retain
+registration-time labels; ordinary edits do not rebuild them. Read both kinds
+through typed handles and use checked scalar replacement for controls.
+
 Footnotes expose `id()`, `number()`, and the `content()` retained on each
 occurrence. References, including repeated definitions, have empty content.
 `document().footnotes()` reads the registered definitions separately, in

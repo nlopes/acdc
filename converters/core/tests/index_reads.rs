@@ -34,7 +34,9 @@ fn visit_index_terms<E>(
                     InlineNode::Macro(InlineMacro::Url(mut link)) => Some(link.take_text()),
                     InlineNode::Macro(InlineMacro::Link(mut link)) => Some(link.take_text()),
                     InlineNode::Macro(InlineMacro::Mailto(mut link)) => Some(link.take_text()),
-                    InlineNode::Macro(InlineMacro::CrossReference(link)) => Some(link.text),
+                    InlineNode::Macro(InlineMacro::CrossReference(mut link)) => {
+                        Some(link.take_text())
+                    }
                     InlineNode::Macro(InlineMacro::Footnote(mut note)) => Some(note.take_content()),
                     InlineNode::PlainText(_)
                     | InlineNode::Symbol(_)
@@ -67,11 +69,22 @@ fn visit_index_terms<E>(
     )
 }
 
+fn primary_content<'a>(term: &IndexTerm<'a>) -> Vec<InlineNode<'a>> {
+    let mut prepared = term.clone();
+    if let IndexTermKind::Flow(term) | IndexTermKind::Concealed { term, .. } =
+        prepared.replace_kind(IndexTermKind::Flow(Vec::new()))
+    {
+        term
+    } else {
+        Vec::new()
+    }
+}
+
 fn collect(nodes: &[InlineNode<'_>]) -> Vec<(String, usize)> {
     let mut found = Vec::new();
     visit_index_terms(nodes, &mut |term, offset| {
         found.push((
-            InlineTextTransform::default().to_string(term.term()),
+            InlineTextTransform::default().to_string(&primary_content(term)),
             offset,
         ));
         Ok::<(), std::convert::Infallible>(())
@@ -172,9 +185,9 @@ fn node(term: IndexTerm<'static>) -> InlineNode<'static> {
 fn discovery_does_not_register_label_hierarchy_or_relationship_content() {
     let nested = node(term(true, vec![text("Nested")]));
     let mut outer = term(true, vec![nested.clone()]);
-    outer.relationship = Some(IndexTermRelationship::See {
+    outer.replace_relationship(Some(IndexTermRelationship::See {
         target: vec![nested.clone()],
-    });
+    }));
     let mut hidden = IndexTerm::new(
         IndexTermKind::Concealed {
             term: vec![text("Hidden")],
@@ -183,9 +196,9 @@ fn discovery_does_not_register_label_hierarchy_or_relationship_content() {
         },
         Location::default(),
     );
-    hidden.relationship = Some(IndexTermRelationship::SeeAlso {
+    hidden.replace_relationship(Some(IndexTermRelationship::SeeAlso {
         targets: vec![vec![nested]],
-    });
+    }));
     let nodes = [
         text("é "),
         node(outer),
@@ -211,7 +224,7 @@ fn owner_callback_stops_at_the_first_error() -> Result<(), Error> {
     let mut found = Vec::new();
     let result = visit_index_terms(parsed.inlines(), &mut |term, offset| {
         found.push((
-            InlineTextTransform::default().to_string(term.term()),
+            InlineTextTransform::default().to_string(&primary_content(term)),
             offset,
         ));
         if found.len() == 2 {
