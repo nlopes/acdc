@@ -6873,6 +6873,35 @@
             "asg_icons.rs::canonical_note_icon_errors_and_strict_rejection_remain_explicit",
             "asg_icons.rs::icon_schema_is_closed_and_uses_content_and_metadata_contracts"
           ]
+        },
+        "graph-integrity": {
+          "owners": {
+            "Document": [
+              "attributes",
+              "references",
+              "footnotes"
+            ],
+            "IndexTerm": [
+              "catalog"
+            ],
+            "Anchor": [
+              "xreflabel"
+            ]
+          },
+          "schema_pointers": [
+            "#/properties/footnotes",
+            "#/properties/references"
+          ],
+          "handling": "Identity discovery excludes scalar attributes and captured registrations. Every exported footnote occurrence, including independent and captured labels, links to the canonical body by positive number and matching optional ID. Zero remains unresolved only as a reference. Historical body copies do not replace canonical bodies; authoritative native body/cycle checks remain. Standalone catalog-only notes still require document context.",
+          "tests": [
+            "asg_integration.rs::combined_constructs_export_deterministically_without_mutation",
+            "asg_integration.rs::scalar_attributes_cannot_impersonate_identities_or_footnotes",
+            "asg_integration.rs::captured_footnotes_require_matching_canonical_links",
+            "asg_integration.rs::historical_bodies_do_not_replace_canonical_bodies_or_resolve_zero",
+            "asg_integration.rs::independent_labels_and_extra_anchors_cannot_hide_dangling_notes",
+            "asg_integration.rs::standalone_catalog_notes_still_require_document_context",
+            "asg_integration.rs::strict_and_extension_controls_distinguish_shape_from_meaning"
+          ]
         }
       }
     }

@@ -364,6 +364,9 @@ pub(super) fn document(value: &Document<'_>, profile: Profile) -> Result<Value, 
     export.document_top(value, &result)?;
     export.catalogs(value, &mut result)?;
     metadata::location(&mut result, &value.location, "")?;
+    if profile == Profile::Acdc {
+        super::footnotes::check_projected(&result)?;
+    }
     Ok(Value::Object(result))
 }
 

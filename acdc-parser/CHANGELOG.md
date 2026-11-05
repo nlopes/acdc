@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Checked ASG export no longer confuses document attributes named `name`, `type`
+  or `id` with node identities. It also rejects dangling footnotes retained only
+  in index or reference labels, while keeping canonical note bodies unchanged.
+
+
 - The named ASG profile preserves icon targets, alt text, tooltips, roles and
   controls across font, image and text fallback modes without resolving assets.
 

@@ -1,0 +1,146 @@
+= ASG coverage and boundaries
+
+acdc has two checked ASG output contracts. `Profile::Upstream` uses the unchanged
+pinned draft schema. `Profile::Acdc` uses `urn:acdc:asg:1`, a separate, closed
+extension. Parser `CompatibilityMode` selects language behavior independently.
+Neither profile reparses content, runs a converter or repairs the document.
+
+== What each contract preserves
+
+This table reconciles the differences found in the native-fixture audit.
+A supported owner still fails if it contains an unsupported nested value.
+The link:support-inventory.json[property inventory] lists every backing-model
+field, mapping policy, schema pointer and executable test reference.
+
+[cols="2,3,3",options="header"]
+|===
+|Meaning |Pinned upstream |Named acdc profile
+|Documents, authors, paragraphs and ordinary sections
+|Direct shapes; resolved attribute snapshot and title/reftext inlines
+|Same shapes; separate header subtitle and metadata
+|Links, URLs, mail and cross-references
+|String targets and required inline labels; mail query encoding retains meaning
+|Adds identity, tooltip and bounded scalar/role/option metadata
+|Description, ordered, unordered and callout lists
+|Required list/item markers, terms, principal content and attached blocks
+|Adds optional checklist state and resolved callout numbers/spans
+|Block identity, style, roles/options and positional slots
+|Promoted primary ID/reftext; string metadata and retained slots, including gaps
+|Adds retained anchor declarations, ID-token spans and reference registrations
+|Block image, audio, video and TOC macros
+|Actual macro form and complete string target; controls retain their values
+|Adds block-image alt content; comma-separated video playlists stay one target
+|Attribution, citation and captions
+|Rejects content or resolved caption state the pin cannot express
+|Dedicated inline content and closed unnumbered/custom/numbered caption state
+|Admonitions and other block forms
+|Preserves real delimited forms; rejects forms the pin cannot express
+|Adds paragraph admonitions, paragraph parent forms and marked quotes
+|Tables
+|Rejects the table owner
+|Columns, row sections, cell blocks, spans, presentation and scoped AsciiDoc cells
+|Footnotes and index terms
+|Rejects these inline owners and footnote definitions
+|Canonical numbered note bodies with linked occurrences; index hierarchy,
+visibility, relationships and distinct captured labels
+|Inline anchors, images, icons and UI macros
+|Rejects these inline owners
+|Closed semantic nodes with their supported content and controls; no backend markup
+|Spans and typography
+|Strong, emphasis, code and mark without extra inline controls; canonical symbols,
+apostrophes and character references
+|Adds generic attributed spans, sub/superscript and bounded Unicode quotation pairs
+|Inline breaks and callout markers
+|Rejects these inline owners
+|Semantic breaks and explicit/automatic markers with resolved numbers
+|Block and inline mathematics
+|Rejects notation and inline STEM the pin cannot preserve
+|Literal formula text, resolved notation and real block/inline placement
+|Body document-attribute changes
+|Rejects ordered events
+|Ordered set/unset assignments; nested cells retain their initial overlays
+|Custom substitutions
+|Preserves resolved effects using inline structure and text/raw escaping
+|Same policy; no feature switch or source spelling is added to the graph
+|Source comments, recovery/edit history and derived data
+|Ordinary comments/history may be omitted; catalogs require reconstructible owners
+|Same source-only omissions; meaningful captured labels and registrations retained
+|Locations
+|Known line/column/include-chain provenance; unknown optional spans omitted
+|Same, with explicit fields for supported token/table/callout spans
+|===
+
+Native JSON remains a separate representation. In particular, retained positional
+slots and resolved semantic state can be absent from native JSON. The exporter
+reads semantic owners directly. A native JSON value failing ASG validation does
+not establish that its parser result is wrong.
+
+== Graph checks
+
+Document attributes and scalar metadata cannot impersonate nodes by using names
+such as `name`, `type`, `id` or `number`. Identity discovery visits semantic owners;
+retained catalog labels do not register another copy of an inline identity.
+Duplicate real IDs and stale reference registrations still fail.
+
+Every exported positive footnote number must link to a canonical definition with
+the same optional ID. This includes independent reference labels and captured
+index labels. The canonical root definition owns the body. A historical body
+copy in a captured label does not replace it or become a second definition.
+Native authoritative occurrences still receive their existing body/cycle checks.
+A zero-number unresolved reference stays unresolved; a zero-number definition
+fails. Standalone inline export requires document context for any footnote,
+including one retained only in a catalog label.
+
+link:../../fixtures/asg/integration.adoc[The combined source] and its
+link:../../fixtures/asg/integration.json[checked JSON] combine headers, content
+attributes, identity, tables, media, mathematics, lists, UI labels and notes.
+Tests compare semantic values, repeated export and the untouched native document.
+Negative controls include unknown properties and schema-valid but incorrect text.
+
+== Explicit limits
+
+Neither contract claims every native state is exportable. Bibliography anchors,
+nondefault section category/numbering, nondefault xref style/caption/signifiers,
+protected document values with insertion behavior, ambiguous scalar state and
+unresolved substitution instructions retain typed errors. Invalid locations,
+unsupported block/cell forms, stale catalogs and contradictory prepared graph
+state also fail. Errors identify the unsupported owner or property with a JSON
+Pointer; export never emits a partial graph or drops a semantic field to pass.
+
+Absent content remains absent. Present empty content stays `[]`. Export does not
+invent source ranges, image fallback text, menu separators, mathematical syntax,
+callout destination links or asset resolution. Keep the named profile when its
+richer meaning cannot fit an upstream contract.
+
+== Validation scope
+
+The fixture audit checks source/expectation pairing, every native JSON value,
+model/property inventory and source locations. Its schema success counts describe
+native-format overlap with the pin. They are not checked-export success counts.
+The ASG tests separately validate strict and named exports, semantic invariants,
+negative cases and nested combinations in both compatibility modes.
+
+The official TCK checkout at `cdfada9c2768b164eadf4bc12e9f9c68e6caf68a`
+contains 13 cases. The checked strict adapter passes 11 and fails two:
+
+* Listing `multiple-lines`: the native listing retains unnumbered caption state.
+  The pin has no field for it, so strict export rejects
+  `/blocks/0/metadata/caption`. The named profile preserves that state.
+* Section `title-body`: the real generated `_section_title` ID is exported, while
+  the TCK expectation omits it. The pinned schema permits the ID. Removing it only
+  for the comparison would hide actual target identity.
+
+These remain failures. A larger passing fixture suite does not replace them or
+prove full language conformance. Upstream caption semantics and generated-ID
+canonicalization need explicit agreement; the exporter does not change meaning
+to match an expected object. No TCK expectations or pinned schema bytes change.
+
+== Versioning and upstream discussion
+
+Keep the pinned upstream revision and named profile distinct. A future accepted
+upstream representation needs its own reviewed projection and tests; consumers
+must not infer a schema revision from an unchanged draft identifier.
+The link:proposals/README.adoc[proposal material] separates possible core content
+additions from unresolved caption state and later extension families. It has not
+been submitted upstream. Upstream acceptance is not a requirement for using the
+explicit local profile.

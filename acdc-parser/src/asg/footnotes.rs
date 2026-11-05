@@ -190,3 +190,69 @@ fn visit<'a>(
     }
     Ok(())
 }
+
+// Captured labels link to canonical bodies but do not own historical body copies.
+pub(super) fn check_projected(document: &Map<String, Value>) -> Result<(), Error> {
+    let index = document
+        .get("footnotes")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|note| {
+            note.get("number")
+                .and_then(Value::as_u64)
+                .map(|number| (number, note.get("id").and_then(Value::as_str)))
+        })
+        .collect::<BTreeMap<_, _>>();
+    super::walk::objects(document, "", &[], &mut |node, path| {
+        if !is_occurrence(node) {
+            return Ok(());
+        }
+        let number = node.get("number").and_then(Value::as_u64).ok_or_else(|| {
+            link_error(
+                &pointer(path, "number"),
+                "footnote number must be a nonnegative integer",
+            )
+        })?;
+        if number == 0 {
+            return if node.get("form").and_then(Value::as_str) == Some("reference") {
+                Ok(())
+            } else {
+                Err(link_error(
+                    &pointer(path, "number"),
+                    "an unregistered footnote cannot define a body",
+                ))
+            };
+        }
+        let id = index.get(&number).ok_or_else(|| link_error(&pointer(path, "number"), "footnote occurrence has no matching registered body; repair the document explicitly"))?;
+        if *id != node.get("id").and_then(Value::as_str) {
+            return Err(link_error(
+                &pointer(path, "id"),
+                "footnote occurrence ID disagrees with its registered body; repair the document explicitly",
+            ));
+        }
+        Ok(())
+    })
+}
+
+pub(super) fn require_projected_document(document: &Map<String, Value>) -> Result<(), Error> {
+    super::walk::objects(document, "", &[], &mut |node, path| {
+        if is_occurrence(node) {
+            Err(link_error(
+                path,
+                "footnote export requires its document registration context",
+            ))
+        } else {
+            Ok(())
+        }
+    })
+}
+
+fn is_occurrence(node: &Map<String, Value>) -> bool {
+    node.get("name").and_then(Value::as_str) == Some("footnote")
+        && node.get("type").and_then(Value::as_str) == Some("inline")
+}
+
+fn link_error(path: &str, message: &str) -> Error {
+    unsupported(path, message).with_context("footnote", &crate::Location::default())
+}

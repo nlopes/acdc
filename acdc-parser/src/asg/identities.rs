@@ -75,45 +75,30 @@ pub(super) fn apply<'a, 'doc>(
 
 // Catalog snapshots and unused declarations are not new inline registrations.
 pub(super) fn owners(document: &Map<String, Value>) -> Result<BTreeMap<String, String>, Error> {
-    fn visit(
-        value: &Value,
-        path: &str,
-        result: &mut BTreeMap<String, String>,
-    ) -> Result<(), Error> {
-        match value {
-            Value::Object(node) => {
-                if node.get("name").is_some_and(|name| name != "footnote") {
-                    let id = node
-                        .get("id")
-                        .or_else(|| node.get("metadata").and_then(|metadata| metadata.get("id")));
-                    if let Some(id) = id.and_then(Value::as_str)
-                        && result.insert(id.into(), path.into()).is_some()
-                    {
-                        return Err(unsupported(
-                            &pointer(path, "id"),
-                            "duplicate exported identity has no unique reference owner",
-                        ));
-                    }
-                }
-                for (name, child) in node {
-                    if !matches!(name.as_str(), "catalog" | "anchors" | "references") {
-                        visit(child, &pointer(path, name), result)?;
-                    }
-                }
-            }
-            Value::Array(values) => {
-                for (index, child) in values.iter().enumerate() {
-                    visit(child, &pointer(path, &index.to_string()), result)?;
-                }
-            }
-            Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
-        }
-        Ok(())
-    }
     let mut result = BTreeMap::new();
-    for (name, child) in document {
-        visit(child, &pointer("", name), &mut result)?;
-    }
+    super::walk::objects(
+        document,
+        "",
+        &["catalog", "anchors", "references"],
+        &mut |node, path| {
+            let owner = path == "/header"
+                || node
+                    .get("type")
+                    .and_then(Value::as_str)
+                    .is_some_and(|kind| matches!(kind, "inline" | "block"))
+                    && node.get("name").is_some_and(|name| name != "footnote");
+            if owner
+                && let Some(id) = node.get("id").and_then(Value::as_str)
+                && result.insert(id.into(), path.into()).is_some()
+            {
+                return Err(unsupported(
+                    &pointer(path, "id"),
+                    "duplicate exported identity has no unique reference owner",
+                ));
+            }
+            Ok(())
+        },
+    )?;
     Ok(result)
 }
 

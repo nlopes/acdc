@@ -17,6 +17,7 @@ mod metadata;
 mod projection;
 mod references;
 mod ui;
+mod walk;
 
 use std::sync::OnceLock;
 
@@ -169,6 +170,9 @@ pub fn inlines_with_profile(inlines: ContentRef<'_>, profile: Profile) -> Result
     ]);
     if profile == Profile::Acdc {
         wrapper.insert("profile".into(), ACDC_SCHEMA_ID.into());
+    }
+    if profile == Profile::Acdc {
+        footnotes::require_projected_document(&wrapper)?;
     }
     let mut wrapper = Value::Object(wrapper);
     validate(&wrapper, "/blocks/0/inlines", profile)?;

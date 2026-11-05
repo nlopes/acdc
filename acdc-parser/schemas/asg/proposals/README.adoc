@@ -120,3 +120,19 @@ state, validate whether the selected semantic value fits that contract. Keep an
 explicit error for values that cannot be represented and retain the existing acdc
 profile for them. Do not silently flatten formatting or omit state. Upstream
 submission, discussion links and an accepted revision can be added after review.
+
+== Further discussion examples
+
+The core patches above stay limited to content attributes and images. The
+link:../COVERAGE.adoc[coverage guide] and the minimal sources/JSON under
+`fixtures/asg/` record separate examples for tables, notes, index terms, aliases,
+callouts, typography, mathematics, UI labels and icons. Their closed definitions
+are available in `acdc-v1.json`; they are acdc proposals, not draft requirements.
+Any upstream discussion must decide each family's semantics and scope before
+combining patches. Captured index labels, canonical footnote ownership and nested
+cell attribute scope need semantic examples as well as schema definitions.
+
+Two external alignment questions remain separate: whether unnumbered caption
+state belongs in upstream ASG, and whether TCK section expectations retain real
+generated target IDs. Existing strict failures stay visible until those contracts
+are agreed. No upstream issue or submission is created by this material.

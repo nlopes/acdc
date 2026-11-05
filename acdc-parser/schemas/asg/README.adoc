@@ -71,9 +71,9 @@ A compatible child or metadata field does not make an unsupported owner
 representable. Block titles and reference text have inline-array fields in the
 schema. Formatted attribution, citation, caption, alternative text, and tooltips
 must not be flattened into metadata strings just to pass validation.
-Inline images, icons, UI macros, footnotes, index terms, tables, several span
-variants, inline identity/controls, and ordered body assignments need explicit
-support or rejection. Delimited admonitions have a schema form; paragraph
+The named acdc profile supplies bounded mappings for inline images, icons, UI
+macros, footnotes, index terms, tables, additional spans, inline metadata and
+ordered body assignments. Strict upstream export rejects these additions. Delimited admonitions have a schema form; paragraph
 admonitions must not acquire an invented delimiter.
 
 Block positional slots must come from the authoritative owner, including gaps
@@ -159,21 +159,21 @@ The property inventory remains authoritative for each declaration.
 |Group |Declarations |Current handling
 |`core` |7 |Documents, headers/authors, paragraphs and ordinary sections; recurse into all owned content.
 |`literal-content` |13 |Resolved text/references and four span forms; reject unsupported controls and verbatim context.
-|`block-metadata` |7 |Preserve supported scalar values, identity and slots; reject unsupported presence or independent meaning.
+|`block-metadata` |6 |Preserve supported scalar values, identity and slots; reject unsupported presence or independent meaning.
 |`document-values` |7 |Preserve resolved assignments; reject protected insertion behavior.
-|`catalogs` |3 |Omit reconstructible entries; reject extra or stale meaning.
+|`catalogs` |5 |Omit reconstructible entries; reject extra or stale meaning.
 |`locations` |4 |Preserve known endpoints/include chains; omit unknown optional locations; reject invalid ones.
 |`dispatch` |4 |Exhaustive owner decisions; a rejected owner rejects its entire subtree.
 |`source-state` |8 |Omit comments and resolved routing/history; retain effective values and IDs.
 |`pending-content` |3 |Reject unresolved content.
 |`substitutions` |7 |Preserve resolved settings through text/raw nodes; reject unknown instructions and pending raw operations.
-|`decorations` |12 |Accept default section policy; reject numbering, category, captions and attribution/citation.
+|`decorations` |13 |Accept default section policy; reject numbering, category, captions and attribution/citation.
 |`body-assignments` |2 |Reject ordered assignments and retained events.
 |`inline-controls` |4 |Reject identities/roles on supported spans and populated controls on unsupported macros.
 |`references` |11 |Preserve link/xref targets and effective labels; reject unsupported controls and ambiguous target classification.
 |`lists` |11 |Preserve list families, markers, terms, principal and nested content; reject checklists and unrecoverable item state.
-|`blocks` |9 |Preserve supported forms, bodies and media targets; reject missing provenance or unsupported content properties.
-|`unsupported-owners` |37 |Reject the entire block, inline, macro or payload without inventing a form.
+|`blocks` |12 |Preserve supported forms, bodies and media targets; reject missing provenance or unsupported content properties.
+|`unsupported-owners` |19 |Reject the entire block, inline, macro or payload without inventing a form.
 |===
 
 The evidence covers positive mappings, rejected owners/properties and permitted
@@ -211,8 +211,8 @@ A block's resolved `caption` has one of three closed forms:
 
 This supports captioned listings and examples, including their retained titles
 and reconstructible reference catalogs. A stale catalog still fails export.
-Cross-reference controls, unsupported inline nodes, header metadata and other
-uncovered semantics retain their explicit errors.
+Nondefault cross-reference controls and other uncovered semantics retain their
+explicit errors. The sections below describe the supported named-profile nodes.
 Nested content is checked under the same schema; unknown fields are invalid.
 `support-inventory.json` records these additions separately from strict support.
 
@@ -278,7 +278,8 @@ For example, `[.review]#Text#` exports as a generic span with
 link:../../fixtures/asg/inline_metadata.adoc[The inline metadata fixture] and its
 link:../../fixtures/asg/inline_metadata.json[checked JSON] cover links, mail,
 xrefs and formatted spans with a nested image. Inline IDs retain untitled target
-semantics; duplicate IDs and independent reference catalog values still fail.
+semantics. Duplicate identities and stale catalog values still fail; independently
+owned labels use the reference registration contract below.
 
 == Resolved substitution effects
 
@@ -549,8 +550,8 @@ block metadata. Content fields keep their own inline arrays.
 Header IDs and document-top references use the parser's existing full reference
 title: main title, `: `, then subtitle when present. This derived catalog value
 does not replace either field. Stale or duplicate registrations still fail.
-Independent document-attribute `reftext` labels and multiple header aliases remain
-unsupported. Strict export still rejects subtitle and header metadata. Author
+Independent document-attribute `reftext` labels and header aliases use the
+reference registration contract. Strict export still rejects subtitle and header metadata. Author
 reconciliation and the end-of-header document attribute snapshot are unchanged.
 
 == Proposed upstream additions
@@ -681,3 +682,9 @@ asset paths or rendered labels invented by the exporter. Document `icons`,
 `iconsdir` and `icontype` settings remain in document attributes, ordered body
 events and AsciiDoc cell snapshots. Strict upstream export rejects icons.
 See `fixtures/asg/icons.adoc` and its JSON example.
+
+== Coverage and remaining boundaries
+
+link:COVERAGE.adoc[The coverage guide] reconciles the supported shapes, permitted
+omissions and explicit errors. It also records the limited TCK scope. Native JSON
+fixtures, checked export fixtures and language conformance are different checks.

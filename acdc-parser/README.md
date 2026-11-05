@@ -415,7 +415,8 @@ never changes the AST. The current subset covers headers and authors, unnumbered
 ordinary sections, paragraphs, promoted titles/reftext/IDs, plain or raw content,
 resolved typography, named/numeric character references, and the draft's four
 inline span types. Literal reference-shaped text stays text. See
-[the support contract](schemas/asg/README.adoc) for exact limits.
+[the support contract](schemas/asg/README.adoc) and
+[coverage guide](schemas/asg/COVERAGE.adoc) for exact limits.
 
 For the named acdc extension, call
 `asg::document_with_profile(parsed.document(), asg::Profile::Acdc)`.
