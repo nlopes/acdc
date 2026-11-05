@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The acdc ASG profile preserves block STEM formulas with their resolved LaTeX
+  or AsciiMath notation, actual delimiters, metadata and output-escaping policy.
+
 - The acdc ASG profile retains subscript, superscript and nested typographic
   quotations, including their resolved quotation characters and inline metadata.
 

@@ -11,6 +11,7 @@ mod footnotes;
 mod identities;
 mod images;
 mod index_terms;
+mod math;
 mod metadata;
 mod projection;
 mod references;

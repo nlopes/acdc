@@ -623,6 +623,39 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "name": {
+                "const": "stem"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          },
+          "then": {
+            "required": [
+              "notation",
+              "form"
+            ],
+            "properties": {
+              "form": {
+                "const": "delimited"
+              },
+              "inlines": {
+                "$ref": "#/$defs/acdcMathContent"
+              }
+            }
+          },
+          "else": {
+            "not": {
+              "required": [
+                "notation"
+              ]
+            }
+          }
         }
       ],
       "unevaluatedProperties": false,
@@ -654,6 +687,9 @@
         },
         "inlines": {
           "$ref": "#/$defs/inlines"
+        },
+        "notation": {
+          "$ref": "#/$defs/acdcStemNotation"
         }
       }
     },
@@ -1883,6 +1919,33 @@
         "location": {
           "$ref": "#/$defs/location"
         }
+      }
+    },
+    "acdcStemNotation": {
+      "enum": [
+        "latexmath",
+        "asciimath"
+      ]
+    },
+    "acdcMathContent": {
+      "type": "array",
+      "maxItems": 1,
+      "items": {
+        "allOf": [
+          {
+            "$ref": "#/$defs/inlineLiteral"
+          },
+          {
+            "properties": {
+              "name": {
+                "enum": [
+                  "text",
+                  "raw"
+                ]
+              }
+            }
+          }
+        ]
       }
     }
   }

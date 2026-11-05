@@ -172,7 +172,10 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 self.nonsection_blocks(content, &pointer(path, "blocks"))?,
             ),
             DelimitedBlockType::DelimitedTable(table) => return self.table(value, table, path),
-            DelimitedBlockType::DelimitedComment(_) | DelimitedBlockType::DelimitedStem(_) => {
+            DelimitedBlockType::DelimitedStem(content) => {
+                return self.stem(value, content, path);
+            }
+            DelimitedBlockType::DelimitedComment(_) => {
                 return Err(unsupported(
                     &pointer(path, "inner"),
                     "this block body has no supported upstream mapping",
@@ -189,6 +192,32 @@ impl<'a, 'doc> Export<'a, 'doc> {
         }
         result.insert(body.into(), content);
         self.block_metadata(&mut result, &value.metadata, Some(&value.title), path)?;
+        Ok(result)
+    }
+
+    fn stem(
+        &mut self,
+        block: &'a DelimitedBlock<'doc>,
+        content: &crate::StemContent<'_>,
+        path: &str,
+    ) -> Result<Node, Error> {
+        if self.profile == Profile::Upstream {
+            return Err(unsupported(
+                &pointer(path, "notation"),
+                "resolved mathematical notation needs the named acdc profile",
+            ));
+        }
+        let mut result = node("stem", "block");
+        result.insert("form".into(), "delimited".into());
+        result.insert("delimiter".into(), block.delimiter.into());
+        self.block_metadata(&mut result, &block.metadata, Some(&block.title), path)?;
+        let escaping = block.metadata.substitutions.as_ref().is_none_or(|spec| {
+            spec.contains(
+                &crate::Substitution::SpecialChars,
+                &[crate::Substitution::SpecialChars],
+            )
+        });
+        super::super::math::apply(&mut result, content.content, &content.notation, escaping);
         Ok(result)
     }
 

@@ -170,6 +170,7 @@ fn extension_schema_rejects_unknown_content_properties() -> Result<(), Error> {
 }
 
 const EXTENSION_ADDITIONS: &[(&str, &[&str])] = &[
+    ("/$defs/leafBlock/properties", &["notation"]),
     ("/properties", &["profile", "footnotes", "references"]),
     (
         "/$defs/listItem/properties",
@@ -211,6 +212,8 @@ const EXTENSION_ADDITIONS: &[(&str, &[&str])] = &[
         "/$defs",
         &[
             "acdcReferenceRegistration",
+            "acdcStemNotation",
+            "acdcMathContent",
             "acdcLineBreak",
             "acdcCallout",
             "acdcAnchor",
@@ -257,6 +260,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
     }
     for (path, count) in [
         ("/$defs/inline/oneOf", 6),
+        ("/$defs/leafBlock/allOf", 1),
         ("/$defs/inlineSpan/allOf", 1),
         ("/$defs/list/allOf", 2),
         ("/$defs/blockMacro/allOf", 1),

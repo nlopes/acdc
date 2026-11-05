@@ -21,7 +21,7 @@ fn unsupported_block_owners_do_not_acquire_invented_forms() -> Result<(), Error>
             ("====\nText.\n====", "example", "metadata/caption"),
             ("----\nText.\n----", "listing", "metadata/caption"),
             ("|===\n|Cell\n|===", "table", "inner"),
-            ("[stem]\n++++\nx+y\n++++", "STEM block", "inner"),
+            ("[stem]\n++++\nx+y\n++++", "STEM block", "notation"),
         ] {
             let parsed = parse(source, &options)?;
             assert!(

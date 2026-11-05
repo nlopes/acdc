@@ -4539,16 +4539,16 @@
         "variants": {}
       },
       "representation": {
-        "policy": "candidate",
+        "policy": "named-block-mathematics",
         "upstream": "#/$defs/leafBlock"
       },
       "properties": {
         "content": {
-          "policy": "no-direct-field-mapping-is-established-for",
+          "policy": "named-block-mathematics",
           "upstream": "#/$defs/leafBlock"
         },
         "notation": {
-          "policy": "no-direct-field-mapping-is-established-for",
+          "policy": "named-block-mathematics",
           "upstream": "#/$defs/leafBlock"
         }
       },
@@ -4564,16 +4564,16 @@
         }
       },
       "representation": {
-        "policy": "candidate",
+        "policy": "named-block-mathematics",
         "upstream": "#/$defs/blockMetadata/properties/attributes"
       },
       "properties": {
         "variant:Asciimath": {
-          "policy": "candidate",
+          "policy": "named-block-mathematics",
           "upstream": "#/$defs/blockMetadata/properties/attributes"
         },
         "variant:Latexmath": {
-          "policy": "candidate",
+          "policy": "named-block-mathematics",
           "upstream": "#/$defs/blockMetadata/properties/attributes"
         }
       },
@@ -5767,6 +5767,10 @@
     "named-typographic-spans": {
       "handling": "context-dependent",
       "reason": "The named profile keeps subscript/superscript spans and one quotation variant with explicit resolved Unicode opening/closing characters. Nested content/form/identity/roles/locations use the existing span contract. Standalone apostrophe remains canonical text; protected literal content is never reinterpreted. Strict rejects unsupported span variants."
+    },
+    "named-block-mathematics": {
+      "handling": "context-dependent",
+      "reason": "The named profile reuses the stem leaf/delimited form and keeps explicit resolved notation plus exact protected formula text. Empty text is an empty body; escaping is represented by text/raw. Known block provenance and metadata remain; no formula-child span is invented. Undelimited styled paragraphs remain ordinary. Strict rejects loss of notation."
     }
   },
   "strict_export_groups": {
@@ -6768,6 +6772,26 @@
             "asg_typography.rs::prepared_spans_keep_metadata_empty_content_and_unknown_locations",
             "asg_typography.rs::literal_protection_and_strict_boundaries_stay_explicit",
             "asg_typography.rs::quotation_schema_requires_bounded_pairs_only_on_quotations"
+          ]
+        },
+        "block-mathematics": {
+          "owners": {
+            "StemContent": [
+              "content",
+              "notation"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/leafBlock/properties/notation",
+            "#/$defs/acdcStemNotation",
+            "#/$defs/acdcMathContent"
+          ],
+          "handling": "The named profile reuses the stem leaf/delimited form and keeps explicit resolved notation plus exact protected formula text. Empty text is an empty body; escaping is represented by text/raw. Known block provenance and metadata remain; no formula-child span is invented. Undelimited styled paragraphs remain ordinary. Strict rejects loss of notation.",
+          "tests": [
+            "asg_block_stem.rs::notation_literal_formula_and_escaping_stay_resolved",
+            "asg_block_stem.rs::prepared_formula_text_and_empty_presence_are_not_reparsed",
+            "asg_block_stem.rs::undelimited_styles_stay_paragraphs_and_strict_notation_rejects",
+            "asg_block_stem.rs::mathematical_schema_is_closed_and_rejects_prose_in_formula_bodies"
           ]
         }
       }

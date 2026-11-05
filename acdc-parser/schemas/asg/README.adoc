@@ -624,3 +624,19 @@ canonical text `’`, as it already does in strict export.
 Literal protection remains text/raw content. Export does not recognize markup
 inside those strings or apply typography again. Strict export still rejects the
 four unsupported span types; the upstream pin is unchanged.
+
+== Block mathematical content
+
+Real mathematical blocks reuse the upstream `stem` leaf, delimited `form`,
+actual `delimiter`, metadata and `inlines` fields. The acdc profile adds explicit
+resolved `notation`: `latexmath` or `asciimath`. Its formula body is zero or one
+literal `text`/`raw` node. Empty text becomes `[]`; nonempty text stays exact,
+including spaces, markup-like characters and unexpanded attribute spelling.
+Supported attribute expansion has already happened in the parser. Special-character
+escaping selects `text`; disabled escaping selects `raw`. Export does not parse
+formula text as prose, translate notation or emit backend mathematics delimiters.
+The formula has no independent native span, so no child location is invented.
+
+Undelimited `[stem]`, `[latexmath]` and `[asciimath]` styles stay ordinary paragraphs,
+as they do in Asciidoctor; export does not invent a mathematical paragraph form.
+Strict export rejects resolved block notation because the pin cannot preserve it.
