@@ -1,0 +1,684 @@
+{
+  "attributes": {
+    "icon-name": "star",
+    "icons": "font"
+  },
+  "blocks": [
+    {
+      "inlines": [
+        {
+          "alt": [
+            {
+              "form": "constrained",
+              "inlines": [
+                {
+                  "location": [
+                    {
+                      "col": 27,
+                      "line": 5
+                    },
+                    {
+                      "col": 30,
+                      "line": 5
+                    }
+                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Star"
+                }
+              ],
+              "location": [
+                {
+                  "col": 26,
+                  "line": 5
+                },
+                {
+                  "col": 31,
+                  "line": 5
+                }
+              ],
+              "name": "span",
+              "type": "inline",
+              "variant": "strong"
+            }
+          ],
+          "id": "first",
+          "location": [
+            {
+              "col": 1,
+              "line": 5
+            },
+            {
+              "col": 178,
+              "line": 5
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "custom": "kept",
+              "flip": "horizontal",
+              "link": "https://example.org",
+              "rotate": "90",
+              "size": "2x",
+              "window": "preview"
+            },
+            "options": [
+              "nofollow",
+              "custom"
+            ],
+            "roles": [
+              "red",
+              "blue"
+            ]
+          },
+          "name": "icon",
+          "target": "star",
+          "tooltip": [
+            {
+              "form": "constrained",
+              "inlines": [
+                {
+                  "location": [
+                    {
+                      "col": 42,
+                      "line": 5
+                    },
+                    {
+                      "col": 49,
+                      "line": 5
+                    }
+                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Favorite"
+                }
+              ],
+              "location": [
+                {
+                  "col": 41,
+                  "line": 5
+                },
+                {
+                  "col": 50,
+                  "line": 5
+                }
+              ],
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis"
+            }
+          ],
+          "type": "inline"
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 5
+        },
+        {
+          "col": 178,
+          "line": 5
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 7
+            },
+            {
+              "col": 12,
+              "line": 7
+            }
+          ],
+          "name": "icon",
+          "target": "heart",
+          "type": "inline"
+        },
+        {
+          "location": [
+            {
+              "col": 13,
+              "line": 7
+            },
+            {
+              "col": 13,
+              "line": 7
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": " "
+        },
+        {
+          "alt": [],
+          "location": [
+            {
+              "col": 14,
+              "line": 7
+            },
+            {
+              "col": 47,
+              "line": 7
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "size": ""
+            }
+          },
+          "name": "icon",
+          "target": "star",
+          "tooltip": [],
+          "type": "inline"
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 7
+        },
+        {
+          "col": 47,
+          "line": 7
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "form": "constrained",
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 2,
+                  "line": 9
+                },
+                {
+                  "col": 32,
+                  "line": 9
+                }
+              ],
+              "metadata": {
+                "attributes": {
+                  "size": "lg"
+                },
+                "roles": [
+                  "inside"
+                ]
+              },
+              "name": "icon",
+              "target": "check",
+              "type": "inline"
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 9
+            },
+            {
+              "col": 33,
+              "line": 9
+            }
+          ],
+          "name": "span",
+          "type": "inline",
+          "variant": "strong"
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 9
+        },
+        {
+          "col": 33,
+          "line": 9
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "set",
+        "value": "image"
+      },
+      "attribute": "icons",
+      "location": [
+        {
+          "col": 1,
+          "line": 11
+        },
+        {
+          "col": 13,
+          "line": 11
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "set",
+        "value": "assets/icons"
+      },
+      "attribute": "iconsdir",
+      "location": [
+        {
+          "col": 1,
+          "line": 12
+        },
+        {
+          "col": 23,
+          "line": 12
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "set",
+        "value": "svg"
+      },
+      "attribute": "icontype",
+      "location": [
+        {
+          "col": 1,
+          "line": 13
+        },
+        {
+          "col": 14,
+          "line": 13
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "alt": [
+            {
+              "location": [
+                {
+                  "col": 15,
+                  "line": 15
+                },
+                {
+                  "col": 18,
+                  "line": 15
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Save"
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 15
+            },
+            {
+              "col": 60,
+              "line": 15
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "link": "https://example.org/save"
+            }
+          },
+          "name": "icon",
+          "target": "save",
+          "tooltip": [
+            {
+              "location": [
+                {
+                  "col": 26,
+                  "line": 15
+                },
+                {
+                  "col": 29,
+                  "line": 15
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Save"
+            }
+          ],
+          "type": "inline"
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 15
+        },
+        {
+          "col": 60,
+          "line": 15
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "caption": {
+        "counter": "table",
+        "kind": "numbered",
+        "label": "Table"
+      },
+      "columns": [
+        {
+          "halign": "left",
+          "style": "asciidoc",
+          "valign": "top",
+          "width": {
+            "kind": "proportional",
+            "value": 1
+          }
+        }
+      ],
+      "delimited_location": [
+        {
+          "col": 1,
+          "line": 18
+        },
+        {
+          "col": 4,
+          "line": 20
+        }
+      ],
+      "delimiter": "|===",
+      "form": "delimited",
+      "location": [
+        {
+          "col": 1,
+          "line": 17
+        },
+        {
+          "col": 4,
+          "line": 20
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        },
+        "location": [
+          {
+            "col": 1,
+            "line": 17
+          },
+          {
+            "col": 9,
+            "line": 17
+          }
+        ]
+      },
+      "name": "table",
+      "presentation": {
+        "frame": "all",
+        "grid": "all",
+        "stripes": "none"
+      },
+      "rows": [
+        {
+          "cells": [
+            {
+              "blocks": [
+                {
+                  "inlines": [
+                    {
+                      "location": [
+                        {
+                          "col": 2,
+                          "line": 19
+                        },
+                        {
+                          "col": 6,
+                          "line": 19
+                        }
+                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Cell "
+                    },
+                    {
+                      "alt": [
+                        {
+                          "location": [
+                            {
+                              "col": 21,
+                              "line": 19
+                            },
+                            {
+                              "col": 24,
+                              "line": 19
+                            }
+                          ],
+                          "name": "text",
+                          "type": "string",
+                          "value": "Cell"
+                        }
+                      ],
+                      "location": [
+                        {
+                          "col": 7,
+                          "line": 19
+                        },
+                        {
+                          "col": 45,
+                          "line": 19
+                        }
+                      ],
+                      "metadata": {
+                        "roles": [
+                          "cell"
+                        ]
+                      },
+                      "name": "icon",
+                      "target": "star",
+                      "tooltip": [
+                        {
+                          "location": [
+                            {
+                              "col": 32,
+                              "line": 19
+                            },
+                            {
+                              "col": 34,
+                              "line": 19
+                            }
+                          ],
+                          "name": "text",
+                          "type": "string",
+                          "value": "Tip"
+                        }
+                      ],
+                      "type": "inline"
+                    },
+                    {
+                      "location": [
+                        {
+                          "col": 46,
+                          "line": 19
+                        },
+                        {
+                          "col": 46,
+                          "line": 19
+                        }
+                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "."
+                    }
+                  ],
+                  "location": [
+                    {
+                      "col": 2,
+                      "line": 19
+                    },
+                    {
+                      "col": 46,
+                      "line": 19
+                    }
+                  ],
+                  "name": "paragraph",
+                  "type": "block"
+                }
+              ],
+              "initial_attributes": [
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": "article"
+                  },
+                  "attribute": "doctype"
+                },
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": ""
+                  },
+                  "attribute": "notitle"
+                },
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": ""
+                  },
+                  "attribute": "doctype-article"
+                }
+              ],
+              "style": "asciidoc"
+            }
+          ]
+        }
+      ],
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "unset"
+      },
+      "attribute": "icons",
+      "location": [
+        {
+          "col": 1,
+          "line": 22
+        },
+        {
+          "col": 8,
+          "line": 22
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "alt": [
+            {
+              "location": [
+                {
+                  "col": 15,
+                  "line": 24
+                },
+                {
+                  "col": 25,
+                  "line": 24
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Information"
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 24
+            },
+            {
+              "col": 26,
+              "line": 24
+            }
+          ],
+          "name": "icon",
+          "target": "info",
+          "type": "inline"
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 24
+        },
+        {
+          "col": 26,
+          "line": 24
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    }
+  ],
+  "header": {
+    "location": [
+      {
+        "col": 1,
+        "line": 1
+      },
+      {
+        "col": 16,
+        "line": 3
+      }
+    ],
+    "title": [
+      {
+        "location": [
+          {
+            "col": 3,
+            "line": 1
+          },
+          {
+            "col": 16,
+            "line": 1
+          }
+        ],
+        "name": "text",
+        "type": "string",
+        "value": "Icon semantics"
+      }
+    ]
+  },
+  "location": [
+    {
+      "col": 1,
+      "line": 1
+    },
+    {
+      "col": 26,
+      "line": 24
+    }
+  ],
+  "name": "document",
+  "profile": "urn:acdc:asg:1",
+  "type": "block"
+}

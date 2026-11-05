@@ -195,10 +195,12 @@ fn selected_titles_and_nested_cells_preserve_existing_registration_order() -> Re
 }
 
 #[test]
-fn canonical_body_errors_and_standalone_context_are_explicit() -> Result<(), Error> {
+fn canonical_body_icons_and_standalone_context_are_explicit() -> Result<(), Error> {
     let parsed = parse("Text footnote:[icon:heart[]].", &Options::default())?;
-    assert!(
-        matches!(asg::document_with_profile(parsed.document(),asg::Profile::Acdc),Err(asg::Error::Unsupported{path,construct:Some("icon"),..}) if path=="/footnotes/0/inlines/0")
+    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    assert_eq!(
+        value.pointer("/footnotes/0/inlines/0/target"),
+        Some(&json!("heart"))
     );
     let parsed = parse_inline("*Text footnote:[Note]*", &Options::default())?;
     assert!(matches!(

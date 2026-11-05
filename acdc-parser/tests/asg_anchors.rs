@@ -2,7 +2,7 @@
 
 use acdc_parser::{
     Anchor, Block, CompatibilityMode, ContentAttribute, Document, InlineNode, Location, Options,
-    Paragraph, Plain, asg, parse, parse_file, parse_inline,
+    Paragraph, Plain, asg, parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -89,9 +89,14 @@ fn prepared_declarations_keep_duplicate_ids_and_empty_labels_without_inventing_s
 
 #[test]
 fn anchor_children_and_bibliography_keep_explicit_boundaries() -> Result<(), Error> {
-    let icon = parse_inline("icon:heart[]", &Options::default())?;
-    let anchor = Anchor::new("inline", Location::default())
-        .with_xreflabel(Some(ContentAttribute::from(icon.content())));
+    let invalid = ContentAttribute::new(vec![InlineNode::CharacterReference(
+        acdc_parser::CharacterReference::new(
+            acdc_parser::CharacterReferenceKind::Numeric(0),
+            Location::default(),
+        )
+        .ok_or("numeric reference")?,
+    )]);
+    let anchor = Anchor::new("inline", Location::default()).with_xreflabel(Some(invalid));
     let mut document = Document::default();
     document.push_block(Block::Paragraph(Paragraph::new(
         vec![InlineNode::InlineAnchor(anchor)],
@@ -99,7 +104,7 @@ fn anchor_children_and_bibliography_keep_explicit_boundaries() -> Result<(), Err
     )));
     let result = asg::document_with_profile((&document).into(), asg::Profile::Acdc);
     assert!(
-        matches!(&result,Err(asg::Error::Unsupported{path,construct:Some("icon"),..}) if path=="/blocks/0/inlines/0/reftext/0"),
+        matches!(&result,Err(asg::Error::Unsupported{path,..}) if path=="/blocks/0/inlines/0/reftext/0"),
         "{result:?}"
     );
     let mut anchor = Anchor::new("entry", Location::default());
@@ -125,13 +130,16 @@ fn anchor_children_and_bibliography_keep_explicit_boundaries() -> Result<(), Err
 
 #[test]
 fn unused_primary_anchor_label_does_not_replace_effective_reference_text() -> Result<(), Error> {
-    let icon = parse_inline("icon:heart[]", &Options::default())?;
+    let invalid = ContentAttribute::new(vec![InlineNode::CharacterReference(
+        acdc_parser::CharacterReference::new(
+            acdc_parser::CharacterReferenceKind::Numeric(0),
+            Location::default(),
+        )
+        .ok_or("numeric reference")?,
+    )]);
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
     let mut metadata = paragraph.take_metadata();
-    metadata.id = Some(
-        Anchor::new("id", Location::default())
-            .with_xreflabel(Some(ContentAttribute::from(icon.content()))),
-    );
+    metadata.id = Some(Anchor::new("id", Location::default()).with_xreflabel(Some(invalid)));
     metadata.reftext = Some(ContentAttribute::new(vec![InlineNode::PlainText(
         Plain::new("Selected", Location::default()),
     )]));

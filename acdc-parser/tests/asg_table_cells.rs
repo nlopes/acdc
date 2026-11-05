@@ -212,8 +212,10 @@ fn nested_sections_and_tables_keep_native_block_owners() -> Result<(), Error> {
 #[test]
 fn nested_errors_and_initial_assignment_schema_remain_precise() -> Result<(), Error> {
     let parsed = parse("[cols=a]\n|===\n|icon:heart[]\n|===", &Options::default())?;
-    assert!(
-        matches!(asg::document_with_profile(parsed.document(),asg::Profile::Acdc),Err(asg::Error::Unsupported{path,construct:Some("icon"),..}) if path=="/blocks/0/rows/0/cells/0/blocks/0/inlines/0")
+    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    assert_eq!(
+        value.pointer("/blocks/0/rows/0/cells/0/blocks/0/inlines/0/target"),
+        Some(&json!("heart"))
     );
     let parsed = parse(
         "[cols=a]\n|===\n|\n:toc: macro\n\nText.\n|===",

@@ -183,10 +183,10 @@ fn strict_tables_and_invalid_ordinary_cell_blocks_reject() -> Result<(), Error> 
         "/blocks/0/rows/0/cells/0/blocks/0/inlines/0",
     )] {
         let parsed = parse(source, &Options::default())?;
-        let result = asg::document_with_profile(parsed.document(), asg::Profile::Acdc);
-        assert!(
-            matches!(&result,Err(asg::Error::Unsupported {path:actual,..}) if actual==path),
-            "{source}: {result:?}"
+        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        assert_eq!(
+            value.pointer(&format!("{path}/target")),
+            Some(&json!("heart"))
         );
     }
     let parsed = parse("* Nested item", &Options::default())?;

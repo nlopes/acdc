@@ -147,10 +147,12 @@ fn selected_titles_and_cells_keep_index_owners_and_footnote_registration() -> Re
 }
 
 #[test]
-fn unsupported_label_children_keep_the_nested_owner_path() -> Result<(), Error> {
+fn icon_label_children_keep_the_nested_owner_path() -> Result<(), Error> {
     let parsed = parse("indexterm2:[icon:heart[]]", &Options::default())?;
-    assert!(
-        matches!(asg::document_with_profile(parsed.document(),asg::Profile::Acdc),Err(asg::Error::Unsupported{path,construct:Some("icon"),..}) if path=="/blocks/0/inlines/0/term/0")
+    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    assert_eq!(
+        value.pointer("/blocks/0/inlines/0/term/0/target"),
+        Some(&json!("heart"))
     );
     Ok(())
 }

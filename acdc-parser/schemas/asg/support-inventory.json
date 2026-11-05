@@ -6205,7 +6205,7 @@
         },
         {
           "file": "tests/asg_footnotes.rs",
-          "name": "canonical_body_errors_and_standalone_context_are_explicit"
+          "name": "canonical_body_icons_and_standalone_context_are_explicit"
         },
         {
           "file": "tests/asg_footnotes.rs",
@@ -6234,7 +6234,7 @@
         },
         {
           "file": "tests/asg_index_terms.rs",
-          "name": "unsupported_label_children_keep_the_nested_owner_path"
+          "name": "icon_label_children_keep_the_nested_owner_path"
         },
         {
           "file": "tests/asg_index_terms.rs",
@@ -6500,7 +6500,7 @@
           "tests": [
             "asg_checklists.rs::checklists_preserve_state_separately_from_item_content",
             "asg_checklists.rs::prepared_item_state_is_independent_of_marker_and_principal",
-            "asg_checklists.rs::strict_checklists_and_unsupported_nested_values_remain_errors",
+            "asg_checklists.rs::strict_checklists_reject_while_nested_icons_are_preserved",
             "asg_checklists.rs::checklist_schema_rejects_wrong_states_and_callout_checkboxes"
           ]
         },
@@ -6600,7 +6600,7 @@
             "asg_footnotes.rs::empty_and_catalog_only_definitions_keep_number_and_presence",
             "asg_footnotes.rs::stale_and_duplicate_registrations_reject_without_repair",
             "asg_footnotes.rs::selected_titles_and_nested_cells_preserve_existing_registration_order",
-            "asg_footnotes.rs::canonical_body_errors_and_standalone_context_are_explicit",
+            "asg_footnotes.rs::canonical_body_icons_and_standalone_context_are_explicit",
             "asg_footnotes.rs::footnote_schema_keeps_closed_bodies_and_linked_occurrences"
           ]
         },
@@ -6640,7 +6640,7 @@
             "asg_index_terms.rs::prepared_display_edits_keep_catalog_labels_without_reparsing",
             "asg_index_terms.rs::absent_and_empty_hierarchy_and_relationship_targets_remain_distinct",
             "asg_index_terms.rs::selected_titles_and_cells_keep_index_owners_and_footnote_registration",
-            "asg_index_terms.rs::unsupported_label_children_keep_the_nested_owner_path",
+            "asg_index_terms.rs::icon_label_children_keep_the_nested_owner_path",
             "asg_index_terms.rs::index_schema_closes_labels_snapshots_and_relationship_variants"
           ]
         },
@@ -6849,6 +6849,29 @@
             "asg_ui.rs::nested_label_errors_and_footnotes_keep_their_owners",
             "asg_ui.rs::disabled_source_macros_and_strict_export_stay_literal_or_rejected",
             "asg_ui.rs::interface_schema_is_closed_and_rejects_flattened_labels"
+          ]
+        },
+        "icons": {
+          "owners": {
+            "Icon": [
+              "target",
+              "alt",
+              "tooltip",
+              "metadata",
+              "macro_attributes",
+              "location"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/acdcIcon"
+          ],
+          "handling": "The named profile keeps the icon target, separate alt/tooltip inline content, identity, roles, options and scalar controls. Document icon mode/settings remain in attributes and ordered events, including cell snapshots. Empty versus absent content survives. No asset resolution or backend markup; strict export rejects.",
+          "tests": [
+            "asg_icons.rs::source_icon_modes_controls_and_content_are_preserved",
+            "asg_icons.rs::prepared_icons_keep_absent_empty_and_literal_values",
+            "asg_icons.rs::invalid_icon_children_and_controls_keep_exact_paths",
+            "asg_icons.rs::canonical_note_icon_errors_and_strict_rejection_remain_explicit",
+            "asg_icons.rs::icon_schema_is_closed_and_uses_content_and_metadata_contracts"
           ]
         }
       }

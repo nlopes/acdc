@@ -77,7 +77,7 @@ fn prepared_item_state_is_independent_of_marker_and_principal() -> Result<(), Er
 }
 
 #[test]
-fn strict_checklists_and_unsupported_nested_values_remain_errors() -> Result<(), Error> {
+fn strict_checklists_reject_while_nested_icons_are_preserved() -> Result<(), Error> {
     for source in ["* [ ] Pending", "* [x] Done"] {
         let parsed = parse(source, &Options::default())?;
         assert!(
@@ -85,8 +85,10 @@ fn strict_checklists_and_unsupported_nested_values_remain_errors() -> Result<(),
         );
     }
     let parsed = parse("* [x] icon:heart[]", &Options::default())?;
-    assert!(
-        matches!(asg::document_with_profile(parsed.document(), asg::Profile::Acdc),Err(asg::Error::Unsupported {path, construct:Some("icon"), ..}) if path == "/blocks/0/items/0/principal/0")
+    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    assert_eq!(
+        value.pointer("/blocks/0/items/0/principal/0/target"),
+        Some(&json!("heart"))
     );
     Ok(())
 }

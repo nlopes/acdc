@@ -229,6 +229,7 @@ const EXTENSION_ADDITIONS: &[(&str, &[&str])] = &[
             "acdcFootnoteDefinition",
             "acdcCaption",
             "acdcInlineImage",
+            "acdcIcon",
             "acdcInlineMetadata",
             "acdcSpanMetadata",
             "acdcAdmonition",
@@ -263,7 +264,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         }
     }
     for (path, count) in [
-        ("/$defs/inline/oneOf", 10),
+        ("/$defs/inline/oneOf", 11),
         ("/$defs/leafBlock/allOf", 1),
         ("/$defs/inlineSpan/allOf", 1),
         ("/$defs/list/allOf", 2),

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The named ASG profile preserves icon targets, alt text, tooltips, roles and
+  controls across font, image and text fallback modes without resolving assets.
+
+
 ### Breaking changes
 
 - Admonition JSON distinguishes paragraph, indented, and delimited forms, retaining

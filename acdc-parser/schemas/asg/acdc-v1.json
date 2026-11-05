@@ -846,6 +846,9 @@
         },
         {
           "$ref": "#/$defs/acdcMenu"
+        },
+        {
+          "$ref": "#/$defs/acdcIcon"
         }
       ]
     },
@@ -939,12 +942,12 @@
         "quotes": {
           "enum": [
             [
-              "“",
-              "”"
+              "\u201c",
+              "\u201d"
             ],
             [
-              "‘",
-              "’"
+              "\u2018",
+              "\u2019"
             ]
           ]
         }
@@ -2060,6 +2063,41 @@
           "items": {
             "$ref": "#/$defs/inlines"
           }
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "acdcIcon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "target"
+      ],
+      "properties": {
+        "name": {
+          "const": "icon"
+        },
+        "type": {
+          "const": "inline"
+        },
+        "target": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "alt": {
+          "$ref": "#/$defs/inlines"
+        },
+        "tooltip": {
+          "$ref": "#/$defs/inlines"
+        },
+        "metadata": {
+          "$ref": "#/$defs/acdcInlineMetadata"
         },
         "location": {
           "$ref": "#/$defs/location"

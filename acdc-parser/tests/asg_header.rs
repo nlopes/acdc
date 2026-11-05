@@ -81,8 +81,10 @@ fn strict_headers_and_unsupported_nested_content_keep_explicit_errors() -> Resul
         );
     }
     let parsed = parse("= Main: icon:heart[]", &Options::default())?;
-    assert!(
-        matches!(asg::document_with_profile(parsed.document(), asg::Profile::Acdc), Err(asg::Error::Unsupported {path, construct:Some("icon"), ..}) if path == "/header/subtitle/0")
+    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    assert_eq!(
+        value.pointer("/header/subtitle/0/target"),
+        Some(&json!("heart"))
     );
     let parsed = parse("icon:heart[]", &Options::default())?;
     let BlockKind::Paragraph(paragraph) =
@@ -102,8 +104,10 @@ fn strict_headers_and_unsupported_nested_content_keep_explicit_errors() -> Resul
     document.set_header(Some(
         Header::new(Title::new(Vec::new()), Location::default()).with_metadata(metadata)?,
     ));
-    assert!(
-        matches!(asg::document_with_profile((&document).into(), asg::Profile::Acdc), Err(asg::Error::Unsupported {path, construct:Some("icon"), ..}) if path == "/header/reftext/0")
+    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    assert_eq!(
+        value.pointer("/header/reftext/0/target"),
+        Some(&json!("heart"))
     );
     let mut document = Document::default();
     let metadata = BlockMetadata::new().with_roles(vec!["notice"]);

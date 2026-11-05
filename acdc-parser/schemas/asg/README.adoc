@@ -669,3 +669,15 @@ content, including protected fragments and nested semantic nodes. Source macros
 that were disabled remain literal text; export does not enable them. Native
 empty button/keyboard macros remain semantic nodes, although Asciidoctor retains
 those empty source forms literally. Strict export rejects all three macro kinds.
+
+== Icons
+
+The named profile exports `icon` inline nodes with a target and optional
+`alt`/`tooltip` inline arrays. Absent content selects the consumer's fallback;
+`[]` retains explicitly empty content. Identity, roles, options and scalar
+controls use the same bounded metadata contract as inline images. Size,
+rotation, flip and link settings are retained as controls, without CSS classes,
+asset paths or rendered labels invented by the exporter. Document `icons`,
+`iconsdir` and `icontype` settings remain in document attributes, ordered body
+events and AsciiDoc cell snapshots. Strict upstream export rejects icons.
+See `fixtures/asg/icons.adoc` and its JSON example.

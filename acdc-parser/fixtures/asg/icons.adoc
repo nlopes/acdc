@@ -1,0 +1,24 @@
+= Icon semantics
+:icons: font
+:icon-name: star
+
+icon:{icon-name}[2x,alt='*Star*',title='_Favorite_',rotate=90,flip=horizontal,link=https://example.org,window=preview,id=first,role="red blue",opts="nofollow,custom",custom=kept]
+
+icon:heart[] icon:star[alt="",title="",size=""]
+
+*icon:check[size=lg,role=inside]*
+
+:icons: image
+:iconsdir: assets/icons
+:icontype: svg
+
+icon:save[alt=Save,title=Save,link=https://example.org/save]
+
+[cols=a]
+|===
+|Cell icon:star[alt=Cell,title=Tip,role=cell].
+|===
+
+:icons!:
+
+icon:info[alt=Information]

@@ -134,8 +134,10 @@ fn unknown_forms_and_nested_unsupported_content_remain_explicit_errors() -> Resu
         ("> icon:heart[]", "/blocks/0/blocks/0/inlines/0"),
     ] {
         let parsed = parse(source, &Options::default())?;
-        assert!(
-            matches!(asg::document_with_profile(parsed.document(), asg::Profile::Acdc), Err(asg::Error::Unsupported {path:actual, construct:Some("icon"), ..}) if actual == path)
+        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        assert_eq!(
+            value.pointer(&format!("{path}/target")),
+            Some(&json!("heart"))
         );
     }
     Ok(())

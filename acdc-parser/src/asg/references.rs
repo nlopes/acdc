@@ -84,6 +84,7 @@ pub(super) fn project(
         }
         InlineMacro::CrossReference(xref) => cross_reference(xref, path, settings),
         InlineMacro::IndexTerm(_)
+        | InlineMacro::Icon(_)
         | InlineMacro::Footnote(_)
         | InlineMacro::Stem(_)
         | InlineMacro::Keyboard(_)
@@ -110,6 +111,7 @@ pub(super) fn project(
 
 fn extension(value: &InlineMacro<'_>, path: &str, settings: InlineContext) -> Result<Node, Error> {
     match value {
+        InlineMacro::Icon(value) => super::icons::project(value, path),
         InlineMacro::IndexTerm(value) => super::index_terms::project(value, path, settings),
         InlineMacro::Footnote(note) => super::footnotes::occurrence(note, path),
         InlineMacro::Stem(value) => {
@@ -128,7 +130,6 @@ fn extension(value: &InlineMacro<'_>, path: &str, settings: InlineContext) -> Re
         | InlineMacro::Mailto(_)
         | InlineMacro::Autolink(_)
         | InlineMacro::CrossReference(_)
-        | InlineMacro::Icon(_)
         | InlineMacro::Image(_)
         | InlineMacro::Pass(_) => Err(unsupported(
             path,
