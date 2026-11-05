@@ -64,3 +64,9 @@ impl<'doc> From<&'doc Icon<'doc>> for IconRef<'doc> {
         Self::new(icon)
     }
 }
+
+impl<'doc> From<IconRef<'doc>> for Icon<'doc> {
+    fn from(read: IconRef<'doc>) -> Self {
+        read.node.clone()
+    }
+}

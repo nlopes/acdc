@@ -58,12 +58,14 @@ fn direct_attribute_reads_do_not_allocate_for_owned_text_or_content()
         String::from("custom").into(),
         String::from("\"owned text\"").into(),
     )?;
-    image.metadata.roles = vec!["one", "two"];
-    image.options_mut().extend(["first", "second"]);
-    image.alt = Some(ContentAttribute::new(vec![InlineNode::PlainText(
+    let mut image_metadata = image.take_metadata();
+    image_metadata.roles = vec!["one", "two"];
+    image.set_metadata(image_metadata);
+    image.replace_options(vec!["first", "second"]);
+    image.set_alt(Some(ContentAttribute::new(vec![InlineNode::PlainText(
         Plain::new("Bird", Location::default()),
-    )]));
-    image.tooltip = Some(ContentAttribute::default());
+    )])));
+    image.set_tooltip(Some(ContentAttribute::default()));
     let region = Region::new(ALLOCATOR);
     let attributes = InlineImageRef::from(&image).attributes();
     black_box(attributes.get(black_box("custom")));
@@ -137,10 +139,12 @@ fn icon_reads_borrow_content_and_controls_without_allocating()
     let mut icon = Icon::new(Source::Name("star"), Location::default());
     icon.set_attribute(String::from("custom").into(), String::from("owned").into())?;
     icon.set_attribute("size".into(), "2x".into())?;
-    icon.metadata.roles.push("red");
-    icon.options_mut().push("nofollow");
-    icon.alt = Some(ContentAttribute::default());
-    icon.tooltip = Some(ContentAttribute::default());
+    let mut icon_metadata = icon.take_metadata();
+    icon_metadata.roles.push("red");
+    icon.set_metadata(icon_metadata);
+    icon.push_option("nofollow");
+    icon.set_alt(Some(ContentAttribute::default()));
+    icon.set_tooltip(Some(ContentAttribute::default()));
     let region = Region::new(ALLOCATOR);
     let icon = IconRef::from(&icon);
     black_box(icon.target().kind());

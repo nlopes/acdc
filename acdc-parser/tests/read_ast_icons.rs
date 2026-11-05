@@ -25,10 +25,12 @@ fn reserved_icon_attributes_cannot_shadow_dedicated_values(
     #[values("alt", "title", "id", "role", "roles", "opts", "options")] name: &str,
 ) -> Result<(), Error> {
     let mut icon = Icon::new(Source::Name("star"), Location::default());
-    icon.alt = Some(ContentAttribute::default());
-    icon.metadata.id = Some(ElementId::new("id", Location::default()));
-    icon.metadata.roles.push("role");
-    icon.options_mut().push("custom");
+    icon.set_alt(Some(ContentAttribute::default()));
+    let mut metadata = icon.take_metadata();
+    metadata.id = Some(ElementId::new("id", Location::default()));
+    metadata.roles.push("role");
+    icon.set_metadata(metadata);
+    icon.push_option("custom");
     let before = serde_json::to_value(&icon)?;
     assert_eq!(
         icon.set_attribute(name.to_owned().into(), "shadow".into())
@@ -52,9 +54,11 @@ fn reserved_icon_attributes_cannot_shadow_dedicated_values(
 fn constructed_icons_keep_independent_content_and_controls() -> Result<(), Error> {
     let mut icon = Icon::new(Source::Name(""), Location::default());
     assert!(IconRef::from(&icon).attributes().is_empty());
-    icon.alt = Some(ContentAttribute::default());
-    icon.tooltip = Some(ContentAttribute::default());
-    icon.metadata.id = Some(ElementId::new("", Location::default()));
+    icon.set_alt(Some(ContentAttribute::default()));
+    icon.set_tooltip(Some(ContentAttribute::default()));
+    let mut metadata = icon.take_metadata();
+    metadata.id = Some(ElementId::new("", Location::default()));
+    icon.set_metadata(metadata);
     icon.set_attribute("size".into(), "".into())?;
     icon.set_attribute("custom".into(), AttributeValue::Bool(false))?;
     icon.set_attribute("valueless".into(), AttributeValue::None)?;
@@ -71,9 +75,9 @@ fn constructed_icons_keep_independent_content_and_controls() -> Result<(), Error
         read.attributes().get("valueless"),
         Some(AttributeValueRef::None)
     );
-    icon.tooltip = None;
-    icon.metadata = acdc_parser::InlineMetadata::default();
-    icon.options_mut().push("extension");
+    icon.set_tooltip(None);
+    icon.set_metadata(acdc_parser::InlineMetadata::default());
+    icon.push_option("extension");
     assert_eq!(
         icon.remove_attribute("custom")?,
         Some(AttributeValue::Bool(false))

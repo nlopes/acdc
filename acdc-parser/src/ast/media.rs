@@ -163,3 +163,9 @@ impl fmt::Display for SourceRef<'_> {
         self.source.fmt(formatter)
     }
 }
+
+impl<'doc> From<InlineImageRef<'doc>> for InlineImage<'doc> {
+    fn from(read: InlineImageRef<'doc>) -> Self {
+        read.node.clone()
+    }
+}

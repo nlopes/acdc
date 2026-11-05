@@ -5,17 +5,35 @@ use crate::{
 };
 
 /// An inline icon with independent content, identity, and macro controls.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Icon, Location, Source};
+/// let mut node = Icon::new(Source::Name("target"), Location::default());
+/// node.alt = None;
+/// ```
+///
+/// ```compile_fail,E0624
+/// use acdc_parser::{Icon, Location, Source};
+/// let node = Icon::new(Source::Name("target"), Location::default());
+/// let _ = node.attributes();
+/// ```
+///
+/// ```compile_fail,E0599
+/// use acdc_parser::{Icon, Location, Source};
+/// let mut node = Icon::new(Source::Name("target"), Location::default());
+/// node.options_mut().push("first");
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Icon<'a> {
     /// Explicit alternative content; the target supplies the default.
-    pub alt: Option<ContentAttribute<'a>>,
+    pub(crate) alt: Option<ContentAttribute<'a>>,
     /// Hover content supplied by `title=`.
-    pub tooltip: Option<ContentAttribute<'a>>,
-    pub target: Source<'a>,
-    pub metadata: InlineMetadata<'a>,
+    pub(crate) tooltip: Option<ContentAttribute<'a>>,
+    pub(crate) target: Source<'a>,
+    pub(crate) metadata: InlineMetadata<'a>,
     pub(crate) macro_attributes: MacroAttributes<'a>,
-    pub location: Location,
+    pub(crate) location: Location,
 }
 
 impl<'a> Icon<'a> {
@@ -37,7 +55,7 @@ impl<'a> Icon<'a> {
     /// This map excludes alt, tooltip, identity, roles, and options. Read those
     /// values through their dedicated fields or methods.
     #[must_use]
-    pub fn attributes(&self) -> &ElementAttributes<'a> {
+    pub(crate) fn attributes(&self) -> &ElementAttributes<'a> {
         &self.macro_attributes.attributes
     }
 
@@ -45,7 +63,7 @@ impl<'a> Icon<'a> {
     ///
     /// # Errors
     /// Rejects `alt`, `title`, `id`, `role`/`roles`, and `opts`/`options`.
-    /// Update the content, metadata, or options directly instead.
+    /// Use prepared content, metadata, or option edits instead.
     pub fn set_attribute(
         &mut self,
         name: AttributeName<'a>,
@@ -67,13 +85,96 @@ impl<'a> Icon<'a> {
 
     /// Read the macro's option names in their stored order.
     #[must_use]
-    pub fn options(&self) -> &[&'a str] {
+    pub(crate) fn options(&self) -> &[&'a str] {
         &self.macro_attributes.options
     }
 
-    /// Edit the macro's option names without creating attribute-map aliases.
-    pub fn options_mut(&mut self) -> &mut Vec<&'a str> {
-        &mut self.macro_attributes.options
+    /// Replace scalar controls after validating the complete map.
+    ///
+    /// # Errors
+    /// Rejects dedicated content, identity, role and option names, including aliases.
+    /// On error, this node stays unchanged.
+    pub fn set_attributes(
+        &mut self,
+        attributes: ElementAttributes<'a>,
+    ) -> Result<(), ReservedAttribute> {
+        self.macro_attributes.replace(attributes, &["alt", "title"])
+    }
+
+    /// Copy scalar controls without copying content, identity, roles or options.
+    #[must_use]
+    pub fn clone_attributes(&self) -> ElementAttributes<'a> {
+        self.macro_attributes.attributes.clone()
+    }
+
+    /// Transfer scalar controls, leaving none.
+    #[must_use]
+    pub fn take_attributes(&mut self) -> ElementAttributes<'a> {
+        std::mem::take(&mut self.macro_attributes.attributes)
+    }
+
+    /// Replace prepared option names, retaining their order and source lifetimes.
+    pub fn replace_options(&mut self, options: Vec<&'a str>) -> Vec<&'a str> {
+        std::mem::replace(&mut self.macro_attributes.options, options)
+    }
+
+    /// Transfer option names, leaving none.
+    pub fn take_options(&mut self) -> Vec<&'a str> {
+        std::mem::take(&mut self.macro_attributes.options)
+    }
+
+    /// Append a prepared option name without interpreting or splitting it.
+    pub fn push_option(&mut self, option: &'a str) {
+        self.macro_attributes.options.push(option);
+    }
+
+    /// Set prepared identity and roles without registering them in a document.
+    pub fn set_metadata(&mut self, metadata: InlineMetadata<'a>) {
+        self.metadata = metadata;
+    }
+
+    /// Copy identity and roles, keeping scalar controls and content separate.
+    #[must_use]
+    pub fn clone_metadata(&self) -> InlineMetadata<'a> {
+        self.metadata.clone()
+    }
+
+    /// Transfer identity and roles, leaving them absent.
+    #[must_use]
+    pub fn take_metadata(&mut self) -> InlineMetadata<'a> {
+        std::mem::take(&mut self.metadata)
+    }
+
+    /// Set prepared alternative content; absence selects the converter's fallback.
+    pub fn set_alt(&mut self, alt: Option<ContentAttribute<'a>>) {
+        self.alt = alt;
+    }
+
+    /// Transfer alternative content, leaving it absent.
+    #[must_use]
+    pub fn take_alt(&mut self) -> Option<ContentAttribute<'a>> {
+        self.alt.take()
+    }
+
+    /// Set prepared hover content, retaining absent versus explicitly empty values.
+    pub fn set_tooltip(&mut self, tooltip: Option<ContentAttribute<'a>>) {
+        self.tooltip = tooltip;
+    }
+
+    /// Transfer hover content, leaving it absent.
+    #[must_use]
+    pub fn take_tooltip(&mut self) -> Option<ContentAttribute<'a>> {
+        self.tooltip.take()
+    }
+
+    /// Replace the prepared target without resolving paths, fetching or registration.
+    pub fn replace_target(&mut self, source: Source<'a>) -> Source<'a> {
+        std::mem::replace(&mut self.target, source)
+    }
+
+    /// Replace the node span, keeping the separate ID and content locations.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 
     pub(crate) fn has_metadata(&self) -> bool {

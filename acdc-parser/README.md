@@ -362,6 +362,14 @@ Anchor reftext and bibliography display labels have separate transfers.
 an explicitly empty display label. These edits leave document catalogs alone.
 Location edits keep the locations within prepared label and note content.
 
+Inline images and icons also use typed reads and selected `From` copies.
+Set or take alt and tooltip content separately from identity and roles.
+Scalar controls use checked `set_attributes` or individual attribute edits;
+reserved names fail before changing the node. `clone_attributes` and
+`take_attributes` return scalar controls alone. Option transfers retain order,
+duplicates, empty entries, and source lifetimes without interpreting them.
+Replacing a target does not fetch it, resolve paths, or register its ID.
+
 `document().header()` exposes the title, subtitle, and authors. Read revision
 values through `document().attributes().get("revnumber")`, `revdate`, and
 `revremark`. Header `attributes()` reads element metadata on the title;
@@ -707,22 +715,19 @@ places metadata under `metadata` and retains mail `subject` and `body` separatel
 - Read named titles through `title`, rather than `metadata.attributes["title"]`.
   Titles, attributions, and citation titles serialize only their parsed inline
   content. Replacing or removing content cannot leave an old attribute value.
-- `InlineImage::metadata` uses `InlineMetadata` for roles and an optional
-  `ElementId`. The owning node's `image.attributes()` map contains scalar
-  controls such as width and link; it does not include alt, tooltip, identity,
-  roles, or options. Read alt and tooltip from the image, identity and roles
-  from `metadata`, and options with `options()`. Use `set_attribute` /
-  `remove_attribute` for scalar controls and `options_mut()` to edit options.
-  Reserved names and aliases return `ReservedAttribute` rather than shadowing
-  a dedicated value.
+- Inline images and icons expose alternative and hover content, identity,
+  roles, options, and scalar controls through their typed handles. Use prepared
+  edits and transfers for owned values. Scalar controls reject dedicated
+  names and aliases with `ReservedAttribute`.
 - Named reference labels are available as `BlockMetadata::reftext`, outside
-  the extension attribute map. `Anchor::xreflabel`, `TocEntry::xreflabel`, and
-  `Reference::xreflabel` also contain optional `ContentAttribute` values.
+  the extension attribute map. Read `AnchorRef::reftext`, `TocEntryRef::xreflabel`, and
+  `ReferenceRef::xreflabel` for their optional content.
   Native JSON stores these labels as inline arrays. The reference catalog uses
   the target's parsed content without parsing it again. An explicitly empty
   label remains present on the target and selects title fallback in a reference.
 - `Attribution` and `CiteTitle` are aliases of `ContentAttribute`. Existing
-  constructors and slice access remain available.
+  constructors remain available. Read through `ContentRef` and transfer prepared
+  content with `into_inlines`.
 - `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` are
   available in every build. Remove conditional compilation used only to access
   this API. `None` is omitted from JSON; an explicit empty list is

@@ -179,12 +179,16 @@ fn image_alternatives_preserve_parser_selected_boundaries() -> Result<(), TestEr
         let [InlineNode::Macro(acdc_parser::InlineMacro::Image(image))] = parsed.inlines() else {
             return Err("expected inline image".into());
         };
-        let alt = image.alt.as_ref().ok_or("missing alt")?;
-        let tooltip = image.tooltip.as_ref().ok_or("missing tooltip")?;
+        let mut prepared = image.as_ref().clone();
+        let alt_content = prepared.take_alt().ok_or("missing alt")?;
+        let tooltip_content = prepared.take_tooltip().ok_or("missing tooltip")?;
+        let alt = &alt_content;
+        let tooltip = &tooltip_content;
+        let source = prepared.replace_source(Source::Name(""));
         let expected = "© → --";
-        assert_eq!(media::image_alt(&image.source, Some(alt)), expected);
+        assert_eq!(media::image_alt(&source, Some(alt)), expected);
         assert_eq!(
-            media::image_alt_from_content((&image.source).into(), Some(alt.into())),
+            media::image_alt_from_content((&source).into(), Some(alt.into())),
             expected
         );
         assert_eq!(
@@ -211,13 +215,16 @@ fn icon_alternatives_preserve_parser_selected_boundaries() -> Result<(), TestErr
         let [InlineNode::Macro(acdc_parser::InlineMacro::Icon(icon))] = parsed.inlines() else {
             return Err("expected icon".into());
         };
-        let alt = icon.alt.as_ref().ok_or("missing alt")?;
+        let mut prepared = icon.as_ref().clone();
+        let alt_content = prepared.take_alt().ok_or("missing alt")?;
+        let alt = &alt_content;
+        let source = prepared.replace_target(Source::Name(""));
         assert_eq!(
-            acdc_converters_core::icon::alt(&icon.target, Some(alt)),
+            acdc_converters_core::icon::alt(&source, Some(alt)),
             "© → --"
         );
         assert_eq!(
-            acdc_converters_core::icon::alt_from_content((&icon.target).into(), Some(alt.into())),
+            acdc_converters_core::icon::alt_from_content((&source).into(), Some(alt.into())),
             "© → --"
         );
     }

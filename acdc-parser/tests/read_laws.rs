@@ -336,9 +336,9 @@ fn family_reads_obey_attribute_and_ownership_laws(
 fn independently_edited_values_keep_presence_and_scalar_controls_separate() -> TestResult {
     let mut first = InlineImage::new(Source::Name("first.png"), Location::default());
     let mut second = first.clone();
-    first.alt = Some(ContentAttribute::default());
+    first.set_alt(Some(ContentAttribute::default()));
     first.set_attribute("width".into(), "120".into())?;
-    second.tooltip = Some(ContentAttribute::default());
+    second.set_tooltip(Some(ContentAttribute::default()));
     second.set_attribute("width".into(), "240".into())?;
     for (owner, empty_name, missing_name, width) in [
         (&first, "alt", "title", "120"),

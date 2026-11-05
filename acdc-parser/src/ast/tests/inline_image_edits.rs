@@ -99,7 +99,7 @@ fn replacing_metadata_preserves_content_and_macro_attributes() -> Result<(), Err
     metadata.roles.push("new");
     metadata.id = Some(ElementId::new("new-id", image.location.clone()));
     image.metadata = metadata;
-    image.options_mut().push("interactive");
+    image.push_option("interactive");
 
     assert_eq!(image.alt, alt);
     assert_eq!(image.tooltip, tooltip);

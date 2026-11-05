@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** inline images and icons now use typed reads and selected `From`
+  copies. Replace field writes with prepared content, metadata, target, and
+  location edits. Use checked `set_attributes` for scalar maps, and explicit
+  option transfers instead of backing slices or mutable vectors. Reserved-key
+  failures leave the node unchanged; alt and tooltips retain absent/empty values.
+
 - **Breaking:** anchors, footnotes, and callout markers use private storage.
   Read through their typed handles and copy selected values with `From`.
   Use prepared content, identity, number, and location edits for owned values.

@@ -158,8 +158,10 @@ fn scalar_values_and_owned_names_are_read_without_cloning_or_stripping_quotes() 
 fn image_fields_keep_absent_empty_and_contextual_names_distinct() -> Result<(), Error> {
     let mut inline = InlineImage::new(Source::Name("bird"), Location::default());
     assert!(InlineImageRef::from(&inline).attributes().is_empty());
-    inline.tooltip = Some(ContentAttribute::default());
-    inline.metadata.id = Some(ElementId::new("", Location::default()));
+    inline.set_tooltip(Some(ContentAttribute::default()));
+    let mut inline_metadata = inline.take_metadata();
+    inline_metadata.id = Some(ElementId::new("", Location::default()));
+    inline.set_metadata(inline_metadata);
     inline.set_attribute("tooltip".into(), "extension".into())?;
     inline.set_attribute("style".into(), "".into())?;
     inline.set_attribute("source".into(), "another extension".into())?;
@@ -186,7 +188,7 @@ fn image_fields_keep_absent_empty_and_contextual_names_distinct() -> Result<(), 
     for name in ["title", "alt", "id", "roles", "options"] {
         assert!(inline.set_attribute(name.into(), "shadow".into()).is_err());
     }
-    inline.tooltip = None;
+    inline.set_tooltip(None);
     assert!(!InlineImageRef::from(&inline).attributes().contains("title"));
     Ok(())
 }
@@ -201,7 +203,9 @@ fn handles_and_iterators_support_shared_reads_after_temporary_handles() {
     handle::<AttributeValueRef<'_>>();
     handle::<TokensRef<'_>>();
     let mut image = InlineImage::new(Source::Name("bird"), Location::default());
-    image.metadata.roles = vec!["one", "two"];
+    let mut image_metadata = image.take_metadata();
+    image_metadata.roles = vec!["one", "two"];
+    image.set_metadata(image_metadata);
     let entries = iterator(InlineImageRef::from(&image).attributes().iter());
     let tokens = iterator(InlineImageRef::from(&image).roles().iter());
     std::thread::scope(|scope| {
