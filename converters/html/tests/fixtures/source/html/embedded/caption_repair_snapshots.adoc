@@ -1,0 +1,62 @@
+= Caption repair snapshots
+:figure-caption: First
+:listing-caption: Code
+
+[#one]
+.First image
+image::one.svg[]
+
+:figure-caption: Later
+
+[#two]
+.Second image
+image::two.svg[]
+
+[#custom,caption="Custom: "]
+.Custom image
+image::custom.svg[]
+
+[#empty,caption=""]
+.Empty prefix
+image::empty.svg[]
+
+:figure-caption!:
+
+[#unnumbered]
+.Unnumbered image
+image::unnumbered.svg[]
+
+:figure-caption:
+
+[#blank]
+.Empty numbered label
+image::blank.svg[]
+
+[#outer]
+.Outer example
+====
+[#inner]
+.Inner example
+[example]
+Body.
+====
+
+[#source]
+.Source listing
+[source,rust]
+----
+fn main() {}
+----
+
+[#table]
+.Table title
+[cols="a"]
+|===
+|
+[#cell]
+.Cell image
+image::cell.svg[]
+|===
+
+See <<one>>, <<two>>, <<custom>>, <<empty>>, <<unnumbered>>, <<blank>>,
+<<inner>>, <<outer>>, <<source>>, <<cell>> and <<table>>.

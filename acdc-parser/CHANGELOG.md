@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Owned documents can call `rebuild_captions()` to repair caption numbers and
+  reference caption snapshots after edits. Stored custom, empty and disabled
+  prefixes are preserved. Missing declaration context returns an error without
+  partial changes; reference membership and other registrations stay unchanged.
+
 - Owned documents can call `rebuild_references_and_toc()` after prepared tree
   edits. It refreshes membership, labels, aliases and section numbers while
   retaining assigned IDs and the first target for duplicate IDs. Missing IDs

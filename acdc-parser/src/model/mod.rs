@@ -63,9 +63,9 @@ pub use title::{Subtitle, Title};
 ///
 /// Edits do not reparse content or rebuild reference, TOC, or footnote catalogs.
 /// [`Self::renumber_sections`] and [`Self::renumber_captions`] update only their
-/// documented numbering state. Use [`Self::rebuild_references_and_toc`] to
-/// refresh those catalogs after prepared tree edits. Reparse source to recompute
-/// declaration-order attribute snapshots.
+/// documented numbering state. Use [`Self::rebuild_references_and_toc`] or
+/// [`Self::rebuild_captions`] to refresh the corresponding prepared catalogs.
+/// Reparse source to recompute declaration-order attribute snapshots.
 #[derive(Default, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Document<'a> {
@@ -214,6 +214,7 @@ impl<'a> Document<'a> {
     /// or inserting a block whose `metadata.caption` has been set. A caller-built block whose
     /// `metadata.caption` is `None` stays unnumbered: nothing knows the document attributes at
     /// a source position it never had, so a converter's own fallback owns it.
+    /// Use [`Self::rebuild_captions`] to refresh reference caption snapshots too.
     pub fn renumber_captions(&mut self) {
         caption::renumber_captions(&mut self.blocks);
     }

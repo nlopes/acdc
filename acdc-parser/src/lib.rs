@@ -157,6 +157,7 @@ use tracing::instrument;
 pub mod asg;
 pub mod ast;
 mod blocks;
+mod caption_repair;
 mod constants;
 mod document_attribute;
 mod error;
@@ -173,7 +174,7 @@ mod warning;
 pub(crate) use grammar::{InlinePreprocessorParserState, ProcessedContent, inline_preprocessing};
 use preprocessor::Preprocessor;
 
-pub use error::{Error, ReferenceRepairError, SourceLocation};
+pub use error::{CaptionRepairError, Error, ReferenceRepairError, SourceLocation};
 pub use grammar::parse_text_for_quotes;
 pub use model::{
     Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Attribution, Audio,

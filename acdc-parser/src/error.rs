@@ -397,3 +397,17 @@ pub enum ReferenceRepairError {
         location: Box<Location>,
     },
 }
+
+/// An explicit caption rebuild lacks a compatible prepared prefix.
+#[derive(Clone, Debug, PartialEq, thiserror::Error)]
+#[non_exhaustive]
+pub enum CaptionRepairError {
+    /// Supply a resolved caption or reparse source to recover declaration context.
+    #[error(
+        "caption has no prepared context for this block; supply a resolved caption or reparse its source"
+    )]
+    MissingContext {
+        /// The caller-provided block span.
+        location: Box<Location>,
+    },
+}
