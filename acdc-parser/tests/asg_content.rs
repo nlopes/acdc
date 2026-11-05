@@ -230,6 +230,22 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
             .ok_or("defs")?
             .remove(name);
     }
+    for name in [
+        "acdcAdmonition",
+        "acdcParagraphParentBlock",
+        "acdcMarkedQuote",
+    ] {
+        restored
+            .pointer_mut("/$defs/block/oneOf")
+            .and_then(Value::as_array_mut)
+            .ok_or("block forms")?
+            .pop();
+        restored
+            .get_mut("$defs")
+            .and_then(Value::as_object_mut)
+            .ok_or("defs")?
+            .remove(name);
+    }
     restored
         .pointer_mut("/$defs/block/oneOf")
         .and_then(Value::as_array_mut)

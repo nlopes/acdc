@@ -1,0 +1,937 @@
+{
+  "blocks": [
+    {
+      "blocks": [
+        {
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 7,
+                  "line": 1
+                },
+                {
+                  "col": 23,
+                  "line": 1
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "A paragraph note."
+            }
+          ],
+          "location": [
+            {
+              "col": 7,
+              "line": 1
+            },
+            {
+              "col": 23,
+              "line": 1
+            }
+          ],
+          "name": "paragraph",
+          "type": "block"
+        }
+      ],
+      "form": "paragraph",
+      "location": [
+        {
+          "col": 1,
+          "line": 1
+        },
+        {
+          "col": 23,
+          "line": 1
+        }
+      ],
+      "name": "admonition",
+      "type": "block",
+      "variant": "note"
+    },
+    {
+      "blocks": [
+        {
+          "form": "indented",
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 1,
+                  "line": 4
+                },
+                {
+                  "col": 21,
+                  "line": 4
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "    An indented note."
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 4
+            },
+            {
+              "col": 21,
+              "line": 4
+            }
+          ],
+          "name": "paragraph",
+          "type": "block"
+        }
+      ],
+      "form": "indented",
+      "location": [
+        {
+          "col": 1,
+          "line": 3
+        },
+        {
+          "col": 21,
+          "line": 4
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "style": "IMPORTANT"
+        },
+        "location": [
+          {
+            "col": 1,
+            "line": 3
+          },
+          {
+            "col": 12,
+            "line": 3
+          }
+        ]
+      },
+      "name": "admonition",
+      "type": "block",
+      "variant": "important"
+    },
+    {
+      "blocks": [
+        {
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 1,
+                  "line": 9
+                },
+                {
+                  "col": 2,
+                  "line": 9
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "A "
+            },
+            {
+              "form": "constrained",
+              "inlines": [
+                {
+                  "location": [
+                    {
+                      "col": 4,
+                      "line": 9
+                    },
+                    {
+                      "col": 12,
+                      "line": 9
+                    }
+                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "delimited"
+                }
+              ],
+              "location": [
+                {
+                  "col": 3,
+                  "line": 9
+                },
+                {
+                  "col": 13,
+                  "line": 9
+                }
+              ],
+              "name": "span",
+              "type": "inline",
+              "variant": "strong"
+            },
+            {
+              "location": [
+                {
+                  "col": 14,
+                  "line": 9
+                },
+                {
+                  "col": 18,
+                  "line": 9
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": " tip."
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 9
+            },
+            {
+              "col": 18,
+              "line": 9
+            }
+          ],
+          "name": "paragraph",
+          "type": "block"
+        }
+      ],
+      "delimiter": "======",
+      "form": "delimited",
+      "id": "bounded",
+      "location": [
+        {
+          "col": 1,
+          "line": 6
+        },
+        {
+          "col": 6,
+          "line": 10
+        }
+      ],
+      "metadata": {
+        "location": [
+          {
+            "col": 1,
+            "line": 6
+          },
+          {
+            "col": 21,
+            "line": 7
+          }
+        ],
+        "roles": [
+          "notice"
+        ]
+      },
+      "name": "admonition",
+      "title": [
+        {
+          "location": [
+            {
+              "col": 2,
+              "line": 6
+            },
+            {
+              "col": 13,
+              "line": 6
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "A titled tip"
+        }
+      ],
+      "type": "block",
+      "variant": "tip"
+    },
+    {
+      "blocks": [
+        {
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 1,
+                  "line": 14
+                },
+                {
+                  "col": 16,
+                  "line": 14
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "An open warning."
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 14
+            },
+            {
+              "col": 16,
+              "line": 14
+            }
+          ],
+          "name": "paragraph",
+          "type": "block"
+        }
+      ],
+      "delimiter": "--",
+      "form": "delimited",
+      "location": [
+        {
+          "col": 1,
+          "line": 12
+        },
+        {
+          "col": 2,
+          "line": 15
+        }
+      ],
+      "metadata": {
+        "location": [
+          {
+            "col": 1,
+            "line": 12
+          },
+          {
+            "col": 10,
+            "line": 12
+          }
+        ]
+      },
+      "name": "admonition",
+      "type": "block",
+      "variant": "warning"
+    },
+    {
+      "form": "paragraph",
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 18
+            },
+            {
+              "col": 17,
+              "line": 18
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "A styled sidebar."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 17
+        },
+        {
+          "col": 17,
+          "line": 18
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "style": "sidebar"
+        },
+        "location": [
+          {
+            "col": 1,
+            "line": 17
+          },
+          {
+            "col": 10,
+            "line": 17
+          }
+        ]
+      },
+      "name": "sidebar",
+      "type": "block"
+    },
+    {
+      "form": "indented",
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 21
+            },
+            {
+              "col": 24,
+              "line": 21
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "    An indented sidebar."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 20
+        },
+        {
+          "col": 24,
+          "line": 21
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "style": "sidebar"
+        },
+        "location": [
+          {
+            "col": 1,
+            "line": 20
+          },
+          {
+            "col": 10,
+            "line": 20
+          }
+        ]
+      },
+      "name": "sidebar",
+      "type": "block"
+    },
+    {
+      "caption": {
+        "counter": "example",
+        "kind": "numbered",
+        "label": "Example"
+      },
+      "form": "paragraph",
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 24
+            },
+            {
+              "col": 17,
+              "line": 24
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "A styled example."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 23
+        },
+        {
+          "col": 17,
+          "line": 24
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "style": "example"
+        },
+        "location": [
+          {
+            "col": 1,
+            "line": 23
+          },
+          {
+            "col": 10,
+            "line": 23
+          }
+        ]
+      },
+      "name": "example",
+      "type": "block"
+    },
+    {
+      "attribution": [
+        {
+          "location": [
+            {
+              "col": 8,
+              "line": 26
+            },
+            {
+              "col": 13,
+              "line": 26
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Author"
+        }
+      ],
+      "citetitle": [
+        {
+          "location": [
+            {
+              "col": 15,
+              "line": 26
+            },
+            {
+              "col": 18,
+              "line": 26
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Book"
+        }
+      ],
+      "form": "paragraph",
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 27
+            },
+            {
+              "col": 19,
+              "line": 27
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "A styled quotation."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 26
+        },
+        {
+          "col": 19,
+          "line": 27
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "$1": "Author",
+          "$2": "Book",
+          "style": "quote"
+        },
+        "location": [
+          {
+            "col": 1,
+            "line": 26
+          },
+          {
+            "col": 20,
+            "line": 26
+          }
+        ]
+      },
+      "name": "quote",
+      "type": "block"
+    },
+    {
+      "form": "paragraph",
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 30
+            },
+            {
+              "col": 18,
+              "line": 30
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "A styled abstract."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 29
+        },
+        {
+          "col": 18,
+          "line": 30
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "style": "abstract"
+        },
+        "location": [
+          {
+            "col": 1,
+            "line": 29
+          },
+          {
+            "col": 11,
+            "line": 29
+          }
+        ]
+      },
+      "name": "abstract",
+      "type": "block"
+    },
+    {
+      "form": "paragraph",
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 33
+            },
+            {
+              "col": 27,
+              "line": 33
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "A styled part introduction."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 32
+        },
+        {
+          "col": 27,
+          "line": 33
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "style": "partintro"
+        },
+        "location": [
+          {
+            "col": 1,
+            "line": 32
+          },
+          {
+            "col": 12,
+            "line": 32
+          }
+        ]
+      },
+      "name": "partintro",
+      "type": "block"
+    },
+    {
+      "attribution": [
+        {
+          "location": [
+            {
+              "col": 4,
+              "line": 36
+            },
+            {
+              "col": 16,
+              "line": 36
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Quoted Author"
+        }
+      ],
+      "blocks": [
+        {
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 1,
+                  "line": 35
+                },
+                {
+                  "col": 19,
+                  "line": 35
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "A quoted paragraph."
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 35
+            },
+            {
+              "col": 19,
+              "line": 35
+            }
+          ],
+          "name": "paragraph",
+          "type": "block"
+        }
+      ],
+      "citetitle": [
+        {
+          "location": [
+            {
+              "col": 19,
+              "line": 36
+            },
+            {
+              "col": 29,
+              "line": 36
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Quoted Book"
+        }
+      ],
+      "form": "marked",
+      "location": [
+        {
+          "col": 1,
+          "line": 35
+        },
+        {
+          "col": 29,
+          "line": 36
+        }
+      ],
+      "marker": "\"",
+      "metadata": {
+        "attributes": {
+          "style": "quote"
+        }
+      },
+      "name": "quote",
+      "type": "block"
+    },
+    {
+      "attribution": [
+        {
+          "location": [
+            {
+              "col": 6,
+              "line": 39
+            },
+            {
+              "col": 18,
+              "line": 39
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Marked Author"
+        }
+      ],
+      "blocks": [
+        {
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 1,
+                  "line": 38
+                },
+                {
+                  "col": 19,
+                  "line": 38
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "A marked quotation."
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 38
+            },
+            {
+              "col": 19,
+              "line": 38
+            }
+          ],
+          "name": "paragraph",
+          "type": "block"
+        }
+      ],
+      "citetitle": [
+        {
+          "location": [
+            {
+              "col": 21,
+              "line": 39
+            },
+            {
+              "col": 31,
+              "line": 39
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Marked Book"
+        }
+      ],
+      "form": "marked",
+      "location": [
+        {
+          "col": 1,
+          "line": 38
+        },
+        {
+          "col": 32,
+          "line": 39
+        }
+      ],
+      "marker": ">",
+      "metadata": {
+        "attributes": {
+          "style": "quote"
+        }
+      },
+      "name": "quote",
+      "type": "block"
+    },
+    {
+      "blocks": [
+        {
+          "blocks": [
+            {
+              "inlines": [
+                {
+                  "location": [
+                    {
+                      "col": 7,
+                      "line": 42
+                    },
+                    {
+                      "col": 20,
+                      "line": 42
+                    }
+                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "A nested note."
+                }
+              ],
+              "location": [
+                {
+                  "col": 7,
+                  "line": 42
+                },
+                {
+                  "col": 20,
+                  "line": 42
+                }
+              ],
+              "name": "paragraph",
+              "type": "block"
+            }
+          ],
+          "form": "paragraph",
+          "location": [
+            {
+              "col": 1,
+              "line": 42
+            },
+            {
+              "col": 20,
+              "line": 42
+            }
+          ],
+          "name": "admonition",
+          "type": "block",
+          "variant": "note"
+        },
+        {
+          "form": "paragraph",
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 1,
+                  "line": 45
+                },
+                {
+                  "col": 17,
+                  "line": 45
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "A nested sidebar."
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 44
+            },
+            {
+              "col": 17,
+              "line": 45
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "style": "sidebar"
+            },
+            "location": [
+              {
+                "col": 1,
+                "line": 44
+              },
+              {
+                "col": 10,
+                "line": 44
+              }
+            ]
+          },
+          "name": "sidebar",
+          "type": "block"
+        }
+      ],
+      "delimiter": "--",
+      "form": "delimited",
+      "location": [
+        {
+          "col": 1,
+          "line": 41
+        },
+        {
+          "col": 2,
+          "line": 46
+        }
+      ],
+      "name": "open",
+      "type": "block"
+    }
+  ],
+  "location": [
+    {
+      "col": 1,
+      "line": 1
+    },
+    {
+      "col": 2,
+      "line": 46
+    }
+  ],
+  "name": "document",
+  "profile": "urn:acdc:asg:1",
+  "type": "block"
+}

@@ -175,7 +175,7 @@ fn toc_discrete_heading_and_breaks_use_their_schema_forms() -> Result<(), Error>
 fn missing_forms_and_unsupported_semantics_fail_explicitly() -> Result<(), Error> {
     for (source, property) in [
         ("NOTE: Paragraph.", "form"),
-        ("[NOTE]\n--\nBody.\n--", "delimiter"),
+        ("[NOTE]\n    Body.", "form"),
         ("[stem]\n++++\nx+y\n++++", "inner"),
         ("|===\n|Cell\n|===", "inner"),
         ("image::photo.png[Alternative]", "alt"),

@@ -1,10 +1,11 @@
 use crate::{
-    Anchor, BlockMetadata, DelimitedBlock, DelimitedBlockType, DiscreteHeader, Paragraph, Source,
-    Title,
+    Admonition, AdmonitionForm, Anchor, BlockMetadata, DelimitedBlock, DelimitedBlockType,
+    DiscreteHeader, Paragraph, Source, Title,
 };
 
 use super::{
-    Error, Export, Node, Target, body_inlines, inlines, metadata, node, pointer, unsupported,
+    Error, Export, Node, Profile, Target, body_inlines, inlines, metadata, node, pointer,
+    unsupported,
 };
 
 impl<'a, 'doc> Export<'a, 'doc> {
@@ -22,6 +23,52 @@ impl<'a, 'doc> Export<'a, 'doc> {
         self.target(value, title, None, path)
     }
 
+    pub(super) fn admonition(
+        &mut self,
+        value: &'a Admonition<'doc>,
+        path: &str,
+    ) -> Result<Node, Error> {
+        let mut result = node("admonition", "block");
+        match value.form {
+            AdmonitionForm::Delimited(delimiter) if !matches!(delimiter, "" | "\"" | ">") => {
+                result.insert("form".into(), "delimited".into());
+                result.insert("delimiter".into(), delimiter.into());
+            }
+            AdmonitionForm::Paragraph | AdmonitionForm::Indented
+                if self.profile == Profile::Acdc =>
+            {
+                result.insert(
+                    "form".into(),
+                    if value.form == AdmonitionForm::Indented {
+                        "indented"
+                    } else {
+                        "paragraph"
+                    }
+                    .into(),
+                );
+            }
+            AdmonitionForm::Paragraph | AdmonitionForm::Indented => {
+                return Err(unsupported(
+                    &pointer(path, "form"),
+                    "paragraph admonitions need the named acdc profile",
+                ));
+            }
+            AdmonitionForm::Unspecified | AdmonitionForm::Delimited(_) => {
+                return Err(unsupported(
+                    &pointer(path, "delimiter"),
+                    "an admonition needs known source form and an actual delimiter for delimited form",
+                ));
+            }
+        }
+        result.insert("variant".into(), value.variant.to_string().into());
+        result.insert(
+            "blocks".into(),
+            self.nonsection_blocks(&value.blocks, &pointer(path, "blocks"))?,
+        );
+        self.block_metadata(&mut result, &value.metadata, Some(&value.title), path)?;
+        Ok(result)
+    }
+
     pub(super) fn paragraph(
         &mut self,
         value: &'a Paragraph<'doc>,
@@ -32,12 +79,15 @@ impl<'a, 'doc> Export<'a, 'doc> {
             Some("literal") => "literal",
             Some("verse") => "verse",
             Some("pass") => "pass",
-            Some("sidebar" | "example" | "quote" | "abstract" | "partintro") => {
-                metadata::check(&value.metadata, path, self.profile)?;
-                return Err(unsupported(
-                    &pointer(path, "form"),
-                    "this paragraph style needs an explicit parent-block form",
-                ));
+            Some(style @ ("sidebar" | "example" | "quote" | "abstract" | "partintro")) => {
+                if self.profile == Profile::Upstream {
+                    metadata::check(&value.metadata, path, self.profile)?;
+                    return Err(unsupported(
+                        &pointer(path, "form"),
+                        "this paragraph style needs the named acdc profile",
+                    ));
+                }
+                style
             }
             _ => "paragraph",
         };
@@ -68,7 +118,12 @@ impl<'a, 'doc> Export<'a, 'doc> {
         value: &'a DelimitedBlock<'doc>,
         path: &str,
     ) -> Result<Node, Error> {
-        if matches!(value.delimiter, "" | "\"" | ">") {
+        let marker = matches!(value.delimiter, "\"" | ">").then_some(value.delimiter);
+        if value.delimiter.is_empty()
+            || (marker.is_some()
+                && (self.profile == Profile::Upstream
+                    || !matches!(value.inner, DelimitedBlockType::DelimitedQuote(_))))
+        {
             return Err(unsupported(
                 &pointer(path, "delimiter"),
                 "this source marker is not a delimited block form",
@@ -125,8 +180,13 @@ impl<'a, 'doc> Export<'a, 'doc> {
             }
         };
         let mut result = node(name, "block");
-        result.insert("form".into(), "delimited".into());
-        result.insert("delimiter".into(), value.delimiter.into());
+        if let Some(marker) = marker {
+            result.insert("form".into(), "marked".into());
+            result.insert("marker".into(), marker.into());
+        } else {
+            result.insert("form".into(), "delimited".into());
+            result.insert("delimiter".into(), value.delimiter.into());
+        }
         result.insert(body.into(), content);
         self.block_metadata(&mut result, &value.metadata, Some(&value.title), path)?;
         Ok(result)

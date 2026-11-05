@@ -56,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- ASG export supports actual delimited admonitions. The named acdc profile also
+  preserves paragraph/indented admonitions, styled parent paragraphs, and marked
+  quotes without invented delimiters or body wrappers.
+
 - Checked ASG export now accepts resolved block `subs=` settings in both profiles.
   Text/raw nodes preserve output escaping alongside parsed formatting and
   expansions. Unknown instructions and unresolved raw processing still fail.

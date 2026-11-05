@@ -230,6 +230,15 @@
         },
         {
           "$ref": "#/$defs/acdcAttributeEvent"
+        },
+        {
+          "$ref": "#/$defs/acdcAdmonition"
+        },
+        {
+          "$ref": "#/$defs/acdcParagraphParentBlock"
+        },
+        {
+          "$ref": "#/$defs/acdcMarkedQuote"
         }
       ]
     },
@@ -1012,6 +1021,111 @@
         },
         "location": {
           "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "acdcAdmonition": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/abstractBlock"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "required": [
+        "name",
+        "variant",
+        "form",
+        "blocks"
+      ],
+      "properties": {
+        "name": {
+          "const": "admonition"
+        },
+        "variant": {
+          "type": "string",
+          "enum": [
+            "caution",
+            "important",
+            "note",
+            "tip",
+            "warning"
+          ]
+        },
+        "form": {
+          "enum": [
+            "paragraph",
+            "indented"
+          ]
+        },
+        "blocks": {
+          "$ref": "#/$defs/nonSectionBlockBody"
+        }
+      }
+    },
+    "acdcParagraphParentBlock": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/abstractBlock"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "required": [
+        "name",
+        "form",
+        "inlines"
+      ],
+      "properties": {
+        "name": {
+          "enum": [
+            "example",
+            "sidebar",
+            "quote",
+            "abstract",
+            "partintro"
+          ]
+        },
+        "form": {
+          "enum": [
+            "paragraph",
+            "indented"
+          ]
+        },
+        "inlines": {
+          "$ref": "#/$defs/inlines"
+        }
+      }
+    },
+    "acdcMarkedQuote": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/abstractBlock"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "required": [
+        "name",
+        "form",
+        "marker",
+        "blocks"
+      ],
+      "properties": {
+        "name": {
+          "const": "quote"
+        },
+        "form": {
+          "const": "marked"
+        },
+        "marker": {
+          "enum": [
+            "\"",
+            ">"
+          ]
+        },
+        "blocks": {
+          "$ref": "#/$defs/nonSectionBlockBody"
         }
       }
     }

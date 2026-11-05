@@ -360,8 +360,8 @@ Supported delimited bodies keep their opening delimiter. Literal, listing and ve
 bodies can contain verbatim leaves because the owning block preserves their
 presentation. Code in an ordinary paragraph still fails. Indented and styled leaf
 paragraphs retain their source form from the native paragraph and its retained
-pre-inline source; export does not invent a delimiter. Unsupported parent paragraph
-forms and synthetic quote markers fail explicitly.
+pre-inline source; export does not invent a delimiter. Parent paragraph
+forms and synthetic quote markers require the named acdc profile.
 
 Audio, video, image and TOC nodes use macro form. Targets come from the native source;
 video playlists remain one complete target, including commas. The provider selector stays in
@@ -373,10 +373,23 @@ Single ordinary identities use the same rules as other supported owners.
 Every semantic property must still have a mapping. Parsed captions, including
 unnumbered caption state, and explicit image alternative content are rejected until
 supported by a named content extension. Uncaptioned library-built listings, examples
-and images can be exported. Tables and block STEM remain unsupported. Native
-admonitions retain paragraph/indented form or the actual opening delimiter.
-ASG export currently rejects admonitions explicitly; it does not invent a delimiter
-for source-free library construction.
+and images can be exported. Tables and block STEM remain unsupported.
+
+Delimited admonitions retain their actual opening delimiter in both profiles,
+including open-block `--` and longer example delimiters. Source-free library
+construction without a supplied form is rejected.
+
+The named acdc profile adds three closed forms:
+
+* Paragraph/indented admonitions keep `blocks` and their `variant`, with no delimiter.
+* Styled parent paragraphs (sidebar, example, quote, abstract and partintro) keep
+  their native `inlines` and paragraph/indented `form`. Export adds no child paragraph.
+* Marked quotes use `form: "marked"`, `marker: ">"` or `marker: "\""`, and their
+  native `blocks`. A single source marker is not a paired delimiter.
+
+`fixtures/asg/block_forms.adoc` and its checked JSON demonstrate these forms.
+Strict export rejects them where the pin has no corresponding form. Unsupported
+nested meaning still reports its complete property path.
 
 == Proposed upstream additions
 

@@ -46,7 +46,7 @@
           "policy": "only-an-authored-delimited-form-has-an"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "blocks"
     },
     "src/model/admonition.rs::AdmonitionForm": {
       "shape": {
@@ -82,7 +82,7 @@
           "policy": "authored-admonition-form"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "blocks"
     },
     "src/model/admonition.rs::AdmonitionVariant": {
       "shape": {
@@ -122,7 +122,7 @@
           "upstream": "#/$defs/parentBlock"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "blocks"
     },
     "src/model/anchor.rs::Anchor": {
       "shape": {
@@ -6066,7 +6066,7 @@
       ]
     },
     "blocks": {
-      "handling": "Retained delimited, paragraph/indented leaf and macro forms preserve bodies, targets, titles and supported metadata. Video targets stay complete. Missing/ambiguous forms, parsed alt/captions, unsupported parent paragraph styles, admonition delimiter provenance, table and STEM bodies are rejected. Uncaptioned library-built listings/examples/images are representable; parsed caption state remains explicit failure.",
+      "handling": "Retained delimited, paragraph/indented leaf and macro forms preserve bodies, targets, titles and supported metadata. Delimited admonitions preserve their actual opening token. Missing/ambiguous forms, parsed alt/captions, parent paragraph styles, table and STEM bodies require named extensions or explicit errors. Video targets stay complete.",
       "tests": [
         {
           "file": "tests/asg_blocks.rs",
@@ -6095,6 +6095,10 @@
         {
           "file": "tests/asg_blocks.rs",
           "name": "uncaptioned_library_listing_forms_are_supported"
+        },
+        {
+          "file": "tests/asg_block_forms.rs",
+          "name": "strict_export_accepts_real_admonition_delimiters_only"
         }
       ]
     }
@@ -6247,6 +6251,42 @@
             "asg_body_attributes.rs::strict_export_and_unresolved_value_errors_remain_explicit",
             "asg_body_attributes.rs::body_event_schema_requires_separate_discriminators_and_exact_assignment_shapes",
             "../src/asg/attributes.rs::rejected_assignments_do_not_become_unsets"
+          ]
+        },
+        "block-forms": {
+          "owners": {
+            "Admonition": [
+              "form",
+              "variant",
+              "blocks",
+              "metadata",
+              "title",
+              "location"
+            ],
+            "Paragraph": [
+              "source_text",
+              "content",
+              "metadata",
+              "title"
+            ],
+            "DelimitedBlock": [
+              "delimiter",
+              "inner",
+              "metadata",
+              "title"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/acdcAdmonition",
+            "#/$defs/acdcParagraphParentBlock",
+            "#/$defs/acdcMarkedQuote"
+          ],
+          "handling": "Keep paragraph/indented admonition bodies as native blocks and styled parent paragraphs as native inlines. Marked quotes retain their single marker and native blocks. Only real delimited forms carry delimiter; unknown provenance is rejected. Strict export accepts actual delimited admonitions but rejects the additional forms. No synthetic wrappers are introduced.",
+          "tests": [
+            "asg_block_forms.rs::block_forms_keep_actual_markers_and_native_body_owners",
+            "asg_block_forms.rs::strict_export_accepts_real_admonition_delimiters_only",
+            "asg_block_forms.rs::unknown_forms_and_nested_unsupported_content_remain_explicit_errors",
+            "asg_block_forms.rs::block_form_schema_rejects_invented_delimiters_and_wrong_body_shapes"
           ]
         }
       }

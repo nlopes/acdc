@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use serde_json::{Map, Value};
 
 use crate::{
-    AdmonitionForm, Block, BlockMetadata, Caption, ContentAttribute, DelimitedBlockType, Document,
+    Block, BlockMetadata, Caption, ContentAttribute, DelimitedBlockType, Document,
     DocumentAttributeAssignment, ElementId, Form, Header, InlineNode, Section, SectionKind,
     Substitution, Title,
 };
@@ -482,20 +482,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 self.identity(&mut result, &thematic.anchors, Some(&thematic.title), at)?;
                 result
             }
-            Block::Admonition(value) => {
-                let property = if matches!(
-                    value.form,
-                    AdmonitionForm::Paragraph | AdmonitionForm::Indented
-                ) {
-                    "form"
-                } else {
-                    "delimiter"
-                };
-                return Err(unsupported(
-                    &pointer(at, property),
-                    "the actual admonition source form needs a supported mapping",
-                ));
-            }
+            Block::Admonition(value) => self.admonition(value, at)?,
             Block::DocumentAttribute(attribute) => attributes::block(attribute, at, self.profile)?,
         };
         let mut projected = projected;
