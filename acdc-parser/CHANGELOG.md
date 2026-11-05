@@ -7,875 +7,113 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Block attributes, anchors, and titles before comments now apply to the next
-  visible block, including headings and list continuations. Comment nodes retain
-  their own source ranges. Unused titles at end of input no longer register
-  footnotes.
-
-- `Document::rebuild_footnotes()` repairs registrations and numbers after prepared
-  tree edits, including surviving and forward references and empty definitions.
-  It preserves definition provenance, selects the first named body and removes
-  unused registrations. Missing, ambiguous or cyclic bindings leave the tree
-  unchanged. It does not replay source attributes or rebuild other catalogs.
-
-- Prepared footnote occurrences distinguish references from empty definitions:
-  `FootnoteRef::content()` returns `None` for references and `Some` for definitions.
-  Native JSON omits `inlines` on references, while empty definitions retain `[]`.
-  Document catalog transfers use `FootnoteDefinition`, whose body is always present.
-  Source footnote numbering and rendered output are unchanged.
-
-- `AttributeValueRef::as_str()` reads exact text without allocation, including
-  empty strings and meaningful quotes. Other attribute value kinds return
-  `None`, so callers can keep text extraction separate from content rendering.
-
-- Owned documents can call `rebuild_author_attributes()` after changing header
-  authors. Generated name, email and count attributes follow the new authors,
-  while caller defaults, locked inputs and explicit source values or unsets
-  remain in place. Body declarations and previously selected content keep their
-  original snapshots.
-
-- Editing an index term's display or see/see-also relationship retains its
-  registered catalog labels, including labels that initially matched the
-  display. Restoring the original values also restores the original native JSON
-  representation.
-
-- Owned documents can call `rebuild_captions()` to repair caption numbers and
-  reference caption snapshots after edits. Stored custom, empty and disabled
-  prefixes are preserved. Missing declaration context returns an error without
-  partial changes; reference membership and other registrations stay unchanged.
-
-- Owned documents can call `rebuild_references_and_toc()` after prepared tree
-  edits. It refreshes membership, labels, aliases and section numbers while
-  retaining assigned IDs and the first target for duplicate IDs. Missing IDs
-  or document-label context return an error without partial changes. Caption,
-  footnote, index and author registrations remain separate.
-
-- **Breaking:** reference records expose their canonical destination through
-  `ReferenceRef::target()`. Supply it to `Reference::new(target, location)` when
-  constructing a record. Reference titles use `Option<ContentAttribute>`;
-  `None` means absent and `Some` retains empty content. Replace
-  `title_is_present()` with `title().is_some()`. TOC entries keep their own title
-  presence and can be checked with `ReferenceRef::matches_toc_entry()`.
-
-- Generated section IDs honor `idprefix` and `idseparator` at each heading,
-  including empty values and duplicate-title suffixes. TOC entries and natural
-  cross-references use the same IDs, matching Asciidoctor.
-
-- **Breaking:** inline parse results use `content()` for typed reads; the public
-  backing-slice getter and macro content-attribute callback are removed. Copy a
-  selected node with `InlineNode::from(inline_ref)`, or selected content with
-  `ContentAttribute::from(content_ref)`. Serde serialization of `ContentRef`
-  preserves the native inline JSON array without copying the tree. ASG export
-  remains a separate checked operation.
-
-- **Breaking:** cross-reference and index occurrence fields are private. Read
-  through typed handles and use selected `From` copies for edits. Prepared text,
-  hierarchy, relationship, metadata and option transfers replace backing slices
-  and maps. Checked scalar replacement retains the existing reserved names.
-  Xref destination changes keep classification until explicitly set. Index
-  edits retain stored registration labels; they do not rebuild the catalog.
-
-- **Breaking:** button, keyboard, and menu fields are private. Read through
-  their typed handles and use selected `From` copies for edits. Prepared
-  constructors and label, key, menu-item and span transfers preserve source
-  lifetimes, empty positions and existing allocations. Edits do not parse
-  labels, split separators or update document registrations.
-
-- **Breaking:** link, URL, email, and autolink storage is private. Read with typed
-  handles and copy selected values with `From`. Use prepared label, tooltip,
-  metadata, target, display-setting, and option edits; scalar maps use checked
-  replacement. Mail subjects/bodies retain absent/empty and unencoded values.
-  Edits do not reparse content, fetch targets, or update document catalogs.
-
-- **Breaking:** inline images and icons now use typed reads and selected `From`
-  copies. Replace field writes with prepared content, metadata, target, and
-  location edits. Use checked `set_attributes` for scalar maps, and explicit
-  option transfers instead of backing slices or mutable vectors. Reserved-key
-  failures leave the node unchanged; alt and tooltips retain absent/empty values.
-
-- **Breaking:** anchors, footnotes, and callout markers use private storage.
-  Read through their typed handles and copy selected values with `From`.
-  Use prepared content, identity, number, and location edits for owned values.
-  Citation text remains separate from bibliography display labels; editing
-  either does not register notes or update document catalogs.
-
-- **Breaking:** formatting span fields are private. The eight concrete types
-  remain distinct. Read through their typed `ast` handles, copy selected spans
-  with `From`, and use prepared content, role, ID, form and location edits.
-  Empty role presence still distinguishes generic highlights from marked text;
-  edits do not register anchors or notes. Native JSON and rendering are unchanged.
-
-- **Breaking:** raw text and passthrough macro fields are private. Read with
-  `RawRef`/`PassRef`, copy selected values with `From`, and use constructors or
-  prepared text, substitution, metadata and location edits. Transfers retain
-  source lifetimes, optional-value presence, substitution order and duplicates.
-  Edits do not parse text or replay earlier attribute values. Native JSON and
-  rendering are unchanged.
-
-- **Breaking:** text, symbol, line-break, apostrophe, and formula fields are
-  private. Read through typed `ast` handles and copy selected values with `From`.
-  Use constructors and prepared text, notation, escape, or location edits to
-  change owned values. Text replacement preserves the escape decision; changing
-  formula notation does not translate its text. `StemContent` provides scalar
-  `text()` and `notation()` reads. Native JSON and rendering are unchanged.
-
-- **Breaking:** `ContentAttribute` and `Title` no longer provide borrowed slices,
-  `Deref`, `AsRef`, or borrowed owner iterators. Read attributes with
-  `ContentRef::from(&content)` and titles with `title.content()`. Copy selected
-  content with `ContentAttribute::from(content_ref)` or `Title::from(content_ref)`;
-  `into_inlines()` still transfers prepared nodes. Empty title copies remain
-  present; use `Title::default()` for absence. Native JSON and rendering are unchanged.
-
-- **Breaking:** reference and TOC record fields are private. Use typed catalog
-  reads, selected copies and prepared content transfers for edits. Changes keep
-  stored numbers and classification snapshots; they do not rename map keys or
-  update the document tree. Replace `Block::metadata()` with typed attribute
-  reads or `Block::clone_metadata()` for an independent metadata-only copy.
-
-- **Breaking:** table, row, cell and column-format fields are private. Read through
-  typed handles and use selected copies and prepared row/cell/content transfers
-  to edit owned values. Copies retain cell scopes and resolved decoration; edits
-  do not rebuild spans or reinterpret cell content. `TableRef::delimited_location`
-  retains the span that starts at the table delimiter, separate from the full
-  block span, which includes attributes and title.
-
-- **Breaking:** list-item fields are private. Use typed item handles for reads,
-  selected item copies for independent edits, and prepared text, block and anchor
-  transfers to change owned items. Marker, nesting and checklist edits do not
-  reparse content or rebuild document registrations.
-
-- **Breaking:** the four list-container types have private fields. Read through
-  typed list handles and use owned metadata, title and item edit methods.
-  Item transfers retain source lifetimes, nesting, checklist state and stored
-  callout numbers. Changing a list marker does not rewrite its items; edits do
-  not rebuild document registrations.
-
-- **Breaking:** discrete headings, page/thematic breaks, TOC placements, comments,
-  and document-attribute event fields are private. Read through their typed `ast`
-  handles. Boundary constructors and owned edits preserve empty titles, literal
-  comment text and anchor order. Accepted attribute names and assignments remain
-  parse decisions; reparse source to change them. `set_location` changes only a span.
-
-- **Breaking:** `DelimitedBlock` and `Admonition` fields are private. Read through
-  typed block handles and edit prepared values with owned methods. Delimited
-  body transfers retain source lifetimes; edits keep the original source snapshot
-  and form. Removing metadata or replacing a table body refreshes decoration
-  against that table's source-position defaults. Edits do not rebuild catalogs.
-
-- **Breaking:** block `Image`, `Audio`, and `Video` fields are private. Use their
-  `ast` readers and owned edit methods. `replace_source` transfers the complete
-  previous target without splitting playlists. Image alt content stays separate
-  from its caption; audio and video retain scalar `alt` extension attributes.
-
-- **Breaking:** `Section` fields are private. Read through `ast::SectionRef` and
-  use owned setters and `take_*` methods to edit prepared content. Metadata edits
-  classify special sections from their style and preserve assigned IDs unless the
-  selected authored ID changes. Edits do not rebuild document catalogs.
-
-- **Breaking:** `Paragraph` fields are private. Read through `ast::ParagraphRef`
-  and use the owned `set_*`, `take_*`, and `push_inline` methods to edit it.
-  Invalid metadata is rejected without changing the paragraph. Content edits
-  keep the original source snapshot and do not rebuild document registrations.
-
-- Copy an individual header or author with `Header::from(HeaderRef)` or
-  `Author::from(AuthorRef)`. These copies preserve prepared values and source
-  lifetimes without copying the document body or replaying registrations.
-
-- **Breaking:** `Header` and `Author` fields are private. Read through `ast::HeaderRef`
-  and `ast::AuthorRef`; use their owned setters to edit prepared values. Header
-  `take_*` methods transfer metadata, titles, and authors with their source
-  lifetimes. Invalid header metadata is rejected without changing the header;
-  author edits do not recompute document attributes.
-
-- **Breaking:** `Document` storage fields are private. Read through
-  `ast::DocumentRef::from(&document)` and edit with `set_header`, `set_attributes`,
-  `set_blocks`, `set_footnotes`, `set_toc_entries`, `set_references`, and
-  `set_location`; use `push_block` to append. The `take_*` methods transfer parts while
-  preserving source lifetimes. These edits do not repair registered snapshots.
-
-- Clarified detached editing: changes do not rebuild registered targets, TOC
-  membership, footnotes, or author-derived attributes. Explicit renumbering has
-  a limited scope; reparse changed source for complete registration updates.
-
-- **Breaking:** `ParseResult::document()` now returns `ast::DocumentRef`.
-  Read fields through typed methods such as `blocks()` and `attributes()`.
-  The temporary `document_ref()` method is removed. For independent edits,
-  use `Document::from(parsed.document())`; source text still borrows from the
-  parse result. Native JSON and checked ASG output are unchanged.
-
-- Copy a typed document or block for independent edits with `Document::from` or
-  `Block::from`. Copies preserve registered catalogs, source locations, captions,
-  and table presentation. Text can still borrow from the parse result.
-
-- Library callers can read retained paragraph source text through the typed API, before inline substitutions. Constructed paragraphs have no retained source.
-
-- Use `ast::ReferencesRef::from(&catalog)` to read a caller-constructed reference catalog through the typed API without copying its entries.
-
-- Serialize `ast::DocumentRef` as native AST JSON with Serde. Checked ASG document export now accepts the same typed document: pass `parsed.document()` or `DocumentRef::from(&document)` for a constructed tree. JSON shapes, schema profiles, and validation rules are unchanged.
-
-- Library callers can read table delimiter spelling and opening/closing source ranges through typed table reads, including nested tables and selected includes.
-
-- Preserve IDs and roles on single-, double-, and triple-plus passthroughs in Asciidoctor mode. Protected text stays escaped; raw content stays raw. Draft keeps these prefixes literal until its span syntax is defined.
-
-- Explained how semantic regression checks complement ASG validation in both compatibility modes.
-
-- Documented a proposed upstream ASG representation for formatted attributes and images, with a migration path from acdc's caption format. Existing export formats are unchanged.
-
-- The acdc ASG profile preserves inline images and block-image alternative content, including empty alt/tooltips, dimensions, links, identity, roles/options and source locations. Images can occur inside supported titles, captions and other content attributes. Use `asg::inlines_with_profile` for standalone content; strict upstream export still rejects unsupported image semantics.
-
-- `asg::document_with_profile(document, asg::Profile::Acdc)` preserves resolved captions, attribution and citation content under the versioned `urn:acdc:asg:1` extension schema. Empty values and formatted content remain structured. The existing export functions still use the pinned upstream subset and reject unsupported properties.
-
-- Checked ASG export preserves supported block forms, literal bodies, TOC/discrete headings, breaks and media targets, including complete video playlists. Missing source forms and unsupported semantic properties fail explicitly. Strict upstream export rejects parsed captions and image alternative content rather than flattening them into scalar attributes.
-
-- Checked ASG export supports ordered, unordered, callout and description lists, including formatted terms, attached blocks and supported identities/metadata. Callout markers retain resolved numbering and automatic form. Checklists, unrecoverable item state and unsupported nested content fail with item/property paths.
-
-- Checked ASG export supports links, URL macros, mail links, autolinks and default cross-references. Formatted labels stay structured; automatic link labels, URI scheme hiding and encoded mail subjects/bodies retain their meaning. Unsupported reference controls and ambiguous target classification fail with property paths.
-
-- Checked ASG export omits ordinary delimited comments, like line comments, while rejecting comment titles or semantic metadata. Unsupported section settings and unresolved content report their exact properties. Protected document-attribute errors do not invent declaration coordinates.
-
-- Checked ASG export identifies unsupported owners and known source coordinates in its errors, with exact property paths for span IDs/roles and missing header titles. Scalar attributes cannot shadow dedicated block metadata. Schema-validation failures use the separate `asg::Error::Projection` variant; match error fields with `..` to allow diagnostic context.
-
-- In Draft mode, character-reference names resolved by an earlier passthrough replacement stage stay intact through later formatting and macro labels. XML names containing underscores no longer become emphasis. Enclosing formatting, includes, and table cells retain their meaning.
-
-- Intrinsic attributes such as `{quot}` and `{apos}` produce semantic character references. A later `specialchars` stage now escapes intrinsic values, matching Asciidoctor; replacement attributes still protect formatting and macro syntax.
-
-- Checked ASG export rejects sections without a title and verbatim content without a supported literal/listing mapping. Present empty titles remain distinct from absent titles.
-
-- Added `InlineNode::CharacterReference`, with named/numeric values and `CharacterReferenceRef` reads. Native JSON uses `name: "charref"`; numeric values use canonical decimal reference spelling. Checked ASG export accepts reference nodes and rejects invalid XML numeric characters. Parsing now identifies references during replacements. Asciidoctor mode follows its reference syntax; Draft accepts XML names and one-digit numeric references. Escapes, substitution order, expanded attributes, and source ranges retain their meaning. Numeric references no longer retain hexadecimal spelling or zero padding.
-
-- Added the offline `asg_schema_audit` example with a pinned upstream schema, validator controls, and a node/property inventory. It reports native JSON shape differences separately from ASG export or language conformance.
-
-- Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
-
-- Table `cols` settings now use complete column specifications, matching Asciidoctor: malformed records are ignored, count shorthand and semicolon separators work, and literal quotes cannot select widths or styles. If no valid records remain, column inference stays enabled. The existing 100-column limit still applies.
-
-- Author/email and manpage name/purpose fields keep literal quotes. Quoted document `leveloffset` values no longer shift headings or included sections; quoted include arguments still work. The string-input `filetype` override derives its flag from the same literal value.
-
-- Cross-reference caption labels, section signifiers and style controls retain literal quote characters from their stored values. Quoted style names use the basic fallback, matching Asciidoctor.
-
-- Text attribute reads retain literal quotes, empty strings, and Unicode. Hyperlink IDs keep the same value in the reference catalog instead of being dequoted again.
-
-- `parse_inline` and `Parser::parse_inline` now resolve attribute references, replacement characters, and passthroughs like document content in the selected compatibility mode. Empty fragments are accepted; surrounding whitespace is preserved. Inline passthroughs return resolved nodes or raw content with remaining substitutions instead of unprocessed `Pass` macros.
-
-- Block image alt text now contains resolved replacement symbols in Asciidoctor mode. Draft alt text stays literal. JSON consumers must accept symbol nodes in alternative text.
-
 ### Breaking changes
 
-- `asg::inlines` and `asg::inlines_with_profile` now accept `ast::ContentRef`.
-  Pass `parsed.content()` for standalone inline parses, or pass title, alt, and
-  other content reads directly. For caller-built content, use
-  `ContentRef::from(&content_attribute)`. Exported JSON and validation are unchanged.
-
-- `Raw` now has optional `metadata` for passthrough IDs and roles. Set it to `None` when constructing undecorated raw text. Native JSON includes the metadata only when present.
-
-- Parsed references now use `InlineNode::CharacterReference` / `InlineKind::CharacterReference` instead of plain or raw text. Native JSON readers must accept `charref` nodes; numeric references use decimal spelling.
-
-- Removed `strip_quotes`. Read parsed attribute values directly: attribute-list delimiters are already removed, and remaining quote characters are literal text.
-
-- Native JSON now identifies bibliography anchors with `bibliography: true` and
-  retains an explicitly supplied `bibliography_label` as parsed inline content,
-  including `[]` for an empty label. An omitted label uses the entry ID. Citation
-  `xreflabel` remains separate because its substitutions can differ from the
-  displayed entry label. Ordinary anchor JSON is unchanged.
-
-- Native JSON now writes presence attributes, including `toc`, as `true` and
-  validated numeric attributes as JSON numbers. Numeric-looking text remains a
-  string, and integer text reads retain their original spelling. Header values
-  remain a snapshot and accepted body assignments stay in source order, with
-  `false` for unsets. Raw inline nodes retain nonempty ordered `substitutions`;
-  an omitted list means none. Serializing block metadata with stale reserved
-  scalar keys now returns an error. Use dedicated content fields instead.
-
-- Serializing an `InlineMacro` or its concrete owner now produces the same native
-  JSON node as serializing its enclosing `InlineNode`, instead of enum wrappers
-  or owner-specific layouts. Direct `LineBreak` serialization now uses the same
-  `break` node too. Angle-bracketed autolinks retain `bracketed: true`; its absence
-  means `false`. Native JSON also accepts standalone passthrough nodes, retaining
-  their text and requested substitutions independently of strict ASG export.
-
-- Enabled replacements now resolve copyright and trademark signs, ellipses,
-  word-internal apostrophes, and em dashes in the parser. Inline trees
-  represent this typography with `InlineNode::Symbol` and
-  `ast::InlineKind::Symbol`. Read `SymbolRef::kind()` or `text()` for its meaning
-  and `location()` for its authored span. Native JSON and text reads expose the
-  resolved value. Escaped tokens stay literal, and attributes expanded after
-  replacements no longer introduce new symbols or word context, matching
-  Asciidoctor. Empty attribute references do not take the source spans of
-  following symbols. Dash locations include their consumed whitespace. Earlier callout comment
-  guards stay literal during later replacements. Raw passthroughs resolve tokens
-  formed across earlier attribute expansions; later expansions cannot create
-  tokens, word context, or replacement escapes. Interior `left--right` and `left -- right` dashes also
-  resolve in the parser, including their consumed whitespace and source spans.
-  Source arrows (`->`, `=>`, `<-`, `<=`) also resolve in ordinary text and
-  passthroughs when special-character substitution runs before replacements.
-  Reversing that order keeps source arrows literal, matching Asciidoctor.
-  Verbatim-only listing, literal, and source profiles now expose resolved
-  typography too. Reversed escaping keeps source arrows literal. As with
-  passthroughs, resolved signs retain their Unicode meaning when escaping runs
-  later, rather than Asciidoctor’s generated entity spelling.
-  Apostrophes and complete word-bounded dash pairs also use neighboring text
-  across ordinary anchors and index labels. Formatting stays a boundary, and
-  index catalog labels keep their registration-time values. Visible index labels
-  now expose enabled signs and ellipses consistently to every converter.
-  Encoded arrows such as `pass:r[-&gt;]` also resolve before conversion, including
-  their escapes and shared delimiters. Earlier escaping protects authored
-  references; later escaping retains the semantic arrow rather than Asciidoctor
-  HTML’s generated entity spelling.
-  Protected passthrough text now supplies neighboring word context in the
-  parser too, so `Sam'pass:[s]` exposes a resolved apostrophe. A passthrough's
-  own replacement settings stay independent of the surrounding text.
-  Dash pairs and consumed spaces split across ordinary text, anchors, and index
-  labels now resolve in the parser. Symbols belong to the first dash's owner;
-  their source ranges cover only that owner's consumed text. Catalog labels and
-  earlier replacements stay intact.
-
-- Draft mode keeps block image alt text literal, including single-quoted values,
-  and does not register macros from it. Attribute references still expand.
-  Native JSON now uses protected literal nodes for this text. Asciidoctor mode
-  retains formatted alt from preceding single-quoted attributes; inline image
-  and icon alt/tooltips remain rich content in both modes.
-
-- Legacy underlined headings now follow `CompatibilityMode` in every build:
-  Asciidoctor recognizes them by default; Draft uses ATX headings. The `setext`
-  Cargo feature is a compatibility alias. Remove `Options::setext` and
-  `OptionsBuilder::with_setext()` from callers and select the mode instead.
-
-- Block metadata builders reject attributes that shadow dedicated fields,
-  including aliases and fields that are absent. `BlockMetadata::with_attributes`
-  and block `with_metadata` builders now return `Result`; propagate the error
-  with `?` and set content, identity, roles, and options through their fields.
-
-- Formatting IDs now retain their authored source ranges, including expanded
-  references, nested content, includes, and table cells. When constructing
-  formatting nodes, use `ElementId::new(value, location)` instead of a string
-  for `id`. Typed `id()` reads and the scalar native JSON `id` stay unchanged.
-
-- Serializing an index term directly now produces the same native JSON as its
-  inline node. Read labels from `term`/`secondary`/`tertiary` and visibility from
-  `visible`, rather than the former `kind` object. Nested catalog labels keep
-  their existing JSON form.
-
-- Cross-references retain IDs, options, and extension attributes. Use
-  `xref.metadata.roles` instead of `xref.role`, and `attributes()` with
-  `set_attribute()` / `remove_attribute()` for scalar controls. Typed reads keep
-  targets, explicit labels, and automatic-label policy distinct. Native JSON
-  retains metadata, local-target classification, and effective nondefault
-  `xrefstyle`. `InlineMacro::CrossReference` now holds `Box<CrossReference>`.
-  As with other acdc inline macros, `roles` aliases `role`; Asciidoctor recognizes
-  only `role` on xrefs.
-
-- Read link, URL, and mailto metadata through their typed handles. Use prepared
-  metadata and option transfers for edits, and checked `set_attribute()` /
-  `remove_attribute()` for scalar controls. `Link::with_attributes()` rejects
-  dedicated metadata names. Native JSON groups metadata consistently and retains
-  unencoded mail subject/body values, including empty values. Typed reads expose
-  labels, destinations, tooltips, and display policy.
-
-- Icons retain IDs with source locations, roles, and options through the same
-  metadata API as inline images. Replace `icon.attributes` with `icon.attributes()`
-  for scalar controls; read identity and roles through `icon.metadata` and options
-  through `icon.options()`. Use `set_attribute()` / `remove_attribute()` for scalar
-  edits. Native JSON groups these values under `metadata`, while alt and tooltip
-  remain separate content. `InlineMacro::Icon` now holds `Box<Icon>`.
-
-- Inline images expose identity and roles through `InlineMetadata`, with
-  `ElementId` preserving the ID's source location. The owning image's
-  `attributes()` map contains scalar controls such as width and link; read alt,
-  tooltip, identity, roles, and options separately. Use `set_attribute()` /
-  `remove_attribute()` for scalar controls and `options()` / `options_mut()`
-  for macro options. Reserved names and aliases return `ReservedAttribute`
-  instead of shadowing a dedicated value.
-
-- Reference labels now expose parsed content. Read named `reftext=` through
-  `BlockMetadata::reftext` instead of `metadata.attributes["reftext"]`.
-  `Anchor::xreflabel`, `TocEntry::xreflabel`, and `Reference::xreflabel` use
-  `Option<ContentAttribute>`; native JSON stores inline arrays.
-
-- The parser AST now has the same substitution fields in every build.
-  `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` no
-  longer require `pre-spec-subs`; remove feature guards used only to access
-  them. Absent settings stay absent in JSON, and explicit empty settings stay
-  `[]`. Block `subs=` settings now work in both compatibility modes and without
-  default features. `pre-spec-subs` is a compatibility alias in the parser.
-- `InlineMacro::Image` holds `InlineImage`; `Image` represents block images.
-  Read `alt` and inline `tooltip` as optional `ContentAttribute` values, including
-  explicitly empty content. Icons and links also expose tooltips. Button labels,
-  menu labels, and keyboard keys now contain inline content. Native JSON uses
-  inline arrays and omits consumed metadata attributes. `InlineMacro::Link`, `Url`, and `Mailto`
-  hold boxed structs to keep ordinary inline nodes compact.
-- Authored `caption=` content uses `Caption::CustomContent`; read it through
-  `BlockMetadata::caption_content()`. Generated labels and counters remain
-  separate from serialized content.
-- `Video::source` replaces `Video::sources`, including in JSON and `Video::new`.
-  It preserves commas and empty playlist slots. Read the provider from `poster`
-  instead of synthetic boolean `youtube`/`vimeo` attributes.
-- `Title::default()` is absent; `Title::new(Vec::new())` is explicitly empty.
-  Use `is_present()` for caption presence and `is_empty()` for inline content.
-  Empty titles serialize as `[]` without a synthetic empty text node.
-- Named titles, quote attributions, and citation titles serialize only their
-  parsed inline content. Read named titles through `title`, rather than
-  `metadata.attributes["title"]`. Replacing or removing content cannot leave
-  an old attribute value. `Attribution` and `CiteTitle` now share
-  `ContentAttribute`; their constructors and slice access remain.
+- Read parsed trees through `ParseResult::document()` and concrete `ast::*Ref`
+  handles. Match `BlockKind` / `InlineKind` and use lazy child/content iterators
+  instead of public fields or backing slices. Use constructors, checked setters,
+  and prepared transfers to edit owned values; `From` copies a selected read.
+  Text can still borrow from the parse result. See the README's 0.11 migration.
+- `ContentAttribute` and `Title` no longer expose borrowed slices or `Deref`.
+  Use `ContentRef::from(&content)` or `title.content()`, then `inlines()`.
+  Standalone inline results use `content()`. `Title::default()` is absent;
+  `Title::new(Vec::new())` is present and empty.
+- Images, tooltips, UI labels, credits, custom captions, and reference labels
+  retain parsed inline content. Inline images use `InlineImage`; block images
+  use `Image`. Alt, tooltip, and caption title are independent. Content is stored
+  once, outside scalar controls; checked scalar setters reject reserved names.
+- Native JSON writes content as dedicated inline arrays, omitting absent values
+  and retaining `[]` for explicit emptiness. Inline macro owners serialize like
+  their enclosing nodes, with consistent metadata and unencoded mail subject/body.
+  Bibliography display labels remain separate from citation text; index catalog
+  labels remain separate from display labels. Footnote references omit `inlines`,
+  while definitions retain it, including `[]`.
+- Enabled typography replacements now produce semantic symbol nodes. Character
+  references use `InlineNode::CharacterReference` and native `charref` nodes;
+  numeric references use decimal spelling. Locations retain the authored source.
+  Render these resolved nodes without applying language replacements again.
+- `Video::source` replaces `sources` in Rust and native JSON. It preserves the
+  complete provider target, including playlist commas and empty slots. Read the
+  provider from `poster`, rather than synthetic `youtube`/`vimeo` booleans.
+- Select language behavior with `CompatibilityMode::Asciidoctor` (default) or
+  `Draft`. Both modes use the same AST in every build and apply to includes and
+  nested content. Remove the `pre-spec-subs` and `setext` dependency features;
+  block `subs=` now works in every build. Draft uses attribute expansion before
+  ordinary formatting, its attribute-list rules, and literal unquoted/double-quoted
+  named content. Underlined headings remain an Asciidoctor-mode feature.
+- Removed `strip_quotes`: attribute-list delimiters are already removed, and
+  remaining quote characters are literal. Document presence/unsets serialize as
+  `true`/`false`; validated integers are JSON numbers with their written text
+  available through typed reads. Header snapshots and ordered body events remain
+  separate. Scalar metadata cannot shadow dedicated fields.
+- With `asg`, checked document and inline export accept `DocumentRef` and
+  `ContentRef`. Native JSON remains independent of ASG; callers must choose an
+  export profile and handle unsupported meaning explicitly.
 
 ### Added
 
-- With `asg` enabled, export supported documents and inline content to a pinned
-  ASG draft, preserving empty titles, unsets, and positional values. Unsupported
-  meaning returns a typed error; native JSON is unchanged.
-
-- Applications can parse, display, and serialize `CompatibilityMode` using the
-  canonical names `asciidoctor` and `draft`. Unknown names are rejected.
-
-- Formatted document attributes now honor the declared order of quotes,
-  replacements, macros, and attributes. `pass:q,a[{word}]` keeps formatting
-  introduced by `{word}` literal, while `pass:a,q[{word}]` parses it, matching
-  Asciidoctor. Aliases retain definition-time values and unresolved references;
-  expanding an empty value after formatting preserves the empty span.
-  Explicit lists run once; Asciidoctor may apply macros and replacements again
-  when the value is inserted into normal prose.
-
-- Inline `pass:` lists now preserve unsupported source and report
-  `ContentRecovery`, matching formatted attribute values. This covers unknown
-  substitution names, callouts, and escaping after formatting or macros.
-  Asciidoctor may instead discard unknown names or display generated markup.
-  Escaped, protected, and macro-disabled source remains literal without warnings.
-
-- `CompatibilityMode::Draft` resolves attribute references before ordinary
-  inline formatting, so inserted values such as `*Bold*` create bold content.
-  Asciidoctor mode retains formatting before attribute expansion. Explicit
-  substitution lists retain their requested order; incremental block modifiers
-  start from the selected mode's defaults.
-
-- Clarified the library's attribute reuse paths: `Options::with_document_attributes`
-  retains parsed substitution behavior, while `DocumentAttributes::into_inputs`
-  exports text for fresh configuration, including numeric spelling and unsets.
-
-- Library consumers can compare source endpoints by line, column, and include
-  chain without copying their source information.
-- List item iterators can be cloned to retain independent positions without
-  copying their items or allocating a collection.
-- Library consumers can copy a video from a typed read, retaining its source,
-  title, attributes, and source locations for independent edits.
-- Library consumers can identify a simple admonition's paragraph while retaining
-  its title, ID, and source span.
-- Typed element attributes expose their recorded block metadata span for source-aware
-  diagnostics. Inline attributes and blocks without a retained span return no span.
-
-- Library callers can copy document attributes and registered TOC/reference
-  entries from typed handles with `From`. Copies preserve defaults, explicit
-  unsets, assignment provenance, assigned numbers, and source locations without
-  revalidation or catalog updates. Source text keeps its existing lifetime.
-- Library callers can read the highest assigned caption number through typed
-  document handles. Nested blocks and table cells are included; reads preserve
-  stored numbers and leave edited documents and reference catalogs unchanged.
-
-- Library callers can resolve section and discrete heading IDs through typed
-  handles, including title-derived fallbacks for caller-built headings. Existing
-  parsed IDs and retained identity reads stay unchanged.
-
-- Library callers can read assigned section numbers, including book parts and
-  appendices, through typed section handles. Reads keep the stored numbers
-  without adding signifiers or renumbering edited sections.
-
-- Library callers can resolve table borders and row stripes from typed element
-  attributes and a document snapshot or a lookup of values active at the table's
-  position. Local overrides, empty values, and document defaults keep their
-  existing meaning; stored table presentations stay unchanged.
-
-- Table column-format iterators can be cloned to inspect the same formats again
-  without collecting them.
-
-- Typed source spans can be compared directly, including their byte offsets,
-  endpoint positions, and include chains.
-
-- Library callers can classify caption categories from typed blocks without
-  inspecting the owner enums. Classification follows the current block form and
-  style; resolved labels and ordinals retain their stored values.
-
-- `CaptionRef::resolve` reads stored labels and ordinals, or borrows a caption
-  fallback from element and document attributes without assigning an ordinal.
-  Existing metadata-based caption resolution remains supported.
-
-- Block attributes can be read through `BlockRef::attributes()` without matching
-  each block kind. Line comments and document attribute assignments return `None`.
-
-- Library callers can resolve typed block substitution settings against their
-  own defaults. Groups, modifier order, and empty settings keep their behavior.
-
-- Formatting span reads expose complete role text, including whitespace and
-  explicit empty values, alongside role-token queries.
-
-- Typed media targets expose their filename without reparsing URLs, retaining
-  parsed URL path semantics and non-UTF-8 path handling.
-
-- Standalone inline parses expose typed content through `ParseInlineResult::content()`
-  without copying nodes or changing their source locations. Existing slice reads
-  and native JSON remain unchanged.
-
-- Library callers can read registered cross-reference targets and TOC entries
-  through `DocumentRef::references()` and `toc_entries()`, without copying their
-  content. Reads preserve labels, empty values, section numbers, resolved
-  captions, and catalog snapshots without changing registrations or native JSON.
-
-- Inline content iterators support independent cloned cursors, reverse traversal,
-  and exact remaining lengths without copying the content.
-
-- Library callers can copy a typed source span into an owned `Location` for
-  indexes that outlive the parsed document, preserving include provenance.
-
-- Library callers can walk owned inline content through
-  `DocumentRef::content_occurrences()` or read a node's direct `content_fields()`.
-  Each field identifies its purpose and typed owner, including titles, credits,
-  captions, alt/tooltips, labels, and list content. Callers can skip nested fields;
-  derived reference, footnote, TOC, and index copies are excluded.
-
-- `ParseResult::document()` provides typed reads of documents, headers, authors,
-  sections, paragraphs, delimited blocks, admonitions, lists, tables, media,
-  discrete headings, TOC blocks, breaks, and comments, with lazy child and inline
-  iterators. Read nested bodies, formula text and notation, source delimiters,
-  and quote/caption content without rendering. Raw and verbatim text
-  remain distinct from formatted content. List items separate principal text
-  from attached blocks and preserve terms, markers, checklist states, anchors,
-  and callout numbers. Read table declarations separately
-  from resolved presentation, and preserve absent versus
-  empty image alt and tooltips. Match block and inline kinds without depending on
-  collection storage. Their `attributes()` reads expose titles, image content,
-  IDs, styles, role/option tokens, and scalar controls without copying values.
-  Lookup and iteration preserve missing, empty, false, and valueless attributes;
-  `roles` and `options` aliases share their canonical entries. Existing owner
-  APIs and JSON output remain unchanged.
-  Document attribute reads preserve the header snapshot, explicit unsets, and
-  validated values with retained text. Body assignments and table-cell initial
-  assignments remain separate ordered sequences, with existing parser policy.
-  Video targets retain commas and empty playlist slots. Breaks expose only their
-  retained metadata, and comment reads preserve literal text and comment form.
-  Formatting spans expose nested content, constrained/unconstrained form, IDs,
-  and ordered role tokens through their concrete types. Unadorned marks remain
-  distinct from attributed generic spans.
-  Index entries expose hierarchy levels, see/see-also targets, and catalog
-  labels captured before later substitutions.
-  Footnote reads separate occurrence content and shared numbers from registered
-  definitions. Bibliography anchors expose entry labels separately from citation
-  text, with their original source locations.
-  Button, keyboard, and menu reads preserve formatted labels and ordered key/item
-  sequences. Inline formulas expose protected text and resolved notation without
-  rendering or further substitutions.
-  Text reads retain escape protection, ordered passthrough substitutions, and
-  verbatim whitespace. Standalone inline parsing exposes retained passthrough
-  content separately from the text produced by document parsing.
-  Hyperlinks share destination, label, and location reads while retaining their
-  concrete forms, display settings, metadata, and unencoded mail subject/body.
-  Block attribute reads also expose attribution, citation, authored captions,
-  named reference text, and retained `subs` settings, including explicit emptiness
-  and unsupported entries. Generated captions remain separate.
-  Structural traversal visits nested blocks, list items, table rows, and cells
-  in a documented order, with early stopping and no allocation for direct children
-  or flat walks. Nested walks use temporary memory proportional to nesting.
-  Block titles and primary IDs are available without matching each block kind.
-  Document and section ID reads now agree with reference resolution, including
-  generated section IDs. Retained anchors and inline element IDs remain separate
-  from registered targets; reads preserve their locations without assuming an
-  editable source spelling.
-
-- Parser fixtures support shared expectations or explicit Asciidoctor/Draft
-  pairs, optional diagnostics, and stable test names. The runner rejects missing
-  or conflicting expectations. The generator shares its parsing rules and fails
-  before writing if a selected case has an unexpected outcome. Every case runs
-  in both modes; a shared expectation requires identical results.
-
-- Select `CompatibilityMode::Draft` through `OptionsBuilder::with_compatibility_mode()`
-  for the supported draft rules, including attribute expansion before ordinary
-  inline formatting and literal unquoted/double-quoted named titles. Asciidoctor
-  mode is the default, with documented fixes and deliberate extensions. Both
-  modes use the same AST in every build. Includes and nested content retain the
-  caller's mode, while safe mode and resource controls stay independent. The
-  parser READMEs describe supported rules, recovery, and migration from the
-  released API without claiming complete draft-specification conformance.
-
-- `OptionsBuilder::with_force_local_file_xrefs()` resolves file-qualified
-  references by their local anchors in combined or partially included documents.
-  It preserves URLs and custom text and requires a nonempty fragment. This
-  opt-in override can redirect genuine external file references. It does not
-  scope duplicate IDs, resolve Antora resource IDs, or change page-only
-  references. It deliberately differs from Asciidoctor for files that are not
-  fully included.
-
-- Explicit `toc2` settings now produce one deprecation warning per parse.
-  Use `:toc: left` or supply `toc=left` through the API or CLI. TOC behavior is
-  unchanged. Unsets, ignored assignments, and the `toc2` CSS class do not warn.
-  Asciidoctor accepts the deprecated alias without this warning.
+- Typed reads cover every block and inline family, retained attributes, structural
+  children, owned content fields, source coordinates, and derived catalogs. Walks
+  support early stopping; direct and flat walks allocate no memory. Dedicated
+  content keeps missing and empty values distinct. `AttributeValueRef::as_str()`
+  reads scalar text without rendering or allocating.
+- Prepared documents can explicitly rebuild references/TOC, captions, footnotes,
+  and author-derived attributes. These operations preserve declaration snapshots
+  and have separate scopes. Reference, caption, and footnote errors leave the tree
+  unchanged. Ordinary reads, copies, and setters do not rebuild registrations.
+- The `asg` feature provides all-or-error export to a pinned upstream subset.
+  The explicit `Profile::Acdc` extension preserves supported formatted content
+  attributes and images under `urn:acdc:asg:1`. Unsupported owners or properties
+  report typed errors with property paths and known source coordinates. Offline
+  schema validation, a support inventory, and semantic regressions document the
+  limits; schema validity alone is not a conformance claim.
+- `OptionsBuilder::with_force_local_file_xrefs()` resolves file-qualified anchors
+  locally in combined documents. It can redirect genuine external references;
+  it does not scope duplicate IDs or resolve Antora resources.
 
 ### Fixed
 
-- Formatted named block titles, single-quoted quote credits, and custom captions now resolve typography at both text edges, matching asciidoctor. Literal values and nested inline boundaries stay unchanged.
+- Named titles, image alt/tooltips, custom captions, quote credits, reference
+  labels, and UI labels preserve formatting, escapes, declaration-time attributes,
+  explicit emptiness, and authored source ranges. Only selected content registers
+  footnotes. Inline image `title=` supplies a tooltip without replacing alt;
+  block image `title=` supplies a caption. Named/macro precedence follows the
+  selected mode. Draft block-image alt remains literal.
+- Block attributes, anchors, and titles before comments apply to the next
+  visible block, including headings and list continuations. Comment nodes keep
+  their own ranges. Unused end-of-input titles do not register footnotes. Discrete
+  headings, stacked attributes, positional gaps, and mapped media/quote values
+  follow the selected mode without changing the native tree shape.
+- Lists, description terms, styled/indented paragraphs, open blocks, and matched
+  listing/literal delimiters retain their correct boundaries and attached blocks.
+  Draft recognizes structure before applying verbatim styles; Asciidoctor mode
+  preserves its style-dependent behavior. Page-break markers work at end of file.
+- Explicit block and inline substitution order is preserved, including formatted
+  document attributes and passthroughs. Later expansion cannot create tokens for
+  an earlier stage. Unsupported passthrough/STEM settings preserve their complete
+  source and warn instead of silently producing incorrect content. acdc keeps
+  semantic text rather than generated backend markup; documented word-context
+  and repeated-expansion differences from Asciidoctor remain.
+- Keyboard/menu/button labels preserve rich content, separator keys, quoted menu
+  sequences, escaped closing brackets, and substitution-dependent boundaries.
+  Named index controls stay outside labels; bibliography labels retain empty and
+  whitespace-only values. Inline anchors accept closing brackets in labels.
+- Image/audio/video/TOC macros with trailing nonwhitespace stay paragraph text.
+  Complete video playlists and provider posters are preserved. Table column
+  declarations are validated completely, and metadata/body edits refresh stored
+  frame/grid/stripe decoration against the table's original defaults.
+- Generated section IDs honor declaration-time `idprefix`/`idseparator`, empty
+  values, and collision suffixes. References and TOC entries use those same IDs.
+  Prepared index edits preserve registration labels until explicitly restored.
+- Source spans and warnings retain original Unicode, attribute-reference, include,
+  selection, and table-cell context. Unresolved notes report each authored use;
+  active unsupported counters mark source recovery, while escaped counters stay
+  literal. `toc2` reports a deprecation warning; use `toc=left`.
+- STEM defaults to AsciiMath for absent/empty/unknown notation, accepts LaTeX
+  aliases, and preserves formula text. Explicit block attribute expansion works
+  without putting formatting tags into formulas. Literal document/manpage text,
+  quoted offsets, and cross-reference controls retain meaningful quotes.
 
-- Recognize page-break lines at end of file, with or without a final newline,
-  including CRLF input. Runs of three or more `<` characters match Asciidoctor.
-  Page-break source ranges end on the marker instead of the next character.
-
-- Bibliography anchors now accept empty and whitespace-only labels, including
-  labels in includes and AsciiDoc table cells. Supplied ASCII spaces follow
-  Asciidoctor's leading-space rules and remain visible in citations. Empty labels
-  stay present as `[]` in native JSON. HTML keeps a complete `[]` display envelope
-  instead of Asciidoctor's unmatched bracket for a zero-character label.
-
-- Visible bibliography labels resolve typography with the surrounding block's
-  substitution profile and retain authored symbol locations.
-
-- Inline `[[id,label]]` anchors accept single closing brackets inside their
-  labels, matching Asciidoctor. Nested macro syntax stays in the reference label
-  instead of rendering or registering as body content.
-
-- Reference labels resolve copyright and trademark signs, punctuation, and
-  escaped tokens in the parser. Asciidoctor-mode labels keep macros literal;
-  Draft's unquoted and double-quoted named `reftext` values remain literal.
-  Render resolved label nodes without applying replacements again.
-
-- Index catalog labels now expose resolved typography and passthrough policies
-  in both modes. Catalog punctuation uses the label's own boundaries and
-  registration-time substitutions, independently of the displayed prose.
-  Consumers should render these nodes without applying replacements again.
-
-- Passthrough blocks and `[pass]` paragraphs now honor explicit `subs=` settings
-  in both compatibility modes and feature configurations. Inline formatting,
-  replacements, and macros follow the requested order; default and `subs=none`
-  content stays raw.
-
-- Each unresolved footnote now reports its authored source range and marks the
-  document as recovered. Repeated references report separate warnings, including
-  inside links, passthroughs, selected titles, includes, and table cells. Their
-  existing `[id]` fallback text is unchanged.
-
-- Block image, audio, video, and TOC macros with text after their closing bracket
-  stay paragraph text instead of discarding the trailing content, matching
-  Asciidoctor. Whitespace after a complete macro remains valid.
-
-- Escaped counter references stay literal instead of being removed. Unsupported
-  active counters still warn and omit their value, and now set
-  `ParseResult::source_recovery()` so callers can detect the loss. Match
-  `WarningKind::UnsupportedCounter` to identify these warnings.
-- Inline-preprocessor warning ranges end at the last authored character instead
-  of the following character, including passthrough, STEM, and counter warnings.
-
-- Inline passthroughs finish replacements before later attributes or macros.
-  In `pass:r,a[...]`, a later value cannot introduce signs, dashes, or apostrophe
-  context for the earlier stage. In `pass:r,m[footnote:n[(C)\]]`, the footnote
-  captures the resolved copyright sign; reversing the stages keeps it literal.
-  Edge punctuation still uses acdc's documented parsed word context.
-
-- Typography around empty passthroughs is available in the parsed tree, with
-  each symbol located only in the source text that owns it. Rendered behavior
-  follows acdc's existing parsed-context policy in both modes; Asciidoctor keeps
-  more passthrough boundaries.
-
-- Warning byte offsets now refer to the original file after includes and
-  preprocessing edits, including selected and nested includes. Cross-file
-  diagnostics retain each endpoint's source context. Reindented includes keep
-  merged byte offsets; use their original line and column instead.
-
-- Quoted menu sequences such as `"File > Open"` now work with `experimental`
-  in Asciidoctor mode and by default in Draft mode. Rich labels, escapes,
-  named entities, and explicit `subs=` settings follow the existing UI rules.
-
-- Menu items recognize `&gt;` separators. With `subs=macros`, a raw `>` stays
-  inside the label, matching Asciidoctor. Labels after entities keep their
-  authored source locations.
-
-- Unsupported inline STEM substitution lists now preserve their complete source
-  and report a warning, instead of formatting or registering inner content.
-  Asciidoctor supports inline lists; acdc supports block attribute expansion only.
-
-- Keyboard sequences expand ordinary attributes before choosing their keys.
-  Explicit `subs="macros,attributes,..."` freezes keyboard and menu boundaries
-  before those attributes expand. Keyboard passthroughs stay inside one macro.
-
-- Keyboard macros recognize plus/comma keys such as `kbd:[Ctrl++]` and
-  `kbd:[Ctrl,,]`, choose one separator per sequence, and preserve nested labels.
-  Menus accept comma-separated items and empty final items. Keyboard, menu,
-  and button labels keep escaped closing brackets inside the enclosing macro.
-  These forms follow Asciidoctor where it recognizes them.
-
-- Cross-reference shorthand removes only leading ASCII whitespace from its
-  label, retaining trailing and nonbreaking spaces like Asciidoctor. Label
-  locations point to the displayed text after the skipped prefix.
-- Image alt content introduced by an attribute reference now points to that
-  reference, including selected includes and table cells. In Asciidoctor mode,
-  preceding single-quoted alt values parse introduced formatting and resolve
-  nested references using the attributes available when declared, matching
-  Asciidoctor.
-
-- A description-list term and its marker must be on the same line. Ordinary
-  wrapped paragraphs that contain a later `Term::` line stay paragraphs in both
-  modes, matching Asciidoctor. This also applies after a description list and
-  inside includes and table cells.
-
-- Unordered and ordered list markers no longer split ordinary paragraphs.
-  Attached paragraphs follow the selected mode: Asciidoctor accepts sibling and ancestor items from the
-  same list family; Draft keeps those lines as text until a paragraph boundary.
-  Standalone `+` lines still interrupt paragraphs in both modes. Metadata before
-  a nested list keeps it attached to the current item.
-
-- A list continuation keeps the next block attached when line or block
-  comments precede it, including comments from selected includes. Comment-only
-  continuations still retain their source. This matches Asciidoctor in both modes.
-
-- Legacy heading underlines must differ from their title by at most one
-  character, matching Asciidoctor. Metadata and punctuation-only lines no
-  longer become accidental underlined headings.
-
-- Indented paragraphs honor `normal`, quote, verse, example, sidebar, and
-  admonition styles instead of falling back to literal text. `normal` removes
-  common indentation; explicit verbatim styles preserve it. Draft also accepts
-  `paragraph` as an alias for `normal`; Asciidoctor mode keeps it literal.
-  Implicit literal paragraphs now remove the full common indentation.
-
-- Open blocks honor example, admonition, quote, verse, sidebar, and passthrough
-  styles like Asciidoctor. Verbatim, raw, and comment styles preserve slash
-  lines and keep the selected content behavior across includes in both modes.
-
-- Delimited listing and literal blocks honor `[literal]`, `[listing]`, and
-  `[source,language]` styles like Asciidoctor, including source language and
-  explicit `subs=` settings. Original delimiters and source locations stay intact.
-
-- Draft mode recognizes lists, block macros, admonitions, and paragraph boundaries
-  before applying `source`, `listing`, `literal`, or `verse` styles. Metadata,
-  delimiters, and headings can end these paragraphs. Asciidoctor mode keeps its
-  style-dependent boundaries and code-comment preservation.
-- A block that ends in an included file keeps that file's actual end line, even
-  when it is lower than the start line in the parent file.
-
-- Positional image alt text expands document attributes once, matching named
-  macro alt text and Asciidoctor. Literal references retained by an alias stay
-  literal instead of resolving to a later body value, including in table cells
-  and selected includes.
-
-- Replacing delimited-block metadata with `with_metadata` or `set_metadata` keeps
-  table `frame`, `grid`, and `stripes` in sync with rendered decoration. Removing
-  an override restores the document defaults active at that table, including
-  defaults set in the body or an AsciiDoc cell.
-
-- Custom caption content in the reference catalog retains its original source
-  locations through includes, including selected regions and table cells.
-
-- Inline image IDs now point to their authored values after earlier blocks,
-  formatting, attribute expansion, includes, and AsciiDoc table cells. Nonempty
-  ID ranges exclude the closing quote or bracket.
-
-- Named index macros keep controls out of visible labels and hierarchy levels,
-  matching Asciidoctor. Discarded controls no longer register nested footnotes.
-  IDs, roles, options, and accepted extensions are retained in native JSON;
-  typed attributes expose hierarchy and the selected see/see-also relationship.
-  As with other acdc inline macros, `roles` aliases `role`.
-
-- Reference labels retain their authored locations through attribute expansion,
-  escaping, includes, and nested blocks. Block anchors use attribute values from
-  their declaration point. Asciidoctor mode keeps restricted label formatting;
-  Draft treats unquoted and double-quoted named labels as literal text and
-  interprets single-quoted content. Empty labels still select title fallback.
-
-- Asciidoctor mode now keeps `[discrete]` and `[float]` headings discrete when a
-  later attribute list supplies `style=normal`. Named `style=discrete` alone
-  remains a section, matching Asciidoctor. Draft uses the last selected style.
-  Section nesting and legacy-float warnings follow the selected heading style.
-
-- Positional block attributes now use the matched block form. Quote delimiters
-  accept positional attribution without a `quote` style, and `[,language]` on a
-  listing selects that source language. Unrelated block forms no longer acquire
-  source or quote attributes from their style alone.
-- Draft resolves mapped positional and named attributes in document order,
-  including preceding image/video positions. Asciidoctor mode keeps the
-  reference's block precedence and limits media dimensions/posters to the macro.
-  Later positional macro dimensions now override earlier named values.
-- Markdown fence languages no longer shift preceding positions or turn them
-  into line-number settings. Only selected attributions register inline macros.
-
-- Stacked block attributes retain earlier positional values across named gaps.
-  Draft also retains them across empty positions; Asciidoctor mode clears an
-  explicitly empty position. Values keep the location of the selected entry.
-- Asciidoctor mode now replaces earlier roles when a later list supplies `role=`,
-  including an empty value, and adds same-list shorthand roles after named roles.
-  Block media macros retain options from preceding attribute lists. Option
-  splitting follows the reference comma/space rules in Asciidoctor mode.
-- Ignored duplicate caption attributes no longer replace the selected caption
-  or suppress its footnotes when the list contains an attribute reference.
-- Draft mode keeps quoted and malformed shorthand literal and supports combined
-  anchor/style shorthand. A hash ID overrides an anchor-prefix ID. Block macros
-  continue to treat shorthand punctuation as text.
-- Draft treats unquoted named `None` as text, including inline-image attributes.
-  Asciidoctor mode still ignores it without erasing an earlier value. Quoted and
-  positional `None` remain text in both modes.
-- Shorthand IDs retain their authored ranges after attribute expansion and no
-  longer include the following delimiter in their source location.
-- Draft mode uses odd/even backslash rules for attribute references and quotes in
-  block lists, and for brackets in block anchor labels. Other backslashes stay
-  literal. Asciidoctor mode keeps its compatible escape rules and now recognizes
-  block anchor labels containing right brackets, including escaped brackets.
-- Raw block attribute locations exclude closing quotes and following commas. Expanded
-  values point to their authored references, including Unicode, selected includes,
-  and nested table cells.
-
-- Draft mode rejects outer spaces and tabs in block attribute lists and requires
-  a comma, space, tab, or list end after a closing quote. Invalid quote enclosures
-  stay literal. Block macros use the same rules; inline macro lists are unchanged.
-  Both modes now preserve leading-space block attribute lines as content, matching
-  Asciidoctor. Includes and source-paragraph comment handling use the selected mode.
-
-- Supported block `subs=` settings no longer produce a specification warning.
-  Unknown stages report source recovery and remain in the substitution metadata.
-  STEM blocks warn for stages other than attributes and output escaping, while
-  preserving formula text and applying the supported stages. Unlike Asciidoctor,
-  acdc does not insert formatting tags into formulas.
-
-- Paragraph admonition styles such as `[NOTE,caption='Care']` retain their label and admonition layout.
-
-- Image and icon alternative content, tooltips, custom captions, and UI labels
-  retain supported inline formatting, escapes, substitutions, and source locations.
-  Only selected values register footnotes. Literal quote attributions and citation
-  titles retain dashes; single-quoted values support normal substitutions even
-  when the body uses `subs=none`. Named and positional quote values retain their
-  declaration-time attributes. Asciidoctor mode expands introduced references;
-  Draft leaves them literal unless explicit passthrough substitutions request it.
-  Explicitly empty attribution and citation content serializes as `[]`.
-- Single-quoted `caption=` prefixes parse formatting introduced by attribute
-  expansion and retain the declaration's attribute values. Asciidoctor mode
-  expands introduced references; Draft keeps them literal unless explicitly
-  requested. Literal and media-macro captions stay literal, and caption source
-  locations cover the authored references and escapes.
-- Icon positional values always select size; named alternative text remains
-  independent. Repeated icon attributes use the last value and retain link options.
-
-- Named titles parse formatting introduced by attribute expansion, such as
-  `[title='{word}']` with `:word: *Bold*`. Asciidoctor mode also expands references
-  introduced by that first expansion; Draft does not do so implicitly and parses
-  only single-quoted titles. Both modes retain declaration-time values, even
-  where Asciidoctor uses a later value for an introduced reference.
-- Inline source spans cover complete attribute references and escaped characters.
-  Single-character content no longer includes a following delimiter in its byte range.
-
-- Named `title=` attributes now supply formatted titles on paragraphs, lists,
-  delimited blocks, tables, audio, and video. Media macro titles override preceding
-  titles. Repeated named attributes use the last value; repeated `opts` accumulate.
-- Images honor named `alt` over positional alt text and retain literal quotes
-  and empty positional slots. Inline `title=` remains a tooltip and no longer supplies alt text.
-  Video `poster=` overrides its positional value, including platform names.
-
-- Block images accept `title=` captions in the macro or a preceding attribute
-  list. Macro titles override preceding titles, retain inline formatting, and
-  supply cross-reference text, matching Asciidoctor. Inline-image `title=`
-  tooltips remain independent of caption titles.
-
-- Errors and warnings in reindented includes report columns in the original
-  source, including nested and selected includes.
-
-- STEM notation now uses AsciiMath when `:stem:` is absent, empty, or unknown.
-  The `latex` and `tex` aliases select LaTeX. Explicit `[latexmath]` and
-  `[asciimath]` blocks and positional notation override the document value,
-  matching Asciidoctor.
-- Inline STEM keeps attribute references as formula text by default.
-  LaTeX removes one enclosing dollar pair.
-  `[stem,subs="+attributes"]` expands block attributes while retaining the
-  original source text and locations.
 
 ## [0.11.0] - 2026-10-10
 

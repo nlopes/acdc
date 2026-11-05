@@ -37,7 +37,8 @@ and recovered content. See <<source-text-and-diagnostics,Source text and diagnos
 
 == Reading the tree
 
-Use `document()` to read nodes through typed handles and lazy iterators:
+`document()` returns a typed handle. Match `BlockKind` and `InlineKind` to read
+concrete elements without depending on how the parser stores them:
 
 [source,rust]
 ----
@@ -47,378 +48,130 @@ let parsed = parse("Hello, *world*.", &Options::default())?;
 for block in parsed.document().blocks() {
     if let BlockKind::Paragraph(paragraph) = block.kind() {
         for inline in paragraph.content().inlines() {
-            if let InlineKind::Plain(text) = inline.kind() {
-                println!("{}", text.text());
+            if let InlineKind::Bold(bold) = inline.kind() {
+                assert!(!bold.content().is_empty());
             }
         }
     }
 }
 ----
 
-Kind matching covers all block and inline kinds. Detailed accessors currently
-cover headers, authors, document attributes, block bodies and metadata, lists and
-list items, tables, media, discrete headings, TOC blocks, breaks, and comments.
-Inline reads include text, formatting spans, images, icons, links, URLs, email
-links, cross-references, and source locations.
-`LinkRef`, `UrlRef`, and `MailtoRef` expose the label through `text()` and the
-unencoded destination through `target()`. Empty labels use automatic display
-text. IDs retain their own source ranges. Mail `subject()` and `body()` read the
-second and third positional values before URI encoding; named attributes with
-those names remain extensions and do not populate the query.
+Keep the parse result alive while using its handles. Copying a handle does not
+copy a node. A constructed node uses the same reads through `ParagraphRef::from`
+or the corresponding concrete `*Ref` type. Formatting types such as `BoldRef`
+and `ItalicRef` remain distinct.
 
-`document().references()` reads registered targets by ID through `get()` or
-`iter()`. Titles and reference labels stay separate, including present empty
-content. `toc_entries()` reads the stored TOC order and section numbers. These
-catalogs are snapshots; reads do not repair them after tree edits or register
-new occurrences. Their content remains outside `content_occurrences()`.
+[cols="1,2",options="header"]
+|===
+| What you need | Where to read it
+| Direct document or container blocks | `blocks()`
+| Structural children, including list items and table cells | `children()`; `descendants()` for a depth-first walk
+| Paragraph, span, or label content | `content().inlines()`; hyperlink labels use `text()`
+| Every owned inline-content field | `content_occurrences()`; `content_fields()` for direct fields
+| List principal text and attached blocks | `item.principal()` and `item.blocks()`; description items also have `term()`
+| Table rows, cells, and resolved decoration | Typed table reads; authored column settings remain separate from presentation
+| Image alt or inline tooltip | `alt()` or `tooltip()`, each returning optional content
+| Link, URL, mail, or autolink destination | `target()`; `as_hyperlink()` provides their common reads
+| Registered targets and TOC entries | `document.references()` and `document.toc_entries()`
+| Element attributes | `attributes().get(name)`, `contains(name)`, or `iter()`
+| Original source coordinates | `location()` and the parse result's source-resolution methods
+|===
 
-`CrossReferenceRef` keeps the resolved target, explicit label, and automatic-label
-policy separate. Target `reftext` belongs to the referenced element. Named
-`title` and `reftext` on the xref itself remain scalar extensions. Read identity,
-roles, options, and effective `xrefstyle` through `attributes()`; edit them through
-the owner fields and guarded scalar methods. As with other acdc inline macros,
-`roles` aliases `role`; Asciidoctor recognizes only `role` on xrefs.
+`content_occurrences()` visits each retained content field once, including titles,
+captions, alt, tooltips, and nested labels. Each occurrence identifies its `owner`,
+`role`, and `content`. It excludes derived catalog copies. Use `skip_descendants()`
+to omit nested fields without losing siblings. These walks do not render text or
+register macros.
 
-`document().content_occurrences()` walks each retained inline-content field
-once, including titles, captions, alt text, tooltips, and nested labels. Each field
-provides `role()`, `owner()`, and `content()`. Use the content's inline locations
-with `resolve_location()` for source provenance. Present empty fields remain empty;
-scalar values and generated fallback text do not become synthetic inline nodes.
-The walk excludes derived catalogs. Call `skip_descendants()` to omit a field's
-nested content while keeping siblings, or use `StructuralRef::content_fields()`
-and `InlineRef::content_fields()` for direct, allocation-free reads. This leaves
-rendering and indexing policy with the caller.
+Direct children and flat walks allocate no memory. Nested walks use a growable
+stack proportional to nesting. Iterators support early stopping; there is no need
+to collect a document just to find one element. Handles can be used by scoped
+worker threads while their owner stays alive. `ParseResult` is `Send`, but is not
+`Sync`; sharing the owning result needs synchronization. These are API properties,
+not a promise of a particular parse time or memory layout.
 
-Formatting spans expose nested content, constrained/unconstrained form, IDs, and
-role tokens. Each span keeps its concrete type, such as `BoldRef` or `ItalicRef`.
-`HighlightRef::is_marked()` distinguishes an unadorned mark from a generic span
-with an ID or role. Span IDs retain the source range that supplied the ID.
-For an expanded ID, this range covers the authored attribute reference, so tools
-must check the source before offering a literal ID edit.
-Table declarations remain separate from resolved presentation. Image and icon alt and
-tooltips preserve absent versus explicitly empty content. For a constructed node,
-use `ast::ParagraphRef::from(&paragraph)`.
-For independent edits, copy a typed document with
-`Document::from(parsed.document())` or a block with `Block::from(block)`.
-Copies preserve stored catalogs, source locations, captions, and table presentation;
-they do not reparse text or refresh catalogs. Source text can still borrow from
-the parse result.
+=== Attributes and content
 
-Read a content attribute through `ContentRef::from(&content)` and a title through
-`title.content()`, then iterate with `inlines()`. To copy selected content for edits,
-use `ContentAttribute::from(content_ref)` or `Title::from(content_ref)`.
-`into_inlines()` transfers the prepared nodes without copying them.
-A title copied from empty content is present; `Title::default()` is absent.
+Quote and verse expose `attribution()` and `citetitle()`; `caption_content()`
+reads an authored prefix separately from its generated label and ordinal.
 
-Inline fragments use `ParseInlineResult::content()` for the same typed reads.
-Use `InlineNode::from(inline_ref)` to copy one selected node for edits, without
-copying its siblings. Copies can still borrow text from the parse result.
-Serialize a `ContentRef` with Serde for acdc's native inline array; checked ASG
-export continues to use `asg::inlines`. Read macro content with typed
-`content_fields()` or `content_occurrences()` instead of the old owner callback.
+A title, alt, attribution, citation, caption, or reference label has one semantic
+owner. The attribute inventory reads that same value; it does not keep another
+raw copy that can become stale. Controls and unknown extension attributes remain
+scalar values. Document assignments have their own header snapshot and ordered
+body events.
 
-Editing a copy does not rebuild reference targets, TOC membership, footnote
-registrations, or author-derived document attributes. Reads, copies, and conversion
-leave those snapshots unchanged. Reparse changed source when you need those
-values and declaration-order substitutions recomputed.
-
-`renumber_sections()` updates section numbers in the tree and existing reference
-and TOC entries; it does not add or remove catalog entries. `renumber_captions()`
-updates automatic block ordinals, keeping their stored prefixes. It does not
-update caption snapshots in the reference catalog.
-
-`Document` keeps its storage private. Use `DocumentRef::from(&document)` for
-reads. Use `push_block` to append a block or `set_blocks`, `set_header`, and the
-other `set_*` methods to replace owned parts. Their `take_*` counterparts transfer existing parts without tying
-them to a borrow of the old document. You can edit those parts and put them back;
-registrations stay unchanged until you replace them or reparse the source.
-
-To copy only a header or author, use `Header::from(header_ref)` or
-`Author::from(author_ref)`. These copies keep stored values and can still borrow
-source text; they do not copy the document body or replay registrations.
-
-Read constructed headers and authors through `HeaderRef::from(&header)` and
-`AuthorRef::from(&author)`. Their fields are private; use setters to edit prepared
-values. Use `clone_metadata()` to prepare a checked replacement
-while keeping the original intact. Header metadata replacement rejects attributes that shadow dedicated
-fields and leaves the header unchanged on error. Header `take_*` methods transfer
-content and authors while preserving their source lifetimes. Author setters keep
-the supplied display text and leave author-derived document attributes unchanged.
-
-`Paragraph` also keeps its storage private. Use `ParagraphRef` to read it and the
-owned setters or `take_*` methods to edit it. `set_metadata` rejects conflicting
-scalar attributes before changing the paragraph. Content edits retain the original
-`source_text()` snapshot and do not rebuild document registrations.
-
-`Section` uses the same checked metadata and owned content operations. Its style
-selects the section kind. Title and role edits preserve an assigned ID, including
-collision suffixes; changing the selected authored ID clears the local assignment.
-Setters leave document catalogs unchanged. Call `renumber_sections()` to update
-numbers after changing levels, styles, numbering policy or the section tree.
-
-Block images, audio and video also use checked metadata and prepared title edits.
-Read them through `ImageRef`, `AudioRef`, and `VideoRef`. `replace_source` returns
-an owned previous target with its original source lifetime; it keeps complete
-YouTube playlists and does not resolve paths. Image `set_alt` and `take_alt` retain
-absent versus empty content. Audio and video retain scalar `alt` as an extension
-attribute. Images reject it in scalar metadata because they have dedicated
-content for it.
-
-Delimited blocks and admonitions also use checked metadata and prepared title
-edits. `DelimitedBlock::replace_body` returns the previous body;
-`clone_body` prepares an independent replacement and `into_body` consumes the
-owner. Table decoration uses the incoming table's source-position defaults and
-the owner's local metadata. Removing metadata restores those defaults.
-Admonition `set_blocks`, `take_blocks`, and `push_block` keep the original source form.
-Body edits retain source snapshots and do not rebuild document registrations;
-delimiter and span setters do not reparse or relocate children.
-
-Discrete headings, page breaks, TOC placements, thematic breaks and comments
-have constructors and owned edit methods too. Their typed `ast` handles provide
-reads. Titles keep absent and empty values distinct; thematic-break anchor
-transfers keep their order; comment edits preserve literal text. Accepted
-attribute events keep the names, values and policy decisions made during parsing.
-Reparse source to change those assignments. Their `set_location` method changes
-only the event span.
-
-List containers follow the same pattern. Construct the four list types from
-prepared items, read through their typed list handles, and use `set_items`,
-`take_items`, `clone_items`, or `push_item` for independent edits. Transfers retain
-source lifetimes. Items keep their nesting, checklist state and stored callout
-numbers. Metadata, title, marker and span edits do not rebuild registrations or
-rewrite child items.
-
-List items use `ListItemRef`, `DescriptionListItemRef`, and `CalloutListItemRef`
-for reads. `From` copies one selected item, including its attached blocks;
-independent sibling items are not copied. Constructors accept prepared content.
-Use `take_principal` / `set_principal`, `take_blocks` / `set_blocks`, and the
-term and anchor methods on description items to transfer content. Transfers can
-outlive the previous owner while the original source remains alive. Marker,
-level and callout edits keep their supplied values without changing other items.
-
-Table components follow the same pattern. `TableRef`, `TableRowRef`,
-`TableCellRef`, and `ColumnFormatRef` read the prepared table. `From` copies the
-selected component; a cell copy keeps its initial attribute scope. Use owned
-row, cell, block and column-format transfers to edit it. Row-group presence,
-cell spans and content styles retain the values you supply. Changing a style
-or column format does not parse the cell again. `TableRef::location()` includes
-block metadata and title; `delimited_location()` starts at the opening table
-delimiter. Changing one span does not relocate other content.
-
-Reference and TOC records are separate snapshots of registered targets and
-headings. Read them through `ReferenceRef` and `TocEntryRef`, or copy a selected
-record with `From` for editing. Prepared title, label and caption transfers keep
-empty values and their source lifetimes. Editing a record does not rename a
-reference-map key, edit a heading, discover new TOC entries or renumber the
-document. `Block::clone_metadata()` copies common metadata without copying its
-body; use typed attribute reads when a copy is unnecessary.
-
-`IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
-option tokens. An icon ID is retained even when a converter does not emit it.
-To construct an icon, use `Icon::new(target, location)` and edit its content and
-metadata directly. Its `attributes()` map holds scalar controls;
-`set_attribute()` rejects names that belong to dedicated fields.
-
-Use `attributes().get(name)`, `contains(name)`, or `iter()` on headers, sections,
-paragraphs, delimited blocks, admonitions, lists, tables, media, TOC blocks,
-discrete headings, breaks, formatting spans, and icons to read retained titles,
-image alt/tooltips, IDs, styles, role/option tokens, and scalar controls.
 `AttributeValueRef` distinguishes text, booleans, valueless attributes, inline
-content, tokens, and substitution settings. Text keeps meaningful quotes;
-reading a value does not render or copy it. `roles` and `options` alias
-`role` and `opts`; iteration returns each canonical name once in unspecified
-order. Empty role/option collections are absent, while empty text and content
-remain present. Read quote and verse authors with `attribution()` and citation
-titles with `citetitle()`. `caption_content()` returns authored caption content,
-separate from the title and generated labels. The same inventory exposes
-`attribution`, `citetitle`, `caption`, and named `reftext` from their typed owners.
-Generated captions and anchor labels do not become named block attributes.
-Document assignments remain separate.
+content, tokens, and substitution settings. `as_str()` reads exact scalar text,
+including empty strings and meaningful quotes. It does not render inline content.
+`roles` and `options` alias `role` and `opts`; iteration yields each canonical name
+once, in unspecified order. Empty role/option collections are currently absent.
+Formatting spans separately preserve an explicitly empty role, which makes a
+highlight a generic span rather than marked text.
 
-For `subs`, match `AttributeValueRef::Substitutions(spec)`. `spec.kind()` distinguishes
-authored entries, typed explicit substitutions, and typed modifier operations.
-`entries()` preserves order and duplicates without resolving block defaults.
-Authored entries keep aliases and unsupported names; an explicitly empty setting
-remains present. Reads do not render, reparse, or collect the entries.
+Missing content is `None`; explicitly empty content is `Some` with no inlines.
+`Title::default()` is absent; `Title::new(Vec::new())` is present and empty.
+An image's alt stays separate from its caption and tooltip. Converters choose
+filename fallbacks and escape output attributes. The parser resolves supported
+content substitutions using the selected compatibility mode and declaration
+snapshot; reading or serializing the tree does not parse the value again.
 
-Use `children()` on a document or block for its direct structural children, or
-`descendants()` for depth-first pre-order traversal. Both return `StructuralRef`
-values for headers, blocks, list items, table rows, and cells. A header precedes
-the document blocks; table rows follow header, body, footer order. Spanning cells
-occur once. Inline content and derived catalogs are read separately.
+Named `reftext` belongs to the referenced element. Xrefs keep their destination,
+explicit label, and automatic-label policy separate. Footnote occurrences separate
+references from definitions: `content()` is absent on a reference and present,
+possibly empty, on a definition. The document catalog contains definitions.
+Index terms keep display labels separate from registration-time labels.
 
-The iterators can stop early with `find`, `take`, or `try_for_each`. Direct children
-and flat walks allocate no memory. Nested walks use a growable stack of pending
-siblings whose space grows with nesting, without recursion on the call stack.
+Locations identify recorded source ranges. Expanded text may point to the
+authored attribute reference rather than an editable literal. IDs have their own
+ranges and distinguish authored from generated section IDs. Changing a location
+does not move child locations. Use the original source before offering an edit.
 
-`title()` and `id()` on a block use the same rules as its concrete typed read.
-Section IDs include the value assigned by the parser, including collision suffixes.
-`id().origin()` distinguishes explicit values from generated section IDs; an
-explicit value may still contain expanded attributes or come from a caller.
-Source locations identify the recorded range, not a guaranteed editable spelling.
+[#construction-and-editing]
+=== Construction and editing
 
-`primary_anchor()` selects the retained anchor used for the primary ID.
-`anchors()` lists the dedicated ID anchor, then all retained anchors in order,
-including duplicates. Generated section IDs have no authored anchor. Retention
-does not imply registration in the reference catalog. Inline `id()` reads the
-occurrence's identity, including image and span IDs, separately from xref targets
-and footnote keys. These reads do not rebuild catalogs or generate missing IDs.
+Copy only what you need with `Document::from(document_ref)`, `Block::from(block_ref)`,
+or a concrete owner's `From` conversion. Copies are independent trees but can
+still borrow text from the parse result. Use constructors, setters, and `take_*`
+methods to transfer prepared values. `ContentAttribute::from(content_ref)` copies
+selected content; `into_inlines()` transfers it without copying.
 
-Container blocks expose child `blocks()`; listings, literals, verse, passthroughs,
-and delimited comments expose `content()`. Match their inline kinds to distinguish
-formatted, verbatim, and raw text. STEM blocks expose `text()` and `notation()`.
-Delimited handles retain the delimiter text and its optional source locations.
-`source_text()` reads the body before inline substitutions, when retained.
+Owned fields are private. Use checked metadata/scalar setters so controls cannot
+shadow a dedicated content field. A rejected replacement leaves the owner
+unchanged. Setters accept prepared values: they do not parse markup, replay
+document assignments, encode destinations, or fetch resources.
 
-Lists expose `items()`. Each item separates its `principal()` inline content from
-attached `blocks()`. Description items also expose `term()`, `delimiter()`, and
-`anchors()`. Ordered and unordered items retain their markers; `checked()`
-distinguishes checked, unchecked, and ordinary items. Numbering controls such as
-`start` stay in the list attributes. Callout items expose their marker kind and
-number through `callout()`; that number belongs to its local callout sequence.
+Catalogs remain snapshots after an edit. Reparse changed source to recompute
+declaration-order substitutions and registrations. For prepared tree edits, choose
+the explicit operation you need:
 
-Text reads keep ordinary, raw, and verbatim content distinct. `text()` returns
-parsed text without rendering; `PlainRef::is_escaped()` retains escape protection.
-`SymbolRef` represents resolved typography, including word-bounded and
-spaced em dashes. Its `kind()` is semantic, its `text()` is Unicode, and its location still covers the authored replacement token.
-Enabled replacements resolve copyright and trademark signs, ellipses, and
-word-internal apostrophes before a converter reads the tree.
-Replacement escapes produce protected literal text. Later attribute expansion
-cannot introduce a token, word context, or escape for an earlier replacement stage.
-Raw passthroughs also resolve tokens split across earlier attribute expansions.
-In `pass:r,a[...]`, replacements run before attributes. Later values stay literal
-for that earlier stage; `pass:a,r[...]` permits them to create replacement tokens.
-`pass:r,c[(C)]` keeps the resolved copyright symbol; Asciidoctor instead
-escapes its generated HTML entity. acdc does not put backend markup in the tree.
+[cols="1,2",options="header"]
+|===
+| Operation | What it updates
+| `rebuild_references_and_toc()` | Target/TOC membership, labels, aliases, and section numbers; keeps assigned IDs
+| `rebuild_captions()` | Caption ordinals and caption snapshots on existing references; keeps stored prefixes
+| `rebuild_footnotes()` | Bindings, registered definitions, and note numbers; keeps definition provenance
+| `rebuild_author_attributes()` | Author-derived document values; keeps explicit assignments and caller policy
+| `renumber_sections()` / `renumber_captions()` | Existing numbers only; no membership discovery or complete catalog repair
+|===
 
-`RawRef::substitutions()` gives the remaining substitutions in order, including
-repeated entries. These replace the enclosing block's rules. The reads do not
-decode character references; source locations still identify authored input.
-Curved quotes, standalone apostrophes, and line breaks retain their own kinds.
+These operations do not reinterpret source. Reference, caption, and footnote
+rebuilds return an error without partial changes when required prepared context
+is missing or a binding is ambiguous. Rebuild reference membership before caption
+snapshots after structural edits. There is no general source-level attribute editor.
 
-Attributed `+text+`, `++text++`, and `+++text+++` passthroughs retain IDs and roles
-in Asciidoctor mode. Read them with `RawRef::id()`, `roles()`, or `attributes()`.
-Draft currently keeps these attribute prefixes literal; the draft does not define
-this prefix syntax. Protected and raw text keep their output behavior. Native
-JSON includes `metadata` only on attributed passthroughs. `Raw::new` constructs
-undecorated text. Use `set_metadata`, `take_metadata`, or `clone_metadata` for
-independent optional identity and role values.
+=== Choosing reads for a consumer
 
+Converters match block/inline kinds and render resolved content. The LSP and
+editor combine those reads with original source ranges; previews use the HTML
+converter. MCP uses structural children, attributes, and registered targets for
+navigation and selected rendering. Lint and command discovery use the same typed
+walks. None of these consumers need access to the backing vectors or scalar maps.
 
-`CharacterReferenceRef::kind()` distinguishes named and numeric references without
-converting them to display characters. For example, `&#xA9;` becomes
-`CharacterReferenceKind::Numeric(169)`. Asciidoctor mode follows Asciidoctor's
-reference syntax; Draft also accepts XML names and one-digit numbers. Escaped
-references remain literal text. Native JSON uses `charref` nodes and canonical
-decimal numeric spelling; source locations retain the complete authored token.
+Run `cargo run -p acdc-parser --example read_document --all-features` from
+the workspace root for a complete example of nested reads, attributes, image
+content, source coordinates, and a prepared copy.
 
-Document parsing lowers inline passthroughs into raw text or structured inlines.
-`parse_inline()` can retain passthrough macros. Read them through `PassRef` for
-optional `text()`, `kind()`, and requested `substitutions()`. Reading a macro does
-not process it. `Pass::new` constructs a value with optional text, a substitution
-sequence, a form, and a location. Both passthrough owners keep substitution order
-and repeated entries. Use `replace_text` and substitution transfers to edit
-prepared values without parsing them or replaying earlier attribute values.
-Copies preserve absent versus present empty text and metadata; empty raw
-metadata remains omitted from native JSON.
-
-Buttons expose `label()` as parsed content. Keyboard `keys()` and menu `items()`
-iterate separate content values in order; a menu's `target()` is its menu name.
-These labels are not attribute lists. Inline formulas expose protected `text()`
-and resolved `notation()`, using the same methods as formula blocks.
-
-Text, symbols, line breaks, apostrophes, and formulas have private storage.
-Use their typed readers and `From` to copy a selected value. Construct ordinary
-and verbatim text with `Plain::new` and `Verbatim::new`; ordinary text defaults
-to unescaped. `replace_text` changes prepared text without parsing it and keeps
-the stored escape decision. Formula notation changes do not translate its text.
-`StemContent` provides `text()` and `notation()` for caller-owned block formulas.
-These edits retain source lifetimes and do not update document registrations.
-
-The eight formatting types remain concrete Rust types. Use their typed span
-readers and `From` to copy a selected span. Constructors accept prepared content,
-form and location. Content, ID and role transfers keep source lifetimes; edits
-do not register anchors or notes. An absent role differs from an empty role:
-an ID or any present role, including an empty one, makes a highlight generic.
-Changing a span's location keeps the separate ID and child locations.
-
-Use `InlineRef::as_hyperlink()` to read link, URL, mailto, and autolink targets,
-labels, and locations through `HyperlinkRef`. Match its concrete variant for
-metadata and display settings. Empty label content selects automatic display;
-these reads do not generate it. Autolinks retain whether angle brackets were
-written and whether `hide-uri-scheme` was active. Mail subject/body values stay
-unencoded until conversion. Xrefs remain separate because they need reference
-resolution.
-
-Link, URL, and email owners provide prepared label, tooltip, identity, option,
-and scalar-control edits with the same checked boundary as images and icons.
-Read through their typed handles; use `From` for selected copies. Targets and
-mail subject/body transfers keep their source lifetimes and original text.
-Changing a target keeps the captured URI display setting until you change it
-explicitly. Autolinks have target, source-form, and display-setting edits;
-they have no attribute list. These edits do not parse labels, encode queries,
-fetch targets, or update document catalogs.
-
-Button, keyboard, and menu owners use typed reads and selected `From` copies.
-Construct them from prepared labels; replace or transfer labels, key sequences,
-and menu paths through owned methods. Empty labels and sequence positions remain
-present. These edits do not split separators, parse content, or register notes.
-Changing the node span leaves each label's source location unchanged.
-
-Cross-reference owners provide prepared target, classification, text, style,
-caption-policy, metadata, and option edits. Replacing a target keeps its local
-classification until `set_target_is_local` changes it. Index owners transfer
-prepared `IndexTermKind` and optional relationships. Selected copies retain
-registration-time labels; ordinary edits do not rebuild them. Read both kinds
-through typed handles and use checked scalar replacement for controls.
-
-Footnotes expose `id()`, `number()`, and the `content()` retained on each
-occurrence. References, including repeated definitions, have empty content.
-`document().footnotes()` reads the registered definitions separately, in
-numbering order. Reading either form does not register notes or resolve references.
-Anchors expose `is_bibliography()` and `bibliography_label()` alongside `reftext()`:
-the entry's display label and its citation text can differ.
-
-Copy individual anchors, footnotes, and callout markers with `From` and their
-typed readers. Footnote constructors accept prepared content and an assigned
-number; edits do not register definitions or renumber other occurrences.
-Anchor reftext and bibliography display labels have separate transfers.
-`set_bibliography(None)` selects the ID fallback; an empty content value keeps
-an explicitly empty display label. These edits leave document catalogs alone.
-Location edits keep the locations within prepared label and note content.
-
-Inline images and icons also use typed reads and selected `From` copies.
-Set or take alt and tooltip content separately from identity and roles.
-Scalar controls use checked `set_attributes` or individual attribute edits;
-reserved names fail before changing the node. `clone_attributes` and
-`take_attributes` return scalar controls alone. Option transfers retain order,
-duplicates, empty entries, and source lifetimes without interpreting them.
-Replacing a target does not fetch it, resolve paths, or register its ID.
-
-`document().header()` exposes the title, subtitle, and authors. Read revision
-values through `document().attributes().get("revnumber")`, `revdate`, and
-`revremark`. Header `attributes()` reads element metadata on the title;
-document `attributes()` reads the end-of-header snapshot.
-
-Document values keep their validated type and retained text. `assignment(name)`
-distinguishes an explicit unset from no assignment, while `get(name)` includes
-referenceable defaults. Document names do not use element aliases: `role` and
-`roles` remain separate names. Walk `BlockKind::DocumentAttribute` nodes for
-later accepted assignments and their source locations. When entering an AsciiDoc
-table cell, apply its `initial_attributes()` in order within that cell's scope,
-then walk its blocks. Neither sequence changes the header snapshot.
-
-Audio and video expose their complete `source()` operand. Video targets keep
-commas and empty playlist slots; read provider and poster controls through the
-`poster` attribute. `title()` and `caption_content()` stay separate. Media,
-TOC blocks, discrete headings, and page breaks expose their retained IDs and
-anchors. Thematic breaks expose their title and anchors, with no scalar map.
-
-Retained line and paragraph comments expose `kind()` and literal `text()`.
-Delimited comments use `content()`. Includes and conditional directives have
-already been processed; these reads do not reconstruct consumed source.
-
-[#cargo-features]
 == Cargo features
 
 [cols=",,",options="header",]
@@ -713,57 +466,71 @@ this text.
 
 == Migrating from 0.11
 
-For link, URL, and mailto owners, replace scalar-map field reads with
-`attributes()`. Use `metadata` for IDs and roles and `options()` for option
-names. Scalar setters reject dedicated metadata names. `Link::with_attributes()`
-returns a `Result` and accepts only scalar controls or extensions. Native JSON
-places metadata under `metadata` and retains mail `subject` and `body` separately.
+The public tree API now separates reads from construction and editing. This
+migration describes the last released API, 0.11.0.
+
+[cols="1,2",options="header"]
+|===
+| In 0.11 | Now
+| `parsed.document().blocks` and other public storage fields | `parsed.document().blocks()` and typed `ast::*Ref` reads; match `BlockKind` / `InlineKind`
+| Borrowed slices and `Deref` on content/title | `ContentRef::from(&content)` or `title.content()`, then `inlines()`
+| Inline-result backing slices | `parsed.content()`
+| Struct literals or field writes | Constructors and prepared setters/transfers; use `From` to copy a selected typed read
+| Common metadata maps for all values | `attributes()` for one typed inventory; dedicated content retains its semantic owner
+| Scalar image alt and title/tooltip handling | `InlineImage` for inline images, `Image` for blocks; optional alt/tooltip content stays separate from caption titles
+| String UI labels | Content values for button labels, keyboard keys, and menu targets/items
+| Scalar reference labels | Optional parsed content on anchors and registered targets
+| `Video::sources` | One complete source, including provider playlists; the provider stays in `poster`
+| Feature-controlled language behavior | `CompatibilityMode`; remove `pre-spec-subs` and `setext` from dependency feature lists
+|===
+
+Keep `ParseResult` alive for text borrowed by reads and selected copies.
+Use `DocumentRef::from(&document)` to read a constructed document. To edit a
+parsed tree independently:
+
+[source,rust]
+----
+use acdc_parser::{Document, Options, parse, ast::DocumentRef};
+
+let parsed = parse("First paragraph.", &Options::default())?;
+let mut edited = Document::from(parsed.document());
+let blocks = edited.take_blocks();
+edited.set_blocks(blocks);
+assert_eq!(DocumentRef::from(&edited).blocks().count(), 1);
+----
+
+Prepared edits leave catalogs unchanged until an explicit rebuild. See
+<<construction-and-editing,Construction and editing>> for each operation's scope.
+The default safe mode remains Secure, as in 0.11.0.
+
+Native JSON is a separate migration from the Rust layout:
+
+- Titles, alt, tooltips, credits, caption prefixes, and reference labels use
+  inline arrays at their dedicated fields. Consumed scalar duplicates are gone.
+  Absence is omitted; present empty content is `[]`.
+- Inline macro owners serialize in the same node shape as their enclosing inline
+  node. Identity, role/option tokens, and scalar controls use consistent metadata.
+  Mail subject/body values remain unencoded, including explicit empty strings.
+- Footnote references omit `inlines`; definitions retain it, including `[]`.
+  Bibliography labels and index registration labels remain distinct from their
+  displayed or citation text. Autolinks retain whether angle brackets were written.
+- Resolved typography uses symbol nodes. Character references use `charref` nodes
+  with named values or canonical decimal numeric spelling. Source ranges still
+  identify the authored spelling.
+- Document presence and unsets use `true` and `false`; validated integers are
+  numbers. Numeric-looking ordinary text stays text. Header values remain a
+  snapshot and body assignments remain ordered nodes.
+- Video JSON uses `source`, preserving commas and empty playlist slots. Raw nodes
+  retain nonempty ordered substitution lists; an omitted list means none.
+
+Do not treat native JSON as upstream ASG. Enable `asg` for checked export with
+`asg::document(parsed.document())` or `asg::inlines(parsed.content())`. The default
+profile uses the pinned upstream subset and rejects unsupported meaning. Select
+`Profile::Acdc` explicitly for the versioned content/image extension. See
+schemas/asg/README.adoc[the schema support contract] for exact coverage and
+permitted source-only omissions. Export never reparses content or repairs catalogs.
 
 
-* `InlineMacro::Image` contains `InlineImage`; `Image` represents block images.
-  Both expose `alt: Option<ContentAttribute>`. Inline images and icons also expose
-  `tooltip: Option<ContentAttribute>`, as do links, URLs, and mailto macros.
-  `None` means absent; `Some(ContentAttribute::default())` means explicitly empty.
-  Alternative content is independent of caption titles. Filename defaults belong
-  to converters. Native JSON uses inline arrays for these fields and removes the
-  corresponding consumed metadata attributes.
-* Button labels, menu targets/items, and keyboard keys contain `ContentAttribute`
-  values. Iterate their inline nodes; retain the outer menu/key sequence.
-  Authored `caption=` content uses `Caption::CustomContent`; use
-  `BlockMetadata::caption_content()` to read it. Generated caption labels and
-  counters remain separate enum variants and are omitted from native JSON.
-* `Video::source` replaces `Video::sources`, including in native JSON and
-  `Video::new`. It preserves the complete target. Interpret commas only for a
-  provider that supports playlists. The `poster` attribute retains `youtube` or
-  `vimeo`; synthetic boolean provider attributes are no longer generated.
-* `InlineMacro::Link`, `Url`, and `Mailto` now contain boxed structs, keeping richer
-  attributes from increasing the memory used by ordinary inline nodes.
-* `Title::default()` means absent. `Title::new(Vec::new())` means present but
-  empty. Use `is_present()` for captions and `is_empty()` for inline content.
-  Native JSON omits absent block titles and writes present empty titles as `[]`.
-* Read named titles through `title`, rather than `metadata.attributes["title"]`.
-  Titles, attributions, and citation titles serialize only their parsed inline
-  content. Replacing or removing content cannot leave an old attribute value.
-* Inline images and icons expose alternative and hover content, identity,
-  roles, options, and scalar controls through their typed handles. Use prepared
-  edits and transfers for owned values. Scalar controls reject dedicated
-  names and aliases with `ReservedAttribute`.
-* Named reference labels are available as `BlockMetadata::reftext`, outside
-  the extension attribute map. Read `AnchorRef::reftext`, `TocEntryRef::xreflabel`, and
-  `ReferenceRef::xreflabel` for their optional content.
-  Native JSON stores these labels as inline arrays. The reference catalog uses
-  the target's parsed content without parsing it again. An explicitly empty
-  label remains present on the target and selects title fallback in a reference.
-* `Attribution` and `CiteTitle` are aliases of `ContentAttribute`. Existing
-  constructors remain available. Read through `ContentRef` and transfer prepared
-  content with `into_inlines`.
-* `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` are
-  available in every build. Remove conditional compilation used only to access
-  this API. `None` is omitted from JSON; an explicit empty list is
-  serialized as `[]`. Parsing and
-  `BlockMetadata::uses_substitution()` honor block settings in every build.
-
-[#migrating-from-010]
 == Migrating from 0.10
 
 The parser now defaults to `SafeMode::Secure`, matching the Asciidoctor API.
