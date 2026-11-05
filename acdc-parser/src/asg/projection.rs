@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use serde_json::{Map, Value};
 
 use crate::{
-    Block, BlockMetadata, Caption, ContentAttribute, DelimitedBlockType, Document,
+    AdmonitionForm, Block, BlockMetadata, Caption, ContentAttribute, DelimitedBlockType, Document,
     DocumentAttributeAssignment, ElementId, Form, Header, InlineNode, Section, SectionKind,
     Substitution, Title,
 };
@@ -483,7 +483,10 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 result
             }
             Block::Admonition(value) => {
-                let property = if value.paragraph_form {
+                let property = if matches!(
+                    value.form,
+                    AdmonitionForm::Paragraph | AdmonitionForm::Indented
+                ) {
                     "form"
                 } else {
                     "delimiter"

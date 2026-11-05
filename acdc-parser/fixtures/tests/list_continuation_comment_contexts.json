@@ -275,6 +275,8 @@
               "name": "admonition",
               "type": "block",
               "variant": "note",
+              "form": "delimited",
+              "delimiter": "====",
               "blocks": [
                 {
                   "name": "paragraph",

@@ -1,9 +1,9 @@
 //! Delimited block construction and delimiter recovery.
 
 use crate::{
-    Admonition, AdmonitionVariant, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, Error,
-    InlineNode, Location, Plain, Raw, SourceLocation, StemContent, StemNotation, Substitution,
-    Title, Warning, WarningKind,
+    Admonition, AdmonitionForm, AdmonitionVariant, Block, BlockMetadata, DelimitedBlock,
+    DelimitedBlockType, Error, InlineNode, Location, Plain, Raw, SourceLocation, StemContent,
+    StemNotation, Substitution, Title, Warning, WarningKind,
     grammar::{
         ParserState,
         document::verbatim::verbatim_inner,
@@ -260,8 +260,9 @@ fn build_example_block<'input>(
         && let Ok(variant) = style.parse::<AdmonitionVariant>()
     {
         metadata.style = None;
-        let mut admonition =
-            Admonition::new(variant, blocks, location).with_title(block_metadata.title.clone());
+        let mut admonition = Admonition::new(variant, blocks, location)
+            .with_form(AdmonitionForm::Delimited(p.open_delim))
+            .with_title(block_metadata.title.clone());
         admonition.metadata = metadata;
         return Ok(Block::Admonition(admonition));
     }

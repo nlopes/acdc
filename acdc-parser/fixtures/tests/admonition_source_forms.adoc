@@ -1,0 +1,30 @@
+NOTE: A paragraph note.
+
+[NOTE]
+A styled note.
+
+[IMPORTANT]
+    An indented note.
+
+.Keep the gate closed
+[TIP#gate.alert]
+======
+A *delimited* tip.
+======
+
+[CAUTION]
+--
+An open-block caution.
+--
+
+[WARNING]
+========
+NOTE: A nested note.
+========
+
+[cols="a"]
+|===
+|NOTE: A table-cell note.
+|===
+
+include::includes/admonition_source_forms.adoc[lines=2..4,indent=0]

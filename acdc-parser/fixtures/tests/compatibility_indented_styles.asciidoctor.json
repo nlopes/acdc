@@ -785,7 +785,7 @@
       "name": "admonition",
       "type": "block",
       "variant": "note",
-      "form": "paragraph",
+      "form": "indented",
       "metadata": {
         "style": "NOTE"
       },

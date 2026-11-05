@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Admonition JSON distinguishes paragraph, indented, and delimited forms, retaining
+  the actual opening delimiter. Read source form with `AdmonitionRef::form()`;
+  library-built compound admonitions need `with_form` to supply known provenance.
+
 - Read parsed trees through `ParseResult::document()` and concrete `ast::*Ref`
   handles. Match `BlockKind` / `InlineKind` and use lazy child/content iterators
   instead of public fields or backing slices. Use constructors, checked setters,

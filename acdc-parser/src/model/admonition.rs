@@ -25,7 +25,21 @@ pub struct Admonition<'a> {
     pub(crate) blocks: Vec<Block<'a>>,
     pub(crate) title: Title<'a>,
     pub(crate) location: Location,
-    pub(crate) paragraph_form: bool,
+    pub(crate) form: AdmonitionForm<'a>,
+}
+
+/// The authored form of an admonition, independent of its semantic category.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum AdmonitionForm<'a> {
+    /// A library-built admonition without source-form information.
+    Unspecified,
+    /// An ordinary or styled paragraph.
+    Paragraph,
+    /// A styled indented paragraph.
+    Indented,
+    /// A delimited block with its actual opening token.
+    Delimited(&'a str),
 }
 
 /// The variant/type of an admonition block.
@@ -73,7 +87,8 @@ impl FromStr for AdmonitionVariant {
 }
 
 impl<'a> Admonition<'a> {
-    /// Create a compound admonition with the given variant, blocks, and location.
+    /// Create a compound admonition without source-form information.
+    /// Use [`Self::with_form`] when its source form is known.
     #[must_use]
     pub fn new(variant: AdmonitionVariant, blocks: Vec<Block<'a>>, location: Location) -> Self {
         Self {
@@ -82,7 +97,7 @@ impl<'a> Admonition<'a> {
             blocks,
             title: Title::default(),
             location,
-            paragraph_form: false,
+            form: AdmonitionForm::Unspecified,
         }
     }
 
@@ -94,6 +109,14 @@ impl<'a> Admonition<'a> {
         mut paragraph: Paragraph<'a>,
         location: Location,
     ) -> Self {
+        let form = if paragraph
+            .source_text()
+            .is_some_and(|source| source.starts_with([' ', '\t']))
+        {
+            AdmonitionForm::Indented
+        } else {
+            AdmonitionForm::Paragraph
+        };
         let metadata = mem::take(&mut paragraph.metadata);
         let title = mem::take(&mut paragraph.title);
         paragraph
@@ -103,9 +126,21 @@ impl<'a> Admonition<'a> {
         Self {
             metadata,
             title,
-            paragraph_form: true,
+            form,
             ..Self::new(variant, vec![Block::Paragraph(paragraph)], location)
         }
+    }
+
+    /// Set source form without rewriting children or locations.
+    #[must_use]
+    pub fn with_form(mut self, form: AdmonitionForm<'a>) -> Self {
+        self.set_form(form);
+        self
+    }
+
+    /// Replace source-form information without rewriting children or locations.
+    pub fn set_form(&mut self, form: AdmonitionForm<'a>) {
+        self.form = form;
     }
 
     /// Replace metadata without shadowing dedicated fields.
@@ -200,8 +235,14 @@ impl Serialize for Admonition<'_> {
         state.serialize_entry("name", "admonition")?;
         state.serialize_entry("type", "block")?;
         state.serialize_entry("variant", &self.variant)?;
-        if self.paragraph_form {
-            state.serialize_entry("form", "paragraph")?;
+        match self.form {
+            AdmonitionForm::Unspecified => {}
+            AdmonitionForm::Paragraph => state.serialize_entry("form", "paragraph")?,
+            AdmonitionForm::Indented => state.serialize_entry("form", "indented")?,
+            AdmonitionForm::Delimited(delimiter) => {
+                state.serialize_entry("form", "delimited")?;
+                state.serialize_entry("delimiter", delimiter)?;
+            }
         }
         if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;

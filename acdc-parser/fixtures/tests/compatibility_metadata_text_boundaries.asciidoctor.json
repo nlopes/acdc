@@ -614,6 +614,8 @@
       "name": "admonition",
       "type": "block",
       "variant": "note",
+      "form": "delimited",
+      "delimiter": "====",
       "metadata": {
         "caption": [
           {

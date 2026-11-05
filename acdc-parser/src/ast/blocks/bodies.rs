@@ -1,4 +1,4 @@
-use crate::{Admonition, AdmonitionVariant, Block, StemNotation};
+use crate::{Admonition, AdmonitionForm, AdmonitionVariant, Block, StemNotation};
 
 use super::{
     AdmonitionRef, AttributesRef, BlockRef, ContentRef, DelimitedCommentRef, ElementIdRef,
@@ -182,11 +182,19 @@ impl<'doc> StemBlockRef<'doc> {
 }
 
 impl<'doc> AdmonitionRef<'doc> {
+    /// The authored source form, when known.
+    #[must_use]
+    pub fn form(self) -> AdmonitionForm<'doc> {
+        self.node.form
+    }
+
     /// The body paragraph of a paragraph-form admonition.
     #[must_use]
     pub fn simple_paragraph(self) -> Option<ParagraphRef<'doc>> {
-        if self.node.paragraph_form
-            && let [Block::Paragraph(paragraph)] = self.node.blocks.as_slice()
+        if matches!(
+            self.node.form,
+            AdmonitionForm::Paragraph | AdmonitionForm::Indented
+        ) && let [Block::Paragraph(paragraph)] = self.node.blocks.as_slice()
         {
             Some(ParagraphRef::from(paragraph))
         } else {

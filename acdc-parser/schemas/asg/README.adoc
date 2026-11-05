@@ -373,10 +373,10 @@ Single ordinary identities use the same rules as other supported owners.
 Every semantic property must still have a mapping. Parsed captions, including
 unnumbered caption state, and explicit image alternative content are rejected until
 supported by a named content extension. Uncaptioned library-built listings, examples
-and images can be exported. Tables and block STEM remain unsupported. Admonitions
-currently lack their real delimiter in the native owner, so export rejects that
-missing provenance; it does not infer a universal example delimiter. Extension
-support must preserve the paragraph/delimited distinction and actual opening token.
+and images can be exported. Tables and block STEM remain unsupported. Native
+admonitions retain paragraph/indented form or the actual opening delimiter.
+ASG export currently rejects admonitions explicitly; it does not invent a delimiter
+for source-free library construction.
 
 == Proposed upstream additions
 

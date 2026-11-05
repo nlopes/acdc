@@ -1,0 +1,5 @@
+// Before selected lines.
+
+    NOTE: An included note.
+
+// After selected lines.

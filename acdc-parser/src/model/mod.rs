@@ -28,7 +28,7 @@ pub(crate) mod substitution;
 mod tables;
 mod title;
 
-pub use admonition::{Admonition, AdmonitionVariant};
+pub use admonition::{Admonition, AdmonitionForm, AdmonitionVariant};
 pub use anchor::{Anchor, Reference, TocEntry, UNNUMBERED_SECTION_STYLES};
 pub(crate) use attributes::RawAttributes;
 pub(crate) use attributes::{

@@ -13,7 +13,7 @@
           "blocks",
           "title",
           "location",
-          "paragraph_form"
+          "form"
         ],
         "variants": {}
       },
@@ -42,8 +42,44 @@
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         },
-        "paragraph_form": {
+        "form": {
           "policy": "only-an-authored-delimited-form-has-an"
+        }
+      },
+      "strict_export_group": "unsupported-owners"
+    },
+    "src/model/admonition.rs::AdmonitionForm": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Delimited": [
+            "0"
+          ],
+          "Indented": [],
+          "Paragraph": [],
+          "Unspecified": []
+        }
+      },
+      "representation": {
+        "policy": "authored-admonition-form",
+        "upstream": "#/$defs/parentBlock"
+      },
+      "properties": {
+        "variant:Unspecified": {
+          "policy": "authored-admonition-form"
+        },
+        "variant:Paragraph": {
+          "policy": "authored-admonition-form"
+        },
+        "variant:Indented": {
+          "policy": "authored-admonition-form"
+        },
+        "variant:Delimited": {
+          "policy": "authored-admonition-form"
+        },
+        "Delimited.0": {
+          "policy": "authored-admonition-form"
         }
       },
       "strict_export_group": "unsupported-owners"
@@ -1338,6 +1374,41 @@
         "definition_source": {
           "policy": "unsupported"
         },
+        "registration_substitutions": {
+          "policy": "unsupported"
+        },
+        "id": {
+          "policy": "unsupported"
+        },
+        "content": {
+          "policy": "unsupported"
+        },
+        "number": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      },
+      "strict_export_group": "unsupported-owners"
+    },
+    "src/model/inlines/macros.rs::FootnoteDefinition": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "registration_substitutions",
+          "id",
+          "content",
+          "number",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
         "registration_substitutions": {
           "policy": "unsupported"
         },
@@ -5529,47 +5600,16 @@
         }
       },
       "strict_export_group": "core"
-    },
-    "src/model/inlines/macros.rs::FootnoteDefinition": {
-      "shape": {
-        "kind": "struct",
-        "fields": [
-          "registration_substitutions",
-          "id",
-          "content",
-          "number",
-          "location"
-        ],
-        "variants": {}
-      },
-      "representation": {
-        "policy": "unsupported"
-      },
-      "properties": {
-        "registration_substitutions": {
-          "policy": "unsupported"
-        },
-        "id": {
-          "policy": "unsupported"
-        },
-        "content": {
-          "policy": "unsupported"
-        },
-        "number": {
-          "policy": "unsupported"
-        },
-        "location": {
-          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
-          "upstream": "#/$defs/location"
-        }
-      },
-      "strict_export_group": "unsupported-owners"
     }
   },
   "policies": {
     "alternative-text-and-tooltips-own-parsed-inline": {
       "handling": "context-dependent",
       "reason": "Alternative text and tooltips own parsed inline content. A scalar metadata string must not flatten formatting or literal protection. A block image may use a scalar attribute only when that is lossless; inline images and icon macros lack upstream node forms."
+    },
+    "authored-admonition-form": {
+      "handling": "context-dependent",
+      "reason": "Retain the actual source form and delimiter. Only delimited forms have an upstream parent-block counterpart; unspecified source provenance is not inferred."
     },
     "block-id-reftext-promotion-does-not-cover": {
       "handling": "context-dependent",
@@ -5606,6 +5646,10 @@
     "only-an-authored-delimited-form-has-an": {
       "handling": "context-dependent",
       "reason": "Only an authored delimited form has an upstream parent-block counterpart. Reject paragraph form rather than fabricate its delimiter."
+    },
+    "ordered-block-prefix-events": {
+      "handling": "reject",
+      "reason": "Ordered comments and accepted document assignments must become sibling blocks before export. Reject retained prefix events rather than discard them."
     },
     "parsed-caption-attribution-citation-content-has-no": {
       "handling": "context-dependent",
@@ -5694,10 +5738,6 @@
     "visit-supported-child-inlines-directly-a-supported": {
       "handling": "mapping-candidate",
       "reason": "Visit supported child inlines directly; a supported child does not make an unsupported span variant valid."
-    },
-    "ordered-block-prefix-events": {
-      "handling": "reject",
-      "reason": "Ordered comments and accepted document assignments must become sibling blocks before export. Reject retained prefix events rather than discard them."
     }
   },
   "strict_export_groups": {

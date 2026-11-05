@@ -492,6 +492,11 @@ Prepared edits leave catalogs unchanged until an explicit rebuild. See
 [Construction and editing](#construction-and-editing) for each operation's scope.
 The default safe mode remains Secure, as in 0.11.0.
 
+Read an admonition's source form with `AdmonitionRef::form()`. It distinguishes
+paragraphs, indented paragraphs, and the actual opening delimiter. Library-built
+compound admonitions start with `AdmonitionForm::Unspecified`; use `with_form`
+when the source form is known. Prepared copies and body edits retain it.
+
 Native JSON is a separate migration from the Rust layout:
 
 - Titles, alt, tooltips, credits, caption prefixes, and reference labels use
@@ -509,6 +514,8 @@ Native JSON is a separate migration from the Rust layout:
 - Document presence and unsets use `true` and `false`; validated integers are
   numbers. Numeric-looking ordinary text stays text. Header values remain a
   snapshot and body assignments remain ordered nodes.
+- Admonitions write `form` and retain the actual `delimiter` only for delimited
+  forms. Source-free compound admonitions omit both.
 - Video JSON uses `source`, preserving commas and empty playlist slots. Raw nodes
   retain nonempty ordered substitution lists; an omitted list means none.
 
