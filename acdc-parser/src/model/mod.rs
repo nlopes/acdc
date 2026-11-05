@@ -9,7 +9,10 @@ use serde::{
 
 mod admonition;
 mod anchor;
-pub(crate) use anchor::{BibliographyLabel, SectionReference};
+pub(crate) use anchor::{
+    BibliographyLabel, DocumentTopLabel, SectionOccurrence, SectionReference,
+    displayed_reference_label,
+};
 mod attributes;
 mod attribution;
 mod boundaries;
@@ -60,8 +63,9 @@ pub use title::{Subtitle, Title};
 ///
 /// Edits do not reparse content or rebuild reference, TOC, or footnote catalogs.
 /// [`Self::renumber_sections`] and [`Self::renumber_captions`] update only their
-/// documented numbering state. Reparse source to rebuild other registrations
-/// and declaration-order attribute snapshots.
+/// documented numbering state. Use [`Self::rebuild_references_and_toc`] to
+/// refresh those catalogs after prepared tree edits. Reparse source to recompute
+/// declaration-order attribute snapshots.
 #[derive(Default, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Document<'a> {

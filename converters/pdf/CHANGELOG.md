@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- After an edited document rebuilds its reference and TOC catalogs, TOC links
+  reach each heading even if another block owns the same ID. Cross-references
+  retain the first target.
+
 - Caller-built references distinguish absent and explicitly empty titles when
   selecting heading destinations. An empty reference title matches a present,
   empty TOC title; it does not match an absent TOC title.

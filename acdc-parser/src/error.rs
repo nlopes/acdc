@@ -379,3 +379,21 @@ mod tests {
         );
     }
 }
+
+/// An explicit reference/TOC rebuild lacks prepared identity or label context.
+#[derive(Clone, Debug, PartialEq, thiserror::Error)]
+#[non_exhaustive]
+pub enum ReferenceRepairError {
+    /// A new heading needs an explicit ID or a new source parse to assign one.
+    #[error("section has no assigned ID; supply an explicit ID or reparse its source")]
+    UnassignedSectionId {
+        /// The caller-provided section span.
+        location: Box<Location>,
+    },
+    /// A document attribute has no retained prepared reference-label snapshot.
+    #[error("document reftext has no prepared label; reparse its source")]
+    MissingDocumentReftext {
+        /// The caller-provided document span.
+        location: Box<Location>,
+    },
+}

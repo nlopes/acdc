@@ -18,6 +18,7 @@ mod location_walk;
 mod marked_text;
 mod passthrough_processing;
 pub(crate) mod reference_text;
+pub(crate) mod reference_walk;
 pub(crate) mod setext;
 mod source_remap;
 mod state;

@@ -149,10 +149,34 @@
       },
       "strict_export_group": "decorations"
     },
+    "src/model/anchor.rs::DocumentTopLabel": {
+      "shape": {
+        "kind": "enum",
+        "fields": [],
+        "variants": {
+          "Header": [],
+          "Attribute": []
+        }
+      },
+      "representation": {
+        "policy": "derived-catalog"
+      },
+      "properties": {
+        "variant:Header": {
+          "policy": "derived-catalog"
+        },
+        "variant:Attribute": {
+          "policy": "derived-catalog"
+        }
+      },
+      "strict_export_group": "catalogs"
+    },
     "src/model/anchor.rs::Reference": {
       "shape": {
         "kind": "struct",
         "fields": [
+          "occurrence",
+          "document_top_label",
           "target",
           "xreflabel",
           "title",
@@ -168,6 +192,12 @@
         "policy": "derived-catalog"
       },
       "properties": {
+        "occurrence": {
+          "policy": "derived-catalog"
+        },
+        "document_top_label": {
+          "policy": "derived-catalog"
+        },
         "target": {
           "policy": "derived-catalog"
         },
@@ -190,6 +220,28 @@
           "policy": "derived-catalog"
         },
         "automatic_citation": {
+          "policy": "derived-catalog"
+        }
+      },
+      "strict_export_group": "catalogs"
+    },
+    "src/model/anchor.rs::SectionOccurrence": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "namespace",
+          "ordinal"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "derived-catalog"
+      },
+      "properties": {
+        "namespace": {
+          "policy": "derived-catalog"
+        },
+        "ordinal": {
           "policy": "derived-catalog"
         }
       },
@@ -221,6 +273,7 @@
       "shape": {
         "kind": "struct",
         "fields": [
+          "occurrence",
           "id",
           "title",
           "level",
@@ -235,6 +288,9 @@
         "policy": "derived-catalog"
       },
       "properties": {
+        "occurrence": {
+          "policy": "derived-catalog"
+        },
         "id": {
           "policy": "derived-catalog"
         },
@@ -4575,6 +4631,8 @@
       "shape": {
         "kind": "struct",
         "fields": [
+          "heading_location",
+          "occurrence",
           "metadata",
           "title",
           "level",
@@ -4594,6 +4652,12 @@
         "upstream": "#/$defs/section"
       },
       "properties": {
+        "heading_location": {
+          "policy": "derived-catalog"
+        },
+        "occurrence": {
+          "policy": "derived-catalog"
+        },
         "metadata": {
           "policy": "use-block-metadata-only-where-the-owning",
           "upstream": "#/$defs/blockMetadata"

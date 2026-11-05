@@ -39,11 +39,10 @@ use crate::{
             },
             paragraph::{ParagraphParams, build_paragraph},
             references::{
-                ParsedSectionHeader, ReferenceCatalog, collect_inline_references,
-                collect_metadata_references, collect_references, finalize_inline_semantics,
-                header_reference_title, insert_reference, metadata_natural_label,
-                metadata_xreflabel, normalize_bibliography_lists, register_document_top,
-                register_section_header, resolve_source_target, resolve_xref_target,
+                ParsedSectionHeader, ReferenceCatalog, collect_header_references,
+                collect_references, finalize_inline_semantics, normalize_bibliography_lists,
+                register_document_top, register_section_header, resolve_source_target,
+                resolve_xref_target,
             },
             revision::{IgnoredRevisionFields, RevisionInfo, process_revision_info},
             sections::{apply_leveloffset, expected_child_level},
@@ -189,39 +188,7 @@ peg::parser! {
             };
             let mut xrefs = Vec::new();
             if let Some(header) = &header {
-                if let Some(anchor) = header.metadata.heading_anchor()
-                {
-                    let label = metadata_xreflabel(&header.metadata);
-                    insert_reference(
-                        state,
-                        &mut references,
-                        anchor,
-                        label,
-                        metadata_natural_label(state, &header.metadata),
-                        Some(header_reference_title(header)),
-                        None,
-                    );
-                }
-                collect_inline_references(
-                    state,
-                    header.title.as_inlines(),
-                    &mut references,
-                    &mut xrefs,
-                );
-                if let Some(subtitle) = &header.subtitle {
-                    collect_inline_references(
-                        state,
-                        subtitle.as_inlines(),
-                        &mut references,
-                        &mut xrefs,
-                    );
-                }
-                collect_metadata_references(
-                    state,
-                    &header.metadata,
-                    &mut references,
-                    &mut xrefs,
-                );
+                collect_header_references(state, header, &mut references, &mut xrefs);
             }
             collect_references(state, &mut blocks, &mut references, &mut xrefs);
             let is_book = is_book_doctype(&header_attributes);
@@ -1065,7 +1032,7 @@ peg::parser! {
             is_book_doctype(&state.document_attributes),
         )), Some(SectionKind::from_style(block_metadata.metadata.style)))?
         {
-            let ParsedSectionHeader { title, numbering, reference_text, id_settings } = section_header?;
+            let ParsedSectionHeader { title, numbering, reference_text, id_settings, heading_location } = section_header?;
             tracing::debug!(offset, "parsing section block");
 
             if let Some(parent_level) = parent_section_level {
@@ -1111,6 +1078,7 @@ peg::parser! {
             );
             section.reference_text = Some(reference_text);
             section.id_settings = id_settings;
+            section.heading_location = heading_location;
             Ok(Block::Section(section))
         }
 
@@ -1201,7 +1169,7 @@ peg::parser! {
             is_book_doctype(&state.document_attributes),
         )), Some(SectionKind::from_style(block_metadata.metadata.style)))?
         {
-            let ParsedSectionHeader { title, numbering, reference_text, id_settings } = section_header?;
+            let ParsedSectionHeader { title, numbering, reference_text, id_settings, heading_location } = section_header?;
             let location = state.create_block_location(span_start, span_end, offset);
 
             // Classify the section by its style (see the ATX section rule).
@@ -1218,6 +1186,7 @@ peg::parser! {
             );
             section.reference_text = Some(reference_text);
             section.id_settings = id_settings;
+            section.heading_location = heading_location;
             Ok(Block::Section(section))
         }
 

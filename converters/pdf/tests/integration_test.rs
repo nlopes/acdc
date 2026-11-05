@@ -4085,3 +4085,71 @@ fn repeated_selected_includes_keep_the_first_public_section_destination() -> Res
     }
     Ok(())
 }
+
+#[test]
+fn rebuilt_selected_include_catalogs_keep_first_public_and_separate_toc_destinations()
+-> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/section_destination_identity.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse_file(
+            &path,
+            &Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        let mut document = Document::from(parsed.document());
+        document.rebuild_references_and_toc()?;
+        let pdf = render_document(acdc_parser::ast::DocumentRef::from(&document))?;
+        assert_eq!(internal_link_pages(&pdf, 1)?, [3, 4, 5]);
+        assert_eq!(internal_link_pages(&pdf, 2)?, [3, 5]);
+        assert!(named_destinations(&pdf)?.contains_key("shared"));
+    }
+    Ok(())
+}
+
+#[test]
+fn rebuilt_toc_does_not_link_to_a_same_id_paragraph_with_equal_source_spans() -> Result<(), Error> {
+    use acdc_parser::{Block, InlineNode, Location, Plain, Title};
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            "= Ownership\n:toc:\n\n[#shared]\n.Same\nParagraph.\n\nSee <<shared,Target>>.\n\n<<<\n\n[#shared]\n== Same\n\nHeading body.\n",
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let mut document = Document::from(parsed.document());
+        let mut blocks: Vec<_> = document.take_blocks().collect();
+        for block in &mut blocks {
+            let prepared_title = || {
+                Title::new(vec![InlineNode::PlainText(Plain::new(
+                    "Same",
+                    Location::default(),
+                ))])
+            };
+            if let Block::Paragraph(paragraph) = block {
+                let mut metadata = paragraph.clone_metadata();
+                if metadata.id.is_some() {
+                    paragraph.set_location(Location::default());
+                    paragraph.set_title(prepared_title());
+                    if let Some(anchor) = &mut metadata.id {
+                        anchor.set_location(Location::default());
+                    }
+                    for anchor in &mut metadata.anchors {
+                        anchor.set_location(Location::default());
+                    }
+                    paragraph.set_metadata(metadata)?;
+                }
+            } else if let Block::Section(section) = block {
+                section.set_location(Location::default());
+                section.set_title(prepared_title());
+            }
+        }
+        document.set_blocks(blocks);
+        document.rebuild_references_and_toc()?;
+        let pdf = render_document(acdc_parser::ast::DocumentRef::from(&document))?;
+        assert_eq!(internal_link_pages(&pdf, 1)?, [3]);
+        assert_eq!(internal_link_pages(&pdf, 2)?, [2]);
+        assert!(named_destinations(&pdf)?.contains_key("shared"));
+    }
+    Ok(())
+}

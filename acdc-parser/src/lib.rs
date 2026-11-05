@@ -165,6 +165,7 @@ mod model;
 mod options;
 mod parsed;
 mod preprocessor;
+mod reference_repair;
 mod safe_mode;
 mod source_provider;
 mod warning;
@@ -172,7 +173,7 @@ mod warning;
 pub(crate) use grammar::{InlinePreprocessorParserState, ProcessedContent, inline_preprocessing};
 use preprocessor::Preprocessor;
 
-pub use error::{Error, SourceLocation};
+pub use error::{Error, ReferenceRepairError, SourceLocation};
 pub use grammar::parse_text_for_quotes;
 pub use model::{
     Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Attribution, Audio,

@@ -211,6 +211,7 @@ where
         (self.visit_location)(block.location_mut())?;
         match block {
             Block::Section(s) => {
+                (self.visit_location)(&mut s.heading_location)?;
                 self.metadata(&mut s.metadata)?;
                 self.inlines(s.title.inlines_mut())?;
                 self.blocks(&mut s.content)?;

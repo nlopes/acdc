@@ -1,5 +1,10 @@
 //! Anchor and reference types for `AsciiDoc` documents.
 
+use std::{
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
+
 use serde::{
     Serialize,
     ser::{SerializeMap, Serializer},
@@ -29,6 +34,39 @@ pub const UNNUMBERED_SECTION_STYLES: &[&str] = &[
     "index",
     "appendix",
 ];
+
+#[derive(Clone, Debug)]
+pub(crate) struct SectionOccurrence {
+    namespace: Arc<()>,
+    ordinal: usize,
+}
+
+impl SectionOccurrence {
+    pub(crate) fn new(namespace: Arc<()>, ordinal: usize) -> Self {
+        Self { namespace, ordinal }
+    }
+}
+
+impl PartialEq for SectionOccurrence {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.namespace, &other.namespace) && self.ordinal == other.ordinal
+    }
+}
+
+impl Eq for SectionOccurrence {}
+
+impl Hash for SectionOccurrence {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Arc::as_ptr(&self.namespace).hash(state);
+        self.ordinal.hash(state);
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DocumentTopLabel {
+    Header,
+    Attribute,
+}
 
 /// An `Anchor` represents an anchor in a document.
 ///
@@ -176,6 +214,7 @@ impl<'a> Anchor<'a> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct TocEntry<'a> {
+    pub(crate) occurrence: Option<SectionOccurrence>,
     /// Unique identifier for this section (used for anchor links)
     pub(crate) id: &'a str,
     /// Title of the section
@@ -202,6 +241,7 @@ impl<'a> TocEntry<'a> {
         location: Location,
     ) -> Self {
         Self {
+            occurrence: None,
             id,
             title,
             level,
@@ -267,6 +307,8 @@ pub(crate) struct SectionReference {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Reference<'a> {
+    pub(crate) occurrence: Option<SectionOccurrence>,
+    pub(crate) document_top_label: Option<DocumentTopLabel>,
     pub(crate) target: &'a str,
     /// Optional cross-reference label from `reftext=` or `[[id,xreflabel]]`,
     /// copied from the target's parsed content without another inline parse.
@@ -334,10 +376,45 @@ impl Reference<'_> {
 }
 
 impl<'a> Reference<'a> {
+    pub(crate) fn for_anchor(
+        anchor: &Anchor<'a>,
+        label: Option<&ContentAttribute<'a>>,
+        title: Option<Title<'a>>,
+        caption: Option<Caption<'a>>,
+    ) -> Self {
+        let mut xreflabel = if anchor.is_bibliography() {
+            label.filter(|content| !content.is_empty()).cloned()
+        } else {
+            displayed_reference_label(label)
+        };
+        if anchor.is_bibliography()
+            && let Some(label) = xreflabel.as_mut()
+        {
+            label.inlines_mut().insert(
+                0,
+                InlineNode::PlainText(crate::Plain::new("[", anchor.location.clone())),
+            );
+            label
+                .inlines_mut()
+                .push(InlineNode::PlainText(crate::Plain::new(
+                    "]",
+                    anchor.location.clone(),
+                )));
+        }
+        let mut reference = Self::new(anchor.id, anchor.location.clone());
+        reference.xreflabel = xreflabel;
+        reference.title = title.map(|title| ContentAttribute::new(title.into_inlines()));
+        reference.caption = caption;
+        reference.bibliography = anchor.is_bibliography();
+        reference
+    }
+
     /// Construct a registered target without display content or derived classifications.
     #[must_use]
     pub fn new(target: &'a str, location: Location) -> Self {
         Self {
+            occurrence: None,
+            document_top_label: None,
             target,
             xreflabel: None,
             title: None,
@@ -564,4 +641,22 @@ mod prepared_anchor_tests {
         assert!(anchor.bibliography_label.is_none());
         assert!(!anchor.is_bibliography());
     }
+}
+
+pub(crate) fn displayed_reference_label<'a>(
+    label: Option<&ContentAttribute<'a>>,
+) -> Option<ContentAttribute<'a>> {
+    label
+        .filter(|content| {
+            !content.as_inlines().iter().all(|node| {
+                if let InlineNode::PlainText(text) = node {
+                    text.content.trim().is_empty()
+                } else if let InlineNode::RawText(raw) = node {
+                    raw.content.trim().is_empty()
+                } else {
+                    false
+                }
+            })
+        })
+        .cloned()
 }

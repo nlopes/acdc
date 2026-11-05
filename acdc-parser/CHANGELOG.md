@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Owned documents can call `rebuild_references_and_toc()` after prepared tree
+  edits. It refreshes membership, labels, aliases and section numbers while
+  retaining assigned IDs and the first target for duplicate IDs. Missing IDs
+  or document-label context return an error without partial changes. Caption,
+  footnote, index and author registrations remain separate.
+
 - **Breaking:** reference records expose their canonical destination through
   `ReferenceRef::target()`. Supply it to `Reference::new(target, location)` when
   constructing a record. Reference titles use `Option<ContentAttribute>`;

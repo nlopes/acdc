@@ -11,7 +11,7 @@ use serde::ser::{Serialize, SerializeMap, Serializer};
 use crate::{
     Block, BlockMetadata, ColumnStyle, DelimitedBlockType, DocumentAttributes, InlineMacro,
     InlineNode, Location, MAX_SECTION_LEVELS, Reference, Table, TocEntry,
-    model::{DocumentAttributeStatus, SectionReference},
+    model::{DocumentAttributeStatus, SectionOccurrence, SectionReference},
 };
 
 use super::title::Title;
@@ -249,6 +249,8 @@ impl<'a> SectionIdSettings<'a> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Section<'a> {
+    pub(crate) heading_location: Location,
+    pub(crate) occurrence: Option<SectionOccurrence>,
     pub(crate) metadata: BlockMetadata<'a>,
     pub(crate) title: Title<'a>,
     pub(crate) level: SectionLevel,
@@ -276,6 +278,8 @@ impl<'a> Section<'a> {
         location: Location,
     ) -> Self {
         Self {
+            heading_location: location.clone(),
+            occurrence: None,
             metadata,
             title,
             level,
@@ -299,6 +303,8 @@ impl<'a> Section<'a> {
         location: Location,
     ) -> Self {
         Self {
+            heading_location: location.clone(),
+            occurrence: None,
             metadata: BlockMetadata::default(),
             title,
             level,
@@ -400,6 +406,9 @@ impl<'a> Section<'a> {
 
     /// Replace the section span without relocating titles, children or catalogs.
     pub fn set_location(&mut self, location: Location) {
+        if self.location != location {
+            self.heading_location = location.clone();
+        }
         self.location = location;
     }
 
@@ -564,6 +573,22 @@ pub(crate) fn renumber_sections<'a>(
             .unwrap_or_default();
         entry.set_number(number);
     }
+    let aliases: Vec<_> = references
+        .iter()
+        .filter_map(|(id, reference)| {
+            if *id == reference.target {
+                return None;
+            }
+            references
+                .get(reference.target)
+                .map(|canonical| (*id, canonical.section.clone()))
+        })
+        .collect();
+    for (id, section) in aliases {
+        if let Some(reference) = references.get_mut(id) {
+            reference.section = section;
+        }
+    }
 }
 
 /// The two numbers a section can have.
@@ -600,9 +625,14 @@ fn update_section_reference(
     references: &mut HashMap<&str, Reference<'_>>,
 ) {
     if let Some(reference) = references.get_mut(section.id().as_ref())
-        // A duplicate ID must not replace the first target's section metadata.
-        && reference.location.absolute_start == section.location.absolute_start
-        && reference.location.start == section.location.start
+        && match (&section.occurrence, &reference.occurrence) {
+            (Some(section), Some(reference)) => section == reference,
+            (None, None) => {
+                reference.location.absolute_start == section.location.absolute_start
+                    && reference.location.start == section.location.start
+            }
+            _ => false,
+        }
     {
         reference.section = Some(SectionReference {
             name,

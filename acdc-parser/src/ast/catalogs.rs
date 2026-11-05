@@ -124,6 +124,11 @@ impl<'doc> ReferenceRef<'doc> {
     #[must_use]
     pub fn matches_toc_entry(self, entry: TocEntryRef<'_>) -> bool {
         self.target() == entry.id()
+            && match (&self.node.occurrence, &entry.node.occurrence) {
+                (Some(reference), Some(entry)) => reference == entry,
+                (None, None) => true,
+                _ => false,
+            }
             && self.title().is_some()
             && self.title() == entry.title()
             && self.location().end() == entry.location().end()
