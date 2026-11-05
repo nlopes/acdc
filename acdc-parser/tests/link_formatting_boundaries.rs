@@ -2,17 +2,17 @@ use acdc_parser::{InlineMacro, InlineNode, Options, parse, parse_inline};
 
 type Error = Box<dyn std::error::Error>;
 
-fn formatted_content<'node, 'source>(
-    node: &'node InlineNode<'source>,
-) -> Result<&'node [InlineNode<'source>], Error> {
-    if let InlineNode::BoldText(span) = node {
-        Ok(&span.content)
-    } else if let InlineNode::ItalicText(span) = node {
-        Ok(&span.content)
-    } else if let InlineNode::MonospaceText(span) = node {
-        Ok(&span.content)
-    } else if let InlineNode::HighlightText(span) = node {
-        Ok(&span.content)
+fn formatted_content<'source>(
+    node: &InlineNode<'source>,
+) -> Result<Vec<InlineNode<'source>>, Error> {
+    if let InlineNode::BoldText(mut span) = node.clone() {
+        Ok(span.take_content())
+    } else if let InlineNode::ItalicText(mut span) = node.clone() {
+        Ok(span.take_content())
+    } else if let InlineNode::MonospaceText(mut span) = node.clone() {
+        Ok(span.take_content())
+    } else if let InlineNode::HighlightText(mut span) = node.clone() {
+        Ok(span.take_content())
     } else {
         Err(format!("expected formatting, got {node:?}").into())
     }
@@ -60,7 +60,8 @@ fn link_formatting_boundaries_keep_complete_labels_and_source_spans(
         )
         .into());
     };
-    let [InlineNode::PlainText(_), node, InlineNode::PlainText(tail)] = formatted_content(outer)?
+    let original_content = formatted_content(outer)?;
+    let [InlineNode::PlainText(_), node, InlineNode::PlainText(tail)] = original_content.as_slice()
     else {
         return Err(format!("expected a link inside the outer formatting: {outer:?}").into());
     };

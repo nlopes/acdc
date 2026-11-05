@@ -49,6 +49,13 @@ macro_rules! span_reads {
             }
         }
 
+        /// Copy only the selected span and its prepared descendants.
+        impl<'doc> From<$name<'doc>> for crate::$owner<'doc> {
+            fn from(value: $name<'doc>) -> Self {
+                value.node.clone()
+            }
+        }
+
         impl<'doc> From<&'doc crate::$owner<'doc>> for $name<'doc> {
             fn from(owner: &'doc crate::$owner<'doc>) -> Self {
                 Self::new(owner)

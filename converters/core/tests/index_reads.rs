@@ -1,15 +1,71 @@
 //! Index discovery keeps occurrence order, byte offsets, and label boundaries.
 
-use acdc_converters_core::{
-    InlineTextTransform,
-    index::{visit_index_inlines, visit_index_terms},
-};
+use acdc_converters_core::{InlineTextTransform, index::visit_index_inlines};
 use acdc_parser::{
     CompatibilityMode, IndexTerm, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode,
     Location, Options, Plain, ast::InlineRef, parse_inline,
 };
 
 type Error = Box<dyn std::error::Error>;
+
+fn visit_index_terms<E>(
+    nodes: &[InlineNode<'_>],
+    visit: &mut impl FnMut(&IndexTerm<'_>, usize) -> Result<(), E>,
+) -> Result<(), E> {
+    fn walk<E>(
+        nodes: &[InlineNode<'_>],
+        transform: &InlineTextTransform<'_, '_>,
+        offset: &mut String,
+        visit: &mut impl FnMut(&IndexTerm<'_>, usize) -> Result<(), E>,
+    ) -> Result<(), E> {
+        for node in nodes {
+            if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+                visit(term, offset.len())?;
+            } else {
+                let children = match node.clone() {
+                    InlineNode::BoldText(mut span) => Some(span.take_content()),
+                    InlineNode::ItalicText(mut span) => Some(span.take_content()),
+                    InlineNode::MonospaceText(mut span) => Some(span.take_content()),
+                    InlineNode::HighlightText(mut span) => Some(span.take_content()),
+                    InlineNode::SubscriptText(mut span) => Some(span.take_content()),
+                    InlineNode::SuperscriptText(mut span) => Some(span.take_content()),
+                    InlineNode::CurvedQuotationText(mut span) => Some(span.take_content()),
+                    InlineNode::CurvedApostropheText(mut span) => Some(span.take_content()),
+                    InlineNode::Macro(InlineMacro::Url(link)) => Some(link.text),
+                    InlineNode::Macro(InlineMacro::Link(link)) => Some(link.text),
+                    InlineNode::Macro(InlineMacro::Mailto(link)) => Some(link.text),
+                    InlineNode::Macro(InlineMacro::CrossReference(link)) => Some(link.text),
+                    InlineNode::Macro(InlineMacro::Footnote(note)) => Some(note.content),
+                    InlineNode::PlainText(_)
+                    | InlineNode::Symbol(_)
+                    | InlineNode::CharacterReference(_)
+                    | InlineNode::RawText(_)
+                    | InlineNode::VerbatimText(_)
+                    | InlineNode::StandaloneCurvedApostrophe(_)
+                    | InlineNode::LineBreak(_)
+                    | InlineNode::InlineAnchor(_)
+                    | InlineNode::Macro(_)
+                    | InlineNode::CalloutRef(_)
+                    | _ => None,
+                };
+                if let Some(children) = children {
+                    walk(&children, transform, offset, visit)?;
+                    continue;
+                }
+            }
+            let _ = transform.write_inlines(offset, std::iter::once(InlineRef::from(node)));
+        }
+        Ok(())
+    }
+    walk(
+        nodes,
+        &InlineTextTransform::default()
+            .line_break("\n")
+            .decode_char_refs(true),
+        &mut String::new(),
+        visit,
+    )
+}
 
 fn collect(nodes: &[InlineNode<'_>]) -> Vec<(String, usize)> {
     let mut found = Vec::new();

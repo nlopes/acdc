@@ -395,8 +395,10 @@ mod tests {
                 return Err("expected one formatting span".into());
             };
             let mut span = span.clone();
-            span.location.start.file = Some(vec!["selected.adoc".into()].into());
-            span.location.end.file = Some(vec!["selected.adoc".into()].into());
+            let mut location = Location::from(acdc_parser::ast::BoldRef::from(&span).location());
+            location.start.file = Some(vec!["selected.adoc".into()].into());
+            location.end.file = Some(vec!["selected.adoc".into()].into());
+            span.set_location(location);
             let original = InlineNode::BoldText(span);
             let inlines = [
                 InlineNode::VerbatimText(Verbatim::new("\t", Location::default())),

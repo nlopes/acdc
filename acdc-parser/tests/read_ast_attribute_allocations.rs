@@ -90,15 +90,21 @@ fn direct_attribute_reads_do_not_allocate_for_owned_text_or_content()
 
 #[test]
 fn span_attribute_reads_split_role_text_without_allocating() {
-    let bold = Bold {
-        role: Some("one\ttwo\u{2003}one"),
-        id: Some(acdc_parser::ElementId::new("span", Location::default())),
-        form: Form::Unconstrained,
-        content: vec![InlineNode::PlainText(Plain::new(
-            "content",
+    let bold = {
+        let mut prepared_span = Bold::new(
+            vec![InlineNode::PlainText(Plain::new(
+                "content",
+                Location::default(),
+            ))],
+            Form::Unconstrained,
             Location::default(),
-        ))],
-        location: Location::default(),
+        );
+        prepared_span.replace_role(Some("one\ttwo\u{2003}one"));
+        prepared_span.set_id(Some(acdc_parser::ElementId::new(
+            "span",
+            Location::default(),
+        )));
+        prepared_span
     };
     let region = Region::new(ALLOCATOR);
     let span = BoldRef::from(&bold);

@@ -274,7 +274,7 @@ fn later_quotes_span_resolved_character_references() -> Result<(), Error> {
     let parsed =
         acdc_parser::parse_inline("pass:c,r,q[*&#169;*]", &acdc_parser::Options::default())?;
     assert!(
-        matches!(parsed.inlines(), [InlineNode::BoldText(bold)] if matches!(bold.content.as_slice(), [InlineNode::CharacterReference(reference)] if reference.kind() == CharacterReferenceKind::Numeric(169)))
+        matches!(parsed.inlines(), [InlineNode::BoldText(bold)] if matches!(bold.clone().take_content().as_slice(), [InlineNode::CharacterReference(reference)] if reference.kind() == CharacterReferenceKind::Numeric(169)))
     );
     Ok(())
 }

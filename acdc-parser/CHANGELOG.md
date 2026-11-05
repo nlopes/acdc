@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** formatting span fields are private. The eight concrete types
+  remain distinct. Read through their typed `ast` handles, copy selected spans
+  with `From`, and use prepared content, role, ID, form and location edits.
+  Empty role presence still distinguishes generic highlights from marked text;
+  edits do not register anchors or notes. Native JSON and rendering are unchanged.
+
 - **Breaking:** raw text and passthrough macro fields are private. Read with
   `RawRef`/`PassRef`, copy selected values with `From`, and use constructors or
   prepared text, substitution, metadata and location edits. Transfers retain

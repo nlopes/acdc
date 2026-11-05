@@ -250,12 +250,11 @@ fn included_and_table_cell_spans_keep_original_source_context(
 
 #[test]
 fn constructed_spans_keep_empty_identity_and_semantic_token_equality() -> Result<(), Error> {
-    let mut bold = Bold {
-        id: Some(acdc_parser::ElementId::new("", Location::default())),
-        role: Some("one\ttwo\u{2003}one"),
-        form: Form::Unconstrained,
-        content: Vec::new(),
-        location: Location::default(),
+    let mut bold = {
+        let mut span = Bold::new(Vec::new(), Form::Unconstrained, Location::default());
+        span.replace_role(Some("one\ttwo\u{2003}one"));
+        span.set_id(Some(acdc_parser::ElementId::new("", Location::default())));
+        span
     };
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
     let mut metadata = paragraph.take_metadata();
@@ -269,22 +268,16 @@ fn constructed_spans_keep_empty_identity_and_semantic_token_equality() -> Result
         span.attributes().get("role"),
         ParagraphRef::from(&paragraph).attributes().get("role")
     );
-    bold.role = Some(" \t\u{2003}");
+    bold.replace_role(Some(" \t\u{2003}"));
     let span = BoldRef::from(&bold);
     assert!(span.roles().is_empty());
     assert!(!span.attributes().contains("role"));
-    let mut highlight = Highlight {
-        id: None,
-        role: None,
-        form: Form::Constrained,
-        content: Vec::new(),
-        location: Location::default(),
-    };
+    let mut highlight = Highlight::new(Vec::new(), Form::Constrained, Location::default());
     assert!(HighlightRef::from(&highlight).is_marked());
-    highlight.role = Some("");
+    highlight.replace_role(Some(""));
     assert!(!HighlightRef::from(&highlight).is_marked());
-    highlight.role = None;
-    highlight.id = Some(acdc_parser::ElementId::new("", Location::default()));
+    highlight.replace_role(None);
+    highlight.set_id(Some(acdc_parser::ElementId::new("", Location::default())));
     assert!(!HighlightRef::from(&highlight).is_marked());
     assert_eq!(
         HighlightRef::from(&highlight).attributes().get("id"),

@@ -181,12 +181,10 @@ fn span_warning_order_and_inline_state_survive_a_write_error() -> Result<(), Tes
             TraversalContext::new(acdc_parser::ast::DocumentRef::from(&document).attributes());
         {
             let role = String::from("big \t small big");
-            let node = InlineNode::HighlightText(Highlight {
-                id: None,
-                role: Some(&role),
-                form: Form::Constrained,
-                content: Vec::new(),
-                location: Location::default(),
+            let node = InlineNode::HighlightText({
+                let mut span = Highlight::new(Vec::new(), Form::Constrained, Location::default());
+                span.replace_role(Some(&role));
+                span
             });
             assert!(matches!(
                 visitor.visit_inline_node(&mut traversal, (&node).into()),

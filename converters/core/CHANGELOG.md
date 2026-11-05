@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** use `code_inline_content` and `visit_index_inlines` for typed
+  code children and index discovery. The owner-slice and owner-callback APIs
+  have been removed. Selection, offsets, visibility and early errors are unchanged.
+
 - **Breaking:** table helpers now use typed parser handles. Replace
   `calculate_column_widths`, `determine_column_count`, `build_grid`, and
   `table_has_spans` with `column_widths`, `column_count`, `grid_rows`, and

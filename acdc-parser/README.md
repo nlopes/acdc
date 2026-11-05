@@ -332,6 +332,13 @@ the stored escape decision. Formula notation changes do not translate its text.
 `StemContent` provides `text()` and `notation()` for caller-owned block formulas.
 These edits retain source lifetimes and do not update document registrations.
 
+The eight formatting types remain concrete Rust types. Use their typed span
+readers and `From` to copy a selected span. Constructors accept prepared content,
+form and location. Content, ID and role transfers keep source lifetimes; edits
+do not register anchors or notes. An absent role differs from an empty role:
+an ID or any present role, including an empty one, makes a highlight generic.
+Changing a span's location keeps the separate ID and child locations.
+
 Use `InlineRef::as_hyperlink()` to read link, URL, mailto, and autolink targets,
 labels, and locations through `HyperlinkRef`. Match its concrete variant for
 metadata and display settings. Empty label content selects automatic display;

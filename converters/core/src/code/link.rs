@@ -2,10 +2,7 @@
 
 use std::fmt::Write as _;
 
-use acdc_parser::{
-    InlineMacro, InlineNode,
-    ast::{ContentRef, InlineKind, InlineRef, ReferencesRef},
-};
+use acdc_parser::ast::{ContentRef, InlineKind, InlineRef, ReferencesRef};
 
 use crate::{
     InlineTextTransform,
@@ -144,34 +141,6 @@ fn link_anchor(node: InlineRef<'_>, references: ReferencesRef<'_>) -> Option<Str
         .get(id)
         .filter(|reference| reference.location() == node.location())
         .map(|_| id.to_owned())
-}
-
-/// Inline content that keeps its place in a code block's text.
-#[must_use]
-pub fn code_inline_children<'n, 'a>(node: &'n InlineNode<'a>) -> Option<&'n [InlineNode<'a>]> {
-    code_inline_content(InlineRef::from(node))?;
-    match node {
-        InlineNode::BoldText(text) => Some(&text.content),
-        InlineNode::ItalicText(text) => Some(&text.content),
-        InlineNode::MonospaceText(text) => Some(&text.content),
-        InlineNode::HighlightText(text) => Some(&text.content),
-        InlineNode::SubscriptText(text) => Some(&text.content),
-        InlineNode::SuperscriptText(text) => Some(&text.content),
-        InlineNode::CurvedQuotationText(text) => Some(&text.content),
-        InlineNode::CurvedApostropheText(text) => Some(&text.content),
-        InlineNode::Macro(InlineMacro::IndexTerm(term)) => Some(term.term()),
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::CharacterReference(_)
-        | InlineNode::Symbol(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::CalloutRef(_)
-        | InlineNode::Macro(_)
-        | _ => None,
-    }
 }
 
 /// Direct content of formatting spans and visible index terms in source code.

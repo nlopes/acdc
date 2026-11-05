@@ -158,13 +158,7 @@ mod tests {
     }
 
     fn bold(nodes: Vec<InlineNode>) -> InlineNode {
-        InlineNode::BoldText(Bold {
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            content: nodes,
-            location: Location::default(),
-        })
+        InlineNode::BoldText(Bold::new(nodes, Form::Constrained, Location::default()))
     }
 
     /// A catalog is only consulted for a cross-reference with no text of its

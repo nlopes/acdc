@@ -4654,13 +4654,11 @@ mod tests {
                 CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
             ));
         }
-        let bold = InlineNode::BoldText(Bold {
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            content: content.clone(),
-            location: Location::default(),
-        });
+        let bold = InlineNode::BoldText(Bold::new(
+            content.clone(),
+            Form::Constrained,
+            Location::default(),
+        ));
         content.push(bold);
         let mut doc = Document::default();
         doc.push_block(Block::Paragraph(Paragraph::new(

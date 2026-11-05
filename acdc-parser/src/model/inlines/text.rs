@@ -18,41 +18,41 @@ pub enum Form {
 /// A `Subscript` represents a subscript section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Subscript<'a> {
-    pub role: Option<Role<'a>>,
-    pub id: Option<ElementId<'a>>,
-    pub form: Form,
-    pub content: Vec<InlineNode<'a>>,
-    pub location: Location,
+    pub(crate) role: Option<Role<'a>>,
+    pub(crate) id: Option<ElementId<'a>>,
+    pub(crate) form: Form,
+    pub(crate) content: Vec<InlineNode<'a>>,
+    pub(crate) location: Location,
 }
 
 /// A `Superscript` represents a superscript section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Superscript<'a> {
-    pub role: Option<Role<'a>>,
-    pub id: Option<ElementId<'a>>,
-    pub form: Form,
-    pub content: Vec<InlineNode<'a>>,
-    pub location: Location,
+    pub(crate) role: Option<Role<'a>>,
+    pub(crate) id: Option<ElementId<'a>>,
+    pub(crate) form: Form,
+    pub(crate) content: Vec<InlineNode<'a>>,
+    pub(crate) location: Location,
 }
 
 /// A `CurvedQuotation` represents a curved quotation section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CurvedQuotation<'a> {
-    pub role: Option<Role<'a>>,
-    pub id: Option<ElementId<'a>>,
-    pub form: Form,
-    pub content: Vec<InlineNode<'a>>,
-    pub location: Location,
+    pub(crate) role: Option<Role<'a>>,
+    pub(crate) id: Option<ElementId<'a>>,
+    pub(crate) form: Form,
+    pub(crate) content: Vec<InlineNode<'a>>,
+    pub(crate) location: Location,
 }
 
 /// A `CurvedApostrophe` represents a curved apostrophe section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CurvedApostrophe<'a> {
-    pub role: Option<Role<'a>>,
-    pub id: Option<ElementId<'a>>,
-    pub form: Form,
-    pub content: Vec<InlineNode<'a>>,
-    pub location: Location,
+    pub(crate) role: Option<Role<'a>>,
+    pub(crate) id: Option<ElementId<'a>>,
+    pub(crate) form: Form,
+    pub(crate) content: Vec<InlineNode<'a>>,
+    pub(crate) location: Location,
 }
 
 /// A `StandaloneCurvedApostrophe` represents a standalone curved apostrophe character.
@@ -77,41 +77,53 @@ impl StandaloneCurvedApostrophe {
 /// A `Monospace` represents a monospace section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Monospace<'a> {
-    pub role: Option<Role<'a>>,
-    pub id: Option<ElementId<'a>>,
-    pub form: Form,
-    pub content: Vec<InlineNode<'a>>,
-    pub location: Location,
+    pub(crate) role: Option<Role<'a>>,
+    pub(crate) id: Option<ElementId<'a>>,
+    pub(crate) form: Form,
+    pub(crate) content: Vec<InlineNode<'a>>,
+    pub(crate) location: Location,
 }
 
 /// A `Highlight` represents a highlighted section of text in a document.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Highlight, Form, Location};
+/// let mut value = Highlight::new(Vec::new(), Form::Constrained, Location::default());
+/// value.role = Some("");
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Highlight<'a> {
-    pub role: Option<Role<'a>>,
-    pub id: Option<ElementId<'a>>,
-    pub form: Form,
-    pub content: Vec<InlineNode<'a>>,
-    pub location: Location,
+    pub(crate) role: Option<Role<'a>>,
+    pub(crate) id: Option<ElementId<'a>>,
+    pub(crate) form: Form,
+    pub(crate) content: Vec<InlineNode<'a>>,
+    pub(crate) location: Location,
 }
 
 /// A `Bold` represents a bold section of text in a document.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Bold, Form, Location};
+/// let mut value = Bold::new(Vec::new(), Form::Constrained, Location::default());
+/// value.content.clear();
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Bold<'a> {
-    pub role: Option<Role<'a>>,
-    pub id: Option<ElementId<'a>>,
-    pub form: Form,
-    pub content: Vec<InlineNode<'a>>,
-    pub location: Location,
+    pub(crate) role: Option<Role<'a>>,
+    pub(crate) id: Option<ElementId<'a>>,
+    pub(crate) form: Form,
+    pub(crate) content: Vec<InlineNode<'a>>,
+    pub(crate) location: Location,
 }
 
 /// An `Italic` represents an italic section of text in a document.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Italic<'a> {
-    pub role: Option<Role<'a>>,
-    pub id: Option<ElementId<'a>>,
-    pub form: Form,
-    pub content: Vec<InlineNode<'a>>,
-    pub location: Location,
+    pub(crate) role: Option<Role<'a>>,
+    pub(crate) id: Option<ElementId<'a>>,
+    pub(crate) form: Form,
+    pub(crate) content: Vec<InlineNode<'a>>,
+    pub(crate) location: Location,
 }
 
 /// A `LineBreak` represents a line break (inline).
@@ -411,3 +423,66 @@ impl Serialize for CalloutRef {
         state.end()
     }
 }
+
+macro_rules! span_edits {
+    ($($name:ident),+ $(,)?) => {$(
+        impl<'a> $name<'a> {
+            /// Construct a span from prepared inlines without parsing them.
+            #[must_use]
+            pub fn new(content: Vec<InlineNode<'a>>, form: Form, location: Location) -> Self {
+                Self { role: None, id: None, form, content, location }
+            }
+
+            /// Replace prepared content without updating document registrations.
+            pub fn replace_content(&mut self, content: Vec<InlineNode<'a>>) -> Vec<InlineNode<'a>> {
+                std::mem::replace(&mut self.content, content)
+            }
+
+            /// Transfer direct inline content, leaving the span empty.
+            pub fn take_content(&mut self) -> Vec<InlineNode<'a>> {
+                std::mem::take(&mut self.content)
+            }
+
+            /// Append an already prepared inline without parsing or registration.
+            pub fn push_inline(&mut self, inline: InlineNode<'a>) {
+                self.content.push(inline);
+            }
+
+            /// Replace retained role text, distinguishing absence from an empty value.
+            pub fn replace_role(&mut self, role: Option<Role<'a>>) -> Option<Role<'a>> {
+                std::mem::replace(&mut self.role, role)
+            }
+
+            /// Replace the span's ID without updating reference catalogs.
+            pub fn set_id(&mut self, id: Option<ElementId<'a>>) {
+                self.id = id;
+            }
+
+            /// Transfer the ID, leaving the span without one.
+            pub fn take_id(&mut self) -> Option<ElementId<'a>> {
+                self.id.take()
+            }
+
+            /// Set the retained source form without changing inline content.
+            pub fn set_form(&mut self, form: Form) {
+                self.form = form;
+            }
+
+            /// Replace the span's source location, retaining separate child and ID locations.
+            pub fn set_location(&mut self, location: Location) {
+                self.location = location;
+            }
+        }
+    )+};
+}
+
+span_edits!(
+    Bold,
+    Italic,
+    Monospace,
+    Highlight,
+    Subscript,
+    Superscript,
+    CurvedQuotation,
+    CurvedApostrophe
+);

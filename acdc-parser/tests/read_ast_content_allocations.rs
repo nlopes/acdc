@@ -88,13 +88,11 @@ fn deep_inline_walk_and_skipping_do_not_recurse() -> Result<(), Box<dyn Error>> 
         .spawn(|| {
             let mut content = Vec::new();
             for _ in 0..4096 {
-                content = vec![InlineNode::BoldText(Bold {
-                    role: None,
-                    id: None,
-                    form: Form::Constrained,
+                content = vec![InlineNode::BoldText(Bold::new(
                     content,
-                    location: Location::default(),
-                })];
+                    Form::Constrained,
+                    Location::default(),
+                ))];
             }
             let block = Block::Paragraph(Paragraph::new(content, Location::default()));
             let root = BlockRef::from(&block);
@@ -113,8 +111,8 @@ fn deep_inline_walk_and_skipping_do_not_recurse() -> Result<(), Box<dyn Error>> 
             if let Block::Paragraph(mut paragraph) = block {
                 let mut pending: Vec<_> = paragraph.take_content().collect();
                 while let Some(inline) = pending.pop() {
-                    if let InlineNode::BoldText(span) = inline {
-                        pending.extend(span.content);
+                    if let InlineNode::BoldText(mut span) = inline {
+                        pending.extend(span.take_content());
                     }
                 }
             }

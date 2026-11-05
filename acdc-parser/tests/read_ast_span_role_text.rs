@@ -18,13 +18,8 @@ fn exact_span_roles_keep_optional_presence_and_token_reads() {
     ] {
         macro_rules! check {
             ($owner:ident, $read:ident) => {{
-                let mut owner = $owner {
-                    id: None,
-                    role,
-                    form: Form::Constrained,
-                    content: Vec::new(),
-                    location: Location::default(),
-                };
+                let mut owner = $owner::new(Vec::new(), Form::Constrained, Location::default());
+                owner.replace_role(role);
                 let span = $read::from(&owner);
                 assert_eq!(span.role(), role);
                 if let Some(text) = role {
@@ -38,7 +33,7 @@ fn exact_span_roles_keep_optional_presence_and_token_reads() {
                         .collect::<Vec<_>>()
                 );
                 assert_eq!(span.attributes().contains("role"), !tokens.is_empty());
-                owner.role = Some("updated\trole");
+                owner.replace_role(Some("updated\trole"));
                 assert_eq!($read::from(&owner).role(), Some("updated\trole"));
             }};
         }
@@ -56,12 +51,10 @@ fn exact_span_roles_keep_optional_presence_and_token_reads() {
 #[test]
 fn role_text_keeps_the_owner_lifetime_after_the_handle_is_dropped() {
     let text = String::from("one\ttwo\u{2003}one");
-    let owner = Bold {
-        id: None,
-        role: Some(&text),
-        form: Form::Constrained,
-        content: Vec::new(),
-        location: Location::default(),
+    let owner = {
+        let mut span = Bold::new(Vec::new(), Form::Constrained, Location::default());
+        span.replace_role(Some(&text));
+        span
     };
     let role = {
         let span = BoldRef::from(&owner);

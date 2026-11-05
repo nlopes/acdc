@@ -320,23 +320,11 @@ mod tests {
     }
 
     fn bold(nodes: Vec<InlineNode>) -> InlineNode {
-        InlineNode::BoldText(Bold {
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            content: nodes,
-            location: Location::default(),
-        })
+        InlineNode::BoldText(Bold::new(nodes, Form::Constrained, Location::default()))
     }
 
     fn italic(nodes: Vec<InlineNode>) -> InlineNode {
-        InlineNode::ItalicText(Italic {
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            content: nodes,
-            location: Location::default(),
-        })
+        InlineNode::ItalicText(Italic::new(nodes, Form::Constrained, Location::default()))
     }
 
     #[test]

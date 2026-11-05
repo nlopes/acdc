@@ -1043,13 +1043,11 @@ mod tests {
 
     #[test]
     fn test_bold_text() -> Result<(), Error> {
-        let bold = InlineNode::BoldText(Bold {
-            content: vec![create_plain_text("bold text")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let bold = InlineNode::BoldText(Bold::new(
+            vec![create_plain_text("bold text")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![bold])?;
         // Bold text should contain ANSI bold escape codes
@@ -1063,13 +1061,11 @@ mod tests {
 
     #[test]
     fn test_italic_text() -> Result<(), Error> {
-        let italic = InlineNode::ItalicText(Italic {
-            content: vec![create_plain_text("italic text")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let italic = InlineNode::ItalicText(Italic::new(
+            vec![create_plain_text("italic text")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![italic])?;
         // Italic text should contain ANSI italic escape codes
@@ -1086,13 +1082,11 @@ mod tests {
 
     #[test]
     fn test_monospace_text() -> Result<(), Error> {
-        let monospace = InlineNode::MonospaceText(Monospace {
-            content: vec![create_plain_text("monospace text")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let monospace = InlineNode::MonospaceText(Monospace::new(
+            vec![create_plain_text("monospace text")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![monospace])?;
         assert!(
@@ -1111,21 +1105,17 @@ mod tests {
     fn test_mixed_formatting() -> Result<(), Error> {
         let output = render_paragraph(vec![
             create_plain_text("Normal "),
-            InlineNode::BoldText(Bold {
-                content: vec![create_plain_text("bold")],
-                role: None,
-                id: None,
-                form: Form::Constrained,
-                location: Location::default(),
-            }),
+            InlineNode::BoldText(Bold::new(
+                vec![create_plain_text("bold")],
+                Form::Constrained,
+                Location::default(),
+            )),
             create_plain_text(" and "),
-            InlineNode::ItalicText(Italic {
-                content: vec![create_plain_text("italic")],
-                role: None,
-                id: None,
-                form: Form::Constrained,
-                location: Location::default(),
-            }),
+            InlineNode::ItalicText(Italic::new(
+                vec![create_plain_text("italic")],
+                Form::Constrained,
+                Location::default(),
+            )),
         ])?;
 
         assert!(output.contains("Normal"), "Should contain normal text");
@@ -1136,13 +1126,11 @@ mod tests {
 
     #[test]
     fn test_highlight_text() -> Result<(), Error> {
-        let highlight = InlineNode::HighlightText(Highlight {
-            content: vec![create_plain_text("highlighted")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let highlight = InlineNode::HighlightText(Highlight::new(
+            vec![create_plain_text("highlighted")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![highlight])?;
         assert!(
@@ -1156,13 +1144,11 @@ mod tests {
 
     #[test]
     fn test_superscript_text() -> Result<(), Error> {
-        let superscript = InlineNode::SuperscriptText(Superscript {
-            content: vec![create_plain_text("2")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let superscript = InlineNode::SuperscriptText(Superscript::new(
+            vec![create_plain_text("2")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![create_plain_text("x"), superscript])?;
 
@@ -1176,13 +1162,11 @@ mod tests {
 
     #[test]
     fn test_subscript_text() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript {
-            content: vec![create_plain_text("2")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let subscript = InlineNode::SubscriptText(Subscript::new(
+            vec![create_plain_text("2")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![create_plain_text("a"), subscript])?;
 
@@ -1196,13 +1180,11 @@ mod tests {
 
     #[test]
     fn test_subscript_fallback_for_letters() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript {
-            content: vec![create_plain_text("n")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let subscript = InlineNode::SubscriptText(Subscript::new(
+            vec![create_plain_text("n")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![create_plain_text("a"), subscript])?;
         assert!(
@@ -1218,13 +1200,11 @@ mod tests {
 
     #[test]
     fn test_superscript_fallback_for_letters() -> Result<(), Error> {
-        let superscript = InlineNode::SuperscriptText(Superscript {
-            content: vec![create_plain_text("abc")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let superscript = InlineNode::SuperscriptText(Superscript::new(
+            vec![create_plain_text("abc")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![superscript])?;
         assert!(
@@ -1240,13 +1220,11 @@ mod tests {
 
     #[test]
     fn test_curved_quotation_text() -> Result<(), Error> {
-        let quoted = InlineNode::CurvedQuotationText(CurvedQuotation {
-            content: vec![create_plain_text("quoted text")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let quoted = InlineNode::CurvedQuotationText(CurvedQuotation::new(
+            vec![create_plain_text("quoted text")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![quoted])?;
         assert!(
@@ -1263,13 +1241,11 @@ mod tests {
 
     #[test]
     fn test_curved_apostrophe_text() -> Result<(), Error> {
-        let apostrophe = InlineNode::CurvedApostropheText(CurvedApostrophe {
-            content: vec![create_plain_text("text")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let apostrophe = InlineNode::CurvedApostropheText(CurvedApostrophe::new(
+            vec![create_plain_text("text")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![apostrophe])?;
         assert!(
@@ -1423,12 +1399,14 @@ mod tests {
 
     #[test]
     fn test_highlight_text_with_underline_role() -> Result<(), Error> {
-        let highlight = InlineNode::HighlightText(Highlight {
-            content: vec![create_plain_text("underlined text")],
-            role: Some("underline"),
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
+        let highlight = InlineNode::HighlightText({
+            let mut span = Highlight::new(
+                vec![create_plain_text("underlined text")],
+                Form::Constrained,
+                Location::default(),
+            );
+            span.replace_role(Some("underline"));
+            span
         });
 
         let output = render_paragraph(vec![highlight])?;
@@ -1451,13 +1429,11 @@ mod tests {
 
     #[test]
     fn test_superscript_renders_unicode() -> Result<(), Error> {
-        let superscript = InlineNode::SuperscriptText(Superscript {
-            content: vec![create_plain_text("2")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let superscript = InlineNode::SuperscriptText(Superscript::new(
+            vec![create_plain_text("2")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![create_plain_text("x"), superscript])?;
         assert!(output.contains('x'), "Should contain base text");
@@ -1470,13 +1446,11 @@ mod tests {
 
     #[test]
     fn test_subscript_renders_unicode() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript {
-            content: vec![create_plain_text("2")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let subscript = InlineNode::SubscriptText(Subscript::new(
+            vec![create_plain_text("2")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![create_plain_text("H"), subscript])?;
         assert!(output.contains('H'), "Should contain base text");
@@ -1490,13 +1464,11 @@ mod tests {
     #[test]
     fn test_superscript_fallback_for_unsupported_chars() -> Result<(), Error> {
         // Characters without Unicode superscript equivalents should fall back
-        let superscript = InlineNode::SuperscriptText(Superscript {
-            content: vec![create_plain_text("@")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let superscript = InlineNode::SuperscriptText(Superscript::new(
+            vec![create_plain_text("@")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![superscript])?;
         assert!(
@@ -1512,13 +1484,11 @@ mod tests {
 
     #[test]
     fn test_subscript_fallback_for_unsupported_chars() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript {
-            content: vec![create_plain_text("@")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let subscript = InlineNode::SubscriptText(Subscript::new(
+            vec![create_plain_text("@")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![subscript])?;
         assert!(
@@ -1535,19 +1505,15 @@ mod tests {
     #[test]
     fn test_nested_formatting() -> Result<(), Error> {
         // Test bold text containing italic text
-        let nested = InlineNode::BoldText(Bold {
-            content: vec![InlineNode::ItalicText(Italic {
-                content: vec![create_plain_text("bold italic")],
-                role: None,
-                id: None,
-                form: Form::Constrained,
-                location: Location::default(),
-            })],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let nested = InlineNode::BoldText(Bold::new(
+            vec![InlineNode::ItalicText(Italic::new(
+                vec![create_plain_text("bold italic")],
+                Form::Constrained,
+                Location::default(),
+            ))],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![nested])?;
         assert!(
