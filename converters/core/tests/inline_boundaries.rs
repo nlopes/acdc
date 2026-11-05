@@ -29,11 +29,7 @@ fn sibling_context_preserves_invisible_nodes_and_formatting_barriers() -> Result
             .iter()
             .map(|node| {
                 if let InlineNode::RawText(text) = node {
-                    InlineNode::PlainText(Plain {
-                        content: text.content,
-                        escaped: false,
-                        location: text.location.clone(),
-                    })
+                    InlineNode::PlainText(Plain::new(text.content, text.location.clone()))
                 } else {
                     node.clone()
                 }
@@ -44,9 +40,9 @@ fn sibling_context_preserves_invisible_nodes_and_formatting_barriers() -> Result
             .enumerate()
             .find_map(|(index, node)| {
                 if let InlineNode::PlainText(text) = node
-                    && text.content.contains("--")
+                    && acdc_parser::ast::PlainRef::from(text).text().contains("--")
                 {
-                    Some((index, text.content))
+                    Some((index, acdc_parser::ast::PlainRef::from(text).text()))
                 } else {
                     None
                 }
@@ -79,22 +75,14 @@ fn raw_context_keeps_adjacent_spaces_and_outlives_its_inputs() {
             let text = String::from("--");
             let after = String::from(after);
             let nodes = [
-                InlineNode::PlainText(Plain {
-                    content: &before,
-                    escaped: false,
-                    location: Location::default(),
-                }),
+                InlineNode::PlainText(Plain::new(&before, Location::default())),
                 InlineNode::RawText(Raw {
                     metadata: None,
                     content: &text,
                     subs: vec![Substitution::Replacements],
                     location: Location::default(),
                 }),
-                InlineNode::PlainText(Plain {
-                    content: &after,
-                    escaped: false,
-                    location: Location::default(),
-                }),
+                InlineNode::PlainText(Plain::new(&after, Location::default())),
             ];
             let siblings = nodes.iter().map(InlineRef::from);
             let context = TextBoundaries::BOTH.for_inline_refs(

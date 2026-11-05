@@ -1104,11 +1104,10 @@ mod tests {
     };
 
     fn create_test_inlines(content: &str) -> Vec<InlineNode<'_>> {
-        vec![InlineNode::PlainText(Plain {
+        vec![InlineNode::PlainText(Plain::new(
             content,
-            location: Location::default(),
-            escaped: false,
-        })]
+            Location::default(),
+        ))]
     }
 
     fn create_test_processor_raw() -> Processor<'static> {
@@ -1281,11 +1280,10 @@ mod tests {
     #[test]
     fn test_listing_block_without_listing_caption_renders_title_without_number()
     -> Result<(), Box<dyn std::error::Error>> {
-        let title = Title::new(vec![InlineNode::PlainText(Plain {
-            content: "My Code Example",
-            location: Location::default(),
-            escaped: false,
-        })]);
+        let title = Title::new(vec![InlineNode::PlainText(Plain::new(
+            "My Code Example",
+            Location::default(),
+        ))]);
 
         let block = DelimitedBlock::new(
             DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
@@ -1327,17 +1325,15 @@ mod tests {
     #[test]
     fn test_listing_block_with_listing_caption_renders_title_with_number()
     -> Result<(), Box<dyn std::error::Error>> {
-        let title1 = Title::new(vec![InlineNode::PlainText(Plain {
-            content: "First Example",
-            location: Location::default(),
-            escaped: false,
-        })]);
+        let title1 = Title::new(vec![InlineNode::PlainText(Plain::new(
+            "First Example",
+            Location::default(),
+        ))]);
 
-        let title2 = Title::new(vec![InlineNode::PlainText(Plain {
-            content: "Second Example",
-            location: Location::default(),
-            escaped: false,
-        })]);
+        let title2 = Title::new(vec![InlineNode::PlainText(Plain::new(
+            "Second Example",
+            Location::default(),
+        ))]);
 
         let block1 = DelimitedBlock::new(
             DelimitedBlockType::DelimitedListing(create_test_inlines("code 1")),
@@ -1592,11 +1588,10 @@ mod tests {
 
     #[test]
     fn test_example_block_collapsible() -> Result<(), Box<dyn std::error::Error>> {
-        let title = Title::new(vec![InlineNode::PlainText(Plain {
-            content: "Click to expand",
-            location: Location::default(),
-            escaped: false,
-        })]);
+        let title = Title::new(vec![InlineNode::PlainText(Plain::new(
+            "Click to expand",
+            Location::default(),
+        ))]);
 
         let metadata = BlockMetadata::new().with_options(vec!["collapsible"]);
 
@@ -1642,11 +1637,10 @@ mod tests {
 
     #[test]
     fn test_example_block_collapsible_open() -> Result<(), Box<dyn std::error::Error>> {
-        let title = Title::new(vec![InlineNode::PlainText(Plain {
-            content: "Initially open",
-            location: Location::default(),
-            escaped: false,
-        })]);
+        let title = Title::new(vec![InlineNode::PlainText(Plain::new(
+            "Initially open",
+            Location::default(),
+        ))]);
 
         let metadata = BlockMetadata::new().with_options(vec!["collapsible", "open"]);
 

@@ -591,10 +591,10 @@ fn source_with_callout_placeholders(
                     content = strip_callout_guard(&content, comment_prefix);
                 }
             }
-            let text = InlineNode::VerbatimText(acdc_parser::Verbatim {
-                content: &content,
-                location: Location::from(verbatim.location()),
-            });
+            let text = InlineNode::VerbatimText(acdc_parser::Verbatim::new(
+                &content,
+                Location::from(verbatim.location()),
+            ));
             let _ = transform.write_inlines(&mut source, std::iter::once((&text).into()));
         } else if let InlineKind::Callout(callout) = node.kind() {
             let offset = u32::try_from(callouts.len()).unwrap_or(0xFFFD).min(0xFFFD);
@@ -789,20 +789,18 @@ mod tests {
 
     /// Create simple plain text inline nodes for testing
     fn create_test_inlines(content: &str) -> Vec<InlineNode<'_>> {
-        vec![InlineNode::PlainText(Plain {
+        vec![InlineNode::PlainText(Plain::new(
             content,
-            location: Location::default(),
-            escaped: false,
-        })]
+            Location::default(),
+        ))]
     }
 
     /// Create simple plain text title for testing
     fn create_test_title(content: &str) -> Title<'_> {
-        Title::new(vec![InlineNode::PlainText(Plain {
+        Title::new(vec![InlineNode::PlainText(Plain::new(
             content,
-            location: Location::default(),
-            escaped: false,
-        })])
+            Location::default(),
+        ))])
     }
 
     #[test]

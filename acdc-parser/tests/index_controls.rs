@@ -19,7 +19,7 @@ fn text(nodes: &[InlineNode<'_>]) -> Result<String, Error> {
             let InlineNode::PlainText(node) = node else {
                 return Err(format!("expected plain label: {node:?}").into());
             };
-            Ok(node.content)
+            Ok(acdc_parser::ast::PlainRef::from(node).text())
         })
         .collect()
 }
@@ -128,10 +128,10 @@ fn named_index_controls_preserve_complete_child_labels() -> Result<(), Error> {
     else {
         return Err(format!("expected complete child link: {:?}", term.term()).into());
     };
-    assert_eq!(before.content, "Before ");
+    assert_eq!(acdc_parser::ast::PlainRef::from(before).text(), "Before ");
     assert_eq!(text(&link.text)?, "Child");
     assert_eq!(link.metadata.roles, ["child"]);
-    assert_eq!(after.content, " after");
+    assert_eq!(acdc_parser::ast::PlainRef::from(after).text(), " after");
     assert_eq!(
         &source[link.location.absolute_start..=link.location.absolute_end],
         "link:guide.adoc[Child,role=child]"

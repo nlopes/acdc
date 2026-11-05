@@ -316,11 +316,7 @@ mod tests {
     use acdc_parser::{Bold, Form, InlineNode, Italic, LineBreak, Location, Plain};
 
     fn plain(s: &str) -> InlineNode<'_> {
-        InlineNode::PlainText(Plain {
-            content: s,
-            location: Location::default(),
-            escaped: false,
-        })
+        InlineNode::PlainText(Plain::new(s, Location::default()))
     }
 
     fn bold(nodes: Vec<InlineNode>) -> InlineNode {
@@ -374,9 +370,7 @@ mod tests {
     fn extract_line_break_as_newline() {
         let inlines = [
             plain("first"),
-            InlineNode::LineBreak(LineBreak {
-                location: Location::default(),
-            }),
+            InlineNode::LineBreak(LineBreak::new(Location::default())),
             plain("second"),
         ];
         assert_eq!(

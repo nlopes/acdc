@@ -38,7 +38,14 @@ impl Serialize for CharacterReferenceKind<'_> {
 #[non_exhaustive]
 pub struct CharacterReference<'a> {
     pub(crate) kind: CharacterReferenceKind<'a>,
-    pub location: Location,
+    pub(crate) location: Location,
+}
+
+impl CharacterReference<'_> {
+    /// Replace this node's recorded source span.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
 }
 
 impl<'a> CharacterReference<'a> {

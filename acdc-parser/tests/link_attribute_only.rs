@@ -10,7 +10,7 @@ fn assert_plain_text(text: &[InlineNode<'_>], expected: &str) -> TestResult {
     let [InlineNode::PlainText(text)] = text else {
         return Err(unexpected("expected plain macro text", text));
     };
-    assert_eq!(text.content, expected);
+    assert_eq!(acdc_parser::ast::PlainRef::from(text).text(), expected);
     Ok(())
 }
 

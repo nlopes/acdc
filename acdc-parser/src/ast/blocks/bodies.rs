@@ -211,3 +211,10 @@ impl<'doc> From<&'doc Admonition<'doc>> for AdmonitionRef<'doc> {
         Self::new(admonition)
     }
 }
+
+/// Copy the selected formula value without its containing block's metadata.
+impl<'doc> From<StemBlockRef<'doc>> for crate::StemContent<'doc> {
+    fn from(value: StemBlockRef<'doc>) -> Self {
+        value.body.clone()
+    }
+}

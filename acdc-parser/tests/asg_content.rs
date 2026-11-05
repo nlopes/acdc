@@ -74,11 +74,7 @@ fn programmatic_literal_content_is_not_parsed_again() -> Result<(), Error> {
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
     let mut metadata = paragraph.take_metadata();
     metadata.attribution = Some(ContentAttribute::new(vec![
-        acdc_parser::InlineNode::PlainText(Plain {
-            content: "*literal* {name}",
-            escaped: false,
-            location: Location::default(),
-        }),
+        acdc_parser::InlineNode::PlainText(Plain::new("*literal* {name}", Location::default())),
     ]));
     paragraph.set_metadata(metadata)?;
     let mut document = Document::default();

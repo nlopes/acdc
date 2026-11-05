@@ -238,8 +238,8 @@ fn constructed_and_cloned_owners_use_the_same_reads() -> Result<(), Error> {
             families += 1;
         } else if let InlineNode::Macro(InlineMacro::Stem(owner)) = inline {
             let mut owner = owner.clone();
-            owner.content = "";
-            owner.notation = StemNotation::Latexmath;
+            owner.replace_text("");
+            owner.replace_notation(StemNotation::Latexmath);
             let read = StemRef::from(&owner);
             assert_eq!(read.text(), "");
             assert_eq!(read.notation(), StemNotation::Latexmath);

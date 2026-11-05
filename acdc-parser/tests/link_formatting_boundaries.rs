@@ -64,7 +64,7 @@ fn link_formatting_boundaries_keep_complete_labels_and_source_spans(
     else {
         return Err(format!("expected a link inside the outer formatting: {outer:?}").into());
     };
-    assert_eq!(tail.content, " end");
+    assert_eq!(acdc_parser::ast::PlainRef::from(tail).text(), " end");
     let location = node.location();
     assert_eq!(
         &source[location.absolute_start..=location.absolute_end],
@@ -84,7 +84,7 @@ fn link_formatting_boundaries_keep_complete_labels_and_source_spans(
     let [inner, InlineNode::PlainText(after)] = text.as_slice() else {
         return Err(format!("expected independently formatted label: {text:?}").into());
     };
-    assert_eq!(after.content, " after");
+    assert_eq!(acdc_parser::ast::PlainRef::from(after).text(), " after");
     assert_eq!(std::mem::discriminant(inner), std::mem::discriminant(outer));
     let location = inner.location();
     assert_eq!(

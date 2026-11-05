@@ -163,11 +163,9 @@ fn asg_preserves_endpoint_include_chains_and_unicode_columns() -> Result<(), Err
     source.end.column = 9;
     source.start.file = Some(vec!["outer.adoc".into(), "α.adoc".into()].into());
     source.end.file = Some(vec!["end.adoc".into()].into());
-    let nodes = [acdc_parser::InlineNode::PlainText(acdc_parser::Plain {
-        content: "α",
-        escaped: true,
-        location: source.clone(),
-    })];
+    let nodes = [acdc_parser::InlineNode::PlainText(
+        acdc_parser::Plain::new("α", source.clone()).with_escaped(true),
+    )];
     let value = asg::inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec())))?;
     assert_eq!(
         value.pointer("/0/location/0/file"),
@@ -179,11 +177,9 @@ fn asg_preserves_endpoint_include_chains_and_unicode_columns() -> Result<(), Err
     );
     assert_eq!(value.pointer("/0/location/0/col"), Some(&json!(3)));
     source.start.file = Some(Vec::new().into());
-    let nodes = [acdc_parser::InlineNode::PlainText(acdc_parser::Plain {
-        content: "α",
-        escaped: true,
-        location: source,
-    })];
+    let nodes = [acdc_parser::InlineNode::PlainText(
+        acdc_parser::Plain::new("α", source).with_escaped(true),
+    )];
     assert!(matches!(
         asg::inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))),
         Err(asg::Error::InvalidLocation { .. })
@@ -280,10 +276,7 @@ fn asg_distinguishes_absent_and_present_empty_section_titles() -> Result<(), Err
 #[test]
 fn asg_rejects_verbatim_without_a_literal_block_mapping() {
     let nodes = [acdc_parser::InlineNode::VerbatimText(
-        acdc_parser::Verbatim {
-            content: "  literal\ntext  ",
-            location: Location::default(),
-        },
+        acdc_parser::Verbatim::new("  literal\ntext  ", Location::default()),
     )];
     assert!(
         matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))), Err(asg::Error::Unsupported { path, .. }) if path == "/0")

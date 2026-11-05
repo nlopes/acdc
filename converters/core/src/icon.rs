@@ -278,11 +278,7 @@ mod tests {
         let target = Source::Name("arrow-left");
         assert_eq!(alt(&target, None), "arrow left");
         let content = ContentAttribute::new(vec![acdc_parser::InlineNode::PlainText(
-            acdc_parser::Plain {
-                content: "Back",
-                location: acdc_parser::Location::default(),
-                escaped: false,
-            },
+            acdc_parser::Plain::new("Back", acdc_parser::Location::default()),
         )]);
         assert_eq!(alt(&target, Some(&content)), "Back");
     }

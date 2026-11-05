@@ -267,9 +267,14 @@ fn index_quoted_labels_keep_authored_escape_ranges(
     let [InlineNode::PlainText(label)] = owner.term() else {
         return Err(format!("label: {:?}", owner.term()).into());
     };
-    assert_eq!(label.content, expected);
+    assert_eq!(acdc_parser::ast::PlainRef::from(label).text(), expected);
     assert_eq!(
-        &source[label.location.absolute_start..=label.location.absolute_end],
+        &source[acdc_parser::ast::PlainRef::from(label)
+            .location()
+            .absolute_start()
+            ..=acdc_parser::ast::PlainRef::from(label)
+                .location()
+                .absolute_end()],
         authored
     );
     Ok(())

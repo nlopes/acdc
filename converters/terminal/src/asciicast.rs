@@ -377,14 +377,8 @@ mod tests {
             r#"{"version":3,"term":{"cols":20,"rows":4},"idle_time_limit":1}"#,
         ] {
             let inlines = [
-                InlineNode::PlainText(Plain {
-                    content: header,
-                    location: Location::default(),
-                    escaped: false,
-                }),
-                InlineNode::LineBreak(LineBreak {
-                    location: Location::default(),
-                }),
+                InlineNode::PlainText(Plain::new(header, Location::default())),
+                InlineNode::LineBreak(LineBreak::new(Location::default())),
                 InlineNode::RawText(Raw {
                     metadata: None,
                     content: "[0,\"o\",\"&#60;λ&#62;\"]\n[60,\"o\",\"done\"]\n",

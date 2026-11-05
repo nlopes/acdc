@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** text, symbol, line-break, apostrophe, and formula fields are
+  private. Read through typed `ast` handles and copy selected values with `From`.
+  Use constructors and prepared text, notation, escape, or location edits to
+  change owned values. Text replacement preserves the escape decision; changing
+  formula notation does not translate its text. `StemContent` provides scalar
+  `text()` and `notation()` reads. Native JSON and rendering are unchanged.
+
 - **Breaking:** `ContentAttribute` and `Title` no longer provide borrowed slices,
   `Deref`, `AsRef`, or borrowed owner iterators. Read attributes with
   `ContentRef::from(&content)` and titles with `title.content()`. Copy selected

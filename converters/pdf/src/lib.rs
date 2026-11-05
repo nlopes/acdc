@@ -1791,11 +1791,10 @@ mod tests {
     use acdc_parser::Document;
 
     fn title(content: &'static str) -> Title<'static> {
-        Title::new(vec![InlineNode::PlainText(Plain {
+        Title::new(vec![InlineNode::PlainText(Plain::new(
             content,
-            location: Location::default(),
-            escaped: false,
-        })])
+            Location::default(),
+        ))])
     }
 
     fn render_warnings(input: &str) -> Result<Vec<Warning>, Box<dyn StdError>> {

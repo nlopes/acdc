@@ -58,7 +58,20 @@ pub struct CurvedApostrophe<'a> {
 /// A `StandaloneCurvedApostrophe` represents a standalone curved apostrophe character.
 #[derive(Clone, Debug, PartialEq)]
 pub struct StandaloneCurvedApostrophe {
-    pub location: Location,
+    pub(crate) location: Location,
+}
+
+impl StandaloneCurvedApostrophe {
+    /// Construct a standalone typographic apostrophe.
+    #[must_use]
+    pub fn new(location: Location) -> Self {
+        Self { location }
+    }
+
+    /// Replace this node's recorded source span.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
 }
 
 /// A `Monospace` represents a monospace section of text in a document.
@@ -104,7 +117,20 @@ pub struct Italic<'a> {
 /// A `LineBreak` represents a line break (inline).
 #[derive(Clone, Debug, PartialEq)]
 pub struct LineBreak {
-    pub location: Location,
+    pub(crate) location: Location,
+}
+
+impl LineBreak {
+    /// Construct an explicit line break.
+    #[must_use]
+    pub fn new(location: Location) -> Self {
+        Self { location }
+    }
+
+    /// Replace this node's recorded source span.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
 }
 
 impl Serialize for LineBreak {
@@ -125,14 +151,54 @@ impl Serialize for LineBreak {
 /// Converters apply the enclosing block's substitutions and normal prose
 /// whitespace rules. Use [`Raw`] for text whose passthrough defines its own
 /// substitutions, or [`Verbatim`] for literal and listing content.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Location, Plain};
+/// let mut plain = Plain::new("text", Location::default());
+/// plain.content = "changed";
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Plain<'a> {
-    pub content: &'a str,
-    pub location: Location,
+    pub(crate) content: &'a str,
+    pub(crate) location: Location,
     /// Whether an escape prevented this text from being parsed as inline formatting.
     ///
     /// When set, quote substitution must not reinterpret the content.
-    pub escaped: bool,
+    pub(crate) escaped: bool,
+}
+
+impl<'a> Plain<'a> {
+    /// Construct prepared ordinary text without parsing inline syntax.
+    #[must_use]
+    pub fn new(content: &'a str, location: Location) -> Self {
+        Self {
+            content,
+            location,
+            escaped: false,
+        }
+    }
+
+    /// Set whether quote substitution must keep this text literal.
+    #[must_use]
+    pub fn with_escaped(mut self, escaped: bool) -> Self {
+        self.set_escaped(escaped);
+        self
+    }
+
+    /// Set whether quote substitution must keep this text literal.
+    pub fn set_escaped(&mut self, escaped: bool) {
+        self.escaped = escaped;
+    }
+
+    /// Replace prepared text, retaining its escape decision and source span.
+    pub fn replace_text(&mut self, content: &'a str) -> &'a str {
+        std::mem::replace(&mut self.content, content)
+    }
+
+    /// Replace this node's recorded source span.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
 }
 
 impl Serialize for Plain<'_> {
@@ -179,8 +245,26 @@ pub struct Raw<'a> {
 /// represented by separate [`CalloutRef`] nodes rather than remaining in this text.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Verbatim<'a> {
-    pub content: &'a str,
-    pub location: Location,
+    pub(crate) content: &'a str,
+    pub(crate) location: Location,
+}
+
+impl<'a> Verbatim<'a> {
+    /// Construct prepared literal or code text without parsing inline syntax.
+    #[must_use]
+    pub fn new(content: &'a str, location: Location) -> Self {
+        Self { content, location }
+    }
+
+    /// Replace prepared literal text and return the previous text.
+    pub fn replace_text(&mut self, content: &'a str) -> &'a str {
+        std::mem::replace(&mut self.content, content)
+    }
+
+    /// Replace this node's recorded source span.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
 }
 
 impl Serialize for StandaloneCurvedApostrophe {

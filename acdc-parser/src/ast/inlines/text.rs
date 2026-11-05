@@ -159,3 +159,45 @@ impl<'doc> From<&'doc crate::CharacterReference<'doc>> for super::CharacterRefer
         Self::new(owner)
     }
 }
+
+/// Copy the selected atom, retaining its prepared value and source span.
+impl<'doc> From<PlainRef<'doc>> for Plain<'doc> {
+    fn from(value: PlainRef<'doc>) -> Self {
+        value.node.clone()
+    }
+}
+
+/// Copy the selected atom, retaining its prepared value and source span.
+impl<'doc> From<VerbatimRef<'doc>> for Verbatim<'doc> {
+    fn from(value: VerbatimRef<'doc>) -> Self {
+        value.node.clone()
+    }
+}
+
+/// Copy the selected atom, retaining its prepared value and source span.
+impl<'doc> From<SymbolRef<'doc>> for crate::Symbol {
+    fn from(value: SymbolRef<'doc>) -> Self {
+        value.node.clone()
+    }
+}
+
+/// Copy the selected atom, retaining its prepared value and source span.
+impl<'doc> From<super::CharacterReferenceRef<'doc>> for crate::CharacterReference<'doc> {
+    fn from(value: super::CharacterReferenceRef<'doc>) -> Self {
+        value.node.clone()
+    }
+}
+
+/// Copy the selected atom, retaining its prepared value and source span.
+impl<'doc> From<LineBreakRef<'doc>> for LineBreak {
+    fn from(value: LineBreakRef<'doc>) -> Self {
+        value.node.clone()
+    }
+}
+
+/// Copy the selected atom, retaining its prepared value and source span.
+impl<'doc> From<StandaloneCurvedApostropheRef<'doc>> for StandaloneCurvedApostrophe {
+    fn from(value: StandaloneCurvedApostropheRef<'doc>) -> Self {
+        value.node.clone()
+    }
+}

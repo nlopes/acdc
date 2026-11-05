@@ -66,10 +66,15 @@ fn standalone_fragments_preserve_surrounding_whitespace(
         let InlineNode::PlainText(plain) = node else {
             return Err("expected literal whitespace".into());
         };
-        text.push_str(plain.content);
+        text.push_str(acdc_parser::ast::PlainRef::from(plain).text());
         assert_eq!(
-            &source[plain.location.absolute_start..=plain.location.absolute_end],
-            plain.content
+            &source[acdc_parser::ast::PlainRef::from(plain)
+                .location()
+                .absolute_start()
+                ..=acdc_parser::ast::PlainRef::from(plain)
+                    .location()
+                    .absolute_end()],
+            acdc_parser::ast::PlainRef::from(plain).text()
         );
     }
     assert_eq!(text, source);

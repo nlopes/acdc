@@ -150,18 +150,11 @@ mod tests {
     };
 
     fn plain(s: &str) -> InlineNode<'_> {
-        InlineNode::PlainText(Plain {
-            content: s,
-            location: Location::default(),
-            escaped: false,
-        })
+        InlineNode::PlainText(Plain::new(s, Location::default()))
     }
 
     fn verbatim(s: &str) -> InlineNode<'_> {
-        InlineNode::VerbatimText(Verbatim {
-            content: s,
-            location: Location::default(),
-        })
+        InlineNode::VerbatimText(Verbatim::new(s, Location::default()))
     }
 
     fn bold(nodes: Vec<InlineNode>) -> InlineNode {
@@ -244,9 +237,9 @@ mod tests {
     fn extract_standalone_curved_apostrophe() {
         let title = [
             plain("it"),
-            InlineNode::StandaloneCurvedApostrophe(acdc_parser::StandaloneCurvedApostrophe {
-                location: Location::default(),
-            }),
+            InlineNode::StandaloneCurvedApostrophe(acdc_parser::StandaloneCurvedApostrophe::new(
+                Location::default(),
+            )),
             plain("s"),
         ];
         assert_eq!(extract_title_text(&title, &no_references()), "it\u{2019}s");

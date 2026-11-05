@@ -118,10 +118,7 @@ mod tests {
     fn callout_guards_preserve_nontext_empty_quoted_and_disabled_controls()
     -> Result<(), Box<dyn std::error::Error>> {
         let inlines = [
-            InlineNode::VerbatimText(Verbatim {
-                content: "value # ",
-                location: Location::default(),
-            }),
+            InlineNode::VerbatimText(Verbatim::new("value # ", Location::default())),
             InlineNode::CalloutRef(CalloutRef {
                 kind: CalloutRefKind::Explicit,
                 number: 1,

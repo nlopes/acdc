@@ -1200,11 +1200,41 @@ impl FromStr for StemNotation {
 }
 
 /// Content of a stem block with math notation.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{StemContent, StemNotation};
+/// let mut formula = StemContent::new("x", StemNotation::Latexmath);
+/// formula.content = "changed";
+/// ```
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct StemContent<'a> {
-    pub content: &'a str,
-    pub notation: StemNotation,
+    pub(crate) content: &'a str,
+    pub(crate) notation: StemNotation,
+}
+
+impl<'a> StemContent<'a> {
+    /// The prepared formula text.
+    #[must_use]
+    pub fn text(&self) -> &str {
+        self.content
+    }
+
+    /// The stored formula notation.
+    #[must_use]
+    pub fn notation(&self) -> StemNotation {
+        self.notation.clone()
+    }
+
+    /// Replace protected formula text and return its previous value.
+    pub fn replace_text(&mut self, content: &'a str) -> &'a str {
+        std::mem::replace(&mut self.content, content)
+    }
+
+    /// Replace the notation without translating the formula text.
+    pub fn replace_notation(&mut self, notation: StemNotation) -> StemNotation {
+        std::mem::replace(&mut self.notation, notation)
+    }
 }
 
 impl<'a> StemContent<'a> {

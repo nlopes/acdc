@@ -119,11 +119,10 @@ fn body_edits_keep_source_provenance_and_do_not_rewrite_the_parse(
     let source = edited.source_text();
     let location = Location::from(ParagraphRef::from(&edited).location());
     edited.set_content([]);
-    edited.push_inline(acdc_parser::InlineNode::PlainText(Plain {
-        content: "Changed",
-        location: Location::default(),
-        escaped: false,
-    }));
+    edited.push_inline(acdc_parser::InlineNode::PlainText(Plain::new(
+        "Changed",
+        Location::default(),
+    )));
     edited.set_title(Title::new(Vec::new()));
     edited.set_location(location.clone());
     let read = ParagraphRef::from(&edited);

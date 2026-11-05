@@ -54,6 +54,24 @@ impl SymbolKind {
 /// text consumed from that owner.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Symbol {
-    pub kind: SymbolKind,
-    pub location: Location,
+    pub(crate) kind: SymbolKind,
+    pub(crate) location: Location,
+}
+
+impl Symbol {
+    /// Construct an already resolved typographic symbol.
+    #[must_use]
+    pub fn new(kind: SymbolKind, location: Location) -> Self {
+        Self { kind, location }
+    }
+
+    /// Replace the resolved symbol without changing its source span.
+    pub fn set_kind(&mut self, kind: SymbolKind) {
+        self.kind = kind;
+    }
+
+    /// Replace this node's recorded source span.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
 }

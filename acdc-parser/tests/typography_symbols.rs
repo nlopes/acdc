@@ -17,10 +17,10 @@ fn symbol_reads_and_native_json_project_one_semantic_value() -> Result<(), Error
             .ok_or("missing source block")?
             .location(),
     );
-    let content = ContentAttribute::new(vec![InlineNode::Symbol(Symbol {
-        kind: SymbolKind::Copyright,
-        location: location.clone(),
-    })]);
+    let content = ContentAttribute::new(vec![InlineNode::Symbol(Symbol::new(
+        SymbolKind::Copyright,
+        location.clone(),
+    ))]);
     let content_ref = ContentRef::from(&content);
     let node = content_ref.inlines().next().ok_or("missing symbol")?;
     let InlineKind::Symbol(symbol) = node.kind() else {

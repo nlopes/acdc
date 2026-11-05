@@ -199,11 +199,7 @@ fn image_alt_and_caption_title_keep_distinct_absent_empty_and_prepared_content(
             .is_some_and(ContentRef::is_empty)
     );
     image.set_alt(Some(ContentAttribute::new(vec![
-        acdc_parser::InlineNode::PlainText(Plain {
-            content: "*literal* {name}",
-            escaped: false,
-            location: Location::default(),
-        }),
+        acdc_parser::InlineNode::PlainText(Plain::new("*literal* {name}", Location::default())),
     ])));
     assert_eq!(
         serde_json::to_value(image.take_alt())?.pointer("/0/value"),

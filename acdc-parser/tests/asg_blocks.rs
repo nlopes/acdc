@@ -214,10 +214,10 @@ fn nested_block_failures_keep_their_paths_and_owner() -> Result<(), Error> {
 #[test]
 fn uncaptioned_library_listing_forms_are_supported() -> Result<(), Error> {
     for delimited in [false, true] {
-        let content = vec![InlineNode::VerbatimText(acdc_parser::Verbatim {
-            content: "<code> *literal*",
-            location: Location::default(),
-        })];
+        let content = vec![InlineNode::VerbatimText(acdc_parser::Verbatim::new(
+            "<code> *literal*",
+            Location::default(),
+        ))];
         let block = if delimited {
             Block::DelimitedBlock(DelimitedBlock::new(
                 DelimitedBlockType::DelimitedListing(content),

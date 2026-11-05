@@ -273,11 +273,10 @@ fn typed_trait_objects_accept_constructed_text_shorter_than_the_document() -> Re
     let visitor: &mut dyn InlineVisitor<'_, Error = &'static str> = &mut trace;
     {
         let normalized = String::from("normalized");
-        let fragment = ContentAttribute::new(vec![InlineNode::PlainText(Plain {
-            content: &normalized,
-            location: Location::default(),
-            escaped: false,
-        })]);
+        let fragment = ContentAttribute::new(vec![InlineNode::PlainText(Plain::new(
+            &normalized,
+            Location::default(),
+        ))]);
         visitor.visit_inline_nodes(&mut context, ContentRef::from(&fragment))?;
     }
     {
@@ -350,7 +349,8 @@ fn standalone_content_reads_preserve_source_spans_and_borrowed_text() -> Result<
                 if let (InlineKind::Plain(typed), InlineNode::PlainText(owner)) =
                     (typed.kind(), owner)
                 {
-                    assert!(std::ptr::eq(typed.text(), owner.content));
+                    let mut copy = owner.clone();
+                    assert!(std::ptr::eq(typed.text(), copy.replace_text("")));
                 }
             }
             assert_eq!(

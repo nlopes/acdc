@@ -4,18 +4,12 @@ use acdc_parser::{ContentAttribute, InlineNode, Location, Symbol, SymbolKind, as
 #[test]
 fn resolved_text_reads_do_not_depend_on_converter_replacement_settings() {
     let content = ContentAttribute::new(vec![
-        InlineNode::Symbol(Symbol {
-            kind: SymbolKind::Copyright,
-            location: Location::default(),
-        }),
-        InlineNode::Symbol(Symbol {
-            kind: SymbolKind::Ellipsis,
-            location: Location::default(),
-        }),
-        InlineNode::Symbol(Symbol {
-            kind: SymbolKind::CurvedApostrophe,
-            location: Location::default(),
-        }),
+        InlineNode::Symbol(Symbol::new(SymbolKind::Copyright, Location::default())),
+        InlineNode::Symbol(Symbol::new(SymbolKind::Ellipsis, Location::default())),
+        InlineNode::Symbol(Symbol::new(
+            SymbolKind::CurvedApostrophe,
+            Location::default(),
+        )),
     ]);
     for transform in [
         InlineTextTransform::default(),

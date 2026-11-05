@@ -97,7 +97,7 @@ fn owner_builders_check_raw_metadata_even_when_dedicated_fields_are_absent(
 
 #[rstest::rstest]
 fn image_alt_is_reserved_with_absent_empty_and_present_content(
-    #[values(None, Some(ContentAttribute::default()), Some(ContentAttribute::new(vec![InlineNode::PlainText(Plain { content: "real", location: Location::default(), escaped: false })])))]
+    #[values(None, Some(ContentAttribute::default()), Some(ContentAttribute::new(vec![InlineNode::PlainText(Plain::new("real", Location::default()))])))]
     alt: Option<ContentAttribute<'static>>,
 ) -> Result<(), Error> {
     let mut metadata = BlockMetadata::new();

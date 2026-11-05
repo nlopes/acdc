@@ -473,10 +473,10 @@ mod tests {
     };
 
     fn create_verbatim_inlines(content: &str) -> Vec<InlineNode<'_>> {
-        vec![InlineNode::VerbatimText(Verbatim {
+        vec![InlineNode::VerbatimText(Verbatim::new(
             content,
-            location: Location::default(),
-        })]
+            Location::default(),
+        ))]
     }
 
     fn create_callout_ref(number: usize) -> InlineNode<'static> {
@@ -503,20 +503,11 @@ mod tests {
     #[test]
     fn test_extract_text_and_callouts_with_callouts() {
         let inlines = [
-            InlineNode::VerbatimText(Verbatim {
-                content: "let x = 1; ",
-                location: Location::default(),
-            }),
+            InlineNode::VerbatimText(Verbatim::new("let x = 1; ", Location::default())),
             create_callout_ref(1),
-            InlineNode::VerbatimText(Verbatim {
-                content: "\nlet y = 2; ",
-                location: Location::default(),
-            }),
+            InlineNode::VerbatimText(Verbatim::new("\nlet y = 2; ", Location::default())),
             create_callout_ref(2),
-            InlineNode::VerbatimText(Verbatim {
-                content: "\n",
-                location: Location::default(),
-            }),
+            InlineNode::VerbatimText(Verbatim::new("\n", Location::default())),
         ];
 
         let (text, callouts) = extract_text_and_callouts(
@@ -532,24 +523,15 @@ mod tests {
     #[test]
     fn extraction_preserves_prepared_text_and_unicode_callout_offsets() {
         let inlines = [
-            InlineNode::PlainText(Plain {
-                content: "été -- ",
-                location: Location::default(),
-                escaped: false,
-            }),
+            InlineNode::PlainText(Plain::new("été -- ", Location::default())),
             InlineNode::RawText(Raw {
                 metadata: None,
                 content: "(C)",
                 location: Location::default(),
                 subs: vec![Substitution::Replacements],
             }),
-            InlineNode::VerbatimText(Verbatim {
-                content: "日本語",
-                location: Location::default(),
-            }),
-            InlineNode::LineBreak(LineBreak {
-                location: Location::default(),
-            }),
+            InlineNode::VerbatimText(Verbatim::new("日本語", Location::default())),
+            InlineNode::LineBreak(LineBreak::new(Location::default())),
             create_callout_ref(7),
             create_callout_ref(2),
         ];
@@ -579,10 +561,7 @@ mod tests {
                 return Err("expected three inline fragments".into());
             };
             let prepared = [
-                InlineNode::VerbatimText(Verbatim {
-                    content: " ",
-                    location: Location::default(),
-                }),
+                InlineNode::VerbatimText(Verbatim::new(" ", Location::default())),
                 term.clone(),
                 tail.clone(),
             ];
@@ -602,15 +581,9 @@ mod tests {
     #[allow(clippy::expect_used)]
     fn test_highlight_code_with_callouts() -> Result<(), Error> {
         let inlines = [
-            InlineNode::VerbatimText(Verbatim {
-                content: "let x = 1; ",
-                location: Location::default(),
-            }),
+            InlineNode::VerbatimText(Verbatim::new("let x = 1; ", Location::default())),
             create_callout_ref(1),
-            InlineNode::VerbatimText(Verbatim {
-                content: "\nlet y = 2; ",
-                location: Location::default(),
-            }),
+            InlineNode::VerbatimText(Verbatim::new("\nlet y = 2; ", Location::default())),
             create_callout_ref(2),
         ];
 
@@ -749,15 +722,9 @@ mod tests {
     #[allow(clippy::expect_used)]
     fn test_highlight_class_mode_with_callouts() -> Result<(), Error> {
         let inlines = [
-            InlineNode::VerbatimText(Verbatim {
-                content: "let x = 1; ",
-                location: Location::default(),
-            }),
+            InlineNode::VerbatimText(Verbatim::new("let x = 1; ", Location::default())),
             create_callout_ref(1),
-            InlineNode::VerbatimText(Verbatim {
-                content: "\nlet y = 2; ",
-                location: Location::default(),
-            }),
+            InlineNode::VerbatimText(Verbatim::new("\nlet y = 2; ", Location::default())),
             create_callout_ref(2),
         ];
 

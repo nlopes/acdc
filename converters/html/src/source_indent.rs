@@ -209,10 +209,10 @@ impl IndentedSource {
                 let text = text.as_deref()?;
                 crate::source::replace_text(node, text).or_else(|| {
                     (!text.is_empty()).then(|| {
-                        InlineNode::VerbatimText(Verbatim {
-                            content: text,
-                            location: Location::from(node.location()),
-                        })
+                        InlineNode::VerbatimText(Verbatim::new(
+                            text,
+                            Location::from(node.location()),
+                        ))
                     })
                 })
             })
@@ -298,10 +298,7 @@ mod tests {
     fn normalization_retains_relative_indent_across_node_boundaries()
     -> Result<(), Box<dyn std::error::Error>> {
         let inlines = ["  ", "  α\n    ", "\n      β\n    γ"].map(|content| {
-            InlineNode::VerbatimText(Verbatim {
-                content,
-                location: acdc_parser::Location::default(),
-            })
+            InlineNode::VerbatimText(Verbatim::new(content, acdc_parser::Location::default()))
         });
         for (width, expected) in [(0, "α\n\n  β\nγ"), (2, "  α\n\n    β\n  γ")] {
             let normalized = IndentedSource::new(inlines.iter().map(InlineRef::from), Some(width))
@@ -322,10 +319,10 @@ mod tests {
 
     #[test]
     fn unchanged_indentation_needs_no_replacement_buffer() {
-        let inlines = [InlineNode::VerbatimText(Verbatim {
-            content: "  first\n    second",
-            location: acdc_parser::Location::default(),
-        })];
+        let inlines = [InlineNode::VerbatimText(Verbatim::new(
+            "  first\n    second",
+            acdc_parser::Location::default(),
+        ))];
         assert!(IndentedSource::new(inlines.iter().map(InlineRef::from), None).is_none());
         assert!(IndentedSource::new(inlines.iter().map(InlineRef::from), Some(2)).is_none());
     }
@@ -339,11 +336,7 @@ mod tests {
         location.start.file = Some(vec!["outer.adoc".into(), "selected.adoc".into()].into());
         location.end.file = Some(vec!["outer.adoc".into(), "selected.adoc".into()].into());
         let inlines = [
-            InlineNode::PlainText(Plain {
-                content: "  ",
-                location: location.clone(),
-                escaped: true,
-            }),
+            InlineNode::PlainText(Plain::new("  ", location.clone()).with_escaped(true)),
             InlineNode::RawText(Raw {
                 metadata: None,
                 content: "  α\n    ",
@@ -354,10 +347,7 @@ mod tests {
                     Substitution::Replacements,
                 ],
             }),
-            InlineNode::VerbatimText(Verbatim {
-                content: "\n      β\n    γ",
-                location,
-            }),
+            InlineNode::VerbatimText(Verbatim::new("\n      β\n    γ", location)),
         ];
         for (width, expected) in [(0, "α\n\n  β\nγ"), (2, "  α\n\n    β\n  γ")] {
             let normalized = IndentedSource::new(inlines.iter().map(InlineRef::from), Some(width))
@@ -410,15 +400,9 @@ mod tests {
             span.location.end.file = Some(vec!["selected.adoc".into()].into());
             let original = InlineNode::BoldText(span);
             let inlines = [
-                InlineNode::VerbatimText(Verbatim {
-                    content: "\t",
-                    location: Location::default(),
-                }),
+                InlineNode::VerbatimText(Verbatim::new("\t", Location::default())),
                 original.clone(),
-                InlineNode::VerbatimText(Verbatim {
-                    content: "\n  after",
-                    location: Location::default(),
-                }),
+                InlineNode::VerbatimText(Verbatim::new("\n  after", Location::default())),
             ];
             let normalized = IndentedSource::new(inlines.iter().map(InlineRef::from), Some(2))
                 .ok_or("expected indentation to change")?;

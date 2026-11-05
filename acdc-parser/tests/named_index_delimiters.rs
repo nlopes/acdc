@@ -89,7 +89,7 @@ fn named_index_delimiters_preserve_complete_children_and_source_spans(
     else {
         return Err(format!("expected complete index term: {:?}", parsed.inlines()).into());
     };
-    assert_eq!(tail.content, " ω");
+    assert_eq!(acdc_parser::ast::PlainRef::from(tail).text(), " ω");
     assert_eq!(
         &source[term.location.absolute_start..=term.location.absolute_end],
         format!("{outer}[{label}]")
@@ -97,7 +97,7 @@ fn named_index_delimiters_preserve_complete_children_and_source_spans(
     let [InlineNode::PlainText(_), node, InlineNode::PlainText(after)] = term.term() else {
         return Err(format!("expected complete child macro: {:?}", term.term()).into());
     };
-    assert_eq!(after.content, " after");
+    assert_eq!(acdc_parser::ast::PlainRef::from(after).text(), " after");
     let location = node.location();
     assert_eq!(
         &source[location.absolute_start..=location.absolute_end],

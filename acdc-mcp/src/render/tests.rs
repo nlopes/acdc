@@ -25,10 +25,10 @@ fn media_and_ui_content_use_the_current_parser_model() -> Result<(), acdc_parser
 
 #[test]
 fn resolved_symbols_retain_text_in_both_formats() {
-    let content = [acdc_parser::InlineNode::Symbol(acdc_parser::Symbol {
-        kind: acdc_parser::SymbolKind::Copyright,
-        location: acdc_parser::Location::default(),
-    })];
+    let content = [acdc_parser::InlineNode::Symbol(acdc_parser::Symbol::new(
+        acdc_parser::SymbolKind::Copyright,
+        acdc_parser::Location::default(),
+    ))];
     for format in [Format::Plain, Format::Asciidoc] {
         assert_eq!(
             super::inline_text(

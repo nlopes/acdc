@@ -80,11 +80,7 @@ fn optional_title_copies_keep_absence_separate_from_empty() {
 }
 
 fn text(source: &str) -> InlineNode<'_> {
-    InlineNode::PlainText(Plain {
-        content: source,
-        location: Location::default(),
-        escaped: true,
-    })
+    InlineNode::PlainText(Plain::new(source, Location::default()).with_escaped(true))
 }
 
 #[test]

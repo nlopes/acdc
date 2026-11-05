@@ -60,11 +60,9 @@ fn direct_attribute_reads_do_not_allocate_for_owned_text_or_content()
     )?;
     image.metadata.roles = vec!["one", "two"];
     image.options_mut().extend(["first", "second"]);
-    image.alt = Some(ContentAttribute::new(vec![InlineNode::PlainText(Plain {
-        content: "Bird",
-        location: Location::default(),
-        escaped: false,
-    })]));
+    image.alt = Some(ContentAttribute::new(vec![InlineNode::PlainText(
+        Plain::new("Bird", Location::default()),
+    )]));
     image.tooltip = Some(ContentAttribute::default());
     let region = Region::new(ALLOCATOR);
     let attributes = InlineImageRef::from(&image).attributes();
@@ -96,11 +94,10 @@ fn span_attribute_reads_split_role_text_without_allocating() {
         role: Some("one\ttwo\u{2003}one"),
         id: Some(acdc_parser::ElementId::new("span", Location::default())),
         form: Form::Unconstrained,
-        content: vec![InlineNode::PlainText(Plain {
-            content: "content",
-            location: Location::default(),
-            escaped: false,
-        })],
+        content: vec![InlineNode::PlainText(Plain::new(
+            "content",
+            Location::default(),
+        ))],
         location: Location::default(),
     };
     let region = Region::new(ALLOCATOR);

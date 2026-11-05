@@ -241,11 +241,7 @@ fn typography_and_breaks_keep_semantic_kinds_and_authored_locations(
 #[test]
 fn owner_reads_keep_distinct_text_policies_and_ordered_substitutions() {
     let location = Location::default();
-    let plain = Plain {
-        content: "*x*",
-        location: location.clone(),
-        escaped: true,
-    };
+    let plain = Plain::new("*x*", location.clone()).with_escaped(true);
     let raw = Raw {
         metadata: None,
         content: "*x*",
@@ -256,10 +252,7 @@ fn owner_reads_keep_distinct_text_policies_and_ordered_substitutions() {
             Substitution::SpecialChars,
         ],
     };
-    let verbatim = Verbatim {
-        content: "  *x*\n",
-        location: location.clone(),
-    };
+    let verbatim = Verbatim::new("  *x*\n", location.clone());
     assert!(PlainRef::from(&plain).is_escaped());
     assert_eq!(PlainRef::from(&plain).text(), RawRef::from(&raw).text());
     let substitutions = {
@@ -268,19 +261,17 @@ fn owner_reads_keep_distinct_text_policies_and_ordered_substitutions() {
     };
     assert_eq!(substitutions.collect::<Vec<_>>(), raw.subs);
     assert_eq!(VerbatimRef::from(&verbatim).text(), "  *x*\n");
-    let apostrophe = StandaloneCurvedApostrophe {
-        location: location.clone(),
-    };
-    let line_break = LineBreak { location };
+    let apostrophe = StandaloneCurvedApostrophe::new(location.clone());
+    let line_break = LineBreak::new(location.clone());
     assert_eq!(
         StandaloneCurvedApostropheRef::from(&apostrophe)
             .location()
             .absolute_start(),
-        apostrophe.location.absolute_start
+        location.absolute_start
     );
     assert_eq!(
         LineBreakRef::from(&line_break).location().absolute_start(),
-        line_break.location.absolute_start
+        location.absolute_start
     );
 }
 

@@ -221,11 +221,10 @@ fn admonition_owned_children_preserve_lifetimes_and_metadata_failures_are_atomic
 -> Result<(), Error> {
     let text = String::from("Borrowed body");
     let body = Paragraph::new(
-        vec![acdc_parser::InlineNode::PlainText(acdc_parser::Plain {
-            content: &text,
-            escaped: false,
-            location: Location::default(),
-        })],
+        vec![acdc_parser::InlineNode::PlainText(acdc_parser::Plain::new(
+            &text,
+            Location::default(),
+        ))],
         Location::default(),
     );
     let mut original =

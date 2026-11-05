@@ -21,3 +21,10 @@ impl<'doc> From<&'doc Stem<'doc>> for StemRef<'doc> {
         Self::new(owner)
     }
 }
+
+/// Copy the protected formula and its source span without interpreting it.
+impl<'doc> From<StemRef<'doc>> for Stem<'doc> {
+    fn from(value: StemRef<'doc>) -> Self {
+        value.node.clone()
+    }
+}

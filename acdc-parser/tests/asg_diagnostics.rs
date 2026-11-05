@@ -58,10 +58,7 @@ fn unknown_inline_source_does_not_borrow_the_parents_coordinates() {
     document.set_location(location.clone());
     let mut paragraph = Paragraph::new(
         vec![acdc_parser::InlineNode::VerbatimText(
-            acdc_parser::Verbatim {
-                content: "code",
-                location: Location::default(),
-            },
+            acdc_parser::Verbatim::new("code", Location::default()),
         )],
         location,
     );

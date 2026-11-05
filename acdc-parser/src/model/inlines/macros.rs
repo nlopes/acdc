@@ -396,9 +396,36 @@ impl Autolink<'_> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Stem<'a> {
-    pub content: &'a str,
-    pub notation: StemNotation,
-    pub location: Location,
+    pub(crate) content: &'a str,
+    pub(crate) notation: StemNotation,
+    pub(crate) location: Location,
+}
+
+impl<'a> Stem<'a> {
+    /// Construct a protected formula without interpreting its text.
+    #[must_use]
+    pub fn new(content: &'a str, notation: StemNotation, location: Location) -> Self {
+        Self {
+            content,
+            notation,
+            location,
+        }
+    }
+
+    /// Replace formula text without changing its notation or source span.
+    pub fn replace_text(&mut self, content: &'a str) -> &'a str {
+        std::mem::replace(&mut self.content, content)
+    }
+
+    /// Replace the notation without translating the formula text.
+    pub fn replace_notation(&mut self, notation: StemNotation) -> StemNotation {
+        std::mem::replace(&mut self.notation, notation)
+    }
+
+    /// Replace this node's recorded source span.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
 }
 
 /// The kind of index term, encoding both visibility and structure.

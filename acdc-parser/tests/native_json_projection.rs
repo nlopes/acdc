@@ -83,9 +83,7 @@ fn macros_have_one_projection_at_each_serialization_boundary(
 
 #[test]
 fn line_break_has_the_same_projection_as_its_inline_node() -> Result<(), TestError> {
-    let line_break = acdc_parser::LineBreak {
-        location: acdc_parser::Location::default(),
-    };
+    let line_break = acdc_parser::LineBreak::new(acdc_parser::Location::default());
     let node = InlineNode::LineBreak(line_break.clone());
     assert_eq!(
         serde_json::to_value(&line_break)?,

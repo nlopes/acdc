@@ -13,16 +13,14 @@ pub(crate) fn replace_text<'inline>(
     content: &'inline str,
 ) -> Option<InlineNode<'inline>> {
     if let InlineKind::Plain(plain) = node.kind() {
-        Some(InlineNode::PlainText(Plain {
-            content,
-            location: Location::from(node.location()),
-            escaped: plain.is_escaped(),
-        }))
+        Some(InlineNode::PlainText(
+            Plain::new(content, Location::from(node.location())).with_escaped(plain.is_escaped()),
+        ))
     } else if let InlineKind::Verbatim(_) = node.kind() {
-        Some(InlineNode::VerbatimText(Verbatim {
+        Some(InlineNode::VerbatimText(Verbatim::new(
             content,
-            location: Location::from(node.location()),
-        }))
+            Location::from(node.location()),
+        )))
     } else if let InlineKind::Raw(raw) = node.kind() {
         Some(InlineNode::RawText(Raw {
             content,
@@ -82,29 +80,17 @@ mod tests {
         for (before, after, edited) in [("<!--", "-->", true), ("text", "tail", false)] {
             let paragraph = Paragraph::new(
                 vec![
-                    InlineNode::PlainText(Plain {
-                        content: "",
-                        location: Location::default(),
-                        escaped: true,
-                    }),
-                    InlineNode::VerbatimText(Verbatim {
-                        content: before,
-                        location: Location::default(),
-                    }),
+                    InlineNode::PlainText(Plain::new("", Location::default()).with_escaped(true)),
+                    InlineNode::VerbatimText(Verbatim::new(before, Location::default())),
                     InlineNode::CalloutRef(CalloutRef {
                         kind: CalloutRefKind::Explicit,
                         number: 1,
                         location: Location::default(),
                     }),
-                    InlineNode::PlainText(Plain {
-                        content: after,
-                        location: Location::default(),
-                        escaped: true,
-                    }),
-                    InlineNode::VerbatimText(Verbatim {
-                        content: "",
-                        location: Location::default(),
-                    }),
+                    InlineNode::PlainText(
+                        Plain::new(after, Location::default()).with_escaped(true),
+                    ),
+                    InlineNode::VerbatimText(Verbatim::new("", Location::default())),
                     InlineNode::RawText(Raw {
                         metadata: None,
                         content: "",

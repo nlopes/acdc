@@ -35,15 +35,8 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
         let options = RenderOptions::default();
         {
             let text = String::from("temporary <text>");
-            let plain = Plain {
-                content: &text,
-                escaped: true,
-                location: Location::default(),
-            };
-            let verbatim = Verbatim {
-                content: &text,
-                location: Location::default(),
-            };
+            let plain = Plain::new(&text, Location::default()).with_escaped(true);
+            let verbatim = Verbatim::new(&text, Location::default());
             visitor.render_plain((&plain).into(), &options, &[Substitution::Replacements])?;
             visitor.render_verbatim((&verbatim).into(), &[])?;
             let callout = CalloutRef::explicit(3, Location::default());
@@ -381,10 +374,7 @@ fn resolved_symbols_keep_html_encoding_without_reinterpreting_source() -> Result
             (SymbolKind::RightDoubleArrow, "&#8658;"),
             (SymbolKind::LeftDoubleArrow, "&#8656;"),
         ] {
-            let node = InlineNode::Symbol(Symbol {
-                kind,
-                location: Location::default(),
-            });
+            let node = InlineNode::Symbol(Symbol::new(kind, Location::default()));
             expected_output.push_str(expected);
             visitor.render_inline_node_content(&mut traversal, (&node).into(), &options, &[])?;
         }
@@ -410,11 +400,7 @@ fn escaped_text_keeps_html_character_escaping() -> Result<(), TestError> {
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
-        let plain = Plain {
-            content: r"Keep (C) \=> <tag> & raw",
-            escaped: true,
-            location: Location::default(),
-        };
+        let plain = Plain::new(r"Keep (C) \=> <tag> & raw", Location::default()).with_escaped(true);
         visitor.render_plain(
             (&plain).into(),
             &RenderOptions::default(),

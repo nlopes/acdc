@@ -869,20 +869,14 @@ mod tests {
     use super::{InlineTextTransform, inlines_to_string};
 
     fn plain(content: &str) -> InlineNode<'_> {
-        InlineNode::PlainText(Plain {
-            content,
-            location: Location::default(),
-            escaped: false,
-        })
+        InlineNode::PlainText(Plain::new(content, Location::default()))
     }
 
     #[test]
     fn inlines_to_string_collapses_line_break_to_space() {
         let inlines = vec![
             plain("first"),
-            InlineNode::LineBreak(LineBreak {
-                location: Location::default(),
-            }),
+            InlineNode::LineBreak(LineBreak::new(Location::default())),
             plain("second"),
         ];
 
@@ -893,9 +887,7 @@ mod tests {
     fn transform_uses_requested_line_break() {
         let inlines = vec![
             plain("first"),
-            InlineNode::LineBreak(LineBreak {
-                location: Location::default(),
-            }),
+            InlineNode::LineBreak(LineBreak::new(Location::default())),
             plain("second"),
         ];
 

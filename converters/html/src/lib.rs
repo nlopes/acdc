@@ -974,10 +974,10 @@ fn code_nodes_with_text<'inline>(
         .zip(text)
         .map(|(node, text)| {
             text.as_ref().map(|text| {
-                InlineNode::VerbatimText(acdc_parser::Verbatim {
-                    content: text,
-                    location: acdc_parser::Location::from(node.location()),
-                })
+                InlineNode::VerbatimText(acdc_parser::Verbatim::new(
+                    text,
+                    acdc_parser::Location::from(node.location()),
+                ))
             })
         })
         .collect()

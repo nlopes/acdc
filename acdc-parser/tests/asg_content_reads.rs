@@ -134,13 +134,7 @@ fn caller_built_content_exports_literal_text_without_reparsing() -> Result<(), E
     for text in [None, Some("*literal* {name} α")] {
         let content = ContentAttribute::new(
             text.into_iter()
-                .map(|content| {
-                    InlineNode::PlainText(Plain {
-                        content,
-                        escaped: false,
-                        location: Location::default(),
-                    })
-                })
+                .map(|content| InlineNode::PlainText(Plain::new(content, Location::default())))
                 .collect(),
         );
         let before = serde_json::to_value(&content)?;

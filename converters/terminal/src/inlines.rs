@@ -1009,11 +1009,7 @@ mod tests {
 
     /// Create simple plain text inline node for testing
     fn create_plain_text(content: &str) -> InlineNode<'_> {
-        InlineNode::PlainText(Plain {
-            content,
-            location: Location::default(),
-            escaped: false,
-        })
+        InlineNode::PlainText(Plain::new(content, Location::default()))
     }
 
     /// Helper to render a paragraph with inline nodes and return the output
@@ -1289,9 +1285,9 @@ mod tests {
 
     #[test]
     fn test_standalone_curved_apostrophe() -> Result<(), Error> {
-        let apostrophe = InlineNode::StandaloneCurvedApostrophe(StandaloneCurvedApostrophe {
-            location: Location::default(),
-        });
+        let apostrophe = InlineNode::StandaloneCurvedApostrophe(StandaloneCurvedApostrophe::new(
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![apostrophe])?;
         assert!(
@@ -1337,11 +1333,10 @@ mod tests {
             ["Ctrl", "C"]
                 .into_iter()
                 .map(|content| {
-                    acdc_parser::ContentAttribute::new(vec![InlineNode::PlainText(Plain {
+                    acdc_parser::ContentAttribute::new(vec![InlineNode::PlainText(Plain::new(
                         content,
-                        location: Location::default(),
-                        escaped: false,
-                    })])
+                        Location::default(),
+                    ))])
                 })
                 .collect(),
             Location::default(),
@@ -1393,9 +1388,7 @@ mod tests {
     fn test_line_break() -> Result<(), Error> {
         let output = render_paragraph(vec![
             create_plain_text("First line"),
-            InlineNode::LineBreak(LineBreak {
-                location: Location::default(),
-            }),
+            InlineNode::LineBreak(LineBreak::new(Location::default())),
             create_plain_text("Second line"),
         ])?;
 

@@ -314,6 +314,14 @@ iterate separate content values in order; a menu's `target()` is its menu name.
 These labels are not attribute lists. Inline formulas expose protected `text()`
 and resolved `notation()`, using the same methods as formula blocks.
 
+Text, symbols, line breaks, apostrophes, and formulas have private storage.
+Use their typed readers and `From` to copy a selected value. Construct ordinary
+and verbatim text with `Plain::new` and `Verbatim::new`; ordinary text defaults
+to unescaped. `replace_text` changes prepared text without parsing it and keeps
+the stored escape decision. Formula notation changes do not translate its text.
+`StemContent` provides `text()` and `notation()` for caller-owned block formulas.
+These edits retain source lifetimes and do not update document registrations.
+
 Use `InlineRef::as_hyperlink()` to read link, URL, mailto, and autolink targets,
 labels, and locations through `HyperlinkRef`. Match its concrete variant for
 metadata and display settings. Empty label content selects automatic display;

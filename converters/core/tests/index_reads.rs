@@ -90,11 +90,7 @@ fn discovery_descends_only_into_the_supported_display_content() -> Result<(), Er
 }
 
 fn text(value: &'static str) -> InlineNode<'static> {
-    InlineNode::PlainText(Plain {
-        content: value,
-        escaped: false,
-        location: Location::default(),
-    })
+    InlineNode::PlainText(Plain::new(value, Location::default()))
 }
 
 fn term(visible: bool, label: Vec<InlineNode<'static>>) -> IndexTerm<'static> {

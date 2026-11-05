@@ -533,11 +533,10 @@ fn renumber_captions_restores_numbering_after_a_mutation() -> Result<(), Error> 
     let Some(Block::Paragraph(paragraph)) = blocks.last_mut() else {
         return Err(format!("expected the untitled paragraph, got {blocks:?}").into());
     };
-    paragraph.set_title(Title::new(vec![InlineNode::PlainText(Plain {
-        content: "Added later",
-        location: Location::default(),
-        escaped: false,
-    })]));
+    paragraph.set_title(Title::new(vec![InlineNode::PlainText(Plain::new(
+        "Added later",
+        Location::default(),
+    ))]));
     document.set_blocks(blocks);
     assert_eq!(ordinals(&document), vec![Some(1), Some(2), None]);
     document.renumber_captions();
@@ -915,11 +914,10 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
     };
     // Parsing keeps headers inline, but callers can supply captioned header blocks.
     paragraph.set_title(
-        vec![InlineNode::PlainText(Plain {
-            content: "Caller title",
-            location: Location::default(),
-            escaped: false,
-        })]
+        vec![InlineNode::PlainText(Plain::new(
+            "Caller title",
+            Location::default(),
+        ))]
         .into(),
     );
     let mut metadata = paragraph.clone_metadata();

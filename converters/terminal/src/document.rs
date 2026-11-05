@@ -148,11 +148,10 @@ mod tests {
     #[test]
     fn test_render_document_with_header() -> Result<(), Error> {
         let mut doc = Document::default();
-        let title = Title::new(vec![InlineNode::PlainText(Plain {
-            content: "Title",
-            location: Location::default(),
-            escaped: false,
-        })]);
+        let title = Title::new(vec![InlineNode::PlainText(Plain::new(
+            "Title",
+            Location::default(),
+        ))]);
         doc.set_header(Some(Header::new(title, Location::default()).with_authors(
             vec![
             Author::from_parts("John", Some("M"), "Doe", "JMD").with_email("johndoe@example.com"),
@@ -180,26 +179,23 @@ mod tests {
         let mut doc = Document::default();
         doc.set_blocks(vec![
             Block::Paragraph(Paragraph::new(
-                vec![InlineNode::PlainText(Plain {
-                    content: "Hello, world!",
-                    location: Location::default(),
-                    escaped: false,
-                })],
+                vec![InlineNode::PlainText(Plain::new(
+                    "Hello, world!",
+                    Location::default(),
+                ))],
                 Location::default(),
             )),
             Block::Section(Section::new(
-                Title::new(vec![InlineNode::PlainText(Plain {
-                    content: "Section",
-                    location: Location::default(),
-                    escaped: false,
-                })]),
+                Title::new(vec![InlineNode::PlainText(Plain::new(
+                    "Section",
+                    Location::default(),
+                ))]),
                 1,
                 vec![Block::Paragraph(Paragraph::new(
-                    vec![InlineNode::PlainText(Plain {
-                        content: "Hello, section!",
-                        location: Location::default(),
-                        escaped: false,
-                    })],
+                    vec![InlineNode::PlainText(Plain::new(
+                        "Hello, section!",
+                        Location::default(),
+                    ))],
                     Location::default(),
                 ))],
                 Location::default(),
