@@ -537,14 +537,14 @@ fn selected_index_copies_keep_registered_labels_after_display_edits(
             );
             if displayed != catalog {
                 snapshots += 1;
-                copied.replace_kind(IndexTermKind::Flow(vec![InlineNode::PlainText(
-                    Plain::new("Edited", Location::default()),
-                )]));
-                assert_eq!(
-                    ContentAttribute::from(IndexTermRef::from(&copied).catalog().term()),
-                    catalog
-                );
             }
+            copied.replace_kind(IndexTermKind::Flow(vec![InlineNode::PlainText(
+                Plain::new("Edited", Location::default()),
+            )]));
+            assert_eq!(
+                ContentAttribute::from(IndexTermRef::from(&copied).catalog().term()),
+                catalog
+            );
         }
     }
     assert!(snapshots > 0);

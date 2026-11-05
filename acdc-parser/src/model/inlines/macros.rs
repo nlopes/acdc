@@ -867,7 +867,8 @@ pub struct IndexTerm<'a> {
 }
 
 impl<'a> IndexTerm<'a> {
-    /// Construct an index occurrence without controls or registration snapshots.
+    /// Construct an occurrence from prepared labels, which also supply its initial
+    /// catalog entry. No parsing or substitutions are applied.
     #[must_use]
     pub fn new(kind: IndexTermKind<'a>, location: Location) -> Self {
         Self {
@@ -978,7 +979,12 @@ impl<'a> IndexTerm<'a> {
 
     /// Replace prepared visible or hierarchical content, retaining registered labels.
     pub fn replace_kind(&mut self, kind: IndexTermKind<'a>) -> IndexTermKind<'a> {
-        std::mem::replace(&mut self.kind, kind)
+        if self.kind != kind {
+            self.preserve_catalog();
+        }
+        let previous = std::mem::replace(&mut self.kind, kind);
+        self.discard_redundant_catalog();
+        previous
     }
 
     /// Replace the occurrence relationship, keeping its registration snapshot.
@@ -986,12 +992,36 @@ impl<'a> IndexTerm<'a> {
         &mut self,
         relationship: Option<IndexTermRelationship<'a>>,
     ) -> Option<IndexTermRelationship<'a>> {
-        std::mem::replace(&mut self.relationship, relationship)
+        if self.relationship != relationship {
+            self.preserve_catalog();
+        }
+        let previous = std::mem::replace(&mut self.relationship, relationship);
+        self.discard_redundant_catalog();
+        previous
     }
 
-    /// Transfer the occurrence relationship, leaving it absent.
+    /// Transfer the occurrence relationship, keeping its registration snapshot.
     pub fn take_relationship(&mut self) -> Option<IndexTermRelationship<'a>> {
-        self.relationship.take()
+        self.replace_relationship(None)
+    }
+
+    fn preserve_catalog(&mut self) {
+        if self.catalog.is_none() {
+            self.catalog = Some(Box::new(self.clone()));
+        }
+    }
+
+    fn discard_redundant_catalog(&mut self) {
+        // Pending source substitutions can still make equal labels diverge.
+        if self.catalog_substitutions.is_none()
+            && self.catalog.as_ref().is_some_and(|catalog| {
+                catalog.kind == self.kind
+                    && catalog.relationship == self.relationship
+                    && catalog.location == self.location
+            })
+        {
+            self.catalog = None;
+        }
     }
 
     /// Replace the occurrence span, keeping label and ID locations separate.
@@ -1276,6 +1306,10 @@ mod ownership_tests {
         assert_eq!(copied.catalog_substitutions, Some(plan));
         copied.replace_kind(kind("Edited"));
         copied.replace_relationship(Some(IndexTermRelationship::See { target: Vec::new() }));
+        assert_eq!(copied.catalog, node.catalog);
+        assert_eq!(copied.catalog_substitutions, Some(plan));
+        copied.replace_relationship(None);
+        copied.replace_kind(kind("Registered"));
         assert_eq!(copied.catalog, node.catalog);
         assert_eq!(copied.catalog_substitutions, Some(plan));
     }

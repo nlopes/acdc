@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Editing an index term's display or see/see-also relationship retains its
+  registered catalog labels, including labels that initially matched the
+  display. Restoring the original values also restores the original native JSON
+  representation.
+
 - Owned documents can call `rebuild_captions()` to repair caption numbers and
   reference caption snapshots after edits. Stored custom, empty and disabled
   prefixes are preserved. Missing declaration context returns an error without
