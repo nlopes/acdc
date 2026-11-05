@@ -489,18 +489,55 @@ impl XrefStyle {
 }
 
 /// An `Autolink` represents an inline autolink in a document.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Autolink, Location, Source};
+/// let mut link = Autolink::new(Source::Name("target"), Location::default());
+/// link.bracketed = true;
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Autolink<'a> {
-    pub url: Source<'a>,
+    pub(crate) url: Source<'a>,
     /// Whether the autolink was written with angle brackets (e.g., `<user@example.com>`).
     /// Email autolinks retain these brackets in their visible text.
-    pub bracketed: bool,
-    pub location: Location,
+    pub(crate) bracketed: bool,
+    pub(crate) location: Location,
     pub(crate) hide_uri_scheme: bool,
 }
 
-impl Autolink<'_> {
+impl<'a> Autolink<'a> {
+    /// Construct a bare autolink from a prepared destination and source span.
+    #[must_use]
+    pub fn new(target: Source<'a>, location: Location) -> Self {
+        Self {
+            url: target,
+            bracketed: false,
+            location,
+            hide_uri_scheme: false,
+        }
+    }
+
+    /// Replace the destination without parsing, fetching or changing display flags.
+    pub fn replace_target(&mut self, target: Source<'a>) -> Source<'a> {
+        std::mem::replace(&mut self.url, target)
+    }
+
+    /// Set whether the recorded source form used angle brackets.
+    pub fn set_bracketed(&mut self, bracketed: bool) {
+        self.bracketed = bracketed;
+    }
+
+    /// Set the URI display snapshot. Email display always omits `mailto:`.
+    pub fn set_hide_uri_scheme(&mut self, hide: bool) {
+        self.hide_uri_scheme = hide;
+    }
+
+    /// Replace the autolink's recorded source span.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+
     /// Whether fallback display text omits the target's URI scheme.
     #[must_use]
     pub fn hides_uri_scheme(&self) -> bool {

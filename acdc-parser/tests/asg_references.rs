@@ -196,8 +196,8 @@ fn mailto_queries_keep_unrelated_headers_and_encode_values() -> Result<(), Error
         );
     }
     let mut mail = acdc_parser::Mailto::new(Source::Name("a@example.org"), Location::default());
-    mail.subject = Some("Subject");
-    mail.body = Some("First\nsecond\rthird\r\nfourth");
+    mail.replace_subject(Some("Subject"));
+    mail.replace_body(Some("First\nsecond\rthird\r\nfourth"));
     let value = asg::inlines(ContentRef::from(&ContentAttribute::new(vec![
         InlineNode::Macro(InlineMacro::Mailto(Box::new(mail))),
     ])))?;

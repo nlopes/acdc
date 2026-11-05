@@ -35,8 +35,10 @@ fn link_attributes_keep_empty_nontext_and_quoted_values_after_owner_edits() -> R
             expected
         );
 
-        link.metadata.id = Some(ElementId::new("'explicit'", Location::default()));
-        link.metadata.roles = vec!["'first", "second'"];
+        let mut metadata = link.take_metadata();
+        metadata.id = Some(ElementId::new("'explicit'", Location::default()));
+        metadata.roles = vec!["'first", "second'"];
+        link.set_metadata(metadata);
         assert_eq!(
             link_id_attr(LinkRef::from(&link).id()),
             " id=\"'explicit'\""
@@ -45,13 +47,17 @@ fn link_attributes_keep_empty_nontext_and_quoted_values_after_owner_edits() -> R
             link_class_attr(LinkRef::from(&link).roles(), true),
             " class=\"bare 'first second'\""
         );
-        link.metadata.roles = vec!["duplicate", "duplicate"];
+        let mut metadata = link.take_metadata();
+        metadata.roles = vec!["duplicate", "duplicate"];
+        link.set_metadata(metadata);
         assert_eq!(
             link_class_attr(LinkRef::from(&link).roles(), false),
             " class=\"duplicate duplicate\""
         );
-        link.metadata.roles.clear();
-        link.metadata.id = None;
+        let mut metadata = link.take_metadata();
+        metadata.roles.clear();
+        metadata.id = None;
+        link.set_metadata(metadata);
         assert_eq!(link_id_attr(LinkRef::from(&link).id()), "");
         assert_eq!(link_class_attr(LinkRef::from(&link).roles(), false), "");
     }
@@ -158,7 +164,7 @@ fn hyperlink_options_control_rel_without_changing_window_fallbacks() -> Result<(
         if let Some(window) = window {
             link.set_attribute("window".into(), window.into())?;
         }
-        *link.options_mut() = options;
+        link.replace_options(options);
         assert_eq!(
             link_control_attributes(LinkRef::from(&link).attributes()),
             expected

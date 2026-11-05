@@ -14,15 +14,15 @@ fn mail_queries_follow_current_optional_values_and_outlive_them() {
         let subject = String::from("One & two");
         let body = String::from("first\rsecond\nthird\r\nfourth");
         let mut mail = Mailto::new(Source::Name(&target), Location::default());
-        mail.subject = Some(&subject);
-        mail.body = Some(&body);
+        mail.replace_subject(Some(&subject));
+        mail.replace_body(Some(&body));
         let both = mailto_target(MailtoRef::from(&mail));
-        mail.body = Some("");
+        mail.replace_body(Some(""));
         let empty_body = mailto_target(MailtoRef::from(&mail));
-        mail.body = None;
+        mail.replace_body(None);
         let absent_body = mailto_target(MailtoRef::from(&mail));
-        mail.subject = None;
-        mail.body = Some(&body);
+        mail.replace_subject(None);
+        mail.replace_body(Some(&body));
         let absent_subject = mailto_target(MailtoRef::from(&mail));
         (both, empty_body, absent_body, absent_subject)
     };

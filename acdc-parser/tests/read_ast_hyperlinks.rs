@@ -165,9 +165,11 @@ fn dedicated_hyperlink_attributes_cannot_be_shadowed(
             );
             assert!($read::from(&owner).attributes().is_empty());
             owner.set_attribute("custom".into(), "".into())?;
-            owner.tooltip = Some(ContentAttribute::default());
-            owner.metadata.roles.push("one");
-            owner.options_mut().push("first");
+            owner.set_tooltip(Some(ContentAttribute::default()));
+            let mut metadata = owner.take_metadata();
+            metadata.roles.push("one");
+            owner.set_metadata(metadata);
+            owner.push_option("first");
             let read = $read::from(&owner);
             assert!(read.tooltip().ok_or("empty tooltip")?.is_empty());
             assert_eq!(
@@ -220,20 +222,28 @@ fn empty_link_text_keeps_automatic_display_policy() -> Result<(), Error> {
 #[test]
 fn transferring_scalar_controls_preserves_dedicated_metadata() -> Result<(), Error> {
     let mut link = Link::new(Source::Name("guide.adoc"), Location::default());
-    link.metadata.roles.push("resource");
-    link.options_mut().push("nofollow");
-    link.tooltip = Some(ContentAttribute::default());
+    let mut metadata = link.take_metadata();
+    metadata.roles.push("resource");
+    link.set_metadata(metadata);
+    link.push_option("nofollow");
+    link.set_tooltip(Some(ContentAttribute::default()));
     link.set_attribute("old".into(), "discarded".into())?;
     let mut controls = ElementAttributes::default();
     controls.set("window".into(), "reading".into());
     let mut link = link.with_attributes(controls)?;
-    assert!(!link.attributes().contains_key("old"));
+    assert!(!link.clone_attributes().contains_key("old"));
     assert_eq!(LinkRef::from(&link).window(), Some("reading"));
-    assert_eq!(link.metadata.roles, ["resource"]);
-    assert_eq!(link.options(), ["nofollow"]);
-    assert!(link.tooltip.as_ref().ok_or("tooltip")?.is_empty());
+    assert_eq!(link.clone_metadata().roles, ["resource"]);
+    assert_eq!(link.clone().take_options(), ["nofollow"]);
+    assert!(
+        link.clone()
+            .take_tooltip()
+            .as_ref()
+            .ok_or("tooltip")?
+            .is_empty()
+    );
     assert!(link.remove_attribute("window")?.is_some());
     assert!(LinkRef::from(&link).window().is_none());
-    assert_eq!(link.metadata.roles, ["resource"]);
+    assert_eq!(link.clone_metadata().roles, ["resource"]);
     Ok(())
 }

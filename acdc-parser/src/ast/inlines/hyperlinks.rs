@@ -144,6 +144,12 @@ macro_rules! hyperlink_reads {
             }
         }
 
+        impl<'doc> From<$read<'doc>> for $owner<'doc> {
+            fn from(read: $read<'doc>) -> Self {
+                read.node.clone()
+            }
+        }
+
         impl<'doc> From<$read<'doc>> for HyperlinkRef<'doc> {
             fn from(link: $read<'doc>) -> Self {
                 Self::$owner(link)
@@ -216,5 +222,11 @@ impl<'doc> From<&'doc Autolink<'doc>> for AutolinkRef<'doc> {
 impl<'doc> From<AutolinkRef<'doc>> for HyperlinkRef<'doc> {
     fn from(link: AutolinkRef<'doc>) -> Self {
         Self::Autolink(link)
+    }
+}
+
+impl<'doc> From<AutolinkRef<'doc>> for Autolink<'doc> {
+    fn from(read: AutolinkRef<'doc>) -> Self {
+        read.node.clone()
     }
 }

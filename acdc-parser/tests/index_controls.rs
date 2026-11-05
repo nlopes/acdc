@@ -129,11 +129,16 @@ fn named_index_controls_preserve_complete_child_labels() -> Result<(), Error> {
         return Err(format!("expected complete child link: {:?}", term.term()).into());
     };
     assert_eq!(acdc_parser::ast::PlainRef::from(before).text(), "Before ");
-    assert_eq!(text(&link.text)?, "Child");
-    assert_eq!(link.metadata.roles, ["child"]);
+    assert_eq!(text(&link.clone().take_text())?, "Child");
+    assert_eq!(link.clone_metadata().roles, ["child"]);
     assert_eq!(acdc_parser::ast::PlainRef::from(after).text(), " after");
     assert_eq!(
-        &source[link.location.absolute_start..=link.location.absolute_end],
+        &source[acdc_parser::ast::LinkRef::from(link.as_ref())
+            .location()
+            .absolute_start()
+            ..=acdc_parser::ast::LinkRef::from(link.as_ref())
+                .location()
+                .absolute_end()],
         "link:guide.adoc[Child,role=child]"
     );
     Ok(())

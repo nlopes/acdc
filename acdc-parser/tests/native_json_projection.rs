@@ -66,7 +66,9 @@ fn macros_have_one_projection_at_each_serialization_boundary(
     if let InlineMacro::Autolink(autolink) = owner {
         assert_eq!(
             expected.get("bracketed").and_then(Value::as_bool),
-            autolink.bracketed.then_some(true)
+            acdc_parser::ast::AutolinkRef::from(autolink)
+                .is_bracketed()
+                .then_some(true)
         );
     }
     if let InlineMacro::Pass(pass) = owner {

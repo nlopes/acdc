@@ -174,13 +174,15 @@ fn hyperlink_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>> {
         String::from("window").into(),
         String::from("reading").into(),
     )?;
-    link.metadata.roles.push("one");
-    link.options_mut().push("first");
-    link.tooltip = Some(ContentAttribute::default());
+    let mut metadata = link.take_metadata();
+    metadata.roles.push("one");
+    link.set_metadata(metadata);
+    link.push_option("first");
+    link.set_tooltip(Some(ContentAttribute::default()));
     let mut mail =
         acdc_parser::Mailto::new(Source::Name("mailto:a@example.org"), Location::default());
-    mail.subject = Some("Hello & café");
-    mail.body = Some("");
+    mail.replace_subject(Some("Hello & café"));
+    mail.replace_body(Some(""));
     let region = Region::new(ALLOCATOR);
     let link = acdc_parser::ast::LinkRef::from(&link);
     black_box(link.target().kind());

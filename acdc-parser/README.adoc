@@ -343,6 +343,15 @@ written and whether `hide-uri-scheme` was active. Mail subject/body values stay
 unencoded until conversion. Xrefs remain separate because they need reference
 resolution.
 
+Link, URL, and email owners provide prepared label, tooltip, identity, option,
+and scalar-control edits with the same checked boundary as images and icons.
+Read through their typed handles; use `From` for selected copies. Targets and
+mail subject/body transfers keep their source lifetimes and original text.
+Changing a target keeps the captured URI display setting until you change it
+explicitly. Autolinks have target, source-form, and display-setting edits;
+they have no attribute list. These edits do not parse labels, encode queries,
+fetch targets, or update document catalogs.
+
 Footnotes expose `id()`, `number()`, and the `content()` retained on each
 occurrence. References, including repeated definitions, have empty content.
 `document().footnotes()` reads the registered definitions separately, in

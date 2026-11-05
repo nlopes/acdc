@@ -31,9 +31,9 @@ fn visit_index_terms<E>(
                     InlineNode::SuperscriptText(mut span) => Some(span.take_content()),
                     InlineNode::CurvedQuotationText(mut span) => Some(span.take_content()),
                     InlineNode::CurvedApostropheText(mut span) => Some(span.take_content()),
-                    InlineNode::Macro(InlineMacro::Url(link)) => Some(link.text),
-                    InlineNode::Macro(InlineMacro::Link(link)) => Some(link.text),
-                    InlineNode::Macro(InlineMacro::Mailto(link)) => Some(link.text),
+                    InlineNode::Macro(InlineMacro::Url(mut link)) => Some(link.take_text()),
+                    InlineNode::Macro(InlineMacro::Link(mut link)) => Some(link.take_text()),
+                    InlineNode::Macro(InlineMacro::Mailto(mut link)) => Some(link.take_text()),
                     InlineNode::Macro(InlineMacro::CrossReference(link)) => Some(link.text),
                     InlineNode::Macro(InlineMacro::Footnote(mut note)) => Some(note.take_content()),
                     InlineNode::PlainText(_)

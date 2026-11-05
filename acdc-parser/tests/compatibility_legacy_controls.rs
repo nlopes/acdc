@@ -111,7 +111,7 @@ fn caller_legacy_control_warns_once_and_document_locks_still_apply() -> Result<(
         let Some(InlineNode::Macro(InlineMacro::Link(link))) = inline.inlines().first() else {
             return Err("expected hyperlink".into());
         };
-        assert!(link.tooltip.is_some());
+        assert!(link.clone().take_tooltip().is_some());
     }
     Ok(())
 }

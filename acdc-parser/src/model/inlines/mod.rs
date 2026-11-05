@@ -156,12 +156,12 @@ impl InlineMacro<'_> {
 /// # Example
 ///
 /// ```
-/// # use acdc_parser::{InlineMacro, InlineNode};
-/// fn extract_link_target(node: &InlineNode) -> Option<String> {
-///     match node {
-///         InlineNode::Macro(InlineMacro::Link(link)) => Some(link.target.to_string()),
-///         InlineNode::Macro(InlineMacro::Url(url)) => Some(url.target.to_string()),
-///         InlineNode::Macro(InlineMacro::CrossReference(xref)) => Some(xref.target.to_string()),
+/// # use acdc_parser::ast::{InlineKind, InlineRef};
+/// fn extract_link_target(node: InlineRef<'_>) -> Option<String> {
+///     match node.kind() {
+///         InlineKind::Link(link) => Some(link.target().to_string()),
+///         InlineKind::Url(url) => Some(url.target().to_string()),
+///         InlineKind::CrossReference(xref) => Some(xref.target().to_string()),
 ///         _ => None,
 ///     }
 /// }
