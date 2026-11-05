@@ -1,0 +1,23 @@
+= Inline mathematics
+:stem: latexmath
+:letter: *x*
+
+Text stem:[{letter}^2] and asciimath:[a < b & c].
+
+*Strong latexmath:[a+b]* and empty stem:[].
+
+link:page.html[Label,title='latexmath:[x]'] and image:bird.svg[alt='asciimath:[x+y]'].
+
+Equation footnote:[Note latexmath:[x=1].].
+
+:stem: asciimath
+
+Changed stem:[x+y].
+
+[cols="a"]
+|===
+|Cell latexmath:[x^2].
+|===
+
+[subs=macros]
+Isolated latexmath:[x < y & z].

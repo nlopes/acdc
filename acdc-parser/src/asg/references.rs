@@ -89,6 +89,14 @@ pub(super) fn project(
         InlineMacro::Footnote(note) if settings.profile == Profile::Acdc => {
             super::footnotes::occurrence(note, path)
         }
+        InlineMacro::Stem(value) if settings.profile == Profile::Acdc => {
+            let mut result = Map::from_iter([
+                ("name".into(), "stem".into()),
+                ("type".into(), "inline".into()),
+            ]);
+            super::math::apply(&mut result, value.content, &value.notation, true);
+            Ok(result)
+        }
         InlineMacro::Footnote(_)
         | InlineMacro::Icon(_)
         | InlineMacro::Image(_)

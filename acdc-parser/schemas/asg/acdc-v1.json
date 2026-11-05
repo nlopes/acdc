@@ -834,6 +834,9 @@
         },
         {
           "$ref": "#/$defs/acdcLineBreak"
+        },
+        {
+          "$ref": "#/$defs/acdcInlineStem"
         }
       ]
     },
@@ -1946,6 +1949,33 @@
             }
           }
         ]
+      }
+    },
+    "acdcInlineStem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "notation",
+        "inlines"
+      ],
+      "properties": {
+        "name": {
+          "const": "stem"
+        },
+        "type": {
+          "const": "inline"
+        },
+        "notation": {
+          "$ref": "#/$defs/acdcStemNotation"
+        },
+        "inlines": {
+          "$ref": "#/$defs/acdcMathContent"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        }
       }
     }
   }

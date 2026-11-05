@@ -212,6 +212,7 @@ const EXTENSION_ADDITIONS: &[(&str, &[&str])] = &[
         "/$defs",
         &[
             "acdcReferenceRegistration",
+            "acdcInlineStem",
             "acdcStemNotation",
             "acdcMathContent",
             "acdcLineBreak",
@@ -259,7 +260,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         }
     }
     for (path, count) in [
-        ("/$defs/inline/oneOf", 6),
+        ("/$defs/inline/oneOf", 7),
         ("/$defs/leafBlock/allOf", 1),
         ("/$defs/inlineSpan/allOf", 1),
         ("/$defs/list/allOf", 2),

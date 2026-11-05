@@ -56,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The acdc ASG profile preserves inline STEM notation and literal formulas,
+  including mathematics nested in formatting, footnotes and content attributes.
+  acdc keeps empty `stem:[]` as mathematics; Asciidoctor leaves that source literal.
+
 - The acdc ASG profile preserves block STEM formulas with their resolved LaTeX
   or AsciiMath notation, actual delimiters, metadata and output-escaping policy.
 

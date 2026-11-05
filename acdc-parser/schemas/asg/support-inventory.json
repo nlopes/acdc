@@ -1685,17 +1685,17 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-inline-mathematics"
       },
       "properties": {
         "content": {
-          "policy": "unsupported"
+          "policy": "named-inline-mathematics"
         },
         "notation": {
-          "policy": "unsupported"
+          "policy": "named-inline-mathematics"
         },
         "location": {
-          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "policy": "named-inline-mathematics",
           "upstream": "#/$defs/location"
         }
       },
@@ -5771,6 +5771,10 @@
     "named-block-mathematics": {
       "handling": "context-dependent",
       "reason": "The named profile reuses the stem leaf/delimited form and keeps explicit resolved notation plus exact protected formula text. Empty text is an empty body; escaping is represented by text/raw. Known block provenance and metadata remain; no formula-child span is invented. Undelimited styled paragraphs remain ordinary. Strict rejects loss of notation."
+    },
+    "named-inline-mathematics": {
+      "handling": "context-dependent",
+      "reason": "The named profile keeps inline STEM placement, resolved notation, protected literal formula text and known location, reusing the block formula contract. Empty bodies stay explicit; nested formatting and content attributes recurse normally. Inline math owns normal escaping. No formula parsing, rendering or source-child spans; strict export rejects."
     }
   },
   "strict_export_groups": {
@@ -6792,6 +6796,25 @@
             "asg_block_stem.rs::prepared_formula_text_and_empty_presence_are_not_reparsed",
             "asg_block_stem.rs::undelimited_styles_stay_paragraphs_and_strict_notation_rejects",
             "asg_block_stem.rs::mathematical_schema_is_closed_and_rejects_prose_in_formula_bodies"
+          ]
+        },
+        "inline-mathematics": {
+          "owners": {
+            "Stem": [
+              "content",
+              "notation",
+              "location"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/acdcInlineStem"
+          ],
+          "handling": "The named profile keeps inline STEM placement, resolved notation, protected literal formula text and known location, reusing the block formula contract. Empty bodies stay explicit; nested formatting and content attributes recurse normally. Inline math owns normal escaping. No formula parsing, rendering or source-child spans; strict export rejects.",
+          "tests": [
+            "asg_inline_stem.rs::inline_formulas_keep_placement_notation_and_literal_content",
+            "asg_inline_stem.rs::prepared_empty_and_literal_formulas_share_the_block_content_policy",
+            "asg_inline_stem.rs::nested_formulas_keep_surrounding_formatting_and_strict_rejection",
+            "asg_inline_stem.rs::inline_math_schema_rejects_block_fields_and_prose_content"
           ]
         }
       }

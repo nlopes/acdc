@@ -640,3 +640,16 @@ The formula has no independent native span, so no child location is invented.
 Undelimited `[stem]`, `[latexmath]` and `[asciimath]` styles stay ordinary paragraphs,
 as they do in Asciidoctor; export does not invent a mathematical paragraph form.
 Strict export rejects resolved block notation because the pin cannot preserve it.
+
+== Inline mathematical content
+
+Inline mathematics uses `name: "stem"`, `type: "inline"`, resolved `notation`,
+protected `inlines`, and known source location. It shares the block formula
+content and notation contract, with no block form or delimiter. Surrounding
+formatting stays outside the formula; markup-like formula characters remain
+literal. Native inline math uses its own special-character escaping, independent
+of the enclosing prose treatment. Empty formulas keep `inlines: []`.
+
+The same node is accepted inside content attributes, notes and supported nested
+containers. Export does not translate notation, parse a formula or emit MathJax
+markup. Strict upstream export still rejects inline mathematics.

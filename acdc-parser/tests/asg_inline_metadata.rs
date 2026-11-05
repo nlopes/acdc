@@ -95,8 +95,22 @@ fn nested_unsupported_values_still_report_their_own_path() -> Result<(), Error> 
         "link:https://example.org[Label,title='stem:[x]']",
         &Options::default(),
     )?;
+    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    assert_eq!(
+        value.pointer("/blocks/0/inlines/0/tooltip/0/name"),
+        Some(&json!("stem"))
+    );
+    let mut link = Link::new(Source::Name("target"), Location::default());
+    let invalid = acdc_parser::CharacterReference::new(
+        acdc_parser::CharacterReferenceKind::Numeric(0),
+        Location::default(),
+    )
+    .ok_or("numeric reference")?;
+    link.set_tooltip(Some(ContentAttribute::new(vec![
+        InlineNode::CharacterReference(invalid),
+    ])));
     assert!(
-        matches!(asg::document_with_profile(parsed.document(), asg::Profile::Acdc), Err(asg::Error::Unsupported { path, .. }) if path.contains("/tooltip/"))
+        matches!(extended(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::Link(Box::new(link)))])), Err(asg::Error::Unsupported{path,..}) if path == "/0/tooltip/0")
     );
     let mut link = Link::new(Source::Name("target"), Location::default());
     link.set_attribute("literal".into(), "\"keep\"".to_owned().into())?;

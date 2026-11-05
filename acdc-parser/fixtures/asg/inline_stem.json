@@ -1,0 +1,876 @@
+{
+  "attributes": {
+    "letter": "*x*",
+    "stem": "latexmath"
+  },
+  "blocks": [
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 5
+            },
+            {
+              "col": 5,
+              "line": 5
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Text "
+        },
+        {
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "{letter}^2"
+            }
+          ],
+          "location": [
+            {
+              "col": 6,
+              "line": 5
+            },
+            {
+              "col": 22,
+              "line": 5
+            }
+          ],
+          "name": "stem",
+          "notation": "latexmath",
+          "type": "inline"
+        },
+        {
+          "location": [
+            {
+              "col": 23,
+              "line": 5
+            },
+            {
+              "col": 27,
+              "line": 5
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": " and "
+        },
+        {
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "a < b & c"
+            }
+          ],
+          "location": [
+            {
+              "col": 28,
+              "line": 5
+            },
+            {
+              "col": 48,
+              "line": 5
+            }
+          ],
+          "name": "stem",
+          "notation": "asciimath",
+          "type": "inline"
+        },
+        {
+          "location": [
+            {
+              "col": 49,
+              "line": 5
+            },
+            {
+              "col": 49,
+              "line": 5
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 5
+        },
+        {
+          "col": 49,
+          "line": 5
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "form": "constrained",
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 2,
+                  "line": 7
+                },
+                {
+                  "col": 8,
+                  "line": 7
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Strong "
+            },
+            {
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "a+b"
+                }
+              ],
+              "location": [
+                {
+                  "col": 9,
+                  "line": 7
+                },
+                {
+                  "col": 23,
+                  "line": 7
+                }
+              ],
+              "name": "stem",
+              "notation": "latexmath",
+              "type": "inline"
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 7
+            },
+            {
+              "col": 24,
+              "line": 7
+            }
+          ],
+          "name": "span",
+          "type": "inline",
+          "variant": "strong"
+        },
+        {
+          "location": [
+            {
+              "col": 25,
+              "line": 7
+            },
+            {
+              "col": 35,
+              "line": 7
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": " and empty "
+        },
+        {
+          "inlines": [],
+          "location": [
+            {
+              "col": 36,
+              "line": 7
+            },
+            {
+              "col": 42,
+              "line": 7
+            }
+          ],
+          "name": "stem",
+          "notation": "latexmath",
+          "type": "inline"
+        },
+        {
+          "location": [
+            {
+              "col": 43,
+              "line": 7
+            },
+            {
+              "col": 43,
+              "line": 7
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 7
+        },
+        {
+          "col": 43,
+          "line": 7
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 16,
+                  "line": 9
+                },
+                {
+                  "col": 20,
+                  "line": 9
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Label"
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 9
+            },
+            {
+              "col": 43,
+              "line": 9
+            }
+          ],
+          "name": "ref",
+          "target": "page.html",
+          "tooltip": [
+            {
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "x"
+                }
+              ],
+              "location": [
+                {
+                  "col": 29,
+                  "line": 9
+                },
+                {
+                  "col": 41,
+                  "line": 9
+                }
+              ],
+              "name": "stem",
+              "notation": "latexmath",
+              "type": "inline"
+            }
+          ],
+          "type": "inline",
+          "variant": "link"
+        },
+        {
+          "location": [
+            {
+              "col": 44,
+              "line": 9
+            },
+            {
+              "col": 48,
+              "line": 9
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": " and "
+        },
+        {
+          "alt": [
+            {
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "x+y"
+                }
+              ],
+              "location": [
+                {
+                  "col": 69,
+                  "line": 9
+                },
+                {
+                  "col": 83,
+                  "line": 9
+                }
+              ],
+              "name": "stem",
+              "notation": "asciimath",
+              "type": "inline"
+            }
+          ],
+          "location": [
+            {
+              "col": 49,
+              "line": 9
+            },
+            {
+              "col": 85,
+              "line": 9
+            }
+          ],
+          "name": "image",
+          "target": "bird.svg",
+          "type": "inline"
+        },
+        {
+          "location": [
+            {
+              "col": 86,
+              "line": 9
+            },
+            {
+              "col": 86,
+              "line": 9
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 9
+        },
+        {
+          "col": 86,
+          "line": 9
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 11
+            },
+            {
+              "col": 9,
+              "line": 11
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Equation "
+        },
+        {
+          "form": "definition",
+          "location": [
+            {
+              "col": 10,
+              "line": 11
+            },
+            {
+              "col": 41,
+              "line": 11
+            }
+          ],
+          "name": "footnote",
+          "number": 1,
+          "type": "inline"
+        },
+        {
+          "location": [
+            {
+              "col": 42,
+              "line": 11
+            },
+            {
+              "col": 42,
+              "line": 11
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 11
+        },
+        {
+          "col": 42,
+          "line": 11
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "set",
+        "value": "asciimath"
+      },
+      "attribute": "stem",
+      "location": [
+        {
+          "col": 1,
+          "line": 13
+        },
+        {
+          "col": 16,
+          "line": 13
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 15
+            },
+            {
+              "col": 8,
+              "line": 15
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Changed "
+        },
+        {
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "x+y"
+            }
+          ],
+          "location": [
+            {
+              "col": 9,
+              "line": 15
+            },
+            {
+              "col": 18,
+              "line": 15
+            }
+          ],
+          "name": "stem",
+          "notation": "asciimath",
+          "type": "inline"
+        },
+        {
+          "location": [
+            {
+              "col": 19,
+              "line": 15
+            },
+            {
+              "col": 19,
+              "line": 15
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 15
+        },
+        {
+          "col": 19,
+          "line": 15
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "caption": {
+        "counter": "table",
+        "kind": "numbered",
+        "label": "Table"
+      },
+      "columns": [
+        {
+          "halign": "left",
+          "style": "asciidoc",
+          "valign": "top",
+          "width": {
+            "kind": "proportional",
+            "value": 1
+          }
+        }
+      ],
+      "delimited_location": [
+        {
+          "col": 1,
+          "line": 18
+        },
+        {
+          "col": 4,
+          "line": 20
+        }
+      ],
+      "delimiter": "|===",
+      "form": "delimited",
+      "location": [
+        {
+          "col": 1,
+          "line": 17
+        },
+        {
+          "col": 4,
+          "line": 20
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        },
+        "location": [
+          {
+            "col": 1,
+            "line": 17
+          },
+          {
+            "col": 11,
+            "line": 17
+          }
+        ]
+      },
+      "name": "table",
+      "presentation": {
+        "frame": "all",
+        "grid": "all",
+        "stripes": "none"
+      },
+      "rows": [
+        {
+          "cells": [
+            {
+              "blocks": [
+                {
+                  "inlines": [
+                    {
+                      "location": [
+                        {
+                          "col": 2,
+                          "line": 19
+                        },
+                        {
+                          "col": 6,
+                          "line": 19
+                        }
+                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Cell "
+                    },
+                    {
+                      "inlines": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "x^2"
+                        }
+                      ],
+                      "location": [
+                        {
+                          "col": 7,
+                          "line": 19
+                        },
+                        {
+                          "col": 21,
+                          "line": 19
+                        }
+                      ],
+                      "name": "stem",
+                      "notation": "latexmath",
+                      "type": "inline"
+                    },
+                    {
+                      "location": [
+                        {
+                          "col": 22,
+                          "line": 19
+                        },
+                        {
+                          "col": 22,
+                          "line": 19
+                        }
+                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "."
+                    }
+                  ],
+                  "location": [
+                    {
+                      "col": 2,
+                      "line": 19
+                    },
+                    {
+                      "col": 22,
+                      "line": 19
+                    }
+                  ],
+                  "name": "paragraph",
+                  "type": "block"
+                }
+              ],
+              "initial_attributes": [
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": "article"
+                  },
+                  "attribute": "doctype"
+                },
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": ""
+                  },
+                  "attribute": "notitle"
+                },
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": ""
+                  },
+                  "attribute": "doctype-article"
+                }
+              ],
+              "style": "asciidoc"
+            }
+          ]
+        }
+      ],
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 23
+            },
+            {
+              "col": 9,
+              "line": 23
+            }
+          ],
+          "name": "raw",
+          "type": "string",
+          "value": "Isolated "
+        },
+        {
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "x < y & z"
+            }
+          ],
+          "location": [
+            {
+              "col": 10,
+              "line": 23
+            },
+            {
+              "col": 30,
+              "line": 23
+            }
+          ],
+          "name": "stem",
+          "notation": "latexmath",
+          "type": "inline"
+        },
+        {
+          "location": [
+            {
+              "col": 31,
+              "line": 23
+            },
+            {
+              "col": 31,
+              "line": 23
+            }
+          ],
+          "name": "raw",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 22
+        },
+        {
+          "col": 31,
+          "line": 23
+        }
+      ],
+      "metadata": {
+        "location": [
+          {
+            "col": 1,
+            "line": 22
+          },
+          {
+            "col": 14,
+            "line": 22
+          }
+        ]
+      },
+      "name": "paragraph",
+      "type": "block"
+    }
+  ],
+  "footnotes": [
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 20,
+              "line": 11
+            },
+            {
+              "col": 24,
+              "line": 11
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Note "
+        },
+        {
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "x=1"
+            }
+          ],
+          "location": [
+            {
+              "col": 25,
+              "line": 11
+            },
+            {
+              "col": 39,
+              "line": 11
+            }
+          ],
+          "name": "stem",
+          "notation": "latexmath",
+          "type": "inline"
+        },
+        {
+          "location": [
+            {
+              "col": 40,
+              "line": 11
+            },
+            {
+              "col": 40,
+              "line": 11
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 10,
+          "line": 11
+        },
+        {
+          "col": 41,
+          "line": 11
+        }
+      ],
+      "number": 1
+    }
+  ],
+  "header": {
+    "location": [
+      {
+        "col": 1,
+        "line": 1
+      },
+      {
+        "col": 12,
+        "line": 3
+      }
+    ],
+    "title": [
+      {
+        "location": [
+          {
+            "col": 3,
+            "line": 1
+          },
+          {
+            "col": 20,
+            "line": 1
+          }
+        ],
+        "name": "text",
+        "type": "string",
+        "value": "Inline mathematics"
+      }
+    ]
+  },
+  "location": [
+    {
+      "col": 1,
+      "line": 1
+    },
+    {
+      "col": 31,
+      "line": 23
+    }
+  ],
+  "name": "document",
+  "profile": "urn:acdc:asg:1",
+  "type": "block"
+}
