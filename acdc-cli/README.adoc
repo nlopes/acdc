@@ -458,11 +458,17 @@ use the normal CLI help format. Explicit `ACDC_LOG` tracing adds separate stderr
 === `tck`
 
 The `tck` feature provides the JSON stdin/stdout adapter used by the AsciiDoc Test Compatibility Kit.
-It includes the `asg` capability and always selects Draft mode and strict upstream
-ASG. Output is validated before writing; unsupported constructs fail without a
-partial document. Parser/export diagnostics are JSON lines on stderr. Native and
-extension output belong to `parse`; the TCK command accepts no format or mode override.
-A passing subset does not establish full language or upstream schema conformance.
+It includes the `asg` capability and always selects Draft mode. Its projection
+omits resolved automatic caption labels, numbers and no-prefix state, plus generated
+heading IDs that no exported reference uses. Explicit IDs, titles and document
+caption settings remain. Custom caption content and other unsupported constructs
+still fail without a partial document. The native AST, converters and regular
+`parse` exports keep their existing behavior.
+
+The projection uses the pinned upstream ASG schema. Parser/export diagnostics are
+JSON lines on stderr; the command accepts no format or mode override. CI requires
+all 13 cases in the pinned official TCK to pass. This small corpus does not establish
+full language conformance.
 
 [source,console]
 ....

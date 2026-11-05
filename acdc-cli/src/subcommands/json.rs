@@ -20,6 +20,9 @@ pub enum Error {
     #[cfg(feature = "tck")]
     #[error("unsupported TCK type `{0}`; expected `block` or `inline`")]
     UnsupportedType(String),
+    #[cfg(feature = "tck")]
+    #[error(transparent)]
+    TckMetadata(#[from] acdc_parser::ReservedAttribute),
     #[error("ASG output requires a build with the `asg` feature")]
     UnavailableFormat,
 }
@@ -144,6 +147,8 @@ fn diagnostic(error: &Error) -> Value {
         Error::Asg(_) => "asg",
         #[cfg(feature = "tck")]
         Error::UnsupportedType(_) => "unsupported-type",
+        #[cfg(feature = "tck")]
+        Error::TckMetadata(_) => "invalid-tck-metadata",
         Error::UnavailableFormat => "unavailable-format",
     };
     json!({"severity":"error","kind":kind,"message":error.to_string()})

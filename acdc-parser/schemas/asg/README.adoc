@@ -573,10 +573,11 @@ fails the expected semantic comparison.
 
 Run the export tests with `--all-features`, or with
 `--no-default-features --features asg` to check the same contracts without parser
-capabilities. CI uses the vendored schemas and a fixed TCK revision. The TCK
-runner reports the supported subset; an explicit rejection or a failed case
-remains a failure. Its result does not replace the native fixture or converter
-regression suites.
+capabilities. CI uses the vendored schemas and a fixed TCK revision. All 13
+pinned TCK cases must pass. The CLI adapter alone omits derived caption state and
+unreferenced generated heading IDs; regular ASG exports keep their contracts.
+The link:../../../.github/tck/README.adoc[TCK projection] does not replace native
+fixture or converter regression suites, or establish full language conformance.
 
 == Callout markers
 

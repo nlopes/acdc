@@ -15,9 +15,10 @@
 //!
 //! ## Output format:
 //!
-//! JSON validated against the pinned ASG draft schema. Unsupported constructs
-//! return an error before writing output. Passing the TCK does not imply full
-//! language conformance.
+//! A smaller projection of the pinned ASG draft: derived caption state and
+//! unreferenced generated heading IDs are omitted. Native AST and regular ASG
+//! exports are unchanged. Unsupported constructs return an error before output.
+//! Passing the TCK does not imply full language conformance.
 //!
 //! ## Usage:
 //!
@@ -33,6 +34,8 @@ use std::{
 use serde::Deserialize;
 
 use super::json::{self, Error, Format};
+
+mod projection;
 
 #[derive(Debug, Deserialize)]
 struct TckInput {
@@ -65,7 +68,7 @@ pub fn run(_args: &Args) -> Result<(), Error> {
         "block" => {
             let parsed = acdc_parser::parse(&tck_input.contents, &parser_options)?;
             json::warnings(parsed.warnings())?;
-            json::document(parsed.document(), Format::UpstreamAsg)?
+            projection::document(parsed.document())?
         }
         "inline" => {
             let parsed = acdc_parser::parse_inline(&tck_input.contents, &parser_options)?;

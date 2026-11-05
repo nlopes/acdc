@@ -62,9 +62,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The `tck` adapter now validates output against the pinned ASG draft schema
-  and rejects unsupported constructs before writing JSON. It always uses Draft
-  mode and strict upstream ASG. Diagnostics go to stderr as JSON lines.
+- The `tck` adapter uses Draft mode and a smaller upstream ASG projection,
+  omitting derived caption state and generated heading IDs that no exported
+  reference uses. Explicit IDs, titles and document caption settings remain;
+  unsupported authored content still fails before output. Native JSON, regular
+  ASG exports and conversion are unchanged. Diagnostics are JSON lines on stderr.
 
 - Explicit `toc2` settings now warn once per input document. Use `:toc: left`
   or `-a toc=left`. TOC output is unchanged. With `--fail-on-warnings`, this

@@ -121,24 +121,17 @@ The ASG tests separately validate strict and named exports, semantic invariants,
 negative cases and nested combinations in both compatibility modes.
 
 The official TCK checkout at `cdfada9c2768b164eadf4bc12e9f9c68e6caf68a`
-contains 13 cases. The checked strict adapter passes 11 and fails two:
+contains 13 cases. The CLI adapter projects a smaller graph for this early corpus:
+it omits resolved automatic caption state and generated heading IDs that no
+exported reference uses. Explicit IDs, titles and document caption settings remain;
+custom caption content and other unsupported semantics still fail.
 
-* Listing `multiple-lines`: the native listing retains unnumbered caption state.
-  The pin has no field for it, so strict export rejects
-  `/blocks/0/metadata/caption`. The named profile preserves that state.
-* Section `title-body`: the real generated `_section_title` ID is exported, while
-  the TCK expectation omits it. The pinned schema permits the ID. Removing it only
-  for the comparison would hide actual target identity.
-
-These remain failures. A larger passing fixture suite does not replace them or
-prove full language conformance. Upstream caption semantics and generated-ID
-canonicalization need explicit agreement; the exporter does not change meaning
-to match an expected object. No TCK expectations or pinned schema bytes change.
-
-CI link:../../../.github/tck/README.adoc[checks these two exact incompatibilities]
-alongside the 11 passing cases. New or changed mismatches, skipped cases and
-unexpected passes fail the job. A green job records this compatibility boundary;
-it does not turn either upstream failure into a passing TCK case.
+These omissions apply only to the TCK adapter. Native AST data, regular strict
+and named ASG exports, and converters retain their existing contracts. The
+link:../../../.github/tck/README.adoc[CI check requires all 13 cases to pass],
+with no known-failure allowance. The upstream tests, expectations and pinned schema
+remain unchanged. Passing this small corpus does not establish full language
+conformance or replace the parser and converter regression suites.
 
 == Versioning and upstream discussion
 
