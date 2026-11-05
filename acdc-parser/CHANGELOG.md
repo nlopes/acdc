@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The named ASG profile retains header subtitles and title metadata separately,
+  including empty subtitles, formatting, and document-title references.
+
 - ASG export supports actual delimited admonitions. The named acdc profile also
   preserves paragraph/indented admonitions, styled parent paragraphs, and marked
   quotes without invented delimiters or body wrappers.

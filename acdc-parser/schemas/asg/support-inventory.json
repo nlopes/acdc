@@ -6288,6 +6288,31 @@
             "asg_block_forms.rs::unknown_forms_and_nested_unsupported_content_remain_explicit_errors",
             "asg_block_forms.rs::block_form_schema_rejects_invented_delimiters_and_wrong_body_shapes"
           ]
+        },
+        "header": {
+          "owners": {
+            "Header": [
+              "metadata",
+              "title",
+              "subtitle",
+              "authors",
+              "location"
+            ]
+          },
+          "schema_pointers": [
+            "#/properties/header/properties/subtitle",
+            "#/properties/header/properties/id",
+            "#/properties/header/properties/reftext",
+            "#/properties/header/properties/metadata"
+          ],
+          "handling": "Preserve main title and optional subtitle as separate inline arrays, including present-empty subtitle. Reuse shared metadata/content projection and reconcile header ID and document-top references with the existing combined catalog title. Author/header-attribute reconciliation remains unchanged. Strict header restrictions, independent document-level labels, aliases, stale/duplicate catalogs and unsupported nested content still reject.",
+          "tests": [
+            "asg_header.rs::header_fields_remain_separate_and_references_are_reconstructible",
+            "asg_header.rs::subtitle_presence_and_prepared_content_are_not_combined_or_reparsed",
+            "asg_header.rs::strict_headers_and_unsupported_nested_content_keep_explicit_errors",
+            "asg_header.rs::header_extension_is_closed_and_keeps_content_arrays",
+            "asg_header.rs::header_catalogs_keep_stale_duplicate_and_independent_label_checks"
+          ]
         }
       }
     }

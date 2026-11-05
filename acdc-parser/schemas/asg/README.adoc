@@ -391,6 +391,21 @@ The named acdc profile adds three closed forms:
 Strict export rejects them where the pin has no corresponding form. Unsupported
 nested meaning still reports its complete property path.
 
+== Header content
+
+The named acdc profile keeps `header.title` and optional `header.subtitle` as
+separate inline arrays. An absent subtitle is omitted; a present empty subtitle
+is `[]`. Export does not combine them to fit the upstream title field. Header
+identity, reftext, roles/options and scalar attributes use the same projection as
+block metadata. Content fields keep their own inline arrays.
+
+Header IDs and document-top references use the parser's existing full reference
+title: main title, `: `, then subtitle when present. This derived catalog value
+does not replace either field. Stale or duplicate registrations still fail.
+Independent document-attribute `reftext` labels and multiple header aliases remain
+unsupported. Strict export still rejects subtitle and header metadata. Author
+reconciliation and the end-of-header document attribute snapshot are unchanged.
+
 == Proposed upstream additions
 
 link:proposals/README.adoc[The content/image proposal] contains minimal schema

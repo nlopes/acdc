@@ -1,0 +1,10 @@
+[#guide.notice,reftext='Short *Guide*',options=compact,custom=kept]
+= Main *Title*: Subtitle _Details_
+Ada Lovelace <ada@example.org>
+:audience: readers
+
+See <<guide>> and xref:#[].
+
+:audience: authors
+
+Body.

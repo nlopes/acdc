@@ -273,14 +273,25 @@ fn project_header(header: &Header<'_>, profile: Profile) -> Result<Value, Error>
             "the upstream header requires a present title",
         ));
     }
-    metadata::header(&header.metadata)?;
-    if header.subtitle.is_some() {
+    if profile == Profile::Upstream {
+        metadata::header(&header.metadata)?;
+    }
+    if profile == Profile::Upstream && header.subtitle.is_some() {
         return Err(unsupported(
             "/header/subtitle",
             "the upstream header has no subtitle field",
         ));
     }
     let mut projected = Map::new();
+    if profile == Profile::Acdc {
+        metadata::apply(profile, &mut projected, &header.metadata, "/header")?;
+        if let Some(subtitle) = &header.subtitle {
+            projected.insert(
+                "subtitle".into(),
+                inlines(subtitle.as_inlines(), "/header/subtitle", profile)?,
+            );
+        }
+    }
     metadata::title(&mut projected, &header.title, "/header", profile)?;
     if !header.authors.is_empty() {
         projected.insert(
@@ -345,10 +356,34 @@ pub(super) fn document(value: &Document<'_>, profile: Profile) -> Result<Value, 
             .map_err(|error| error.with_context("header", &header.location))?;
         result.insert("header".into(), projected);
     }
+    let header_target_title = value
+        .header
+        .as_ref()
+        .filter(|header| {
+            profile == Profile::Acdc
+                && (metadata::anchor(&header.metadata).is_some()
+                    || value.references.contains_key(""))
+        })
+        .map(crate::grammar::reference_walk::header_title);
     let mut export = Export {
         profile,
         targets: BTreeMap::new(),
     };
+    if let (Some(header), Some(title)) = (&value.header, &header_target_title) {
+        export.target(&header.metadata, Some(title), None, "/header")?;
+        if value.references.contains_key("") {
+            export.insert_target(
+                String::new(),
+                Target {
+                    title: Some(title),
+                    label: metadata::label(&header.metadata),
+                    section: None,
+                    caption: None,
+                },
+                "/header",
+            )?;
+        }
+    }
     result.insert("blocks".into(), export.blocks(&value.blocks, "/blocks")?);
     if profile == Profile::Acdc {
         for field in crate::ast::DocumentRef::from(value).content_occurrences() {

@@ -54,6 +54,27 @@
         },
         "location": {
           "$ref": "#/$defs/location"
+        },
+        "id": {
+          "type": "string"
+        },
+        "reftext": {
+          "$ref": "#/$defs/inlines"
+        },
+        "metadata": {
+          "$ref": "#/$defs/blockMetadata"
+        },
+        "attribution": {
+          "$ref": "#/$defs/inlines"
+        },
+        "citetitle": {
+          "$ref": "#/$defs/inlines"
+        },
+        "caption": {
+          "$ref": "#/$defs/acdcCaption"
+        },
+        "subtitle": {
+          "$ref": "#/$defs/inlines"
         }
       }
     },

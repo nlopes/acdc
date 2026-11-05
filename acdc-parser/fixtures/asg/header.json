@@ -1,0 +1,354 @@
+{
+  "attributes": {
+    "audience": "readers",
+    "author": "Ada Lovelace",
+    "authorcount": "1",
+    "authorinitials": "AL",
+    "authors": "Ada Lovelace",
+    "email": "ada@example.org",
+    "firstname": "Ada",
+    "lastname": "Lovelace"
+  },
+  "blocks": [
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 6
+            },
+            {
+              "col": 4,
+              "line": 6
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "See "
+        },
+        {
+          "inlines": [],
+          "location": [
+            {
+              "col": 5,
+              "line": 6
+            },
+            {
+              "col": 13,
+              "line": 6
+            }
+          ],
+          "name": "ref",
+          "target": "guide",
+          "type": "inline",
+          "variant": "xref"
+        },
+        {
+          "location": [
+            {
+              "col": 14,
+              "line": 6
+            },
+            {
+              "col": 18,
+              "line": 6
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": " and "
+        },
+        {
+          "inlines": [],
+          "location": [
+            {
+              "col": 19,
+              "line": 6
+            },
+            {
+              "col": 26,
+              "line": 6
+            }
+          ],
+          "name": "ref",
+          "target": "",
+          "type": "inline",
+          "variant": "xref"
+        },
+        {
+          "location": [
+            {
+              "col": 27,
+              "line": 6
+            },
+            {
+              "col": 27,
+              "line": 6
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 6
+        },
+        {
+          "col": 27,
+          "line": 6
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "set",
+        "value": "authors"
+      },
+      "attribute": "audience",
+      "location": [
+        {
+          "col": 1,
+          "line": 8
+        },
+        {
+          "col": 18,
+          "line": 8
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 10
+            },
+            {
+              "col": 5,
+              "line": 10
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Body."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 10
+        },
+        {
+          "col": 5,
+          "line": 10
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    }
+  ],
+  "header": {
+    "authors": [
+      {
+        "address": "ada@example.org",
+        "firstname": "Ada",
+        "initials": "AL",
+        "lastname": "Lovelace"
+      }
+    ],
+    "id": "guide",
+    "location": [
+      {
+        "col": 1,
+        "line": 1
+      },
+      {
+        "col": 18,
+        "line": 4
+      }
+    ],
+    "metadata": {
+      "attributes": {
+        "custom": "kept"
+      },
+      "options": [
+        "compact"
+      ],
+      "roles": [
+        "notice"
+      ]
+    },
+    "reftext": [
+      {
+        "location": [
+          {
+            "col": 25,
+            "line": 1
+          },
+          {
+            "col": 30,
+            "line": 1
+          }
+        ],
+        "name": "text",
+        "type": "string",
+        "value": "Short "
+      },
+      {
+        "form": "constrained",
+        "inlines": [
+          {
+            "location": [
+              {
+                "col": 32,
+                "line": 1
+              },
+              {
+                "col": 36,
+                "line": 1
+              }
+            ],
+            "name": "text",
+            "type": "string",
+            "value": "Guide"
+          }
+        ],
+        "location": [
+          {
+            "col": 31,
+            "line": 1
+          },
+          {
+            "col": 37,
+            "line": 1
+          }
+        ],
+        "name": "span",
+        "type": "inline",
+        "variant": "strong"
+      }
+    ],
+    "subtitle": [
+      {
+        "location": [
+          {
+            "col": 17,
+            "line": 2
+          },
+          {
+            "col": 25,
+            "line": 2
+          }
+        ],
+        "name": "text",
+        "type": "string",
+        "value": "Subtitle "
+      },
+      {
+        "form": "constrained",
+        "inlines": [
+          {
+            "location": [
+              {
+                "col": 27,
+                "line": 2
+              },
+              {
+                "col": 33,
+                "line": 2
+              }
+            ],
+            "name": "text",
+            "type": "string",
+            "value": "Details"
+          }
+        ],
+        "location": [
+          {
+            "col": 26,
+            "line": 2
+          },
+          {
+            "col": 34,
+            "line": 2
+          }
+        ],
+        "name": "span",
+        "type": "inline",
+        "variant": "emphasis"
+      }
+    ],
+    "title": [
+      {
+        "location": [
+          {
+            "col": 3,
+            "line": 2
+          },
+          {
+            "col": 7,
+            "line": 2
+          }
+        ],
+        "name": "text",
+        "type": "string",
+        "value": "Main "
+      },
+      {
+        "form": "constrained",
+        "inlines": [
+          {
+            "location": [
+              {
+                "col": 9,
+                "line": 2
+              },
+              {
+                "col": 13,
+                "line": 2
+              }
+            ],
+            "name": "text",
+            "type": "string",
+            "value": "Title"
+          }
+        ],
+        "location": [
+          {
+            "col": 8,
+            "line": 2
+          },
+          {
+            "col": 14,
+            "line": 2
+          }
+        ],
+        "name": "span",
+        "type": "inline",
+        "variant": "strong"
+      }
+    ]
+  },
+  "location": [
+    {
+      "col": 1,
+      "line": 1
+    },
+    {
+      "col": 5,
+      "line": 10
+    }
+  ],
+  "name": "document",
+  "profile": "urn:acdc:asg:1",
+  "type": "block"
+}

@@ -177,85 +177,66 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         *restored.get_mut(name).ok_or("schema field")? =
             base.get(name).ok_or("base field")?.clone();
     }
-    restored
-        .get_mut("properties")
-        .and_then(Value::as_object_mut)
-        .ok_or("properties")?
-        .remove("profile");
-    let properties = restored
-        .pointer_mut("/$defs/abstractBlock/properties")
-        .and_then(Value::as_object_mut)
-        .ok_or("block properties")?;
-    for name in ["attribution", "citetitle", "caption"] {
-        properties.remove(name);
-    }
-    restored
-        .get_mut("$defs")
-        .and_then(Value::as_object_mut)
-        .ok_or("defs")?
-        .remove("acdcCaption");
-    restored
-        .pointer_mut("/$defs/inline/oneOf")
-        .and_then(Value::as_array_mut)
-        .ok_or("inline union")?
-        .pop();
-    restored
-        .pointer_mut("/$defs/blockMacro/allOf")
-        .and_then(Value::as_array_mut)
-        .ok_or("block macro conditions")?
-        .pop();
-    restored
-        .get_mut("$defs")
-        .and_then(Value::as_object_mut)
-        .ok_or("defs")?
-        .remove("acdcInlineImage");
-    for name in ["inlineSpan", "inlineRef"] {
+    let additions: &[(&str, &[&str])] = &[
+        ("/properties", &["profile"]),
+        (
+            "/$defs/abstractBlock/properties",
+            &["attribution", "citetitle", "caption"],
+        ),
+        ("/$defs/inlineSpan/properties", &["id", "metadata"]),
+        (
+            "/$defs/inlineRef/properties",
+            &["id", "metadata", "tooltip"],
+        ),
+        (
+            "/properties/header/properties",
+            &[
+                "id",
+                "reftext",
+                "metadata",
+                "attribution",
+                "citetitle",
+                "caption",
+                "subtitle",
+            ],
+        ),
+        (
+            "/$defs",
+            &[
+                "acdcCaption",
+                "acdcInlineImage",
+                "acdcInlineMetadata",
+                "acdcSpanMetadata",
+                "acdcAdmonition",
+                "acdcParagraphParentBlock",
+                "acdcMarkedQuote",
+                "acdcAttributeEvent",
+            ],
+        ),
+    ];
+    for &(path, names) in additions {
         let properties = restored
-            .pointer_mut(&format!("/$defs/{name}/properties"))
+            .pointer_mut(path)
             .and_then(Value::as_object_mut)
-            .ok_or("inline properties")?;
-        for property in ["id", "metadata", "tooltip"] {
-            properties.remove(property);
+            .ok_or("properties")?;
+        for name in names {
+            assert!(properties.remove(*name).is_some(), "{path}/{name}");
         }
     }
-    restored
-        .pointer_mut("/$defs/inlineSpan/properties/variant/enum")
-        .and_then(Value::as_array_mut)
-        .ok_or("span variants")?
-        .pop();
-    for name in ["acdcInlineMetadata", "acdcSpanMetadata"] {
-        restored
-            .get_mut("$defs")
-            .and_then(Value::as_object_mut)
-            .ok_or("defs")?
-            .remove(name);
-    }
-    for name in [
-        "acdcAdmonition",
-        "acdcParagraphParentBlock",
-        "acdcMarkedQuote",
+    for (path, count) in [
+        ("/$defs/inline/oneOf", 1),
+        ("/$defs/blockMacro/allOf", 1),
+        ("/$defs/inlineSpan/properties/variant/enum", 1),
+        ("/$defs/block/oneOf", 4),
     ] {
-        restored
-            .pointer_mut("/$defs/block/oneOf")
+        let variants = restored
+            .pointer_mut(path)
             .and_then(Value::as_array_mut)
-            .ok_or("block forms")?
-            .pop();
-        restored
-            .get_mut("$defs")
-            .and_then(Value::as_object_mut)
-            .ok_or("defs")?
-            .remove(name);
+            .ok_or("variants")?;
+        for _ in 0..count {
+            assert!(variants.pop().is_some(), "{path}");
+        }
     }
-    restored
-        .pointer_mut("/$defs/block/oneOf")
-        .and_then(Value::as_array_mut)
-        .ok_or("block variants")?
-        .pop();
-    restored
-        .get_mut("$defs")
-        .and_then(Value::as_object_mut)
-        .ok_or("defs")?
-        .remove("acdcAttributeEvent");
     assert_eq!(restored, base);
     Ok(())
 }
