@@ -1,6 +1,7 @@
 use crate::{
-    Block, Caption, CompatibilityMode, ContentAttribute, Document, Location, Options, Paragraph,
-    asg, ast::ContentRef, parse,
+    Block, Caption, CharacterReference, CharacterReferenceKind, CompatibilityMode,
+    ContentAttribute, Document, InlineNode, Location, Options, Paragraph, asg, ast::ContentRef,
+    parse,
 };
 use serde_json::{Value, json};
 
@@ -88,13 +89,13 @@ fn captioned_targets_are_reconstructible_but_stale_catalogs_fail() -> Result<(),
 
 #[test]
 fn nested_unsupported_content_keeps_its_property_path() -> Result<(), Error> {
-    let parsed = parse("= Title\n:experimental:\n\nbtn:[Save]", &Options::default())?;
-    let Block::Paragraph(source) = parsed.document_storage().blocks.first().ok_or("block")? else {
-        return Err("paragraph".into());
-    };
+    let invalid = InlineNode::CharacterReference(
+        CharacterReference::new(CharacterReferenceKind::Numeric(0), Location::default())
+            .ok_or("numeric reference")?,
+    );
     for property in ["attribution", "citetitle", "caption"] {
         let mut paragraph = Paragraph::new(Vec::new(), Location::default());
-        let content = ContentAttribute::new(source.content.clone());
+        let content = ContentAttribute::new(vec![invalid.clone()]);
         match property {
             "attribution" => paragraph.metadata.attribution = Some(content),
             "citetitle" => paragraph.metadata.citetitle = Some(content),
@@ -108,7 +109,7 @@ fn nested_unsupported_content_keeps_its_property_path() -> Result<(), Error> {
             property
         };
         assert!(
-            matches!(export(&document),Err(asg::Error::Unsupported {path,construct:Some("button"),..}) if path==format!("/blocks/0/{field}/0"))
+            matches!(export(&document),Err(asg::Error::Unsupported {path,..}) if path==format!("/blocks/0/{field}/0"))
         );
     }
     Ok(())

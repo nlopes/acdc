@@ -15,6 +15,7 @@ mod math;
 mod metadata;
 mod projection;
 mod references;
+mod ui;
 
 use std::sync::OnceLock;
 

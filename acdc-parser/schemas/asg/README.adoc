@@ -653,3 +653,19 @@ of the enclosing prose treatment. Empty formulas keep `inlines: []`.
 The same node is accepted inside content attributes, notes and supported nested
 containers. Export does not translate notation, parse a formula or emit MathJax
 markup. Strict upstream export still rejects inline mathematics.
+
+== Interface macros
+
+The acdc profile preserves buttons, keyboard shortcuts and menus without backend
+markup. A `button` has `inlines`; a `keyboard` has ordered `keys`, each an inline
+array; a `menu` has inline-array `target` and ordered inline-array `items`.
+Empty arrays keep empty labels/components distinct from missing fields. Menu
+separators and shortcut punctuation have already been resolved by the parser;
+export does not split strings or insert display separators. Known owner and
+child locations are retained without inventing spans for array components.
+
+These labels use the same resolved inline treatment as their surrounding
+content, including protected fragments and nested semantic nodes. Source macros
+that were disabled remain literal text; export does not enable them. Native
+empty button/keyboard macros remain semantic nodes, although Asciidoctor retains
+those empty source forms literally. Strict export rejects all three macro kinds.

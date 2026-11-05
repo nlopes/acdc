@@ -83,19 +83,15 @@ pub(super) fn project(
             reference("link", &target, &[], Some(display), path, settings)
         }
         InlineMacro::CrossReference(xref) => cross_reference(xref, path, settings),
-        InlineMacro::IndexTerm(value) if settings.profile == Profile::Acdc => {
-            super::index_terms::project(value, path, settings)
-        }
-        InlineMacro::Footnote(note) if settings.profile == Profile::Acdc => {
-            super::footnotes::occurrence(note, path)
-        }
-        InlineMacro::Stem(value) if settings.profile == Profile::Acdc => {
-            let mut result = Map::from_iter([
-                ("name".into(), "stem".into()),
-                ("type".into(), "inline".into()),
-            ]);
-            super::math::apply(&mut result, value.content, &value.notation, true);
-            Ok(result)
+        InlineMacro::IndexTerm(_)
+        | InlineMacro::Footnote(_)
+        | InlineMacro::Stem(_)
+        | InlineMacro::Keyboard(_)
+        | InlineMacro::Button(_)
+        | InlineMacro::Menu(_)
+            if settings.profile == Profile::Acdc =>
+        {
+            extension(value, path, settings)
         }
         InlineMacro::Footnote(_)
         | InlineMacro::Icon(_)
@@ -108,6 +104,35 @@ pub(super) fn project(
         | InlineMacro::IndexTerm(_) => Err(unsupported(
             path,
             "this inline macro has no supported upstream mapping",
+        )),
+    }
+}
+
+fn extension(value: &InlineMacro<'_>, path: &str, settings: InlineContext) -> Result<Node, Error> {
+    match value {
+        InlineMacro::IndexTerm(value) => super::index_terms::project(value, path, settings),
+        InlineMacro::Footnote(note) => super::footnotes::occurrence(note, path),
+        InlineMacro::Stem(value) => {
+            let mut result = Map::from_iter([
+                ("name".into(), "stem".into()),
+                ("type".into(), "inline".into()),
+            ]);
+            super::math::apply(&mut result, value.content, &value.notation, true);
+            Ok(result)
+        }
+        InlineMacro::Keyboard(_) | InlineMacro::Button(_) | InlineMacro::Menu(_) => {
+            super::ui::project(value, path, settings)
+        }
+        InlineMacro::Link(_)
+        | InlineMacro::Url(_)
+        | InlineMacro::Mailto(_)
+        | InlineMacro::Autolink(_)
+        | InlineMacro::CrossReference(_)
+        | InlineMacro::Icon(_)
+        | InlineMacro::Image(_)
+        | InlineMacro::Pass(_) => Err(unsupported(
+            path,
+            "this macro has no supported extension mapping",
         )),
     }
 }

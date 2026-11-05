@@ -837,6 +837,15 @@
         },
         {
           "$ref": "#/$defs/acdcInlineStem"
+        },
+        {
+          "$ref": "#/$defs/acdcButton"
+        },
+        {
+          "$ref": "#/$defs/acdcKeyboard"
+        },
+        {
+          "$ref": "#/$defs/acdcMenu"
         }
       ]
     },
@@ -1972,6 +1981,85 @@
         },
         "inlines": {
           "$ref": "#/$defs/acdcMathContent"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "acdcButton": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "inlines"
+      ],
+      "properties": {
+        "name": {
+          "const": "button"
+        },
+        "type": {
+          "const": "inline"
+        },
+        "inlines": {
+          "$ref": "#/$defs/inlines"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "acdcKeyboard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "keys"
+      ],
+      "properties": {
+        "name": {
+          "const": "keyboard"
+        },
+        "type": {
+          "const": "inline"
+        },
+        "keys": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inlines"
+          }
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "acdcMenu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "target",
+        "items"
+      ],
+      "properties": {
+        "name": {
+          "const": "menu"
+        },
+        "type": {
+          "const": "inline"
+        },
+        "target": {
+          "$ref": "#/$defs/inlines"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/inlines"
+          }
         },
         "location": {
           "$ref": "#/$defs/location"

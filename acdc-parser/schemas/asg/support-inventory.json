@@ -1265,14 +1265,14 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-interface-labels"
       },
       "properties": {
         "label": {
-          "policy": "unsupported"
+          "policy": "named-interface-labels"
         },
         "location": {
-          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "policy": "named-interface-labels",
           "upstream": "#/$defs/location"
         }
       },
@@ -1565,14 +1565,14 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-interface-labels"
       },
       "properties": {
         "keys": {
-          "policy": "unsupported"
+          "policy": "named-interface-labels"
         },
         "location": {
-          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "policy": "named-interface-labels",
           "upstream": "#/$defs/location"
         }
       },
@@ -1589,17 +1589,17 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-interface-labels"
       },
       "properties": {
         "target": {
-          "policy": "unsupported"
+          "policy": "named-interface-labels"
         },
         "items": {
-          "policy": "unsupported"
+          "policy": "named-interface-labels"
         },
         "location": {
-          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "policy": "named-interface-labels",
           "upstream": "#/$defs/location"
         }
       },
@@ -5775,6 +5775,10 @@
     "named-inline-mathematics": {
       "handling": "context-dependent",
       "reason": "The named profile keeps inline STEM placement, resolved notation, protected literal formula text and known location, reusing the block formula contract. Empty bodies stay explicit; nested formatting and content attributes recurse normally. Inline math owns normal escaping. No formula parsing, rendering or source-child spans; strict export rejects."
+    },
+    "named-interface-labels": {
+      "handling": "context-dependent",
+      "reason": "The named profile keeps ordered shortcut components, button content and menu target/steps as inline arrays, including empty components and resolved nesting. Source enablement and delimiter interpretation are already resolved. Export emits no backend UI markup and invents no component spans. Strict upstream export rejects."
     }
   },
   "strict_export_groups": {
@@ -6815,6 +6819,36 @@
             "asg_inline_stem.rs::prepared_empty_and_literal_formulas_share_the_block_content_policy",
             "asg_inline_stem.rs::nested_formulas_keep_surrounding_formatting_and_strict_rejection",
             "asg_inline_stem.rs::inline_math_schema_rejects_block_fields_and_prose_content"
+          ]
+        },
+        "interface-labels": {
+          "owners": {
+            "Button": [
+              "label",
+              "location"
+            ],
+            "Keyboard": [
+              "keys",
+              "location"
+            ],
+            "Menu": [
+              "target",
+              "items",
+              "location"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/acdcButton",
+            "#/$defs/acdcKeyboard",
+            "#/$defs/acdcMenu"
+          ],
+          "handling": "The named profile keeps ordered shortcut components, button content and menu target/steps as inline arrays, including empty components and resolved nesting. Source enablement and delimiter interpretation are already resolved. Export emits no backend UI markup and invents no component spans. Strict upstream export rejects.",
+          "tests": [
+            "asg_ui.rs::source_interface_labels_keep_component_order_and_nested_content",
+            "asg_ui.rs::prepared_labels_preserve_empty_components_and_inline_structure",
+            "asg_ui.rs::nested_label_errors_and_footnotes_keep_their_owners",
+            "asg_ui.rs::disabled_source_macros_and_strict_export_stay_literal_or_rejected",
+            "asg_ui.rs::interface_schema_is_closed_and_rejects_flattened_labels"
           ]
         }
       }

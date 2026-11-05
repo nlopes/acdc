@@ -1,6 +1,7 @@
 use crate::{
-    AttributeValue, Block, Caption, ContentAttribute, Document, Header, InlineImage, InlineMacro,
-    InlineNode, Location, Options, Paragraph, Source, Title, asg, parse,
+    AttributeValue, Block, Caption, CharacterReference, CharacterReferenceKind, ContentAttribute,
+    Document, Header, InlineImage, InlineMacro, InlineNode, Location, Options, Paragraph, Source,
+    Title, asg, parse,
 };
 use serde_json::{Value, json};
 
@@ -60,21 +61,16 @@ fn image_support_composes_through_every_supported_content_owner() -> Result<(), 
 
 #[test]
 fn unsupported_image_content_and_scalar_states_fail_by_property() -> Result<(), Error> {
-    let parsed = parse("= Title\n:experimental:\n\nbtn:[Save]", &Options::default())?;
-    let Block::Paragraph(source) = parsed
-        .document_storage()
-        .blocks
-        .first()
-        .ok_or("paragraph")?
-    else {
-        return Err("paragraph".into());
-    };
+    let invalid = InlineNode::CharacterReference(
+        CharacterReference::new(CharacterReferenceKind::Numeric(0), Location::default())
+            .ok_or("numeric reference")?,
+    );
     for property in ["alt", "tooltip"] {
         let mut image = InlineImage::new(Source::Name("photo.png"), Location::default());
         if property == "alt" {
-            image.alt = Some(ContentAttribute::new(source.content.clone()));
+            image.alt = Some(ContentAttribute::new(vec![invalid.clone()]));
         } else {
-            image.tooltip = Some(ContentAttribute::new(source.content.clone()));
+            image.tooltip = Some(ContentAttribute::new(vec![invalid.clone()]));
         }
         let mut document = Document::default();
         document.blocks.push(Block::Paragraph(Paragraph::new(
@@ -82,7 +78,7 @@ fn unsupported_image_content_and_scalar_states_fail_by_property() -> Result<(), 
             Location::default(),
         )));
         assert!(
-            matches!(export(&document),Err(asg::Error::Unsupported {path,construct:Some("button"),..}) if path==format!("/blocks/0/inlines/0/{property}/0"))
+            matches!(export(&document),Err(asg::Error::Unsupported {path,..}) if path==format!("/blocks/0/inlines/0/{property}/0"))
         );
     }
     for attribute in [AttributeValue::None, AttributeValue::Bool(false)] {
