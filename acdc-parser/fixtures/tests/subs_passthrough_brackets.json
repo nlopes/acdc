@@ -568,7 +568,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "code-note",
-          "inlines": [],
           "location": [
             {
               "line": 31,

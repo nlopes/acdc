@@ -78,10 +78,16 @@ fn footnote_occurrences_and_definitions_remain_separate(
         occurrences.iter().map(|note| note.id()).collect::<Vec<_>>(),
         [Some("n"), Some("n"), Some("n"), None]
     );
-    assert_eq!(text(first.content())?, "A bold note.");
-    assert!(reference.content().is_empty());
-    assert!(repeated.content().is_empty());
-    assert_eq!(text(anonymous.content())?, "Anonymous.");
+    assert_eq!(
+        text(first.content().ok_or("definition body")?)?,
+        "A bold note."
+    );
+    assert!(reference.content().is_none());
+    assert!(repeated.content().is_none());
+    assert_eq!(
+        text(anonymous.content().ok_or("anonymous body")?)?,
+        "Anonymous."
+    );
     assert_eq!(
         slice(source, first.location()),
         Some("footnote:n[A *bold* note.]")
@@ -98,7 +104,7 @@ fn footnote_occurrences_and_definitions_remain_separate(
         shared(occurrence);
         assert_eq!(definition.id(), occurrence.id());
         assert_eq!(definition.number(), occurrence.number());
-        assert_eq!(definition.content(), occurrence.content());
+        assert_eq!(Some(definition.content()), occurrence.content());
         assert_eq!(
             definition.location().absolute_start(),
             occurrence.location().absolute_start()
@@ -106,6 +112,7 @@ fn footnote_occurrences_and_definitions_remain_separate(
     }
     let bold = first
         .content()
+        .ok_or("definition body")?
         .inlines()
         .find(|inline| matches!(inline.kind(), InlineKind::Bold(_)))
         .ok_or("bold")?;

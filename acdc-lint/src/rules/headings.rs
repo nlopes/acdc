@@ -208,7 +208,7 @@ fn first_alphabetic_inlines(content: ContentRef<'_>) -> Option<FirstAlphabetic<'
             InlineKind::Superscript(text) => first_alphabetic_inlines(text.content()),
             InlineKind::Button(button) => first_alphabetic_inlines(button.label()),
             InlineKind::CrossReference(reference) => first_alphabetic_inlines(reference.text()),
-            InlineKind::Footnote(footnote) => first_alphabetic_inlines(footnote.content()),
+            InlineKind::Footnote(footnote) => footnote.content().and_then(first_alphabetic_inlines),
             InlineKind::Link(link) => first_alphabetic_inlines(link.text()),
             InlineKind::Mailto(mailto) => first_alphabetic_inlines(mailto.text()),
             InlineKind::Menu(menu) => first_alphabetic_inlines(menu.target()),

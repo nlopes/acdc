@@ -5525,6 +5525,41 @@
         }
       },
       "strict_export_group": "core"
+    },
+    "src/model/inlines/macros.rs::FootnoteDefinition": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "registration_substitutions",
+          "id",
+          "content",
+          "number",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "unsupported"
+      },
+      "properties": {
+        "registration_substitutions": {
+          "policy": "unsupported"
+        },
+        "id": {
+          "policy": "unsupported"
+        },
+        "content": {
+          "policy": "unsupported"
+        },
+        "number": {
+          "policy": "unsupported"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      },
+      "strict_export_group": "unsupported-owners"
     }
   },
   "policies": {

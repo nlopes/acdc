@@ -1261,7 +1261,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "neighbor",
-          "inlines": [],
           "location": [
             {
               "line": 29,

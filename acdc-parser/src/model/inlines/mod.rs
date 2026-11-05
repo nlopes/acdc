@@ -401,7 +401,9 @@ where
     map.serialize_entry("name", "footnote")?;
     map.serialize_entry("type", "inline")?;
     map.serialize_entry("id", &f.id)?;
-    map.serialize_entry("inlines", &f.content)?;
+    if let Some(content) = &f.content {
+        map.serialize_entry("inlines", content)?;
+    }
     map.serialize_entry("location", &f.location)
 }
 

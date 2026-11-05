@@ -1,7 +1,7 @@
 //! Reference registration and document finalization.
 
 use crate::{
-    Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlockType, Document, Footnote, Header,
+    Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlockType, Document, Header,
     InlineMacro, InlineNode, Location, Reference, Section, Title, TocEntry, Warning, WarningKind,
     grammar::{
         ParserState,
@@ -159,7 +159,10 @@ pub(super) fn finalize_inline_semantics<'a>(
         .collect::<HashMap<_, _>>();
 
     for footnote in &mut document.footnotes {
-        finalize_footnote_text(footnote);
+        finalize_footnote_text(
+            &mut footnote.registration_substitutions,
+            &mut footnote.content,
+        );
     }
     walk_document_inline_nodes_mut(document, &mut |inline| {
         finalize_registered_inline(state, inline);
@@ -675,13 +678,15 @@ fn finalize_registered_inline<'a>(state: &ParserState<'a>, node: &mut InlineNode
             });
         }
     } else if let InlineNode::Macro(InlineMacro::Footnote(footnote)) = node {
-        finalize_footnote_text(footnote);
+        if let Some(content) = &mut footnote.content {
+            finalize_footnote_text(&mut footnote.registration_substitutions, content);
+        }
     }
 }
 
-fn finalize_footnote_text(note: &mut Footnote<'_>) {
-    if let Some(plan) = note.registration_substitutions.take() {
-        freeze_registered_text(&mut note.content, plan);
+fn finalize_footnote_text(plan: &mut Option<SubstitutionPlan>, content: &mut [InlineNode<'_>]) {
+    if let Some(plan) = plan.take() {
+        freeze_registered_text(content, plan);
     }
 }
 

@@ -1515,7 +1515,11 @@ fn for_each_inline_children<'a>(
         InlineNode::Macro(macro_node) => {
             macro_node.for_each_content_attribute_mut(&mut *visit);
             match macro_node {
-                InlineMacro::Footnote(value) => visit(&mut value.content),
+                InlineMacro::Footnote(value) => {
+                    if let Some(content) = &mut value.content {
+                        visit(content);
+                    }
+                }
                 InlineMacro::Url(value) => visit(&mut value.text),
                 InlineMacro::Link(value) => visit(&mut value.text),
                 InlineMacro::Mailto(value) => visit(&mut value.text),

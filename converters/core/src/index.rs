@@ -69,7 +69,7 @@ fn index_children(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
         InlineKind::Link(link) => link.text(),
         InlineKind::Mailto(link) => link.text(),
         InlineKind::CrossReference(link) => link.text(),
-        InlineKind::Footnote(footnote) => footnote.content(),
+        InlineKind::Footnote(footnote) => return footnote.content(),
         InlineKind::Plain(_)
         | InlineKind::Raw(_)
         | InlineKind::Verbatim(_)

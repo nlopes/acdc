@@ -587,7 +587,7 @@ peg::parser! {
                 }),
                 registration_substitutions,
                 id,
-                content,
+                content: Some(content),
                 number: 0,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             };

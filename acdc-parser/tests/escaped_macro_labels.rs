@@ -87,7 +87,7 @@ fn active_macro_brackets_consume_only_their_delimiter_escape() -> Result<(), Err
                     .inlines()
                     .find_map(|node| {
                         if let InlineKind::Footnote(note) = node.kind() {
-                            Some(note.content())
+                            note.content()
                         } else if let InlineKind::CrossReference(xref) = node.kind() {
                             Some(xref.text())
                         } else {

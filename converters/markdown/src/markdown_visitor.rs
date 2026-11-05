@@ -858,7 +858,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         let id = footnote
             .id()
             .map_or_else(|| footnote.number().to_string(), str::to_owned);
-        if footnote.content().is_empty()
+        if footnote.content().is_none()
             || self
                 .footnotes
                 .iter()
@@ -877,7 +877,9 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             visitor
                 .current_section_title
                 .clone_from(&self.current_section_title);
-            visitor.write_content(traversal, footnote.content())?;
+            if let Some(content) = footnote.content() {
+                visitor.write_content(traversal, content)?;
+            }
         }
         let rendered = String::from_utf8(buffer).unwrap_or_default();
         self.footnotes

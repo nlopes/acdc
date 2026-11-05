@@ -1249,7 +1249,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "used",
-              "inlines": [],
               "location": [
                 {
                   "line": 48,

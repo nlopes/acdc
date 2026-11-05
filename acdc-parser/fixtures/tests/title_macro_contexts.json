@@ -849,7 +849,6 @@
                             "name": "footnote",
                             "type": "inline",
                             "id": "cell",
-                            "inlines": [],
                             "location": [
                               {
                                 "line": 39,
@@ -1276,7 +1275,6 @@
                   "name": "footnote",
                   "type": "inline",
                   "id": "source",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 53,

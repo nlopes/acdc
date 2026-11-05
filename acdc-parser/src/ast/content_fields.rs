@@ -218,7 +218,7 @@ impl<'doc> InlineRef<'doc> {
                 (Tooltip, node.tooltip()),
             ),
             InlineKind::CrossReference(node) => Fields::one(owner, LinkText, Some(node.text())),
-            InlineKind::Footnote(node) => Fields::one(owner, Footnote, Some(node.content())),
+            InlineKind::Footnote(node) => Fields::one(owner, Footnote, node.content()),
             InlineKind::Anchor(node) => node.field_iter(),
             InlineKind::Button(node) => Fields::one(owner, ButtonLabel, Some(node.label())),
             InlineKind::Keyboard(node) => Fields {

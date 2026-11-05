@@ -367,7 +367,11 @@ where
         // Own location already visited via `node.location_mut()`. Recurse into the
         // inline-bearing macro variants.
         match m {
-            InlineMacro::Footnote(f) => self.inlines(&mut f.content)?,
+            InlineMacro::Footnote(f) => {
+                if let Some(content) = &mut f.content {
+                    self.inlines(content)?;
+                }
+            }
             InlineMacro::Link(l) => {
                 if let Some(id) = &mut l.metadata.id {
                     (self.visit_location)(&mut id.location)?;

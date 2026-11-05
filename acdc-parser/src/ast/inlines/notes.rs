@@ -15,11 +15,11 @@ impl<'doc> FootnoteRef<'doc> {
         self.node.number
     }
 
-    /// The body retained on this occurrence. References, including repeated
-    /// definitions, have empty content and do not repeat the first definition's body.
+    /// The retained definition body, including an explicitly empty body.
+    /// References, including repeated source definitions, return `None`.
     #[must_use]
-    pub fn content(self) -> ContentRef<'doc> {
-        ContentRef::new(&self.node.content)
+    pub fn content(self) -> Option<ContentRef<'doc>> {
+        self.node.content.as_deref().map(ContentRef::new)
     }
 }
 

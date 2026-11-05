@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Prepared footnote occurrences distinguish references from empty definitions:
+  `FootnoteRef::content()` returns `None` for references and `Some` for definitions.
+  Native JSON omits `inlines` on references, while empty definitions retain `[]`.
+  Document catalog transfers use `FootnoteDefinition`, whose body is always present.
+  Source footnote numbering and rendered output are unchanged.
+
 - `AttributeValueRef::as_str()` reads exact text without allocation, including
   empty strings and meaningful quotes. Other attribute value kinds return
   `None`, so callers can keep text extraction separate from content rendering.

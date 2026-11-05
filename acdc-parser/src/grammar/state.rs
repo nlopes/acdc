@@ -13,8 +13,9 @@ use bitflags::bitflags;
 use bumpalo::Bump;
 
 use crate::{
-    CalloutRef, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote, Location,
-    Options, Pass, SourceLocation, TocEntry, Warning, WarningKind, XrefCaptionLabel, XrefSignifier,
+    CalloutRef, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote,
+    FootnoteDefinition, Location, Options, Pass, SourceLocation, TocEntry, Warning, WarningKind,
+    XrefCaptionLabel, XrefSignifier,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::LineMap,
     model::{
@@ -240,7 +241,7 @@ struct NamedFootnote<'a> {
 #[derive(Debug, Clone)]
 pub(crate) struct FootnoteTracker<'a> {
     /// All registered footnotes in the order they were encountered.
-    pub(crate) footnotes: Vec<Footnote<'a>>,
+    pub(crate) footnotes: Vec<FootnoteDefinition<'a>>,
     /// The last assigned footnote number (starts at 1)
     last_footnote_position: u32,
     named_footnotes: HashMap<&'a str, NamedFootnote<'a>>,
@@ -279,8 +280,9 @@ impl<'a> FootnoteTracker<'a> {
             && let Some(entry) = self.footnotes.get_mut(index as usize)
         {
             entry.location = footnote.location.clone();
-            entry.content.clone_from(&footnote.content);
-            entry.definition_source = None;
+            if let Some(content) = &footnote.content {
+                entry.content.clone_from(content);
+            }
         }
         conflict
     }
@@ -290,16 +292,19 @@ impl<'a> FootnoteTracker<'a> {
     }
 
     /// Assign a number, reusing named definitions. Return false for an undefined reference.
-    #[tracing::instrument(skip_all, fields(node_count = footnote.content.len(), named = footnote.id.is_some()))]
+    #[tracing::instrument(skip_all, fields(node_count = footnote.content.as_ref().map_or(0, Vec::len), named = footnote.id.is_some()))]
     pub(crate) fn push(&mut self, footnote: &mut Footnote<'a>) -> bool {
         if let Some(id) = footnote.id
             && let Some(existing) = self.named_footnotes.get(id)
         {
             footnote.number = existing.number;
-            footnote.content.clear();
+            footnote.content = None;
             return true;
         }
-        if footnote.content.is_empty() {
+        let Some(content) = &footnote.content else {
+            return false;
+        };
+        if content.is_empty() {
             return false;
         }
         footnote.number = self.last_footnote_position;
@@ -312,7 +317,13 @@ impl<'a> FootnoteTracker<'a> {
                 },
             );
         }
-        self.footnotes.push(footnote.clone());
+        self.footnotes.push(FootnoteDefinition {
+            registration_substitutions: footnote.registration_substitutions,
+            id: footnote.id,
+            content: content.clone(),
+            number: footnote.number,
+            location: footnote.location.clone(),
+        });
         self.last_footnote_position += 1;
         true
     }

@@ -37,7 +37,7 @@ fn visit_index_terms<E>(
                     InlineNode::Macro(InlineMacro::CrossReference(mut link)) => {
                         Some(link.take_text())
                     }
-                    InlineNode::Macro(InlineMacro::Footnote(mut note)) => Some(note.take_content()),
+                    InlineNode::Macro(InlineMacro::Footnote(mut note)) => note.take_content(),
                     InlineNode::PlainText(_)
                     | InlineNode::Symbol(_)
                     | InlineNode::CharacterReference(_)

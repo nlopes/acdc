@@ -227,7 +227,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "code",
-          "inlines": [],
           "location": [
             {
               "line": 11,
@@ -258,7 +257,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "shared",
-          "inlines": [],
           "location": [
             {
               "line": 11,
@@ -289,7 +287,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "code",
-          "inlines": [],
           "location": [
             {
               "line": 12,
@@ -870,7 +867,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "only",
-          "inlines": [],
           "location": [
             {
               "line": 39,
@@ -1350,7 +1346,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "code",
-          "inlines": [],
           "location": [
             {
               "line": 60,

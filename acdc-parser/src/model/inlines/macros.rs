@@ -104,7 +104,7 @@ pub struct Footnote<'a> {
     /// Capture the body before later substitutions; consumed after source mapping.
     pub(crate) registration_substitutions: Option<crate::model::substitution::SubstitutionPlan>,
     pub(crate) id: Option<&'a str>,
-    pub(crate) content: Vec<InlineNode<'a>>,
+    pub(crate) content: Option<Vec<InlineNode<'a>>>,
     pub(crate) number: u32,
     pub(crate) location: Location,
 }
@@ -118,7 +118,21 @@ impl<'a> Footnote<'a> {
             definition_source: None,
             registration_substitutions: None,
             id: None,
-            content,
+            content: Some(content),
+            number,
+            location,
+        }
+    }
+
+    /// Construct a reference without retaining a definition body.
+    /// The key, number and location are preserved until explicit document repair.
+    #[must_use]
+    pub fn reference(id: Option<&'a str>, number: u32, location: Location) -> Self {
+        Self {
+            definition_source: None,
+            registration_substitutions: None,
+            id,
+            content: None,
             number,
             location,
         }
@@ -131,20 +145,23 @@ impl<'a> Footnote<'a> {
     }
 
     /// Replace prepared content without parsing it or updating registered definitions.
-    pub fn replace_content(&mut self, content: Vec<InlineNode<'a>>) -> Vec<InlineNode<'a>> {
+    pub fn replace_content(
+        &mut self,
+        content: Option<Vec<InlineNode<'a>>>,
+    ) -> Option<Vec<InlineNode<'a>>> {
         self.clear_registration_source();
         std::mem::replace(&mut self.content, content)
     }
 
-    /// Transfer the retained body, leaving this occurrence empty.
-    pub fn take_content(&mut self) -> Vec<InlineNode<'a>> {
-        self.replace_content(Vec::new())
+    /// Transfer the retained body, leaving a reference without a definition.
+    pub fn take_content(&mut self) -> Option<Vec<InlineNode<'a>>> {
+        self.replace_content(None)
     }
 
-    /// Append a prepared inline without registering nested content.
+    /// Append a prepared inline, creating a definition body if this was a reference.
     pub fn push_inline(&mut self, inline: InlineNode<'a>) {
         self.clear_registration_source();
-        self.content.push(inline);
+        self.content.get_or_insert_with(Vec::new).push(inline);
     }
 
     /// Replace the assigned number without renumbering other occurrences or catalogs.
@@ -160,6 +177,63 @@ impl<'a> Footnote<'a> {
     fn clear_registration_source(&mut self) {
         self.definition_source = None;
         self.registration_substitutions = None;
+    }
+}
+
+/// A registered footnote body, separate from its inline occurrences.
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct FootnoteDefinition<'a> {
+    pub(crate) registration_substitutions: Option<crate::model::substitution::SubstitutionPlan>,
+    pub(crate) id: Option<&'a str>,
+    pub(crate) content: Vec<InlineNode<'a>>,
+    pub(crate) number: u32,
+    pub(crate) location: Location,
+}
+
+impl<'a> FootnoteDefinition<'a> {
+    /// Construct an anonymous registered body without adding any tree occurrences.
+    #[must_use]
+    pub fn new(content: Vec<InlineNode<'a>>, number: u32, location: Location) -> Self {
+        Self {
+            registration_substitutions: None,
+            id: None,
+            content,
+            number,
+            location,
+        }
+    }
+
+    /// Replace the named key without changing tree occurrences.
+    pub fn replace_id(&mut self, id: Option<&'a str>) -> Option<&'a str> {
+        std::mem::replace(&mut self.id, id)
+    }
+
+    /// Replace prepared content without parsing it or updating tree occurrences.
+    pub fn replace_content(&mut self, content: Vec<InlineNode<'a>>) -> Vec<InlineNode<'a>> {
+        self.registration_substitutions = None;
+        std::mem::replace(&mut self.content, content)
+    }
+
+    /// Transfer the body, leaving an explicitly empty definition.
+    pub fn take_content(&mut self) -> Vec<InlineNode<'a>> {
+        self.replace_content(Vec::new())
+    }
+
+    /// Append prepared content without registering nested notes.
+    pub fn push_inline(&mut self, inline: InlineNode<'a>) {
+        self.registration_substitutions = None;
+        self.content.push(inline);
+    }
+
+    /// Replace the assigned number without renumbering occurrences.
+    pub fn set_number(&mut self, number: u32) {
+        self.number = number;
+    }
+
+    /// Replace the definition span, keeping its prepared child locations.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 }
 
@@ -1233,7 +1307,7 @@ mod prepared_note_tests {
     #[test]
     fn prepared_note_edits_discard_old_registration_sources() {
         let mut note = pending();
-        note.replace_content(Vec::new());
+        note.replace_content(Some(Vec::new()));
         assert!(note.definition_source.is_none());
         assert!(note.registration_substitutions.is_none());
         let mut note = pending();

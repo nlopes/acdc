@@ -243,7 +243,11 @@ pub(crate) fn inlines<'a, V: ReferenceVisitor<'a>>(
                 visitor.cross_reference(reference)?;
                 inlines(visitor, &reference.text)?;
             }
-            InlineNode::Macro(InlineMacro::Footnote(note)) => inlines(visitor, &note.content)?,
+            InlineNode::Macro(InlineMacro::Footnote(note)) => {
+                if let Some(content) = &note.content {
+                    inlines(visitor, content)?;
+                }
+            }
             InlineNode::Macro(InlineMacro::IndexTerm(term)) if term.is_visible() => {
                 inlines(visitor, term.term())?;
             }

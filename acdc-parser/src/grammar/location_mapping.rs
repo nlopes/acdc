@@ -654,8 +654,9 @@ fn map_inline_macro<'a>(
     match inline_macro {
         InlineMacro::Footnote(footnote) => {
             footnote.location = ctx.map_location(&footnote.location)?;
-            footnote.content =
-                map_inline_locations(state, processed, take(&mut footnote.content), location)?;
+            if let Some(content) = &mut footnote.content {
+                *content = map_inline_locations(state, processed, take(content), location)?;
+            }
             state.finalize_footnote(footnote);
         }
         InlineMacro::Url(url) => {

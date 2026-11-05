@@ -208,7 +208,7 @@ fn quoted_xref_footnotes_keep_their_mapped_catalog_locations(
         .next()
         .ok_or("missing catalog footnote")?;
     assert_eq!(note.location(), occurrence.location());
-    assert_eq!(note.content(), occurrence.content());
+    assert_eq!(Some(note.content()), occurrence.content());
     assert_eq!(
         note.location().absolute_start(),
         source.find("footnote:").ok_or("missing authored note")?

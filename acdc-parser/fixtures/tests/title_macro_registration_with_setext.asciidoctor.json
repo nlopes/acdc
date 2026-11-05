@@ -460,7 +460,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "named",
-              "inlines": [],
               "location": [
                 {
                   "line": 18,

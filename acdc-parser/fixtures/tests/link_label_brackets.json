@@ -2577,7 +2577,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "note",
-          "inlines": [],
           "location": [
             {
               "line": 47,

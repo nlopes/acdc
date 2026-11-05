@@ -2141,7 +2141,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "one",
-              "inlines": [],
               "location": [
                 {
                   "line": 71,

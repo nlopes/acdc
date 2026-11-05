@@ -2713,7 +2713,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "early",
-          "inlines": [],
           "location": [
             {
               "line": 96,
@@ -2744,7 +2743,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "late",
-          "inlines": [],
           "location": [
             {
               "line": 96,

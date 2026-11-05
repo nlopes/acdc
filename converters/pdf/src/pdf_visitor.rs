@@ -4122,7 +4122,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             // Copied titles display the parsed marker without defining
             // another native footnote or duplicating the original label.
             let _ = write!(self.writer, "#super[{}]", footnote.number());
-        } else if let Some(id) = footnote.id().filter(|_| footnote.content().is_empty()) {
+        } else if let Some(id) = footnote.id().filter(|_| footnote.content().is_none()) {
             // Typst label references reuse the definition's counter value
             // without advancing the footnote counter.
             let _ = write!(self.writer, "#footnote(<{}>)", encode_footnote_label(id));
@@ -4133,7 +4133,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 footnote.number().saturating_sub(1)
             );
             self.writer.raw("#footnote[");
-            self.write_content(traversal, footnote.content())?;
+            if let Some(content) = footnote.content() {
+                self.write_content(traversal, content)?;
+            }
             self.writer.raw("]");
             if let Some(id) = footnote.id() {
                 let _ = write!(self.writer, "<{}>", encode_footnote_label(id));

@@ -2833,7 +2833,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "note",
-          "inlines": [],
           "location": [
             {
               "line": 55,
@@ -3686,7 +3685,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "quoted",
-          "inlines": [],
           "location": [
             {
               "line": 73,

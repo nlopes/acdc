@@ -225,7 +225,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "code",
-          "inlines": [],
           "location": [
             {
               "line": 9,
@@ -256,7 +255,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "shared",
-          "inlines": [],
           "location": [
             {
               "line": 9,
@@ -287,7 +285,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "code",
-          "inlines": [],
           "location": [
             {
               "line": 10,
@@ -868,7 +865,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "only",
-          "inlines": [],
           "location": [
             {
               "line": 37,
@@ -1348,7 +1344,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "code",
-          "inlines": [],
           "location": [
             {
               "line": 58,

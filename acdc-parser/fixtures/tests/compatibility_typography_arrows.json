@@ -356,7 +356,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "arrows",
-          "inlines": [],
           "location": [
             {
               "line": 7,

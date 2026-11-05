@@ -1978,7 +1978,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "paragraph",
-              "inlines": [],
               "location": [
                 {
                   "line": 65,
@@ -2009,7 +2008,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "delimited",
-              "inlines": [],
               "location": [
                 {
                   "line": 65,

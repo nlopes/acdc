@@ -55,7 +55,10 @@ fn titled_paragraph_macros_register_once() -> Result<(), Error> {
                 }
             })
             .ok_or("missing defining note in title")?;
-        assert!(!note.content().is_empty(), "{metadata}: {note:?}");
+        assert!(
+            note.content().is_some_and(|body| !body.is_empty()),
+            "{metadata}: {note:?}"
+        );
         assert_eq!(note.number(), 1);
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     }

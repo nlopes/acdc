@@ -152,7 +152,9 @@ fn macro_text(m: InlineKind<'_>, format: Format) -> String {
         InlineKind::Autolink(l) => l.target().to_string(),
         InlineKind::CrossReference(l) => labelled_link(l.target(), l.text(), format, "xref:"),
         InlineKind::Footnote(f) => {
-            let text = inline_text(f.content(), format);
+            let text = f
+                .content()
+                .map_or_else(String::new, |body| inline_text(body, format));
             if format == Format::Asciidoc {
                 format!("footnote:[{text}]")
             } else {

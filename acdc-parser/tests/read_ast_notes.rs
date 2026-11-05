@@ -60,10 +60,16 @@ fn footnote_catalog_reads_preserve_registration_snapshots() -> Result<(), Error>
     )?;
     let mut occurrences = notes(paragraph(parsed.document())?);
     assert_eq!(
-        text(occurrences.next().ok_or("definition")?.content())?,
+        text(
+            occurrences
+                .next()
+                .ok_or("definition")?
+                .content()
+                .ok_or("definition body")?
+        )?,
         "{word}"
     );
-    assert!(occurrences.next().ok_or("reference")?.content().is_empty());
+    assert!(occurrences.next().ok_or("reference")?.content().is_none());
     let definition = parsed
         .document()
         .footnotes()
@@ -92,8 +98,8 @@ fn footnote_owner_reads_do_not_resolve_or_register_content() -> Result<(), Error
     let read = FootnoteRef::from(&owner);
     assert_eq!(read.number(), 17);
     assert_eq!(read.id(), Some("n"));
-    assert!(read.content().is_empty());
-    assert!(FootnoteRef::from(reference).content().is_empty());
+    assert!(read.content().is_none());
+    assert!(FootnoteRef::from(reference).content().is_none());
     assert!(
         parse("No notes.", &Options::default())?
             .document()
@@ -304,10 +310,13 @@ fn footnote_reads_preserve_included_and_table_cell_locations(
     let mut occurrences = notes(paragraph.content());
     let reference = occurrences.next().ok_or("cell reference")?;
     assert_eq!(reference.number(), first.number());
-    assert!(reference.content().is_empty());
+    assert!(reference.content().is_none());
     let definition = occurrences.next().ok_or("cell definition")?;
     assert_eq!(definition.number(), 2);
-    assert_eq!(text(definition.content())?, "Cell.");
+    assert_eq!(
+        text(definition.content().ok_or("cell definition body")?)?,
+        "Cell."
+    );
     assert_eq!(
         parsed.resolve_location(definition.location()).file,
         Some(main)

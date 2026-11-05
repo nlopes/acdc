@@ -390,7 +390,6 @@
                   "name": "footnote",
                   "type": "inline",
                   "id": "shared",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 13,
@@ -470,7 +469,6 @@
                   "name": "footnote",
                   "type": "inline",
                   "id": "shared",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 15,
@@ -550,7 +548,6 @@
                   "name": "footnote",
                   "type": "inline",
                   "id": "shared",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 17,
@@ -777,7 +774,6 @@
                   "name": "footnote",
                   "type": "inline",
                   "id": "shared",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 23,
@@ -1702,7 +1698,6 @@
                   "name": "footnote",
                   "type": "inline",
                   "id": "shared",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 40,

@@ -1,5 +1,6 @@
 use crate::{
-    Author, DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes, Footnote,
+    Author, DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes,
+    FootnoteDefinition,
 };
 
 use super::{
@@ -10,7 +11,7 @@ node_ref!(HeaderRef<'doc>, crate::Header<'doc>, "A document header.");
 
 node_ref!(
     FootnoteDefinitionRef<'doc>,
-    Footnote<'doc>,
+    FootnoteDefinition<'doc>,
     "A registered footnote definition from the document catalog, not another authored occurrence."
 );
 
@@ -265,5 +266,17 @@ impl<'doc> FootnoteDefinitionRef<'doc> {
 impl<'doc> From<DocumentAttributesRef<'doc>> for DocumentAttributes<'doc> {
     fn from(attributes: DocumentAttributesRef<'doc>) -> Self {
         attributes.attributes.clone()
+    }
+}
+
+impl<'doc> From<&'doc FootnoteDefinition<'doc>> for FootnoteDefinitionRef<'doc> {
+    fn from(owner: &'doc FootnoteDefinition<'doc>) -> Self {
+        Self::new(owner)
+    }
+}
+
+impl<'doc> From<FootnoteDefinitionRef<'doc>> for FootnoteDefinition<'doc> {
+    fn from(read: FootnoteDefinitionRef<'doc>) -> Self {
+        read.node.clone()
     }
 }

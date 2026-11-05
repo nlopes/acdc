@@ -1089,8 +1089,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         options: &RenderOptions,
     ) -> Result<(), Error> {
         // Reused notes and copies in reference text must not repeat the original IDs.
-        let is_ref = self.processor.xref_guard.is_resolving()
-            || (f.id().is_some() && f.content().is_empty());
+        let is_ref = self.processor.xref_guard.is_resolving() || f.content().is_none();
         let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
         let w = self.writer_mut();
         let number = f.number();

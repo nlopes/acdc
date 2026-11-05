@@ -22,7 +22,7 @@ fn content_ids<'a>(content: ContentRef<'a>, ids: &mut Vec<ElementIdRef<'a>>) {
             InlineKind::Superscript(span) => Some(span.content()),
             InlineKind::CurvedQuotation(span) => Some(span.content()),
             InlineKind::CurvedApostrophe(span) => Some(span.content()),
-            InlineKind::Footnote(note) => Some(note.content()),
+            InlineKind::Footnote(note) => note.content(),
             InlineKind::Plain(_)
             | InlineKind::Raw(_)
             | InlineKind::Verbatim(_)

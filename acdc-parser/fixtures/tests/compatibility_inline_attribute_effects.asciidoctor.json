@@ -108,7 +108,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "n",
-          "inlines": [],
           "location": [
             {
               "line": 8,

@@ -1419,7 +1419,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "late",
-          "inlines": [],
           "location": [
             {
               "line": 33,

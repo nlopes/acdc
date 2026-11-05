@@ -935,7 +935,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "n",
-              "inlines": [],
               "location": [
                 {
                   "line": 39,
@@ -1089,7 +1088,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "n",
-              "inlines": [],
               "location": [
                 {
                   "line": 44,

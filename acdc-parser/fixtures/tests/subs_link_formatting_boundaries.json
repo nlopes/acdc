@@ -1545,7 +1545,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "code",
-              "inlines": [],
               "location": [
                 {
                   "line": 42,

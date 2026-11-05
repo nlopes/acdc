@@ -171,7 +171,8 @@ fn selected_anchor_copies_keep_bibliography_labels_and_native_json(
 }
 
 #[test]
-fn footnote_content_transfers_keep_buffers_source_lifetimes_and_assigned_numbers() {
+fn footnote_content_transfers_keep_buffers_source_lifetimes_and_assigned_numbers()
+-> Result<(), Error> {
     let source = String::from("first");
     let replacement = String::from("footnote:new[prepared]");
     let original = vec![plain(&source)];
@@ -182,16 +183,23 @@ fn footnote_content_transfers_keep_buffers_source_lifetimes_and_assigned_numbers
         assert_eq!(FootnoteRef::from(&note).id(), None);
         note.replace_id(Some(&source));
         let old_id = note.replace_id(Some(&replacement));
-        let old = note.replace_content(next);
+        let old = note.replace_content(Some(next));
         assert_eq!(FootnoteRef::from(&note).number(), 17);
         note.push_inline(plain("tail"));
-        assert_eq!(FootnoteRef::from(&note).content().inlines().count(), 2);
+        assert_eq!(
+            FootnoteRef::from(&note)
+                .content()
+                .ok_or("definition body")?
+                .inlines()
+                .count(),
+            2
+        );
         // Push can grow a Vec; use a second transfer to check the original replacement buffer.
         let mut second = Footnote::new(Vec::new(), 0, Location::default());
         second.replace_content(old);
-        let old = second.take_content();
-        let taken = note.take_content();
-        assert!(FootnoteRef::from(&note).content().is_empty());
+        let old = second.take_content().ok_or("transferred definition")?;
+        let taken = note.take_content().ok_or("transferred definition")?;
+        assert!(FootnoteRef::from(&note).content().is_none());
         assert_eq!(FootnoteRef::from(&note).number(), 17);
         (old, taken, old_id)
     };
@@ -202,9 +210,10 @@ fn footnote_content_transfers_keep_buffers_source_lifetimes_and_assigned_numbers
     let mut note = Footnote::new(Vec::new(), 0, Location::default());
     let next = vec![plain(&replacement)];
     let pointer = next.as_ptr();
-    note.replace_content(next);
-    let taken = note.take_content();
+    note.replace_content(Some(next));
+    let taken = note.take_content().ok_or("transferred definition")?;
     assert_eq!(taken.as_ptr(), pointer);
+    Ok(())
 }
 
 #[rstest::rstest]
@@ -227,12 +236,16 @@ fn editing_copied_notes_does_not_reregister_or_renumber_document_snapshots(
             let original = Footnote::from(note);
             let mut copy = Footnote::from(note);
             assert_eq!(copy, original);
-            observations.push((note.id(), note.number(), note.content().is_empty()));
+            observations.push((note.id(), note.number(), note.content().is_none()));
             copy.replace_id(Some("unregistered"));
-            copy.replace_content(vec![plain("{unexpanded} *unparsed*")]);
+            copy.replace_content(Some(vec![plain("{unexpanded} *unparsed*")]));
             copy.set_number(99);
             assert_eq!(
-                text(FootnoteRef::from(&copy).content())?,
+                text(
+                    FootnoteRef::from(&copy)
+                        .content()
+                        .ok_or("prepared definition")?
+                )?,
                 "{unexpanded} *unparsed*"
             );
             assert_eq!(Footnote::from(note), original);
@@ -267,6 +280,7 @@ fn note_and_anchor_location_edits_keep_prepared_child_spans() -> Result<(), Erro
         Location::from(
             FootnoteRef::from(&note)
                 .content()
+                .ok_or("definition body")?
                 .inlines()
                 .next()
                 .ok_or("child")?

@@ -75,7 +75,7 @@ pub struct Document<'a> {
     /// [`Block::DocumentAttribute`] nodes and do not update this snapshot.
     pub(crate) attributes: DocumentAttributes<'a>,
     pub(crate) blocks: Vec<Block<'a>>,
-    pub(crate) footnotes: Vec<Footnote<'a>>,
+    pub(crate) footnotes: Vec<FootnoteDefinition<'a>>,
     pub(crate) toc_entries: Vec<TocEntry<'a>>,
     /// Cross-reference targets keyed by id, for O(1) `<<id>>` resolution.
     /// Covers sections, blocks, explicit inline anchors, and IDs on formatted
@@ -129,14 +129,14 @@ impl<'a> Document<'a> {
     }
 
     /// Replace prepared footnote registrations without changing tree occurrences.
-    pub fn set_footnotes(&mut self, footnotes: impl IntoIterator<Item = Footnote<'a>>) {
+    pub fn set_footnotes(&mut self, footnotes: impl IntoIterator<Item = FootnoteDefinition<'a>>) {
         self.footnotes = footnotes.into_iter().collect();
     }
 
     /// Remove footnote registrations without changing tree occurrences.
     pub fn take_footnotes(
         &mut self,
-    ) -> impl DoubleEndedIterator<Item = Footnote<'a>> + ExactSizeIterator + use<'a> {
+    ) -> impl DoubleEndedIterator<Item = FootnoteDefinition<'a>> + ExactSizeIterator + use<'a> {
         std::mem::take(&mut self.footnotes).into_iter()
     }
 
