@@ -1,7 +1,7 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    ContentAttribute, Document, Options, Reference, SafeMode, Title,
+    ContentAttribute, Document, Options, Reference, SafeMode,
     ast::{ContentRef, DocumentRef, InlineKind, ReferenceRef, ReferencesRef, TocEntryRef},
     parse, parse_file,
 };
@@ -53,7 +53,7 @@ fn catalog_labels_keep_absent_and_empty_values_separate() -> Result<(), Error> {
             .get("plain")
             .ok_or("plain owner")?,
     );
-    owned.set_title(Some(Title::new(Vec::new())));
+    owned.set_title(Some(ContentAttribute::new(Vec::new())));
     owned.set_xreflabel(Some(ContentAttribute::new(Vec::new())));
     let empty_title = ReferenceRef::from(&owned);
     assert!(empty_title.title().is_some_and(ContentRef::is_empty));

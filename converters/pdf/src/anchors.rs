@@ -30,16 +30,9 @@ impl<'a> Anchors<'a> {
         };
         let mut seen = HashSet::new();
         for entry in entries {
-            let first = references.get(entry.id()).is_none_or(|reference| {
-                let reference = ReferenceRef::from(reference);
-                let reference_location = reference.location();
-                let entry_location = entry.location();
-                let title = reference.title();
-                title.is_some()
-                    && title.filter(|_| reference.title_is_present()) == entry.title()
-                    && reference_location.end() == entry_location.end()
-                    && reference_location.absolute_end() == entry_location.absolute_end()
-            });
+            let first = references
+                .get(entry.id())
+                .is_none_or(|reference| ReferenceRef::from(reference).matches_toc_entry(entry));
             let label = if first && seen.insert(entry.id()) {
                 encode_label(entry.id())
             } else {
@@ -87,17 +80,19 @@ impl<'a> Anchors<'a> {
 mod tests {
     use std::collections::HashMap;
 
-    use acdc_parser::{Location, Reference, Title, TocEntry};
+    use acdc_parser::{ContentAttribute, Location, Reference, Title, TocEntry};
 
     use super::Anchors;
 
     #[test]
-    fn constructed_title_presence_keeps_public_destination_selection() {
+    fn constructed_title_presence_has_one_boundary_for_public_destinations() {
         for entry_title in [Title::default(), Title::new(Vec::new())] {
             for reference_title in [None, Some(Title::default()), Some(Title::new(Vec::new()))] {
-                let matches = reference_title.as_ref() == Some(&entry_title);
-                let mut reference = Reference::new(Location::default());
-                reference.set_title(reference_title);
+                let matches = reference_title.is_some() && entry_title.is_present();
+                let mut reference = Reference::new("target", Location::default());
+                reference.set_title(
+                    reference_title.map(|title| ContentAttribute::new(title.into_inlines())),
+                );
                 let entry = TocEntry::new("target", entry_title.clone(), 1, Location::default());
                 let entries = [entry];
                 let references = HashMap::from([("target", reference)]);

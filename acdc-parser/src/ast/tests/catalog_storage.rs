@@ -157,7 +157,7 @@ fn catalog_snapshots_preserve_registered_state_without_refreshing(
             serde_json::to_value(&original.toc_entries)?
         );
         for reference in references.values_mut() {
-            reference.title = Some(Title::new(Vec::new()));
+            reference.title = Some(ContentAttribute::new(Vec::new()));
             reference.xreflabel = Some(ContentAttribute::new(Vec::new()));
             reference.caption = None;
             reference.location = Location::default();
@@ -204,7 +204,9 @@ fn catalog_snapshots_keep_absent_and_explicitly_empty_content() -> Result<(), Er
     for title in [None, Some(Title::new(Vec::new()))] {
         for label in [None, Some(ContentAttribute::new(Vec::new()))] {
             let mut owner = original.clone();
-            owner.title = title.clone();
+            owner.title = title
+                .clone()
+                .map(|title| ContentAttribute::new(title.into_inlines()));
             owner.xreflabel = label;
             let copied = Reference::from(ReferenceRef::from(&owner));
             assert_eq!(copied, owner);

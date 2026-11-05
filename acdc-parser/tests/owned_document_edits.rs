@@ -1,7 +1,8 @@
 //! Owned document transfers preserve source lifetimes and registration snapshots.
 
 use acdc_parser::{
-    CompatibilityMode, Document, DocumentAttributes, Location, Options, Reference, SafeMode, Title,
+    CompatibilityMode, ContentAttribute, Document, DocumentAttributes, Location, Options,
+    Reference, SafeMode, Title,
     ast::{BlockKind, DocumentRef, StructuralRef},
     parse, parse_file,
 };
@@ -149,7 +150,7 @@ fn reference_transfer_preserves_prepared_values_and_last_duplicate_key(
     )?;
     let first = Reference::from(parsed.document().references().get("one").ok_or("first")?);
     let mut second = Reference::from(parsed.document().references().get("two").ok_or("second")?);
-    second.set_title(Some(Title::default()));
+    second.set_title(Some(ContentAttribute::new(Title::default().into_inlines())));
     let expected = second.clone();
     let mut document = Document::default();
     document.set_references([("same", first), ("same", second)]);

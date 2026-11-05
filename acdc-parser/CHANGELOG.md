@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** reference records expose their canonical destination through
+  `ReferenceRef::target()`. Supply it to `Reference::new(target, location)` when
+  constructing a record. Reference titles use `Option<ContentAttribute>`;
+  `None` means absent and `Some` retains empty content. Replace
+  `title_is_present()` with `title().is_some()`. TOC entries keep their own title
+  presence and can be checked with `ReferenceRef::matches_toc_entry()`.
+
 - Generated section IDs honor `idprefix` and `idseparator` at each heading,
   including empty values and duplicate-title suffixes. TOC entries and natural
   cross-references use the same IDs, matching Asciidoctor.

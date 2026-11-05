@@ -547,7 +547,9 @@ impl<'a, 'doc> Export<'a, 'doc> {
                     | InlineNode::CalloutRef(_) => true,
                 })
             });
-            if reference.title.as_ref() != target.title
+            if reference.target != *id
+                || reference.title.as_ref().map(ContentAttribute::as_inlines)
+                    != target.title.map(Title::as_inlines)
                 || reference.xreflabel.as_ref() != label
                 || reference.caption.as_ref() != target.caption
                 || reference.is_bibliography()

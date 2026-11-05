@@ -85,8 +85,9 @@ pub(super) fn insert_reference<'a>(
     refs.entries.insert(
         anchor.id,
         Reference {
+            target: anchor.id,
             xreflabel,
-            title,
+            title: title.map(|title| ContentAttribute::new(title.into_inlines())),
             location: anchor.location.clone(),
             caption,
             section: None,
@@ -168,6 +169,7 @@ fn insert_untitled_reference<'a>(
     refs.entries.insert(
         id,
         Reference {
+            target: id,
             xreflabel: None,
             title: None,
             location: location.clone(),
@@ -390,8 +392,9 @@ pub(super) fn register_document_top<'a>(
     document.references.insert(
         "",
         Reference {
+            target: "",
             xreflabel: label,
-            title,
+            title: title.map(|title| ContentAttribute::new(title.into_inlines())),
             location,
             caption: None,
             section: None,
@@ -504,8 +507,9 @@ fn register_section_reference<'a>(
         refs.entries.insert(
             id,
             Reference {
+                target: id,
                 xreflabel: displayed_reference_label(xreflabel),
-                title: Some(section.title.clone()),
+                title: Some(ContentAttribute::new(section.title.clone().into_inlines())),
                 location,
                 caption: None,
                 section: None,

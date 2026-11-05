@@ -167,8 +167,8 @@ fn typed_xrefs_preserve_empty_titles_labels_and_temporary_overrides() -> Result<
     let original = parsed_references.get("figure").ok_or("figure")?;
     for title in [
         None,
-        Some(Title::default()),
-        Some(Title::new(Vec::new())),
+        Some(ContentAttribute::new(Title::default().into_inlines())),
+        Some(ContentAttribute::new(Title::new(Vec::new()).into_inlines())),
         original.clone().take_title(),
     ] {
         for label in [None, Some(ContentAttribute::default())] {

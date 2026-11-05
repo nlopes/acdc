@@ -255,18 +255,19 @@ pub(crate) struct SectionReference {
 ///
 /// Collected during parsing into the `id → Reference` map on
 /// [`DocumentRef::references`](crate::ast::DocumentRef::references), so a `<<id>>` reference resolves
-/// to its target's text in O(1). The id is the map key.
+/// to its target's text in O(1). Lookup keys can be aliases of the stored target.
 ///
 /// Use [`Self::set_title`] to edit the stored title.
 ///
 /// ```compile_fail,E0616
 /// use acdc_parser::{Location, Reference};
-/// let mut reference = Reference::new(Location::default());
+/// let mut reference = Reference::new("target", Location::default());
 /// reference.title = None;
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Reference<'a> {
+    pub(crate) target: &'a str,
     /// Optional cross-reference label from `reftext=` or `[[id,xreflabel]]`,
     /// copied from the target's parsed content without another inline parse.
     /// When set, it is the reference text; otherwise converters
@@ -276,7 +277,7 @@ pub struct Reference<'a> {
     /// with no title, such as an untitled block or an inline link with an `id`
     /// attribute. A reference to such a target renders the literal `[id]`,
     /// unlike an ID that is absent from the catalog and therefore unresolved.
-    pub(crate) title: Option<Title<'a>>,
+    pub(crate) title: Option<ContentAttribute<'a>>,
     /// Location of the target element (for navigation, e.g. LSP go-to-definition).
     pub(crate) location: Location,
     /// The target block's resolved caption, when it has one.
@@ -335,8 +336,9 @@ impl Reference<'_> {
 impl<'a> Reference<'a> {
     /// Construct a registered target without display content or derived classifications.
     #[must_use]
-    pub fn new(location: Location) -> Self {
+    pub fn new(target: &'a str, location: Location) -> Self {
         Self {
+            target,
             xreflabel: None,
             title: None,
             location,
@@ -347,14 +349,19 @@ impl<'a> Reference<'a> {
         }
     }
 
-    /// Replace prepared title content; `Some` retains even an empty or absent `Title`.
-    pub fn set_title(&mut self, title: Option<Title<'a>>) {
+    /// Replace the canonical target without renaming lookup keys or editing its owner.
+    pub fn replace_target(&mut self, target: &'a str) -> &'a str {
+        std::mem::replace(&mut self.target, target)
+    }
+
+    /// Replace prepared title content; `Some` preserves an explicitly empty title.
+    pub fn set_title(&mut self, title: Option<ContentAttribute<'a>>) {
         self.title = title;
     }
 
     /// Remove the retained title, including a present empty title.
     #[must_use]
-    pub fn take_title(&mut self) -> Option<Title<'a>> {
+    pub fn take_title(&mut self) -> Option<ContentAttribute<'a>> {
         self.title.take()
     }
 

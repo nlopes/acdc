@@ -1,0 +1,19 @@
+= Section destinations
+:toc:
+
+See <<shared>> and <<tail>>.
+
+<<<
+
+include::includes/section_destination_identity.adoc[tag=selected]
+
+<<<
+
+include::includes/section_destination_identity.adoc[tag=selected]
+
+<<<
+
+[#tail]
+== Final heading
+
+Final body.

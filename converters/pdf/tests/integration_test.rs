@@ -4062,3 +4062,26 @@ fn image_alt_text_reaches_pdf_structure() -> Result<(), Error> {
     assert!(warnings.is_empty(), "{warnings:?}");
     Ok(())
 }
+
+#[test]
+fn repeated_selected_includes_keep_the_first_public_section_destination() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/section_destination_identity.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse_file(
+            &path,
+            &Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        let pdf = render_parsed(&parsed)?;
+        let names = named_destinations(&pdf)?;
+        assert!(names.contains_key("shared"));
+        assert!(names.contains_key("tail"));
+        assert_eq!(pdf.get_pages().len(), 5);
+        assert_eq!(internal_link_pages(&pdf, 1)?, [3, 4, 5]);
+        assert_eq!(internal_link_pages(&pdf, 2)?, [3, 5]);
+    }
+    Ok(())
+}

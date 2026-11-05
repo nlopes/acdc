@@ -153,6 +153,7 @@
       "shape": {
         "kind": "struct",
         "fields": [
+          "target",
           "xreflabel",
           "title",
           "location",
@@ -167,6 +168,9 @@
         "policy": "derived-catalog"
       },
       "properties": {
+        "target": {
+          "policy": "derived-catalog"
+        },
         "xreflabel": {
           "policy": "derived-catalog"
         },

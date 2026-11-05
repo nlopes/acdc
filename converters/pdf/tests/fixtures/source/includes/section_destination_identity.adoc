@@ -1,0 +1,8 @@
+Discarded preface.
+
+// tag::selected[]
+[#shared]
+== Included heading
+
+Included body.
+// end::selected[]

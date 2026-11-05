@@ -1,7 +1,8 @@
 //! Detached edits keep source declarations and catalogs until an explicit update.
 
 use acdc_parser::{
-    Author, Block, CompatibilityMode, Document, Options, Reference, Title, TocEntry,
+    Author, Block, CompatibilityMode, ContentAttribute, Document, Options, Reference, Title,
+    TocEntry,
     ast::{
         BlockKind, BlockRef, CaptionRef, ContentRef, DocumentRef, InlineKind, ReferenceRef,
         SectionRef, TocEntryRef,
@@ -167,19 +168,16 @@ fn reference_outer_presence_and_toc_title_presence_are_distinct_contracts(
     let toc = parsed.document().toc_entries().next().ok_or("toc")?;
     for (title, outer_present, inner_present) in [
         (None, false, None),
-        (Some(Title::default()), true, Some(false)),
+        (Some(Title::default()), true, Some(true)),
         (Some(Title::new(Vec::new())), true, Some(true)),
     ] {
         let mut edited = Reference::from(reference);
-        edited.set_title(title);
+        edited.set_title(title.map(|title| ContentAttribute::new(title.into_inlines())));
         let read = ReferenceRef::from(&edited);
         assert_eq!(read.title().is_some(), outer_present);
         assert!(read.title().is_none_or(ContentRef::is_empty));
         let mut copy = Reference::from(read);
-        assert_eq!(
-            copy.take_title().as_ref().map(Title::is_present),
-            inner_present
-        );
+        assert_eq!(copy.take_title().as_ref().map(|_| true), inner_present);
     }
     let mut edited = TocEntry::from(toc);
     edited.set_title(Title::default());

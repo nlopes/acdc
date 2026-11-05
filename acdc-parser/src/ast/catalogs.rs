@@ -113,16 +113,21 @@ impl<'doc> ReferenceRef<'doc> {
         self.node.caption.as_ref().map(CaptionRef::from)
     }
 
-    /// Whether the retained title was supplied, independently of its content length.
-    ///
-    /// A constructed reference can retain `Title::default()`. Its title content
-    /// remains available through [`Self::title`], but this query returns `false`.
+    /// The canonical destination ID, independently of the catalog lookup key.
     #[must_use]
-    pub fn title_is_present(self) -> bool {
-        self.node
-            .title
-            .as_ref()
-            .is_some_and(crate::Title::is_present)
+    pub fn target(self) -> &'doc str {
+        self.node.target
+    }
+
+    /// Whether this record identifies the heading snapshot stored in a TOC entry.
+    /// Caller edits to the target, title or source span can invalidate this match.
+    #[must_use]
+    pub fn matches_toc_entry(self, entry: TocEntryRef<'_>) -> bool {
+        self.target() == entry.id()
+            && self.title().is_some()
+            && self.title() == entry.title()
+            && self.location().end() == entry.location().end()
+            && self.location().absolute_end() == entry.location().absolute_end()
     }
 
     /// The registered title, including present empty content.

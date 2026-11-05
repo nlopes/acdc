@@ -44,6 +44,7 @@ fn selected_copies_and_part_round_trips_preserve_all_catalog_snapshots(
     for (_, reference) in references.iter() {
         let mut copied = Reference::from(reference);
         let copied_read = ReferenceRef::from(&copied);
+        assert_eq!(copied_read.target(), reference.target());
         assert_eq!(copied_read.title(), reference.title());
         assert_eq!(copied_read.xreflabel(), reference.xreflabel());
         assert_eq!(copied_read.section_name(), reference.section_name());
@@ -84,25 +85,19 @@ fn selected_copies_and_part_round_trips_preserve_all_catalog_snapshots(
 
 #[test]
 fn reference_presence_keeps_empty_titles_labels_and_captions() {
-    let mut reference = Reference::new(Location::default());
+    let mut reference = Reference::new("target", Location::default());
     for (title, present) in [
         (None, None),
-        (Some(Title::default()), Some(false)),
+        (Some(Title::default()), Some(true)),
         (Some(Title::new(Vec::new())), Some(true)),
     ] {
+        let title = title.map(|title| ContentAttribute::new(title.into_inlines()));
         reference.set_title(title.clone());
-        assert_eq!(
-            ReferenceRef::from(&reference).title_is_present(),
-            present == Some(true)
-        );
         assert_eq!(
             ReferenceRef::from(&reference).title().is_some(),
             present.is_some()
         );
-        assert_eq!(
-            reference.take_title().as_ref().map(Title::is_present),
-            present
-        );
+        assert_eq!(reference.take_title().as_ref().map(|_| true), present);
         reference.set_title(title);
         if let Some(content) = ReferenceRef::from(&reference).title() {
             assert!(content.is_empty());
@@ -154,7 +149,7 @@ fn reference_content_transfers_outlive_the_previous_record(
             local.take_caption(),
         )
     };
-    let mut rebuilt = Reference::new(Location::from(source.location()));
+    let mut rebuilt = Reference::new(source.target(), Location::from(source.location()));
     rebuilt.set_title(title);
     rebuilt.set_xreflabel(label);
     rebuilt.set_caption(caption);

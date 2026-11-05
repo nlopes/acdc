@@ -1,4 +1,6 @@
-use crate::{Block, CompatibilityMode, Document, Options, OptionsBuilder, Title, asg, parse};
+use crate::{
+    Block, CompatibilityMode, ContentAttribute, Document, Options, OptionsBuilder, asg, parse,
+};
 use serde_json::json;
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -125,7 +127,7 @@ fn asg_rejects_independent_header_and_catalog_values() -> Result<(), Error> {
         .references
         .get_mut("one")
         .ok_or("missing reference")?
-        .title = Some(Title::new(Vec::new()));
+        .title = Some(ContentAttribute::new(Vec::new()));
     assert!(
         matches!(asg::document((&document).into()), Err(asg::Error::Unsupported { path, .. }) if path == "/references/one")
     );
