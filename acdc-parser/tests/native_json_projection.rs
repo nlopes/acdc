@@ -70,11 +70,14 @@ fn macros_have_one_projection_at_each_serialization_boundary(
         );
     }
     if let InlineMacro::Pass(pass) = owner {
-        assert_eq!(expected.get("text").and_then(Value::as_str), pass.text);
-        if !pass.substitutions.is_empty() {
+        let mut copy = pass.clone();
+        let text = copy.replace_text(None);
+        let substitutions = copy.take_substitutions();
+        assert_eq!(expected.get("text").and_then(Value::as_str), text);
+        if !substitutions.is_empty() {
             assert_eq!(
                 expected.get("substitutions"),
-                Some(&serde_json::to_value(&pass.substitutions)?)
+                Some(&serde_json::to_value(&substitutions)?)
             );
         }
     }

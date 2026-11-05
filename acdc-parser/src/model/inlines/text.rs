@@ -219,14 +219,20 @@ impl Serialize for Plain<'_> {
 ///
 /// Unlike [`Plain`], this text does not inherit substitutions from its enclosing
 /// block. Unlike [`Verbatim`], it is not implicitly literal or code content. An
-/// empty [`Raw::subs`] preserves the passthrough content using the backend's raw
+/// empty substitution sequence preserves the passthrough content using the backend's raw
 /// output behavior.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Location, Raw};
+/// let mut value = Raw::new("text", Vec::new(), Location::default());
+/// value.content = "changed";
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Raw<'a> {
     /// Identity on an attributed passthrough; absent on ordinary raw text.
-    pub metadata: Option<Box<crate::InlineMetadata<'a>>>,
-    pub content: &'a str,
-    pub location: Location,
+    pub(crate) metadata: Option<Box<crate::InlineMetadata<'a>>>,
+    pub(crate) content: &'a str,
+    pub(crate) location: Location,
     /// The passthrough substitutions that the converter applies to this text, in order.
     ///
     /// These replace, rather than extend, the enclosing block's substitutions.
@@ -234,7 +240,56 @@ pub struct Raw<'a> {
     /// returns the AST, so parsed nodes normally retain only substitutions that
     /// require converter-specific rendering. Repeated entries remain significant. An
     /// empty list means no further substitutions, as with `+++text+++` and `pass:[text]`.
-    pub subs: Vec<Substitution>,
+    pub(crate) subs: Vec<Substitution>,
+}
+
+impl<'a> Raw<'a> {
+    /// Construct prepared passthrough text with its remaining substitutions.
+    #[must_use]
+    pub fn new(content: &'a str, substitutions: Vec<Substitution>, location: Location) -> Self {
+        Self {
+            metadata: None,
+            content,
+            location,
+            subs: substitutions,
+        }
+    }
+
+    /// Replace prepared text, keeping its substitutions, identity and source span.
+    pub fn replace_text(&mut self, content: &'a str) -> &'a str {
+        std::mem::replace(&mut self.content, content)
+    }
+
+    /// Replace the ordered substitutions and return the previous sequence.
+    pub fn replace_substitutions(&mut self, substitutions: Vec<Substitution>) -> Vec<Substitution> {
+        std::mem::replace(&mut self.subs, substitutions)
+    }
+
+    /// Transfer the substitutions, leaving no remaining substitutions.
+    pub fn take_substitutions(&mut self) -> Vec<Substitution> {
+        std::mem::take(&mut self.subs)
+    }
+
+    /// Replace identity and roles, preserving absent versus present empty metadata.
+    pub fn set_metadata(&mut self, metadata: Option<crate::InlineMetadata<'a>>) {
+        self.metadata = metadata.map(Box::new);
+    }
+
+    /// Copy only the optional identity and role metadata.
+    #[must_use]
+    pub fn clone_metadata(&self) -> Option<crate::InlineMetadata<'a>> {
+        self.metadata.as_deref().cloned()
+    }
+
+    /// Transfer identity and roles, leaving metadata absent.
+    pub fn take_metadata(&mut self) -> Option<crate::InlineMetadata<'a>> {
+        self.metadata.take().map(|metadata| *metadata)
+    }
+
+    /// Replace this node's recorded source span.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
 }
 
 /// Text from a literal, listing, or source context.

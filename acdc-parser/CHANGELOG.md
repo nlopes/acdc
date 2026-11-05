@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** raw text and passthrough macro fields are private. Read with
+  `RawRef`/`PassRef`, copy selected values with `From`, and use constructors or
+  prepared text, substitution, metadata and location edits. Transfers retain
+  source lifetimes, optional-value presence, substitution order and duplicates.
+  Edits do not parse text or replay earlier attribute values. Native JSON and
+  rendering are unchanged.
+
 - **Breaking:** text, symbol, line-break, apostrophe, and formula fields are
   private. Read through typed `ast` handles and copy selected values with `From`.
   Use constructors and prepared text, notation, escape, or location edits to

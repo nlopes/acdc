@@ -11,14 +11,70 @@ use crate::{
 pub const ICON_SIZES: &[&str] = &["1x", "2x", "3x", "4x", "5x", "lg", "fw"];
 
 /// A `Pass` represents a passthrough macro in a document.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Location, Pass, PassthroughKind};
+/// let mut value = Pass::new(
+///     Some("text"), Vec::new(), PassthroughKind::Macro, Location::default(),
+/// );
+/// value.text = Some("changed");
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Pass<'a> {
     pub(crate) attribute_fragments: Box<[crate::model::AttributeInlineFragment]>,
-    pub text: Option<&'a str>,
-    pub substitutions: Vec<Substitution>,
-    pub location: Location,
-    pub kind: PassthroughKind,
+    pub(crate) text: Option<&'a str>,
+    pub(crate) substitutions: Vec<Substitution>,
+    pub(crate) location: Location,
+    pub(crate) kind: PassthroughKind,
+}
+
+impl<'a> Pass<'a> {
+    /// Construct a passthrough value without processing its text or substitutions.
+    #[must_use]
+    pub fn new(
+        text: Option<&'a str>,
+        substitutions: Vec<Substitution>,
+        kind: PassthroughKind,
+        location: Location,
+    ) -> Self {
+        Self {
+            attribute_fragments: Box::default(),
+            text,
+            substitutions,
+            location,
+            kind,
+        }
+    }
+
+    /// Replace optional text without processing it or replaying earlier attribute values.
+    pub fn replace_text(&mut self, text: Option<&'a str>) -> Option<&'a str> {
+        self.attribute_fragments = Box::default();
+        std::mem::replace(&mut self.text, text)
+    }
+
+    /// Replace the ordered substitutions without processing the text.
+    /// Earlier attribute values are not reapplied.
+    pub fn replace_substitutions(&mut self, substitutions: Vec<Substitution>) -> Vec<Substitution> {
+        self.attribute_fragments = Box::default();
+        std::mem::replace(&mut self.substitutions, substitutions)
+    }
+
+    /// Transfer the requested substitutions, leaving none.
+    pub fn take_substitutions(&mut self) -> Vec<Substitution> {
+        self.replace_substitutions(Vec::new())
+    }
+
+    /// Replace the passthrough form without interpreting text or reconstructing delimiters.
+    pub fn set_kind(&mut self, kind: PassthroughKind) {
+        self.attribute_fragments = Box::default();
+        self.kind = kind;
+    }
+
+    /// Replace this node's recorded source span.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Default)]
@@ -655,5 +711,66 @@ mod tests {
             );
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod passthrough_edit_tests {
+    use super::*;
+    use crate::{ast::PassRef, model::AttributeInlineFragment};
+
+    fn expanded() -> Pass<'static> {
+        Pass {
+            attribute_fragments: vec![AttributeInlineFragment {
+                range: 0..4,
+                substitutions: vec![Substitution::Quotes].into(),
+                source: None,
+            }]
+            .into(),
+            text: Some("text"),
+            substitutions: vec![Substitution::Attributes],
+            location: Location::default(),
+            kind: PassthroughKind::AttributeRef,
+        }
+    }
+
+    #[test]
+    fn selected_copy_and_span_edits_keep_declaration_fragments() {
+        let original = expanded();
+        let mut copy = Pass::from(PassRef::from(&original));
+        assert_eq!(copy.attribute_fragments, original.attribute_fragments);
+        copy.set_location(Location::point(crate::Position::new(3, 4)));
+        assert_eq!(copy.attribute_fragments, original.attribute_fragments);
+        assert_eq!(copy.text, original.text);
+        assert_eq!(copy.substitutions, original.substitutions);
+        assert_eq!(copy.kind, original.kind);
+    }
+
+    #[test]
+    fn replacing_text_does_not_reuse_ranges_into_the_old_text() {
+        let mut pass = expanded();
+        assert_eq!(pass.replace_text(Some("λ")), Some("text"));
+        assert!(pass.attribute_fragments.is_empty());
+        assert_eq!(pass.text, Some("λ"));
+        assert_eq!(pass.substitutions, [Substitution::Attributes]);
+    }
+
+    #[test]
+    fn explicit_interpretation_edits_do_not_replay_declaration_profiles() {
+        let mut pass = expanded();
+        assert_eq!(
+            pass.replace_substitutions(vec![Substitution::SpecialChars]),
+            [Substitution::Attributes]
+        );
+        assert!(pass.attribute_fragments.is_empty());
+        assert_eq!(pass.text, Some("text"));
+        let mut pass = expanded();
+        assert_eq!(pass.take_substitutions(), [Substitution::Attributes]);
+        assert!(pass.attribute_fragments.is_empty());
+        assert_eq!(pass.substitutions, []);
+        let mut pass = expanded();
+        pass.set_kind(PassthroughKind::Macro);
+        assert!(pass.attribute_fragments.is_empty());
+        assert_eq!(pass.text, Some("text"));
     }
 }

@@ -22,10 +22,9 @@ pub(crate) fn replace_text<'inline>(
             Location::from(node.location()),
         )))
     } else if let InlineKind::Raw(raw) = node.kind() {
-        Some(InlineNode::RawText(Raw {
-            content,
-            ..Raw::from(raw)
-        }))
+        let mut replacement = Raw::from(raw);
+        replacement.replace_text(content);
+        Some(InlineNode::RawText(replacement))
     } else {
         None
     }
@@ -91,12 +90,7 @@ mod tests {
                         Plain::new(after, Location::default()).with_escaped(true),
                     ),
                     InlineNode::VerbatimText(Verbatim::new("", Location::default())),
-                    InlineNode::RawText(Raw {
-                        metadata: None,
-                        content: "",
-                        location: Location::default(),
-                        subs: vec![],
-                    }),
+                    InlineNode::RawText(Raw::new("", vec![], Location::default())),
                 ],
                 Location::default(),
             );

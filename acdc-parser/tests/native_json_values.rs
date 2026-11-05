@@ -113,12 +113,11 @@ fn stale_reserved_block_attributes_cannot_be_serialized(
 fn raw_json_retains_its_independent_substitution_policy(
     #[case] substitutions: Vec<Substitution>,
 ) -> Result<(), TestError> {
-    let raw = Raw {
-        metadata: None,
-        content: "<literal> &copy;",
-        location: acdc_parser::Location::default(),
-        subs: substitutions.clone(),
-    };
+    let raw = Raw::new(
+        "<literal> &copy;",
+        substitutions.clone(),
+        acdc_parser::Location::default(),
+    );
     let direct = serde_json::to_value(&raw)?;
     let value = serde_json::to_value(InlineNode::RawText(raw))?;
     assert_eq!(direct, value);

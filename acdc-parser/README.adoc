@@ -293,8 +293,9 @@ Attributed `+text+`, `++text++`, and `+++text+++` passthroughs retain IDs and ro
 in Asciidoctor mode. Read them with `RawRef::id()`, `roles()`, or `attributes()`.
 Draft currently keeps these attribute prefixes literal; the draft does not define
 this prefix syntax. Protected and raw text keep their output behavior. Native
-JSON includes `metadata` only on attributed passthroughs. Set `Raw::metadata` to
-`None` when constructing undecorated text.
+JSON includes `metadata` only on attributed passthroughs. `Raw::new` constructs
+undecorated text. Use `set_metadata`, `take_metadata`, or `clone_metadata` for
+independent optional identity and role values.
 
 
 `CharacterReferenceRef::kind()` distinguishes named and numeric references without
@@ -307,7 +308,12 @@ decimal numeric spelling; source locations retain the complete authored token.
 Document parsing lowers inline passthroughs into raw text or structured inlines.
 `parse_inline()` can retain passthrough macros. Read them through `PassRef` for
 optional `text()`, `kind()`, and requested `substitutions()`. Reading a macro does
-not process it.
+not process it. `Pass::new` constructs a value with optional text, a substitution
+sequence, a form, and a location. Both passthrough owners keep substitution order
+and repeated entries. Use `replace_text` and substitution transfers to edit
+prepared values without parsing them or replaying earlier attribute values.
+Copies preserve absent versus present empty text and metadata; empty raw
+metadata remains omitted from native JSON.
 
 Buttons expose `label()` as parsed content. Keyboard `keys()` and menu `items()`
 iterate separate content values in order; a menu's `target()` is its menu name.

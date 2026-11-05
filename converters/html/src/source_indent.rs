@@ -337,16 +337,15 @@ mod tests {
         location.end.file = Some(vec!["outer.adoc".into(), "selected.adoc".into()].into());
         let inlines = [
             InlineNode::PlainText(Plain::new("  ", location.clone()).with_escaped(true)),
-            InlineNode::RawText(Raw {
-                metadata: None,
-                content: "  α\n    ",
-                location: location.clone(),
-                subs: vec![
+            InlineNode::RawText(Raw::new(
+                "  α\n    ",
+                vec![
                     Substitution::Replacements,
                     Substitution::SpecialChars,
                     Substitution::Replacements,
                 ],
-            }),
+                location.clone(),
+            )),
             InlineNode::VerbatimText(Verbatim::new("\n      β\n    γ", location)),
         ];
         for (width, expected) in [(0, "α\n\n  β\nγ"), (2, "  α\n\n    β\n  γ")] {

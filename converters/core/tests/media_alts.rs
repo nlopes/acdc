@@ -138,12 +138,11 @@ fn raw_alternatives_decode_only_unescaped_numeric_references() {
         (vec![], "Bird &"),
         (vec![Substitution::SpecialChars], "Bird &#38;"),
     ] {
-        let alt = ContentAttribute::new(vec![InlineNode::RawText(Raw {
-            metadata: None,
-            content: "Bird &#38;",
-            location: Location::default(),
+        let alt = ContentAttribute::new(vec![InlineNode::RawText(Raw::new(
+            "Bird &#38;",
             subs,
-        })]);
+            Location::default(),
+        ))]);
         let content = Some(ContentRef::from(&alt));
         assert_eq!(media::image_alt(&source, Some(&alt)), expected);
         assert_eq!(media::image_alt_from_content(target, content), expected);

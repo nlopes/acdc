@@ -524,12 +524,11 @@ mod tests {
     fn extraction_preserves_prepared_text_and_unicode_callout_offsets() {
         let inlines = [
             InlineNode::PlainText(Plain::new("été -- ", Location::default())),
-            InlineNode::RawText(Raw {
-                metadata: None,
-                content: "(C)",
-                location: Location::default(),
-                subs: vec![Substitution::Replacements],
-            }),
+            InlineNode::RawText(Raw::new(
+                "(C)",
+                vec![Substitution::Replacements],
+                Location::default(),
+            )),
             InlineNode::VerbatimText(Verbatim::new("日本語", Location::default())),
             InlineNode::LineBreak(LineBreak::new(Location::default())),
             create_callout_ref(7),

@@ -29,7 +29,8 @@ fn sibling_context_preserves_invisible_nodes_and_formatting_barriers() -> Result
             .iter()
             .map(|node| {
                 if let InlineNode::RawText(text) = node {
-                    InlineNode::PlainText(Plain::new(text.content, text.location.clone()))
+                    let text = acdc_parser::ast::RawRef::from(text);
+                    InlineNode::PlainText(Plain::new(text.text(), Location::from(text.location())))
                 } else {
                     node.clone()
                 }
@@ -76,12 +77,11 @@ fn raw_context_keeps_adjacent_spaces_and_outlives_its_inputs() {
             let after = String::from(after);
             let nodes = [
                 InlineNode::PlainText(Plain::new(&before, Location::default())),
-                InlineNode::RawText(Raw {
-                    metadata: None,
-                    content: &text,
-                    subs: vec![Substitution::Replacements],
-                    location: Location::default(),
-                }),
+                InlineNode::RawText(Raw::new(
+                    &text,
+                    vec![Substitution::Replacements],
+                    Location::default(),
+                )),
                 InlineNode::PlainText(Plain::new(&after, Location::default())),
             ];
             let siblings = nodes.iter().map(InlineRef::from);

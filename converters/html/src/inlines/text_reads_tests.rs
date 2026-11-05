@@ -110,12 +110,7 @@ fn raw_capture_owns_text_even_when_writing_its_placeholder_fails() -> Result<(),
     visitor.captured_raw_fragments = Some(Vec::new());
     {
         let text = String::from("temporary <raw>");
-        let raw = Raw {
-            metadata: None,
-            content: &text,
-            location: Location::default(),
-            subs: Vec::new(),
-        };
+        let raw = Raw::new(&text, Vec::new(), Location::default());
         assert!(matches!(
             visitor.render_raw((&raw).into()),
             Err(Error::Io(_))
@@ -155,7 +150,7 @@ fn retained_pass_skips_absent_and_empty_text_but_propagates_write_errors() -> Re
     };
     for text in [None, Some("")] {
         let mut pass = pass.clone();
-        pass.text = text;
+        pass.replace_text(text);
         visitor.render_pass((&pass).into())?;
     }
     assert!(matches!(

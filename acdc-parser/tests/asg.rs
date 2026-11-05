@@ -118,12 +118,11 @@ fn asg_rejects_unsupported_meaning_at_any_depth() -> Result<(), Error> {
 
 #[test]
 fn asg_does_not_run_pending_passthrough_operations() {
-    let nodes = [acdc_parser::InlineNode::RawText(acdc_parser::Raw {
-        metadata: None,
-        content: "{missing}",
-        location: Location::default(),
-        subs: vec![acdc_parser::Substitution::Attributes],
-    })];
+    let nodes = [acdc_parser::InlineNode::RawText(acdc_parser::Raw::new(
+        "{missing}",
+        vec![acdc_parser::Substitution::Attributes],
+        Location::default(),
+    ))];
     assert!(
         matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))), Err(asg::Error::Unsupported { path, .. }) if path == "/0/substitutions")
     );

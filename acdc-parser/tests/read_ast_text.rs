@@ -172,18 +172,19 @@ fn retained_pass_reads_preserve_content_and_empty_values(
     assert_eq!(PassRef::from(empty).text(), Some(""));
     assert!(PassRef::from(empty).substitutions().next().is_none());
     let mut absent = owner.clone();
-    absent.text = None;
-    absent.kind = PassthroughKind::AttributeRef;
-    absent.substitutions = vec![
+    absent.replace_text(None);
+    absent.set_kind(PassthroughKind::AttributeRef);
+    let substitutions = vec![
         Substitution::Replacements,
         Substitution::SpecialChars,
         Substitution::Replacements,
     ];
+    absent.replace_substitutions(substitutions.clone());
     assert_eq!(PassRef::from(&absent).text(), None);
     assert_eq!(PassRef::from(&absent).kind(), PassthroughKind::AttributeRef);
     assert_eq!(
         PassRef::from(&absent).substitutions().collect::<Vec<_>>(),
-        absent.substitutions
+        substitutions
     );
     let serialized = serde_json::to_value(parsed.inlines())?;
     let owner_json = serde_json::to_value(owner)?;
@@ -197,7 +198,7 @@ fn retained_pass_reads_preserve_content_and_empty_values(
     assert!(absent_json.get("text").is_none());
     assert_eq!(
         absent_json.get("substitutions"),
-        Some(&serde_json::to_value(&absent.substitutions)?)
+        Some(&serde_json::to_value(&substitutions)?)
     );
     Ok(())
 }
@@ -242,16 +243,15 @@ fn typography_and_breaks_keep_semantic_kinds_and_authored_locations(
 fn owner_reads_keep_distinct_text_policies_and_ordered_substitutions() {
     let location = Location::default();
     let plain = Plain::new("*x*", location.clone()).with_escaped(true);
-    let raw = Raw {
-        metadata: None,
-        content: "*x*",
-        location: location.clone(),
-        subs: vec![
+    let mut raw = Raw::new(
+        "*x*",
+        vec![
             Substitution::SpecialChars,
             Substitution::Replacements,
             Substitution::SpecialChars,
         ],
-    };
+        location.clone(),
+    );
     let verbatim = Verbatim::new("  *x*\n", location.clone());
     assert!(PlainRef::from(&plain).is_escaped());
     assert_eq!(PlainRef::from(&plain).text(), RawRef::from(&raw).text());
@@ -259,7 +259,7 @@ fn owner_reads_keep_distinct_text_policies_and_ordered_substitutions() {
         let read = RawRef::from(&raw);
         read.substitutions()
     };
-    assert_eq!(substitutions.collect::<Vec<_>>(), raw.subs);
+    assert_eq!(substitutions.collect::<Vec<_>>(), raw.take_substitutions());
     assert_eq!(VerbatimRef::from(&verbatim).text(), "  *x*\n");
     let apostrophe = StandaloneCurvedApostrophe::new(location.clone());
     let line_break = LineBreak::new(location.clone());

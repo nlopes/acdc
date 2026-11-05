@@ -379,12 +379,11 @@ mod tests {
             let inlines = [
                 InlineNode::PlainText(Plain::new(header, Location::default())),
                 InlineNode::LineBreak(LineBreak::new(Location::default())),
-                InlineNode::RawText(Raw {
-                    metadata: None,
-                    content: "[0,\"o\",\"&#60;λ&#62;\"]\n[60,\"o\",\"done\"]\n",
-                    location: Location::default(),
-                    subs: Vec::new(),
-                }),
+                InlineNode::RawText(Raw::new(
+                    "[0,\"o\",\"&#60;λ&#62;\"]\n[60,\"o\",\"done\"]\n",
+                    Vec::new(),
+                    Location::default(),
+                )),
             ];
             let expected = vec![
                 Event::write_at("<λ>".as_bytes().to_vec(), Duration::ZERO),

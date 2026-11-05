@@ -201,3 +201,10 @@ impl<'doc> From<StandaloneCurvedApostropheRef<'doc>> for StandaloneCurvedApostro
         value.node.clone()
     }
 }
+
+/// Copy the selected passthrough, retaining its requested interpretation and source span.
+impl<'doc> From<PassRef<'doc>> for Pass<'doc> {
+    fn from(value: PassRef<'doc>) -> Self {
+        value.node.clone()
+    }
+}

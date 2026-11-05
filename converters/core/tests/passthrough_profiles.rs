@@ -10,16 +10,15 @@ use acdc_parser::{Location, Raw, Substitution, ast::RawRef};
 #[test]
 fn passthrough_without_replacements_consumes_a_lazy_profile_and_keeps_the_text() {
     let text = String::from("<text> -> ... &amp;");
-    let raw = Raw {
-        metadata: None,
-        content: &text,
-        location: Location::default(),
-        subs: vec![
+    let raw = Raw::new(
+        &text,
+        vec![
             Substitution::SpecialChars,
             Substitution::Quotes,
             Substitution::SpecialChars,
         ],
-    };
+        Location::default(),
+    );
     let raw = RawRef::from(&raw);
     let mut consumed = 0;
     let profile = raw.substitutions().inspect(|_| consumed += 1);
