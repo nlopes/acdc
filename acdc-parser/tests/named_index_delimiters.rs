@@ -30,7 +30,8 @@ fn named_index_delimiters_preserve_registration_time_macro_text() -> Result<(), 
     let label = "Before https://example.org[Link] after";
     let source = format!("indexterm2:[{label}]");
     let parsed = parse_inline(&source, &Options::default())?;
-    let [InlineNode::Macro(InlineMacro::IndexTerm(term))] = parsed.inlines() else {
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::IndexTerm(term))] = parsed_inlines.as_slice() else {
         return Err("expected index term".into());
     };
     let content = acdc_parser::ContentAttribute::from(
@@ -91,13 +92,18 @@ fn named_index_delimiters_preserve_complete_children_and_source_spans(
     };
     let source = format!("α {outer}[{label}] ω");
     let parsed = parse_inline(&source, &Options::default())?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
     let [
         _,
         InlineNode::Macro(InlineMacro::IndexTerm(term)),
         InlineNode::PlainText(tail),
-    ] = parsed.inlines()
+    ] = parsed_inlines.as_slice()
     else {
-        return Err(format!("expected complete index term: {:?}", parsed.inlines()).into());
+        return Err(format!(
+            "expected complete index term: {:?}",
+            parsed_inlines.as_slice()
+        )
+        .into());
     };
     assert_eq!(acdc_parser::ast::PlainRef::from(tail).text(), " ω");
     assert_eq!(

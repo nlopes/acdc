@@ -23,7 +23,8 @@ fn hyperlink_reads_preserve_metadata_and_content(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [inline] = parsed.inlines() else {
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [inline] = parsed_inlines.as_slice() else {
         return Err("one inline".into());
     };
     macro_rules! check {
@@ -118,13 +119,14 @@ fn mail_payload_remains_unencoded_and_separate_from_named_extensions() -> Result
         ),
     ] {
         let parsed = parse_inline(source, &Options::default())?;
-        let [InlineNode::Macro(InlineMacro::Mailto(owner))] = parsed.inlines() else {
+        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+        let [InlineNode::Macro(InlineMacro::Mailto(owner))] = parsed_inlines.as_slice() else {
             return Err("mailto".into());
         };
         let mail = MailtoRef::from(owner.as_ref());
         assert_eq!(mail.subject(), subject);
         assert_eq!(mail.body(), body);
-        let json = serde_json::to_value(parsed.inlines().first().ok_or("mailto inline")?)?;
+        let json = serde_json::to_value(parsed_inlines.as_slice().first().ok_or("mailto inline")?)?;
         assert_eq!(
             json.get("subject"),
             subject.map(serde_json::Value::from).as_ref()

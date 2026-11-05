@@ -54,8 +54,13 @@ fn macros_have_one_projection_at_each_serialization_boundary(
             .with_attribute("experimental", true)
             .build()?,
     )?;
-    let [node] = parsed.inlines() else {
-        return Err(format!("expected one macro for {source}: {:?}", parsed.inlines()).into());
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [node] = parsed_inlines.as_slice() else {
+        return Err(format!(
+            "expected one macro for {source}: {:?}",
+            parsed_inlines.as_slice()
+        )
+        .into());
     };
     let InlineNode::Macro(owner) = node else {
         return Err(format!("expected macro for {source}: {node:?}").into());

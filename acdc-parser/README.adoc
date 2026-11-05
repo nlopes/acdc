@@ -110,6 +110,13 @@ use `ContentAttribute::from(content_ref)` or `Title::from(content_ref)`.
 `into_inlines()` transfers the prepared nodes without copying them.
 A title copied from empty content is present; `Title::default()` is absent.
 
+Inline fragments use `ParseInlineResult::content()` for the same typed reads.
+Use `InlineNode::from(inline_ref)` to copy one selected node for edits, without
+copying its siblings. Copies can still borrow text from the parse result.
+Serialize a `ContentRef` with Serde for acdc's native inline array; checked ASG
+export continues to use `asg::inlines`. Read macro content with typed
+`content_fields()` or `content_occurrences()` instead of the old owner callback.
+
 Editing a copy does not rebuild reference targets, TOC membership, footnote
 registrations, or author-derived document attributes. Reads, copies, and conversion
 leave those snapshots unchanged. Reparse changed source when you need those

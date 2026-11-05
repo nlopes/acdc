@@ -160,8 +160,10 @@ mod tests {
             ),
         ] {
             let parsed = acdc_parser::parse_inline(source, &acdc_parser::Options::default())?;
+            let parsed_inlines =
+                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
             let [acdc_parser::InlineNode::Macro(acdc_parser::InlineMacro::Mailto(mailto))] =
-                parsed.inlines()
+                parsed_inlines.as_slice()
             else {
                 return Err(format!("expected mailto: {source}").into());
             };

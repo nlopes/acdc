@@ -77,11 +77,12 @@ fn footnote_catalog_reads_preserve_registration_snapshots() -> Result<(), Error>
 #[test]
 fn footnote_owner_reads_do_not_resolve_or_register_content() -> Result<(), Error> {
     let parsed = parse_inline("footnote:n[Body] footnote:n[]", &Options::default())?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
     let [
         InlineNode::Macro(InlineMacro::Footnote(owner)),
         _,
         InlineNode::Macro(InlineMacro::Footnote(reference)),
-    ] = parsed.inlines()
+    ] = parsed_inlines.as_slice()
     else {
         return Err("definition and reference".into());
     };

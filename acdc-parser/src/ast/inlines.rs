@@ -123,6 +123,18 @@ node_ref!(
 node_ref!(IndexTermRef<'doc>, crate::IndexTerm<'doc>, "An index term.");
 
 /// An inline node with a semantic kind and source location.
+///
+/// Copy a selected node with `InlineNode::from(inline)`. Copies keep source
+/// locations and registration snapshots, and can still borrow source text:
+///
+/// ```compile_fail,E0597
+/// use acdc_parser::{InlineNode, Options, parse_inline};
+/// let copied = {
+///     let parsed = parse_inline("Text", &Options::default()).unwrap();
+///     InlineNode::from(parsed.content().inlines().next().unwrap())
+/// };
+/// drop(copied);
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct InlineRef<'doc> {
     kind: InlineKind<'doc>,
@@ -331,5 +343,75 @@ impl<'doc> From<AnchorRef<'doc>> for crate::Anchor<'doc> {
 impl From<CalloutRef<'_>> for crate::CalloutRef {
     fn from(read: CalloutRef<'_>) -> Self {
         read.node.clone()
+    }
+}
+
+impl<'doc> From<InlineRef<'doc>> for InlineNode<'doc> {
+    fn from(read: InlineRef<'doc>) -> Self {
+        match read.kind() {
+            InlineKind::Plain(node) => InlineNode::PlainText(crate::Plain::from(node)),
+            InlineKind::Symbol(node) => InlineNode::Symbol(crate::Symbol::from(node)),
+            InlineKind::CharacterReference(node) => {
+                InlineNode::CharacterReference(crate::CharacterReference::from(node))
+            }
+            InlineKind::Raw(node) => InlineNode::RawText(crate::Raw::from(node)),
+            InlineKind::Verbatim(node) => InlineNode::VerbatimText(crate::Verbatim::from(node)),
+            InlineKind::Bold(node) => InlineNode::BoldText(crate::Bold::from(node)),
+            InlineKind::Italic(node) => InlineNode::ItalicText(crate::Italic::from(node)),
+            InlineKind::Monospace(node) => InlineNode::MonospaceText(crate::Monospace::from(node)),
+            InlineKind::Highlight(node) => InlineNode::HighlightText(crate::Highlight::from(node)),
+            InlineKind::Subscript(node) => InlineNode::SubscriptText(crate::Subscript::from(node)),
+            InlineKind::Superscript(node) => {
+                InlineNode::SuperscriptText(crate::Superscript::from(node))
+            }
+            InlineKind::CurvedQuotation(node) => {
+                InlineNode::CurvedQuotationText(crate::CurvedQuotation::from(node))
+            }
+            InlineKind::CurvedApostrophe(node) => {
+                InlineNode::CurvedApostropheText(crate::CurvedApostrophe::from(node))
+            }
+            InlineKind::StandaloneCurvedApostrophe(node) => InlineNode::StandaloneCurvedApostrophe(
+                crate::StandaloneCurvedApostrophe::from(node),
+            ),
+            InlineKind::LineBreak(node) => InlineNode::LineBreak(crate::LineBreak::from(node)),
+            InlineKind::Anchor(node) => InlineNode::InlineAnchor(crate::Anchor::from(node)),
+            InlineKind::Callout(node) => InlineNode::CalloutRef(crate::CalloutRef::from(node)),
+            InlineKind::Footnote(node) => {
+                InlineNode::Macro(InlineMacro::Footnote(crate::Footnote::from(node)))
+            }
+            InlineKind::Icon(node) => {
+                InlineNode::Macro(InlineMacro::Icon(Box::new(crate::Icon::from(node))))
+            }
+            InlineKind::Image(node) => {
+                InlineNode::Macro(InlineMacro::Image(Box::new(crate::InlineImage::from(node))))
+            }
+            InlineKind::Keyboard(node) => {
+                InlineNode::Macro(InlineMacro::Keyboard(crate::Keyboard::from(node)))
+            }
+            InlineKind::Button(node) => {
+                InlineNode::Macro(InlineMacro::Button(crate::Button::from(node)))
+            }
+            InlineKind::Menu(node) => InlineNode::Macro(InlineMacro::Menu(crate::Menu::from(node))),
+            InlineKind::Url(node) => {
+                InlineNode::Macro(InlineMacro::Url(Box::new(crate::Url::from(node))))
+            }
+            InlineKind::Link(node) => {
+                InlineNode::Macro(InlineMacro::Link(Box::new(crate::Link::from(node))))
+            }
+            InlineKind::Mailto(node) => {
+                InlineNode::Macro(InlineMacro::Mailto(Box::new(crate::Mailto::from(node))))
+            }
+            InlineKind::Autolink(node) => {
+                InlineNode::Macro(InlineMacro::Autolink(crate::Autolink::from(node)))
+            }
+            InlineKind::CrossReference(node) => InlineNode::Macro(InlineMacro::CrossReference(
+                Box::new(crate::CrossReference::from(node)),
+            )),
+            InlineKind::Pass(node) => InlineNode::Macro(InlineMacro::Pass(crate::Pass::from(node))),
+            InlineKind::Stem(node) => InlineNode::Macro(InlineMacro::Stem(crate::Stem::from(node))),
+            InlineKind::IndexTerm(node) => InlineNode::Macro(InlineMacro::IndexTerm(Box::new(
+                crate::IndexTerm::from(node),
+            ))),
+        }
     }
 }

@@ -198,7 +198,7 @@ fn inline_entry_points_keep_content_attribute_and_macro_label_context() -> Resul
         };
         assert_eq!(direct.content(), fluent.content());
         assert_eq!(direct.content(), paragraph.content());
-        let json = serde_json::to_value(direct.inlines())?;
+        let json = serde_json::to_value(direct.content())?;
         assert_eq!(
             json.pointer("/0/alt/0/variant"),
             Some(&serde_json::json!("strong"))

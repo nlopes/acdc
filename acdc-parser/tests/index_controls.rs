@@ -42,7 +42,8 @@ fn named_index_controls_stay_out_of_visible_labels(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let term = index(parsed.inlines())?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let term = index(parsed_inlines.as_slice())?;
     assert!(term.is_visible());
     assert_eq!(text(term.term())?, expected);
     assert_eq!(text(term.catalog().term())?, expected);
@@ -73,7 +74,8 @@ fn index_hierarchy_uses_physical_slots(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let term = index(parsed.inlines())?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let term = index(parsed_inlines.as_slice())?;
     assert!(!term.is_visible());
     assert_eq!(text(term.term())?, "Primary");
     assert_eq!(
@@ -120,7 +122,8 @@ fn discarded_index_controls_and_relationships_do_not_register_footnotes() -> Res
 fn named_index_controls_preserve_complete_child_labels() -> Result<(), Error> {
     let source = "indexterm2:[Before link:guide.adoc[Child,role=child] after,custom=outer]";
     let parsed = parse_inline(source, &Options::default())?;
-    let term = index(parsed.inlines())?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let term = index(parsed_inlines.as_slice())?;
     let content = ContentAttribute::from(term.term()).into_inlines();
     let [
         InlineNode::PlainText(before),

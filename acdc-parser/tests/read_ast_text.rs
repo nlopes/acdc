@@ -144,16 +144,17 @@ fn retained_pass_reads_preserve_content_and_empty_values(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
     let [
         InlineNode::Macro(InlineMacro::Pass(owner)),
         _,
         InlineNode::Macro(InlineMacro::Pass(empty)),
-    ] = parsed.inlines()
+    ] = parsed_inlines.as_slice()
     else {
         return Err("expected retained pass macros".into());
     };
     let InlineKind::Pass(pass) =
-        InlineRef::from(parsed.inlines().first().ok_or("pass macro")?).kind()
+        InlineRef::from(parsed_inlines.as_slice().first().ok_or("pass macro")?).kind()
     else {
         return Err("pass kind".into());
     };
@@ -186,7 +187,7 @@ fn retained_pass_reads_preserve_content_and_empty_values(
         PassRef::from(&absent).substitutions().collect::<Vec<_>>(),
         substitutions
     );
-    let serialized = serde_json::to_value(parsed.inlines())?;
+    let serialized = serde_json::to_value(parsed_inlines.as_slice())?;
     let owner_json = serde_json::to_value(owner)?;
     let empty_json = serde_json::to_value(empty)?;
     assert_eq!(serialized.get(0), Some(&owner_json));

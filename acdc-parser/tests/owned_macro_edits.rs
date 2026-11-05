@@ -253,7 +253,7 @@ fn parsed_ui_copies_preserve_native_output_and_nested_content(
         "btn:[*Save*] kbd:[*Ctrl*+Enter] menu:*File*[_Open_ > Close]",
         &options,
     )?;
-    let before = serde_json::to_value(parsed.inlines())?;
+    let before = serde_json::to_value(parsed.content())?;
     let mut kinds = Vec::new();
     for (index, node) in parsed.content().inlines().enumerate() {
         let owned = if let InlineKind::Button(button) = node.kind() {
@@ -274,7 +274,7 @@ fn parsed_ui_copies_preserve_native_output_and_nested_content(
         );
     }
     assert_eq!(kinds, ["button", "keyboard", "menu"]);
-    assert_eq!(serde_json::to_value(parsed.inlines())?, before);
+    assert_eq!(serde_json::to_value(parsed.content())?, before);
     Ok(())
 }
 

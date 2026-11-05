@@ -45,8 +45,10 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
                 r"pass:m[pass:[temporary-pass\]] latexmath:[x < y] https://example.test footnote:temporary[Note]",
             );
             let fragment = parse_inline(&source, &Options::default())?;
+            let fragment_inlines =
+                acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
             let mut macros = 0;
-            for node in fragment.inlines() {
+            for node in fragment_inlines.as_slice() {
                 if let InlineNode::Macro(InlineMacro::Pass(pass)) = node {
                     visitor.render_pass(pass.into())?;
                     macros += 1;
@@ -145,7 +147,9 @@ fn retained_pass_skips_absent_and_empty_text_but_propagates_write_errors() -> Re
         Diagnostics::new(&source, &mut warnings),
     );
     let fragment = parse_inline(r"pass:m[pass:[content\]]", &Options::default())?;
-    let Some(InlineNode::Macro(InlineMacro::Pass(pass))) = fragment.inlines().first() else {
+    let fragment_inlines = acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
+    let Some(InlineNode::Macro(InlineMacro::Pass(pass))) = fragment_inlines.as_slice().first()
+    else {
         return Err("expected a retained passthrough".into());
     };
     for text in [None, Some("")] {
@@ -429,7 +433,8 @@ fn retained_pass_uses_its_own_escaping_setting() -> Result<(), TestError> {
         Diagnostics::new(&source, &mut warnings),
     );
     let fragment = parse_inline(r"pass:m[pass:c[<tag> & raw\]]", &Options::default())?;
-    let node = fragment.inlines().first().ok_or("passthrough")?;
+    let fragment_inlines = acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
+    let node = fragment_inlines.as_slice().first().ok_or("passthrough")?;
     let InlineNode::Macro(InlineMacro::Pass(pass)) = node else {
         return Err("unprocessed pass macro".into());
     };

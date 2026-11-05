@@ -136,8 +136,9 @@ fn parsed_character_references_have_authoritative_identity() -> Result<(), Error
             .with_compatibility_mode(mode)
             .build()?;
         let parsed = acdc_parser::parse_inline("&copy; &#169; &#x1F600;", &options)?;
-        let kinds: Vec<_> = parsed
-            .inlines()
+        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+        let kinds: Vec<_> = parsed_inlines
+            .as_slice()
             .iter()
             .filter_map(|node| {
                 if let InlineNode::CharacterReference(reference) = node {
@@ -162,7 +163,8 @@ fn parsed_character_references_have_authoritative_identity() -> Result<(), Error
 #[test]
 fn parsed_character_reference_escapes_consume_only_one_backslash() -> Result<(), Error> {
     let parsed = acdc_parser::parse_inline(r"\\&copy;", &acdc_parser::Options::default())?;
-    let value = serde_json::to_value(parsed.inlines())?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let value = serde_json::to_value(parsed_inlines.as_slice())?;
     assert!(
         value.as_array().is_some_and(|nodes| nodes
             .iter()
@@ -221,8 +223,10 @@ fn passthrough_character_references_respect_later_escaping() -> Result<(), Error
             ("pass:c[&copy;]", 0),
         ] {
             let parsed = acdc_parser::parse_inline(source, &options)?;
-            let count = parsed
-                .inlines()
+            let parsed_inlines =
+                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+            let count = parsed_inlines
+                .as_slice()
                 .iter()
                 .filter(|node| matches!(node, InlineNode::CharacterReference(_)))
                 .count();
@@ -262,8 +266,9 @@ fn document_and_caller_character_references_expand_once() -> Result<(), Error> {
             .with_attributes([("encoded", "&amp;copy;")])
             .build()?;
         let parsed = acdc_parser::parse_inline("{encoded}", &options)?;
+        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
         assert!(
-            matches!(parsed.inlines(), [InlineNode::CharacterReference(reference)] if reference.kind() == CharacterReferenceKind::Named("copy"))
+            matches!(parsed_inlines.as_slice(), [InlineNode::CharacterReference(reference)] if reference.kind() == CharacterReferenceKind::Named("copy"))
         );
     }
     Ok(())
@@ -273,8 +278,9 @@ fn document_and_caller_character_references_expand_once() -> Result<(), Error> {
 fn later_quotes_span_resolved_character_references() -> Result<(), Error> {
     let parsed =
         acdc_parser::parse_inline("pass:c,r,q[*&#169;*]", &acdc_parser::Options::default())?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
     assert!(
-        matches!(parsed.inlines(), [InlineNode::BoldText(bold)] if matches!(bold.clone().take_content().as_slice(), [InlineNode::CharacterReference(reference)] if reference.kind() == CharacterReferenceKind::Numeric(169)))
+        matches!(parsed_inlines.as_slice(), [InlineNode::BoldText(bold)] if matches!(bold.clone().take_content().as_slice(), [InlineNode::CharacterReference(reference)] if reference.kind() == CharacterReferenceKind::Numeric(169)))
     );
     Ok(())
 }
@@ -382,9 +388,15 @@ fn resolved_reference_names_do_not_become_later_formatting() -> Result<(), Error
         "pass:c,r,m[link:page.html[Before &a__b__c; after]]",
     ] {
         let parsed = acdc_parser::parse_inline(source, &options)?;
+        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
         let mut found = Vec::new();
         collect_reference_names(parsed.content().inlines(), &mut found);
-        assert_eq!(found, ["&a__b__c;"], "{source}: {:?}", parsed.inlines());
+        assert_eq!(
+            found,
+            ["&a__b__c;"],
+            "{source}: {:?}",
+            parsed_inlines.as_slice()
+        );
     }
     Ok(())
 }
@@ -413,13 +425,14 @@ fn later_formatting_can_enclose_reference_marker_characters() -> Result<(), Erro
         ("pass:c,r,q[#Before &#169; after#]", "&#169;"),
     ] {
         let parsed = acdc_parser::parse_inline(source, &options)?;
+        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
         assert!(
             matches!(
-                parsed.inlines(),
+                parsed_inlines.as_slice(),
                 [InlineNode::ItalicText(_) | InlineNode::HighlightText(_)]
             ),
             "{source}: {:?}",
-            parsed.inlines()
+            parsed_inlines.as_slice()
         );
         let mut found = Vec::new();
         collect_reference_names(parsed.content().inlines(), &mut found);

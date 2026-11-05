@@ -70,9 +70,11 @@ fn constructed_inline_sequence_visits_only_selected_direct_nodes() -> Result<(),
     let mut visitor = ConstructedTrace::default();
     {
         let fragment = parse_inline(SOURCE, &Options::default())?;
+        let fragment_inlines =
+            acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
         visitor.visit_inline_nodes(
             &mut context,
-            ContentRef::from(&ContentAttribute::new(fragment.inlines().to_vec())),
+            ContentRef::from(&ContentAttribute::new(fragment_inlines.as_slice().to_vec())),
         )?;
     }
     assert_eq!(
@@ -98,10 +100,12 @@ fn constructed_inline_errors_stop_the_sequence_and_retain_attribute_borrows() ->
         });
         {
             let fragment = parse_inline(SOURCE, &Options::default())?;
+            let fragment_inlines =
+                acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
             assert_eq!(
                 visitor.visit_inline_nodes(
                     &mut context,
-                    ContentRef::from(&ContentAttribute::new(fragment.inlines().to_vec()))
+                    ContentRef::from(&ContentAttribute::new(fragment_inlines.as_slice().to_vec()))
                 ),
                 Err("stop")
             );
@@ -142,8 +146,10 @@ fn owner_formatting_span_policy_covers_eight_spans_and_excludes_nested_fields() 
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         for (source, expected) in SPANS {
             let parsed = parse_inline(source, &options)?;
+            let parsed_inlines =
+                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
             assert_eq!(
-                parsed.inlines().iter().any(is_formatting_span),
+                parsed_inlines.as_slice().iter().any(is_formatting_span),
                 *expected,
                 "{mode:?}: {source}"
             );
@@ -244,9 +250,11 @@ fn typed_and_constructed_inline_sequences_agree_after_temporary_fragments_are_dr
             {
                 let source = String::from(SOURCE);
                 let fragment = parse_inline(&source, &options)?;
+                let fragment_inlines =
+                    acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
                 let expected = owner.visit_inline_nodes(
                     &mut context,
-                    ContentRef::from(&ContentAttribute::new(fragment.inlines().to_vec())),
+                    ContentRef::from(&ContentAttribute::new(fragment_inlines.as_slice().to_vec())),
                 );
                 let actual = typed.visit_inline_nodes(&mut context, fragment.content());
                 assert_eq!(actual, expected);
@@ -342,9 +350,11 @@ fn standalone_content_reads_preserve_source_spans_and_borrowed_text() -> Result<
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         for (source, expected) in SPANS {
             let fragment = parse_inline(source, &options)?;
+            let fragment_inlines =
+                acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
             let read = fragment.content();
-            assert_eq!(read.inlines().len(), fragment.inlines().len());
-            for (typed, owner) in read.inlines().zip(fragment.inlines()) {
+            assert_eq!(read.inlines().len(), fragment_inlines.as_slice().len());
+            for (typed, owner) in read.inlines().zip(fragment_inlines.as_slice()) {
                 assert_eq!(Location::from(typed.location()), *owner.location());
                 if let (InlineKind::Plain(typed), InlineNode::PlainText(owner)) =
                     (typed.kind(), owner)

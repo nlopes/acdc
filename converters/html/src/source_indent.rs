@@ -391,7 +391,9 @@ mod tests {
         for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
             let options = Options::builder().with_compatibility_mode(mode).build()?;
             let parsed = parse_inline("*bold*", &options)?;
-            let [InlineNode::BoldText(span)] = parsed.inlines() else {
+            let parsed_inlines =
+                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+            let [InlineNode::BoldText(span)] = parsed_inlines.as_slice() else {
                 return Err("expected one formatting span".into());
             };
             let mut span = span.clone();

@@ -116,8 +116,10 @@ fn discovery_preserves_utf8_offsets_visibility_and_newlines() -> Result<(), Erro
             ),
         ] {
             let parsed = parse_inline(source, &options)?;
+            let parsed_inlines =
+                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
             assert_eq!(
-                collect(parsed.inlines()),
+                collect(parsed_inlines.as_slice()),
                 expected
                     .into_iter()
                     .map(|(text, offset)| (text.to_owned(), offset))
@@ -148,8 +150,10 @@ fn discovery_descends_only_into_the_supported_display_content() -> Result<(), Er
             "footnote:[indexterm:[term]]",
         ] {
             let parsed = parse_inline(source, &options)?;
+            let parsed_inlines =
+                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
             assert_eq!(
-                collect(parsed.inlines()),
+                collect(parsed_inlines.as_slice()),
                 [(String::from("term"), 0)],
                 "{mode:?} {source:?}"
             );
@@ -221,8 +225,9 @@ fn owner_callback_stops_at_the_first_error() -> Result<(), Error> {
         "indexterm:[first] *indexterm:[second]* indexterm:[last]",
         &Options::default(),
     )?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
     let mut found = Vec::new();
-    let result = visit_index_terms(parsed.inlines(), &mut |term, offset| {
+    let result = visit_index_terms(parsed_inlines.as_slice(), &mut |term, offset| {
         found.push((
             InlineTextTransform::default().to_string(&primary_content(term)),
             offset,
@@ -244,14 +249,15 @@ fn owner_callback_stops_at_the_first_error() -> Result<(), Error> {
 #[test]
 fn owner_callbacks_keep_the_original_term_references() -> Result<(), Error> {
     let parsed = parse_inline("indexterm:[first] indexterm:[second]", &Options::default())?;
-    let mut expected = parsed.inlines().iter().filter_map(|node| {
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let mut expected = parsed_inlines.as_slice().iter().filter_map(|node| {
         if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
             Some(term.as_ref())
         } else {
             None
         }
     });
-    visit_index_terms(parsed.inlines(), &mut |term, _| {
+    visit_index_terms(parsed_inlines.as_slice(), &mut |term, _| {
         assert!(std::ptr::eq(
             term,
             expected.next().ok_or("unexpected term")?
@@ -318,8 +324,9 @@ fn discovery_offsets_count_resolved_reference_characters() -> Result<(), Error> 
             r"&#169; indexterm2:[&#65;lpha] \&#169; indexterm:[hidden] *&#x1f600;* indexterm2:[last]",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
+        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
         assert_eq!(
-            collect(parsed.inlines()),
+            collect(parsed_inlines.as_slice()),
             [
                 ("&#65;lpha".to_owned(), "© ".len()),
                 ("hidden".to_owned(), "© Alpha &#169; ".len()),

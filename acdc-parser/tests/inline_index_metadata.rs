@@ -15,7 +15,9 @@ fn index_metadata_has_one_owner_and_consistent_reads(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [_, inline @ InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed.inlines() else {
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [_, inline @ InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed_inlines.as_slice()
+    else {
         return Err("index term".into());
     };
     let node = IndexTermRef::from(owner.as_ref());
@@ -263,7 +265,8 @@ fn index_quoted_labels_keep_authored_escape_ranges(
     #[case] authored: &str,
 ) -> Result<(), Error> {
     let parsed = parse_inline(source, &Options::default())?;
-    let [_, InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed.inlines() else {
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [_, InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed_inlines.as_slice() else {
         return Err("index term".into());
     };
     let content = acdc_parser::ContentAttribute::from(IndexTermRef::from(owner.as_ref()).term())
@@ -292,7 +295,8 @@ fn index_unquoted_none_controls_are_ignored(
         "indexterm2:[Visible,custom=before,custom=None,removed=None,title=\"None\",see=None,see-also=Target]",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed.inlines() else {
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed_inlines.as_slice() else {
         return Err("index term".into());
     };
     let attributes = IndexTermRef::from(owner.as_ref()).attributes();

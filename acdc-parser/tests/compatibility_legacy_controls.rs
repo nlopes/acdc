@@ -16,8 +16,10 @@ fn standalone_ui_macros_follow_mode_and_caller_activation() -> Result<(), Error>
             }
             let parsed =
                 parse_inline("kbd:[Ctrl+C] btn:[Save] menu:File[Open]", &builder.build()?)?;
-            let count = parsed
-                .inlines()
+            let parsed_inlines =
+                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+            let count = parsed_inlines
+                .as_slice()
                 .iter()
                 .filter(|node| {
                     matches!(
@@ -100,6 +102,7 @@ fn caller_legacy_control_warns_once_and_document_locks_still_apply() -> Result<(
             assert!(warning.source_location().is_none());
         }
         let inline = parse_inline("link:https://example.org[Label,title=Tip]", &options)?;
+        let inline_inlines = acdc_parser::ContentAttribute::from(inline.content()).into_inlines();
         assert_eq!(
             inline
                 .warnings()
@@ -108,7 +111,8 @@ fn caller_legacy_control_warns_once_and_document_locks_still_apply() -> Result<(
                 .count(),
             usize::from(enabled)
         );
-        let Some(InlineNode::Macro(InlineMacro::Link(link))) = inline.inlines().first() else {
+        let Some(InlineNode::Macro(InlineMacro::Link(link))) = inline_inlines.as_slice().first()
+        else {
             return Err("expected hyperlink".into());
         };
         assert!(link.clone().take_tooltip().is_some());

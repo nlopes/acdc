@@ -272,8 +272,12 @@ fn code_text_keeps_displayed_content_and_required_markers() -> Result<(), Error>
         );
         for (source, expected, linked) in cases {
             let input = parse_inline(source, &options)?;
-            let result =
-                code_inline_text(input.inlines(), document.document().references(), "html");
+            let input_inlines = acdc_parser::ContentAttribute::from(input.content()).into_inlines();
+            let result = code_inline_text(
+                input_inlines.as_slice(),
+                document.document().references(),
+                "html",
+            );
             assert_eq!(result, (expected.to_owned(), linked), "{source:?} {mode:?}");
             let typed = code_inline_text(
                 input.content().inlines(),
@@ -292,10 +296,11 @@ fn code_text_consumes_temporary_typed_input_once() -> Result<(), Error> {
     let result = {
         let source = String::from("*Temporary* <<target>>");
         let input = parse_inline(&source, &Options::default())?;
+        let input_inlines = acdc_parser::ContentAttribute::from(input.content()).into_inlines();
         let mut visited = 0;
         let nodes = input.content().inlines().inspect(|_| visited += 1);
         let result = code_inline_text(nodes, document.document().references(), "html");
-        assert_eq!(visited, input.inlines().len());
+        assert_eq!(visited, input_inlines.as_slice().len());
         result
     };
     assert_eq!(result, (String::from("Temporary Destination"), true));

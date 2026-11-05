@@ -20,8 +20,12 @@ fn attribute_only_link_role_is_not_display_text() -> TestResult {
         "link:https://example.com[role=include]",
         &Options::default(),
     )?;
-    let [InlineNode::Macro(InlineMacro::Link(link))] = parsed.inlines() else {
-        return Err(unexpected("expected one link macro", parsed.inlines()));
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::Link(link))] = parsed_inlines.as_slice() else {
+        return Err(unexpected(
+            "expected one link macro",
+            parsed_inlines.as_slice(),
+        ));
     };
 
     assert_eq!(
@@ -40,8 +44,12 @@ fn attribute_only_link_role_is_not_display_text() -> TestResult {
 #[test]
 fn attribute_only_url_role_is_not_display_text() -> TestResult {
     let parsed = parse_inline("https://example.com[role=include]", &Options::default())?;
-    let [InlineNode::Macro(InlineMacro::Url(url))] = parsed.inlines() else {
-        return Err(unexpected("expected one URL macro", parsed.inlines()));
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::Url(url))] = parsed_inlines.as_slice() else {
+        return Err(unexpected(
+            "expected one URL macro",
+            parsed_inlines.as_slice(),
+        ));
     };
 
     assert_eq!(
@@ -60,8 +68,12 @@ fn attribute_only_url_role_is_not_display_text() -> TestResult {
 #[test]
 fn attribute_like_mailto_content_remains_display_text() -> TestResult {
     let parsed = parse_inline("mailto:joe@example.com[role=include]", &Options::default())?;
-    let [InlineNode::Macro(InlineMacro::Mailto(mailto))] = parsed.inlines() else {
-        return Err(unexpected("expected one mailto macro", parsed.inlines()));
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::Mailto(mailto))] = parsed_inlines.as_slice() else {
+        return Err(unexpected(
+            "expected one mailto macro",
+            parsed_inlines.as_slice(),
+        ));
     };
 
     assert_eq!(
@@ -82,8 +94,12 @@ fn quoted_named_attribute_syntax_remains_link_text() -> TestResult {
         "link:https://example.com[\"role=include\"]",
         &Options::default(),
     )?;
-    let [InlineNode::Macro(InlineMacro::Link(link))] = parsed.inlines() else {
-        return Err(unexpected("expected one link macro", parsed.inlines()));
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::Link(link))] = parsed_inlines.as_slice() else {
+        return Err(unexpected(
+            "expected one link macro",
+            parsed_inlines.as_slice(),
+        ));
     };
 
     assert_plain_text(&link.clone().take_text(), "role=include")?;
@@ -98,8 +114,12 @@ fn positional_value_without_named_attribute_remains_link_text() -> TestResult {
         "link:https://example.com[Example,positional-id]",
         &Options::default(),
     )?;
-    let [InlineNode::Macro(InlineMacro::Link(link))] = parsed.inlines() else {
-        return Err(unexpected("expected one link macro", parsed.inlines()));
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::Link(link))] = parsed_inlines.as_slice() else {
+        return Err(unexpected(
+            "expected one link macro",
+            parsed_inlines.as_slice(),
+        ));
     };
 
     assert_plain_text(&link.clone().take_text(), "Example,positional-id")?;
@@ -114,8 +134,12 @@ fn link_with_text_and_attributes_parses_both() -> TestResult {
         "link:https://example.com[Example,role=external,window=_blank]",
         &Options::default(),
     )?;
-    let [InlineNode::Macro(InlineMacro::Link(link))] = parsed.inlines() else {
-        return Err(unexpected("expected one link macro", parsed.inlines()));
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::Link(link))] = parsed_inlines.as_slice() else {
+        return Err(unexpected(
+            "expected one link macro",
+            parsed_inlines.as_slice(),
+        ));
     };
 
     assert_eq!(
@@ -141,8 +165,12 @@ fn url_with_text_and_attributes_parses_both() -> TestResult {
         "https://example.com[Example,role=external,window=_blank]",
         &Options::default(),
     )?;
-    let [InlineNode::Macro(InlineMacro::Url(url))] = parsed.inlines() else {
-        return Err(unexpected("expected one URL macro", parsed.inlines()));
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::Url(url))] = parsed_inlines.as_slice() else {
+        return Err(unexpected(
+            "expected one URL macro",
+            parsed_inlines.as_slice(),
+        ));
     };
 
     assert_eq!(
@@ -168,8 +196,12 @@ fn mailto_with_text_and_attributes_parses_both() -> TestResult {
         "mailto:joe@example.com[Joe,role=include]",
         &Options::default(),
     )?;
-    let [InlineNode::Macro(InlineMacro::Mailto(mailto))] = parsed.inlines() else {
-        return Err(unexpected("expected one mailto macro", parsed.inlines()));
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::Mailto(mailto))] = parsed_inlines.as_slice() else {
+        return Err(unexpected(
+            "expected one mailto macro",
+            parsed_inlines.as_slice(),
+        ));
     };
 
     assert_eq!(

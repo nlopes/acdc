@@ -53,10 +53,11 @@ fn link_formatting_boundaries_keep_complete_labels_and_source_spans(
     };
     let source = format!("{marker}Before {link} end{marker}");
     let parsed = parse_inline(&source, &Options::default())?;
-    let [outer] = parsed.inlines() else {
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [outer] = parsed_inlines.as_slice() else {
         return Err(format!(
             "expected one complete formatted span: {:?}",
-            parsed.inlines()
+            parsed_inlines.as_slice()
         )
         .into());
     };

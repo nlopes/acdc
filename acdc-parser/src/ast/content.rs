@@ -7,6 +7,9 @@ use super::InlineRef;
 /// Optional content uses `Option<ContentRef>`: `None` is absent, while an empty
 /// `Some` remains present.
 ///
+/// Serde serialization produces acdc's native inline array. Use `asg::inlines`
+/// for checked ASG export.
+///
 /// Content cannot outlive its owner:
 ///
 /// ```compile_fail,E0597
@@ -151,5 +154,14 @@ impl<'doc> From<ContentRef<'doc>> for ContentAttribute<'doc> {
 impl<'doc> From<ContentRef<'doc>> for Title<'doc> {
     fn from(content: ContentRef<'doc>) -> Self {
         Self::new(content.nodes.to_vec())
+    }
+}
+
+impl serde::Serialize for ContentRef<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serde::Serialize::serialize(self.nodes, serializer)
     }
 }

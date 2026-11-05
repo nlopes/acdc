@@ -166,6 +166,15 @@ impl InlineMacro<'_> {
 ///     }
 /// }
 /// ```
+///
+/// Read content through typed handles and their `content_fields()` or
+/// `content_occurrences()` methods:
+///
+/// ```compile_fail,E0599
+/// use acdc_parser::{Button, ContentAttribute, InlineMacro, Location};
+/// let button = InlineMacro::Button(Button::new(ContentAttribute::default(), Location::default()));
+/// button.for_each_content_attribute(|_| {});
+/// ```
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum InlineMacro<'a> {
@@ -671,57 +680,5 @@ impl<'a> InlineMacro<'a> {
             | Self::IndexTerm(_) => {}
         }
         Ok(())
-    }
-}
-
-impl<'a> InlineMacro<'a> {
-    /// Visit explicit alternative text, tooltips, and UI labels.
-    /// Link labels and footnote bodies are separate macro content.
-    pub fn for_each_content_attribute(&self, mut visit: impl FnMut(&crate::ContentAttribute<'a>)) {
-        match self {
-            Self::Image(image) => {
-                for value in [&image.alt, &image.tooltip].into_iter().flatten() {
-                    visit(value);
-                }
-            }
-            Self::Icon(icon) => {
-                for value in [&icon.alt, &icon.tooltip].into_iter().flatten() {
-                    visit(value);
-                }
-            }
-            Self::Link(link) => {
-                if let Some(value) = &link.tooltip {
-                    visit(value);
-                }
-            }
-            Self::Url(url) => {
-                if let Some(value) = &url.tooltip {
-                    visit(value);
-                }
-            }
-            Self::Mailto(mailto) => {
-                if let Some(value) = &mailto.tooltip {
-                    visit(value);
-                }
-            }
-            Self::Button(button) => visit(&button.label),
-            Self::Menu(menu) => {
-                visit(&menu.target);
-                for item in &menu.items {
-                    visit(item);
-                }
-            }
-            Self::Keyboard(keyboard) => {
-                for key in &keyboard.keys {
-                    visit(key);
-                }
-            }
-            Self::Footnote(_)
-            | Self::Autolink(_)
-            | Self::CrossReference(_)
-            | Self::Pass(_)
-            | Self::Stem(_)
-            | Self::IndexTerm(_) => {}
-        }
     }
 }

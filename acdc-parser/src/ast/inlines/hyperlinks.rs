@@ -12,7 +12,7 @@ use super::{AutolinkRef, InlineKind, InlineRef, LinkRef, MailtoRef, UrlRef};
 /// use acdc_parser::{Options, parse_inline, ast::{HyperlinkRef, InlineRef}};
 ///
 /// let parsed = parse_inline("https://example.org mailto:team@example.org[,Hello]", &Options::default())?;
-/// for link in parsed.inlines().iter().filter_map(|node| InlineRef::from(node).as_hyperlink()) {
+/// for link in parsed.content().inlines().filter_map(InlineRef::as_hyperlink) {
 ///     assert!(link.text().is_empty());
 ///     if let HyperlinkRef::Mailto(mail) = link {
 ///         assert_eq!(mail.subject(), Some("Hello"));

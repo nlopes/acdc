@@ -56,7 +56,9 @@ fn typed_code_content_preserves_selection_and_locations() -> Result<(), Box<dyn 
             ("indexterm2:[visible]", "visible"),
         ] {
             let parsed = parse_inline(input, &options)?;
-            let [node] = parsed.inlines() else {
+            let parsed_inlines =
+                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+            let [node] = parsed_inlines.as_slice() else {
                 return Err(format!("expected one node: {input}").into());
             };
             let content = code_inline_content(node.into()).ok_or("missing typed content")?;
@@ -90,8 +92,10 @@ fn typed_code_content_preserves_selection_and_locations() -> Result<(), Box<dyn 
             "pass:[raw]",
         ] {
             let parsed = parse_inline(input, &options)?;
-            assert!(!parsed.inlines().is_empty(), "{mode:?} {input}");
-            for node in parsed.inlines() {
+            let parsed_inlines =
+                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+            assert!(!parsed_inlines.as_slice().is_empty(), "{mode:?} {input}");
+            for node in parsed_inlines.as_slice() {
                 assert!(
                     code_inline_content(node.into()).is_none(),
                     "{mode:?} {input}"
@@ -110,7 +114,8 @@ fn typed_code_content_keeps_present_empty_formatting() -> Result<(), Box<dyn Err
             "[.keep]*bold*",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let [InlineNode::BoldText(span)] = parsed.inlines() else {
+        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+        let [InlineNode::BoldText(span)] = parsed_inlines.as_slice() else {
             return Err("expected bold text".into());
         };
         let mut span = span.clone();

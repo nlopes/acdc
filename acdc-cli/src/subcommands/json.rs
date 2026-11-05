@@ -57,7 +57,7 @@ pub fn document(value: DocumentRef<'_>, format: Format) -> Result<Value, Error> 
 
 pub fn inlines(parsed: &ParseInlineResult, format: Format) -> Result<Value, Error> {
     match format {
-        Format::NativeJson => Ok(serde_json::to_value(parsed.inlines())?),
+        Format::NativeJson => Ok(serde_json::to_value(parsed.content())?),
         #[cfg(feature = "asg")]
         Format::UpstreamAsg => Ok(acdc_parser::asg::inlines(parsed.content())?),
         #[cfg(feature = "asg")]

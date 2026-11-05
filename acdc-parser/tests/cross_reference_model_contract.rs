@@ -19,6 +19,7 @@ fn cross_reference_syntax_classifies_punctuation_before_catalog_lookup() -> Resu
         ("xref:guide.adoc#topic:one[]", "guide.adoc#topic:one", false),
     ] {
         let parsed = parse_inline(source, &Options::default())?;
+        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
         let [InlineKind::CrossReference(xref)] = &*parsed
             .content()
             .inlines()
@@ -27,7 +28,7 @@ fn cross_reference_syntax_classifies_punctuation_before_catalog_lookup() -> Resu
         else {
             return Err(format!(
                 "expected cross-reference for {source}: {:?}",
-                parsed.inlines()
+                parsed_inlines.as_slice()
             )
             .into());
         };
@@ -146,8 +147,13 @@ fn unused_block_metadata_does_not_register_references_or_footnotes() -> Result<(
 #[test]
 fn cross_reference_model_equality_ignores_parser_state() -> Result<(), Error> {
     let parsed = parse_inline("<<id>>", &Options::default())?;
-    let [InlineNode::Macro(InlineMacro::CrossReference(actual))] = parsed.inlines() else {
-        return Err(format!("expected one cross-reference, got {:?}", parsed.inlines()).into());
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::CrossReference(actual))] = parsed_inlines.as_slice() else {
+        return Err(format!(
+            "expected one cross-reference, got {:?}",
+            parsed_inlines.as_slice()
+        )
+        .into());
     };
     let expected = CrossReference::new(
         "id",
@@ -172,8 +178,13 @@ fn cross_reference_model_equality_ignores_parser_state() -> Result<(), Error> {
 #[test]
 fn cross_reference_model_debug_ignores_parser_state() -> Result<(), Error> {
     let parsed = parse_inline("<<id>>", &Options::default())?;
-    let [InlineNode::Macro(InlineMacro::CrossReference(actual))] = parsed.inlines() else {
-        return Err(format!("expected one cross-reference, got {:?}", parsed.inlines()).into());
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::CrossReference(actual))] = parsed_inlines.as_slice() else {
+        return Err(format!(
+            "expected one cross-reference, got {:?}",
+            parsed_inlines.as_slice()
+        )
+        .into());
     };
     let expected = CrossReference::new(
         "id",
@@ -196,8 +207,13 @@ fn cross_reference_model_debug_ignores_parser_state() -> Result<(), Error> {
 #[test]
 fn cross_reference_model_serialization_ignores_parser_state() -> Result<(), Error> {
     let parsed = parse_inline("<<id>>", &Options::default())?;
-    let [InlineNode::Macro(InlineMacro::CrossReference(actual))] = parsed.inlines() else {
-        return Err(format!("expected one cross-reference, got {:?}", parsed.inlines()).into());
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::CrossReference(actual))] = parsed_inlines.as_slice() else {
+        return Err(format!(
+            "expected one cross-reference, got {:?}",
+            parsed_inlines.as_slice()
+        )
+        .into());
     };
     let expected = CrossReference::new(
         "id",

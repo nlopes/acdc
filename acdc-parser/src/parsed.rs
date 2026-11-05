@@ -227,9 +227,15 @@ impl ParseResult {
     }
 }
 
-/// Successful inline-only parse output: the inline-node slice plus the
-/// buffers it borrows from, plus any non-fatal warnings. Counterpart to
-/// [`ParseResult`] for the inline-only entry point.
+/// Inline content and its source text, with any nonfatal warnings.
+///
+/// Read content through [`Self::content`]. The backing slice is private:
+///
+/// ```compile_fail,E0624
+/// use acdc_parser::{Options, parse_inline};
+/// let parsed = parse_inline("Text", &Options::default()).unwrap();
+/// let _ = parsed.inlines();
+/// ```
 #[derive(Debug)]
 #[must_use = "ignoring a ParseInlineResult drops any warnings the parser produced"]
 pub struct ParseInlineResult {
@@ -267,7 +273,7 @@ impl ParseInlineResult {
 
     /// Borrow the inline-node slice.
     #[must_use]
-    pub fn inlines(&self) -> &[InlineNode<'_>] {
+    pub(crate) fn inlines(&self) -> &[InlineNode<'_>] {
         self.cell.borrow_dependent()
     }
 

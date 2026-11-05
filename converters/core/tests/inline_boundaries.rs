@@ -22,10 +22,11 @@ fn sibling_context_preserves_invisible_nodes_and_formatting_barriers() -> Result
     ] {
         let literal = format!("pass:c,q,m[{}]", source.replace(']', r"\]"));
         let parsed = parse_inline(&literal, &Options::default())?;
+        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
         // Exercise the boundary helper before replacements consume the source.
         // The explicit profile retains markup structure without replacing dashes.
-        let nodes = parsed
-            .inlines()
+        let nodes = parsed_inlines
+            .as_slice()
             .iter()
             .map(|node| {
                 if let InlineNode::RawText(text) = node {

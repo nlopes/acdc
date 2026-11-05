@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** inline parse results use `content()` for typed reads; the public
+  backing-slice getter and macro content-attribute callback are removed. Copy a
+  selected node with `InlineNode::from(inline_ref)`, or selected content with
+  `ContentAttribute::from(content_ref)`. Serde serialization of `ContentRef`
+  preserves the native inline JSON array without copying the tree. ASG export
+  remains a separate checked operation.
+
 - **Breaking:** cross-reference and index occurrence fields are private. Read
   through typed handles and use selected `From` copies for edits. Prepared text,
   hierarchy, relationship, metadata and option transfers replace backing slices

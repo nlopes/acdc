@@ -79,7 +79,7 @@ fn reference_forms_preserve_targets_and_effective_labels() -> Result<(), Error> 
             ("<<target>>", "xref", "target", ""),
         ] {
             let parsed = parse_inline(source, &options)?;
-            let before = serde_json::to_value(parsed.inlines())?;
+            let before = serde_json::to_value(parsed.content())?;
             let value = asg::inlines(parsed.content())?;
             let reference = value
                 .as_array()
@@ -90,7 +90,7 @@ fn reference_forms_preserve_targets_and_effective_labels() -> Result<(), Error> 
             assert_eq!(reference.get("target"), Some(&json!(target)), "{source}");
             assert_eq!(text(reference), label, "{mode:?}: {source}");
             assert!(reference.get("inlines").is_some_and(Value::is_array));
-            assert_eq!(serde_json::to_value(parsed.inlines())?, before);
+            assert_eq!(serde_json::to_value(parsed.content())?, before);
         }
     }
     Ok(())

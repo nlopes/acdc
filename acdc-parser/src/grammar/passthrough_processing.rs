@@ -1572,7 +1572,7 @@ fn for_each_inline_children<'a>(
 /// use acdc_parser::parse_text_for_quotes;
 ///
 /// let parsed = parse_text_for_quotes("This has *bold* text.");
-/// assert_eq!(parsed.inlines().len(), 3); // "This has ", Bold("bold"), " text."
+/// assert_eq!(parsed.content().inlines().count(), 3); // "This has ", Bold("bold"), " text."
 /// ```
 pub fn parse_text_for_quotes(content: &str) -> ParseInlineResult {
     let owner = OwnedInput::new(content.into());

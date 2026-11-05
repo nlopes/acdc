@@ -36,7 +36,8 @@ fn index_reads_preserve_hierarchy_and_relationships(
         "indexterm:[Primary,\"\",Tertiary,see-also=\"One,Two\"]",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let [InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed.inlines() else {
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed_inlines.as_slice() else {
         return Err("index term".into());
     };
     let node = IndexTermRef::from(owner.as_ref());
@@ -71,7 +72,8 @@ fn index_reads_preserve_hierarchy_and_relationships(
 #[case("indexterm:[Hidden]", false)]
 fn index_reads_cover_each_form(#[case] source: &str, #[case] visible: bool) -> Result<(), Error> {
     let parsed = parse_inline(source, &Options::default())?;
-    let [InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed.inlines() else {
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed_inlines.as_slice() else {
         return Err("index term".into());
     };
     let node = IndexTermRef::from(owner.as_ref());
@@ -115,7 +117,8 @@ fn index_catalog_reads_preserve_registration_time_labels() -> Result<(), Error> 
 #[test]
 fn index_reads_preserve_empty_see_target() -> Result<(), Error> {
     let parsed = parse_inline("indexterm2:[Visible,see=\"\"]", &Options::default())?;
-    let [InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed.inlines() else {
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed_inlines.as_slice() else {
         return Err("index term".into());
     };
     let Some(IndexTermRelationshipRef::See { target }) =

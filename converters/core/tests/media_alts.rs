@@ -76,7 +76,7 @@ fn explicit_and_empty_alternatives_outlive_temporary_sources() -> Result<(), Tes
             let alt = parsed
                 .as_ref()
                 .map_or_else(ContentAttribute::default, |parsed| {
-                    ContentAttribute::new(parsed.inlines().to_vec())
+                    ContentAttribute::from(parsed.content())
                 });
             let target = String::from("fallback-name");
             let source = Source::Name(&target);
@@ -122,7 +122,7 @@ fn typed_icon_alternatives_do_not_borrow_temporary_content() -> Result<(), TestE
     let alt = {
         let markup = String::from("*Bird* ->");
         let parsed = parse_inline(&markup, &Options::default())?;
-        let content = ContentAttribute::new(parsed.inlines().to_vec());
+        let content = ContentAttribute::from(parsed.content());
         icon::alt_from_content(target, Some(ContentRef::from(&content)))
     };
     assert!(matches!(alt, Cow::Owned(_)));
@@ -176,7 +176,9 @@ fn image_alternatives_preserve_parser_selected_boundaries() -> Result<(), TestEr
             "image:bird.png[alt=\"(C) -> --\",title=\"(C) -> --\"]",
             &options,
         )?;
-        let [InlineNode::Macro(acdc_parser::InlineMacro::Image(image))] = parsed.inlines() else {
+        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+        let [InlineNode::Macro(acdc_parser::InlineMacro::Image(image))] = parsed_inlines.as_slice()
+        else {
             return Err("expected inline image".into());
         };
         let mut prepared = image.as_ref().clone();
@@ -212,7 +214,9 @@ fn icon_alternatives_preserve_parser_selected_boundaries() -> Result<(), TestErr
             "icon:heart[alt=\"(C) -> --\",title=\"(C) -> --\"]",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let [InlineNode::Macro(acdc_parser::InlineMacro::Icon(icon))] = parsed.inlines() else {
+        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+        let [InlineNode::Macro(acdc_parser::InlineMacro::Icon(icon))] = parsed_inlines.as_slice()
+        else {
             return Err("expected icon".into());
         };
         let mut prepared = icon.as_ref().clone();

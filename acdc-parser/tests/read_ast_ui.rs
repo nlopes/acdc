@@ -207,8 +207,9 @@ fn constructed_and_cloned_owners_use_the_same_reads() -> Result<(), Error> {
         "btn:[Label] kbd:[Ctrl+S] menu:File[Open] stem:[x]",
         &options,
     )?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
     let mut families = 0;
-    for inline in parsed.inlines() {
+    for inline in parsed_inlines.as_slice() {
         if let InlineNode::Macro(InlineMacro::Button(owner)) = inline {
             let mut owner = owner.clone();
             owner.replace_label(ContentAttribute::default());

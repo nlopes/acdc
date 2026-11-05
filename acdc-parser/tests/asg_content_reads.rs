@@ -14,7 +14,7 @@ fn standalone_typed_content_preserves_formatting_and_unicode_locations() -> Resu
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse_inline("*α*", &options)?;
-        let before = serde_json::to_value(parsed.inlines())?;
+        let before = serde_json::to_value(parsed.content())?;
         for profile in [asg::Profile::Upstream, asg::Profile::Acdc] {
             let value = asg::inlines_with_profile(parsed.content(), profile)?;
             assert_eq!(value.pointer("/0/variant"), Some(&json!("strong")));
@@ -25,7 +25,7 @@ fn standalone_typed_content_preserves_formatting_and_unicode_locations() -> Resu
                     {"line":1,"col":1}, {"line":1,"col":3}
                 ]))
             );
-            assert_eq!(serde_json::to_value(parsed.inlines())?, before);
+            assert_eq!(serde_json::to_value(parsed.content())?, before);
         }
     }
     Ok(())
