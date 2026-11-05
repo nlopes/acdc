@@ -135,6 +135,11 @@ prove full language conformance. Upstream caption semantics and generated-ID
 canonicalization need explicit agreement; the exporter does not change meaning
 to match an expected object. No TCK expectations or pinned schema bytes change.
 
+CI link:../../../.github/tck/README.adoc[checks these two exact incompatibilities]
+alongside the 11 passing cases. New or changed mismatches, skipped cases and
+unexpected passes fail the job. A green job records this compatibility boundary;
+it does not turn either upstream failure into a passing TCK case.
+
 == Versioning and upstream discussion
 
 Keep the pinned upstream revision and named profile distinct. A future accepted

@@ -1,0 +1,33 @@
+= TCK compatibility check
+
+CI runs the unchanged official TCK at revision
+`cdfada9c2768b164eadf4bc12e9f9c68e6caf68a`. It uses Node 25.8.2, the version
+selected by that checkout. The adapter still reports 11 passing cases and two
+failures. The CI check accepts only these two known incompatibilities:
+
+* `block/listing/multiple-lines`: strict export rejects the listing's unnumbered
+  caption state. The diagnostic must match completely, including its kind, path
+  and source range. The command must fail without writing partial JSON.
+* `block/section/title-body`: export retains the real generated `_section_title`
+  ID. Its complete graph must equal the upstream expectation with only that ID
+  added. No other property or source location may differ.
+
+The check does not change the adapter, parser, export policy or upstream files.
+It verifies the checkout revision and clean state, all 13 cases, the official
+failure counts and diagnostics, and both complete adapter responses. A new or
+changed failure, skipped case or unexpected pass fails CI and needs review.
+A green job means the known compatibility boundary is unchanged; it does not
+mean that all TCK cases pass or that acdc fully conforms to AsciiDoc.
+
+Run it from the repository root after installing the pinned TCK dependencies:
+
+[source,console]
+----
+cargo build -p acdc-cli --no-default-features --features tck
+node --test .github/tck/check.test.mjs
+node .github/tck/check.mjs ../asciidoc-tck target/debug/acdc
+----
+
+The self-tests check that extra output differences, changed diagnostics and
+unexpected test outcomes fail the gate. When changing the TCK pin, review these
+cases and the check together. Keep upstream expectations unchanged.
