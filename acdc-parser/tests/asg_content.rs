@@ -178,7 +178,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
             base.get(name).ok_or("base field")?.clone();
     }
     let additions: &[(&str, &[&str])] = &[
-        ("/properties", &["profile"]),
+        ("/properties", &["profile", "footnotes"]),
         ("/$defs/listItem/properties", &["checked"]),
         (
             "/$defs/abstractBlock/properties",
@@ -204,6 +204,8 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         (
             "/$defs",
             &[
+                "acdcFootnote",
+                "acdcFootnoteDefinition",
                 "acdcCaption",
                 "acdcInlineImage",
                 "acdcInlineMetadata",
@@ -231,7 +233,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         }
     }
     for (path, count) in [
-        ("/$defs/inline/oneOf", 1),
+        ("/$defs/inline/oneOf", 2),
         ("/$defs/list/allOf", 1),
         ("/$defs/blockMacro/allOf", 1),
         ("/$defs/inlineSpan/properties/variant/enum", 1),

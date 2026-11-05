@@ -1368,30 +1368,30 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-footnote-graph"
       },
       "properties": {
         "definition_source": {
-          "policy": "unsupported"
+          "policy": "named-footnote-graph"
         },
         "registration_substitutions": {
-          "policy": "unsupported"
+          "policy": "named-footnote-graph"
         },
         "id": {
-          "policy": "unsupported"
+          "policy": "named-footnote-graph"
         },
         "content": {
-          "policy": "unsupported"
+          "policy": "named-footnote-graph"
         },
         "number": {
-          "policy": "unsupported"
+          "policy": "named-footnote-graph"
         },
         "location": {
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "footnotes"
     },
     "src/model/inlines/macros.rs::FootnoteDefinition": {
       "shape": {
@@ -1406,27 +1406,27 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-footnote-graph"
       },
       "properties": {
         "registration_substitutions": {
-          "policy": "unsupported"
+          "policy": "named-footnote-graph"
         },
         "id": {
-          "policy": "unsupported"
+          "policy": "named-footnote-graph"
         },
         "content": {
-          "policy": "unsupported"
+          "policy": "named-footnote-graph"
         },
         "number": {
-          "policy": "unsupported"
+          "policy": "named-footnote-graph"
         },
         "location": {
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
         }
       },
-      "strict_export_group": "unsupported-owners"
+      "strict_export_group": "footnotes"
     },
     "src/model/inlines/macros.rs::IndexTerm": {
       "shape": {
@@ -4377,7 +4377,7 @@
           "upstream": "#/properties/blocks"
         },
         "footnotes": {
-          "policy": "derived-catalog"
+          "policy": "named-footnote-graph"
         },
         "toc_entries": {
           "policy": "derived-catalog"
@@ -5741,6 +5741,10 @@
     "named-basic-table-structure": {
       "handling": "context-dependent",
       "reason": "Strict export rejects table owners. The named profile preserves ordered table/row/cell structure, column widths/alignment/styles, title/caption/metadata, known source spans, positive cell spans and current resolved presentation. Export rejects inconsistent span grids and unsupported nested meaning. Cell scopes retain initial assignments and nested blocks without changing outer state. Row/cell ranges are not fabricated; original presentation defaults are edit history, while the current captured value is exported."
+    },
+    "named-footnote-graph": {
+      "handling": "context-dependent",
+      "reason": "Strict export rejects footnotes. The named profile keeps canonical bodies once in native catalog order and links definition/reference occurrences by number and optional ID. Zero remains unresolved; stale, duplicate, cyclic and pending registrations reject without repair. Discarded definition source is diagnostic history. Standalone inline export requires document registration context."
     }
   },
   "strict_export_groups": {
@@ -6145,6 +6149,35 @@
           "name": "table_schema_rejects_unknown_fields_wrong_types_and_zero_spans"
         }
       ]
+    },
+    "footnotes": {
+      "handling": "Strict export rejects registered bodies or inline occurrences; named export checks the graph and preserves it without mutation.",
+      "tests": [
+        {
+          "file": "tests/asg_footnotes.rs",
+          "name": "registered_bodies_have_one_owner_and_occurrences_keep_identity"
+        },
+        {
+          "file": "tests/asg_footnotes.rs",
+          "name": "empty_and_catalog_only_definitions_keep_number_and_presence"
+        },
+        {
+          "file": "tests/asg_footnotes.rs",
+          "name": "stale_and_duplicate_registrations_reject_without_repair"
+        },
+        {
+          "file": "tests/asg_footnotes.rs",
+          "name": "selected_titles_and_nested_cells_preserve_existing_registration_order"
+        },
+        {
+          "file": "tests/asg_footnotes.rs",
+          "name": "canonical_body_errors_and_standalone_context_are_explicit"
+        },
+        {
+          "file": "tests/asg_footnotes.rs",
+          "name": "footnote_schema_keeps_closed_bodies_and_linked_occurrences"
+        }
+      ]
     }
   },
   "extension_profiles": {
@@ -6444,6 +6477,39 @@
             "asg_table_cells.rs::initial_assignments_keep_native_order_and_distinct_normalized_snapshots",
             "asg_table_cells.rs::nested_sections_and_tables_keep_native_block_owners",
             "asg_table_cells.rs::nested_errors_and_initial_assignment_schema_remain_precise"
+          ]
+        },
+        "footnotes": {
+          "owners": {
+            "Document": [
+              "footnotes"
+            ],
+            "Footnote": [
+              "id",
+              "content",
+              "number",
+              "location"
+            ],
+            "FootnoteDefinition": [
+              "id",
+              "content",
+              "number",
+              "location"
+            ]
+          },
+          "schema_pointers": [
+            "#/properties/footnotes",
+            "#/$defs/acdcFootnote",
+            "#/$defs/acdcFootnoteDefinition"
+          ],
+          "handling": "Strict export rejects footnotes. The named profile keeps canonical bodies once in native catalog order and links definition/reference occurrences by number and optional ID. Zero remains unresolved; stale, duplicate, cyclic and pending registrations reject without repair. Discarded definition source is diagnostic history. Standalone inline export requires document registration context.",
+          "tests": [
+            "asg_footnotes.rs::registered_bodies_have_one_owner_and_occurrences_keep_identity",
+            "asg_footnotes.rs::empty_and_catalog_only_definitions_keep_number_and_presence",
+            "asg_footnotes.rs::stale_and_duplicate_registrations_reject_without_repair",
+            "asg_footnotes.rs::selected_titles_and_nested_cells_preserve_existing_registration_order",
+            "asg_footnotes.rs::canonical_body_errors_and_standalone_context_are_explicit",
+            "asg_footnotes.rs::footnote_schema_keeps_closed_bodies_and_linked_occurrences"
           ]
         }
       }

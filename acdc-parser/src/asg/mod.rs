@@ -7,6 +7,7 @@
 mod attributes;
 mod content;
 mod diagnostics;
+mod footnotes;
 mod images;
 mod metadata;
 mod projection;
@@ -138,11 +139,15 @@ pub fn inlines(inlines: ContentRef<'_>) -> Result<Value, Error> {
 /// Export standalone inline content under the selected schema profile.
 ///
 /// Text uses normal escaping; surrounding block settings are not supplied.
+/// Footnotes require document export so their registered bodies remain available.
 ///
 /// # Errors
 /// Returns an error for unsupported nested values or invalid locations. The
 /// returned array validates as inline content under the selected profile.
 pub fn inlines_with_profile(inlines: ContentRef<'_>, profile: Profile) -> Result<Value, Error> {
+    if profile == Profile::Acdc {
+        footnotes::require_document(inlines.as_inlines())?;
+    }
     let value = projection::inlines(inlines.as_inlines(), "", profile)?;
     let paragraph = Map::from_iter([
         ("name".into(), "paragraph".into()),

@@ -56,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The named ASG profile exports registered footnote bodies once, with linked
+  definition/reference occurrences, including unresolved references and notes
+  in selected titles. Stale registrations report an error without renumbering.
+
 - The named ASG profile exports basic tables with header/body/footer sections,
   cell content, widths, alignment, styles, and captured frame/grid/stripe settings.
   Positive row/column spans retain cell order; inconsistent grids report errors.

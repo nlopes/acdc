@@ -152,7 +152,19 @@ fn snapshot_and_selected_content_survive_projection_without_side_effects() -> Re
             parsed.document().footnotes().next().ok_or("footnote")?.id(),
             Some("kept")
         );
-        assert!(asg::document_with_profile(parsed.document(), asg::Profile::Acdc).is_err());
+        let graph = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        assert_eq!(graph.pointer("/footnotes/0/id"), Some(&json!("kept")));
+        assert_eq!(
+            graph.pointer("/footnotes/0/inlines/0/value"),
+            Some(&json!("Kept"))
+        );
+        assert_eq!(
+            graph
+                .get("footnotes")
+                .and_then(serde_json::Value::as_array)
+                .map(Vec::len),
+            Some(1)
+        );
         assert_eq!(serde_json::to_value(parsed.document())?, before);
     }
     Ok(())

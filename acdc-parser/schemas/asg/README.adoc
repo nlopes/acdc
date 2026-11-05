@@ -391,6 +391,26 @@ The named acdc profile adds three closed forms:
 Strict export rejects them where the pin has no corresponding form. Unsupported
 nested meaning still reports its complete property path.
 
+== Footnotes
+
+The named profile stores registered bodies once in document `footnotes`, in native
+catalog order. Each entry retains its positive `number`, optional named `id`,
+parsed `inlines`, and known source location. Inline `footnote` occurrences retain
+`form` (`definition` or `reference`), assigned `number`, optional `id`, and their
+own location. Their body belongs to the registered entry, not another inline copy.
+
+For a retained prepared reference, number zero stays unresolved even if a later
+catalog entry has that name. Missing references recovered by the parser remain
+its recovered text; export does not turn that text back into a footnote. Empty definition content remains `[]`. Catalog-only bodies
+remain present. Export checks unique identities and number/body agreement, rejects
+reference cycles and pending substitutions, and never registers or renumbers notes.
+Prepared stale trees require explicit document repair before export.
+
+Standalone inline export still rejects footnotes because it has no document
+registration context. Strict upstream rejection is unchanged. The source and
+checked JSON in `fixtures/asg/footnotes.adoc` cover ordinary and selected-title
+notes; tests also cover nested cells, empty bodies and invalid prepared graphs.
+
 == Tables
 
 The named acdc profile adds a closed `table` block with its actual delimiter,

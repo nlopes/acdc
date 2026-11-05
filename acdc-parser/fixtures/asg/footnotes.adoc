@@ -1,0 +1,9 @@
+= Footnote graph
+
+Paragraph footnote:[Anonymous *bold*.] and footnote:n[Named _note_.]
+Again footnote:n[]; unresolved footnote:missing[].
+
+[title='Title footnote:title[Title note.]']
+Body.
+
+image::bird.svg[alt='Bird footnote:alt[Alt note.]']

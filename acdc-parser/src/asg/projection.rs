@@ -324,16 +324,13 @@ fn project_header(header: &Header<'_>, profile: Profile) -> Result<Value, Error>
 }
 
 pub(super) fn document(value: &Document<'_>, profile: Profile) -> Result<Value, Error> {
-    if let Some(note) = value.footnotes.first() {
-        return Err(unsupported(
-            "/footnotes/0",
-            "footnote definitions have no supported upstream mapping",
-        )
-        .with_context("footnote", &note.location));
-    }
+    let notes = super::footnotes::definitions(value, profile)?;
     let mut result = node("document", "block");
     if profile == Profile::Acdc {
         result.insert("profile".into(), ACDC_SCHEMA_ID.into());
+        if !notes.is_empty() {
+            result.insert("footnotes".into(), Value::Array(notes));
+        }
     }
     let mut attributes = Map::new();
     let mut assignments = value.attributes.assignments().collect::<Vec<_>>();
