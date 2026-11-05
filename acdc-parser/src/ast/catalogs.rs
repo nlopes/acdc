@@ -113,6 +113,18 @@ impl<'doc> ReferenceRef<'doc> {
         self.node.caption.as_ref().map(CaptionRef::from)
     }
 
+    /// Whether the retained title was supplied, independently of its content length.
+    ///
+    /// A constructed reference can retain `Title::default()`. Its title content
+    /// remains available through [`Self::title`], but this query returns `false`.
+    #[must_use]
+    pub fn title_is_present(self) -> bool {
+        self.node
+            .title
+            .as_ref()
+            .is_some_and(crate::Title::is_present)
+    }
+
     /// The registered title, including present empty content.
     #[must_use]
     pub fn title(self) -> Option<ContentRef<'doc>> {

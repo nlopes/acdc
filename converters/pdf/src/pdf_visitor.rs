@@ -22,8 +22,7 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     CaptionKind, ColumnStyle, ColumnWidth, HorizontalAlignment, Location, SectionKind,
-    Substitution, TableFrame, TableGrid, TablePresentation, TableStripes, TocEntry,
-    VerticalAlignment,
+    Substitution, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
     ast::{
         AnchorRef, AttributeValueRef, AttributesRef, AutolinkRef, BlockKind, BlockRef, CaptionRef,
         ColumnFormatRef, ContentRef, CrossReferenceRef, DescriptionListItemRef, DescriptionListRef,
@@ -453,13 +452,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         } else {
             BookPageBreakState::Disabled
         };
-        let toc_entries = document
-            .toc_entries()
-            .map(TocEntry::from)
-            .collect::<Vec<_>>();
         Self {
             writer: Writer::new(),
-            anchors: Anchors::new(&toc_entries, &processor.references),
+            anchors: Anchors::new(document.toc_entries(), &processor.references),
             processor,
 
             assets,

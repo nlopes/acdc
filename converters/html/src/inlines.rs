@@ -13,7 +13,7 @@ use acdc_converters_core::{
     InlineTextTransform, TraversalContext,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
-    xref::{XrefDisplay, interdocument_xref, resolve_xref},
+    xref::{XrefDisplay, interdocument_xref, resolve_reference},
 };
 use acdc_parser::{
     StemNotation, Substitution,
@@ -1196,8 +1196,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             // The processor handle is cloned so the borrowed reference text and
             // the resolution guard both outlive the `&mut self` render calls.
             let processor = Rc::clone(&self.processor);
-            let display = resolve_xref(
-                processor.references.get(target),
+            let display = resolve_reference(
+                processor
+                    .references
+                    .get(target)
+                    .map(acdc_parser::ast::ReferenceRef::from),
                 xref,
                 &processor.xref_guard,
             );
@@ -1263,14 +1266,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_xref_display(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        display: XrefDisplay<'_, &[acdc_parser::InlineNode<'_>]>,
+        display: XrefDisplay<'_, ContentRef<'_>>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
         match display {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
-                for inline in inlines {
-                    self.render_inline_node(traversal, inline.into(), options, subs)?;
+                for inline in inlines.inlines() {
+                    self.render_inline_node(traversal, inline, options, subs)?;
                 }
             }
             XrefDisplay::ShortCaption(prefix) => {
@@ -1280,8 +1283,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             XrefDisplay::FullCaption(prefix, inlines, _scope) => {
                 self.open_inline_link()?;
                 write!(self.writer_mut(), "{}, &#8220;", escape_pcdata(&prefix))?;
-                for inline in inlines {
-                    self.render_inline_node(traversal, inline.into(), options, subs)?;
+                for inline in inlines.inlines() {
+                    self.render_inline_node(traversal, inline, options, subs)?;
                 }
                 self.open_inline_link()?;
                 write!(self.writer_mut(), "&#8221;")?;
@@ -1291,9 +1294,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     self.open_inline_link()?;
                     write!(self.writer_mut(), "{}, ", escape_pcdata(&prefix))?;
                 }
-                let split = inlines.iter().any(|node| {
+                let split = inlines.inlines().any(|node| {
                     link_label_needs_split(
-                        node.into(),
+                        node,
                         self.processor.xref_guard.is_resolving(),
                         self.processor.generate_index(),
                     )
@@ -1304,8 +1307,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     self.open_inline_link()?;
                 }
                 write!(self.writer_mut(), "<em>")?;
-                for inline in inlines {
-                    self.render_inline_node(traversal, inline.into(), options, subs)?;
+                for inline in inlines.inlines() {
+                    self.render_inline_node(traversal, inline, options, subs)?;
                 }
                 if split {
                     self.close_inline_link()?;

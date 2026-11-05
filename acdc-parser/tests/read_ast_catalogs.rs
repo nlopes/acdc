@@ -53,8 +53,8 @@ fn catalog_labels_keep_absent_and_empty_values_separate() -> Result<(), Error> {
             .get("plain")
             .ok_or("plain owner")?,
     );
-    owned.title = Some(Title::new(Vec::new()));
-    owned.xreflabel = Some(ContentAttribute::new(Vec::new()));
+    owned.set_title(Some(Title::new(Vec::new())));
+    owned.set_xreflabel(Some(ContentAttribute::new(Vec::new())));
     let empty_title = ReferenceRef::from(&owned);
     assert!(empty_title.title().is_some_and(ContentRef::is_empty));
     assert!(empty_title.xreflabel().is_some_and(ContentRef::is_empty));

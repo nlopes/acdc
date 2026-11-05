@@ -116,23 +116,31 @@ impl<'a> Anchor<'a> {
 /// A `TocEntry` represents a table of contents entry.
 ///
 /// This is collected during parsing from Section.
+///
+/// Use [`Self::set_title`] to edit the stored title.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Location, Title, TocEntry};
+/// let mut entry = TocEntry::new("target", Title::default(), 1, Location::default());
+/// entry.title = Title::default();
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct TocEntry<'a> {
     /// Unique identifier for this section (used for anchor links)
-    pub id: &'a str,
+    pub(crate) id: &'a str,
     /// Title of the section
-    pub title: Title<'a>,
+    pub(crate) title: Title<'a>,
     /// Section level (1 for top-level, 2 for subsection, etc.)
-    pub level: u8,
+    pub(crate) level: u8,
     /// Optional cross-reference label from `reftext=` or `[[id,xreflabel]]`.
-    pub xreflabel: Option<ContentAttribute<'a>>,
+    pub(crate) xreflabel: Option<ContentAttribute<'a>>,
     /// The section's structural category (special-section style, or `Normal`).
     /// Converters use it for presentation, such as appendix labels.
-    pub kind: SectionKind,
+    pub(crate) kind: SectionKind,
     number: Option<SectionNumber>,
     /// Location of the section heading (the cross-reference target).
-    pub location: Location,
+    pub(crate) location: Location,
 }
 
 impl<'a> TocEntry<'a> {
@@ -199,6 +207,14 @@ pub(crate) struct SectionReference {
 /// Collected during parsing into the `id → Reference` map on
 /// [`DocumentRef::references`](crate::ast::DocumentRef::references), so a `<<id>>` reference resolves
 /// to its target's text in O(1). The id is the map key.
+///
+/// Use [`Self::set_title`] to edit the stored title.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Location, Reference};
+/// let mut reference = Reference::new(Location::default());
+/// reference.title = None;
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Reference<'a> {
@@ -206,16 +222,16 @@ pub struct Reference<'a> {
     /// copied from the target's parsed content without another inline parse.
     /// When set, it is the reference text; otherwise converters
     /// use `title` and, for captioned targets, `caption`.
-    pub xreflabel: Option<ContentAttribute<'a>>,
+    pub(crate) xreflabel: Option<ContentAttribute<'a>>,
     /// The target's title, when it has one. `None` for a referenceable element
     /// with no title, such as an untitled block or an inline link with an `id`
     /// attribute. A reference to such a target renders the literal `[id]`,
     /// unlike an ID that is absent from the catalog and therefore unresolved.
-    pub title: Option<Title<'a>>,
+    pub(crate) title: Option<Title<'a>>,
     /// Location of the target element (for navigation, e.g. LSP go-to-definition).
-    pub location: Location,
+    pub(crate) location: Location,
     /// The target block's resolved caption, when it has one.
-    pub caption: Option<Caption<'a>>,
+    pub(crate) caption: Option<Caption<'a>>,
     pub(crate) section: Option<SectionReference>,
     pub(crate) bibliography: bool,
     pub(crate) automatic_citation: bool,
@@ -264,6 +280,110 @@ impl Reference<'_> {
     #[must_use]
     pub fn has_automatic_citation(&self) -> bool {
         self.automatic_citation
+    }
+}
+
+impl<'a> Reference<'a> {
+    /// Construct a registered target without display content or derived classifications.
+    #[must_use]
+    pub fn new(location: Location) -> Self {
+        Self {
+            xreflabel: None,
+            title: None,
+            location,
+            caption: None,
+            section: None,
+            bibliography: false,
+            automatic_citation: false,
+        }
+    }
+
+    /// Replace prepared title content; `Some` retains even an empty or absent `Title`.
+    pub fn set_title(&mut self, title: Option<Title<'a>>) {
+        self.title = title;
+    }
+
+    /// Remove the retained title, including a present empty title.
+    #[must_use]
+    pub fn take_title(&mut self) -> Option<Title<'a>> {
+        self.title.take()
+    }
+
+    /// Replace prepared reference text without editing the target element or map key.
+    pub fn set_xreflabel(&mut self, label: Option<ContentAttribute<'a>>) {
+        self.xreflabel = label;
+    }
+
+    /// Remove reference text, retaining its original source lifetime and empty content.
+    #[must_use]
+    pub fn take_xreflabel(&mut self) -> Option<ContentAttribute<'a>> {
+        self.xreflabel.take()
+    }
+
+    /// Replace the retained caption without renumbering it or editing the target.
+    pub fn set_caption(&mut self, caption: Option<Caption<'a>>) {
+        self.caption = caption;
+    }
+
+    /// Remove the retained caption without changing other catalog records.
+    #[must_use]
+    pub fn take_caption(&mut self) -> Option<Caption<'a>> {
+        self.caption.take()
+    }
+
+    /// Replace the recorded target span without relocating the target element.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+}
+
+impl<'a> TocEntry<'a> {
+    /// Construct a normal prepared TOC entry without a reference label or assigned number.
+    #[must_use]
+    pub fn new(id: &'a str, title: Title<'a>, level: u8, location: Location) -> Self {
+        Self::for_section(id, title, level, None, SectionKind::Normal, location)
+    }
+
+    /// Replace the ID without renaming reference-map keys or editing a heading.
+    pub fn replace_id(&mut self, id: &'a str) -> &'a str {
+        std::mem::replace(&mut self.id, id)
+    }
+
+    /// Replace prepared title content without editing its heading or reference target.
+    pub fn set_title(&mut self, title: Title<'a>) {
+        self.title = title;
+    }
+
+    /// Remove the title, retaining its source lifetime and presence information.
+    #[must_use]
+    pub fn take_title(&mut self) -> Title<'a> {
+        std::mem::take(&mut self.title)
+    }
+
+    /// Replace prepared reference text without rebuilding registrations.
+    pub fn set_xreflabel(&mut self, label: Option<ContentAttribute<'a>>) {
+        self.xreflabel = label;
+    }
+
+    /// Remove reference text, retaining its original source lifetime and empty content.
+    #[must_use]
+    pub fn take_xreflabel(&mut self) -> Option<ContentAttribute<'a>> {
+        self.xreflabel.take()
+    }
+
+    /// Replace the stored level without changing order, membership or assigned numbers.
+    pub fn set_level(&mut self, level: u8) {
+        self.level = level;
+    }
+
+    /// Replace the structural category without renumbering or editing a heading.
+    pub fn set_kind(&mut self, kind: SectionKind) {
+        self.kind = kind;
+    }
+
+    /// Replace the recorded heading span without relocating its content.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 }
 

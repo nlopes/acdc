@@ -1,6 +1,6 @@
-//! Typed and owner xref results share content, source spans, precedence, and guard behavior.
+//! Parsed and copied catalog targets share content, spans, precedence, and guard behavior.
 
-use acdc_converters_core::xref::{XrefDisplay, XrefGuard, resolve_reference, resolve_xref};
+use acdc_converters_core::xref::{XrefDisplay, XrefGuard, resolve_reference};
 use acdc_parser::{
     CompatibilityMode, ContentAttribute, CrossReference, Location, Options, Title,
     XrefCaptionLabel, XrefSignifier, XrefStyle,
@@ -48,13 +48,20 @@ Body.
 == An appendix
 "#;
 
-fn assert_content(owner: &[acdc_parser::InlineNode<'_>], typed: ContentRef<'_>) {
-    let expected = ContentAttribute::new(owner.to_vec());
-    assert_eq!(typed, ContentRef::from(&expected));
+fn resolve_xref<'doc, 'guard, 'xref>(
+    reference: Option<&'doc acdc_parser::Reference<'doc>>,
+    xref: impl Into<CrossReferenceRef<'xref>>,
+    guard: &'guard XrefGuard,
+) -> XrefDisplay<'guard, ContentRef<'doc>> {
+    resolve_reference(reference.map(ReferenceRef::from), xref, guard)
+}
+
+fn assert_content(owner: ContentRef<'_>, typed: ContentRef<'_>) {
+    assert_eq!(typed, owner);
 }
 
 fn assert_display(
-    owner: XrefDisplay<'_, &[acdc_parser::InlineNode<'_>]>,
+    owner: XrefDisplay<'_, ContentRef<'_>>,
     typed: XrefDisplay<'_, ContentRef<'_>>,
 ) -> Result<(), Error> {
     match (owner, typed) {
@@ -122,7 +129,7 @@ fn check_mode(mode: CompatibilityMode) -> Result<(), Error> {
                     nested.then(|| resolve_xref(Some(outer_reference), &outer, &owner_guard));
                 let typed_outer = nested.then(|| {
                     resolve_reference(
-                        Some(ReferenceRef::from(outer_reference)),
+                        parsed.document().references().get("labelled"),
                         &outer,
                         &independent_guard,
                     )
@@ -133,7 +140,7 @@ fn check_mode(mode: CompatibilityMode) -> Result<(), Error> {
                 let reference = references.get(target);
                 let owner = resolve_xref(reference, &xref, &owner_guard);
                 let typed = resolve_reference(
-                    reference.map(ReferenceRef::from),
+                    parsed.document().references().get(target),
                     CrossReferenceRef::from(&xref),
                     &independent_guard,
                 );
@@ -162,12 +169,15 @@ fn typed_xrefs_preserve_empty_titles_labels_and_temporary_overrides() -> Result<
         None,
         Some(Title::default()),
         Some(Title::new(Vec::new())),
-        original.title.clone(),
+        original.clone().take_title(),
     ] {
         for label in [None, Some(ContentAttribute::default())] {
             let mut reference = original.clone();
-            reference.title = title.clone();
-            reference.xreflabel = label;
+            reference.set_title(title.clone());
+            reference.set_xreflabel(label.clone());
+            let mut independent = original.clone();
+            independent.set_title(title.clone());
+            independent.set_xreflabel(label);
             let guard = XrefGuard::default();
             let other_guard = XrefGuard::default();
             let owner = {
@@ -186,7 +196,7 @@ fn typed_xrefs_preserve_empty_titles_labels_and_temporary_overrides() -> Result<
                 xref.xrefstyle = XrefStyle::Full;
                 xref.caption_label = XrefCaptionLabel::AtReference(&caption);
                 xref.set_signifier(XrefSignifier::AtReference(&signifier));
-                resolve_reference(Some(ReferenceRef::from(&reference)), &xref, &other_guard)
+                resolve_reference(Some(ReferenceRef::from(&independent)), &xref, &other_guard)
             };
             assert_display(owner, typed)?;
             assert!(!guard.is_resolving());

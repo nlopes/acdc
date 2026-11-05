@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use acdc_parser::{
-    Reference, TocEntry,
+    Reference,
     ast::{ReferenceRef, SectionRef, TocEntryRef},
 };
 
@@ -18,7 +18,7 @@ pub(crate) struct Anchors<'a> {
 
 impl<'a> Anchors<'a> {
     pub(crate) fn new(
-        entries: &[TocEntry<'a>],
+        entries: impl ExactSizeIterator<Item = TocEntryRef<'a>>,
         references: &HashMap<&'a str, Reference<'a>>,
     ) -> Self {
         let mut anchors = Self {
@@ -30,22 +30,25 @@ impl<'a> Anchors<'a> {
         };
         let mut seen = HashSet::new();
         for entry in entries {
-            let first = references.get(entry.id).is_none_or(|reference| {
-                let reference_location = ReferenceRef::from(reference).location();
-                let entry_location = TocEntryRef::from(entry).location();
-                reference.title.as_ref() == Some(&entry.title)
+            let first = references.get(entry.id()).is_none_or(|reference| {
+                let reference = ReferenceRef::from(reference);
+                let reference_location = reference.location();
+                let entry_location = entry.location();
+                let title = reference.title();
+                title.is_some()
+                    && title.filter(|_| reference.title_is_present()) == entry.title()
                     && reference_location.end() == entry_location.end()
                     && reference_location.absolute_end() == entry_location.absolute_end()
             });
-            let label = if first && seen.insert(entry.id) {
-                encode_label(entry.id)
+            let label = if first && seen.insert(entry.id()) {
+                encode_label(entry.id())
             } else {
                 anchors.private_label()
             };
             anchors.toc_labels.push(label.clone());
             anchors
                 .sections
-                .entry(entry.id)
+                .entry(entry.id())
                 .or_default()
                 .push_back(label);
         }
@@ -77,5 +80,38 @@ impl<'a> Anchors<'a> {
         let label = format!("acdc-section-{}", self.next_private);
         self.next_private += 1;
         label
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use acdc_parser::{Location, Reference, Title, TocEntry};
+
+    use super::Anchors;
+
+    #[test]
+    fn constructed_title_presence_keeps_public_destination_selection() {
+        for entry_title in [Title::default(), Title::new(Vec::new())] {
+            for reference_title in [None, Some(Title::default()), Some(Title::new(Vec::new()))] {
+                let matches = reference_title.as_ref() == Some(&entry_title);
+                let mut reference = Reference::new(Location::default());
+                reference.set_title(reference_title);
+                let entry = TocEntry::new("target", entry_title.clone(), 1, Location::default());
+                let entries = [entry];
+                let references = HashMap::from([("target", reference)]);
+                let anchors = Anchors::new(
+                    entries.iter().map(acdc_parser::ast::TocEntryRef::from),
+                    &references,
+                );
+                let expected = if matches {
+                    crate::encode_label("target")
+                } else {
+                    String::from("acdc-section-0")
+                };
+                assert_eq!(anchors.toc_labels, [expected]);
+            }
+        }
     }
 }

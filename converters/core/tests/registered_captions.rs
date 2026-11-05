@@ -1,6 +1,6 @@
 //! Registered caption display preserves prefix and recursion policy.
 
-use acdc_converters_core::xref::{XrefDisplay, XrefGuard, resolve_xref};
+use acdc_converters_core::xref::{XrefDisplay, XrefGuard, resolve_reference};
 use acdc_parser::{
     Caption, CompatibilityMode, ContentAttribute, CrossReference, Location, Options, XrefStyle,
     parse,
@@ -16,22 +16,24 @@ fn registered_caption_content_keeps_formatting_policy_and_recursion_guard() -> R
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let parsed_references = std::collections::HashMap::from(parsed.document().references());
-        let reference = parsed_references.get("target");
+        let reference = parsed_references
+            .get("target")
+            .map(acdc_parser::ast::ReferenceRef::from);
         let guard = XrefGuard::default();
         let mut xref = CrossReference::new("target", Location::default());
         xref.xrefstyle = XrefStyle::Short;
         assert!(matches!(
-            resolve_xref(reference, &xref, &guard),
+            resolve_reference(reference, &xref, &guard),
             XrefDisplay::ShortCaption(prefix) if prefix == "Préfixe →"
         ));
         assert!(!guard.is_resolving());
         xref.xrefstyle = XrefStyle::Full;
-        let display = resolve_xref(reference, &xref, &guard);
+        let display = resolve_reference(reference, &xref, &guard);
         assert!(
             matches!(&display, XrefDisplay::FullCaption(prefix, _, _) if prefix == "Préfixe →")
         );
         assert!(matches!(
-            resolve_xref(reference, &xref, &guard),
+            resolve_reference(reference, &xref, &guard),
             XrefDisplay::Nested(text) if text == "[target]"
         ));
         drop(display);
@@ -62,9 +64,13 @@ fn empty_or_unnumbered_registered_captions_keep_title_fallback() -> Result<(), E
             number: None,
         }),
     ] {
-        reference.caption = caption;
+        reference.set_caption(caption);
         assert!(matches!(
-            resolve_xref(Some(&reference), &xref, &guard),
+            resolve_reference(
+                Some(acdc_parser::ast::ReferenceRef::from(&reference)),
+                &xref,
+                &guard
+            ),
             XrefDisplay::Title(..)
         ));
         assert!(!guard.is_resolving());

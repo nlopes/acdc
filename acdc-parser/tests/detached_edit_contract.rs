@@ -171,17 +171,20 @@ fn reference_outer_presence_and_toc_title_presence_are_distinct_contracts(
         (Some(Title::new(Vec::new())), true, Some(true)),
     ] {
         let mut edited = Reference::from(reference);
-        edited.title = title;
+        edited.set_title(title);
         let read = ReferenceRef::from(&edited);
         assert_eq!(read.title().is_some(), outer_present);
         assert!(read.title().is_none_or(ContentRef::is_empty));
-        let copy = Reference::from(read);
-        assert_eq!(copy.title.as_ref().map(Title::is_present), inner_present);
+        let mut copy = Reference::from(read);
+        assert_eq!(
+            copy.take_title().as_ref().map(Title::is_present),
+            inner_present
+        );
     }
     let mut edited = TocEntry::from(toc);
-    edited.title = Title::default();
+    edited.set_title(Title::default());
     assert!(TocEntryRef::from(&edited).title().is_none());
-    edited.title = Title::new(Vec::new());
+    edited.set_title(Title::new(Vec::new()));
     assert!(
         TocEntryRef::from(&edited)
             .title()

@@ -149,7 +149,7 @@ fn reference_transfer_preserves_prepared_values_and_last_duplicate_key(
     )?;
     let first = Reference::from(parsed.document().references().get("one").ok_or("first")?);
     let mut second = Reference::from(parsed.document().references().get("two").ok_or("second")?);
-    second.title = Some(Title::default());
+    second.set_title(Some(Title::default()));
     let expected = second.clone();
     let mut document = Document::default();
     document.set_references([("same", first), ("same", second)]);

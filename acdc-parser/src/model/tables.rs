@@ -311,6 +311,14 @@ pub(crate) fn are_all_columns_default(specs: &[ColumnFormat]) -> bool {
 }
 
 /// A `Table` represents a table in a document.
+///
+/// Use [`Self::take_rows`] and [`Self::set_rows`] for owned row edits.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Location, Table};
+/// let mut table = Table::new(Vec::new(), Location::default());
+/// table.rows.clear();
+/// ```
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Table<'a> {

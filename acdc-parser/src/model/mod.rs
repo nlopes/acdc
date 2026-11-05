@@ -562,9 +562,23 @@ impl<'a> Block<'a> {
         }
     }
 
+    /// Copy this block's metadata without copying its title or content.
+    ///
+    /// Use [`crate::ast::BlockRef::attributes`] to read attributes without a copy.
+    ///
+    /// ```compile_fail,E0624
+    /// use acdc_parser::{Block, Location, Paragraph};
+    /// let block = Block::Paragraph(Paragraph::new(Vec::new(), Location::default()));
+    /// block.metadata();
+    /// ```
+    #[must_use]
+    pub fn clone_metadata(&self) -> Option<BlockMetadata<'a>> {
+        self.metadata().cloned()
+    }
+
     /// This block's metadata, for the blocks that carry any.
     #[must_use]
-    pub fn metadata(&self) -> Option<&BlockMetadata<'a>> {
+    pub(crate) fn metadata(&self) -> Option<&BlockMetadata<'a>> {
         match self {
             Block::Section(block) => Some(&block.metadata),
             Block::DelimitedBlock(block) => Some(&block.metadata),

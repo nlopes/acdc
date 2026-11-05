@@ -129,15 +129,21 @@ fn typed_catalog_projection_keeps_explicit_empty_labels() -> Result<(), Error> {
         project(ReferencesRef::from(&catalog), inline.content()),
         "Title"
     );
-    catalog.get_mut("target").ok_or("target")?.xreflabel = Some(ContentAttribute::new(Vec::new()));
+    catalog
+        .get_mut("target")
+        .ok_or("target")?
+        .set_xreflabel(Some(ContentAttribute::new(Vec::new())));
     let references = ReferencesRef::from(&catalog);
     assert!(
         reference_text(references.get("target").ok_or("target")?)
             .is_some_and(acdc_parser::ast::ContentRef::is_empty)
     );
     assert_eq!(project(references, inline.content()), "");
-    catalog.get_mut("target").ok_or("target")?.xreflabel = None;
-    catalog.get_mut("target").ok_or("target")?.title = None;
+    catalog
+        .get_mut("target")
+        .ok_or("target")?
+        .set_xreflabel(None);
+    catalog.get_mut("target").ok_or("target")?.set_title(None);
     let references = ReferencesRef::from(&catalog);
     assert!(reference_text(references.get("target").ok_or("target")?).is_none());
     assert_eq!(project(references, inline.content()), "[target]");

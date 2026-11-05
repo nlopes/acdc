@@ -57,11 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
-- Explicit automatic-reference display types now name their content type rather
-  than the source lifetime. Existing slice-based callers use
-  `XrefDisplay<'guard, &'catalog [InlineNode<'input>]>`; typed callers can retain
-  inline content directly. Label precedence, caption styles, and recursion
-  guards are unchanged.
+- Replace `resolve_xref` with `resolve_reference` and pass a typed catalog
+  target. Explicit display types use `XrefDisplay<'guard, ContentRef<'catalog>>`.
+  Label precedence, caption styles, and recursion guards are unchanged.
 - Table grid rows now use `GridRow<Row>`; existing explicit row types become
   `GridRow<&TableRow<'_>>`. Typed table consumers can use `column_count`,
   `grid_rows`, and `has_spans` with the same span placement and row ordering.
@@ -70,9 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Option<SubstitutionSpecRef>`; convert existing optional owner references with
   `.map(Into::into)`. Block defaults and ordering are unchanged. List-based
   resolution is available in every build.
-
-- Boxed cross-reference macros passed to `resolve_xref` now need `.as_ref()`.
-  Direct `&CrossReference` references and typed `CrossReferenceRef` handles are accepted.
 
 - Boxed mail macros passed to `mailto_target` now need `.as_ref()`. Direct
   `&Mailto` references and typed `MailtoRef` handles are accepted.

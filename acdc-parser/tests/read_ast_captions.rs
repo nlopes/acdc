@@ -53,11 +53,14 @@ fn highest_caption_numbers_use_stored_tree_values_without_allocating(
             .map(|(id, reference)| (id, acdc_parser::Reference::from(reference))),
     );
     let mut references: std::collections::HashMap<_, _> = document.take_references().collect();
-    references.get_mut("figure").ok_or("reference")?.caption = Some(Caption::Numbered {
-        kind: CaptionKind::Figure,
-        label: "Catalog".into(),
-        number: NonZeroU32::new(99),
-    });
+    references
+        .get_mut("figure")
+        .ok_or("reference")?
+        .set_caption(Some(Caption::Numbered {
+            kind: CaptionKind::Figure,
+            label: "Catalog".into(),
+            number: NonZeroU32::new(99),
+        }));
 
     document.set_references(references);
 
@@ -137,18 +140,18 @@ fn constructed_caption_states_do_not_gain_content_or_ordinals() -> Result<(), Er
             .get("figure")
             .ok_or("figure")?,
     );
-    reference.caption = None;
+    reference.set_caption(None);
     assert!(ReferenceRef::from(&reference).caption().is_none());
-    reference.caption = Some(Caption::Custom("".into()));
+    reference.set_caption(Some(Caption::Custom("".into())));
     assert_eq!(
         ReferenceRef::from(&reference).caption(),
         Some(CaptionRef::Custom(""))
     );
-    reference.caption = Some(Caption::CustomContent(ContentAttribute::default()));
+    reference.set_caption(Some(Caption::CustomContent(ContentAttribute::default())));
     assert!(
         matches!(ReferenceRef::from(&reference).caption(), Some(CaptionRef::CustomContent(content)) if content.is_empty())
     );
-    reference.caption = Some(Caption::Unnumbered);
+    reference.set_caption(Some(Caption::Unnumbered));
     assert_eq!(
         ReferenceRef::from(&reference).caption(),
         Some(CaptionRef::Unnumbered)
@@ -231,7 +234,7 @@ fn caption_reads_preserve_registered_snapshots_after_owner_edits() -> Result<(),
     references
         .get_mut("figure")
         .ok_or("registered figure")?
-        .caption = Some(Caption::Custom("Changed catalog".into()));
+        .set_caption(Some(Caption::Custom("Changed catalog".into())));
     document.set_references(references);
     assert_eq!(
         DocumentRef::from(&document)

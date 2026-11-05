@@ -160,7 +160,8 @@ fn parsed_source_line_options_keep_modes_and_block_forms() -> Result<(), Box<dyn
                         parsed_blocks
                             .first()
                             .ok_or("owner")?
-                            .metadata()
+                            .clone_metadata()
+                            .as_ref()
                             .ok_or("metadata")?,
                         "one\ntwo\nthree"
                     )

@@ -3,7 +3,7 @@
 use std::{cell::Cell, rc::Rc};
 
 use acdc_parser::{
-    InlineNode, Reference, XrefCaptionLabel, XrefSignifier, XrefStyle,
+    XrefCaptionLabel, XrefSignifier, XrefStyle,
     ast::{CaptionRef, ContentRef, CrossReferenceRef, ReferenceRef},
 };
 
@@ -87,7 +87,7 @@ impl Drop for XrefScope<'_> {
 
 /// The inline nodes a target's reference text is made of, if it has any.
 ///
-/// The precedence is [`resolve_xref`]'s, without the distinctions a rendering
+/// The precedence is [`resolve_reference`]'s, without the distinctions a rendering
 /// backend needs: plain-text extraction treats a label and a title alike.
 #[must_use]
 pub fn reference_text(reference: ReferenceRef<'_>) -> Option<ContentRef<'_>> {
@@ -97,7 +97,7 @@ pub fn reference_text(reference: ReferenceRef<'_>) -> Option<ContentRef<'_>> {
 /// Resolve an empty cross-reference's display content.
 ///
 /// Accepts typed handles and references to cross-reference owners. The result
-/// borrows only the catalog and guard; occurrence controls may be dropped after
+/// borrows the catalog and guard independently; occurrence controls may be dropped after
 /// resolution.
 ///
 /// Explicit reference labels take precedence over caption styles and target
@@ -112,26 +112,6 @@ pub fn reference_text(reference: ReferenceRef<'_>) -> Option<ContentRef<'_>> {
 /// matching Asciidoctor, and so does a reference that `guard` reports as nested
 /// inside another one's text. Inter-document targets are returned separately
 /// for backend-specific links, even if the local catalog contains the same ID.
-#[must_use]
-pub fn resolve_xref<'r, 'a, 'xref>(
-    reference: Option<&'r Reference<'a>>,
-    xref: impl Into<CrossReferenceRef<'xref>>,
-    guard: &'r XrefGuard,
-) -> XrefDisplay<'r, &'r [InlineNode<'a>]> {
-    resolve_content(
-        reference.map(ReferenceRef::from),
-        reference.and_then(|reference| reference.title.as_ref().map(AsRef::as_ref)),
-        reference.and_then(|reference| reference.xreflabel.as_deref()),
-        xref.into(),
-        guard,
-    )
-}
-
-/// Resolve automatic reference text from a typed catalog target.
-///
-/// Uses the same precedence, caption styles, and fallback distinctions as
-/// [`resolve_xref`]. Content borrows the catalog; the resolution scope borrows
-/// the guard independently. Occurrence controls need not outlive the result.
 #[must_use]
 pub fn resolve_reference<'doc, 'guard, 'xref>(
     reference: Option<ReferenceRef<'doc>>,
@@ -346,8 +326,19 @@ mod tests {
 
     use super::{
         XrefDisplay, XrefGuard, interdocument_xref, resolve_local_reference, resolve_reference,
-        resolve_xref,
     };
+
+    fn resolve_xref<'doc, 'guard, 'xref>(
+        reference: Option<&'doc acdc_parser::Reference<'doc>>,
+        xref: impl Into<acdc_parser::ast::CrossReferenceRef<'xref>>,
+        guard: &'guard XrefGuard,
+    ) -> XrefDisplay<'guard, acdc_parser::ast::ContentRef<'doc>> {
+        resolve_reference(
+            reference.map(acdc_parser::ast::ReferenceRef::from),
+            xref,
+            guard,
+        )
+    }
 
     /// Parse a document whose catalog holds `labelled` (an explicit label),
     /// `titled` (a title), and `untitled` (neither).
@@ -746,7 +737,7 @@ mod tests {
             ),
             XrefDisplay::FullCaption(prefix, title, _scope)
                 if prefix == "Example 1"
-                    && matches!(title, [acdc_parser::InlineNode::PlainText(text)] if text.content == "A title")
+                    && matches!(title.inlines().map(acdc_parser::ast::InlineRef::kind).collect::<Vec<_>>().as_slice(), [acdc_parser::ast::InlineKind::Plain(text)] if text.text() == "A title")
         ));
         let mut number_only = xref("titled", XrefStyle::Short);
         number_only.caption_label = XrefCaptionLabel::NumberOnly;

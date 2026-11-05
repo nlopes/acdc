@@ -192,6 +192,14 @@ or column format does not parse the cell again. `TableRef::location()` includes
 block metadata and title; `delimited_location()` starts at the opening table
 delimiter. Changing one span does not relocate other content.
 
+Reference and TOC records are separate snapshots of registered targets and
+headings. Read them through `ReferenceRef` and `TocEntryRef`, or copy a selected
+record with `From` for editing. Prepared title, label and caption transfers keep
+empty values and their source lifetimes. Editing a record does not rename a
+reference-map key, edit a heading, discover new TOC entries or renumber the
+document. `Block::clone_metadata()` copies common metadata without copying its
+body; use typed attribute reads when a copy is unnecessary.
+
 `IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
 option tokens. An icon ID is retained even when a converter does not emit it.
 To construct an icon, use `Icon::new(target, location)` and edit its content and

@@ -119,7 +119,10 @@ fn numbering_keeps_catalog_alignment_parts_specials_and_appendix_controls() -> R
         assert_eq!(effective_level(preface, false), 1);
         assert_eq!(effective_level(preface, true), 0);
         assert_eq!(effective_level(part, false), 0);
-        assert_eq!(preface.kind, SectionKind::Preface);
+        assert_eq!(
+            acdc_parser::ast::TocEntryRef::from(preface).kind(),
+            SectionKind::Preface
+        );
         let context =
             TraversalContext::new(acdc_parser::ast::DocumentRef::from(&document).attributes());
         assert_eq!(

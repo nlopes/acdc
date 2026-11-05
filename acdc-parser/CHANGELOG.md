@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** reference and TOC record fields are private. Use typed catalog
+  reads, selected copies and prepared content transfers for edits. Changes keep
+  stored numbers and classification snapshots; they do not rename map keys or
+  update the document tree. Replace `Block::metadata()` with typed attribute
+  reads or `Block::clone_metadata()` for an independent metadata-only copy.
+
 - **Breaking:** table, row, cell and column-format fields are private. Read through
   typed handles and use selected copies and prepared row/cell/content transfers
   to edit owned values. Copies retain cell scopes and resolved decoration; edits
