@@ -1,8 +1,8 @@
 use serde_json::{Map, Value};
 
 use crate::{
-    Anchor, AttributeValue, BlockMetadata, Comment, ContentAttribute, ElementAttributes, Location,
-    Title,
+    Anchor, AttributeValue, BlockMetadata, Comment, ContentAttribute, ElementAttributes,
+    InlineMetadata, Location, Title,
 };
 
 use super::{Error, Profile, content, pointer, projection::inlines, unsupported};
@@ -204,6 +204,35 @@ pub(super) fn apply(
     }
     if let Some(source) = &value.location {
         location(&mut metadata, source, &pointer(path, "metadata"))?;
+    }
+    if !metadata.is_empty() {
+        node.insert("metadata".into(), Value::Object(metadata));
+    }
+    Ok(())
+}
+
+pub(super) fn apply_inline(
+    node: &mut Map<String, Value>,
+    value: &InlineMetadata<'_>,
+    attributes: &ElementAttributes<'_>,
+    options: &[&str],
+    path: &str,
+) -> Result<(), Error> {
+    if let Some(id) = &value.id {
+        node.insert("id".into(), id.id.into());
+    }
+    let mut metadata = Map::new();
+    let attributes = scalar_attributes(
+        attributes,
+        &pointer(&pointer(path, "metadata"), "attributes"),
+    )?;
+    if !attributes.is_empty() {
+        metadata.insert("attributes".into(), Value::Object(attributes));
+    }
+    for (name, values) in [("roles", value.roles.as_slice()), ("options", options)] {
+        if !values.is_empty() {
+            metadata.insert(name.into(), serde_json::json!(values));
+        }
     }
     if !metadata.is_empty() {
         node.insert("metadata".into(), Value::Object(metadata));

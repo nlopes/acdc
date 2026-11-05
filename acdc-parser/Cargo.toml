@@ -92,3 +92,7 @@ test = false
 
 [lints]
 workspace = true
+
+[[example]]
+name = "generate_asg_fixtures"
+required-features = ["asg"]

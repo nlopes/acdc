@@ -99,7 +99,7 @@ pub fn document(document: DocumentRef<'_>) -> Result<Value, Error> {
 /// Export using an explicit schema profile.
 ///
 /// The acdc profile adds a required `profile` identifier and supported content
-/// properties. It does not claim upstream schema conformance. Both profiles
+/// properties and inline metadata. It does not claim upstream schema conformance. Both profiles
 /// read resolved values directly and leave the native AST unchanged.
 ///
 /// # Errors

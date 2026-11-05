@@ -117,7 +117,7 @@ fn strict_export_is_unchanged_and_profiles_are_explicit() -> Result<(), Error> {
 }
 
 #[test]
-fn extension_schema_is_closed_and_keeps_the_pinned_structure() -> Result<(), Error> {
+fn extension_schema_rejects_unknown_content_properties() -> Result<(), Error> {
     let base: Value = serde_json::from_str(include_str!("../schemas/asg/schema.json"))?;
     let extension: Value = serde_json::from_str(include_str!("../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&extension)?;
@@ -166,7 +166,13 @@ fn extension_schema_is_closed_and_keeps_the_pinned_structure() -> Result<(), Err
         .ok_or("object")?
         .insert("unknown".into(), json!(true));
     assert!(!validator.is_valid(&extra));
-    let mut restored = extension;
+    Ok(())
+}
+
+#[test]
+fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
+    let base: Value = serde_json::from_str(include_str!("../schemas/asg/schema.json"))?;
+    let mut restored: Value = serde_json::from_str(include_str!("../schemas/asg/acdc-v1.json"))?;
     for name in ["$id", "title", "description", "required"] {
         *restored.get_mut(name).ok_or("schema field")? =
             base.get(name).ok_or("base field")?.clone();
@@ -203,6 +209,27 @@ fn extension_schema_is_closed_and_keeps_the_pinned_structure() -> Result<(), Err
         .and_then(Value::as_object_mut)
         .ok_or("defs")?
         .remove("acdcInlineImage");
+    for name in ["inlineSpan", "inlineRef"] {
+        let properties = restored
+            .pointer_mut(&format!("/$defs/{name}/properties"))
+            .and_then(Value::as_object_mut)
+            .ok_or("inline properties")?;
+        for property in ["id", "metadata", "tooltip"] {
+            properties.remove(property);
+        }
+    }
+    restored
+        .pointer_mut("/$defs/inlineSpan/properties/variant/enum")
+        .and_then(Value::as_array_mut)
+        .ok_or("span variants")?
+        .pop();
+    for name in ["acdcInlineMetadata", "acdcSpanMetadata"] {
+        restored
+            .get_mut("$defs")
+            .and_then(Value::as_object_mut)
+            .ok_or("defs")?
+            .remove(name);
+    }
     assert_eq!(restored, base);
     Ok(())
 }

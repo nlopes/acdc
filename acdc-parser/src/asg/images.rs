@@ -25,36 +25,13 @@ pub(super) fn inline(
             );
         }
     }
-    if let Some(id) = &value.metadata.id {
-        result.insert("id".into(), id.id.into());
-    }
-    let mut metadata = Map::new();
-    let attributes = metadata::scalar_attributes(
+    metadata::apply_inline(
+        &mut result,
+        &value.metadata,
         value.attributes(),
-        &pointer(&pointer(path, "metadata"), "attributes"),
+        value.options(),
+        path,
     )?;
-    if !attributes.is_empty() {
-        metadata.insert("attributes".into(), Value::Object(attributes));
-    }
-    for (name, values) in [
-        ("roles", value.metadata.roles.as_slice()),
-        ("options", value.options()),
-    ] {
-        if !values.is_empty() {
-            metadata.insert(
-                name.into(),
-                Value::Array(
-                    values
-                        .iter()
-                        .map(|value| Value::String((*value).into()))
-                        .collect(),
-                ),
-            );
-        }
-    }
-    if !metadata.is_empty() {
-        result.insert("metadata".into(), Value::Object(metadata));
-    }
     Ok(result)
 }
 

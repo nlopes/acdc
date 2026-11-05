@@ -5,7 +5,7 @@ use crate::{
     Mailto, XrefCaptionLabel, XrefSignifier, XrefStyle,
 };
 
-use super::{Error, Profile, pointer, projection::inlines, target, unsupported};
+use super::{Error, Profile, metadata, pointer, projection::inlines, target, unsupported};
 
 type Node = Map<String, Value>;
 
@@ -16,55 +16,58 @@ pub(super) fn project(
 ) -> Result<Node, Error> {
     match value {
         InlineMacro::Link(link) => {
-            check(
+            let target = target(&link.target, path)?;
+            with_metadata(
+                reference(
+                    "link",
+                    &target,
+                    &link.text,
+                    Some(display_target(&target, link.hides_uri_scheme())),
+                    path,
+                    profile,
+                )?,
                 &link.metadata,
                 link.attributes(),
                 link.options(),
                 link.tooltip.as_ref(),
-                path,
-            )?;
-            let target = target(&link.target, path)?;
-            reference(
-                "link",
-                &target,
-                &link.text,
-                Some(display_target(&target, link.hides_uri_scheme())),
                 path,
                 profile,
             )
         }
         InlineMacro::Url(link) => {
-            check(
+            let target = target(&link.target, path)?;
+            with_metadata(
+                reference(
+                    "link",
+                    &target,
+                    &link.text,
+                    Some(display_target(&target, link.hides_uri_scheme())),
+                    path,
+                    profile,
+                )?,
                 &link.metadata,
                 link.attributes(),
                 link.options(),
                 link.tooltip.as_ref(),
-                path,
-            )?;
-            let target = target(&link.target, path)?;
-            reference(
-                "link",
-                &target,
-                &link.text,
-                Some(display_target(&target, link.hides_uri_scheme())),
                 path,
                 profile,
             )
         }
         InlineMacro::Mailto(link) => {
-            check(
+            let original = target(&link.target, path)?;
+            with_metadata(
+                reference(
+                    "link",
+                    &mailto_target(link, &original),
+                    &link.text,
+                    Some(mailto_address(&original).unwrap_or(&original)),
+                    path,
+                    profile,
+                )?,
                 &link.metadata,
                 link.attributes(),
                 link.options(),
                 link.tooltip.as_ref(),
-                path,
-            )?;
-            let original = target(&link.target, path)?;
-            reference(
-                "link",
-                &mailto_target(link, &original),
-                &link.text,
-                Some(mailto_address(&original).unwrap_or(&original)),
                 path,
                 profile,
             )
@@ -92,13 +95,6 @@ pub(super) fn project(
 }
 
 fn cross_reference(xref: &CrossReference<'_>, path: &str, profile: Profile) -> Result<Node, Error> {
-    check(
-        &xref.metadata,
-        xref.attributes(),
-        xref.options(),
-        None,
-        path,
-    )?;
     for (present, property) in [
         (xref.xrefstyle != XrefStyle::Default, "xrefstyle"),
         (
@@ -118,7 +114,15 @@ fn cross_reference(xref: &CrossReference<'_>, path: &str, profile: Profile) -> R
             ));
         }
     }
-    reference("xref", xref.target, &xref.text, None, path, profile)
+    with_metadata(
+        reference("xref", xref.target, &xref.text, None, path, profile)?,
+        &xref.metadata,
+        xref.attributes(),
+        xref.options(),
+        None,
+        path,
+        profile,
+    )
 }
 
 fn default_signifier(xref: &CrossReference<'_>) -> bool {
@@ -169,6 +173,29 @@ fn reference(
         ("target".into(), target.into()),
         ("inlines".into(), content),
     ]))
+}
+
+fn with_metadata(
+    mut node: Node,
+    value: &InlineMetadata<'_>,
+    attributes: &ElementAttributes<'_>,
+    options: &[&str],
+    tooltip: Option<&ContentAttribute<'_>>,
+    path: &str,
+    profile: Profile,
+) -> Result<Node, Error> {
+    if profile == Profile::Upstream {
+        check(value, attributes, options, tooltip, path)?;
+    } else {
+        metadata::apply_inline(&mut node, value, attributes, options, path)?;
+        if let Some(tooltip) = tooltip {
+            node.insert(
+                "tooltip".into(),
+                inlines(tooltip.as_inlines(), &pointer(path, "tooltip"), profile)?,
+            );
+        }
+    }
+    Ok(node)
 }
 
 fn check(

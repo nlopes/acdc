@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The acdc ASG profile now retains IDs and roles on supported formatted spans,
+  plus link/reference options, scalar attributes and formatted tooltips. Generic
+  highlighted spans stay distinct from marks. Strict upstream export is unchanged;
+  nondefault cross-reference policies still report an unsupported property.
+
 - Typed reads cover every block and inline family, retained attributes, structural
   children, owned content fields, source coordinates, and derived catalogs. Walks
   support early stopping; direct and flat walks allocate no memory. Dedicated

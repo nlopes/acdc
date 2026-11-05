@@ -6069,7 +6069,8 @@
             "../src/ast/tests/asg_content_storage.rs::nested_unsupported_content_keeps_its_property_path",
             "asg_content.rs::programmatic_literal_content_is_not_parsed_again",
             "asg_content.rs::strict_export_is_unchanged_and_profiles_are_explicit",
-            "asg_content.rs::extension_schema_is_closed_and_keeps_the_pinned_structure"
+            "asg_content.rs::extension_schema_rejects_unknown_content_properties",
+            "asg_content.rs::extension_schema_only_changes_documented_properties"
           ]
         },
         "images": {
@@ -6104,6 +6105,67 @@
             "asg_images.rs::image_schema_rejects_unknown_fields_and_malformed_nested_values",
             "asg_images.rs::standalone_image_export_checks_the_selected_profile",
             "../src/ast/tests/asg_image_storage.rs::block_image_metadata_cannot_shadow_promoted_content"
+          ]
+        },
+        "inline-metadata": {
+          "owners": {
+            "Bold": [
+              "id",
+              "role",
+              "form",
+              "content"
+            ],
+            "Italic": [
+              "id",
+              "role",
+              "form",
+              "content"
+            ],
+            "Monospace": [
+              "id",
+              "role",
+              "form",
+              "content"
+            ],
+            "Highlight": [
+              "id",
+              "role",
+              "form",
+              "content"
+            ],
+            "Link": [
+              "metadata",
+              "macro_attributes",
+              "tooltip"
+            ],
+            "Url": [
+              "metadata",
+              "macro_attributes",
+              "tooltip"
+            ],
+            "Mailto": [
+              "metadata",
+              "macro_attributes",
+              "tooltip"
+            ],
+            "CrossReference": [
+              "metadata",
+              "macro_attributes"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/inlineSpan",
+            "#/$defs/inlineRef",
+            "#/$defs/acdcInlineMetadata",
+            "#/$defs/acdcSpanMetadata"
+          ],
+          "handling": "Preserve span/reference IDs, ordered role tokens, reference options/scalars and tooltip content directly. Generic highlights remain distinct from marks, including present empty roles. Validate reconstructible inline target registrations and reject duplicates or stale catalogs. ID-token coordinates are source-only; nondefault xref policy and unsupported nested content still fail. Inline metadata excludes block-only fields.",
+          "tests": [
+            "asg_inline_metadata.rs::source_metadata_survives_checked_export_without_changing_native_values",
+            "asg_inline_metadata.rs::empty_span_roles_preserve_generic_highlights_without_inventing_controls",
+            "asg_inline_metadata.rs::nested_unsupported_values_still_report_their_own_path",
+            "asg_inline_metadata.rs::inline_metadata_schema_rejects_block_only_and_unknown_fields",
+            "asg_inline_metadata.rs::inline_id_catalogs_keep_duplicate_and_stale_checks"
           ]
         }
       }

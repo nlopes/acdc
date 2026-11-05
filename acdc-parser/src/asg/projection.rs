@@ -7,8 +7,8 @@ use serde_json::{Map, Value};
 
 use crate::{
     Block, BlockMetadata, Caption, ContentAttribute, DelimitedBlockType, Document,
-    DocumentAttributeAssignment, Form, Header, InlineNode, Section, SectionKind, Substitution,
-    Title,
+    DocumentAttributeAssignment, ElementId, Form, Header, InlineNode, Section, SectionKind,
+    Substitution, Title,
 };
 
 use super::{
@@ -103,7 +103,7 @@ fn inline_value(value: &InlineNode<'_>, path: &str, profile: Profile) -> Result<
             "strong",
             &span.form,
             span.role,
-            span.id.is_some(),
+            span.id.as_ref(),
             &span.content,
             path,
             profile,
@@ -112,7 +112,7 @@ fn inline_value(value: &InlineNode<'_>, path: &str, profile: Profile) -> Result<
             "emphasis",
             &span.form,
             span.role,
-            span.id.is_some(),
+            span.id.as_ref(),
             &span.content,
             path,
             profile,
@@ -121,7 +121,7 @@ fn inline_value(value: &InlineNode<'_>, path: &str, profile: Profile) -> Result<
             "code",
             &span.form,
             span.role,
-            span.id.is_some(),
+            span.id.as_ref(),
             &span.content,
             path,
             profile,
@@ -130,7 +130,7 @@ fn inline_value(value: &InlineNode<'_>, path: &str, profile: Profile) -> Result<
             "mark",
             &span.form,
             span.role,
-            span.id.is_some(),
+            span.id.as_ref(),
             &span.content,
             path,
             profile,
@@ -166,13 +166,13 @@ fn span_node(
     name: &str,
     form: &Form,
     role: Option<&str>,
-    has_id: bool,
+    id: Option<&ElementId<'_>>,
     content: &[InlineNode<'_>],
     path: &str,
     profile: Profile,
 ) -> Result<Node, Error> {
-    for (present, property) in [(has_id, "id"), (role.is_some(), "role")] {
-        if present {
+    for (present, property) in [(id.is_some(), "id"), (role.is_some(), "role")] {
+        if profile == Profile::Upstream && present {
             return Err(unsupported(
                 &pointer(path, property),
                 "upstream inline spans have no identity or role fields",
@@ -180,7 +180,19 @@ fn span_node(
         }
     }
     let mut result = node("span", "inline");
-    result.insert("variant".into(), name.into());
+    let variant = if name == "mark" && (id.is_some() || role.is_some()) {
+        "generic"
+    } else {
+        name
+    };
+    result.insert("variant".into(), variant.into());
+    if let Some(id) = id {
+        result.insert("id".into(), id.id.into());
+    }
+    let roles: Vec<_> = role.unwrap_or_default().split_whitespace().collect();
+    if !roles.is_empty() {
+        result.insert("metadata".into(), serde_json::json!({"roles": roles}));
+    }
     result.insert(
         "form".into(),
         match form {
@@ -304,6 +316,24 @@ pub(super) fn document(value: &Document<'_>, profile: Profile) -> Result<Value, 
         targets: BTreeMap::new(),
     };
     result.insert("blocks".into(), export.blocks(&value.blocks, "/blocks")?);
+    if profile == Profile::Acdc {
+        for field in crate::ast::DocumentRef::from(value).content_occurrences() {
+            for inline in field.content().inlines() {
+                if let Some(id) = inline.id() {
+                    export.insert_target(
+                        id.as_str().to_owned(),
+                        Target {
+                            title: None,
+                            label: None,
+                            section: None,
+                            caption: None,
+                        },
+                        "/references",
+                    )?;
+                }
+            }
+        }
+    }
     export.catalogs(value)?;
     metadata::location(&mut result, &value.location, "")?;
     Ok(Value::Object(result))

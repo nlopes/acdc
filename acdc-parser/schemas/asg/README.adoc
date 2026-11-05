@@ -257,8 +257,28 @@ label selection; the exported target owns its title and reftext. Export does not
 copy a computed label into the reference or resolve it again. Nondefault styles,
 caption labels and signifiers fail because upstream references have no fields for
 them. Unchanged built-in signifier snapshots are default behavior and can be omitted. A target whose local/external classification cannot be recovered from its
-text also fails. Populated reference metadata and tooltips are rejected at their
-exact property, including explicitly empty values.
+text also fails. Strict upstream export rejects populated reference metadata and
+tooltips at their exact property, including explicitly empty values.
+
+In the acdc profile, references retain `id`, inline-array `tooltip`, and
+`metadata.attributes`, `metadata.roles` and `metadata.options`. A present empty
+tooltip stays `[]`; absent metadata fields stay absent. Reference controls retain
+the same string/presence rules as inline images. Nondefault xref styles, caption
+labels, signifiers and independent target classification still fail explicitly.
+
+Strong, emphasis and code spans retain IDs and ordered role tokens. An attributed
+highlight exports as `variant: "generic"`; an ordinary highlight stays `mark`.
+This distinction also preserves an explicitly empty role. Span metadata permits
+only roles. Inline image and reference metadata permit roles, options and scalar
+attributes, with no block location or positional fields. Node and content locations
+remain separate from ID-token coordinates, which have no ASG field.
+
+For example, `[.review]#Text#` exports as a generic span with
+`metadata.roles: ["review"]`, while `#Text#` exports as a mark.
+link:../../fixtures/asg/inline_metadata.adoc[The inline metadata fixture] and its
+link:../../fixtures/asg/inline_metadata.json[checked JSON] cover links, mail,
+xrefs and formatted spans with a nested image. Inline IDs retain untitled target
+semantics; duplicate IDs and independent reference catalog values still fail.
 
 == Lists
 

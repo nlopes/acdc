@@ -671,7 +671,8 @@
             "strong",
             "emphasis",
             "code",
-            "mark"
+            "mark",
+            "generic"
           ]
         },
         "form": {
@@ -680,6 +681,12 @@
             "constrained",
             "unconstrained"
           ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/acdcSpanMetadata"
         }
       }
     },
@@ -710,6 +717,15 @@
         },
         "target": {
           "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/acdcInlineMetadata"
+        },
+        "tooltip": {
+          "$ref": "#/$defs/inlines"
         }
       }
     },
@@ -893,10 +909,49 @@
           "$ref": "#/$defs/inlines"
         },
         "metadata": {
-          "$ref": "#/$defs/blockMetadata"
+          "$ref": "#/$defs/acdcInlineMetadata"
         },
         "location": {
           "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "acdcInlineMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attributes": {
+          "type": "object",
+          "additionalProperties": false,
+          "patternProperties": {
+            "^(?:[a-zA-Z_][a-zA-Z0-9_-]*|\\$[1-9][0-9]*)$": {
+              "type": "string"
+            }
+          }
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "acdcSpanMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "roles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     }
