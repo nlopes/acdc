@@ -1,0 +1,16 @@
+= AsciiDoc cell wrappers
+
+[cols="a,a"]
+|===
+|First paragraph.
+
+Second *paragraph*.
+|* Item one
+* Item two
+|===
+
+[cols="a,1"]
+|===
+|NOTE: A note in the cell.
+|Normal cell.
+|===

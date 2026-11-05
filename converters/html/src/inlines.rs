@@ -1362,8 +1362,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let w = self.writer_mut();
         let content = escape_pcdata(s.text());
         match notation {
-            StemNotation::Latexmath => writeln!(w, "\\({content}\\)")?,
-            StemNotation::Asciimath => writeln!(w, "\\${content}\\$")?,
+            StemNotation::Latexmath => write!(w, "\\({content}\\)")?,
+            StemNotation::Asciimath => write!(w, "\\${content}\\$")?,
         }
         Ok(())
     }

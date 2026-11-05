@@ -112,7 +112,14 @@ fn render_cell_content<'a, W: Write>(
         // AsciiDoc cells contain full blocks. Their visitor preserves paragraph
         // metadata and substitution settings within the cell's attribute scope.
         return traversal.with_table_cell(cell, |traversal| {
-            traversal.visit_blocks(visitor, cell.blocks())
+            if wrap_paragraph {
+                writeln!(visitor.writer_mut(), "<div class=\"content\">")?;
+            }
+            traversal.visit_blocks(visitor, cell.blocks())?;
+            if wrap_paragraph {
+                writeln!(visitor.writer_mut(), "</div>")?;
+            }
+            Ok(())
         });
     }
     // Bare cell text is sufficient for one paragraph. Multiple blocks need

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Standard HTML wraps AsciiDoc table-cell blocks in `.content`, matching
+  Asciidoctor and the bundled table CSS.
+- Inline STEM preserves authored spacing before punctuation and adjacent content.
+
 - `toc::[role="custom"]` and preceding role attributes now set the TOC container
   class, matching Asciidoctor. An authored `toc2` role stays intact in embedded
   output; the default sidebar class still becomes `toc` there.

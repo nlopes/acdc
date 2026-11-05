@@ -22,10 +22,12 @@ Header text.</th>
 </thead>
 <tbody>
 <tr>
-<td class="tableblock halign-left valign-top"><div id="body-example" class="exampleblock cell-role">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div id="body-example" class="exampleblock cell-role">
 <div class="title">Demo 1. Body <strong>title</strong></div>
 <div class="content">
 Body text.
+</div>
 </div>
 </div>
 </td>
@@ -33,10 +35,12 @@ Body text.
 </tbody>
 <tfoot>
 <tr>
-<td class="tableblock halign-left valign-top"><div id="footer-example" class="exampleblock">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div id="footer-example" class="exampleblock">
 <div class="title">Demo 2. Footer title</div>
 <div class="content">
 Footer text.
+</div>
 </div>
 </div>
 </td>
@@ -49,20 +53,25 @@ Footer text.
 </colgroup>
 <tbody>
 <tr>
-<td class="tableblock halign-left valign-top"><div id="regular-target" class="paragraph regular-role">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div id="regular-target" class="paragraph regular-role">
 <div class="title">Regular title</div>
 <p>Regular <strong>bold</strong> text.</p>
 </div>
-</td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><div id="untitled-target" class="paragraph untitled-role">
-<p>Untitled paragraph.</p>
 </div>
 </td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><div class="quoteblock">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div id="untitled-target" class="paragraph untitled-role">
+<p>Untitled paragraph.</p>
+</div>
+</div>
+</td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="quoteblock">
 <div class="title">Quote title</div>
 <blockquote>
 Quoted text.
@@ -72,10 +81,12 @@ Quoted text.
 <cite>Book</cite>
 </div>
 </div>
+</div>
 </td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><div class="verseblock">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="verseblock">
 <div class="title">Verse title</div>
 <pre class="content">Verse one.
 Verse two.</pre>
@@ -84,64 +95,78 @@ Verse two.</pre>
 <cite>Poem</cite>
 </div>
 </div>
+</div>
 </td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><div class="literalblock">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="literalblock">
 <div class="title">Literal title</div>
 <div class="content">
 <pre>&lt;literal&gt; *raw* text.</pre>
 </div>
 </div>
+</div>
 </td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><div class="listingblock">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="listingblock">
 <div class="title">Listing title</div>
 <div class="content">
 <pre>&lt;listing&gt; *raw* text.</pre>
 </div>
 </div>
+</div>
 </td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><div class="listingblock">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="listingblock">
 <div class="title">Source title</div>
 <div class="content">
 <pre class="highlight"><code class="language-rust" data-lang="rust">fn main() {}</code></pre>
 </div>
 </div>
+</div>
 </td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><details open>
+<td class="tableblock halign-left valign-top"><div class="content">
+<details open>
 <summary class="title">Details title</summary>
 <div class="content">
 Details text.
 </div>
 </details>
+</div>
 </td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><details>
+<td class="tableblock halign-left valign-top"><div class="content">
+<details>
 <summary class="title">Details</summary>
 <div class="content">
 Untitled details.
 </div>
 </details>
+</div>
 </td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><div class="quoteblock abstract">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="quoteblock abstract">
 <div class="title">Abstract title</div>
 <blockquote>
 Abstract text.
 </blockquote>
 </div>
+</div>
 </td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><div class="paragraph">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="paragraph">
 <p>Plain paragraph one.</p>
 </div>
 <div class="paragraph">
@@ -154,10 +179,12 @@ Abstract text.
 </li>
 </ul>
 </div>
+</div>
 </td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><div class="admonitionblock note">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="admonitionblock note">
 <table>
 <tr>
 <td class="icon">
@@ -168,6 +195,7 @@ Attached admonition.
 </td>
 </tr>
 </table>
+</div>
 </div>
 </td>
 </tr>
@@ -189,10 +217,12 @@ NOTE: Normal cell text.</p></td>
 </colgroup>
 <tbody>
 <tr>
-<td class="tableblock halign-left valign-top"><div class="exampleblock">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="exampleblock">
 <div class="title">Demo 3. Explicit AsciiDoc title</div>
 <div class="content">
 Explicit AsciiDoc text.
+</div>
 </div>
 </div>
 </td>
@@ -205,21 +235,27 @@ Explicit AsciiDoc text.
 </colgroup>
 <tbody>
 <tr>
-<td class="tableblock halign-left valign-top"><div class="paragraph">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="paragraph">
 <p>Single nested paragraph.</p>
 </div>
-</td>
-</tr>
-<tr>
-<td class="tableblock halign-left valign-top"><div class="paragraph">
-<p>{cell-only}</p>
 </div>
 </td>
 </tr>
 <tr>
-<td class="tableblock halign-left valign-top"><div class="exampleblock">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="paragraph">
+<p>{cell-only}</p>
+</div>
+</div>
+</td>
+</tr>
+<tr>
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="exampleblock">
 <div class="content">
 Untitled example.
+</div>
 </div>
 </div>
 </td>
