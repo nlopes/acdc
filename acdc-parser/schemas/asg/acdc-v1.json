@@ -227,6 +227,9 @@
         },
         {
           "$ref": "#/$defs/parentBlock"
+        },
+        {
+          "$ref": "#/$defs/acdcAttributeEvent"
         }
       ]
     },
@@ -952,6 +955,63 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "acdcAttributeEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "attribute",
+        "assignment"
+      ],
+      "properties": {
+        "name": {
+          "const": "attribute"
+        },
+        "type": {
+          "const": "block"
+        },
+        "attribute": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_][-a-zA-Z0-9_]*$"
+        },
+        "assignment": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "value"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "set"
+                },
+                "value": {
+                  "type": "string"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind"
+              ],
+              "properties": {
+                "kind": {
+                  "const": "unset"
+                }
+              }
+            }
+          ]
+        },
+        "location": {
+          "$ref": "#/$defs/location"
         }
       }
     }

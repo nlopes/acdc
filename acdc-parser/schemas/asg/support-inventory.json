@@ -6167,6 +6167,31 @@
             "asg_inline_metadata.rs::inline_metadata_schema_rejects_block_only_and_unknown_fields",
             "asg_inline_metadata.rs::inline_id_catalogs_keep_duplicate_and_stale_checks"
           ]
+        },
+        "body-attributes": {
+          "owners": {
+            "Document": [
+              "attributes",
+              "blocks"
+            ],
+            "DocumentAttribute": [
+              "name",
+              "assignment",
+              "accepted",
+              "location"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/acdcAttributeEvent",
+            "#/$defs/block/oneOf"
+          ],
+          "handling": "Preserve accepted set/unset events in their existing block sequence, including nested supported bodies, independently from the end-of-header attributes. Preserve scalar presence, literal false and integer spelling; do not replay processing. Reject protected values, rejected/pending parser state and unsupported cell owners. Strict export still rejects ordered body events.",
+          "tests": [
+            "asg_body_attributes.rs::body_events_keep_header_snapshot_values_and_media_order",
+            "asg_body_attributes.rs::strict_export_and_unresolved_value_errors_remain_explicit",
+            "asg_body_attributes.rs::body_event_schema_requires_separate_discriminators_and_exact_assignment_shapes",
+            "../src/asg/attributes.rs::rejected_assignments_do_not_become_unsets"
+          ]
         }
       }
     }

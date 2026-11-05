@@ -280,6 +280,33 @@ link:../../fixtures/asg/inline_metadata.json[checked JSON] cover links, mail,
 xrefs and formatted spans with a nested image. Inline IDs retain untitled target
 semantics; duplicate IDs and independent reference catalog values still fail.
 
+== Ordered document attribute events
+
+The document's `attributes` object remains the end-of-header snapshot. In the
+acdc profile, accepted body assignments occupy their existing position in the
+`blocks` array. The node's discriminator is separate from the attribute's name:
+
+[source,json]
+----
+{"name":"attribute","type":"block","attribute":"imagesdir","assignment":{"kind":"set","value":"images"}}
+{"name":"attribute","type":"block","attribute":"imagesdir","assignment":{"kind":"unset"}}
+----
+
+A set value is a string: presence is `""`, literal false is `"false"`, and integers
+retain their attribute-reference spelling. An unset has no `value` field.
+Events inside supported nested bodies stay in those bodies. Consumers visit
+these arrays in order; the exporter does not replay assignments or repeat
+substitutions. This retains settings such as a later `imagesdir` change that
+still affects media conversion after inline attribute references are resolved.
+
+Known event locations are retained. Protected values that cannot fit a scalar,
+rejected assignments and unresolved parser-prefix events fail explicitly. Strict
+upstream export still rejects body events. Unsupported table/cell owners also
+continue to fail, so their scope cannot be silently lost.
+link:../../fixtures/asg/body_attributes.adoc[The ordered-event fixture] and its
+link:../../fixtures/asg/body_attributes.json[checked JSON] show header values,
+set/unset events, metadata-adjacent assignments and nested media.
+
 == Lists
 
 Ordered and unordered lists preserve the list marker and each item's marker,

@@ -12,7 +12,8 @@ use crate::{
 };
 
 use super::{
-    ACDC_SCHEMA_ID, Error, Profile, diagnostics, images, metadata, pointer, references, unsupported,
+    ACDC_SCHEMA_ID, Error, Profile, attributes, diagnostics, images, metadata, pointer, references,
+    unsupported,
 };
 
 type Node = Map<String, Value>;
@@ -284,21 +285,9 @@ pub(super) fn document(value: &Document<'_>, profile: Profile) -> Result<Value, 
         let projected = match assignment {
             DocumentAttributeAssignment::Unset => Value::Null,
             DocumentAttributeAssignment::Set(attribute) => {
-                if !attribute.inline_fragments().is_empty()
-                    || !attribute.passthrough_ranges().is_empty()
-                {
-                    return Err(unsupported(
-                        &pointer("/attributes", name),
-                        "attribute content protection cannot be flattened into a scalar string",
-                    )
-                    .with_context("document attribute", &crate::Location::default()));
-                }
-                let mut text = String::new();
-                attribute.write_text(&mut text).map_err(|error| {
-                    unsupported(&pointer("/attributes", name), error.to_string())
-                        .with_context("document attribute", &crate::Location::default())
-                })?;
-                Value::String(text)
+                attributes::value(attribute, &pointer("/attributes", name)).map_err(|error| {
+                    error.with_context("document attribute", &crate::Location::default())
+                })?
             }
         };
         attributes.insert(name.into(), projected);
@@ -459,12 +448,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
                     "the actual admonition source form needs a supported mapping",
                 ));
             }
-            Block::DocumentAttribute(_) => {
-                return Err(unsupported(
-                    at,
-                    "ordered body assignments have no supported upstream mapping",
-                ));
-            }
+            Block::DocumentAttribute(attribute) => attributes::block(attribute, at, self.profile)?,
         };
         let mut projected = projected;
         metadata::location(&mut projected, value.location(), at)?;

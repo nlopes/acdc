@@ -4,6 +4,7 @@
 //! directly and fails if their meaning has no supported mapping. It never reparses
 //! strings, changes the AST, or runs a converter.
 
+mod attributes;
 mod content;
 mod diagnostics;
 mod images;

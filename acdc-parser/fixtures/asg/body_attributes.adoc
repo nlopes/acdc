@@ -1,0 +1,34 @@
+= Ordered attribute events
+:imagesdir: header
+:flag: header
+
+image::before.png[]
+
+:imagesdir: body
+image::middle.png[]
+
+:imagesdir!:
+image::after.png[]
+
+:flag: false
+:presence:
+:toclevels: 03
+
+.Title
+:label: selected
+// A source comment between metadata and its paragraph.
+A paragraph.
+
+--
+:imagesdir: nested
+image::nested.png[]
+
+--
+
+:imagesdir!:
+
+:flag!:
+:presence!:
+:name: attribute
+
+image::last.png[]

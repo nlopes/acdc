@@ -230,6 +230,16 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
             .ok_or("defs")?
             .remove(name);
     }
+    restored
+        .pointer_mut("/$defs/block/oneOf")
+        .and_then(Value::as_array_mut)
+        .ok_or("block variants")?
+        .pop();
+    restored
+        .get_mut("$defs")
+        .and_then(Value::as_object_mut)
+        .ok_or("defs")?
+        .remove("acdcAttributeEvent");
     assert_eq!(restored, base);
     Ok(())
 }

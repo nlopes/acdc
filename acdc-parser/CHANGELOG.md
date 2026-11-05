@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plus link/reference options, scalar attributes and formatted tooltips. Generic
   highlighted spans stay distinct from marks. Strict upstream export is unchanged;
   nondefault cross-reference policies still report an unsupported property.
+- The acdc ASG profile preserves ordered body attribute set/unset events separately
+  from header attributes, including settings that affect later media. Strict
+  upstream export continues to reject body assignments.
 
 - Typed reads cover every block and inline family, retained attributes, structural
   children, owned content fields, source coordinates, and derived catalogs. Walks
