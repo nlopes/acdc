@@ -169,6 +169,75 @@ fn extension_schema_rejects_unknown_content_properties() -> Result<(), Error> {
     Ok(())
 }
 
+const EXTENSION_ADDITIONS: &[(&str, &[&str])] = &[
+    ("/properties", &["profile", "footnotes", "references"]),
+    (
+        "/$defs/listItem/properties",
+        &["checked", "number", "callout_location"],
+    ),
+    (
+        "/$defs/abstractBlock/properties",
+        &[
+            "attribution",
+            "citetitle",
+            "caption",
+            "anchors",
+            "id_location",
+        ],
+    ),
+    (
+        "/$defs/inlineSpan/properties",
+        &["id", "metadata", "quotes"],
+    ),
+    (
+        "/$defs/inlineRef/properties",
+        &["id", "metadata", "tooltip"],
+    ),
+    (
+        "/properties/header/properties",
+        &[
+            "id",
+            "reftext",
+            "anchors",
+            "id_location",
+            "metadata",
+            "attribution",
+            "citetitle",
+            "caption",
+            "subtitle",
+        ],
+    ),
+    (
+        "/$defs",
+        &[
+            "acdcReferenceRegistration",
+            "acdcLineBreak",
+            "acdcCallout",
+            "acdcAnchor",
+            "acdcInlineAnchor",
+            "acdcIndexTerm",
+            "acdcIndexLabels",
+            "acdcIndexRelationship",
+            "acdcFootnote",
+            "acdcFootnoteDefinition",
+            "acdcCaption",
+            "acdcInlineImage",
+            "acdcInlineMetadata",
+            "acdcSpanMetadata",
+            "acdcAdmonition",
+            "acdcParagraphParentBlock",
+            "acdcMarkedQuote",
+            "acdcAttributeEvent",
+            "acdcTable",
+            "acdcTableRow",
+            "acdcTableCell",
+            "acdcTableColumnFormat",
+            "acdcTableWidth",
+            "acdcTablePresentation",
+        ],
+    ),
+];
+
 #[test]
 fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
     let base: Value = serde_json::from_str(include_str!("../schemas/asg/schema.json"))?;
@@ -177,72 +246,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         *restored.get_mut(name).ok_or("schema field")? =
             base.get(name).ok_or("base field")?.clone();
     }
-    let additions: &[(&str, &[&str])] = &[
-        ("/properties", &["profile", "footnotes", "references"]),
-        (
-            "/$defs/listItem/properties",
-            &["checked", "number", "callout_location"],
-        ),
-        (
-            "/$defs/abstractBlock/properties",
-            &[
-                "attribution",
-                "citetitle",
-                "caption",
-                "anchors",
-                "id_location",
-            ],
-        ),
-        ("/$defs/inlineSpan/properties", &["id", "metadata"]),
-        (
-            "/$defs/inlineRef/properties",
-            &["id", "metadata", "tooltip"],
-        ),
-        (
-            "/properties/header/properties",
-            &[
-                "id",
-                "reftext",
-                "anchors",
-                "id_location",
-                "metadata",
-                "attribution",
-                "citetitle",
-                "caption",
-                "subtitle",
-            ],
-        ),
-        (
-            "/$defs",
-            &[
-                "acdcReferenceRegistration",
-                "acdcLineBreak",
-                "acdcCallout",
-                "acdcAnchor",
-                "acdcInlineAnchor",
-                "acdcIndexTerm",
-                "acdcIndexLabels",
-                "acdcIndexRelationship",
-                "acdcFootnote",
-                "acdcFootnoteDefinition",
-                "acdcCaption",
-                "acdcInlineImage",
-                "acdcInlineMetadata",
-                "acdcSpanMetadata",
-                "acdcAdmonition",
-                "acdcParagraphParentBlock",
-                "acdcMarkedQuote",
-                "acdcAttributeEvent",
-                "acdcTable",
-                "acdcTableRow",
-                "acdcTableCell",
-                "acdcTableColumnFormat",
-                "acdcTableWidth",
-                "acdcTablePresentation",
-            ],
-        ),
-    ];
-    for &(path, names) in additions {
+    for &(path, names) in EXTENSION_ADDITIONS {
         let properties = restored
             .pointer_mut(path)
             .and_then(Value::as_object_mut)
@@ -253,9 +257,10 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
     }
     for (path, count) in [
         ("/$defs/inline/oneOf", 6),
+        ("/$defs/inlineSpan/allOf", 1),
         ("/$defs/list/allOf", 2),
         ("/$defs/blockMacro/allOf", 1),
-        ("/$defs/inlineSpan/properties/variant/enum", 1),
+        ("/$defs/inlineSpan/properties/variant/enum", 4),
         ("/$defs/block/oneOf", 5),
     ] {
         let variants = restored

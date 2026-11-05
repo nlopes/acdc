@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The acdc ASG profile retains subscript, superscript and nested typographic
+  quotations, including their resolved quotation characters and inline metadata.
+
 - The acdc ASG profile preserves hard line breaks as semantic inline breaks,
   including configured hard wrapping and breaks inside content attributes.
 

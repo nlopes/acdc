@@ -609,3 +609,18 @@ break whether it came from an explicit marker or configured hard wrapping; the
 AST does not retain a separate source-form tag for those cases. Parsed/prepared
 breaks in content attributes use the same shape. Export does not insert newlines
 or backend markup. Strict upstream export rejects inline breaks.
+
+== Typography spans
+
+The acdc profile adds `subscript` and `superscript` to the existing inline span
+variants. Both keep nested content, constrained/unconstrained form, roles, ID and
+known location. Typographic quotations use one `quotation` span variant with a
+`quotes` pair: `["“", "”"]` or `["‘", "’"]`. The pair gives the exact resolved
+opening and closing characters; the `inlines` array contains only the quotation's
+nested content. This avoids a separate node for each native quote type without
+losing Unicode meaning or inline metadata. A standalone curved apostrophe stays
+canonical text `’`, as it already does in strict export.
+
+Literal protection remains text/raw content. Export does not recognize markup
+inside those strings or apply typography again. Strict export still rejects the
+four unsupported span types; the upstream pin is unchanged.

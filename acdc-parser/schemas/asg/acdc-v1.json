@@ -825,6 +825,30 @@
       "allOf": [
         {
           "$ref": "#/$defs/abstractParentInline"
+        },
+        {
+          "if": {
+            "properties": {
+              "variant": {
+                "const": "quotation"
+              }
+            },
+            "required": [
+              "variant"
+            ]
+          },
+          "then": {
+            "required": [
+              "quotes"
+            ]
+          },
+          "else": {
+            "not": {
+              "required": [
+                "quotes"
+              ]
+            }
+          }
         }
       ],
       "unevaluatedProperties": false,
@@ -845,7 +869,10 @@
             "emphasis",
             "code",
             "mark",
-            "generic"
+            "generic",
+            "subscript",
+            "superscript",
+            "quotation"
           ]
         },
         "form": {
@@ -860,6 +887,18 @@
         },
         "metadata": {
           "$ref": "#/$defs/acdcSpanMetadata"
+        },
+        "quotes": {
+          "enum": [
+            [
+              "“",
+              "”"
+            ],
+            [
+              "‘",
+              "’"
+            ]
+          ]
         }
       }
     },

@@ -2428,25 +2428,25 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-typographic-spans"
       },
       "properties": {
         "role": {
-          "policy": "unsupported"
+          "policy": "named-typographic-spans"
         },
         "id": {
-          "policy": "unsupported"
+          "policy": "named-typographic-spans"
         },
         "form": {
-          "policy": "preserve-constrained-unconstrained-form-without-re-reading",
+          "policy": "named-typographic-spans",
           "upstream": "#/$defs/inlineSpan/properties/form"
         },
         "content": {
-          "policy": "visit-supported-child-inlines-directly-a-supported",
+          "policy": "named-typographic-spans",
           "upstream": "#/$defs/inlines"
         },
         "location": {
-          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "policy": "named-typographic-spans",
           "upstream": "#/$defs/location"
         }
       },
@@ -2465,25 +2465,25 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-typographic-spans"
       },
       "properties": {
         "role": {
-          "policy": "unsupported"
+          "policy": "named-typographic-spans"
         },
         "id": {
-          "policy": "unsupported"
+          "policy": "named-typographic-spans"
         },
         "form": {
-          "policy": "preserve-constrained-unconstrained-form-without-re-reading",
+          "policy": "named-typographic-spans",
           "upstream": "#/$defs/inlineSpan/properties/form"
         },
         "content": {
-          "policy": "visit-supported-child-inlines-directly-a-supported",
+          "policy": "named-typographic-spans",
           "upstream": "#/$defs/inlines"
         },
         "location": {
-          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "policy": "named-typographic-spans",
           "upstream": "#/$defs/location"
         }
       },
@@ -2751,25 +2751,25 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-typographic-spans"
       },
       "properties": {
         "role": {
-          "policy": "unsupported"
+          "policy": "named-typographic-spans"
         },
         "id": {
-          "policy": "unsupported"
+          "policy": "named-typographic-spans"
         },
         "form": {
-          "policy": "preserve-constrained-unconstrained-form-without-re-reading",
+          "policy": "named-typographic-spans",
           "upstream": "#/$defs/inlineSpan/properties/form"
         },
         "content": {
-          "policy": "visit-supported-child-inlines-directly-a-supported",
+          "policy": "named-typographic-spans",
           "upstream": "#/$defs/inlines"
         },
         "location": {
-          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "policy": "named-typographic-spans",
           "upstream": "#/$defs/location"
         }
       },
@@ -2788,25 +2788,25 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-typographic-spans"
       },
       "properties": {
         "role": {
-          "policy": "unsupported"
+          "policy": "named-typographic-spans"
         },
         "id": {
-          "policy": "unsupported"
+          "policy": "named-typographic-spans"
         },
         "form": {
-          "policy": "preserve-constrained-unconstrained-form-without-re-reading",
+          "policy": "named-typographic-spans",
           "upstream": "#/$defs/inlineSpan/properties/form"
         },
         "content": {
-          "policy": "visit-supported-child-inlines-directly-a-supported",
+          "policy": "named-typographic-spans",
           "upstream": "#/$defs/inlines"
         },
         "location": {
-          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "policy": "named-typographic-spans",
           "upstream": "#/$defs/location"
         }
       },
@@ -5763,6 +5763,10 @@
     "named-inline-breaks": {
       "handling": "context-dependent",
       "reason": "The named profile exports semantic inline hard breaks with known provenance, distinct from plain wrapping and literal code. Configured and explicit break source forms share the native node. Content attributes recurse through the same mapping; strict upstream export rejects."
+    },
+    "named-typographic-spans": {
+      "handling": "context-dependent",
+      "reason": "The named profile keeps subscript/superscript spans and one quotation variant with explicit resolved Unicode opening/closing characters. Nested content/form/identity/roles/locations use the existing span contract. Standalone apostrophe remains canonical text; protected literal content is never reinterpreted. Strict rejects unsupported span variants."
     }
   },
   "strict_export_groups": {
@@ -6721,6 +6725,49 @@
             "asg_line_breaks.rs::prepared_content_attributes_keep_breaks_without_markup_or_fake_locations",
             "asg_line_breaks.rs::soft_wrapping_and_literal_plus_signs_do_not_become_breaks",
             "asg_line_breaks.rs::inline_break_schema_is_closed_and_distinct_from_page_breaks"
+          ]
+        },
+        "typography-spans": {
+          "owners": {
+            "Subscript": [
+              "content",
+              "form",
+              "role",
+              "id",
+              "location"
+            ],
+            "Superscript": [
+              "content",
+              "form",
+              "role",
+              "id",
+              "location"
+            ],
+            "CurvedQuotation": [
+              "content",
+              "form",
+              "role",
+              "id",
+              "location"
+            ],
+            "CurvedApostrophe": [
+              "content",
+              "form",
+              "role",
+              "id",
+              "location"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/inlineSpan/properties/variant",
+            "#/$defs/inlineSpan/properties/quotes"
+          ],
+          "handling": "The named profile keeps subscript/superscript spans and one quotation variant with explicit resolved Unicode opening/closing characters. Nested content/form/identity/roles/locations use the existing span contract. Standalone apostrophe remains canonical text; protected literal content is never reinterpreted. Strict rejects unsupported span variants.",
+          "tests": [
+            "asg_typography.rs::resolved_text_and_nested_span_meaning_are_preserved",
+            "asg_typography.rs::prepared_spans_keep_metadata_empty_content_and_unknown_locations",
+            "asg_typography.rs::literal_protection_and_strict_boundaries_stay_explicit",
+            "asg_typography.rs::quotation_schema_requires_bounded_pairs_only_on_quotations"
           ]
         }
       }

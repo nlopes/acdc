@@ -1,5 +1,6 @@
 mod blocks;
 mod lists;
+mod spans;
 mod tables;
 
 use std::collections::BTreeMap;
@@ -8,8 +9,7 @@ use serde_json::{Map, Value};
 
 use crate::{
     Block, BlockMetadata, CalloutRefKind, Caption, ContentAttribute, DelimitedBlockType, Document,
-    DocumentAttributeAssignment, ElementId, Form, Header, InlineNode, Section, SectionKind,
-    Substitution, Title,
+    DocumentAttributeAssignment, Header, InlineNode, Section, SectionKind, Substitution, Title,
 };
 
 use super::{
@@ -144,42 +144,18 @@ fn inline_value(
         }
         InlineNode::StandaloneCurvedApostrophe(_) => literal("text", "\u{2019}"),
         InlineNode::RawText(raw) => raw_literal(raw, path)?,
-        InlineNode::BoldText(span) => span_node(
-            "strong",
-            &span.form,
-            span.role,
-            span.id.as_ref(),
-            &span.content,
-            path,
-            settings,
-        )?,
-        InlineNode::ItalicText(span) => span_node(
-            "emphasis",
-            &span.form,
-            span.role,
-            span.id.as_ref(),
-            &span.content,
-            path,
-            settings,
-        )?,
-        InlineNode::MonospaceText(span) => span_node(
-            "code",
-            &span.form,
-            span.role,
-            span.id.as_ref(),
-            &span.content,
-            path,
-            settings,
-        )?,
-        InlineNode::HighlightText(span) => span_node(
-            "mark",
-            &span.form,
-            span.role,
-            span.id.as_ref(),
-            &span.content,
-            path,
-            settings,
-        )?,
+        InlineNode::BoldText(_)
+        | InlineNode::ItalicText(_)
+        | InlineNode::MonospaceText(_)
+        | InlineNode::HighlightText(_) => spans::project(value, path, settings)?,
+        InlineNode::SubscriptText(_)
+        | InlineNode::SuperscriptText(_)
+        | InlineNode::CurvedQuotationText(_)
+        | InlineNode::CurvedApostropheText(_)
+            if settings.profile == Profile::Acdc =>
+        {
+            spans::project(value, path, settings)?
+        }
         InlineNode::Macro(crate::InlineMacro::Image(image))
             if settings.profile == Profile::Acdc =>
         {
@@ -224,52 +200,6 @@ fn literal(name: &str, value: &str) -> Node {
     let mut result = node(name, "string");
     result.insert("value".into(), value.into());
     result
-}
-
-fn span_node(
-    name: &str,
-    form: &Form,
-    role: Option<&str>,
-    id: Option<&ElementId<'_>>,
-    content: &[InlineNode<'_>],
-    path: &str,
-    settings: InlineContext,
-) -> Result<Node, Error> {
-    for (present, property) in [(id.is_some(), "id"), (role.is_some(), "role")] {
-        if settings.profile == Profile::Upstream && present {
-            return Err(unsupported(
-                &pointer(path, property),
-                "upstream inline spans have no identity or role fields",
-            ));
-        }
-    }
-    let mut result = node("span", "inline");
-    let variant = if name == "mark" && (id.is_some() || role.is_some()) {
-        "generic"
-    } else {
-        name
-    };
-    result.insert("variant".into(), variant.into());
-    if let Some(id) = id {
-        result.insert("id".into(), id.id.into());
-    }
-    let roles: Vec<_> = role.unwrap_or_default().split_whitespace().collect();
-    if !roles.is_empty() {
-        result.insert("metadata".into(), serde_json::json!({"roles": roles}));
-    }
-    result.insert(
-        "form".into(),
-        match form {
-            Form::Constrained => "constrained",
-            Form::Unconstrained => "unconstrained",
-        }
-        .into(),
-    );
-    result.insert(
-        "inlines".into(),
-        project_inlines(content, &pointer(path, "inlines"), settings)?,
-    );
-    Ok(result)
 }
 
 struct Target<'a, 'doc> {
