@@ -25,7 +25,7 @@ fn displayed_reference_label<'a>(
 ) -> Option<ContentAttribute<'a>> {
     label
         .filter(|content| {
-            !content.iter().all(|node| {
+            !content.as_inlines().iter().all(|node| {
                 if let InlineNode::PlainText(text) = node {
                     text.content.trim().is_empty()
                 } else if let InlineNode::RawText(raw) = node {
@@ -124,7 +124,7 @@ impl<'a> ReferenceCatalog<'a> {
         if let Some(id) = Section::explicit_id(&section.metadata) {
             return id;
         }
-        let base = Section::generate_id(state.arena, &section.metadata, &section.title)
+        let base = Section::generate_id(state.arena, &section.metadata, section.title.as_inlines())
             .as_arena_str(state.arena);
         if base.is_empty() || !self.entries.contains_key(base) {
             return base;
@@ -450,13 +450,13 @@ pub(super) fn collect_metadata_references<'a>(
     xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) {
     if let Some(label) = metadata_xreflabel(metadata) {
-        collect_inline_references(state, label, refs, xrefs);
+        collect_inline_references(state, label.as_inlines(), refs, xrefs);
     }
     if let Some(attribution) = &metadata.attribution {
-        collect_inline_references(state, attribution, refs, xrefs);
+        collect_inline_references(state, attribution.as_inlines(), refs, xrefs);
     }
     if let Some(citetitle) = &metadata.citetitle {
-        collect_inline_references(state, citetitle, refs, xrefs);
+        collect_inline_references(state, citetitle.as_inlines(), refs, xrefs);
     }
 }
 
@@ -471,7 +471,7 @@ fn register_section_reference<'a>(
     let reference_text = section.reference_text.take();
     let xreflabel = metadata_xreflabel(&section.metadata);
     let mut location = section.location.clone();
-    if let Some(last) = section.title.last() {
+    if let Some(last) = section.title.as_inlines().last() {
         location.absolute_end = last.location().absolute_end;
         location.end = last.location().end.clone();
     }
@@ -537,7 +537,7 @@ pub(super) fn collect_references<'a>(
             );
         }
         if let Some(title) = block.title() {
-            collect_inline_references(state, title, refs, xrefs);
+            collect_inline_references(state, title.as_inlines(), refs, xrefs);
         }
         if let Some(metadata) = block.metadata() {
             collect_metadata_references(state, metadata, refs, xrefs);

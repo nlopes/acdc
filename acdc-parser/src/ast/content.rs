@@ -52,7 +52,7 @@ impl<'doc> ContentRef<'doc> {
 
 impl<'doc> From<&'doc ContentAttribute<'doc>> for ContentRef<'doc> {
     fn from(content: &'doc ContentAttribute<'doc>) -> Self {
-        Self::new(content.as_ref())
+        Self::new(content.as_inlines())
     }
 }
 
@@ -134,6 +134,22 @@ impl Title<'_> {
     /// The title content; `None` if no title was supplied.
     #[must_use]
     pub fn content(&self) -> Option<ContentRef<'_>> {
-        self.is_present().then(|| ContentRef::new(self.as_ref()))
+        self.is_present()
+            .then(|| ContentRef::new(self.as_inlines()))
+    }
+}
+
+/// Copy selected inline content without reparsing or registering it.
+impl<'doc> From<ContentRef<'doc>> for ContentAttribute<'doc> {
+    fn from(content: ContentRef<'doc>) -> Self {
+        Self::new(content.nodes.to_vec())
+    }
+}
+
+/// Copy selected content as a present title, including empty content.
+/// Use `Title::default()` for an absent title.
+impl<'doc> From<ContentRef<'doc>> for Title<'doc> {
+    fn from(content: ContentRef<'doc>) -> Self {
+        Self::new(content.nodes.to_vec())
     }
 }

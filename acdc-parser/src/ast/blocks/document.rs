@@ -65,7 +65,7 @@ impl<'doc> HeaderRef<'doc> {
         self.node
             .subtitle
             .as_ref()
-            .map(|title| ContentRef::new(title.as_ref()))
+            .map(|title| ContentRef::new(title.as_inlines()))
     }
 
     /// Authors in header order, after parser normalization and overrides.

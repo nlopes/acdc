@@ -17,7 +17,7 @@ pub(super) fn apply(
         if let Some(content) = content {
             node.insert(
                 name.into(),
-                inlines(content, &pointer(path, name), profile)?,
+                inlines(content.as_inlines(), &pointer(path, name), profile)?,
             );
         }
     }
@@ -49,7 +49,7 @@ fn caption(value: &Caption<'_>, path: &str, profile: Profile) -> Result<Value, E
             result.insert("kind".into(), "custom".into());
             result.insert(
                 "prefix".into(),
-                inlines(content, &pointer(path, "prefix"), profile)?,
+                inlines(content.as_inlines(), &pointer(path, "prefix"), profile)?,
             );
         }
         Caption::Numbered {

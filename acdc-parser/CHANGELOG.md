@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `ContentAttribute` and `Title` no longer provide borrowed slices,
+  `Deref`, `AsRef`, or borrowed owner iterators. Read attributes with
+  `ContentRef::from(&content)` and titles with `title.content()`. Copy selected
+  content with `ContentAttribute::from(content_ref)` or `Title::from(content_ref)`;
+  `into_inlines()` still transfers prepared nodes. Empty title copies remain
+  present; use `Title::default()` for absence. Native JSON and rendering are unchanged.
+
 - **Breaking:** reference and TOC record fields are private. Use typed catalog
   reads, selected copies and prepared content transfers for edits. Changes keep
   stored numbers and classification snapshots; they do not rename map keys or

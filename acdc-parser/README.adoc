@@ -104,6 +104,12 @@ Copies preserve stored catalogs, source locations, captions, and table presentat
 they do not reparse text or refresh catalogs. Source text can still borrow from
 the parse result.
 
+Read a content attribute through `ContentRef::from(&content)` and a title through
+`title.content()`, then iterate with `inlines()`. To copy selected content for edits,
+use `ContentAttribute::from(content_ref)` or `Title::from(content_ref)`.
+`into_inlines()` transfers the prepared nodes without copying them.
+A title copied from empty content is present; `Title::default()` is absent.
+
 Editing a copy does not rebuild reference targets, TOC membership, footnote
 registrations, or author-derived document attributes. Reads, copies, and conversion
 leave those snapshots unchanged. Reparse changed source when you need those

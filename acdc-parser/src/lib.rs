@@ -1054,7 +1054,7 @@ mod tests {
         let attribution = metadata
             .attribution
             .as_ref()
-            .and_then(|a| a.first())
+            .and_then(|a| a.as_inlines().first())
             .expect("attribution inline")
             .location();
         assert_eq!(attribution.start.line, 3, "attribution origin line");
@@ -1063,7 +1063,7 @@ mod tests {
         let citetitle = metadata
             .citetitle
             .as_ref()
-            .and_then(|c| c.first())
+            .and_then(|c| c.as_inlines().first())
             .expect("citetitle inline")
             .location();
         assert_eq!(citetitle.start.line, 3, "citetitle origin line");

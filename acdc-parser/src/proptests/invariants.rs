@@ -285,7 +285,7 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
             }
         }
         Block::DiscreteHeader(header) => {
-            for inline in &header.title {
+            for inline in header.title.as_inlines() {
                 walk_inline_locations(inline, visitor);
             }
         }
@@ -315,7 +315,7 @@ fn walk_delimited_block_locations(
     if let Some(loc) = &delimited.close_delimiter_location {
         visitor(loc, "delimited block close delimiter");
     }
-    for inline in &delimited.title {
+    for inline in delimited.title.as_inlines() {
         walk_inline_locations(inline, visitor);
     }
     match &delimited.inner {
@@ -517,7 +517,7 @@ fn verify_block_monotonic(block: &Block) {
             }
         }
         Block::DiscreteHeader(header) => {
-            verify_inline_monotonic("DiscreteHeader title", &header.title);
+            verify_inline_monotonic("DiscreteHeader title", header.title.as_inlines());
         }
         Block::TableOfContents(_)
         | Block::DocumentAttribute(_)

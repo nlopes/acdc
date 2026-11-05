@@ -172,7 +172,7 @@ fn registered_caption_content_preserves_include_locations(
     let Caption::CustomContent(original) = original else {
         return Err("owner custom caption".into());
     };
-    let original = original.first().ok_or("owner prefix")?;
+    let original = original.as_inlines().first().ok_or("owner prefix")?;
     assert_eq!(crate::Location::from(node.location()), *original.location());
     let resolved = parsed.resolve_location(node.location());
     assert_eq!(

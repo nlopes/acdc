@@ -31,7 +31,7 @@ fn symbol_reads_and_native_json_project_one_semantic_value() -> Result<(), Error
     assert_eq!(symbol.location().absolute_start(), 7);
     assert_eq!(symbol.location().absolute_end(), 9);
     assert_eq!(node.location().absolute_start(), 7);
-    let json = serde_json::to_value(content.as_ref())?;
+    let json = serde_json::to_value(&content)?;
     assert_eq!(
         json,
         serde_json::json!([{

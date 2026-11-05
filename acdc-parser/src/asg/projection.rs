@@ -464,7 +464,11 @@ impl<'a, 'doc> Export<'a, 'doc> {
         result.insert("id".into(), Value::String(section.id().into_owned()));
         result.insert(
             "title".into(),
-            inlines(section.title.as_ref(), &pointer(at, "title"), self.profile)?,
+            inlines(
+                section.title.as_inlines(),
+                &pointer(at, "title"),
+                self.profile,
+            )?,
         );
         result.insert("level".into(), section.level.into());
         self.target(&section.metadata, Some(&section.title), Some(section), at)?;
@@ -522,7 +526,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
                     .with_context("reference", &reference.location)
             })?;
             let label = target.label.filter(|content| {
-                content.iter().any(|inline| match inline {
+                content.as_inlines().iter().any(|inline| match inline {
                     InlineNode::PlainText(text) => !text.content.trim().is_empty(),
                     InlineNode::RawText(text) => !text.content.trim().is_empty(),
                     InlineNode::CharacterReference(_)

@@ -322,7 +322,12 @@ impl<'a> Section<'a> {
     #[must_use]
     pub fn id(&self) -> Cow<'a, str> {
         Self::explicit_id(&self.metadata).or(self.id).map_or_else(
-            || Cow::Owned(Self::generate_id_string(&self.metadata, &self.title)),
+            || {
+                Cow::Owned(Self::generate_id_string(
+                    &self.metadata,
+                    self.title.as_inlines(),
+                ))
+            },
             Cow::Borrowed,
         )
     }
@@ -1039,18 +1044,18 @@ impl<'a> Section<'a> {
                     if index > 0 {
                         Self::append_id_text("+", out, last_was_underscore);
                     }
-                    Self::append_id_from_inlines(key, out, last_was_underscore);
+                    Self::append_id_from_inlines(key.as_inlines(), out, last_was_underscore);
                 }
             }
             InlineMacro::Button(button) => {
-                Self::append_id_from_inlines(&button.label, out, last_was_underscore);
+                Self::append_id_from_inlines(button.label.as_inlines(), out, last_was_underscore);
             }
             InlineMacro::Menu(menu) => {
                 for (index, item) in menu.items.iter().enumerate() {
                     if index > 0 {
                         Self::append_id_text(" > ", out, last_was_underscore);
                     }
-                    Self::append_id_from_inlines(item, out, last_was_underscore);
+                    Self::append_id_from_inlines(item.as_inlines(), out, last_was_underscore);
                 }
             }
             InlineMacro::Image(_)

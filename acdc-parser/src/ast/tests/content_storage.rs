@@ -9,7 +9,7 @@ fn replacing_a_title_cannot_leave_its_old_named_value() -> Result<(), Error> {
         return Err("missing paragraph".into());
     };
     assert!(matches!(
-        original.title.first(),
+        original.title.as_inlines().first(),
         Some(InlineNode::BoldText(_))
     ));
     assert!(!original.metadata.attributes.contains_key("title"));
@@ -60,14 +60,24 @@ fn content_attributes_serialize_only_their_selected_inline_content() -> Result<(
         .citetitle
         .as_ref()
         .ok_or("missing citation")?;
-    assert!(matches!(attribution.first(), Some(InlineNode::BoldText(_))));
+    assert!(matches!(
+        attribution.as_inlines().first(),
+        Some(InlineNode::BoldText(_))
+    ));
     assert!(
         citation
+            .as_inlines()
             .iter()
             .any(|node| matches!(node, InlineNode::ItalicText(_)))
     );
-    assert_eq!(attribution, &ContentAttribute::new(attribution.to_vec()));
-    assert_eq!(citation, &ContentAttribute::new(citation.to_vec()));
+    assert_eq!(
+        attribution,
+        &ContentAttribute::new(attribution.as_inlines().to_vec())
+    );
+    assert_eq!(
+        citation,
+        &ContentAttribute::new(citation.as_inlines().to_vec())
+    );
 
     let json = serde_json::to_value(block)?;
     assert!(json.pointer("/metadata/attributes").is_none());

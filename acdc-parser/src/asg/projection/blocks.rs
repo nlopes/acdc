@@ -188,7 +188,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             if let Some(label) = &anchor.xreflabel {
                 result.insert(
                     "reftext".into(),
-                    inlines(label, &pointer(path, "reftext"), self.profile)?,
+                    inlines(label.as_inlines(), &pointer(path, "reftext"), self.profile)?,
                 );
             }
             self.insert_target(

@@ -66,7 +66,7 @@ pub(super) fn title(
     if value.is_present() {
         node.insert(
             "title".into(),
-            inlines(value.as_ref(), &pointer(path, "title"), profile)?,
+            inlines(value.as_inlines(), &pointer(path, "title"), profile)?,
         );
     }
     Ok(())
@@ -154,7 +154,7 @@ pub(super) fn apply(
     if let Some(label) = label(value) {
         node.insert(
             "reftext".into(),
-            inlines(label.as_ref(), &pointer(path, "reftext"), profile)?,
+            inlines(label.as_inlines(), &pointer(path, "reftext"), profile)?,
         );
     }
     let mut metadata = Map::new();

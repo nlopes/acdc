@@ -129,7 +129,7 @@ impl<'doc> DiscreteHeaderRef<'doc> {
             || {
                 Cow::Owned(crate::Section::generate_id_string(
                     &self.node.metadata,
-                    &self.node.title,
+                    self.node.title.as_inlines(),
                 ))
             },
             Cow::Borrowed,

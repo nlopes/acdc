@@ -206,7 +206,7 @@ pub(super) fn derive_manpage_header_attrs<'a>(
         return Ok(false);
     };
 
-    let title_text = extract_plain_text(header.title.as_ref());
+    let title_text = extract_plain_text(header.title.as_inlines());
 
     if let Some(manpage_title) = parse_manpage_title(&title_text) {
         attrs.insert_text("mantitle".into(), manpage_title.name.to_lowercase().into());

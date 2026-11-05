@@ -9,7 +9,7 @@ use acdc_parser::{
     AttributeValue, Block, BlockMetadata, Caption, CaptionKind, DelimitedBlockType,
     DelimitedBlockType::DelimitedExample,
     Document, InlineNode, Location, Options, Plain, Title,
-    ast::{DocumentAttributeRef, DocumentRef},
+    ast::{ContentRef, DocumentAttributeRef, DocumentRef, InlineKind},
     parse,
 };
 
@@ -569,17 +569,15 @@ fn caption_labels_keep_their_quote_characters() -> Result<(), Error> {
         .filter_map(|block| match caption(block)? {
             Caption::Numbered { label, .. } | Caption::Custom(label) => Some(label.to_string()),
             Caption::CustomContent(content) => Some(
-                content
-                    .iter()
+                ContentRef::from(&content)
+                    .inlines()
                     .map(|node| {
-                        assert!(matches!(
-                            node,
-                            InlineNode::PlainText(_) | InlineNode::RawText(_)
-                        ));
-                        if let InlineNode::PlainText(text) = node {
-                            text.content
-                        } else if let InlineNode::RawText(text) = node {
-                            text.content
+                        let node = node.kind();
+                        assert!(matches!(node, InlineKind::Plain(_) | InlineKind::Raw(_)));
+                        if let InlineKind::Plain(text) = node {
+                            text.text()
+                        } else if let InlineKind::Raw(text) = node {
+                            text.text()
                         } else {
                             ""
                         }
@@ -948,17 +946,15 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
 fn caption_value<'a>(caption: &Caption<'a>) -> Caption<'a> {
     if let Caption::CustomContent(content) = caption {
         Caption::Custom(
-            content
-                .iter()
+            ContentRef::from(content)
+                .inlines()
                 .map(|node| {
-                    assert!(matches!(
-                        node,
-                        InlineNode::PlainText(_) | InlineNode::RawText(_)
-                    ));
-                    if let InlineNode::PlainText(text) = node {
-                        text.content
-                    } else if let InlineNode::RawText(text) = node {
-                        text.content
+                    let node = node.kind();
+                    assert!(matches!(node, InlineKind::Plain(_) | InlineKind::Raw(_)));
+                    if let InlineKind::Plain(text) = node {
+                        text.text()
+                    } else if let InlineKind::Raw(text) = node {
+                        text.text()
                     } else {
                         ""
                     }

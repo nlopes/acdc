@@ -131,7 +131,7 @@ impl<'doc> ReferenceRef<'doc> {
         self.node
             .title
             .as_ref()
-            .map(|title| ContentRef::new(title.as_ref()))
+            .map(|title| ContentRef::new(title.as_inlines()))
     }
 
     /// The registered reference label, including an explicitly empty label.
@@ -140,7 +140,7 @@ impl<'doc> ReferenceRef<'doc> {
         self.node
             .xreflabel
             .as_ref()
-            .map(|label| ContentRef::new(label.as_ref()))
+            .map(|label| ContentRef::new(label.as_inlines()))
     }
 
     /// The section's reference category; absent for other targets.
@@ -187,7 +187,7 @@ impl<'doc> TocEntryRef<'doc> {
         self.node
             .xreflabel
             .as_ref()
-            .map(|label| ContentRef::new(label.as_ref()))
+            .map(|label| ContentRef::new(label.as_inlines()))
     }
 
     /// The stored section level.

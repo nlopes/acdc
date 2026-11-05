@@ -111,7 +111,7 @@ fn typed_heading_ids_keep_constructed_fallbacks_and_heading_precedence(
             assert_eq!(section_id, section.id());
             assert_eq!(
                 header_id,
-                Section::generate_id_string(&header.metadata, &header.title)
+                Section::generate_id_string(&header.metadata, header.title.as_inlines())
             );
             assert_eq!(
                 matches!(section_id, std::borrow::Cow::Borrowed(_)),

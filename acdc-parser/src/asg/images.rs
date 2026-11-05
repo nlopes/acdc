@@ -21,7 +21,7 @@ pub(super) fn inline(
         if let Some(content) = content {
             result.insert(
                 name.into(),
-                inlines(content, &pointer(path, name), profile)?,
+                inlines(content.as_inlines(), &pointer(path, name), profile)?,
             );
         }
     }
@@ -79,7 +79,7 @@ pub(super) fn block(
     if let Some(content) = &value.alt {
         result.insert(
             "alt".into(),
-            inlines(content, &pointer(path, "alt"), profile)?,
+            inlines(content.as_inlines(), &pointer(path, "alt"), profile)?,
         );
     }
     Ok(())

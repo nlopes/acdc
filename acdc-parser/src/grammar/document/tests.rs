@@ -23,7 +23,7 @@ v2.9, 01-09-2024: Fall incarnation
     let header = result.header.expect("document has a header");
     assert_eq!(header.title.len(), 1);
     assert_eq!(
-        header.title[0],
+        header.title.as_inlines()[0],
         InlineNode::PlainText(Plain {
             content: "Document Title",
             location: Location {
@@ -277,7 +277,7 @@ fn test_document_title() -> Result<(), Error> {
     let result = document_parser::document_title(input, &mut state)?;
     assert_eq!(result.0.len(), 1);
     assert_eq!(
-        result.0[0],
+        result.0.as_inlines()[0],
         InlineNode::PlainText(Plain {
             content: "Document Title",
             location: Location {
@@ -335,7 +335,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     let result = document_parser::header(input, &mut state)??.expect("header should be present");
     assert_eq!(result.title.len(), 1);
     assert_eq!(
-        result.title[0],
+        result.title.as_inlines()[0],
         InlineNode::PlainText(Plain {
             content: "Document Title",
             location: Location {
@@ -376,7 +376,7 @@ fn test_title_only_document_is_doctitle() -> Result<(), Error> {
     let header = doc.header.expect("title-only doc should have a header");
     assert_eq!(header.title.len(), 1);
     assert_eq!(
-        header.title[0],
+        header.title.as_inlines()[0],
         InlineNode::PlainText(Plain {
             content: "Doc Title",
             location: Location {
@@ -703,7 +703,7 @@ Some content.
     let header = result.header.expect("document has a header");
     assert_eq!(header.title.len(), 1);
     assert!(
-        matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
+        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
     );
     Ok(())
 }
@@ -731,7 +731,7 @@ Content.
     let section = section.expect("should have a section");
     assert_eq!(section.level, 1);
     assert!(
-        matches!(&section.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section One")
+        matches!(&section.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section One")
     );
     Ok(())
 }
@@ -764,7 +764,7 @@ Content here.
 
     let header = result.header.expect("document has a header");
     assert!(
-        matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
+        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
     );
 
     let section = result
@@ -781,7 +781,7 @@ Content here.
 
     assert_eq!(section.level, 1);
     assert!(
-        matches!(&section.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section One")
+        matches!(&section.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section One")
     );
 
     Ok(())
@@ -814,7 +814,7 @@ Content C.
 
     let header = result.header.expect("document has a header");
     assert!(
-        matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
+        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
     );
 
     // All three sections should be at the top level (siblings, not nested)
@@ -841,13 +841,13 @@ Content C.
     }
 
     assert!(
-        matches!(&sections[0].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section A")
+        matches!(&sections[0].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section A")
     );
     assert!(
-        matches!(&sections[1].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section B")
+        matches!(&sections[1].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section B")
     );
     assert!(
-        matches!(&sections[2].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section C")
+        matches!(&sections[2].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section C")
     );
 
     Ok(())
@@ -943,7 +943,7 @@ fn test_setext_manpage_style_document() -> Result<(), Error> {
 
     let header = result.header.expect("document has a header");
     assert!(
-        matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
+        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
     );
 
     // Verify NAME and SYNOPSIS are level-1 sections
@@ -967,10 +967,10 @@ fn test_setext_manpage_style_document() -> Result<(), Error> {
     assert_eq!(sections[0].level, 1);
     assert_eq!(sections[1].level, 1);
     assert!(
-        matches!(&sections[0].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "NAME")
+        matches!(&sections[0].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "NAME")
     );
     assert!(
-        matches!(&sections[1].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "SYNOPSIS")
+        matches!(&sections[1].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "SYNOPSIS")
     );
 
     Ok(())
@@ -1011,7 +1011,7 @@ References.
 
     let header = result.header.as_ref().expect("document has a header");
     assert!(
-        matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
+        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
     );
 
     let sections: Vec<&Section> = result
@@ -1145,7 +1145,7 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
     assert_eq!(
         img.alt
             .as_ref()
-            .and_then(|content| content.first())
+            .and_then(|content| content.as_inlines().first())
             .and_then(|node| if let InlineNode::PlainText(text) = node {
                 Some(text.content)
             } else {
@@ -1163,7 +1163,7 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
     assert_eq!(
         img.alt
             .as_ref()
-            .and_then(|content| content.first())
+            .and_then(|content| content.as_inlines().first())
             .and_then(|node| if let InlineNode::PlainText(text) = node {
                 Some(text.content)
             } else {
@@ -1185,7 +1185,7 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
     assert_eq!(
         img.alt
             .as_ref()
-            .and_then(|content| content.first())
+            .and_then(|content| content.as_inlines().first())
             .and_then(|node| if let InlineNode::PlainText(text) = node {
                 Some(text.content)
             } else {
@@ -1740,7 +1740,7 @@ fn test_titled_block_collected_in_references() -> Result<(), Error> {
         .as_ref()
         .expect("titled block has reference text");
     assert!(
-        matches!(&title[..], [InlineNode::PlainText(text)] if text.content == "Important Data")
+        matches!(title.as_inlines(), [InlineNode::PlainText(text)] if text.content == "Important Data")
     );
     // The location points at the anchor on line 1 (for LSP navigation).
     assert_eq!(entry.location.start.line, 1);
@@ -1803,7 +1803,7 @@ fn named_section_reftext_populates_catalog_toc_and_warnings()
     let reference = doc.references.get("id").ok_or("missing id reference")?;
     assert!(
         matches!(
-            reference.xreflabel.as_deref(),
+            reference.xreflabel.as_ref().map(crate::ContentAttribute::as_inlines),
             Some([InlineNode::PlainText(text)]) if text.content == "Custom Label"
         ),
         "{:?}",
@@ -1811,7 +1811,7 @@ fn named_section_reftext_populates_catalog_toc_and_warnings()
     );
     assert!(matches!(
         doc.toc_entries.iter().find(|entry| entry.id == "id")
-            .and_then(|entry| entry.xreflabel.as_deref()),
+            .and_then(|entry| entry.xreflabel.as_ref().map(crate::ContentAttribute::as_inlines)),
         Some([InlineNode::PlainText(text)]) if text.content == "Custom Label"
     ));
     let formatted = doc
@@ -1820,7 +1820,7 @@ fn named_section_reftext_populates_catalog_toc_and_warnings()
         .ok_or("missing formatted reference")?;
     assert!(
         matches!(
-            formatted.xreflabel.as_deref(),
+            formatted.xreflabel.as_ref().map(crate::ContentAttribute::as_inlines),
             Some([
                 InlineNode::PlainText(prefix),
                 InlineNode::BoldText(bold),
@@ -2111,7 +2111,7 @@ fn test_titled_single_line_admonition_keeps_reference_title() -> Result<(), Erro
 
     assert!(
         matches!(
-            &title[..],
+            title.as_inlines(),
             [InlineNode::PlainText(prefix), InlineNode::BoldText(bold)]
                 if prefix.content == "Admonition "
                     && matches!(
@@ -2169,7 +2169,7 @@ fn test_duplicate_id_keeps_first_reference_text() -> Result<(), Error> {
         .expect("the first registration keeps its reference text");
     assert!(
         matches!(
-            &title[..],
+            title.as_inlines(),
             [InlineNode::PlainText(text)] if text.content == "Titled Block"
         ),
         "{title:?}"
@@ -2193,7 +2193,7 @@ fn test_reference_label_is_parsed_as_inlines() -> Result<(), Error> {
         .expect("the anchor has a label");
     assert!(
         matches!(
-            &label[..],
+            label.as_inlines(),
             [InlineNode::BoldText(bold), InlineNode::PlainText(rest)]
                 if rest.content == " label"
                     && matches!(
@@ -2220,7 +2220,7 @@ fn test_reference_label_restores_passthrough_syntax() -> Result<(), Error> {
         .expect("the anchor has a label");
     assert!(
         matches!(
-            &label[..],
+            label.as_inlines(),
             [InlineNode::PlainText(text)]
                 if text.content == "+++<mark>Label</mark>+++"
         ),

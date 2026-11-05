@@ -204,14 +204,14 @@ peg::parser! {
                 }
                 collect_inline_references(
                     state,
-                    header.title.as_ref(),
+                    header.title.as_inlines(),
                     &mut references,
                     &mut xrefs,
                 );
                 if let Some(subtitle) = &header.subtitle {
                     collect_inline_references(
                         state,
-                        subtitle.as_ref(),
+                        subtitle.as_inlines(),
                         &mut references,
                         &mut xrefs,
                     );

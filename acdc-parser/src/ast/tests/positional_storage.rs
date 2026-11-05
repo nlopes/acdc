@@ -50,7 +50,7 @@ fn draft_maps_preceding_media_positions_after_aggregation() -> Result<(), Error>
             return Err("missing image".into());
         };
         let alt = image.alt.as_ref().ok_or("missing alt")?;
-        let text = attribute_text(alt.first().ok_or("missing alt text")?)?;
+        let text = attribute_text(alt.as_inlines().first().ok_or("missing alt text")?)?;
         assert_eq!(
             text,
             if mode == CompatibilityMode::Draft {
@@ -113,7 +113,7 @@ fn draft_selects_source_and_quote_attributes_in_document_order() -> Result<(), E
             .and_then(Block::metadata)
             .ok_or("missing quote")?;
         let attribution = metadata.attribution.as_ref().ok_or("missing attribution")?;
-        let text = attribute_text(attribution.first().ok_or("missing text")?)?;
+        let text = attribute_text(attribution.as_inlines().first().ok_or("missing text")?)?;
         assert_eq!(
             text,
             if mode == CompatibilityMode::Draft {
