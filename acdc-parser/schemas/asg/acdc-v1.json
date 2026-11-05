@@ -268,6 +268,31 @@
       "allOf": [
         {
           "$ref": "#/$defs/abstractBlock"
+        },
+        {
+          "if": {
+            "required": [
+              "variant"
+            ],
+            "properties": {
+              "variant": {
+                "const": "callout"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "items": {
+                  "not": {
+                    "required": [
+                      "checked"
+                    ]
+                  }
+                }
+              }
+            }
+          }
         }
       ],
       "unevaluatedProperties": false,
@@ -348,6 +373,9 @@
         "name": {
           "type": "string",
           "const": "listItem"
+        },
+        "checked": {
+          "type": "boolean"
         }
       }
     },

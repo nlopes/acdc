@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The named ASG profile preserves ordinary, unchecked, and checked list items
+  distinctly, including nested checklists and item continuations.
+
 - The named ASG profile retains header subtitles and title metadata separately,
   including empty subtitles, formatting, and document-title references.
 

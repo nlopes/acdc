@@ -391,6 +391,20 @@ The named acdc profile adds three closed forms:
 Strict export rejects them where the pin has no corresponding form. Unsupported
 nested meaning still reports its complete property path.
 
+== Checklists
+
+The named acdc profile adds optional boolean `checked` to ordered and unordered list items.
+Omission means an ordinary item, `false` means unchecked, and `true` means checked.
+Marker spelling, principal inlines and attached blocks remain separate. Nested
+checklists preserve the same structure. Prepared ordered-list items can also
+retain explicitly supplied state; authored ordered-list checkbox text follows the
+parser's existing language rules. Callout items cannot carry checkbox state.
+
+The native owner does not retain whether a checked box used `x`, `X`, or `*`;
+export preserves the state without inventing that source spelling. Strict export
+still rejects checklist state. `fixtures/asg/checklists.adoc` demonstrates mixed
+ordinary/checklist items, nesting, formatting and a continuation.
+
 == Header content
 
 The named acdc profile keeps `header.title` and optional `header.subtitle` as

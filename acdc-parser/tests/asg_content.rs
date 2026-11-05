@@ -179,6 +179,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
     }
     let additions: &[(&str, &[&str])] = &[
         ("/properties", &["profile"]),
+        ("/$defs/listItem/properties", &["checked"]),
         (
             "/$defs/abstractBlock/properties",
             &["attribution", "citetitle", "caption"],
@@ -225,6 +226,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
     }
     for (path, count) in [
         ("/$defs/inline/oneOf", 1),
+        ("/$defs/list/allOf", 1),
         ("/$defs/blockMacro/allOf", 1),
         ("/$defs/inlineSpan/properties/variant/enum", 1),
         ("/$defs/block/oneOf", 4),

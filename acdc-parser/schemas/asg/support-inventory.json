@@ -6313,6 +6313,27 @@
             "asg_header.rs::header_extension_is_closed_and_keeps_content_arrays",
             "asg_header.rs::header_catalogs_keep_stale_duplicate_and_independent_label_checks"
           ]
+        },
+        "checklists": {
+          "owners": {
+            "ListItem": [
+              "checked",
+              "principal",
+              "marker",
+              "blocks"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/listItem/properties/checked",
+            "#/$defs/list/allOf/1"
+          ],
+          "handling": "An omitted checked property is an ordinary item; false is unchecked and true is checked. State stays separate from marker, principal and attachments, including nested lists and prepared ordered-list values. Callout items cannot acquire checkboxes. Original checkbox spelling is not retained in the native owner; export does not invent it. Strict export continues to reject checklist state.",
+          "tests": [
+            "asg_checklists.rs::checklists_preserve_state_separately_from_item_content",
+            "asg_checklists.rs::prepared_item_state_is_independent_of_marker_and_principal",
+            "asg_checklists.rs::strict_checklists_and_unsupported_nested_values_remain_errors",
+            "asg_checklists.rs::checklist_schema_rejects_wrong_states_and_callout_checkboxes"
+          ]
         }
       }
     }

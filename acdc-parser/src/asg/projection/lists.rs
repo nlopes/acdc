@@ -1,8 +1,9 @@
 use crate::{
     CalloutList, CalloutListItem, CalloutRefKind, DescriptionList, DescriptionListItem, ListItem,
+    ListItemCheckedStatus,
 };
 
-use super::{Error, Export, Node, inlines, metadata, node, pointer, unsupported};
+use super::{Error, Export, Node, Profile, inlines, metadata, node, pointer, unsupported};
 use serde_json::Value;
 
 impl<'a, 'doc> Export<'a, 'doc> {
@@ -37,7 +38,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
     }
 
     fn list_item(&mut self, value: &'a ListItem<'doc>, path: &str) -> Result<Value, Error> {
-        if value.checked.is_some() {
+        if self.profile == Profile::Upstream && value.checked.is_some() {
             return Err(unsupported(
                 &pointer(path, "checked"),
                 "checklist state has no supported upstream field",
@@ -50,6 +51,13 @@ impl<'a, 'doc> Export<'a, 'doc> {
             ));
         }
         let mut result = node("listItem", "block");
+        if let Some(checked) = &value.checked {
+            let checked = match checked {
+                ListItemCheckedStatus::Checked => true,
+                ListItemCheckedStatus::Unchecked => false,
+            };
+            result.insert("checked".into(), checked.into());
+        }
         result.insert("marker".into(), value.marker.into());
         result.insert(
             "principal".into(),
