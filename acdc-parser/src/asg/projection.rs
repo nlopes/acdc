@@ -27,22 +27,61 @@ pub(super) fn inlines(
     path: &str,
     profile: Profile,
 ) -> Result<Value, Error> {
-    project_inlines(values, path, false, profile)
+    project_inlines(values, path, InlineContext::normal(profile))
 }
 
-fn literal_inlines(
+// Body text treatment follows spans and explicit reference labels.
+// Content attributes and raw fragments select their own treatment.
+#[derive(Clone, Copy)]
+pub(super) struct InlineContext {
+    pub(super) profile: Profile,
+    literal: bool,
+    escaping: bool,
+}
+
+impl InlineContext {
+    const fn normal(profile: Profile) -> Self {
+        Self {
+            profile,
+            literal: false,
+            escaping: true,
+        }
+    }
+
+    fn text_name(self) -> &'static str {
+        if self.escaping { "text" } else { "raw" }
+    }
+}
+
+fn body_inlines(
     values: &[InlineNode<'_>],
+    value: &BlockMetadata<'_>,
     path: &str,
+    literal: bool,
     profile: Profile,
 ) -> Result<Value, Error> {
-    project_inlines(values, path, true, profile)
+    metadata::check_substitutions(value, path)?;
+    // Normal and verbatim bodies share the escaping default. Structural stages
+    // are resolved already; raw fragments retain their independent plan.
+    let escaping = value
+        .substitutions
+        .as_ref()
+        .is_none_or(|spec| spec.contains(&Substitution::SpecialChars, crate::NORMAL));
+    project_inlines(
+        values,
+        &pointer(path, "inlines"),
+        InlineContext {
+            profile,
+            literal,
+            escaping,
+        },
+    )
 }
 
-fn project_inlines(
+pub(super) fn project_inlines(
     values: &[InlineNode<'_>],
     path: &str,
-    literal_content: bool,
-    profile: Profile,
+    settings: InlineContext,
 ) -> Result<Value, Error> {
     let mut result = Vec::new();
     for value in values {
@@ -53,14 +92,14 @@ fn project_inlines(
         }
         let at = pointer(path, &result.len().to_string());
         let projected = if let InlineNode::VerbatimText(text) = value
-            && literal_content
+            && settings.literal
         {
-            let mut result = literal("text", text.content);
+            let mut result = literal(settings.text_name(), text.content);
             metadata::location(&mut result, &text.location, &at)
                 .map_err(|error| error.with_context("verbatim text", &text.location))?;
             Value::Object(result)
         } else {
-            inline(value, &at, profile)?
+            inline(value, &at, settings)?
         };
         result.push(projected);
         if bracketed_email {
@@ -70,14 +109,18 @@ fn project_inlines(
     Ok(Value::Array(result))
 }
 
-fn inline(value: &InlineNode<'_>, path: &str, profile: Profile) -> Result<Value, Error> {
-    inline_value(value, path, profile)
+fn inline(value: &InlineNode<'_>, path: &str, settings: InlineContext) -> Result<Value, Error> {
+    inline_value(value, path, settings)
         .map_err(|error| error.with_context(diagnostics::inline_construct(value), value.location()))
 }
 
-fn inline_value(value: &InlineNode<'_>, path: &str, profile: Profile) -> Result<Value, Error> {
+fn inline_value(
+    value: &InlineNode<'_>,
+    path: &str,
+    settings: InlineContext,
+) -> Result<Value, Error> {
     let mut result = match value {
-        InlineNode::PlainText(text) => literal("text", text.content),
+        InlineNode::PlainText(text) => literal(settings.text_name(), text.content),
         InlineNode::VerbatimText(_) => {
             return Err(unsupported(
                 path,
@@ -107,7 +150,7 @@ fn inline_value(value: &InlineNode<'_>, path: &str, profile: Profile) -> Result<
             span.id.as_ref(),
             &span.content,
             path,
-            profile,
+            settings,
         )?,
         InlineNode::ItalicText(span) => span_node(
             "emphasis",
@@ -116,7 +159,7 @@ fn inline_value(value: &InlineNode<'_>, path: &str, profile: Profile) -> Result<
             span.id.as_ref(),
             &span.content,
             path,
-            profile,
+            settings,
         )?,
         InlineNode::MonospaceText(span) => span_node(
             "code",
@@ -125,7 +168,7 @@ fn inline_value(value: &InlineNode<'_>, path: &str, profile: Profile) -> Result<
             span.id.as_ref(),
             &span.content,
             path,
-            profile,
+            settings,
         )?,
         InlineNode::HighlightText(span) => span_node(
             "mark",
@@ -134,12 +177,14 @@ fn inline_value(value: &InlineNode<'_>, path: &str, profile: Profile) -> Result<
             span.id.as_ref(),
             &span.content,
             path,
-            profile,
+            settings,
         )?,
-        InlineNode::Macro(crate::InlineMacro::Image(image)) if profile == Profile::Acdc => {
-            images::inline(image, path, profile)?
+        InlineNode::Macro(crate::InlineMacro::Image(image))
+            if settings.profile == Profile::Acdc =>
+        {
+            images::inline(image, path, settings.profile)?
         }
-        InlineNode::Macro(value) => references::project(value, path, profile)?,
+        InlineNode::Macro(value) => references::project(value, path, settings)?,
         InlineNode::SubscriptText(_)
         | InlineNode::SuperscriptText(_)
         | InlineNode::CurvedQuotationText(_)
@@ -170,10 +215,10 @@ fn span_node(
     id: Option<&ElementId<'_>>,
     content: &[InlineNode<'_>],
     path: &str,
-    profile: Profile,
+    settings: InlineContext,
 ) -> Result<Node, Error> {
     for (present, property) in [(id.is_some(), "id"), (role.is_some(), "role")] {
-        if profile == Profile::Upstream && present {
+        if settings.profile == Profile::Upstream && present {
             return Err(unsupported(
                 &pointer(path, property),
                 "upstream inline spans have no identity or role fields",
@@ -204,7 +249,7 @@ fn span_node(
     );
     result.insert(
         "inlines".into(),
-        inlines(content, &pointer(path, "inlines"), profile)?,
+        project_inlines(content, &pointer(path, "inlines"), settings)?,
     );
     Ok(result)
 }

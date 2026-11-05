@@ -1,0 +1,39 @@
+= Substitution effects
+:value: Expanded
+
+[subs=none]
+*Literal* <em>raw</em> &copy; {value}
+
+[subs=quotes]
+*Formatted* <em>raw</em> &copy; {value}
+
+[subs=normal]
+*Formatted* <em>text</em> &copy; {value}
+
+[subs="-specialchars"]
+*Formatted* <em>raw</em> &copy; {value}
+
+[subs="attributes+,-quotes"]
+*Literal* <em>text</em> {value}
+
+[subs="-specialchars"]
+link:https://example.org[<em>Label</em>,title='<em>Tip</em>'] and image:photo.png[alt='<em>Alt</em>',title='<em>Tip</em>'].
+
+[subs="-specialchars"]
+<em>raw</em> and ++<em>protected</em>++ and +++<em>raw passthrough</em>+++.
+
+.Title <em>text</em>
+[subs="verbatim,+quotes,-specialchars"]
+....
+*Bold* <em>raw</em>
+....
+
+[subs="verbatim,+quotes"]
+----
+*Bold* <em>text</em>
+----
+
+[subs=none]
+++++
+<em>raw block</em>
+++++

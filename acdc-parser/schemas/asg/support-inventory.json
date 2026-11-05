@@ -5593,7 +5593,7 @@
     },
     "export-already-resolved-meaning-a-remaining-language": {
       "handling": "context-dependent",
-      "reason": "Export already-resolved meaning. A remaining language operation or meaningful authored policy cannot be silently discarded or rerun during export."
+      "reason": "Export resolved inline meaning and body text/raw escaping directly. Known block instruction spelling can be omitted after its effects are represented. Reject unknown instructions and remaining raw language operations; never run them during export."
     },
     "export-the-selected-inline-title-and-its": {
       "handling": "mapping-candidate",
@@ -5855,7 +5855,7 @@
       ]
     },
     "substitutions": {
-      "handling": "Already resolved content is supported. Raw values allow no remaining operation or exactly SpecialChars; explicit block policies and every other remaining plan are rejected.",
+      "handling": "Resolved block settings are represented by the existing text/raw distinction, inline structure and character references. Body escaping follows formatting spans and explicit reference labels; content attributes and raw fragments retain independent treatment. Omit only resolved instruction spelling. Unknown block stages and remaining raw operations other than one SpecialChars stage are rejected.",
       "tests": [
         {
           "file": "tests/asg.rs",
@@ -5868,6 +5868,22 @@
         {
           "file": "tests/asg_support.rs",
           "name": "supported_metadata_preserves_presence_and_rejects_extra_meaning"
+        },
+        {
+          "file": "tests/asg_substitutions.rs",
+          "name": "substitution_effects_keep_body_escaping_and_independent_content_boundaries"
+        },
+        {
+          "file": "tests/asg_substitutions.rs",
+          "name": "resolved_settings_match_equivalent_prepared_text_and_raw_nodes"
+        },
+        {
+          "file": "tests/asg_substitutions.rs",
+          "name": "unresolved_substitution_instructions_are_not_silently_omitted"
+        },
+        {
+          "file": "tests/asg_substitutions.rs",
+          "name": "typed_and_source_settings_share_the_same_output_semantics"
         }
       ]
     },

@@ -114,7 +114,10 @@ pub fn document_with_profile(document: DocumentRef<'_>, profile: Profile) -> Res
     Ok(value)
 }
 
-/// Export resolved inline content as an array, using the document export rules.
+/// Export standalone inline content with normal text escaping.
+///
+/// This has no surrounding block context. Export the document when body `subs=`
+/// settings or a verbatim block affect the content.
 ///
 /// ```
 /// use acdc_parser::{Options, asg, parse_inline};
@@ -132,7 +135,9 @@ pub fn inlines(inlines: ContentRef<'_>) -> Result<Value, Error> {
     inlines_with_profile(inlines, Profile::Upstream)
 }
 
-/// Export resolved inline content under the selected schema profile.
+/// Export standalone inline content under the selected schema profile.
+///
+/// Text uses normal escaping; surrounding block settings are not supplied.
 ///
 /// # Errors
 /// Returns an error for unsupported nested values or invalid locations. The

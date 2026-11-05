@@ -73,8 +73,23 @@ pub(super) fn title(
     Ok(())
 }
 
+pub(super) fn check_substitutions(value: &BlockMetadata<'_>, path: &str) -> Result<(), Error> {
+    if let Some(entry) = value
+        .substitutions
+        .as_ref()
+        .and_then(|spec| spec.unsupported_entries().next())
+    {
+        return Err(unsupported(
+            &pointer(&pointer(path, "metadata"), "substitutions"),
+            format!("unsupported substitution entry {entry:?} has no resolved graph meaning"),
+        ));
+    }
+    Ok(())
+}
+
 pub(super) fn check(value: &BlockMetadata<'_>, path: &str, profile: Profile) -> Result<(), Error> {
     let at = pointer(path, "metadata");
+    check_substitutions(value, path)?;
     value.validate_attributes(&[]).map_err(|error| {
         unsupported(
             &pointer(&pointer(&at, "attributes"), &error.name),
@@ -95,7 +110,6 @@ pub(super) fn check(value: &BlockMetadata<'_>, path: &str, profile: Profile) -> 
             profile == Profile::Upstream && value.citetitle.is_some(),
             "citetitle",
         ),
-        (value.substitutions.is_some(), "substitutions"),
     ] {
         if present {
             return Err(unsupported(

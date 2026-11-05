@@ -133,7 +133,7 @@ fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(
             }
             "citetitle" => metadata.citetitle = Some(ContentAttribute::new(Vec::new())),
             "substitutions" => {
-                metadata.substitutions = Some(SubstitutionSpec::Explicit(Vec::new()));
+                metadata.substitutions = Some(SubstitutionSpec::Source(vec!["unknown".into()]));
             }
             "anchors" => {
                 metadata.anchors = vec![

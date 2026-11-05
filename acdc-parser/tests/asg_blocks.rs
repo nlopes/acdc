@@ -180,7 +180,7 @@ fn missing_forms_and_unsupported_semantics_fail_explicitly() -> Result<(), Error
         ("|===\n|Cell\n|===", "inner"),
         ("image::photo.png[Alternative]", "alt"),
         ("[sidebar]\nParagraph.", "form"),
-        ("[subs=none]\n....\nText\n....", "metadata/substitutions"),
+        ("[subs=unknown]\n....\nText\n....", "metadata/substitutions"),
     ] {
         let parsed = parse(source, &Options::default())?;
         assert!(

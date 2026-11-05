@@ -4,7 +4,7 @@ use crate::{
 };
 
 use super::{
-    Error, Export, Node, Target, inlines, literal_inlines, metadata, node, pointer, unsupported,
+    Error, Export, Node, Target, body_inlines, inlines, metadata, node, pointer, unsupported,
 };
 
 impl<'a, 'doc> Export<'a, 'doc> {
@@ -52,11 +52,13 @@ impl<'a, 'doc> Export<'a, 'doc> {
             );
         }
         self.block_metadata(&mut result, &value.metadata, Some(&value.title), path)?;
-        let content = if matches!(name, "listing" | "literal" | "verse") {
-            literal_inlines(&value.content, &pointer(path, "inlines"), self.profile)?
-        } else {
-            inlines(&value.content, &pointer(path, "inlines"), self.profile)?
-        };
+        let content = body_inlines(
+            &value.content,
+            &value.metadata,
+            path,
+            matches!(name, "listing" | "literal" | "verse"),
+            self.profile,
+        )?;
         result.insert("inlines".into(), content);
         Ok(result)
     }
@@ -76,22 +78,22 @@ impl<'a, 'doc> Export<'a, 'doc> {
             DelimitedBlockType::DelimitedListing(content) => (
                 "listing",
                 "inlines",
-                literal_inlines(content, &pointer(path, "inlines"), self.profile)?,
+                body_inlines(content, &value.metadata, path, true, self.profile)?,
             ),
             DelimitedBlockType::DelimitedLiteral(content) => (
                 "literal",
                 "inlines",
-                literal_inlines(content, &pointer(path, "inlines"), self.profile)?,
+                body_inlines(content, &value.metadata, path, true, self.profile)?,
             ),
             DelimitedBlockType::DelimitedVerse(content) => (
                 "verse",
                 "inlines",
-                literal_inlines(content, &pointer(path, "inlines"), self.profile)?,
+                body_inlines(content, &value.metadata, path, true, self.profile)?,
             ),
             DelimitedBlockType::DelimitedPass(content) => (
                 "pass",
                 "inlines",
-                inlines(content, &pointer(path, "inlines"), self.profile)?,
+                body_inlines(content, &value.metadata, path, false, self.profile)?,
             ),
             DelimitedBlockType::DelimitedOpen(content) => (
                 "open",

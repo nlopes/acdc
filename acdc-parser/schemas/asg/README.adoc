@@ -126,7 +126,7 @@ to the block. Source coordinates of the ID token have no upstream field.
 
 Unsupported values include uncovered block forms, other inline macros, missing span
 variants, inline identities/controls, subtitles/header metadata, ordered body
-assignments, captions, attribution/citation, explicit block substitutions, and
+assignments, captions, attribution/citation, unresolved substitution instructions, and
 nondefault section category/numbering. Verbatim leaves require a supported literal, listing or verse body; they cannot
 be flattened into ordinary paragraph text.
 A section without a title is rejected, while a present empty title stays an
@@ -166,7 +166,7 @@ The property inventory remains authoritative for each declaration.
 |`dispatch` |4 |Exhaustive owner decisions; a rejected owner rejects its entire subtree.
 |`source-state` |8 |Omit comments and resolved routing/history; retain effective values and IDs.
 |`pending-content` |3 |Reject unresolved content.
-|`substitutions` |7 |Accept resolved content and supported raw escaping; reject remaining policy/operations.
+|`substitutions` |7 |Preserve resolved settings through text/raw nodes; reject unknown instructions and pending raw operations.
 |`decorations` |12 |Accept default section policy; reject numbering, category, captions and attribution/citation.
 |`body-assignments` |2 |Reject ordered assignments and retained events.
 |`inline-controls` |4 |Reject identities/roles on supported spans and populated controls on unsupported macros.
@@ -279,6 +279,32 @@ link:../../fixtures/asg/inline_metadata.adoc[The inline metadata fixture] and it
 link:../../fixtures/asg/inline_metadata.json[checked JSON] cover links, mail,
 xrefs and formatted spans with a nested image. Inline IDs retain untitled target
 semantics; duplicate IDs and independent reference catalog values still fail.
+
+== Resolved substitution effects
+
+Both export profiles preserve the effects of supported block `subs=` settings.
+Formatting, expanded attributes, macros, typography and character references
+come from the resolved nodes. Ordinary body text exports as `text` when special
+character escaping is active, or `raw` when it is disabled. This treatment follows
+formatting spans and explicit link labels. A verbatim body retains its actual
+block form and can contain formatted children without losing their literal text.
+
+Titles, alternative text and tooltips keep their own content boundaries. Raw
+fragments also keep their own treatment: a protected fragment with one remaining
+special-character stage becomes `text`, even inside an unescaped body. A raw
+passthrough remains `raw`. Automatic reference labels retain their existing
+fallback behavior.
+
+The original list/group/modifier spelling is source-only once these effects are
+represented. Equivalence tests compare explicit settings with ordinary text or
+protected/raw passthrough nodes. No additional policy field or compatibility
+selector is needed in the graph, and export never repeats language substitutions.
+Standalone inline export uses normal escaping and has no surrounding block
+context. Export the document when body `subs=` or a verbatim context matters.
+Unknown block instructions and unresolved raw operations still fail at a specific
+property. Parser compatibility mode and Cargo features do not select export policy.
+link:../../fixtures/asg/substitutions.adoc[The substitution fixture] and its
+link:../../fixtures/asg/substitutions.json[checked JSON] show these boundaries.
 
 == Ordered document attribute events
 

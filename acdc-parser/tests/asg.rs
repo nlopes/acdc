@@ -97,7 +97,10 @@ fn asg_rejects_unsupported_meaning_at_any_depth() -> Result<(), Error> {
             ("Text footnote:[Note].", "/footnotes"),
             ("Text.\n\n:later: value\n\nMore.", "/blocks/1"),
             ("|===\n|Cell\n|===", "/blocks/0"),
-            ("[subs=none]\n*Literal*", "/blocks/0/metadata/substitutions"),
+            (
+                "[subs=unknown]\n*Literal*",
+                "/blocks/0/metadata/substitutions",
+            ),
             ("[.role]*Bold*", "/blocks/0/inlines/0/role"),
             ("[#inline]*Bold*", "/blocks/0/inlines/0/id"),
         ] {
