@@ -2377,17 +2377,17 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-callout-numbers"
       },
       "properties": {
         "kind": {
-          "policy": "unsupported"
+          "policy": "named-callout-numbers"
         },
         "number": {
-          "policy": "unsupported"
+          "policy": "named-callout-numbers"
         },
         "location": {
-          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "policy": "named-callout-numbers",
           "upstream": "#/$defs/location"
         }
       },
@@ -2403,14 +2403,14 @@
         }
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-callout-numbers"
       },
       "properties": {
         "variant:Auto": {
-          "policy": "unsupported"
+          "policy": "named-callout-numbers"
         },
         "variant:Explicit": {
-          "policy": "unsupported"
+          "policy": "named-callout-numbers"
         }
       },
       "strict_export_group": "lists"
@@ -5755,6 +5755,10 @@
     "named-reference-registrations": {
       "handling": "context-dependent",
       "reason": "The named profile preserves actual registration keys, canonical targets, exported-owner pointers and known target spans. Independent alias and document-attribute labels retain resolved inlines, including absent/empty distinctions. Ordinary titles, labels and captions stay owned by tree nodes. Strict reconstructible-catalog checks remain; dangling aliases and stale owners reject."
+    },
+    "named-callout-numbers": {
+      "handling": "context-dependent",
+      "reason": "The named profile keeps inline marker form/number and marker spans, plus resolved list-item numbers and marker spans. Scoped parse order and equal numbers preserve association; repeated and unmatched markers remain. No destination graph is retained or invented. Strict inline markers and unrepresentable list numbers still reject."
     }
   },
   "strict_export_groups": {
@@ -6672,6 +6676,30 @@
             "asg_reference_graph.rs::document_top_uses_resolved_labels_and_first_section_fallback",
             "asg_reference_graph.rs::dangling_aliases_and_stale_primary_labels_are_rejected",
             "asg_reference_graph.rs::registration_schema_is_closed_and_validates_label_and_pointer_types"
+          ]
+        },
+        "callout-markers": {
+          "owners": {
+            "CalloutRef": [
+              "kind",
+              "number",
+              "location"
+            ],
+            "CalloutListItem": [
+              "callout"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/acdcCallout",
+            "#/$defs/listItem/properties/number",
+            "#/$defs/listItem/properties/callout_location"
+          ],
+          "handling": "The named profile keeps inline marker form/number and marker spans, plus resolved list-item numbers and marker spans. Scoped parse order and equal numbers preserve association; repeated and unmatched markers remain. No destination graph is retained or invented. Strict inline markers and unrepresentable list numbers still reject.",
+          "tests": [
+            "asg_callouts.rs::source_markers_numbers_locations_and_literal_code_are_preserved",
+            "asg_callouts.rs::scoped_numbers_keep_repeated_and_unmatched_associations",
+            "asg_callouts.rs::prepared_markers_do_not_renumber_or_invent_locations",
+            "asg_callouts.rs::callout_schema_closes_markers_and_scopes_item_numbers"
           ]
         }
       }

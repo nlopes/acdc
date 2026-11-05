@@ -179,7 +179,10 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
     }
     let additions: &[(&str, &[&str])] = &[
         ("/properties", &["profile", "footnotes", "references"]),
-        ("/$defs/listItem/properties", &["checked"]),
+        (
+            "/$defs/listItem/properties",
+            &["checked", "number", "callout_location"],
+        ),
         (
             "/$defs/abstractBlock/properties",
             &[
@@ -213,6 +216,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
             "/$defs",
             &[
                 "acdcReferenceRegistration",
+                "acdcCallout",
                 "acdcAnchor",
                 "acdcInlineAnchor",
                 "acdcIndexTerm",
@@ -247,8 +251,8 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         }
     }
     for (path, count) in [
-        ("/$defs/inline/oneOf", 4),
-        ("/$defs/list/allOf", 1),
+        ("/$defs/inline/oneOf", 5),
+        ("/$defs/list/allOf", 2),
         ("/$defs/blockMacro/allOf", 1),
         ("/$defs/inlineSpan/properties/variant/enum", 1),
         ("/$defs/block/oneOf", 5),

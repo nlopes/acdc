@@ -1,0 +1,28 @@
+= Callout semantics
+
+----
+first <.>
+second <.>
+repeat <1>
+unmatched <9>
+escaped \<1>
+----
+<.> First explanation
+<.> Second explanation
+<.> Missing marker
+
+--
+....
+nested <1> <1>
+....
+<1> Repeated explanation
+--
+
+[cols="a"]
+|===
+|
+----
+cell <1>
+----
+<1> Cell explanation
+|===

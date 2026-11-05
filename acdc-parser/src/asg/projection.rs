@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use serde_json::{Map, Value};
 
 use crate::{
-    Block, BlockMetadata, Caption, ContentAttribute, DelimitedBlockType, Document,
+    Block, BlockMetadata, CalloutRefKind, Caption, ContentAttribute, DelimitedBlockType, Document,
     DocumentAttributeAssignment, ElementId, Form, Header, InlineNode, Section, SectionKind,
     Substitution, Title,
 };
@@ -187,6 +187,19 @@ fn inline_value(
         }
         InlineNode::InlineAnchor(anchor) if settings.profile == Profile::Acdc => {
             super::identities::inline(anchor, path)?
+        }
+        InlineNode::CalloutRef(value) if settings.profile == Profile::Acdc => {
+            let mut result = node("callout", "inline");
+            result.insert("number".into(), value.number.into());
+            result.insert(
+                "form".into(),
+                match value.kind {
+                    CalloutRefKind::Explicit => "explicit",
+                    CalloutRefKind::Auto => "auto",
+                }
+                .into(),
+            );
+            result
         }
         InlineNode::Macro(value) => references::project(value, path, settings)?,
         InlineNode::SubscriptText(_)

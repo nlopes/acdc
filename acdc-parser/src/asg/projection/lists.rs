@@ -102,7 +102,8 @@ impl<'a, 'doc> Export<'a, 'doc> {
         path: &str,
     ) -> Result<Value, Error> {
         if value.callout.number == 0
-            || matches!(value.callout.kind, CalloutRefKind::Auto)
+            || self.profile == Profile::Upstream
+                && matches!(value.callout.kind, CalloutRefKind::Auto)
                 && value.callout.number != index + 1
         {
             return Err(unsupported(
@@ -112,6 +113,15 @@ impl<'a, 'doc> Export<'a, 'doc> {
         }
         let mut result = node("listItem", "block");
         result.insert("marker".into(), callout_marker(value).into());
+        if self.profile == Profile::Acdc {
+            result.insert("number".into(), value.callout.number.into());
+            metadata::location_property(
+                &mut result,
+                "callout_location",
+                &value.callout.location,
+                path,
+            )?;
+        }
         result.insert(
             "principal".into(),
             inlines(&value.principal, &pointer(path, "principal"), self.profile)?,

@@ -338,6 +338,51 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "variant": {
+                "const": "callout"
+              }
+            },
+            "required": [
+              "variant"
+            ]
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "items": {
+                  "required": [
+                    "number"
+                  ]
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "items": {
+                "items": {
+                  "not": {
+                    "anyOf": [
+                      {
+                        "required": [
+                          "number"
+                        ]
+                      },
+                      {
+                        "required": [
+                          "callout_location"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
         }
       ],
       "unevaluatedProperties": false,
@@ -421,6 +466,13 @@
         },
         "checked": {
           "type": "boolean"
+        },
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "callout_location": {
+          "$ref": "#/$defs/location"
         }
       }
     },
@@ -740,6 +792,9 @@
         },
         {
           "$ref": "#/$defs/acdcInlineAnchor"
+        },
+        {
+          "$ref": "#/$defs/acdcCallout"
         }
       ]
     },
@@ -1732,6 +1787,37 @@
               "type": "null"
             }
           ]
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "acdcCallout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "form",
+        "number"
+      ],
+      "properties": {
+        "name": {
+          "const": "callout"
+        },
+        "type": {
+          "const": "inline"
+        },
+        "form": {
+          "enum": [
+            "explicit",
+            "auto"
+          ]
+        },
+        "number": {
+          "type": "integer",
+          "minimum": 0
         },
         "location": {
           "$ref": "#/$defs/location"

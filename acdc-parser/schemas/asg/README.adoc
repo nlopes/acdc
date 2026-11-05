@@ -348,7 +348,7 @@ number; automatic markers use `<.>` and recover the number from item position.
 The list marker comes from its first item. Invalid authored numbers have already
 been diagnosed and normalized by the parser; export does not recreate their
 source spelling. An automatic number that disagrees with item position is rejected.
-Inline callout references and their associations remain unsupported.
+Inline callout references and their associations require the named acdc profile.
 
 Empty lists, checklist state, independent levels, unsupported nested content and
 sections inside item attachments fail explicitly. Supported list metadata and
@@ -576,3 +576,26 @@ capabilities. CI uses the vendored schemas and a fixed TCK revision. The TCK
 runner reports the supported subset; an explicit rejection or a failed case
 remains a failure. Its result does not replace the native fixture or converter
 regression suites.
+
+== Callout markers
+
+The acdc profile represents inline markers as `callout` nodes with `form`
+(`explicit` or `auto`), resolved `number`, and known source `location`. Zero is
+retained when it occurs in a native marker. Code text and neighboring comment
+guards stay separate text nodes; export does not strip them or render markers.
+
+Callout-list items retain their existing marker spelling, a positive resolved
+`number`, and a known `callout_location` for the marker itself. The marker already
+distinguishes explicit and automatic forms. These fields also preserve prepared
+automatic numbers that cannot be recovered from item order. The parser discards
+an invalid authored explicit list index after it emits a diagnostic; export does
+not reconstruct that discarded spelling.
+
+Association uses scoped order and equal resolved numbers. The parser accumulates
+verbatim markers until a callout list consumes them. Repeated markers can refer
+to one explanation; unmatched markers and unmatched explanations remain present.
+Entering a callout list isolates child markers and consumes the outer pending
+set; each AsciiDoc table cell has its own scope. The native AST retains no
+per-marker destination links, so export does not invent them or assume that only
+an adjacent code block can belong to a list. Strict export still rejects inline
+markers and prepared list numbers that its marker/order cannot express.

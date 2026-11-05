@@ -56,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The acdc ASG profile retains inline callout markers, resolved list numbers and
+  marker locations, including repeated and unmatched markers. Explicit and
+  automatic markers remain distinct without changing code text.
+
 - The acdc ASG profile records registered cross-reference targets separately from
   retained anchor declarations. Aliases keep independent reference text, and
   document-top references preserve resolved document labels and section fallbacks.
