@@ -3481,7 +3481,7 @@
         "kind": "struct",
         "fields": [
           "attribute_positions",
-          "document_attributes",
+          "prefix_events",
           "caption",
           "alt_source",
           "first_source",
@@ -3510,8 +3510,8 @@
         "attribute_positions": {
           "policy": "source-state"
         },
-        "document_attributes": {
-          "policy": "these-retained-ordered-document-assignments-affect-later"
+        "prefix_events": {
+          "policy": "ordered-block-prefix-events"
         },
         "caption": {
           "policy": "parsed-caption-attribution-citation-content-has-no"
@@ -3577,7 +3577,7 @@
       },
       "strict_export_group": "block-metadata"
     },
-    "src/model/metadata.rs::DocumentAttributeEvents": {
+    "src/model/metadata.rs::BlockPrefixEvents": {
       "shape": {
         "kind": "struct",
         "fields": [
@@ -3590,7 +3590,7 @@
       },
       "properties": {
         "0": {
-          "policy": "the-root-attribute-map-cannot-encode-ordered"
+          "policy": "ordered-block-prefix-events"
         }
       },
       "strict_export_group": "body-assignments"
@@ -4002,7 +4002,8 @@
         "fields": [
           "kind",
           "content",
-          "location"
+          "location",
+          "prefix_events"
         ],
         "variants": {}
       },
@@ -4018,6 +4019,9 @@
         },
         "location": {
           "policy": "source-state"
+        },
+        "prefix_events": {
+          "policy": "ordered-block-prefix-events"
         }
       },
       "strict_export_group": "source-state"
@@ -5690,6 +5694,10 @@
     "visit-supported-child-inlines-directly-a-supported": {
       "handling": "mapping-candidate",
       "reason": "Visit supported child inlines directly; a supported child does not make an unsupported span variant valid."
+    },
+    "ordered-block-prefix-events": {
+      "handling": "reject",
+      "reason": "Ordered comments and accepted document assignments must become sibling blocks before export. Reject retained prefix events rather than discard them."
     }
   },
   "strict_export_groups": {

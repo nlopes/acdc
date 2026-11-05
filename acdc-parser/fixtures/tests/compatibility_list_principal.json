@@ -288,6 +288,21 @@
           ],
           "blocks": [
             {
+              "name": "continued",
+              "type": "attribute",
+              "value": "first * continued attribute value",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 1
+                },
+                {
+                  "line": 18,
+                  "col": 45
+                }
+              ]
+            },
+            {
               "name": "paragraph",
               "type": "block",
               "inlines": [

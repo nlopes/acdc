@@ -1,0 +1,6 @@
+= Unterminated comment
+
+[.unused]
+.Unused footnote:[Hidden]
+////
+Hidden footnote:[Also hidden].

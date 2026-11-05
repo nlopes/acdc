@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Block attributes, anchors, and titles before comments now apply to the next
+  visible block, including headings and list continuations. Comment nodes retain
+  their own source ranges. Unused titles at end of input no longer register
+  footnotes.
+
 - `Document::rebuild_footnotes()` repairs registrations and numbers after prepared
   tree edits, including surviving and forward references and empty definitions.
   It preserves definition provenance, selects the first named body and removes

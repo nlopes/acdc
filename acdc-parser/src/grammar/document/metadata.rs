@@ -29,7 +29,7 @@ use crate::{
 };
 use std::{borrow::Cow, collections::BTreeMap, rc::Rc};
 
-use super::delimited::DelimitedKind;
+use super::delimited::{DelimitedKind, DelimitedParams, build_delimited_block};
 
 #[derive(Clone, Copy, Debug)]
 pub(super) enum AttributeBlockForm<'a> {
@@ -49,6 +49,7 @@ pub(super) enum BlockMetadataLine<'input> {
         start: usize,
         end: usize,
     },
+    Comment(MetadataComment<'input>),
     DocumentAttribute(AttributeDeclaration<'input>, Location),
 }
 
@@ -242,14 +243,17 @@ pub(super) fn assign_block_caption<'input>(state: &ParserState<'input>, block: &
     }
 }
 
-pub(super) fn order_document_attribute_events(blocks: Vec<Block<'_>>) -> Vec<Block<'_>> {
+pub(super) fn order_block_prefix_events(blocks: Vec<Block<'_>>) -> Vec<Block<'_>> {
     let needs_ordering = blocks.iter().any(|block| {
+        if let Block::Comment(comment) = block {
+            return comment.prefix_events.is_some();
+        }
         if let Block::DocumentAttribute(attribute) = block {
             return !attribute.is_accepted();
         }
         block
             .metadata()
-            .is_some_and(BlockMetadata::has_document_attributes)
+            .is_some_and(BlockMetadata::has_prefix_events)
     });
     if !needs_ordering {
         return blocks;
@@ -260,13 +264,16 @@ pub(super) fn order_document_attribute_events(blocks: Vec<Block<'_>>) -> Vec<Blo
         if matches!(&block, Block::DocumentAttribute(attribute) if !attribute.is_accepted()) {
             continue;
         }
-        if let Some(metadata) = block.metadata_mut() {
+        if let Block::Comment(comment) = &mut block {
             ordered.extend(
-                metadata
-                    .take_document_attributes()
-                    .into_iter()
-                    .map(Block::DocumentAttribute),
+                comment
+                    .prefix_events
+                    .take()
+                    .map_or_else(Vec::new, |events| events.into_blocks()),
             );
+        }
+        if let Some(metadata) = block.metadata_mut() {
+            ordered.extend(metadata.take_prefix_events());
         }
         ordered.push(block);
     }
@@ -297,7 +304,7 @@ pub(super) fn merge_attribute_metadata<'input>(
     mode: CompatibilityMode,
 ) {
     metadata.overlay_positional_attributes(&attribute_metadata, mode);
-    metadata.append_document_attributes(attribute_metadata.take_document_attributes());
+    metadata.append_prefix_events(attribute_metadata.take_prefix_events());
     if mode == CompatibilityMode::Asciidoctor
         && attribute_metadata
             .attribute_positions
@@ -446,7 +453,18 @@ pub(super) fn select_heading_style<'a>(
 // Boundary lookahead must not parse titles or register their inline content.
 pub(super) fn metadata_marks_discrete_heading(metadata: &str, state: &ParserState<'_>) -> bool {
     let mut discrete = false;
+    let mut comment_delimiter = None;
     for line in metadata.lines() {
+        if let Some(delimiter) = comment_delimiter {
+            if line == delimiter {
+                comment_delimiter = None;
+            }
+            continue;
+        }
+        if line.len() >= 4 && line.bytes().all(|byte| byte == b'/') {
+            comment_delimiter = Some(line);
+            continue;
+        }
         let Some(attributes) = block_attribute_line(
             line,
             &state.document_attributes,
@@ -1250,5 +1268,25 @@ mod tests {
             assert!(last.position.ok_or("missing last order")? > *width);
         }
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub(super) enum MetadataComment<'a> {
+    Line(crate::Comment<'a>),
+    Delimited(DelimitedParams<'a>),
+}
+
+pub(super) fn metadata_comment<'a>(
+    state: &mut ParserState<'a>,
+    comment: MetadataComment<'a>,
+) -> Result<Block<'a>, Error> {
+    match comment {
+        MetadataComment::Line(comment) => Ok(Block::Comment(comment)),
+        MetadataComment::Delimited(params) => build_delimited_block(
+            state,
+            &BlockParsingMetadata::new(state.options.compatibility_mode),
+            &params,
+        ),
     }
 }

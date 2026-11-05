@@ -1,0 +1,564 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Comment contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 18
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 18
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "unordered",
+      "marker": "*",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Item",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 3
+                },
+                {
+                  "line": 3,
+                  "col": 6
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "name": "comment",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "////",
+              "blocks": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Hidden footnote:[Not registered].",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 1
+                    },
+                    {
+                      "line": 7,
+                      "col": 33
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 6,
+                  "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Attached ",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 1
+                    },
+                    {
+                      "line": 9,
+                      "col": 9
+                    }
+                  ]
+                },
+                {
+                  "name": "footnote",
+                  "type": "inline",
+                  "id": null,
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Selected",
+                      "location": [
+                        {
+                          "line": 9,
+                          "col": 20
+                        },
+                        {
+                          "line": 9,
+                          "col": 27
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 10
+                    },
+                    {
+                      "line": 9,
+                      "col": 28
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": ".",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 29
+                    },
+                    {
+                      "line": 9,
+                      "col": 29
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "roles": [
+                  "attached"
+                ]
+              },
+              "location": [
+                {
+                  "line": 5,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 29
+        }
+      ]
+    },
+    {
+      "name": "dlist",
+      "type": "block",
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Term",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 1
+                },
+                {
+                  "line": 11,
+                  "col": 4
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Item",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 8
+                },
+                {
+                  "line": 11,
+                  "col": 11
+                }
+              ]
+            }
+          ],
+          "description": [
+            {
+              "name": "comment",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "////",
+              "blocks": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Hidden.",
+                  "location": [
+                    {
+                      "line": 15,
+                      "col": 1
+                    },
+                    {
+                      "line": 15,
+                      "col": 7
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 14,
+                  "col": 1
+                },
+                {
+                  "line": 16,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Attached description.",
+                  "location": [
+                    {
+                      "line": 17,
+                      "col": 1
+                    },
+                    {
+                      "line": 17,
+                      "col": 21
+                    }
+                  ]
+                }
+              ],
+              "metadata": {
+                "roles": [
+                  "description"
+                ]
+              },
+              "location": [
+                {
+                  "line": 13,
+                  "col": 1
+                },
+                {
+                  "line": 17,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "comment",
+                    "type": "block",
+                    "form": "delimited",
+                    "delimiter": "////",
+                    "blocks": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Hidden.",
+                        "location": [
+                          {
+                            "line": 23,
+                            "col": 1
+                          },
+                          {
+                            "line": 23,
+                            "col": 7
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 22,
+                        "col": 1
+                      },
+                      {
+                        "line": 24,
+                        "col": 4
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Cell π body.",
+                        "location": [
+                          {
+                            "line": 25,
+                            "col": 1
+                          },
+                          {
+                            "line": 25,
+                            "col": 12
+                          }
+                        ]
+                      }
+                    ],
+                    "metadata": {
+                      "roles": [
+                        "cell"
+                      ]
+                    },
+                    "location": [
+                      {
+                        "line": 21,
+                        "col": 2
+                      },
+                      {
+                        "line": 25,
+                        "col": 12
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 20,
+            "col": 1
+          },
+          {
+            "line": 26,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "/////",
+      "blocks": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Hidden π.",
+          "location": [
+            {
+              "line": 4,
+              "col": 3,
+              "file": [
+                "includes/comment_metadata.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 11,
+              "file": [
+                "includes/comment_metadata.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 3,
+          "file": [
+            "includes/comment_metadata.adoc"
+          ]
+        },
+        {
+          "line": 5,
+          "col": 7,
+          "file": [
+            "includes/comment_metadata.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included 😀 body.",
+          "location": [
+            {
+              "line": 6,
+              "col": 3,
+              "file": [
+                "includes/comment_metadata.adoc"
+              ]
+            },
+            {
+              "line": 6,
+              "col": 18,
+              "file": [
+                "includes/comment_metadata.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "included"
+        ]
+      },
+      "location": [
+        {
+          "line": 2,
+          "col": 3,
+          "file": [
+            "includes/comment_metadata.adoc"
+          ]
+        },
+        {
+          "line": 6,
+          "col": 18,
+          "file": [
+            "includes/comment_metadata.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 6,
+      "col": 18,
+      "file": [
+        "includes/comment_metadata.adoc"
+      ]
+    }
+  ]
+}

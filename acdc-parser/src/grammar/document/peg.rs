@@ -30,12 +30,12 @@ use crate::{
                 prepare_manpage_name_attributes,
             },
             metadata::{
-                AttributeBlockForm, AttributeOrAnchorLine, BlockMetadataLine, ParsedAttributeList,
-                RawAttributeList, TitleSource, assign_block_caption, finish_block_parsing_metadata,
-                media_attributes_ahead, merge_macro_metadata, metadata_marks_discrete_heading,
-                order_document_attribute_events, parse_block_attribute_list, push_metadata_anchor,
-                resolve_block_content_attributes, resolve_title, route_block_positions,
-                route_media_attributes, select_heading_style,
+                AttributeBlockForm, AttributeOrAnchorLine, BlockMetadataLine, MetadataComment,
+                ParsedAttributeList, RawAttributeList, TitleSource, assign_block_caption,
+                finish_block_parsing_metadata, media_attributes_ahead, merge_macro_metadata,
+                metadata_comment, metadata_marks_discrete_heading, order_block_prefix_events,
+                parse_block_attribute_list, push_metadata_anchor, resolve_block_content_attributes,
+                resolve_title, route_block_positions, route_media_attributes, select_heading_style,
             },
             paragraph::{ParagraphParams, build_paragraph},
             references::{
@@ -736,19 +736,20 @@ peg::parser! {
             if let Some(trailing) = trailing {
                 blocks.extend(trailing?);
             }
-            Ok(order_document_attribute_events(blocks))
+            Ok(order_block_prefix_events(blocks))
         }
 
         pub(crate) rule compound_blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block<'input>>, Error>
         = content:blocks(offset, parent_section_level, None) eol()* { content }
 
         rule trailing_block_metadata_match()
-        = eol()* &("[" / ".") (block_metadata_line_match() eol()*)+ ![_]
+        = eol()* &("[" / ".") block_metadata_sequence_match() ![_]
 
         // Unused block metadata has no inline effects; document attributes still take effect.
         rule trailing_block_metadata(offset: usize) -> Result<Vec<Block<'input>>, Error>
         = &trailing_block_metadata_match() eol()* events:(
             event:document_attribute_block(offset) (eol() / ![_]) eol()* { Some(event) }
+            / comment:metadata_comment_line(offset) eol()* { Some(metadata_comment(state, comment)) }
             / (attribute_or_anchor_line_match() / title_line_match()) eol()* { None }
         )+
         {
@@ -766,7 +767,7 @@ peg::parser! {
         {
             let mut blocks = header?;
             blocks.extend(body?);
-            Ok(order_document_attribute_events(blocks))
+            Ok(order_block_prefix_events(blocks))
         }
 
         rule normalize_nested_header(header: Vec<Result<Block<'input>, Error>>, initial_attributes: &mut Vec<(crate::AttributeName<'input>, crate::DocumentAttributeAssignment<'input>)>) -> Result<Vec<Block<'input>>, Error>
@@ -830,6 +831,7 @@ peg::parser! {
             // comment's location doesn't include it.
             Ok(Block::Comment(Comment {
                 kind: CommentKind::Line,
+                prefix_events: None,
                 content,
                 location: state.create_location(span_start + offset, end + offset),
             }))
@@ -856,6 +858,7 @@ peg::parser! {
         {
             Ok(Block::Comment(Comment {
                 kind: CommentKind::Line,
+                prefix_events: None,
                 content,
                 location: state.create_location(span_start + offset, end + offset),
             }))
@@ -872,7 +875,7 @@ peg::parser! {
         rule same_or_higher_level_section(offset: usize, parent_section_level: Option<SectionLevel>) -> ()
         // Standalone document attributes must take effect before comparing section levels.
         = check_section_blocks() !document_attribute_match()
-          (metadata:$((block_metadata_line_match() eol()*)*)
+          (metadata:$(block_metadata_sequence_match())
           {? if metadata_marks_discrete_heading(metadata, state) { Err("discrete heading belongs to its parent") } else { Ok(()) } })
           (
             // ATX-style section check - require space after marker to avoid matching
@@ -941,7 +944,7 @@ peg::parser! {
 
         // Recognize heading syntax before metadata can register title macros.
         rule atx_heading_match()
-        = (block_metadata_line_match() eol()*)* atx_heading_prefix()
+        = block_metadata_sequence_match() atx_heading_prefix()
 
         rule discrete_header(offset: usize) -> Result<Block<'input>, Error>
         = &atx_heading_match() block_metadata:(bm:heading_metadata(offset, None) {?
@@ -1130,7 +1133,7 @@ peg::parser! {
         }
 
         rule setext_section_match(parent_section_level: Option<SectionLevel>)
-        = (block_metadata_line_match() eol()*)*
+        = block_metadata_sequence_match()
           title:setext_title_text() eol()
           setext_section_level(title.trim().chars().count(), parent_section_level)
 
@@ -1198,12 +1201,7 @@ peg::parser! {
         = metadata:block_metadata_with_title(offset, parent_section_level, false) { metadata }
 
         rule block_metadata_with_title(offset: usize, parent_section_level: Option<SectionLevel>, parse_title: bool) -> Result<BlockParsingMetadata<'input>, Error>
-        = meta_start:position!() lines:(line:(
-            anchor:anchor(offset) { BlockMetadataLine::Anchor(anchor) }
-            / attr:raw_attributes_line() { BlockMetadataLine::Attributes(attr) }
-            / doc_attr:document_attribute_line(offset) { BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1) }
-            / title_line()
-        ) end:position!() eol()* { (line, end) })*
+        = meta_start:position!() lines:block_metadata_lines(offset)
           block_start:position!() media_ahead:media_block_ahead() form:attribute_block_form(offset)
         {
             let mut attributes = ParsedAttributeList::default();
@@ -1224,8 +1222,12 @@ peg::parser! {
                             false,
                             location,
                         ) {
-                            attributes.metadata.push_document_attribute(event);
+                            attributes.metadata.push_prefix_event(Block::DocumentAttribute(event));
                         }
+                    },
+                    BlockMetadataLine::Comment(comment) => {
+                        let comment = metadata_comment(state, comment)?;
+                        attributes.metadata.push_prefix_event(comment);
                     },
                     BlockMetadataLine::Title { source, start, end } => {
                         attributes.title = Some(TitleSource::Dot { source, start, end });
@@ -1286,6 +1288,34 @@ peg::parser! {
             result.image_alt = image_alt;
             Ok(result)
         }
+
+        // Comments carry metadata forward only after an authored metadata line.
+        rule block_metadata_lines(offset: usize) -> Vec<(BlockMetadataLine<'input>, usize)>
+        = &block_metadata_line_match() lines:(
+            line:(block_metadata_line(offset) / comment:metadata_comment_line(offset) { BlockMetadataLine::Comment(comment) })
+            end:position!() eol()* { (line, end) }
+        )* { lines }
+        / { Vec::new() }
+
+        rule block_metadata_line(offset: usize) -> BlockMetadataLine<'input>
+        = anchor:anchor(offset) { BlockMetadataLine::Anchor(anchor) }
+        / attr:raw_attributes_line() { BlockMetadataLine::Attributes(attr) }
+        / doc_attr:document_attribute_line(offset) { BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1) }
+        / title_line()
+
+        rule metadata_comment_line(offset: usize) -> MetadataComment<'input>
+        = start:position!() "//" !"/" content:$([^'\n']*) end:position!() (eol() / ![_]) {
+            MetadataComment::Line(Comment { kind: CommentKind::Line, prefix_events: None, content, location: state.create_location(start + offset, end + offset) })
+        }
+        / start:position!() params:comment_block_params(start, offset) { MetadataComment::Delimited(params) }
+
+        rule block_metadata_sequence_match()
+        = (block_metadata_line_match() eol()* (metadata_comment_match() eol()*)*)*
+
+        rule metadata_comment_match()
+        = comment_line()
+        / delimiter:comment_delimiter() (eol() / ![_])
+          until_block_close(delimiter) (eol() &block_close_delim(delimiter))? block_close_delim(delimiter)?
 
         // Reuse block-start rules before selected attributes can register inline content.
         rule attribute_block_form(offset: usize) -> AttributeBlockForm<'input>
@@ -1535,6 +1565,9 @@ peg::parser! {
         // match *only* a comment block (to absorb it after a `+`), so this gated
         // entry point reuses the shared skeleton and builder.
         rule comment_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+            = params:comment_block_params(start, offset) { build_delimited_block(state, block_metadata, &params) }
+
+        rule comment_block_params(start: usize, offset: usize) -> DelimitedParams<'input>
             = open_start:position!() open_delim:comment_delimiter() (eol() / ![_])
               content_start:position!()
               source_text:$(until_block_close(open_delim) (eol() &block_close_delim(open_delim))?) body_end:position!()
@@ -1546,10 +1579,10 @@ peg::parser! {
                 source_text
             };
             let content_end = body_end - (source_text.len() - content.len());
-            build_delimited_block(state, block_metadata, &DelimitedParams {
+            DelimitedParams {
                 kind: DelimitedKind::Comment, open_delim, content, source_text,
                 open_start, start, content_start, content_end, end: span_end, offset, close,
-            })
+            }
         }
 
         // Delimiter recognition rules
@@ -2256,7 +2289,7 @@ peg::parser! {
 
             Ok((ListItem {
                 principal,
-                blocks,
+                blocks: order_block_prefix_events(blocks),
                 level,
                 marker,
                 checked,
@@ -2300,7 +2333,7 @@ peg::parser! {
 
             Ok((ListItem {
                 principal,
-                blocks,
+                blocks: order_block_prefix_events(blocks),
                 level,
                 marker,
                 checked,
@@ -2342,7 +2375,7 @@ peg::parser! {
 
             Ok((ListItem {
                 principal,
-                blocks,
+                blocks: order_block_prefix_events(blocks),
                 level,
                 marker,
                 checked,
@@ -2376,7 +2409,7 @@ peg::parser! {
 
             Ok((ListItem {
                 principal,
-                blocks,
+                blocks: order_block_prefix_events(blocks),
                 level,
                 marker,
                 checked,
@@ -2542,7 +2575,7 @@ peg::parser! {
 
             Ok((ListItem {
                 principal,
-                blocks,
+                blocks: order_block_prefix_events(blocks),
                 level,
                 marker,
                 checked: None,
@@ -2585,7 +2618,7 @@ peg::parser! {
 
             Ok((ListItem {
                 principal,
-                blocks,
+                blocks: order_block_prefix_events(blocks),
                 level,
                 marker,
                 checked: None,
@@ -2624,7 +2657,7 @@ peg::parser! {
 
             Ok((ListItem {
                 principal,
-                blocks,
+                blocks: order_block_prefix_events(blocks),
                 level,
                 marker,
                 checked: None,
@@ -2657,7 +2690,7 @@ peg::parser! {
 
             Ok((ListItem {
                 principal,
-                blocks,
+                blocks: order_block_prefix_events(blocks),
                 level,
                 marker,
                 checked: None,
@@ -2956,7 +2989,7 @@ peg::parser! {
             Ok((CalloutListItem {
                 callout,
                 principal,
-                blocks,
+                blocks: order_block_prefix_events(blocks),
                 location: state.create_location(span_start+offset, actual_end+offset),
             }, marker.to_string(), actual_end))
         }
@@ -3115,7 +3148,7 @@ peg::parser! {
                 delimiter,
                 delimiter_location: Some(delimiter_location),
                 principal_text,
-                description,
+                description: order_block_prefix_events(description),
                 location: state.create_location(span_start+offset, actual_end+offset),
             })
         }

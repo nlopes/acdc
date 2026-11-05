@@ -164,7 +164,7 @@ fn generated_section_ids_are_retained_collision_checked_and_not_authored_anchors
 #[case("[discrete]\n== Heading")]
 #[case("toc::[]")]
 #[case("<<<\n\nAfter.")]
-#[case("////\nComment\n////")]
+#[case("[comment]\n--\nComment\n--")]
 #[case("|===\n|Cell\n|===")]
 fn common_block_reads_cover_all_metadata_owners(
     #[case] body: &str,

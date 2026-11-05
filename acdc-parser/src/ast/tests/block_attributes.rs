@@ -46,7 +46,7 @@ fn inventory(attributes: AttributesRef<'_>) {
 #[case("[discrete]\n== Heading")]
 #[case("toc::[]")]
 #[case("<<<\n\nAfter.")]
-#[case("////\nComment\n////")]
+#[case("[comment]\n--\nComment\n--")]
 #[case("|===\n|Cell\n|===")]
 fn block_inventories_project_the_retained_content_owners(
     #[case] body: &str,

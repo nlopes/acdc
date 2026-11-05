@@ -179,6 +179,7 @@ impl<'a> Comment<'a> {
             kind,
             content: text,
             location,
+            prefix_events: None,
         }
     }
 

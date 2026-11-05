@@ -1,0 +1,38 @@
+= Comment metadata
+
+[.attached]
+////
+Hidden.
+////
+Visible paragraph.
+
+[.list]
+////
+Hidden.
+////
+* First
+* Second
+
+* Item
++
+[.continuation]
+////
+Hidden.
+////
+Attached paragraph.
+
+== First section
+
+[.section]
+////
+[discrete]
+////
+== Second section
+
+[discrete]
+////
+Hidden.
+////
+=== Floating
+
+Body.

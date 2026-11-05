@@ -56,11 +56,11 @@ fn structural_copies_preserve_complete_backing_values(
             assert_eq!(format!("{copy:?}"), format!("{block:?}"), "{source}");
         }
     }
-    let block = Block::Comment(Comment {
-        content: "comment",
-        kind: CommentKind::Line,
-        location: Location::default(),
-    });
+    let block = Block::Comment(Comment::new(
+        CommentKind::Line,
+        "comment",
+        Location::default(),
+    ));
     kinds.insert(format!(
         "{:?}",
         std::mem::discriminant(&BlockRef::from(&block).kind())

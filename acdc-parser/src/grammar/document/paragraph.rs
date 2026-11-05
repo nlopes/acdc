@@ -3,8 +3,8 @@
 use std::str::FromStr;
 
 use crate::{
-    Admonition, AdmonitionVariant, Block, Comment, CommentKind, CompatibilityMode, Error,
-    InlineNode, Paragraph, Raw,
+    Admonition, AdmonitionVariant, Block, BlockMetadata, Comment, CommentKind, CompatibilityMode,
+    Error, InlineNode, Location, Paragraph, Raw,
     grammar::{
         ParserState,
         document::{
@@ -107,11 +107,11 @@ pub(super) fn build_paragraph<'a>(
     // A `[comment]`-styled paragraph is a comment that produces no
     // output; keep its raw text on the `Comment` for tooling.
     if block_metadata.metadata.style == Some("comment") {
-        return Ok(Block::Comment(Comment {
-            kind: CommentKind::Paragraph,
+        return Ok(comment_paragraph(
             content,
-            location: state.create_block_location(start, end, offset),
-        }));
+            state.create_block_location(start, end, offset),
+            &block_metadata.metadata,
+        ));
     }
 
     let selected_style = if content.starts_with([' ', '\t']) {
@@ -241,4 +241,17 @@ fn process_verbatim_paragraph<'a>(
     };
     state.pending_callouts.extend(callouts);
     Ok(content)
+}
+
+fn comment_paragraph<'a>(
+    content: &'a str,
+    location: Location,
+    metadata: &BlockMetadata<'a>,
+) -> Block<'a> {
+    Block::Comment(Comment {
+        kind: CommentKind::Paragraph,
+        content,
+        location,
+        prefix_events: metadata.prefix_events.clone(),
+    })
 }

@@ -1,7 +1,8 @@
 use serde_json::{Map, Value};
 
 use crate::{
-    Anchor, AttributeValue, BlockMetadata, ContentAttribute, ElementAttributes, Location, Title,
+    Anchor, AttributeValue, BlockMetadata, Comment, ContentAttribute, ElementAttributes, Location,
+    Title,
 };
 
 use super::{Error, Profile, content, pointer, projection::inlines, unsupported};
@@ -81,7 +82,7 @@ pub(super) fn check(value: &BlockMetadata<'_>, path: &str, profile: Profile) -> 
         )
     })?;
     for (present, name) in [
-        (value.has_document_attributes(), "document_attributes"),
+        (value.has_prefix_events(), "prefix_events"),
         (
             profile == Profile::Upstream && value.caption.is_some(),
             "caption",
@@ -266,6 +267,16 @@ pub(super) fn empty(value: &BlockMetadata<'_>, path: &str) -> Result<(), Error> 
     Ok(())
 }
 
+pub(super) fn check_comment(value: &Comment<'_>, path: &str) -> Result<(), Error> {
+    if value.prefix_events.is_some() {
+        return Err(unsupported(
+            &pointer(path, "prefix_events"),
+            "ordered source events must be emitted before a comment can be omitted",
+        ));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Error, Profile, check};
@@ -316,14 +327,16 @@ mod tests {
     #[test]
     fn retained_document_events_are_not_omitted() {
         let mut metadata = BlockMetadata::default();
-        metadata.push_document_attribute(DocumentAttribute::accepted(
-            "later".into(),
-            DocumentAttributeAssignment::Set("value".into()),
-            Location::default(),
+        metadata.push_prefix_event(crate::Block::DocumentAttribute(
+            DocumentAttribute::accepted(
+                "later".into(),
+                DocumentAttributeAssignment::Set("value".into()),
+                Location::default(),
+            ),
         ));
         assert!(
             matches!(check(&metadata, "/blocks/0", Profile::Upstream), Err(Error::Unsupported {path, ..})
-            if path == "/blocks/0/metadata/document_attributes")
+            if path == "/blocks/0/metadata/prefix_events")
         );
     }
 }

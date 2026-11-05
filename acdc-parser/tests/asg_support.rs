@@ -185,10 +185,10 @@ fn source_comments_are_omitted_without_dropping_their_neighbors() -> Result<(), 
 }
 
 #[test]
-fn comment_metadata_cannot_disappear_with_source_comments() -> Result<(), Error> {
+fn styled_comment_metadata_cannot_disappear_with_source_comments() -> Result<(), Error> {
     for (source, property) in [
-        (".Title\n////\ncomment\n////", "title"),
-        ("[.review]\n////\ncomment\n////", "metadata/roles"),
+        (".Title\n[comment]\n--\ncomment\n--", "title"),
+        ("[.review]\n[comment]\n--\ncomment\n--", "metadata/roles"),
     ] {
         let parsed = parse(source, &Options::default())?;
         assert!(

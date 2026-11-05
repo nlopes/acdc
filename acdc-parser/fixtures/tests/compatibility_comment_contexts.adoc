@@ -1,0 +1,28 @@
+= Comment contexts
+
+* Item
++
+[.attached]
+////
+Hidden footnote:[Not registered].
+////
+Attached footnote:[Selected].
+
+Term:: Item
++
+[.description]
+////
+Hidden.
+////
+Attached description.
+
+[cols="a"]
+|===
+|[.cell]
+////
+Hidden.
+////
+Cell π body.
+|===
+
+include::includes/comment_metadata.adoc[lines=2..6,indent=0]

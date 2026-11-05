@@ -7,7 +7,7 @@ use serde::Serialize;
 use crate::CompatibilityMode;
 
 use super::{
-    DocumentAttribute,
+    Block,
     anchor::Anchor,
     attributes::{AttributeName, AttributeValue, ElementAttributes},
     attribution::{Attribution, CiteTitle},
@@ -41,7 +41,13 @@ pub(crate) struct PositionalAttribute<'a> {
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
-pub(crate) struct DocumentAttributeEvents<'a>(Vec<DocumentAttribute<'a>>);
+pub(crate) struct BlockPrefixEvents<'a>(Vec<Block<'a>>);
+
+impl<'a> BlockPrefixEvents<'a> {
+    pub(crate) fn into_blocks(self) -> Vec<Block<'a>> {
+        self.0
+    }
+}
 
 /// A `BlockMetadata` represents the metadata of a block in a document.
 ///
@@ -54,7 +60,7 @@ pub struct BlockMetadata<'a> {
     pub(crate) attribute_positions: Option<Box<AttributePositions<'a>>>,
     // Store uncommon parser events separately to keep each block's metadata small.
     #[serde(skip)]
-    pub(crate) document_attributes: Option<Box<DocumentAttributeEvents<'a>>>,
+    pub(crate) prefix_events: Option<Box<BlockPrefixEvents<'a>>>,
     /// Caption behavior resolved from the document attributes in effect at this block's
     /// source position, and the ordinal assigned to it. `None` means caller-built metadata
     /// or a block that takes no caption.
@@ -116,7 +122,7 @@ impl PartialEq for BlockMetadata<'_> {
     fn eq(&self, other: &Self) -> bool {
         let Self {
             attribute_positions: _,
-            document_attributes,
+            prefix_events,
             caption,
             alt_source: _,
             first_source: _,
@@ -135,7 +141,7 @@ impl PartialEq for BlockMetadata<'_> {
             citetitle,
             location,
         } = self;
-        document_attributes == &other.document_attributes
+        prefix_events == &other.prefix_events
             && caption == &other.caption
             && attributes == &other.attributes
             && reftext == &other.reftext
@@ -342,34 +348,31 @@ impl<'a> BlockMetadata<'a> {
         }
     }
 
-    pub(crate) fn has_document_attributes(&self) -> bool {
-        self.document_attributes.is_some()
+    pub(crate) fn has_prefix_events(&self) -> bool {
+        self.prefix_events.is_some()
     }
 
-    pub(crate) fn push_document_attribute(&mut self, attribute: DocumentAttribute<'a>) {
-        self.document_attributes
+    pub(crate) fn push_prefix_event(&mut self, block: Block<'a>) {
+        self.prefix_events
             .get_or_insert_with(Default::default)
             .0
-            .push(attribute);
+            .push(block);
     }
 
-    pub(crate) fn take_document_attributes(&mut self) -> Vec<DocumentAttribute<'a>> {
-        self.document_attributes
+    pub(crate) fn take_prefix_events(&mut self) -> Vec<Block<'a>> {
+        self.prefix_events
             .take()
-            .map_or_else(Vec::new, |attributes| attributes.0)
+            .map_or_else(Vec::new, |events| events.0)
     }
 
-    pub(crate) fn append_document_attributes(
-        &mut self,
-        mut attributes: Vec<DocumentAttribute<'a>>,
-    ) {
-        if attributes.is_empty() {
+    pub(crate) fn append_prefix_events(&mut self, mut events: Vec<Block<'a>>) {
+        if events.is_empty() {
             return;
         }
-        self.document_attributes
+        self.prefix_events
             .get_or_insert_with(Default::default)
             .0
-            .append(&mut attributes);
+            .append(&mut events);
     }
 
     pub(crate) fn overlay_positional_attributes(

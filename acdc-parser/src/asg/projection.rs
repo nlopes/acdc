@@ -356,7 +356,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             }
             Block::CalloutList(list) => self.callout_list(list, at)?,
             Block::DescriptionList(list) => self.description_list(list, at)?,
-            Block::Comment(_) => return Ok(None),
+            Block::Comment(comment) => return metadata::check_comment(comment, at).map(|()| None),
             Block::DelimitedBlock(block)
                 if matches!(&block.inner, DelimitedBlockType::DelimitedComment(_)) =>
             {
@@ -635,6 +635,26 @@ fn raw_literal(raw: &crate::Raw<'_>, path: &str) -> Result<Node, Error> {
 mod tests {
     use super::{Error, Profile, inlines};
     use crate::{CalloutRef, InlineMacro, InlineNode, Location, Pass, PassthroughKind};
+
+    #[test]
+    fn pending_comment_events_are_rejected_instead_of_discarded() {
+        let mut metadata = crate::BlockMetadata::default();
+        metadata.push_prefix_event(crate::Block::DocumentAttribute(
+            crate::DocumentAttribute::accepted(
+                "later".into(),
+                crate::DocumentAttributeAssignment::Set("value".into()),
+                Location::default(),
+            ),
+        ));
+        let mut comment =
+            crate::Comment::new(crate::CommentKind::Paragraph, "hidden", Location::default());
+        comment.prefix_events = metadata.prefix_events;
+        let mut document = crate::Document::default();
+        document.set_blocks([crate::Block::Comment(comment)]);
+        assert!(
+            matches!(crate::asg::document((&document).into()), Err(Error::Unsupported { path, .. }) if path == "/blocks/0/prefix_events")
+        );
+    }
 
     #[test]
     fn unresolved_macro_and_callout_owners_are_rejected() {

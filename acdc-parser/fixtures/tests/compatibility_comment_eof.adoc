@@ -1,0 +1,8 @@
+= Unused metadata
+
+[.unused]
+.Unused footnote:[Hidden]
+////
+Hidden.
+////
+:after: retained

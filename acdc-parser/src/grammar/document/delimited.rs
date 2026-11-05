@@ -142,7 +142,7 @@ fn parse_block_content<'input>(
 
 /// Source ranges and delimiters for a block.
 /// `close` is `None` when the block reaches end of input without a closing delimiter.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub(super) struct DelimitedParams<'input> {
     pub(super) kind: DelimitedKind,
     /// The opening delimiter as it appeared in source (e.g. `"===="`).

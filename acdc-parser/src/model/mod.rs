@@ -49,7 +49,9 @@ pub use lists::{
 };
 pub use location::*;
 pub use media::{Audio, Image, InlineImage, Source, SourceUrl, Video};
-pub(crate) use metadata::{AttributePosition, MacroAttributes, PositionalAttribute};
+pub(crate) use metadata::{
+    AttributePosition, BlockPrefixEvents, MacroAttributes, PositionalAttribute,
+};
 pub use metadata::{BlockMetadata, ElementId, InlineMetadata, ReservedAttribute, Role};
 pub use section::*;
 pub use substitution::*;
@@ -507,6 +509,8 @@ pub struct Comment<'a> {
     pub(crate) kind: CommentKind,
     pub(crate) content: &'a str,
     pub(crate) location: Location,
+    // Styled paragraph comments must retain preceding source events without metadata.
+    pub(crate) prefix_events: Option<Box<BlockPrefixEvents<'a>>>,
 }
 
 /// A `Block` represents a block in a document.
