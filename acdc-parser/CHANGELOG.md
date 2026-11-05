@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Owned documents can call `rebuild_author_attributes()` after changing header
+  authors. Generated name, email and count attributes follow the new authors,
+  while caller defaults, locked inputs and explicit source values or unsets
+  remain in place. Body declarations and previously selected content keep their
+  original snapshots.
+
 - Editing an index term's display or see/see-also relationship retains its
   registered catalog labels, including labels that initially matched the
   display. Restoring the original values also restores the original native JSON

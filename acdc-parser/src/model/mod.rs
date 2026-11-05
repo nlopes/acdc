@@ -65,6 +65,7 @@ pub use title::{Subtitle, Title};
 /// [`Self::renumber_sections`] and [`Self::renumber_captions`] update only their
 /// documented numbering state. Use [`Self::rebuild_references_and_toc`] or
 /// [`Self::rebuild_captions`] to refresh the corresponding prepared catalogs.
+/// Use [`Self::rebuild_author_attributes`] for author-derived header assignments.
 /// Reparse source to recompute declaration-order attribute snapshots.
 #[derive(Default, Debug, PartialEq)]
 #[non_exhaustive]

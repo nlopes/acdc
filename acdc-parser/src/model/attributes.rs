@@ -674,7 +674,7 @@ impl<'a> DocumentAttributes<'a> {
                 DocumentAttributeAssignment::Set(DocumentAttributeValue::from(value)),
                 None,
             ),
-            AssignmentState::PROCESSOR,
+            AssignmentState::DERIVED,
         );
     }
 
@@ -689,10 +689,15 @@ impl<'a> DocumentAttributes<'a> {
         }
     }
 
-    /// Refresh derived metadata without replacing caller overrides or document assignments.
+    /// Refresh generated text or processor defaults, retaining caller locks and source assignments.
     pub(crate) fn set_derived_text(&mut self, name: AttributeName<'a>, value: Cow<'a, str>) {
         match self.entry(&name) {
-            Some(entry) if entry.state.origin == AttributeOrigin::Processor => {
+            Some(entry)
+                if matches!(
+                    entry.state.origin,
+                    AttributeOrigin::Processor | AttributeOrigin::Derived
+                ) =>
+            {
                 self.set_text(name, value);
             }
             None => self.insert_text(name, value),
@@ -823,6 +828,15 @@ impl<'a> DocumentAttributes<'a> {
             if is_intrinsic(name) {
                 current.insert(name.clone(), value.clone());
             }
+        }
+    }
+
+    pub(crate) fn remove_derived_attributes(&mut self, matches: impl Fn(&str) -> bool) {
+        let previous_len = self.entries.len();
+        self.entries
+            .retain(|name, entry| entry.state.origin != AttributeOrigin::Derived || !matches(name));
+        if self.entries.len() != previous_len {
+            self.rebuild_entry_filter();
         }
     }
 

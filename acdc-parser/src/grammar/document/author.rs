@@ -1,25 +1,12 @@
 //! Author names and header attributes.
 
 use crate::{
-    AttributeName, Author, DocumentAttributes, Header, Options,
+    Author, DocumentAttributes, Header, Options,
+    author_attributes::{build_author_full_name, set_author_attrs},
     grammar::{ParserState, document_parser},
 };
 use bumpalo::Bump;
-use std::{borrow::Cow, rc::Rc};
-
-/// Build a full name string from an `Author`.
-fn build_author_full_name(author: &Author) -> String {
-    let mut name = author.first_name.to_string();
-    if let Some(middle) = &author.middle_name {
-        name.push(' ');
-        name.push_str(middle);
-    }
-    if !author.last_name.is_empty() {
-        name.push(' ');
-        name.push_str(author.last_name);
-    }
-    name
-}
+use std::rc::Rc;
 
 /// Keep header authors and document attributes consistent.
 /// An explicit `:author:` overrides the author line. A changed author refreshes
@@ -40,53 +27,6 @@ pub(super) fn register_author_attrs<'a>(
     attrs: &mut DocumentAttributes<'a>,
 ) {
     set_author_attrs(authors, attrs, false);
-}
-
-fn set_author_attrs<'a>(authors: &[Author<'a>], attrs: &mut DocumentAttributes<'a>, refresh: bool) {
-    if authors.is_empty() {
-        return;
-    }
-    let all_names: Vec<String> = authors.iter().map(build_author_full_name).collect();
-    attrs.set_text("authorcount".into(), authors.len().to_string().into());
-    // First registration retains existing defaults. Rebuilding an overridden
-    // author refreshes derived name fields while preserving explicit fields.
-    let mut assign = |name: AttributeName<'a>, value: Cow<'a, str>| {
-        if refresh {
-            attrs.set_derived_text(name, value);
-        } else {
-            attrs.insert_text(name, value);
-        }
-    };
-    assign("authors".into(), all_names.join(", ").into());
-    for (i, author) in authors.iter().enumerate() {
-        let suffix = if i == 0 {
-            String::new()
-        } else {
-            format!("_{}", i + 1)
-        };
-        assign(
-            format!("author{suffix}").into(),
-            build_author_full_name(author).into(),
-        );
-        assign(
-            format!("firstname{suffix}").into(),
-            Cow::Borrowed(author.first_name),
-        );
-        if let Some(middle) = author.middle_name {
-            assign(format!("middlename{suffix}").into(), Cow::Borrowed(middle));
-        }
-        assign(
-            format!("lastname{suffix}").into(),
-            Cow::Borrowed(author.last_name),
-        );
-        assign(
-            format!("authorinitials{suffix}").into(),
-            Cow::Borrowed(author.initials),
-        );
-        if let Some(email) = author.email {
-            assign(format!("email{suffix}").into(), Cow::Borrowed(email));
-        }
-    }
 }
 
 /// Apply the effective author and email attributes to `header.authors`.

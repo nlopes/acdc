@@ -156,6 +156,7 @@ use tracing::instrument;
 #[cfg(feature = "asg")]
 pub mod asg;
 pub mod ast;
+mod author_attributes;
 mod blocks;
 mod caption_repair;
 mod constants;

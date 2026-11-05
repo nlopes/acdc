@@ -27,6 +27,8 @@ static DEFAULT_MAX_INCLUDE_DEPTH_VALUE: DocumentAttributeValue<'static> =
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AttributeOrigin {
     Processor,
+    /// Computed text, distinct from caller-supplied processor defaults.
+    Derived,
     Caller,
     Document,
 }
@@ -46,6 +48,11 @@ pub(crate) struct AssignmentState {
 impl AssignmentState {
     pub(crate) const PROCESSOR: Self = Self {
         origin: AttributeOrigin::Processor,
+        lock: AttributeLock::Unlocked,
+    };
+
+    pub(crate) const DERIVED: Self = Self {
+        origin: AttributeOrigin::Derived,
         lock: AttributeLock::Unlocked,
     };
 
