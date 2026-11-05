@@ -129,7 +129,9 @@ fn suppresses_list_marker(style: Option<&str>, ordered: bool) -> bool {
 
 fn list_sequence(attributes: AttributesRef<'_>, item_count: usize) -> (usize, bool) {
     let reversed = has_option(attributes, "reversed");
-    let start = attribute_text(attributes, "start")
+    let start = attributes
+        .get("start")
+        .and_then(AttributeValueRef::as_str)
         .and_then(|start| start.parse::<usize>().ok())
         .filter(|start| *start > 0)
         .unwrap_or(if reversed { item_count } else { 1 });
@@ -196,15 +198,8 @@ fn block_style(attributes: AttributesRef<'_>) -> Option<&str> {
     }
 }
 
-fn attribute_text<'doc>(attributes: AttributesRef<'doc>, name: &str) -> Option<&'doc str> {
-    match attributes.get(name) {
-        Some(AttributeValueRef::Text(text)) => Some(text),
-        _ => None,
-    }
-}
-
 fn is_linked_image(node: InlineRef<'_>) -> bool {
-    matches!(node.kind(), InlineKind::Image(image) if attribute_text(image.attributes(), "link").is_some())
+    matches!(node.kind(), InlineKind::Image(image) if image.attributes().get("link").and_then(AttributeValueRef::as_str).is_some())
 }
 
 fn source_content<'inline>(
@@ -1955,7 +1950,10 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 .file_name()
                 .map_or_else(|| "video".to_owned(), str::to_owned)
         };
-        if let Some(poster) = attribute_text(video.attributes(), "poster")
+        if let Some(poster) = video
+            .attributes()
+            .get("poster")
+            .and_then(AttributeValueRef::as_str)
             .filter(|value| !matches!(*value, "youtube" | "vimeo"))
         {
             let poster = resolve_target(poster, traversal);
@@ -2284,7 +2282,11 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             write!(visitor.writer, "]")?;
             Ok(())
         };
-        if let Some(link) = attribute_text(icon_macro.attributes(), "link") {
+        if let Some(link) = icon_macro
+            .attributes()
+            .get("link")
+            .and_then(AttributeValueRef::as_str)
+        {
             self.write_link_with_tooltip(link, icon_macro.tooltip(), render)?;
         } else {
             let mut render = render;
@@ -2643,7 +2645,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         alt: &str,
         title: Option<&str>,
     ) -> Result<(), Error> {
-        if let Some(link) = attribute_text(attributes, "link") {
+        if let Some(link) = attributes.get("link").and_then(AttributeValueRef::as_str) {
             self.write_link(link, |visitor| {
                 visitor.write_image_markup(traversal, source, attributes, alt, title)
             })
@@ -2661,8 +2663,8 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         title: Option<&str>,
     ) -> Result<(), Error> {
         let target = resolve_target(&source.to_string(), traversal);
-        let width = attribute_text(attributes, "width");
-        let height = attribute_text(attributes, "height");
+        let width = attributes.get("width").and_then(AttributeValueRef::as_str);
+        let height = attributes.get("height").and_then(AttributeValueRef::as_str);
         if width.is_some() || height.is_some() {
             write!(
                 self.writer,

@@ -1,6 +1,6 @@
 use acdc_parser::{
     AttributeValue, ContentAttribute, ElementId, Image, Link, Location, Source,
-    ast::{ContentRef, ImageRef, LinkRef},
+    ast::{AttributeValueRef, ContentRef, ImageRef, LinkRef},
 };
 
 use super::{link_class_attr, link_control_attributes, link_id_attr, tooltip_attribute};
@@ -189,7 +189,10 @@ fn shared_scalar_reads_preserve_decoded_text() -> Result<(), Box<dyn std::error:
         metadata.attributes.set("align".into(), value.into());
         image.set_metadata(metadata)?;
         assert_eq!(
-            crate::image_helpers::attribute_text(ImageRef::from(&image).attributes(), "align"),
+            ImageRef::from(&image)
+                .attributes()
+                .get("align")
+                .and_then(AttributeValueRef::as_str),
             Some(value)
         );
     }

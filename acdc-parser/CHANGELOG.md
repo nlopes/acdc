@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `AttributeValueRef::as_str()` reads exact text without allocation, including
+  empty strings and meaningful quotes. Other attribute value kinds return
+  `None`, so callers can keep text extraction separate from content rendering.
+
 - Owned documents can call `rebuild_author_attributes()` after changing header
   authors. Generated name, email and count attributes follow the new authors,
   while caller defaults, locked inputs and explicit source values or unsets

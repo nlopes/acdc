@@ -4,8 +4,7 @@ use acdc_converters_core::{TraversalContext, media::resolve_target, video::TryUr
 use acdc_parser::ast::{AttributeValueRef, VideoRef};
 
 use crate::{
-    Error, HtmlVariant, HtmlVisitor, build_class, image_helpers::attribute_text,
-    inlines::escape_attribute, write_element_id,
+    Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_attribute, write_element_id,
 };
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
@@ -21,11 +20,19 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         write!(self.writer, "<div")?;
         write_element_id(&mut self.writer, video.id())?;
         let mut class = build_class("videoblock", video.roles().iter());
-        if let Some(align) = attribute_text(video.attributes(), "align") {
+        if let Some(align) = video
+            .attributes()
+            .get("align")
+            .and_then(AttributeValueRef::as_str)
+        {
             class.push_str(" text-");
             class.push_str(align);
         }
-        if let Some(float) = attribute_text(video.attributes(), "float") {
+        if let Some(float) = video
+            .attributes()
+            .get("float")
+            .and_then(AttributeValueRef::as_str)
+        {
             class.push(' ');
             class.push_str(float);
         }
@@ -39,8 +46,16 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         writeln!(self.writer, "<div class=\"content\">")?;
 
-        let is_youtube = attribute_text(video.attributes(), "poster") == Some("youtube");
-        let is_vimeo = attribute_text(video.attributes(), "poster") == Some("vimeo");
+        let is_youtube = video
+            .attributes()
+            .get("poster")
+            .and_then(AttributeValueRef::as_str)
+            == Some("youtube");
+        let is_vimeo = video
+            .attributes()
+            .get("poster")
+            .and_then(AttributeValueRef::as_str)
+            == Some("vimeo");
 
         if is_youtube || is_vimeo {
             render_iframe_video(video, traversal, &mut self.writer)?;
@@ -116,15 +131,21 @@ fn render_local_video<W: Write + ?Sized>(
         write!(w, " height=\"{}\"", escape_attribute(height))?;
     }
 
-    if let Some(poster) =
-        attribute_text(video.attributes(), "poster").filter(|value| !value.is_empty())
+    if let Some(poster) = video
+        .attributes()
+        .get("poster")
+        .and_then(AttributeValueRef::as_str)
+        .filter(|value| !value.is_empty())
     {
         let poster = resolve_target(poster, attributes);
         write!(w, " poster=\"{}\"", escape_attribute(&poster))?;
     }
 
-    if let Some(preload) =
-        attribute_text(video.attributes(), "preload").filter(|value| !value.is_empty())
+    if let Some(preload) = video
+        .attributes()
+        .get("preload")
+        .and_then(AttributeValueRef::as_str)
+        .filter(|value| !value.is_empty())
     {
         write!(w, " preload=\"{}\"", escape_attribute(preload))?;
     }
@@ -166,10 +187,18 @@ fn visit_video_semantic<'a, W: Write>(
     write_element_id(&mut visitor.writer, video.id())?;
     write!(visitor.writer, " class=\"{class}\"")?;
     let mut styles = Vec::new();
-    if let Some(align) = attribute_text(video.attributes(), "align") {
+    if let Some(align) = video
+        .attributes()
+        .get("align")
+        .and_then(AttributeValueRef::as_str)
+    {
         styles.push(format!("text-align: {align}"));
     }
-    if let Some(float) = attribute_text(video.attributes(), "float") {
+    if let Some(float) = video
+        .attributes()
+        .get("float")
+        .and_then(AttributeValueRef::as_str)
+    {
         styles.push(format!("float: {float}"));
     }
     if !styles.is_empty() {
@@ -186,8 +215,16 @@ fn visit_video_semantic<'a, W: Write>(
         return Ok(());
     }
 
-    let is_youtube = attribute_text(video.attributes(), "poster") == Some("youtube");
-    let is_vimeo = attribute_text(video.attributes(), "poster") == Some("vimeo");
+    let is_youtube = video
+        .attributes()
+        .get("poster")
+        .and_then(AttributeValueRef::as_str)
+        == Some("youtube");
+    let is_vimeo = video
+        .attributes()
+        .get("poster")
+        .and_then(AttributeValueRef::as_str)
+        == Some("vimeo");
 
     if is_youtube || is_vimeo {
         render_iframe_video(video, traversal, &mut visitor.writer)?;

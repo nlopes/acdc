@@ -7,7 +7,9 @@ use std::io::Write;
 use acdc_converters_core::{InlineTextTransform, TraversalContext};
 use acdc_parser::{
     SymbolKind,
-    ast::{AttributesRef, BlockKind, BlockRef, ContentRef, InlineKind, InlineRef},
+    ast::{
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, InlineKind, InlineRef,
+    },
 };
 
 use crate::{
@@ -15,7 +17,7 @@ use crate::{
     document::extract_verbatim_text,
     escape::{EscapeMode, manify},
     inlines::{contains_link, replacements},
-    manpage_visitor::{IndexCollection, attribute_text},
+    manpage_visitor::IndexCollection,
 };
 
 impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
@@ -164,8 +166,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         nodes: ContentRef<'_>,
         attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
-        let comment_prefix =
-            attributes.and_then(|attributes| attribute_text(attributes, "line-comment"));
+        let comment_prefix = attributes.and_then(|attributes| {
+            attributes
+                .get("line-comment")
+                .and_then(AttributeValueRef::as_str)
+        });
         let previous_boundaries = self.text_boundaries;
         let result = (|| {
             let siblings = nodes.inlines();

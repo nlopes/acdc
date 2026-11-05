@@ -9,7 +9,7 @@ use acdc_converters_core::{TraversalContext, list::OrderedListNumbering};
 use acdc_parser::{
     ListItemCheckedStatus,
     ast::{
-        BlockKind, BlockRef, CalloutListRef, ContentRef, DescriptionListItemRef,
+        AttributeValueRef, BlockKind, BlockRef, CalloutListRef, ContentRef, DescriptionListItemRef,
         DescriptionListRef, InlineKind, InlineRef, ListItemRef, OrderedListRef, UnorderedListRef,
     },
 };
@@ -291,7 +291,10 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             ListMarker::Numbered(numbering)
         };
         let reversed = list.options().iter().any(|value| value == "reversed");
-        let start = super::terminal_visitor::attribute_text(list.attributes(), "start")
+        let start = list
+            .attributes()
+            .get("start")
+            .and_then(AttributeValueRef::as_str)
             .and_then(|start| start.parse::<usize>().ok())
             .filter(|start| *start > 0)
             .unwrap_or(if reversed { list.items().count() } else { 1 });

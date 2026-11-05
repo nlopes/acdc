@@ -7,9 +7,7 @@ use acdc_parser::{
 };
 
 use crate::{
-    Error, HtmlVariant, HtmlVisitor,
-    image_helpers::{attribute_scalar, attribute_text},
-    inlines::escape_attribute,
+    Error, HtmlVariant, HtmlVisitor, image_helpers::attribute_scalar, inlines::escape_attribute,
 };
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
@@ -27,12 +25,20 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let mut classes = vec!["imageblock".to_string()];
 
         // align=left|center|right → text-left|text-center|text-right
-        if let Some(align) = attribute_text(img.attributes(), "align") {
+        if let Some(align) = img
+            .attributes()
+            .get("align")
+            .and_then(AttributeValueRef::as_str)
+        {
             classes.push(format!("text-{align}"));
         }
 
         // float=left|right → left|right
-        if let Some(float) = attribute_text(img.attributes(), "float") {
+        if let Some(float) = img
+            .attributes()
+            .get("float")
+            .and_then(AttributeValueRef::as_str)
+        {
             classes.push(float.to_owned());
         }
 
@@ -101,6 +107,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         img: ImageRef<'_>,
     ) -> Result<(), Error> {
         let has_title = img.title().is_some();
+        let attributes = img.attributes();
 
         // Build class and style for wrapper
         let mut classes = vec!["image-block".to_string()];
@@ -109,10 +116,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
 
         let mut styles = Vec::new();
-        if let Some(align) = attribute_text(img.attributes(), "align") {
+        if let Some(align) = attributes.get("align").and_then(AttributeValueRef::as_str) {
             styles.push(format!("text-align: {align}"));
         }
-        if let Some(float) = attribute_text(img.attributes(), "float") {
+        if let Some(float) = attributes.get("float").and_then(AttributeValueRef::as_str) {
             styles.push(format!("float: {float}"));
         }
 

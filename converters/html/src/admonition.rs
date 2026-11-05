@@ -3,12 +3,10 @@ use std::io::Write;
 use acdc_converters_core::TraversalContext;
 use acdc_parser::{
     AdmonitionVariant,
-    ast::{AdmonitionRef, BlockKind},
+    ast::{AdmonitionRef, AttributeValueRef, BlockKind},
 };
 
-use crate::{
-    Error, HtmlVariant, HtmlVisitor, build_class, image_helpers::attribute_text, write_element_id,
-};
+use crate::{Error, HtmlVariant, HtmlVisitor, build_class, write_element_id};
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_admonition(
@@ -191,7 +189,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     ) -> Option<String> {
         use acdc_converters_core::icon::{IconMode, image_source};
         let caption = crate::inlines::escape_attribute(caption);
-        let custom = attribute_text(admon.attributes(), "icon");
+        let custom = admon
+            .attributes()
+            .get("icon")
+            .and_then(AttributeValueRef::as_str);
         match IconMode::from_attributes(traversal) {
             IconMode::Text => None,
             IconMode::Font if custom.is_none() => {

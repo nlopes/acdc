@@ -7,7 +7,9 @@ use acdc_converters_core::{
     media::{resolve_target, with_time_range_from_attributes},
     video::TryUrl,
 };
-use acdc_parser::ast::{AudioRef, ContentRef, ImageRef, InlineImageRef, SourceRef, VideoRef};
+use acdc_parser::ast::{
+    AttributeValueRef, AudioRef, ContentRef, ImageRef, InlineImageRef, SourceRef, VideoRef,
+};
 
 use crate::{
     Error, ManpageVisitor,
@@ -48,7 +50,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             traversal,
             image.alt(),
             &alt,
-            super::manpage_visitor::attribute_text(image.attributes(), "link"),
+            image
+                .attributes()
+                .get("link")
+                .and_then(AttributeValueRef::as_str),
             false,
         )
     }
@@ -63,7 +68,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             traversal,
             image.alt(),
             &alt,
-            super::manpage_visitor::attribute_text(image.attributes(), "link"),
+            image
+                .attributes()
+                .get("link")
+                .and_then(AttributeValueRef::as_str),
             true,
         )
     }
@@ -114,7 +122,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let label = format!("[Video: {title}]");
         self.write_static_link(Some(&target), &label, false)?;
 
-        if let Some(poster) = super::manpage_visitor::attribute_text(video.attributes(), "poster")
+        if let Some(poster) = video
+            .attributes()
+            .get("poster")
+            .and_then(AttributeValueRef::as_str)
             .filter(|value| !matches!(*value, "youtube" | "vimeo"))
         {
             writeln!(self.writer_mut(), ".br")?;

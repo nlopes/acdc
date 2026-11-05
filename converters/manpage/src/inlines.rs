@@ -13,8 +13,8 @@ use acdc_converters_core::{
 use acdc_parser::{
     Substitution, SymbolKind,
     ast::{
-        AutolinkRef, ContentRef, CrossReferenceRef, IconRef, InlineKind, InlineRef, LinkRef,
-        MailtoRef, RawRef, ReferenceRef, TokensRef, UrlRef,
+        AttributeValueRef, AutolinkRef, ContentRef, CrossReferenceRef, IconRef, InlineKind,
+        InlineRef, LinkRef, MailtoRef, RawRef, ReferenceRef, TokensRef, UrlRef,
     },
 };
 
@@ -24,7 +24,7 @@ use crate::{
         EscapeMode, escape_rendered_roff_macro_argument, escape_roff_macro_argument, manify,
         uppercase_title,
     },
-    manpage_visitor::{TextCase, attribute_text},
+    manpage_visitor::TextCase,
 };
 
 pub(crate) fn replacements() -> Replacements<'static> {
@@ -632,7 +632,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             traversal,
             icon.alt(),
             &fallback,
-            attribute_text(icon.attributes(), "link"),
+            icon.attributes()
+                .get("link")
+                .and_then(AttributeValueRef::as_str),
             true,
         )?;
         Ok(())

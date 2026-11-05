@@ -12,7 +12,6 @@ use acdc_parser::{
 
 use crate::{
     Error, HtmlVariant, HtmlVisitor, Processor,
-    image_helpers::attribute_text,
     inlines::{escape_attribute, escape_pcdata},
 };
 
@@ -230,7 +229,11 @@ fn render_styled_content<'a, W: Write>(
 /// Render colgroup with column width styles
 fn render_colgroup<W: Write + ?Sized>(writer: &mut W, table: TableRef<'_>) -> Result<(), Error> {
     // Generate colgroup - either from cols attribute or inferred from table structure
-    let col_count = if let Some(cols_str) = attribute_text(table.attributes(), "cols") {
+    let col_count = if let Some(cols_str) = table
+        .attributes()
+        .get("cols")
+        .and_then(AttributeValueRef::as_str)
+    {
         // Handle multiplier syntax like "3*" or "2*~"
         if let Some(asterisk_pos) = cols_str.find('*') {
             let count_str = &cols_str[..asterisk_pos];
@@ -313,7 +316,7 @@ fn stripes_class(stripes: TableStripes) -> Option<&'static str> {
 /// - `%autowidth` with no `width` → `fit-content` class;
 /// - otherwise (default full width) → `stretch` class.
 fn table_sizing(attributes: AttributesRef<'_>) -> (Option<&'static str>, String) {
-    if let Some(width) = attribute_text(attributes, "width") {
+    if let Some(width) = attributes.get("width").and_then(AttributeValueRef::as_str) {
         if width.trim_end_matches('%') == "100" {
             (Some("stretch"), String::new())
         } else {
@@ -406,7 +409,11 @@ pub(crate) fn render_table<'a, W: Write>(
     }
 
     // Add float class (e.g. `center`) if specified
-    if let Some(float) = attribute_text(table.attributes(), "float") {
+    if let Some(float) = table
+        .attributes()
+        .get("float")
+        .and_then(AttributeValueRef::as_str)
+    {
         class_parts.push(' ');
         class_parts.push_str(float);
     }

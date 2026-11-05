@@ -21,16 +21,6 @@ use crossterm::{
 
 use crate::{Error, Processor};
 
-pub(crate) fn attribute_text<'doc>(
-    attributes: AttributesRef<'doc>,
-    name: &str,
-) -> Option<&'doc str> {
-    match attributes.get(name) {
-        Some(AttributeValueRef::Text(value)) => Some(value),
-        _ => None,
-    }
-}
-
 pub(crate) fn has_token(attributes: AttributesRef<'_>, name: &str, token: &str) -> bool {
     matches!(attributes.get(name), Some(AttributeValueRef::Tokens(tokens)) if tokens.iter().any(|value| value == token))
 }

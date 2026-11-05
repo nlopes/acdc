@@ -74,20 +74,19 @@ impl TryUrl for VideoRef<'_> {
         if self.source().to_string().is_empty() {
             return Err(UrlError::MissingSource);
         }
-        match (attribute_text(*self, "poster"), embed) {
+        match (
+            (*self)
+                .attributes()
+                .get("poster")
+                .and_then(AttributeValueRef::as_str),
+            embed,
+        ) {
             (Some("youtube"), true) => build_youtube_embed_url(*self),
             (Some("youtube"), false) => build_youtube_watch_url(*self),
             (Some("vimeo"), true) => build_vimeo_embed_url(*self),
             (Some("vimeo"), false) => build_vimeo_watch_url(*self),
             _ => Ok(build_local_url(*self)),
         }
-    }
-}
-
-fn attribute_text<'doc>(video: VideoRef<'doc>, name: &str) -> Option<&'doc str> {
-    match video.attributes().get(name) {
-        Some(AttributeValueRef::Text(value)) => Some(value),
-        _ => None,
     }
 }
 
@@ -107,7 +106,10 @@ fn youtube_target(video: VideoRef<'_>) -> Result<YoutubeTarget, UrlError> {
         .map_or((source.as_str(), None), |(target, list)| {
             (target, Some(list))
         });
-    let named_list = attribute_text(video, "list");
+    let named_list = video
+        .attributes()
+        .get("list")
+        .and_then(AttributeValueRef::as_str);
     if let Some(list) = list.or(named_list) {
         return Ok(YoutubeTarget {
             id: target.to_owned(),
@@ -119,7 +121,10 @@ fn youtube_target(video: VideoRef<'_>) -> Result<YoutubeTarget, UrlError> {
         .map_or((target, None), |(target, playlist)| {
             (target, Some(playlist))
         });
-    let named_playlist = attribute_text(video, "playlist");
+    let named_playlist = video
+        .attributes()
+        .get("playlist")
+        .and_then(AttributeValueRef::as_str);
     let playlist = playlist
         .or(named_playlist)
         .map(|playlist| ("playlist", format!("{target},{playlist}")));
@@ -223,7 +228,11 @@ fn build_youtube_embed_url(video: VideoRef<'_>) -> Result<String, UrlError> {
     if video.options().contains("nofullscreen") {
         write!(url, "&fs=0")?;
     }
-    if let Some(lang) = attribute_text(video, "lang") {
+    if let Some(lang) = video
+        .attributes()
+        .get("lang")
+        .and_then(AttributeValueRef::as_str)
+    {
         write!(url, "&hl={lang}")?;
     }
 
@@ -248,7 +257,10 @@ fn build_vimeo_watch_url(video: VideoRef<'_>) -> Result<String, UrlError> {
     let video_id = video.source().to_string();
     let mut url = format!("https://vimeo.com/{video_id}");
     if !video_id.contains('/')
-        && let Some(hash) = attribute_text(video, "hash")
+        && let Some(hash) = video
+            .attributes()
+            .get("hash")
+            .and_then(AttributeValueRef::as_str)
     {
         write!(url, "/{hash}")?;
     }
@@ -275,7 +287,10 @@ fn build_vimeo_embed_url(video: VideoRef<'_>) -> Result<String, UrlError> {
     let (video_id, hash) = video_id
         .split_once('/')
         .map_or((video_id.as_str(), None), |(id, hash)| (id, Some(hash)));
-    let named_hash = attribute_text(video, "hash");
+    let named_hash = video
+        .attributes()
+        .get("hash")
+        .and_then(AttributeValueRef::as_str);
     let mut url = format!("https://player.vimeo.com/video/{video_id}");
     let mut first_param = true;
     if let Some(hash) = hash.or(named_hash) {
@@ -300,7 +315,11 @@ fn build_vimeo_embed_url(video: VideoRef<'_>) -> Result<String, UrlError> {
         write!(url, "{}muted=1", if first_param { "?" } else { "&" })?;
     }
 
-    if let Some(start) = attribute_text(video, "start") {
+    if let Some(start) = video
+        .attributes()
+        .get("start")
+        .and_then(AttributeValueRef::as_str)
+    {
         write!(url, "#at={start}")?;
     }
 

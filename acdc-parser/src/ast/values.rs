@@ -22,6 +22,19 @@ pub enum AttributeValueRef<'doc> {
     Substitutions(SubstitutionSpecRef<'doc>),
 }
 
+impl<'doc> AttributeValueRef<'doc> {
+    /// Return exact semantic text, including meaningful quotes and empty strings.
+    /// Returns `None` for nontext attributes.
+    #[must_use]
+    pub const fn as_str(self) -> Option<&'doc str> {
+        if let Self::Text(text) = self {
+            Some(text)
+        } else {
+            None
+        }
+    }
+}
+
 impl<'doc> From<&'doc AttributeValue<'doc>> for AttributeValueRef<'doc> {
     fn from(value: &'doc AttributeValue<'doc>) -> Self {
         match value {

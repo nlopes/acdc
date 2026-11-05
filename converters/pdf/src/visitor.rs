@@ -11,17 +11,17 @@ use acdc_converters_core::{
 use acdc_parser::{
     AdmonitionVariant, Caption, Image, SectionKind, Source, Video,
     ast::{
-        AdmonitionRef, AudioRef, BlockKind, BlockRef, CalloutListRef, ContentRef,
-        DescriptionListRef, DiscreteHeaderRef, DocumentRef, HeaderRef, ImageRef, InlineKind,
-        InlineRef, OrderedListRef, PageBreakRef, ParagraphRef, SectionRef, TableOfContentsRef,
-        ThematicBreakRef, UnorderedListRef, VideoRef,
+        AdmonitionRef, AttributeValueRef, AudioRef, BlockKind, BlockRef, CalloutListRef,
+        ContentRef, DescriptionListRef, DiscreteHeaderRef, DocumentRef, HeaderRef, ImageRef,
+        InlineKind, InlineRef, OrderedListRef, PageBreakRef, ParagraphRef, SectionRef,
+        TableOfContentsRef, ThematicBreakRef, UnorderedListRef, VideoRef,
     },
 };
 
 use crate::{
     Error, PdfVisitor, admonition_icon_source, author_name, is_page_breakable_table,
     is_unbreakable_delimited_block, is_unbreakable_paragraph,
-    pdf_visitor::{AutomaticPreambleLeadState, ExplicitPageBreakState, attribute_text},
+    pdf_visitor::{AutomaticPreambleLeadState, ExplicitPageBreakState},
 };
 
 fn poster_image<'a>(
@@ -497,7 +497,12 @@ impl<'a> PdfVisitor<'a, '_, '_> {
                 AdmonitionVariant::Warning => "warning",
             };
             let image_icon = (IconMode::from_attributes(traversal) != IconMode::Text)
-                .then(|| attribute_text(admon.attributes(), "icon"))
+                .then(|| {
+                    admon
+                        .attributes()
+                        .get("icon")
+                        .and_then(AttributeValueRef::as_str)
+                })
                 .flatten()
                 .filter(|icon| !icon.is_empty())
                 .map(|icon| admonition_icon_source(traversal, icon))
@@ -558,7 +563,11 @@ impl<'a> PdfVisitor<'a, '_, '_> {
     ) -> Result<(), Error> {
         self.write_block_anchor(video.primary_anchor());
         self.warn_static_media_fallback(&video.location().into());
-        let kind = match attribute_text(video.attributes(), "poster") {
+        let kind = match video
+            .attributes()
+            .get("poster")
+            .and_then(AttributeValueRef::as_str)
+        {
             Some("youtube") => "YouTube video",
             Some("vimeo") => "Vimeo video",
             _ => "video",
@@ -567,7 +576,10 @@ impl<'a> PdfVisitor<'a, '_, '_> {
             .map_err(|error| std::io::Error::other(error.to_string()))?;
         let sources = [(Self::static_media_target(traversal, &target), kind)];
 
-        let poster = attribute_text(video.attributes(), "poster")
+        let poster = video
+            .attributes()
+            .get("poster")
+            .and_then(AttributeValueRef::as_str)
             .filter(|poster| !poster.is_empty() && !matches!(*poster, "youtube" | "vimeo"));
         let poster_target = poster.map(|poster| Self::static_media_target(traversal, poster));
         let poster_rendered = if let (Some(poster), Some(poster_target), Some((target, _))) =

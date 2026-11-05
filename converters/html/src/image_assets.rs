@@ -8,7 +8,7 @@ use std::{
 use acdc_converters_core::TraversalContext;
 use acdc_parser::{
     SafeMode,
-    ast::{AttributesRef, ContentRef, SourceRef, TokensRef},
+    ast::{AttributeValueRef, AttributesRef, ContentRef, SourceRef, TokensRef},
 };
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use quick_xml::{
@@ -18,7 +18,7 @@ use quick_xml::{
 
 use crate::{
     Error, HtmlVariant, HtmlVisitor,
-    image_helpers::{attribute_text, escape_image_text, write_dimension_attributes},
+    image_helpers::{escape_image_text, write_dimension_attributes},
     inlines::escape_attribute,
 };
 
@@ -43,7 +43,8 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
         let alt_content = alt;
         let alt = acdc_converters_core::media::image_alt_from_content(source, alt);
         let target = acdc_converters_core::media::resolve_target(&source.to_string(), traversal);
-        let svg = attribute_text(attributes, "format") == Some("svg") || target.contains(".svg");
+        let svg = attributes.get("format").and_then(AttributeValueRef::as_str) == Some("svg")
+            || target.contains(".svg");
         let embedding_allowed = self.processor.options.safe_mode() < SafeMode::Secure;
         if svg && embedding_allowed && options.contains("inline") {
             let result = self
@@ -69,7 +70,9 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
         write_dimension_attributes(&mut attrs, attributes)?;
         write!(attrs, "{}", crate::inlines::tooltip_attribute(tooltip))?;
         if self.processor.variant() == HtmlVariant::Semantic
-            && let Some(loading) = attribute_text(attributes, "loading")
+            && let Some(loading) = attributes
+                .get("loading")
+                .and_then(AttributeValueRef::as_str)
         {
             write!(attrs, " loading=\"{}\"", escape_attribute(loading))?;
         }
@@ -77,7 +80,10 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
         let source = escape_attribute(&self.image_uri(&target, traversal));
         let alt = escape_image_text(&alt);
         if svg && embedding_allowed && options.contains("interactive") {
-            let fallback = if let Some(fallback) = attribute_text(attributes, "fallback") {
+            let fallback = if let Some(fallback) = attributes
+                .get("fallback")
+                .and_then(AttributeValueRef::as_str)
+            {
                 let fallback = acdc_converters_core::media::resolve_target(fallback, traversal);
                 let fallback = escape_attribute(&self.image_uri(&fallback, traversal));
                 format!("<img src=\"{fallback}\" alt=\"{alt}\"{attrs}>")
@@ -268,8 +274,8 @@ fn inline_svg(bytes: &[u8], attributes: AttributesRef<'_>) -> Result<String, Str
         if tag.name().as_ref() != b"svg" {
             return Err("image root element is not svg".into());
         }
-        let width = attribute_text(attributes, "width");
-        let height = attribute_text(attributes, "height");
+        let width = attributes.get("width").and_then(AttributeValueRef::as_str);
+        let height = attributes.get("height").and_then(AttributeValueRef::as_str);
         if width.is_none() && height.is_none() {
             return Ok(source
                 .get(start..)

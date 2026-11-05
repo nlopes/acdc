@@ -12,8 +12,9 @@ use acdc_converters_core::{
 use acdc_parser::{
     Substitution,
     ast::{
-        ButtonRef, ContentRef, CrossReferenceRef, IconRef, IndexTermRef, IndexTermRelationshipRef,
-        InlineImageRef, InlineKind, InlineRef, KeyboardRef, LinkRef, RawRef, ReferenceRef,
+        AttributeValueRef, ButtonRef, ContentRef, CrossReferenceRef, IconRef, IndexTermRef,
+        IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef, KeyboardRef, LinkRef,
+        RawRef, ReferenceRef,
     },
 };
 
@@ -22,10 +23,7 @@ use crossterm::{
     style::{Attribute, Color, Print, PrintStyledContent, SetAttribute, Stylize},
 };
 
-use crate::{
-    Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Processor,
-    terminal_visitor::attribute_text,
-};
+use crate::{Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Processor};
 
 /// Try to convert a character to its Unicode superscript equivalent.
 /// Only digits and a few reliable symbols are mapped; letters are not included
@@ -820,7 +818,11 @@ fn render_icon_to_writer<'a, W: Write + ?Sized>(
         None => acdc_converters_core::icon::alt_from_content(icon.target(), None).into_owned(),
     };
     let label = format!("[Icon: {alt}]");
-    if let Some(target) = attribute_text(icon.attributes(), "link") {
+    if let Some(target) = icon
+        .attributes()
+        .get("link")
+        .and_then(AttributeValueRef::as_str)
+    {
         maybe_render_osc8_link(target, &label, w, processor)?;
     } else {
         write!(w, "{label}")?;
@@ -850,7 +852,7 @@ fn render_keyboard_to_writer<'a, W: Write + ?Sized>(
 }
 
 fn is_self_linked_image(node: InlineRef<'_>) -> bool {
-    matches!(node.kind(), InlineKind::Image(image) if attribute_text(image.attributes(), "link").is_some())
+    matches!(node.kind(), InlineKind::Image(image) if image.attributes().get("link").and_then(AttributeValueRef::as_str).is_some())
 }
 
 fn render_inline_image<'a, W: Write + ?Sized>(
@@ -864,7 +866,11 @@ fn render_inline_image<'a, W: Write + ?Sized>(
         None => acdc_converters_core::media::image_alt_from_content(image.source(), image.alt()),
     };
     let text = format!("[Image: {alt}]");
-    if let Some(target) = attribute_text(image.attributes(), "link") {
+    if let Some(target) = image
+        .attributes()
+        .get("link")
+        .and_then(AttributeValueRef::as_str)
+    {
         maybe_render_osc8_link(target, &text, w, processor)
     } else {
         write!(w, "{text}")?;

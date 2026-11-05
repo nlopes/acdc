@@ -8,16 +8,13 @@ use acdc_converters_core::{
 use acdc_parser::{
     ColumnStyle, HorizontalAlignment, TableFrame, TableGrid, TablePresentation, TableStripes,
     VerticalAlignment,
-    ast::{AttributesRef, ColumnFormatRef, TableCellRef, TableRef, TableRowRef},
+    ast::{AttributeValueRef, AttributesRef, ColumnFormatRef, TableCellRef, TableRef, TableRowRef},
 };
 use comfy_table::{
     Attribute, Cell, CellAlignment, ColumnConstraint, ContentArrangement, Table, Width,
 };
 
-use crate::{
-    Error, Processor, TerminalVisitor,
-    terminal_visitor::{attribute_text, has_token},
-};
+use crate::{Error, Processor, TerminalVisitor, terminal_visitor::has_token};
 
 /// Map `HorizontalAlignment` to comfy-table `CellAlignment`.
 fn map_alignment(align: HorizontalAlignment) -> CellAlignment {
@@ -854,10 +851,13 @@ pub(crate) fn visit_table<'a, W: std::io::Write>(
 }
 
 fn table_width(attributes: AttributesRef<'_>, terminal_width: usize) -> Option<usize> {
-    let constrained = attribute_text(attributes, "width").and_then(|width| {
-        let width = width.trim().trim_end_matches('%');
-        width.parse::<usize>().ok().filter(|width| *width > 0)
-    });
+    let constrained = attributes
+        .get("width")
+        .and_then(AttributeValueRef::as_str)
+        .and_then(|width| {
+            let width = width.trim().trim_end_matches('%');
+            width.parse::<usize>().ok().filter(|width| *width > 0)
+        });
     if constrained.is_none()
         && has_token(attributes, "opts", "autowidth")
         && !has_token(attributes, "role", "stretch")
@@ -869,8 +869,10 @@ fn table_width(attributes: AttributesRef<'_>, terminal_width: usize) -> Option<u
 }
 
 fn align_table(output: &str, attributes: AttributesRef<'_>, terminal_width: usize) -> String {
-    let alignment = attribute_text(attributes, "align")
-        .or_else(|| attribute_text(attributes, "float"))
+    let alignment = attributes
+        .get("align")
+        .and_then(AttributeValueRef::as_str)
+        .or_else(|| attributes.get("float").and_then(AttributeValueRef::as_str))
         .and_then(|value| matches!(value, "left" | "center" | "right").then_some(value));
     let Some(alignment) = alignment else {
         return output.to_string();

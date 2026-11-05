@@ -28,17 +28,6 @@ pub(crate) fn escape_image_text(text: &str) -> String {
         .replace('"', "&quot;")
 }
 
-pub(crate) fn attribute_text<'doc>(
-    attributes: AttributesRef<'doc>,
-    name: &str,
-) -> Option<&'doc str> {
-    if let Some(AttributeValueRef::Text(text)) = attributes.get(name) {
-        Some(text)
-    } else {
-        None
-    }
-}
-
 pub(crate) fn attribute_scalar(value: AttributeValueRef<'_>) -> Option<&str> {
     match value {
         AttributeValueRef::Text(text) => Some(text),

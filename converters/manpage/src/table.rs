@@ -13,10 +13,13 @@ use acdc_converters_core::{
 use acdc_parser::{
     ColumnStyle, ColumnWidth, HorizontalAlignment, TableFrame, TableGrid, TablePresentation,
     TableStripes, VerticalAlignment,
-    ast::{AttributesRef, BlockKind, ColumnFormatRef, TableCellRef, TableRef, TableRowRef},
+    ast::{
+        AttributeValueRef, AttributesRef, BlockKind, ColumnFormatRef, TableCellRef, TableRef,
+        TableRowRef,
+    },
 };
 
-use crate::{Error, ManpageVisitor, Processor, manpage_visitor::attribute_text};
+use crate::{Error, ManpageVisitor, Processor};
 
 /// Map horizontal alignment to tbl format character.
 fn alignment_prefix(halign: HorizontalAlignment) -> &'static str {
@@ -170,7 +173,9 @@ fn parse_table_width(
     attributes: AttributesRef<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<u32> {
-    let width = attribute_text(attributes, "width")?;
+    let width = attributes
+        .get("width")
+        .and_then(AttributeValueRef::as_str)?;
     let value = width.trim().trim_end_matches('%');
     match value.parse::<u32>() {
         Ok(width) if width > 0 => Some(width.min(100)),
@@ -252,8 +257,8 @@ fn width_plan(
 }
 
 fn table_is_centered(attributes: AttributesRef<'_>, diagnostics: &mut Diagnostics<'_>) -> bool {
-    let alignment = attribute_text(attributes, "align");
-    let float = attribute_text(attributes, "float");
+    let alignment = attributes.get("align").and_then(AttributeValueRef::as_str);
+    let float = attributes.get("float").and_then(AttributeValueRef::as_str);
     if attributes.contains("float") {
         warn_once(
             diagnostics,

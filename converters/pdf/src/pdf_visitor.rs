@@ -1970,7 +1970,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         attributes: Option<AttributesRef<'_>>,
     ) -> usize {
         attributes
-            .and_then(|attributes| attribute_text(attributes, "tabsize"))
+            .and_then(|attributes| {
+                attributes
+                    .get("tabsize")
+                    .and_then(AttributeValueRef::as_str)
+            })
             .and_then(|value| value.parse().ok())
             .or_else(|| {
                 traversal.get("tabsize").and_then(|value| {
@@ -2025,8 +2029,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         tab_size: usize,
     ) -> Result<CodeText, Error> {
         let extension = code_output_extension(traversal).to_owned();
-        let line_comment =
-            attributes.and_then(|attributes| attribute_text(attributes, "line-comment"));
+        let line_comment = attributes.and_then(|attributes| {
+            attributes
+                .get("line-comment")
+                .and_then(AttributeValueRef::as_str)
+        });
         let CodeText {
             source: mut text,
             indexes: mut positions,
@@ -2484,8 +2491,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     pub(crate) fn write_page_layout_change(&mut self, br: PageBreakRef<'_>) {
-        let layout = if let Some(value) =
-            attribute_text(br.attributes(), "page-layout").filter(|value| !value.is_empty())
+        let layout = if let Some(value) = br
+            .attributes()
+            .get("page-layout")
+            .and_then(AttributeValueRef::as_str)
+            .filter(|value| !value.is_empty())
         {
             match value {
                 "portrait" => Some(PageLayout::Portrait),
@@ -2951,7 +2961,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let node = list;
         let ordered = node.style() == Some("ordered");
         let stacked = node.roles().contains("stack");
-        let subject_stop = attribute_text(node.attributes(), "subject-stop");
+        let subject_stop = node
+            .attributes()
+            .get("subject-stop")
+            .and_then(AttributeValueRef::as_str);
         let indent = "  ".repeat(self.list_depth);
         let _ = writeln!(self.writer, "{indent}#[");
         if ordered {
@@ -3083,7 +3096,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer.raw("(..numbers) => none");
         } else {
             let numbering = match attributes
-                .and_then(|attributes| attribute_text(attributes, "style"))
+                .and_then(|attributes| attributes.get("style").and_then(AttributeValueRef::as_str))
             {
                 Some(style) => OrderedListNumbering::from_explicit_style(style).unwrap_or_default(),
                 None => match marker.matches('.').count() {
@@ -3103,7 +3116,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer.raw(", body-indent: 0.5em");
         }
         if let Some(start) = attributes
-            .and_then(|attributes| attribute_text(attributes, "start"))
+            .and_then(|attributes| attributes.get("start").and_then(AttributeValueRef::as_str))
             .and_then(|start| start.parse::<i64>().ok())
             .filter(|start| *start > 0)
         {
@@ -3129,7 +3142,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             return false;
         }
         let style = attributes
-            .and_then(|attributes| attribute_text(attributes, "style"))
+            .and_then(|attributes| attributes.get("style").and_then(AttributeValueRef::as_str))
             .and_then(UnorderedMarker::from_style);
         let resets_parent_style = style.is_none() && self.unordered_style_scope_depth > 0;
         if style.is_none() && !resets_parent_style {
@@ -3694,7 +3707,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
         let source = Self::static_media_source_target(traversal, image.source());
         let alt = block_image_alt(image);
-        let link = attribute_text(image.attributes(), "link").filter(|target| !target.is_empty());
+        let link = image
+            .attributes()
+            .get("link")
+            .and_then(AttributeValueRef::as_str)
+            .filter(|target| !target.is_empty());
         if let Some(asset) = self.assets.get(&source) {
             let width = image_width(image.attributes(), true);
             let alignment = block_image_alignment(Some(image.attributes()));
@@ -3895,9 +3912,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<(), Error> {
         let source = Self::static_media_target(traversal, &image.source().to_string());
         let alt = acdc_converters_core::media::image_alt_from_content(image.source(), image.alt());
-        let link = attribute_text(image.attributes(), "link").filter(|target| !target.is_empty());
+        let link = image
+            .attributes()
+            .get("link")
+            .and_then(AttributeValueRef::as_str)
+            .filter(|target| !target.is_empty());
         if let Some(asset) = self.assets.get(&source) {
-            let fit = attribute_text(image.attributes(), "fit").unwrap_or_default();
+            let fit = image
+                .attributes()
+                .get("fit")
+                .and_then(AttributeValueRef::as_str)
+                .unwrap_or_default();
             let fit_line = fit == "line";
             if fit == "none" {
                 self.warn_unsupported_once(
@@ -4004,7 +4029,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         icon: IconRef<'_>,
     ) -> Result<(), Error> {
         let alt = acdc_converters_core::icon::alt_from_content(icon.target(), icon.alt());
-        let link = attribute_text(icon.attributes(), "link");
+        let link = icon
+            .attributes()
+            .get("link")
+            .and_then(AttributeValueRef::as_str);
         if let Some(target) = &link {
             self.writer.raw("#link(");
             self.writer.string_literal(target);
@@ -4013,7 +4041,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         match IconMode::from_attributes(traversal) {
             IconMode::Font => {
                 if let Some(glyph) = builtin_icon_glyph(&icon.target().to_string()) {
-                    match attribute_text(icon.attributes(), "size") {
+                    match icon
+                        .attributes()
+                        .get("size")
+                        .and_then(AttributeValueRef::as_str)
+                    {
                         Some("2x") => self.write_sized_icon_glyph(glyph, "2em"),
                         Some("3x") => self.write_sized_icon_glyph(glyph, "3em"),
                         Some("4x") => self.write_sized_icon_glyph(glyph, "4em"),
@@ -4031,10 +4063,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 }
             }
             IconMode::Image => {
-                let source = attribute_text(icon.attributes(), "icon").map_or_else(
-                    || icon_image_source(traversal, icon.target()),
-                    |value| acdc_converters_core::icon::custom_image_source(traversal, value),
-                );
+                let source = icon
+                    .attributes()
+                    .get("icon")
+                    .and_then(AttributeValueRef::as_str)
+                    .map_or_else(
+                        || icon_image_source(traversal, icon.target()),
+                        |value| acdc_converters_core::icon::custom_image_source(traversal, value),
+                    );
                 if let Some(asset) = self.assets.get(&source) {
                     self.writer.raw("#box(image(");
                     self.writer.string_literal(&asset.virtual_path);
@@ -4560,7 +4596,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             if let Some(node) = nodes.next()
                 && nodes.next().is_none()
                 && let InlineKind::Image(image) = node.kind()
-                && attribute_text(image.attributes(), "link").is_some()
+                && image
+                    .attributes()
+                    .get("link")
+                    .and_then(AttributeValueRef::as_str)
+                    .is_some()
             {
                 self.write_inline_image(traversal, image)?;
                 self.write_inline_span_end(state);
@@ -5194,18 +5234,7 @@ fn has_attribute_token(attributes: Option<AttributesRef<'_>>, name: &str, token:
 }
 
 fn attribute_style(attributes: Option<AttributesRef<'_>>) -> Option<&str> {
-    attributes.and_then(|attributes| attribute_text(attributes, "style"))
-}
-
-pub(super) fn attribute_text<'doc>(
-    attributes: AttributesRef<'doc>,
-    name: &str,
-) -> Option<&'doc str> {
-    if let Some(AttributeValueRef::Text(value)) = attributes.get(name) {
-        Some(value)
-    } else {
-        None
-    }
+    attributes.and_then(|attributes| attributes.get("style").and_then(AttributeValueRef::as_str))
 }
 
 fn inline_image_fallback_text(image: InlineImageRef<'_>) -> String {
@@ -5250,7 +5279,7 @@ fn block_image_alignment(attributes: Option<AttributesRef<'_>>) -> BlockImageAli
     }
     if attributes.is_some_and(|attributes| attributes.contains("align")) {
         return attributes
-            .and_then(|attributes| attribute_text(attributes, "align"))
+            .and_then(|attributes| attributes.get("align").and_then(AttributeValueRef::as_str))
             .and_then(BlockImageAlignment::from_name)
             .unwrap_or_default();
     }
@@ -5262,7 +5291,7 @@ fn block_image_alignment(attributes: Option<AttributesRef<'_>>) -> BlockImageAli
 
 fn block_image_float(attributes: Option<AttributesRef<'_>>) -> Option<BlockImageAlignment> {
     attributes
-        .and_then(|attributes| attribute_text(attributes, "float"))
+        .and_then(|attributes| attributes.get("float").and_then(AttributeValueRef::as_str))
         .and_then(BlockImageAlignment::from_name)
         .filter(|alignment| *alignment != BlockImageAlignment::Center)
 }
@@ -5277,11 +5306,14 @@ fn image_width(attributes: AttributesRef<'_>, supports_viewport_width: bool) -> 
         return Some(pdf_image_width(value, supports_viewport_width));
     }
 
-    if let Some(scale) = attribute_text(attributes, "scale") {
+    if let Some(scale) = attributes.get("scale").and_then(AttributeValueRef::as_str) {
         return Some(ImageWidth::IntrinsicRatio(leading_number(scale) / 100.0));
     }
 
-    if let Some(scaledwidth) = attribute_text(attributes, "scaledwidth") {
+    if let Some(scaledwidth) = attributes
+        .get("scaledwidth")
+        .and_then(AttributeValueRef::as_str)
+    {
         if let Some(percentage) = scaledwidth.strip_suffix('%') {
             return Some(ImageWidth::ContainerRatio {
                 value: leading_number(percentage) / 100.0,
@@ -5300,7 +5332,9 @@ fn image_width(attributes: AttributesRef<'_>, supports_viewport_width: bool) -> 
         });
     }
 
-    let width = attribute_text(attributes, "width")?;
+    let width = attributes
+        .get("width")
+        .and_then(AttributeValueRef::as_str)?;
     if let Some(percentage) = width.strip_suffix('%') {
         let percentage = percentage.parse::<f64>().ok()?;
         return (percentage.is_finite() && percentage >= 0.0).then(|| ImageWidth::ContainerRatio {

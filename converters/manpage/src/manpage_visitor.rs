@@ -18,16 +18,6 @@ use crate::{
     inlines::LinkLabel,
 };
 
-pub(super) fn attribute_text<'doc>(
-    attributes: AttributesRef<'doc>,
-    name: &str,
-) -> Option<&'doc str> {
-    match attributes.get(name) {
-        Some(AttributeValueRef::Text(value)) => Some(value),
-        _ => None,
-    }
-}
-
 #[derive(Clone, Copy)]
 pub(crate) enum TextCase {
     Preserve,

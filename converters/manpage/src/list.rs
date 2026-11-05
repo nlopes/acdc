@@ -9,8 +9,8 @@ use acdc_converters_core::{TraversalContext, list::OrderedListNumbering};
 use acdc_parser::{
     ListItemCheckedStatus,
     ast::{
-        BlockRef, CalloutListRef, ContentRef, DescriptionListItemRef, DescriptionListRef,
-        InlineKind, InlineRef, ListItemRef, OrderedListRef, UnorderedListRef,
+        AttributeValueRef, BlockRef, CalloutListRef, ContentRef, DescriptionListItemRef,
+        DescriptionListRef, InlineKind, InlineRef, ListItemRef, OrderedListRef, UnorderedListRef,
     },
 };
 
@@ -115,7 +115,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             .and_then(OrderedListNumbering::from_explicit_style)
             .unwrap_or_default();
         let reversed = list.options().iter().any(|option| option == "reversed");
-        let start = super::manpage_visitor::attribute_text(list.attributes(), "start")
+        let start = list
+            .attributes()
+            .get("start")
+            .and_then(AttributeValueRef::as_str)
             .and_then(|start| start.parse::<usize>().ok())
             .filter(|start| *start > 0)
             .unwrap_or(if reversed { list.items().count() } else { 1 });

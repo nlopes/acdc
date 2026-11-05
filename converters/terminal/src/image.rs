@@ -3,7 +3,10 @@ use std::io::Write;
 use acdc_converters_core::{TraversalContext, media::resolve_target};
 #[cfg(feature = "images")]
 use acdc_parser::ast::SourceKind;
-use acdc_parser::{CaptionKind, ast::ImageRef};
+use acdc_parser::{
+    CaptionKind,
+    ast::{AttributeValueRef, ImageRef},
+};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -18,7 +21,10 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         image: ImageRef<'_>,
     ) -> Result<(), Error> {
         let alt = acdc_converters_core::media::image_alt_from_content(image.source(), image.alt());
-        let link = super::terminal_visitor::attribute_text(image.attributes(), "link");
+        let link = image
+            .attributes()
+            .get("link")
+            .and_then(AttributeValueRef::as_str);
 
         #[cfg(feature = "images")]
         let rendered_protocol_image = if let SourceKind::Path(path) = image.source().kind() {
@@ -79,8 +85,16 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 fn image_config(image: ImageRef<'_>, terminal_width: usize) -> viuer::Config {
     let width = dimension(image, "width");
     let height = dimension(image, "height");
-    let alignment = super::terminal_visitor::attribute_text(image.attributes(), "float")
-        .or_else(|| super::terminal_visitor::attribute_text(image.attributes(), "align"));
+    let alignment = image
+        .attributes()
+        .get("float")
+        .and_then(AttributeValueRef::as_str)
+        .or_else(|| {
+            image
+                .attributes()
+                .get("align")
+                .and_then(AttributeValueRef::as_str)
+        });
     let x = match (alignment, width) {
         (Some("center"), Some(width)) => terminal_width.saturating_sub(width as usize) / 2,
         (Some("right"), Some(width)) => terminal_width.saturating_sub(width as usize),
@@ -96,7 +110,10 @@ fn image_config(image: ImageRef<'_>, terminal_width: usize) -> viuer::Config {
 
 #[cfg(feature = "images")]
 fn dimension(image: ImageRef<'_>, name: &str) -> Option<u32> {
-    super::terminal_visitor::attribute_text(image.attributes(), name)
+    image
+        .attributes()
+        .get(name)
+        .and_then(AttributeValueRef::as_str)
         .and_then(|value| value.parse().ok())
         .filter(|value| *value > 0)
 }

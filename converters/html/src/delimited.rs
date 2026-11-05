@@ -15,9 +15,8 @@ use acdc_parser::{
 #[cfg(feature = "terminal")]
 use crate::terminal::{is_terminal_session, render_listing, render_session};
 use crate::{
-    Error, HtmlVariant, HtmlVisitor, build_class, image_helpers::attribute_text,
-    inlines::escape_pcdata, write_attribution, write_element_id, write_id,
-    write_semantic_attribution,
+    Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_pcdata, write_attribution,
+    write_element_id, write_id, write_semantic_attribution,
 };
 
 fn block_class(base: &str, attributes: Option<AttributesRef<'_>>) -> String {
@@ -37,7 +36,7 @@ fn write_block_div_open<W: Write>(
     write!(w, "<div")?;
     write_id(
         w,
-        attributes.and_then(|attributes| attribute_text(attributes, "id")),
+        attributes.and_then(|attributes| attributes.get("id").and_then(AttributeValueRef::as_str)),
     )?;
     let class = block_class(base_class, attributes);
     writeln!(w, " class=\"{class}\">")?;
@@ -56,7 +55,7 @@ fn write_semantic_tag_open<W: Write>(
     write!(w, " class=\"{class}\"")?;
     write_id(
         w,
-        attributes.and_then(|attributes| attribute_text(attributes, "id")),
+        attributes.and_then(|attributes| attributes.get("id").and_then(AttributeValueRef::as_str)),
     )?;
     writeln!(w, ">")?;
     Ok(())
@@ -887,8 +886,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        let base_class = if let Some(style) =
-            attributes.and_then(|attributes| attribute_text(attributes, "style"))
+        let base_class = if let Some(style) = attributes
+            .and_then(|attributes| attributes.get("style").and_then(AttributeValueRef::as_str))
             && style != "source"
         {
             format!("{style}block")

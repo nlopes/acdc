@@ -4,14 +4,12 @@ use acdc_converters_core::{TraversalContext, list::OrderedListNumbering};
 use acdc_parser::{
     ListItemCheckedStatus,
     ast::{
-        BlockKind, BlockRef, CalloutListRef, DescriptionListRef, ListItemRef, OrderedListRef,
-        UnorderedListRef,
+        AttributeValueRef, BlockKind, BlockRef, CalloutListRef, DescriptionListRef, ListItemRef,
+        OrderedListRef, UnorderedListRef,
     },
 };
 
-use crate::{
-    Error, HtmlVariant, HtmlVisitor, build_class, image_helpers::attribute_text, write_element_id,
-};
+use crate::{Error, HtmlVariant, HtmlVisitor, build_class, write_element_id};
 
 /// Check if any list item has a checkbox
 fn has_checklist_items<'doc>(mut items: impl Iterator<Item = ListItemRef<'doc>>) -> bool {
@@ -194,7 +192,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         if let Some(value) = type_attr {
             write!(self.writer, " type=\"{value}\"")?;
         }
-        if let Some(start) = attribute_text(data.attributes(), "start")
+        if let Some(start) = data
+            .attributes()
+            .get("start")
+            .and_then(AttributeValueRef::as_str)
             .and_then(|start| start.parse::<usize>().ok())
             .filter(|start| *start > 0)
         {
