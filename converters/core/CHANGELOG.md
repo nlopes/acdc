@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** table helpers now use typed parser handles. Replace
+  `calculate_column_widths`, `determine_column_count`, `build_grid`, and
+  `table_has_spans` with `column_widths`, `column_count`, `grid_rows`, and
+  `has_spans`. Widths, span placement and row-group behavior are unchanged.
+
 - **Breaking:** replace `visitor::Visitor` and `WritableVisitor` implementations
   with `DocumentVisitor`, `BlockVisitor`, and `InlineVisitor`. Block callbacks
   always receive `BlockRef`; dispatch still accepts constructed blocks through

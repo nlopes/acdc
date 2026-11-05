@@ -1,6 +1,6 @@
 //! Column widths retain ordering, automatic widths, and percentage normalization.
 
-use acdc_converters_core::table::{calculate_column_widths, column_widths};
+use acdc_converters_core::table::column_widths;
 use acdc_parser::{
     ColumnFormat,
     ColumnWidth::{Auto, Percentage, Proportional},
@@ -33,10 +33,12 @@ fn width_rules_preserve_empty_zero_mixed_and_normalized_values() {
             .into_iter()
             .map(|width| ColumnFormat::new().with_width(width))
             .collect::<Vec<_>>();
-        let actual = calculate_column_widths(&columns);
+        let actual = column_widths(columns.iter().map(ColumnFormatRef::from));
+        let mut reversed = actual.clone();
+        reversed.reverse();
         assert_eq!(
-            column_widths(columns.iter().map(ColumnFormatRef::from)),
-            actual
+            column_widths(columns.iter().rev().map(ColumnFormatRef::from)),
+            reversed
         );
         assert_eq!(
             column_widths(columns.iter().filter(|_| true).map(ColumnFormatRef::from)),

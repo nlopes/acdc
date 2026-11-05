@@ -241,13 +241,13 @@ pub enum ColumnStyle {
 #[non_exhaustive]
 pub struct ColumnFormat {
     #[serde(default, skip_serializing_if = "is_default_halign")]
-    pub halign: HorizontalAlignment,
+    pub(crate) halign: HorizontalAlignment,
     #[serde(default, skip_serializing_if = "is_default_valign")]
-    pub valign: VerticalAlignment,
+    pub(crate) valign: VerticalAlignment,
     #[serde(default, skip_serializing_if = "is_default_width")]
-    pub width: ColumnWidth,
+    pub(crate) width: ColumnWidth,
     #[serde(default, skip_serializing_if = "is_default_style")]
-    pub style: ColumnStyle,
+    pub(crate) style: ColumnStyle,
 }
 
 impl ColumnFormat {
@@ -314,16 +314,16 @@ pub(crate) fn are_all_columns_default(specs: &[ColumnFormat]) -> bool {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Table<'a> {
-    pub header: Option<TableRow<'a>>,
-    pub footer: Option<TableRow<'a>>,
-    pub rows: Vec<TableRow<'a>>,
+    pub(crate) header: Option<TableRow<'a>>,
+    pub(crate) footer: Option<TableRow<'a>>,
+    pub(crate) rows: Vec<TableRow<'a>>,
     /// Column format specification for each column (alignment, width, style)
     /// Skipped if all columns have default format
     #[serde(default, skip_serializing_if = "are_all_columns_default")]
-    pub columns: Vec<ColumnFormat>,
+    pub(crate) columns: Vec<ColumnFormat>,
     #[serde(skip)]
     presentation: Option<ResolvedTablePresentation>,
-    pub location: Location,
+    pub(crate) location: Location,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -398,22 +398,17 @@ impl<'a> Table<'a> {
 
 /// A row in a table, containing one or more columns (cells).
 ///
-/// # Note on Field Name
-///
-/// The field is named `columns` (not `cells`) to align with the column-oriented
-/// table model. Each `TableColumn` represents one cell in this row.
-///
 /// ```
-/// # use acdc_parser::{TableRow, TableColumn};
-/// fn count_cells(row: &TableRow) -> usize {
-///     row.columns.len()  // Access cells via .columns
+/// # use acdc_parser::ast::TableRowRef;
+/// fn count_cells(row: TableRowRef<'_>) -> usize {
+///     row.cells().count()
 /// }
 /// ```
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct TableRow<'a> {
     /// The cells in this row (one per table column).
-    pub columns: Vec<TableColumn<'a>>,
+    pub(crate) columns: Vec<TableColumn<'a>>,
 }
 
 impl<'a> TableRow<'a> {
@@ -430,27 +425,27 @@ impl<'a> TableRow<'a> {
 pub struct TableColumn<'a> {
     #[serde(skip)]
     pub(crate) initial_attributes: Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>,
-    pub content: Vec<Block<'a>>,
+    pub(crate) content: Vec<Block<'a>>,
     /// Number of columns this cell spans (default 1).
     /// Specified in `AsciiDoc` with `n+|` syntax (e.g., `2+|` for colspan=2).
     #[serde(skip_serializing_if = "is_default_span")]
-    pub colspan: usize,
+    pub(crate) colspan: usize,
     /// Number of rows this cell spans (default 1).
     /// Specified in `AsciiDoc` with `.n+|` syntax (e.g., `.2+|` for rowspan=2).
     #[serde(skip_serializing_if = "is_default_span")]
-    pub rowspan: usize,
+    pub(crate) rowspan: usize,
     /// Cell-level horizontal alignment override.
     /// Specified with `<`, `^`, or `>` in cell specifier (e.g., `^|` for center).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub halign: Option<HorizontalAlignment>,
+    pub(crate) halign: Option<HorizontalAlignment>,
     /// Cell-level vertical alignment override.
     /// Specified with `.<`, `.^`, or `.>` in cell specifier (e.g., `.>|` for bottom).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub valign: Option<VerticalAlignment>,
+    pub(crate) valign: Option<VerticalAlignment>,
     /// Cell-level style override.
     /// Specified with style letter after operator (e.g., `s|` for strong/bold).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub style: Option<ColumnStyle>,
+    pub(crate) style: Option<ColumnStyle>,
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)]
@@ -489,5 +484,132 @@ impl<'a> TableColumn<'a> {
             valign,
             style,
         }
+    }
+}
+
+impl<'a> Table<'a> {
+    /// Replace the header, preserving a present empty row.
+    pub fn set_header(&mut self, header: Option<TableRow<'a>>) {
+        self.header = header;
+    }
+
+    /// Remove the header without moving a body row into its place.
+    #[must_use]
+    pub fn take_header(&mut self) -> Option<TableRow<'a>> {
+        self.header.take()
+    }
+
+    /// Replace the footer, preserving a present empty row.
+    pub fn set_footer(&mut self, footer: Option<TableRow<'a>>) {
+        self.footer = footer;
+    }
+
+    /// Remove the footer without moving a body row into its place.
+    #[must_use]
+    pub fn take_footer(&mut self) -> Option<TableRow<'a>> {
+        self.footer.take()
+    }
+
+    /// Replace prepared body rows without changing header, footer or presentation.
+    pub fn set_rows(&mut self, rows: impl IntoIterator<Item = TableRow<'a>>) {
+        self.rows = rows.into_iter().collect();
+    }
+
+    /// Append a body row without recalculating cell positions or spans.
+    pub fn push_row(&mut self, row: TableRow<'a>) {
+        self.rows.push(row);
+    }
+
+    /// Remove body rows, retaining their content and original source lifetimes.
+    pub fn take_rows(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = TableRow<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.rows).into_iter()
+    }
+
+    /// Replace column formats without reinterpreting existing cell content.
+    pub fn set_columns(&mut self, columns: impl IntoIterator<Item = ColumnFormat>) {
+        self.columns = columns.into_iter().collect();
+    }
+
+    /// Remove column formats without changing cell overrides or resolved content.
+    pub fn take_columns(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = ColumnFormat> + ExactSizeIterator + use<> {
+        std::mem::take(&mut self.columns).into_iter()
+    }
+
+    /// Replace the table body's span without relocating its cells or enclosing block.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+}
+
+impl<'a> TableRow<'a> {
+    /// Replace prepared cells in row order without filling span placeholders.
+    pub fn set_cells(&mut self, cells: impl IntoIterator<Item = TableColumn<'a>>) {
+        self.columns = cells.into_iter().collect();
+    }
+
+    /// Append a cell without recalculating neighboring cell positions.
+    pub fn push_cell(&mut self, cell: TableColumn<'a>) {
+        self.columns.push(cell);
+    }
+
+    /// Remove cells, retaining their original source lifetimes and scope snapshots.
+    pub fn take_cells(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = TableColumn<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.columns).into_iter()
+    }
+}
+
+impl<'a> TableColumn<'a> {
+    /// Construct an unspanned cell from prepared blocks, without a nested scope snapshot.
+    #[must_use]
+    pub fn new(content: Vec<Block<'a>>) -> Self {
+        Self::with_format(content, 1, 1, None, None, None)
+    }
+
+    /// Replace prepared blocks without replaying the cell's initial assignments.
+    pub fn set_blocks(&mut self, content: impl IntoIterator<Item = Block<'a>>) {
+        self.content = content.into_iter().collect();
+    }
+
+    /// Append a prepared block without replaying assignments or registering content.
+    pub fn push_block(&mut self, block: Block<'a>) {
+        self.content.push(block);
+    }
+
+    /// Remove blocks, retaining their original source lifetimes and the cell's scope snapshot.
+    pub fn take_blocks(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = Block<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.content).into_iter()
+    }
+
+    /// Replace the retained column span without rebuilding the table grid.
+    pub fn set_colspan(&mut self, colspan: usize) {
+        self.colspan = colspan;
+    }
+
+    /// Replace the retained row span without rebuilding the table grid.
+    pub fn set_rowspan(&mut self, rowspan: usize) {
+        self.rowspan = rowspan;
+    }
+
+    /// Replace the cell's horizontal alignment override.
+    pub fn set_halign(&mut self, halign: Option<HorizontalAlignment>) {
+        self.halign = halign;
+    }
+
+    /// Replace the cell's vertical alignment override.
+    pub fn set_valign(&mut self, valign: Option<VerticalAlignment>) {
+        self.valign = valign;
+    }
+
+    /// Replace the retained style without reinterpreting already prepared content.
+    pub fn set_style(&mut self, style: Option<ColumnStyle>) {
+        self.style = style;
     }
 }

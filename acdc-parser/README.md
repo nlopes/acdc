@@ -182,6 +182,15 @@ term and anchor methods on description items to transfer content. Transfers can
 outlive the previous owner while the original source remains alive. Marker,
 level and callout edits keep their supplied values without changing other items.
 
+Table components follow the same pattern. `TableRef`, `TableRowRef`,
+`TableCellRef`, and `ColumnFormatRef` read the prepared table. `From` copies the
+selected component; a cell copy keeps its initial attribute scope. Use owned
+row, cell, block and column-format transfers to edit it. Row-group presence,
+cell spans and content styles retain the values you supply. Changing a style
+or column format does not parse the cell again. `TableRef::location()` includes
+block metadata and title; `delimited_location()` starts at the opening table
+delimiter. Changing one span does not relocate other content.
+
 `IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
 option tokens. An icon ID is retained even when a converter does not emit it.
 To construct an icon, use `Icon::new(target, location)` and edit its content and

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** table, row, cell and column-format fields are private. Read through
+  typed handles and use selected copies and prepared row/cell/content transfers
+  to edit owned values. Copies retain cell scopes and resolved decoration; edits
+  do not rebuild spans or reinterpret cell content. `TableRef::delimited_location`
+  retains the span that starts at the table delimiter, separate from the full
+  block span, which includes attributes and title.
+
 - **Breaking:** list-item fields are private. Use typed item handles for reads,
   selected item copies for independent edits, and prepared text, block and anchor
   transfers to change owned items. Marker, nesting and checklist edits do not

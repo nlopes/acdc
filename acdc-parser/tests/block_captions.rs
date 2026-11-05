@@ -202,28 +202,30 @@ fn table_headers_do_not_consume_body_and_footer_caption_numbers() -> Result<(), 
     let Some(Block::DelimitedBlock(delimited)) = blocks.first() else {
         return Err(format!("expected a table, got {blocks:?}").into());
     };
-    let DelimitedBlockType::DelimitedTable(table) = &delimited.clone_body() else {
+    let acdc_parser::ast::BlockKind::Table(table) =
+        acdc_parser::ast::BlockRef::from(delimited).kind()
+    else {
         return Err("expected table content".into());
     };
 
     let mut seen = Vec::new();
-    let header = table.header.as_ref().ok_or("expected a header row")?;
+    let header = table.header().ok_or("expected a header row")?;
     assert!(
         header
-            .columns
-            .iter()
-            .flat_map(|column| &column.content)
-            .all(|block| matches!(block, Block::Paragraph(_)) && caption(block).is_none())
+            .cells()
+            .flat_map(acdc_parser::ast::TableCellRef::blocks)
+            .map(Block::from)
+            .all(|block| matches!(block, Block::Paragraph(_)) && caption(&block).is_none())
     );
     for row in table
-        .header
-        .iter()
-        .chain(table.rows.iter())
-        .chain(table.footer.iter())
+        .header()
+        .into_iter()
+        .chain(table.rows())
+        .chain(table.footer())
     {
-        for column in &row.columns {
-            for block in &column.content {
-                if let Some((_, _, Some(number))) = numbered(block) {
+        for column in row.cells() {
+            for block in column.blocks().map(Block::from) {
+                if let Some((_, _, Some(number))) = numbered(&block) {
                     seen.push(number);
                 }
             }
@@ -902,12 +904,14 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
     let DelimitedBlockType::DelimitedTable(table) = &mut body else {
         return Err("expected table content".into());
     };
-    let block = table
-        .header
-        .as_mut()
-        .and_then(|row| row.columns.first_mut())
-        .and_then(|column| column.content.first_mut())
-        .ok_or("expected header content")?;
+    let mut header = table.take_header().ok_or("expected header content")?;
+    let mut cells: Vec<_> = header.take_cells().collect();
+    let mut content: Vec<_> = cells
+        .first_mut()
+        .ok_or("expected header content")?
+        .take_blocks()
+        .collect();
+    let block = content.first_mut().ok_or("expected header content")?;
     let Block::Paragraph(paragraph) = block else {
         return Err("expected a header paragraph".into());
     };
@@ -927,6 +931,12 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
         number: NonZeroU32::new(77),
     });
     paragraph.set_metadata(metadata)?;
+    cells
+        .first_mut()
+        .ok_or("expected header content")?
+        .set_blocks(content);
+    header.set_cells(cells);
+    table.set_header(Some(header));
     delimited.replace_body(body);
     document.set_blocks(blocks);
     assert_eq!(document.highest_caption_number(CaptionKind::Example), 77);

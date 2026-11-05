@@ -3529,10 +3529,16 @@ fn unresolved_table_decoration_matches_the_parsed_presentation() -> Result<(), E
                 return Err("expected table".into());
             };
             assert!(table.presentation().is_some());
-            *table = Table::new(table.rows.clone(), table.location.clone())
-                .with_header(table.header.clone())
-                .with_footer(table.footer.clone())
-                .with_columns(table.columns.clone());
+            let acdc_parser::ast::BlockKind::Table(source) =
+                acdc_parser::ast::BlockRef::from(&*block).kind()
+            else {
+                return Err("expected table".into());
+            };
+            let location = acdc_parser::Location::from(source.delimited_location());
+            *table = Table::new(table.take_rows().collect(), location)
+                .with_header(table.take_header())
+                .with_footer(table.take_footer())
+                .with_columns(table.take_columns().collect());
             assert!(table.presentation().is_none());
             block.replace_body(body);
             unresolved.set_blocks(blocks);

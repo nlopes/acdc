@@ -62,6 +62,12 @@ impl<'doc> TableRef<'doc> {
         LocationRef::from(&self.block.location)
     }
 
+    /// The span from the opening table delimiter through its end, excluding metadata and title.
+    #[must_use]
+    pub fn delimited_location(self) -> LocationRef<'doc> {
+        LocationRef::from(&self.table.location)
+    }
+
     /// The retained table delimiter, such as `|===` or `!===`.
     #[must_use]
     pub fn delimiter(self) -> &'doc str {
@@ -279,5 +285,33 @@ impl TablePresentation {
             |name| attributes.and_then(|attributes| attributes.get(name)),
             lookup,
         )
+    }
+}
+
+impl<'doc> From<TableRef<'doc>> for Table<'doc> {
+    /// Copy the table body and retained scope/presentation, excluding enclosing block attributes.
+    fn from(table: TableRef<'doc>) -> Self {
+        table.table.clone()
+    }
+}
+
+impl<'doc> From<TableRowRef<'doc>> for TableRow<'doc> {
+    /// Copy this row and its cells without copying sibling rows.
+    fn from(row: TableRowRef<'doc>) -> Self {
+        row.row.clone()
+    }
+}
+
+impl<'doc> From<TableCellRef<'doc>> for TableColumn<'doc> {
+    /// Copy this cell's prepared content, formatting and initial scope snapshot.
+    fn from(cell: TableCellRef<'doc>) -> Self {
+        cell.cell.clone()
+    }
+}
+
+impl From<ColumnFormatRef<'_>> for ColumnFormat {
+    /// Copy a column format without copying any cell content.
+    fn from(format: ColumnFormatRef<'_>) -> Self {
+        format.format.clone()
     }
 }

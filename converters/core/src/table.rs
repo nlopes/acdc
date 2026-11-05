@@ -1,41 +1,15 @@
 //! Table utilities shared between converters.
 //!
-//! The grid utilities ([`grid_rows`], [`build_grid`], [`CellKind`], [`GridRow`]) reconstruct
+//! The grid utilities ([`grid_rows`], [`CellKind`], [`GridRow`]) reconstruct
 //! logical cell positions for converters that need explicit placement or span
 //! placeholders (e.g. PDF, manpage tbl, terminal). Formats whose row containers
 //! provide placement directly (like HTML `<tr>`) can iterate the AST cells
 //! without building a grid.
 
 use acdc_parser::{
-    ColumnFormat, ColumnWidth, Table, TableRow,
+    ColumnWidth,
     ast::{ColumnFormatRef, TableRef, TableRowRef},
 };
-
-/// Calculate column widths as percentages from column format specifications.
-///
-/// Converts proportional widths (e.g., `1,3`) to percentages (e.g., `25%, 75%`).
-/// Proportional and percentage widths are normalized together. Auto widths
-/// return 0.0, leaving the renderer to decide.
-///
-/// # Arguments
-///
-/// * `columns` - Slice of column format specifications from the table
-///
-/// # Returns
-///
-/// Vector of width percentages. Empty if input is empty.
-///
-/// # Examples
-///
-/// ```ignore
-/// // [cols="1,3"] -> [25.0, 75.0]
-/// // [cols="2,1,1,1,1"] -> [33.33, 16.67, 16.67, 16.67, 16.67]
-/// // [cols="25%,75%"] -> [25.0, 75.0]
-/// ```
-#[must_use]
-pub fn calculate_column_widths(columns: &[ColumnFormat]) -> Vec<f64> {
-    column_widths(columns.iter().map(ColumnFormatRef::from))
-}
 
 /// Calculate percentage widths from typed column formats.
 ///
@@ -108,23 +82,6 @@ pub struct GridRow<Row> {
     pub is_footer: bool,
 }
 
-/// Determine the true logical column count, accounting for colspan.
-///
-/// If the table has explicit column definitions, returns that count.
-/// Otherwise, scans all rows and returns the maximum colspan-adjusted width.
-#[must_use]
-pub fn determine_column_count(table: &Table) -> usize {
-    count_columns(
-        table.columns.len(),
-        table
-            .header
-            .iter()
-            .chain(&table.rows)
-            .chain(&table.footer)
-            .map(TableRowRef::from),
-    )
-}
-
 /// Count logical columns, using explicit column formats when present.
 ///
 /// Otherwise, use the widest row after accounting for colspans. A table without
@@ -149,24 +106,6 @@ fn table_rows(table: TableRef<'_>) -> impl Iterator<Item = TableRowRef<'_>> {
         .into_iter()
         .chain(table.rows())
         .chain(table.footer())
-}
-
-/// Build a logical grid from all table rows, normalizing spans into a
-/// rectangular grid where every row has exactly `num_cols` entries.
-///
-/// Each cell position is either a real content cell, a horizontal span
-/// placeholder, or a vertical span placeholder.
-#[must_use]
-pub fn build_grid<'a>(table: &'a Table<'a>, num_cols: usize) -> Vec<GridRow<&'a TableRow<'a>>> {
-    let rows = table
-        .header
-        .iter()
-        .map(|r| (r, true, false))
-        .chain(table.rows.iter().map(|r| (r, false, false)))
-        .chain(table.footer.iter().map(|r| (r, false, true)));
-    build_grid_rows(rows, num_cols, |row| {
-        row.columns.iter().map(|cell| (cell.colspan, cell.rowspan))
-    })
 }
 
 /// Build a rectangular grid while retaining typed handles to its original rows.
@@ -251,19 +190,6 @@ fn build_grid_rows<Row: Copy, Cells: Iterator<Item = (usize, usize)>>(
     grid
 }
 
-/// Check whether any cell in the table has colspan or rowspan greater than 1.
-#[must_use]
-pub fn table_has_spans(table: &Table) -> bool {
-    rows_have_spans(
-        table
-            .header
-            .iter()
-            .chain(&table.rows)
-            .chain(&table.footer)
-            .map(TableRowRef::from),
-    )
-}
-
 /// Whether any header, body, or footer cell spans multiple rows or columns.
 #[must_use]
 pub fn has_spans(table: TableRef<'_>) -> bool {
@@ -280,6 +206,7 @@ fn rows_have_spans<'a>(mut rows: impl Iterator<Item = TableRowRef<'a>>) -> bool 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use acdc_parser::ColumnFormat;
 
     fn make_column(width: ColumnWidth) -> ColumnFormat {
         ColumnFormat::new().with_width(width)
@@ -298,7 +225,7 @@ mod tests {
             make_column(ColumnWidth::Proportional(1)),
             make_column(ColumnWidth::Proportional(3)),
         ];
-        let widths = calculate_column_widths(&columns);
+        let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
         assert_widths_close(&widths, &[25.0, 75.0]);
     }
 
@@ -309,7 +236,7 @@ mod tests {
             make_column(ColumnWidth::Proportional(1)),
             make_column(ColumnWidth::Proportional(1)),
         ];
-        let widths = calculate_column_widths(&columns);
+        let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
         assert_eq!(widths.len(), 3);
         for w in &widths {
             assert!((*w - 33.333).abs() < 0.01);
@@ -322,7 +249,7 @@ mod tests {
             make_column(ColumnWidth::Percentage(25)),
             make_column(ColumnWidth::Percentage(75)),
         ];
-        let widths = calculate_column_widths(&columns);
+        let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
         assert_eq!(widths, vec![25.0, 75.0]);
     }
 
@@ -332,13 +259,13 @@ mod tests {
             make_column(ColumnWidth::Auto),
             make_column(ColumnWidth::Auto),
         ];
-        let widths = calculate_column_widths(&columns);
+        let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
         assert_eq!(widths, vec![0.0, 0.0]);
     }
 
     #[test]
     fn test_empty_columns() {
-        let widths = calculate_column_widths(&[]);
+        let widths = column_widths(std::iter::empty());
         assert_eq!(widths, [] as [f64; 0]);
     }
 
@@ -350,7 +277,7 @@ mod tests {
             make_column(ColumnWidth::Percentage(36)),
             make_column(ColumnWidth::Percentage(31)),
         ];
-        let widths = calculate_column_widths(&columns);
+        let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
         let sum: f64 = widths.iter().sum();
         assert!((sum - 100.0).abs() < 0.01, "sum was {sum}");
         assert_widths_close(
@@ -371,7 +298,7 @@ mod tests {
             make_column(ColumnWidth::Percentage(30)),
             make_column(ColumnWidth::Percentage(40)),
         ];
-        let widths = calculate_column_widths(&columns);
+        let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
         let sum: f64 = widths.iter().sum();
         assert!((sum - 100.0).abs() < 0.01, "sum was {sum}");
         assert_widths_close(
@@ -391,7 +318,7 @@ mod tests {
             make_column(ColumnWidth::Percentage(25)),
             make_column(ColumnWidth::Percentage(50)),
         ];
-        let widths = calculate_column_widths(&columns);
+        let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
         assert_eq!(widths, vec![25.0, 25.0, 50.0]);
     }
 
@@ -403,7 +330,7 @@ mod tests {
             make_column(ColumnWidth::Percentage(60)),
             make_column(ColumnWidth::Percentage(50)),
         ];
-        let widths = calculate_column_widths(&columns);
+        let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
         let pct_sum: f64 = widths.iter().sum();
         assert!((pct_sum - 100.0).abs() < 0.01, "pct sum was {pct_sum}");
         assert_widths_close(&widths, &[0.0, 60.0 * 100.0 / 110.0, 50.0 * 100.0 / 110.0]);
@@ -415,7 +342,7 @@ mod tests {
             make_column(ColumnWidth::Auto),
             make_column(ColumnWidth::Auto),
         ];
-        let widths = calculate_column_widths(&columns);
+        let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
         assert_eq!(widths, vec![0.0, 0.0]);
     }
 
@@ -429,42 +356,34 @@ mod tests {
             make_column(ColumnWidth::Proportional(1)),
             make_column(ColumnWidth::Proportional(1)),
         ];
-        let widths = calculate_column_widths(&columns);
+        let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
         assert_widths_close(&widths, &[33.333, 16.667, 16.667, 16.667, 16.667]);
     }
 
     mod grid {
         use super::*;
-        use acdc_parser::{Block, DelimitedBlockType};
+        use acdc_parser::{Options, ParseResult, ast::BlockKind};
 
-        /// Parse an `AsciiDoc` string and extract the first table.
-        ///
-        /// Leaks the parsed document so the returned `Table<'static>` borrows
-        /// from memory that lives for the rest of the test process.
-        fn parse_table(adoc: &str) -> Result<Table<'static>, Box<dyn std::error::Error>> {
-            let options = acdc_parser::Options::default();
-            let parsed = acdc_parser::parse(adoc, &options)?;
-            let parsed: &'static acdc_parser::ParseResult = Box::leak(Box::new(parsed));
-            let parsed_blocks: Vec<_> = parsed
+        fn parse_table(adoc: &str) -> Result<ParseResult, Box<dyn std::error::Error>> {
+            Ok(acdc_parser::parse(adoc, &Options::default())?)
+        }
+
+        fn first_table(parsed: &ParseResult) -> Result<TableRef<'_>, Box<dyn std::error::Error>> {
+            parsed
                 .document()
                 .blocks()
-                .map(acdc_parser::Block::from)
-                .collect();
-            parsed_blocks
-                .iter()
                 .find_map(|block| {
-                    if let Block::DelimitedBlock(db) = block
-                        && let DelimitedBlockType::DelimitedTable(table) = db.clone_body()
-                    {
-                        return Some(table);
+                    if let BlockKind::Table(table) = block.kind() {
+                        Some(table)
+                    } else {
+                        None
                     }
-                    None
                 })
                 .ok_or_else(|| std::io::Error::other("no table found in document").into())
         }
 
         fn assert_grid_rows(
-            grid: &[GridRow<&TableRow<'_>>],
+            grid: &[GridRow<TableRowRef<'_>>],
             expected: &[(bool, bool, Vec<CellKind>)],
         ) {
             assert_eq!(grid.len(), expected.len());
@@ -477,7 +396,7 @@ mod tests {
 
         #[test]
         fn test_colspan() -> Result<(), Box<dyn std::error::Error>> {
-            let table = parse_table(
+            let parsed = parse_table(
                 r#"[cols="3*"]
 |===
 | A | B | C
@@ -486,11 +405,12 @@ mod tests {
 | E | F | G
 |==="#,
             )?;
+            let table = first_table(&parsed)?;
 
-            assert_eq!(determine_column_count(&table), 3);
-            assert!(table_has_spans(&table));
+            assert_eq!(column_count(table), 3);
+            assert!(has_spans(table));
 
-            let grid = build_grid(&table, 3);
+            let grid = grid_rows(table, 3);
             assert_grid_rows(
                 &grid,
                 &[
@@ -528,7 +448,7 @@ mod tests {
 
         #[test]
         fn test_rowspan() -> Result<(), Box<dyn std::error::Error>> {
-            let table = parse_table(
+            let parsed = parse_table(
                 r"|===
 | A | B | C
 
@@ -537,11 +457,12 @@ mod tests {
 | H | I | J
 |===",
             )?;
+            let table = first_table(&parsed)?;
 
-            assert_eq!(determine_column_count(&table), 3);
-            assert!(table_has_spans(&table));
+            assert_eq!(column_count(table), 3);
+            assert!(has_spans(table));
 
-            let grid = build_grid(&table, 3);
+            let grid = grid_rows(table, 3);
             assert_grid_rows(
                 &grid,
                 &[
@@ -588,7 +509,7 @@ mod tests {
 
         #[test]
         fn test_combined_span() -> Result<(), Box<dyn std::error::Error>> {
-            let table = parse_table(
+            let parsed = parse_table(
                 r"|===
 | A | B | C | D
 
@@ -597,11 +518,12 @@ mod tests {
 | I | J | K | L
 |===",
             )?;
+            let table = first_table(&parsed)?;
 
-            assert_eq!(determine_column_count(&table), 4);
-            assert!(table_has_spans(&table));
+            assert_eq!(column_count(table), 4);
+            assert!(has_spans(table));
 
-            let grid = build_grid(&table, 4);
+            let grid = grid_rows(table, 4);
             assert_grid_rows(
                 &grid,
                 &[
@@ -652,20 +574,21 @@ mod tests {
 
         #[test]
         fn test_no_spans() -> Result<(), Box<dyn std::error::Error>> {
-            let table = parse_table(
+            let parsed = parse_table(
                 r"|===
 | A | B
 | C | D
 |===",
             )?;
+            let table = first_table(&parsed)?;
 
-            assert!(!table_has_spans(&table));
+            assert!(!has_spans(table));
             Ok(())
         }
 
         #[test]
         fn test_footer_flag() -> Result<(), Box<dyn std::error::Error>> {
-            let table = parse_table(
+            let parsed = parse_table(
                 r"[%header%footer]
 |===
 | H1 | H2
@@ -675,8 +598,9 @@ mod tests {
 | F1 | F2
 |===",
             )?;
+            let table = first_table(&parsed)?;
 
-            let grid = build_grid(&table, 2);
+            let grid = grid_rows(table, 2);
             assert_grid_rows(
                 &grid,
                 &[

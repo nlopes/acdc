@@ -215,29 +215,38 @@ fn resolved_pdf_text_and_code_links_work_in_every_build() -> Result<(), Error> {
 #[test]
 fn unresolved_tables_preserve_body_and_nested_cell_decoration() -> Result<(), Error> {
     fn clear_table_presentations(blocks: &mut [acdc_parser::Block<'_>]) {
+        fn clear_row(mut row: acdc_parser::TableRow<'_>) -> acdc_parser::TableRow<'_> {
+            let cells = row.take_cells().map(|mut cell| {
+                let mut content: Vec<_> = cell.take_blocks().collect();
+                clear_table_presentations(&mut content);
+                cell.set_blocks(content);
+                cell
+            });
+            row.set_cells(cells);
+            row
+        }
+
         for block in blocks {
             let acdc_parser::Block::DelimitedBlock(block) = block else {
                 continue;
             };
+            let acdc_parser::ast::BlockKind::Table(source) =
+                acdc_parser::ast::BlockRef::from(&*block).kind()
+            else {
+                continue;
+            };
+            let location = acdc_parser::Location::from(source.delimited_location());
             let mut body = block.clone_body();
             let acdc_parser::DelimitedBlockType::DelimitedTable(table) = &mut body else {
                 continue;
             };
-            for row in table
-                .header
-                .iter_mut()
-                .chain(&mut table.rows)
-                .chain(&mut table.footer)
-            {
-                for cell in &mut row.columns {
-                    clear_table_presentations(&mut cell.content);
-                }
-            }
-            *table =
-                acdc_parser::Table::new(std::mem::take(&mut table.rows), table.location.clone())
-                    .with_header(table.header.take())
-                    .with_footer(table.footer.take())
-                    .with_columns(std::mem::take(&mut table.columns));
+            let header = table.take_header().map(clear_row);
+            let footer = table.take_footer().map(clear_row);
+            let rows = table.take_rows().map(clear_row).collect();
+            *table = acdc_parser::Table::new(rows, location)
+                .with_header(header)
+                .with_footer(footer)
+                .with_columns(table.take_columns().collect());
             block.replace_body(body);
         }
     }

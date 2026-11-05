@@ -1,5 +1,5 @@
 use acdc_parser::{
-    Block, ColumnStyle, CompatibilityMode, DelimitedBlockType, Document, Options, parse,
+    Block, ColumnStyle, CompatibilityMode, DelimitedBlockType, Document, Options, TableRow, parse,
 };
 
 use super::HeadResources;
@@ -100,6 +100,15 @@ fn head_resources_find_attributes_at_the_start_of_cells_and_after_prose() -> Res
 
 #[test]
 fn head_resources_keep_cell_overrides_and_column_defaults_after_owner_edits() -> Result<(), Error> {
+    fn with_cell_style(mut row: TableRow<'_>, style: Option<ColumnStyle>) -> TableRow<'_> {
+        let cells = row.take_cells().map(|mut cell| {
+            cell.set_style(style);
+            cell
+        });
+        row.set_cells(cells);
+        row
+    }
+
     let source = "[cols=a]\n|===\n|\nInside.\n\n:stem:\n:icons: font\n\nAfter.\n|===\n";
     let parsed = parse(source, &Options::default())?;
     for (declared, local, expected) in [
@@ -123,19 +132,16 @@ fn head_resources_keep_cell_overrides_and_column_defaults_after_owner_edits() ->
                 let DelimitedBlockType::DelimitedTable(table) = &mut body else {
                     continue;
                 };
-                for format in &mut table.columns {
-                    format.style = declared;
-                }
-                for row in table
-                    .header
-                    .iter_mut()
-                    .chain(&mut table.rows)
-                    .chain(&mut table.footer)
-                {
-                    for cell in &mut row.columns {
-                        cell.style = local;
-                    }
-                }
+                let formats = table
+                    .take_columns()
+                    .map(|format| format.with_style(declared));
+                table.set_columns(formats);
+                let header = table.take_header().map(|row| with_cell_style(row, local));
+                let footer = table.take_footer().map(|row| with_cell_style(row, local));
+                let rows = table.take_rows().map(|row| with_cell_style(row, local));
+                table.set_rows(rows);
+                table.set_header(header);
+                table.set_footer(footer);
                 block.replace_body(body);
             }
         }
@@ -165,31 +171,29 @@ fn head_resources_use_stored_cell_order_for_spanning_column_defaults() -> Result
     let DelimitedBlockType::DelimitedTable(table) = &mut body else {
         return Err("expected table content".into());
     };
-    let row = table.rows.first_mut().ok_or("expected a table row")?;
-    let mut second = row.columns.first().ok_or("expected a table cell")?.clone();
+    let mut rows: Vec<_> = table.take_rows().collect();
+    let row = rows.first_mut().ok_or("expected a table row")?;
+    let mut second = row.take_cells().next().ok_or("expected a table cell")?;
     let mut first = second.clone();
-    first.content.clear();
-    first.style = Some(ColumnStyle::Default);
-    first.colspan = 2;
-    second.style = None;
-    row.columns = vec![first, second];
+    first.set_blocks([]);
+    first.set_style(Some(ColumnStyle::Default));
+    first.set_colspan(2);
+    second.set_style(None);
+    row.set_cells([first, second]);
+    table.set_rows(rows);
     let format = table
-        .columns
-        .first()
-        .ok_or("expected a column format")?
-        .clone();
-    table.columns = [
-        ColumnStyle::Default,
-        ColumnStyle::AsciiDoc,
-        ColumnStyle::Default,
-    ]
-    .into_iter()
-    .map(|style| {
-        let mut format = format.clone();
-        format.style = style;
-        format
-    })
-    .collect();
+        .take_columns()
+        .next()
+        .ok_or("expected a column format")?;
+    table.set_columns(
+        [
+            ColumnStyle::Default,
+            ColumnStyle::AsciiDoc,
+            ColumnStyle::Default,
+        ]
+        .into_iter()
+        .map(|style| format.clone().with_style(style)),
+    );
     block.replace_body(body);
     document.set_blocks(blocks);
     let resources = HeadResources::collect((&document).into());

@@ -428,16 +428,16 @@ mod tests {
         let Block::DelimitedBlock(block) = blocks.first().ok_or("missing table block")? else {
             return Err("missing table block".into());
         };
-        let acdc_parser::DelimitedBlockType::DelimitedTable(table) = &block.clone_body() else {
+        let BlockKind::Table(table) = BlockRef::from(block).kind() else {
             return Err("missing table".into());
         };
         let mut context = TraversalContext::new(DocumentRef::from(&parsed_document).attributes());
         for fail in [false, true] {
             let result = context.with_table_cell(
                 table
-                    .rows
-                    .first()
-                    .and_then(|row| row.columns.first())
+                    .rows()
+                    .next()
+                    .and_then(|row| row.cells().next())
                     .ok_or("missing table cell")?,
                 |context| {
                     assert_eq!(

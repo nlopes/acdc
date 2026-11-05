@@ -210,13 +210,16 @@ fn index_detection_preserves_stored_cell_style_fallback_in_every_row_group() -> 
         let DelimitedBlockType::DelimitedTable(seed) = &block.clone_body() else {
             return Err("missing table".into());
         };
-        let mut row = seed.rows.first().ok_or("missing table row")?.clone();
-        let [first, second] = row.columns.as_mut_slice() else {
+        let mut seed = seed.clone();
+        let mut row = seed.take_rows().next().ok_or("missing table row")?;
+        let mut cells: Vec<_> = row.take_cells().collect();
+        let [first, second] = cells.as_mut_slice() else {
             return Err("expected two table cells".into());
         };
-        first.colspan = 2;
-        first.style = Some(ColumnStyle::Default);
-        second.content = vec![index_section()?];
+        first.set_colspan(2);
+        first.set_style(Some(ColumnStyle::Default));
+        second.set_blocks([index_section()?]);
+        row.set_cells(cells);
         for fallback in [
             ColumnStyle::Default,
             ColumnStyle::AsciiDoc,
@@ -228,7 +231,12 @@ fn index_detection_preserves_stored_cell_style_fallback_in_every_row_group() -> 
                 Some(ColumnStyle::AsciiDoc),
                 Some(ColumnStyle::Literal),
             ] {
-                row.columns.get_mut(1).ok_or("missing second cell")?.style = local;
+                let mut cells: Vec<_> = row.take_cells().collect();
+                cells
+                    .get_mut(1)
+                    .ok_or("missing second cell")?
+                    .set_style(local);
+                row.set_cells(cells);
                 let expected = local.unwrap_or(fallback) == ColumnStyle::AsciiDoc;
                 for group in 0..3 {
                     let mut table = Table::new(Vec::new(), Location::default()).with_columns(vec![
@@ -236,12 +244,12 @@ fn index_detection_preserves_stored_cell_style_fallback_in_every_row_group() -> 
                         ColumnFormat::new().with_style(fallback),
                         ColumnFormat::new().with_style(ColumnStyle::Default),
                     ]);
-                    table.header = Some(TableRow::new(Vec::new()));
-                    table.footer = Some(TableRow::new(Vec::new()));
+                    table.set_header(Some(TableRow::new(Vec::new())));
+                    table.set_footer(Some(TableRow::new(Vec::new())));
                     match group {
-                        0 => table.header = Some(row.clone()),
-                        1 => table.rows.push(row.clone()),
-                        _ => table.footer = Some(row.clone()),
+                        0 => table.set_header(Some(row.clone())),
+                        1 => table.push_row(row.clone()),
+                        _ => table.set_footer(Some(row.clone())),
                     }
                     let block = Block::DelimitedBlock(DelimitedBlock::new(
                         DelimitedBlockType::DelimitedTable(table),
@@ -257,7 +265,12 @@ fn index_detection_preserves_stored_cell_style_fallback_in_every_row_group() -> 
             Some(ColumnStyle::Default),
             Some(ColumnStyle::AsciiDoc),
         ] {
-            row.columns.get_mut(1).ok_or("missing second cell")?.style = local;
+            let mut cells: Vec<_> = row.take_cells().collect();
+            cells
+                .get_mut(1)
+                .ok_or("missing second cell")?
+                .set_style(local);
+            row.set_cells(cells);
             let block = Block::DelimitedBlock(DelimitedBlock::new(
                 DelimitedBlockType::DelimitedTable(Table::new(
                     vec![row.clone()],
