@@ -33,12 +33,18 @@ pub const UNNUMBERED_SECTION_STYLES: &[&str] = &[
 /// An `Anchor` represents an anchor in a document.
 ///
 /// An anchor is a reference point in a document that can be linked to.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Anchor, Location};
+/// let mut anchor = Anchor::new("entry", Location::default());
+/// anchor.id = "changed";
+/// ```
 #[derive(Clone, Debug, Default, PartialEq)]
 #[non_exhaustive]
 pub struct Anchor<'a> {
-    pub id: &'a str,
-    pub xreflabel: Option<ContentAttribute<'a>>,
-    pub location: Location,
+    pub(crate) id: &'a str,
+    pub(crate) xreflabel: Option<ContentAttribute<'a>>,
+    pub(crate) location: Location,
     // Key into parser-owned input, cleared before returning the AST.
     pub(crate) reftext_source: Option<usize>,
     pub(crate) bibliography: bool,
@@ -90,8 +96,56 @@ impl<'a> Anchor<'a> {
     /// Set the cross-reference label.
     #[must_use]
     pub fn with_xreflabel(mut self, xreflabel: Option<ContentAttribute<'a>>) -> Self {
-        self.xreflabel = xreflabel;
+        self.set_reftext(xreflabel);
         self
+    }
+
+    /// Replace the ID without renaming document catalog entries or xref targets.
+    pub fn replace_id(&mut self, id: &'a str) -> &'a str {
+        std::mem::replace(&mut self.id, id)
+    }
+
+    /// Set prepared citation text without parsing it or updating the reference catalog.
+    pub fn set_reftext(&mut self, reftext: Option<ContentAttribute<'a>>) {
+        self.reftext_source = None;
+        self.xreflabel = reftext;
+    }
+
+    /// Transfer citation text, leaving it absent.
+    pub fn take_reftext(&mut self) -> Option<ContentAttribute<'a>> {
+        self.reftext_source = None;
+        self.xreflabel.take()
+    }
+
+    /// Classify this as a bibliography entry and set its prepared display label.
+    /// `None` selects the ID fallback; empty content keeps an explicitly empty label.
+    /// Citation reftext and document catalogs stay unchanged.
+    pub fn set_bibliography(&mut self, label: Option<ContentAttribute<'a>>) {
+        self.bibliography = true;
+        self.bibliography_label = label.map(|content| {
+            Box::new(BibliographyLabel {
+                source: None,
+                content: content.into_inlines(),
+            })
+        });
+    }
+
+    /// Remove bibliography classification and its display label, keeping citation text.
+    pub fn clear_bibliography(&mut self) {
+        self.bibliography = false;
+        self.bibliography_label = None;
+    }
+
+    /// Transfer the display label, keeping bibliography classification and citation text.
+    pub fn take_bibliography_label(&mut self) -> Option<ContentAttribute<'a>> {
+        self.bibliography_label
+            .take()
+            .map(|label| ContentAttribute::new(label.content))
+    }
+
+    /// Replace the anchor span, keeping the locations within its prepared labels.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 
     /// Returns whether this anchor identifies a bibliography entry.
@@ -100,12 +154,7 @@ impl<'a> Anchor<'a> {
         self.bibliography
     }
 
-    /// Return the entry label after its source-position inline substitutions.
-    ///
-    /// Citation text remains separate in [`Self::xreflabel`]. Returns `None`
-    /// for ordinary anchors and entries that use their ID as the label.
-    #[must_use]
-    pub fn bibliography_label(&self) -> Option<&[InlineNode<'a>]> {
+    pub(crate) fn bibliography_label(&self) -> Option<&[InlineNode<'a>]> {
         self.bibliography
             .then_some(self.bibliography_label.as_deref())
             .flatten()
@@ -467,5 +516,45 @@ mod tests {
         assert_eq!(node.get("bibliography_label"), Some(&json!([])));
         assert!(!direct.to_string().contains("unexported cache"));
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod prepared_anchor_tests {
+    use super::{Anchor, BibliographyLabel};
+    use crate::{ContentAttribute, Location};
+
+    #[test]
+    fn prepared_reference_edits_discard_previous_source_hints() {
+        let mut anchor = Anchor::new("entry", Location::default());
+        anchor.reftext_source = Some(7);
+        anchor.set_reftext(Some(ContentAttribute::default()));
+        assert!(anchor.reftext_source.is_none());
+        anchor.reftext_source = Some(9);
+        assert_eq!(anchor.take_reftext(), Some(ContentAttribute::default()));
+        assert!(anchor.reftext_source.is_none());
+        anchor.reftext_source = Some(11);
+        let anchor = anchor.with_xreflabel(Some(ContentAttribute::default()));
+        assert!(anchor.reftext_source.is_none());
+    }
+
+    #[test]
+    fn prepared_display_labels_do_not_reuse_authored_source() {
+        let mut anchor = Anchor::new("entry", Location::default());
+        anchor.bibliography = true;
+        anchor.bibliography_label = Some(Box::new(BibliographyLabel {
+            source: Some("old authored label"),
+            content: Vec::new(),
+        }));
+        anchor.set_bibliography(Some(ContentAttribute::default()));
+        assert!(
+            anchor
+                .bibliography_label
+                .as_ref()
+                .is_some_and(|label| label.source.is_none())
+        );
+        anchor.clear_bibliography();
+        assert!(anchor.bibliography_label.is_none());
+        assert!(!anchor.is_bibliography());
     }
 }

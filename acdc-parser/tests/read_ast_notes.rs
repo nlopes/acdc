@@ -86,8 +86,8 @@ fn footnote_owner_reads_do_not_resolve_or_register_content() -> Result<(), Error
         return Err("definition and reference".into());
     };
     let mut owner = owner.clone();
-    owner.content.clear();
-    owner.number = 17;
+    owner.take_content();
+    owner.set_number(17);
     let read = FootnoteRef::from(&owner);
     assert_eq!(read.number(), 17);
     assert_eq!(read.id(), Some("n"));
@@ -157,7 +157,7 @@ fn bibliography_reads_separate_citation_from_display_content(
 fn ordinary_anchor_reads_preserve_absent_and_empty_labels() -> Result<(), Error> {
     let mut owner = Anchor::new("entry", Location::default());
     assert!(AnchorRef::from(&owner).reftext().is_none());
-    owner.xreflabel = Some(ContentAttribute::default());
+    owner.set_reftext(Some(ContentAttribute::default()));
     let read = AnchorRef::from(&owner);
     assert!(read.reftext().ok_or("present empty")?.is_empty());
     assert!(!read.is_bibliography());

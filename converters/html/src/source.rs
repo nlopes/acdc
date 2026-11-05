@@ -72,7 +72,7 @@ pub(crate) fn with_source_inlines<R>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::{CalloutRef, CalloutRefKind, Paragraph, ast::ParagraphRef};
+    use acdc_parser::{CalloutRef, Paragraph, ast::ParagraphRef};
 
     #[test]
     fn source_guards_remove_empty_text_only_after_an_edit() {
@@ -81,11 +81,7 @@ mod tests {
                 vec![
                     InlineNode::PlainText(Plain::new("", Location::default()).with_escaped(true)),
                     InlineNode::VerbatimText(Verbatim::new(before, Location::default())),
-                    InlineNode::CalloutRef(CalloutRef {
-                        kind: CalloutRefKind::Explicit,
-                        number: 1,
-                        location: Location::default(),
-                    }),
+                    InlineNode::CalloutRef(CalloutRef::explicit(1, Location::default())),
                     InlineNode::PlainText(
                         Plain::new(after, Location::default()).with_escaped(true),
                     ),

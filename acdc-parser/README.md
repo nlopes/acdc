@@ -354,6 +354,14 @@ numbering order. Reading either form does not register notes or resolve referenc
 Anchors expose `is_bibliography()` and `bibliography_label()` alongside `reftext()`:
 the entry's display label and its citation text can differ.
 
+Copy individual anchors, footnotes, and callout markers with `From` and their
+typed readers. Footnote constructors accept prepared content and an assigned
+number; edits do not register definitions or renumber other occurrences.
+Anchor reftext and bibliography display labels have separate transfers.
+`set_bibliography(None)` selects the ID fallback; an empty content value keeps
+an explicitly empty display label. These edits leave document catalogs alone.
+Location edits keep the locations within prepared label and note content.
+
 `document().header()` exposes the title, subtitle, and authors. Read revision
 values through `document().attributes().get("revnumber")`, `revdate`, and
 `revremark`. Header `attributes()` reads element metadata on the title;

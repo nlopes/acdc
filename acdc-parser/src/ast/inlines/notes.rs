@@ -28,3 +28,9 @@ impl<'doc> From<&'doc Footnote<'doc>> for FootnoteRef<'doc> {
         Self::new(owner)
     }
 }
+
+impl<'doc> From<FootnoteRef<'doc>> for Footnote<'doc> {
+    fn from(read: FootnoteRef<'doc>) -> Self {
+        read.node.clone()
+    }
+}

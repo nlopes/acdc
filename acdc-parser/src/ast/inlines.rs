@@ -321,3 +321,15 @@ impl<'doc> From<&'doc crate::CalloutRef> for CalloutRef<'doc> {
         Self::new(owner)
     }
 }
+
+impl<'doc> From<AnchorRef<'doc>> for crate::Anchor<'doc> {
+    fn from(read: AnchorRef<'doc>) -> Self {
+        read.node.clone()
+    }
+}
+
+impl From<CalloutRef<'_>> for crate::CalloutRef {
+    fn from(read: CalloutRef<'_>) -> Self {
+        read.node.clone()
+    }
+}

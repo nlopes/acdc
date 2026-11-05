@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** anchors, footnotes, and callout markers use private storage.
+  Read through their typed handles and copy selected values with `From`.
+  Use prepared content, identity, number, and location edits for owned values.
+  Citation text remains separate from bibliography display labels; editing
+  either does not register notes or update document catalogs.
+
 - **Breaking:** formatting span fields are private. The eight concrete types
   remain distinct. Read through their typed `ast` handles, copy selected spans
   with `From`, and use prepared content, role, ID, form and location edits.

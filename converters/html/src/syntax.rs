@@ -468,8 +468,8 @@ pub(crate) fn extract_text_and_callouts<'inline>(
 mod tests {
     use super::*;
     use acdc_parser::{
-        CalloutRef, CalloutRefKind, CompatibilityMode, InlineNode, LineBreak, Location, Options,
-        Plain, Raw, Substitution, Verbatim,
+        CalloutRef, CompatibilityMode, InlineNode, LineBreak, Location, Options, Plain, Raw,
+        Substitution, Verbatim,
     };
 
     fn create_verbatim_inlines(content: &str) -> Vec<InlineNode<'_>> {
@@ -480,11 +480,7 @@ mod tests {
     }
 
     fn create_callout_ref(number: usize) -> InlineNode<'static> {
-        InlineNode::CalloutRef(CalloutRef {
-            kind: CalloutRefKind::Explicit,
-            number,
-            location: Location::default(),
-        })
+        InlineNode::CalloutRef(CalloutRef::explicit(number, Location::default()))
     }
 
     #[test]

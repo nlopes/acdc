@@ -110,8 +110,7 @@ fn strip_line_guard<'text>(text: &'text str, prefix: Option<&str>) -> &'text str
 mod tests {
     use super::*;
     use acdc_parser::{
-        AttributeValue, CalloutRef, CalloutRefKind, Location, Paragraph, Verbatim,
-        ast::ParagraphRef,
+        AttributeValue, CalloutRef, Location, Paragraph, Verbatim, ast::ParagraphRef,
     };
 
     #[test]
@@ -119,11 +118,7 @@ mod tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let inlines = [
             InlineNode::VerbatimText(Verbatim::new("value # ", Location::default())),
-            InlineNode::CalloutRef(CalloutRef {
-                kind: CalloutRefKind::Explicit,
-                number: 1,
-                location: Location::default(),
-            }),
+            InlineNode::CalloutRef(CalloutRef::explicit(1, Location::default())),
         ];
         for (prefix, expected) in [
             (None, "value "),

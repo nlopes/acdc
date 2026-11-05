@@ -368,23 +368,29 @@ pub enum CalloutRefKind {
 /// [source,ruby]
 /// ----
 /// def main <1>
-///   puts 'hello' <.>
+///   puts 'hello' <2>
 /// end
 /// ----
 /// <1> Defines the main function
-/// <.> Prints a greeting
+/// <2> Prints a greeting
 /// ```
 ///
-/// The `<1>` marker creates an `Explicit` callout ref, while `<.>` creates an
-/// `Auto` callout ref that gets resolved to the next available number.
+/// The `<1>` marker creates an explicit callout ref. Use `<.>` for automatic
+/// numbering throughout a sequence.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{CalloutRef, Location};
+/// let mut marker = CalloutRef::auto(1, Location::default());
+/// marker.number = 2;
+/// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CalloutRef {
     /// The kind of callout (explicit number vs auto-numbered).
-    pub kind: CalloutRefKind,
-    /// The resolved callout number (1-indexed).
-    pub number: usize,
+    pub(crate) kind: CalloutRefKind,
+    /// The assigned callout number.
+    pub(crate) number: usize,
     /// Source location of this callout reference.
-    pub location: Location,
+    pub(crate) location: Location,
 }
 
 impl CalloutRef {
@@ -406,6 +412,20 @@ impl CalloutRef {
             number,
             location,
         }
+    }
+    /// Replace the marker form without renumbering its sequence.
+    pub fn set_kind(&mut self, kind: CalloutRefKind) {
+        self.kind = kind;
+    }
+
+    /// Replace the assigned number without changing other markers or list items.
+    pub fn set_number(&mut self, number: usize) {
+        self.number = number;
+    }
+
+    /// Replace this marker's recorded source span.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 }
 

@@ -90,6 +90,12 @@ pub enum PassthroughKind {
 }
 
 /// A `Footnote` represents an inline footnote in a document.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Footnote, Location};
+/// let mut note = Footnote::new(Vec::new(), 1, Location::default());
+/// note.content = Vec::new();
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Footnote<'a> {
@@ -97,10 +103,64 @@ pub struct Footnote<'a> {
     pub(crate) definition_source: Option<&'a str>,
     /// Capture the body before later substitutions; consumed after source mapping.
     pub(crate) registration_substitutions: Option<crate::model::substitution::SubstitutionPlan>,
-    pub id: Option<&'a str>,
-    pub content: Vec<InlineNode<'a>>,
-    pub number: u32,
-    pub location: Location,
+    pub(crate) id: Option<&'a str>,
+    pub(crate) content: Vec<InlineNode<'a>>,
+    pub(crate) number: u32,
+    pub(crate) location: Location,
+}
+
+impl<'a> Footnote<'a> {
+    /// Construct an anonymous note with prepared content and an assigned number.
+    /// This does not register or renumber notes in a document.
+    #[must_use]
+    pub fn new(content: Vec<InlineNode<'a>>, number: u32, location: Location) -> Self {
+        Self {
+            definition_source: None,
+            registration_substitutions: None,
+            id: None,
+            content,
+            number,
+            location,
+        }
+    }
+
+    /// Replace the named key without registering a definition or resolving references.
+    pub fn replace_id(&mut self, id: Option<&'a str>) -> Option<&'a str> {
+        self.clear_registration_source();
+        std::mem::replace(&mut self.id, id)
+    }
+
+    /// Replace prepared content without parsing it or updating registered definitions.
+    pub fn replace_content(&mut self, content: Vec<InlineNode<'a>>) -> Vec<InlineNode<'a>> {
+        self.clear_registration_source();
+        std::mem::replace(&mut self.content, content)
+    }
+
+    /// Transfer the retained body, leaving this occurrence empty.
+    pub fn take_content(&mut self) -> Vec<InlineNode<'a>> {
+        self.replace_content(Vec::new())
+    }
+
+    /// Append a prepared inline without registering nested content.
+    pub fn push_inline(&mut self, inline: InlineNode<'a>) {
+        self.clear_registration_source();
+        self.content.push(inline);
+    }
+
+    /// Replace the assigned number without renumbering other occurrences or catalogs.
+    pub fn set_number(&mut self, number: u32) {
+        self.number = number;
+    }
+
+    /// Replace the occurrence span, keeping the locations within its prepared body.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+
+    fn clear_registration_source(&mut self) {
+        self.definition_source = None;
+        self.registration_substitutions = None;
+    }
 }
 
 /// A `Button` represents an inline button in a document.
@@ -772,5 +832,50 @@ mod passthrough_edit_tests {
         pass.set_kind(PassthroughKind::Macro);
         assert!(pass.attribute_fragments.is_empty());
         assert_eq!(pass.text, Some("text"));
+    }
+}
+
+#[cfg(test)]
+mod prepared_note_tests {
+    use super::Footnote;
+    use crate::{InlineNode, Location, Plain, model::substitution::SubstitutionPlan};
+
+    fn pending() -> Footnote<'static> {
+        let mut note = Footnote::new(Vec::new(), 1, Location::default());
+        note.definition_source = Some("old body");
+        note.registration_substitutions = Some(SubstitutionPlan::default());
+        note
+    }
+
+    #[test]
+    fn selected_note_copies_retain_pending_registration_snapshots() {
+        let note = pending();
+        let copied = Footnote::from(crate::ast::FootnoteRef::from(&note));
+        assert_eq!(copied, note);
+        assert_eq!(copied.definition_source, Some("old body"));
+        assert!(copied.registration_substitutions.is_some());
+    }
+
+    #[test]
+    fn prepared_note_edits_discard_old_registration_sources() {
+        let mut note = pending();
+        note.replace_content(Vec::new());
+        assert!(note.definition_source.is_none());
+        assert!(note.registration_substitutions.is_none());
+        let mut note = pending();
+        note.take_content();
+        assert!(note.definition_source.is_none());
+        assert!(note.registration_substitutions.is_none());
+        let mut note = pending();
+        note.push_inline(InlineNode::PlainText(Plain::new(
+            "new",
+            Location::default(),
+        )));
+        assert!(note.definition_source.is_none());
+        assert!(note.registration_substitutions.is_none());
+        let mut note = pending();
+        note.replace_id(Some("new"));
+        assert!(note.definition_source.is_none());
+        assert!(note.registration_substitutions.is_none());
     }
 }

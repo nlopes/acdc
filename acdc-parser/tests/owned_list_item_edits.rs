@@ -188,8 +188,11 @@ fn callout_replacement_keeps_the_supplied_kind_number_and_span() {
         Location::default(),
     );
     let old = item.replace_callout(CalloutRef::explicit(7, Location::default()));
-    assert_eq!(old.kind, CalloutRefKind::Auto);
-    assert_eq!(old.number, 3);
+    assert_eq!(
+        acdc_parser::ast::CalloutRef::from(&old).kind(),
+        CalloutRefKind::Auto
+    );
+    assert_eq!(acdc_parser::ast::CalloutRef::from(&old).number(), 3);
     let read = CalloutListItemRef::from(&item).callout();
     assert_eq!(read.kind(), CalloutRefKind::Explicit);
     assert_eq!(read.number(), 7);

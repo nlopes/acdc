@@ -59,7 +59,7 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
                 } else if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
                     // Caller-created footnotes can use IDs outside the source grammar.
                     let mut note = note.clone();
-                    note.id = Some("temporary\"note");
+                    note.replace_id(Some("temporary\"note"));
                     visitor.render_footnote((&note).into(), &options)?;
                     macros += 1;
                 }

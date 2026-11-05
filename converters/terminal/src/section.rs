@@ -145,8 +145,7 @@ fn extract_title_text(
 mod tests {
     use super::*;
     use acdc_parser::{
-        Bold, CalloutRef, CalloutRefKind, Form, InlineMacro, InlineNode, Link, Location, Plain,
-        Source, Verbatim,
+        Bold, CalloutRef, Form, InlineMacro, InlineNode, Link, Location, Plain, Source, Verbatim,
     };
 
     fn plain(s: &str) -> InlineNode<'_> {
@@ -218,11 +217,7 @@ mod tests {
     fn extract_callout_ref() {
         let title = [
             plain("Code "),
-            InlineNode::CalloutRef(CalloutRef {
-                kind: CalloutRefKind::Explicit,
-                number: 1,
-                location: Location::default(),
-            }),
+            InlineNode::CalloutRef(CalloutRef::explicit(1, Location::default())),
         ];
         assert_eq!(extract_title_text(&title, &no_references()), "Code <1>");
     }

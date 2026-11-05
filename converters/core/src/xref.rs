@@ -414,10 +414,10 @@ mod tests {
         let footnotes: Vec<_> = snapshot.take_footnotes().collect();
         let references: std::collections::HashMap<_, _> = snapshot.take_references().collect();
         let mut xrefs = paragraph_xrefs(&blocks);
-        for footnote in &footnotes {
-            xrefs.extend(footnote.content.iter().filter_map(|inline| {
+        for mut footnote in footnotes {
+            xrefs.extend(footnote.take_content().into_iter().filter_map(|inline| {
                 if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
-                    Some(xref.as_ref().clone())
+                    Some(*xref)
                 } else {
                     None
                 }
@@ -520,11 +520,13 @@ mod tests {
             let mut document = cloned_document(&parsed_document);
             let mut footnotes: Vec<_> = document.take_footnotes().collect();
             for footnote in &mut footnotes {
-                for inline in &mut footnote.content {
+                let mut content = footnote.take_content();
+                for inline in &mut content {
                     if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
                         xref.set_signifier(signifier);
                     }
                 }
+                footnote.replace_content(content);
             }
             let mut blocks: Vec<_> = document.take_blocks().collect();
             for block in &mut blocks {

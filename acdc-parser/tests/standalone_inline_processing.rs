@@ -38,7 +38,7 @@ fn standalone_fragments_use_document_inline_semantics(
         .iter()
         .filter_map(|node| {
             if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
-                Some(note.number)
+                Some(acdc_parser::ast::FootnoteRef::from(note).number())
             } else {
                 None
             }
