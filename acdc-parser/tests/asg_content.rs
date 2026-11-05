@@ -178,7 +178,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
             base.get(name).ok_or("base field")?.clone();
     }
     let additions: &[(&str, &[&str])] = &[
-        ("/properties", &["profile", "footnotes"]),
+        ("/properties", &["profile", "footnotes", "references"]),
         ("/$defs/listItem/properties", &["checked"]),
         (
             "/$defs/abstractBlock/properties",
@@ -212,6 +212,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         (
             "/$defs",
             &[
+                "acdcReferenceRegistration",
                 "acdcAnchor",
                 "acdcInlineAnchor",
                 "acdcIndexTerm",

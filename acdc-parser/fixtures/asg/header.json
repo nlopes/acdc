@@ -360,5 +360,35 @@
   ],
   "name": "document",
   "profile": "urn:acdc:asg:1",
+  "references": {
+    "": {
+      "location": [
+        {
+          "col": 1,
+          "line": 1
+        },
+        {
+          "col": 18,
+          "line": 4
+        }
+      ],
+      "owner": "/header",
+      "target": ""
+    },
+    "guide": {
+      "location": [
+        {
+          "col": 3,
+          "line": 1
+        },
+        {
+          "col": 7,
+          "line": 1
+        }
+      ],
+      "owner": "/header",
+      "target": "guide"
+    }
+  },
   "type": "block"
 }

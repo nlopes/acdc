@@ -163,8 +163,11 @@ fn header_catalogs_keep_stale_duplicate_and_independent_label_checks() -> Result
         "= Main: Subtitle\n:reftext: Other\n\nxref:#[].",
         &Options::default(),
     )?;
-    assert!(
-        matches!(asg::document_with_profile(parsed.document(), asg::Profile::Acdc), Err(asg::Error::Unsupported {path, ..}) if path == "/references/")
+    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    assert_eq!(value.pointer("/references//owner"), Some(&json!("/header")));
+    assert_eq!(
+        value.pointer("/references//reftext/0/value"),
+        Some(&json!("Other"))
     );
     Ok(())
 }

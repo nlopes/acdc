@@ -539,5 +539,49 @@
   ],
   "name": "document",
   "profile": "urn:acdc:asg:1",
+  "references": {
+    "inline": {
+      "location": [
+        {
+          "col": 16,
+          "line": 6
+        },
+        {
+          "col": 34,
+          "line": 6
+        }
+      ],
+      "owner": "/blocks/0/inlines/1",
+      "target": "inline"
+    },
+    "para-first": {
+      "location": [
+        {
+          "col": 1,
+          "line": 3
+        },
+        {
+          "col": 27,
+          "line": 3
+        }
+      ],
+      "owner": "/blocks/0",
+      "target": "para-first"
+    },
+    "section-last": {
+      "location": [
+        {
+          "col": 1,
+          "line": 10
+        },
+        {
+          "col": 16,
+          "line": 12
+        }
+      ],
+      "owner": "/blocks/2",
+      "target": "section-last"
+    }
+  },
   "type": "block"
 }

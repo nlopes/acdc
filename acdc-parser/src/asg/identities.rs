@@ -1,6 +1,8 @@
+use std::collections::BTreeMap;
+
 use serde_json::{Map, Value};
 
-use crate::Anchor;
+use crate::{Anchor, Reference};
 
 use super::{Error, Profile, metadata, pointer, projection::inlines, unsupported};
 
@@ -69,4 +71,73 @@ pub(super) fn apply<'a, 'doc>(
         result.insert("anchors".into(), Value::Array(anchors));
     }
     Ok(())
+}
+
+// Catalog snapshots and unused declarations are not new inline registrations.
+pub(super) fn owners(document: &Map<String, Value>) -> Result<BTreeMap<String, String>, Error> {
+    fn visit(
+        value: &Value,
+        path: &str,
+        result: &mut BTreeMap<String, String>,
+    ) -> Result<(), Error> {
+        match value {
+            Value::Object(node) => {
+                if node.get("name").is_some_and(|name| name != "footnote") {
+                    let id = node
+                        .get("id")
+                        .or_else(|| node.get("metadata").and_then(|metadata| metadata.get("id")));
+                    if let Some(id) = id.and_then(Value::as_str)
+                        && result.insert(id.into(), path.into()).is_some()
+                    {
+                        return Err(unsupported(
+                            &pointer(path, "id"),
+                            "duplicate exported identity has no unique reference owner",
+                        ));
+                    }
+                }
+                for (name, child) in node {
+                    if !matches!(name.as_str(), "catalog" | "anchors" | "references") {
+                        visit(child, &pointer(path, name), result)?;
+                    }
+                }
+            }
+            Value::Array(values) => {
+                for (index, child) in values.iter().enumerate() {
+                    visit(child, &pointer(path, &index.to_string()), result)?;
+                }
+            }
+            Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
+        }
+        Ok(())
+    }
+    let mut result = BTreeMap::new();
+    for (name, child) in document {
+        visit(child, &pointer("", name), &mut result)?;
+    }
+    Ok(result)
+}
+
+pub(super) fn registration(
+    reference: &Reference<'_>,
+    owner: &str,
+    independent_label: bool,
+    path: &str,
+) -> Result<Value, Error> {
+    let mut result = Map::from_iter([
+        ("target".into(), reference.target.into()),
+        ("owner".into(), owner.into()),
+    ]);
+    if independent_label {
+        result.insert(
+            "reftext".into(),
+            reference
+                .xreflabel
+                .as_ref()
+                .map(|label| inlines(label.as_inlines(), &pointer(path, "reftext"), Profile::Acdc))
+                .transpose()?
+                .unwrap_or(Value::Null),
+        );
+    }
+    metadata::location(&mut result, &reference.location, path)?;
+    Ok(Value::Object(result))
 }

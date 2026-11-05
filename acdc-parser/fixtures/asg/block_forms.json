@@ -943,5 +943,21 @@
   ],
   "name": "document",
   "profile": "urn:acdc:asg:1",
+  "references": {
+    "bounded": {
+      "location": [
+        {
+          "col": 6,
+          "line": 7
+        },
+        {
+          "col": 12,
+          "line": 7
+        }
+      ],
+      "owner": "/blocks/2",
+      "target": "bounded"
+    }
+  },
   "type": "block"
 }

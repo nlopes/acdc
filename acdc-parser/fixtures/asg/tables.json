@@ -833,5 +833,21 @@
   ],
   "name": "document",
   "profile": "urn:acdc:asg:1",
+  "references": {
+    "record": {
+      "location": [
+        {
+          "col": 5,
+          "line": 6
+        },
+        {
+          "col": 10,
+          "line": 6
+        }
+      ],
+      "owner": "/blocks/0",
+      "target": "record"
+    }
+  },
   "type": "block"
 }

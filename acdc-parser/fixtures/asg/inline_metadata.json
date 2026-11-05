@@ -669,5 +669,77 @@
   ],
   "name": "document",
   "profile": "urn:acdc:asg:1",
+  "references": {
+    "link": {
+      "location": [
+        {
+          "col": 1,
+          "line": 9
+        },
+        {
+          "col": 117,
+          "line": 9
+        }
+      ],
+      "owner": "/blocks/0/blocks/1/inlines/0",
+      "target": "link"
+    },
+    "mail": {
+      "location": [
+        {
+          "col": 1,
+          "line": 13
+        },
+        {
+          "col": 77,
+          "line": 13
+        }
+      ],
+      "owner": "/blocks/0/blocks/3/inlines/0",
+      "target": "mail"
+    },
+    "strong": {
+      "location": [
+        {
+          "col": 18,
+          "line": 6
+        },
+        {
+          "col": 59,
+          "line": 6
+        }
+      ],
+      "owner": "/blocks/0/blocks/0/inlines/0",
+      "target": "strong"
+    },
+    "target": {
+      "location": [
+        {
+          "col": 1,
+          "line": 3
+        },
+        {
+          "col": 14,
+          "line": 4
+        }
+      ],
+      "owner": "/blocks/0",
+      "target": "target"
+    },
+    "url": {
+      "location": [
+        {
+          "col": 1,
+          "line": 11
+        },
+        {
+          "col": 54,
+          "line": 11
+        }
+      ],
+      "owner": "/blocks/0/blocks/2/inlines/0",
+      "target": "url"
+    }
+  },
   "type": "block"
 }

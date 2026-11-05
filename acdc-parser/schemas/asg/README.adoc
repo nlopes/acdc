@@ -391,6 +391,25 @@ The named acdc profile adds three closed forms:
 Strict export rejects them where the pin has no corresponding form. Unsupported
 nested meaning still reports its complete property path.
 
+== Registered reference targets
+
+The acdc profile's `references` object records the native catalog's actual lookup
+keys. Each entry has a canonical `target`, an `owner` JSON Pointer into the export,
+and its known target `location`. A declaration that was not registered stays out
+of this map. Export does not register targets or repair an edited catalog.
+
+Ordinary entries use the owner's title, effective reference text and caption;
+header titles combine the separate title and subtitle for reference display.
+An alias with independent reference text stores `reftext` in its catalog entry.
+A missing property inherits the owner's label, `null` removes it, and `[]` retains
+an explicitly empty label. Document-level `:reftext:` also owns an independent,
+already resolved label. Without a header, document-top references use the first
+root section title, or no title when there is no section. No raw text is reparsed.
+
+Dangling aliases, stale owner titles/captions/primary labels, duplicate identities
+and unsupported reference classifications still fail with an exact path. The
+strict upstream profile keeps its existing reconstructible-catalog boundary.
+
 == Anchor declarations
 
 The named profile adds ordinary inline `anchor` nodes with `id`, optional parsed

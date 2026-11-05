@@ -259,6 +259,7 @@ fn span_node(
 }
 
 struct Target<'a, 'doc> {
+    owner: Option<String>,
     title: Option<&'a Title<'doc>>,
     label: Option<&'a ContentAttribute<'doc>>,
     section: Option<&'a Section<'doc>>,
@@ -382,6 +383,7 @@ pub(super) fn document(value: &Document<'_>, profile: Profile) -> Result<Value, 
             export.insert_target(
                 String::new(),
                 Target {
+                    owner: Some("/header".into()),
                     title: Some(title),
                     label: metadata::label(&header.metadata),
                     section: None,
@@ -399,6 +401,7 @@ pub(super) fn document(value: &Document<'_>, profile: Profile) -> Result<Value, 
                     export.insert_target(
                         id.as_str().to_owned(),
                         Target {
+                            owner: None,
                             title: None,
                             label: if let InlineNode::InlineAnchor(anchor) = inline {
                                 anchor.xreflabel.as_ref()
@@ -414,12 +417,49 @@ pub(super) fn document(value: &Document<'_>, profile: Profile) -> Result<Value, 
             }
         }
     }
-    export.catalogs(value)?;
+    export.document_top(value, &result)?;
+    export.catalogs(value, &mut result)?;
     metadata::location(&mut result, &value.location, "")?;
     Ok(Value::Object(result))
 }
 
 impl<'a, 'doc> Export<'a, 'doc> {
+    fn document_top(&mut self, value: &'a Document<'doc>, projected: &Node) -> Result<(), Error> {
+        if self.profile == Profile::Acdc
+            && value.header.is_none()
+            && value.references.contains_key("")
+        {
+            let title = value.blocks.iter().find_map(|block| {
+                if let Block::Section(section) = block {
+                    Some(&section.title)
+                } else {
+                    None
+                }
+            });
+            let owner = projected
+                .get("blocks")
+                .and_then(Value::as_array)
+                .and_then(|blocks| {
+                    blocks.iter().position(|block| {
+                        block.get("name").and_then(Value::as_str) == Some("section")
+                    })
+                })
+                .map_or_else(String::new, |index| format!("/blocks/{index}"));
+            self.insert_target(
+                String::new(),
+                Target {
+                    owner: Some(owner),
+                    title,
+                    label: None,
+                    section: None,
+                    caption: None,
+                },
+                "",
+            )?;
+        }
+        Ok(())
+    }
+
     fn blocks(&mut self, values: &'a [Block<'doc>], path: &str) -> Result<Value, Error> {
         self.block_body(values, path, true)
     }
@@ -593,6 +633,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             .or_else(|| primary.map(|anchor| anchor.id.to_string()));
         if let Some(id) = id {
             let target = Target {
+                owner: Some(path.into()),
                 title: title.filter(|title| title.is_present()),
                 label: metadata::label(metadata),
                 section,
@@ -618,12 +659,23 @@ impl<'a, 'doc> Export<'a, 'doc> {
         Ok(())
     }
 
-    fn catalogs(&self, value: &Document<'_>) -> Result<(), Error> {
+    fn catalogs(&self, value: &Document<'_>, projected: &mut Node) -> Result<(), Error> {
+        let owners = if self.profile == Profile::Acdc {
+            super::identities::owners(projected)?
+        } else {
+            BTreeMap::new()
+        };
+        let mut registrations = Map::new();
         let mut references = value.references.iter().collect::<Vec<_>>();
         references.sort_by_key(|(id, _)| *id);
         for (id, reference) in references {
             let at = pointer("/references", id);
-            let target = self.targets.get(*id).ok_or_else(|| {
+            let target_id = if self.profile == Profile::Acdc {
+                reference.target
+            } else {
+                *id
+            };
+            let target = self.targets.get(target_id).ok_or_else(|| {
                 unsupported(&at, "reference data has no supported exported owner")
                     .with_context("reference", &reference.location)
             })?;
@@ -649,10 +701,14 @@ impl<'a, 'doc> Export<'a, 'doc> {
                     | InlineNode::CalloutRef(_) => true,
                 })
             });
-            if reference.target != *id
+            let independent_label = self.profile == Profile::Acdc
+                && (reference.target != *id
+                    || reference.document_top_label
+                        == Some(crate::model::DocumentTopLabel::Attribute));
+            if self.profile == Profile::Upstream && reference.target != *id
                 || reference.title.as_ref().map(ContentAttribute::as_inlines)
                     != target.title.map(Title::as_inlines)
-                || reference.xreflabel.as_ref() != label
+                || !independent_label && reference.xreflabel.as_ref() != label
                 || reference.caption.as_ref() != target.caption
                 || reference.is_bibliography()
                 || reference.has_automatic_citation()
@@ -676,7 +732,25 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 )
                 .with_context("reference", &reference.location));
             }
+            if self.profile == Profile::Acdc {
+                let owner = target
+                    .owner
+                    .as_ref()
+                    .or_else(|| owners.get(target_id))
+                    .ok_or_else(|| unsupported(&at, "inline reference has no exported identity"))?;
+                registrations.insert(
+                    (*id).into(),
+                    super::identities::registration(reference, owner, independent_label, &at)?,
+                );
+            }
         }
+        if !registrations.is_empty() {
+            projected.insert("references".into(), Value::Object(registrations));
+        }
+        self.check_toc(value)
+    }
+
+    fn check_toc(&self, value: &Document<'_>) -> Result<(), Error> {
         for (index, entry) in value.toc_entries.iter().enumerate() {
             let at = pointer("/toc_entries", &index.to_string());
             let target = self

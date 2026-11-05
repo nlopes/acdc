@@ -263,6 +263,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             self.insert_target(
                 anchor.id.into(),
                 Target {
+                    owner: Some(path.into()),
                     title: title.filter(|title| title.is_present()),
                     label: anchor.xreflabel.as_ref(),
                     section: None,
@@ -270,6 +271,21 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 },
                 path,
             )?;
+        }
+        if self.profile == Profile::Acdc {
+            for (index, anchor) in anchors.iter().skip(1).enumerate() {
+                self.insert_target(
+                    anchor.id.into(),
+                    Target {
+                        owner: Some(pointer(&pointer(path, "anchors"), &index.to_string())),
+                        title: title.filter(|title| title.is_present()),
+                        label: anchor.xreflabel.as_ref(),
+                        section: None,
+                        caption: None,
+                    },
+                    path,
+                )?;
+            }
         }
 
         Ok(())

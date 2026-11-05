@@ -107,6 +107,12 @@
       "items": {
         "$ref": "#/$defs/acdcFootnoteDefinition"
       }
+    },
+    "references": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/acdcReferenceRegistration"
+      }
     }
   },
   "if": {
@@ -1699,6 +1705,36 @@
         },
         "type": {
           "const": "inline"
+        }
+      }
+    },
+    "acdcReferenceRegistration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "owner"
+      ],
+      "properties": {
+        "target": {
+          "type": "string"
+        },
+        "owner": {
+          "type": "string",
+          "pattern": "^(?:/(?:[^~/]|~[01])*)*$"
+        },
+        "reftext": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/inlines"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "location": {
+          "$ref": "#/$defs/location"
         }
       }
     }

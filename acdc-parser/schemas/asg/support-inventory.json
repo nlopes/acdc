@@ -225,29 +225,29 @@
         "variants": {}
       },
       "representation": {
-        "policy": "derived-catalog"
+        "policy": "named-reference-registrations"
       },
       "properties": {
         "occurrence": {
           "policy": "derived-catalog"
         },
         "document_top_label": {
-          "policy": "derived-catalog"
+          "policy": "named-reference-registrations"
         },
         "target": {
-          "policy": "derived-catalog"
+          "policy": "named-reference-registrations"
         },
         "xreflabel": {
-          "policy": "derived-catalog"
+          "policy": "named-reference-registrations"
         },
         "title": {
-          "policy": "derived-catalog"
+          "policy": "named-reference-registrations"
         },
         "location": {
-          "policy": "derived-catalog"
+          "policy": "named-reference-registrations"
         },
         "caption": {
-          "policy": "derived-catalog"
+          "policy": "named-reference-registrations"
         },
         "section": {
           "policy": "derived-catalog"
@@ -5751,6 +5751,10 @@
     "named-anchor-declarations": {
       "handling": "context-dependent",
       "reason": "The named profile preserves ordinary inline anchors, extra block declarations and known primary-ID spans. Heading and ordinary primary selection remain distinct. Extra declarations do not imply target registration; effective block reftext remains separate from their labels. Pending and bibliography anchors reject in this slice. Strict export still rejects inline/additional anchors."
+    },
+    "named-reference-registrations": {
+      "handling": "context-dependent",
+      "reason": "The named profile preserves actual registration keys, canonical targets, exported-owner pointers and known target spans. Independent alias and document-attribute labels retain resolved inlines, including absent/empty distinctions. Ordinary titles, labels and captions stay owned by tree nodes. Strict reconstructible-catalog checks remain; dangling aliases and stale owners reject."
     }
   },
   "strict_export_groups": {
@@ -6643,6 +6647,31 @@
             "asg_anchors.rs::anchor_children_and_bibliography_keep_explicit_boundaries",
             "asg_anchors.rs::anchor_schema_closes_declarations_and_inline_owners",
             "asg_anchors.rs::unused_primary_anchor_label_does_not_replace_effective_reference_text"
+          ]
+        },
+        "reference-registrations": {
+          "owners": {
+            "Reference": [
+              "target",
+              "xreflabel",
+              "title",
+              "location",
+              "caption",
+              "document_top_label"
+            ]
+          },
+          "schema_pointers": [
+            "#/properties/references",
+            "#/$defs/acdcReferenceRegistration"
+          ],
+          "handling": "The named profile preserves actual registration keys, canonical targets, exported-owner pointers and known target spans. Independent alias and document-attribute labels retain resolved inlines, including absent/empty distinctions. Ordinary titles, labels and captions stay owned by tree nodes. Strict reconstructible-catalog checks remain; dangling aliases and stale owners reject.",
+          "tests": [
+            "asg_reference_graph.rs::registrations_preserve_membership_and_point_to_exported_owners",
+            "asg_reference_graph.rs::prepared_alias_labels_keep_absent_empty_and_formatted_meanings",
+            "asg_reference_graph.rs::description_item_declarations_keep_separate_registered_labels",
+            "asg_reference_graph.rs::document_top_uses_resolved_labels_and_first_section_fallback",
+            "asg_reference_graph.rs::dangling_aliases_and_stale_primary_labels_are_rejected",
+            "asg_reference_graph.rs::registration_schema_is_closed_and_validates_label_and_pointer_types"
           ]
         }
       }

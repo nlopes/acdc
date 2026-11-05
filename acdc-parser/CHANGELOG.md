@@ -56,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The acdc ASG profile records registered cross-reference targets separately from
+  retained anchor declarations. Aliases keep independent reference text, and
+  document-top references preserve resolved document labels and section fallbacks.
+
 - The named ASG profile retains ordinary inline anchors, extra block anchor
   declarations and known primary-ID locations. It preserves acdc's primary-ID
   selection: ordinary blocks use the first anchor, headings use the last.
