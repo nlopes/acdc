@@ -162,32 +162,28 @@ fn index_detection_preserves_constructed_compound_and_list_boundaries() -> Resul
                 items
                     .first_mut()
                     .ok_or("missing unordered item")?
-                    .blocks
-                    .push(index_section()?);
+                    .push_block(index_section()?);
                 list.set_items(items);
             } else if let Block::OrderedList(list) = list {
                 let mut items: Vec<_> = list.take_items().collect();
                 items
                     .first_mut()
                     .ok_or("missing ordered item")?
-                    .blocks
-                    .push(index_section()?);
+                    .push_block(index_section()?);
                 list.set_items(items);
             } else if let Block::DescriptionList(list) = list {
                 let mut items: Vec<_> = list.take_items().collect();
                 items
                     .first_mut()
                     .ok_or("missing description item")?
-                    .description
-                    .push(index_section()?);
+                    .push_block(index_section()?);
                 list.set_items(items);
             } else if let Block::CalloutList(list) = list {
                 let mut items: Vec<_> = list.take_items().collect();
                 items
                     .first_mut()
                     .ok_or("missing callout item")?
-                    .blocks
-                    .push(index_section()?);
+                    .push_block(index_section()?);
                 list.set_items(items);
             } else {
                 return Err(format!("expected a list in {source:?}").into());

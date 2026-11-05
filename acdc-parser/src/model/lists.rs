@@ -33,14 +33,14 @@ pub enum ListItemCheckedStatus {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ListItem<'a> {
-    pub level: ListLevel,
-    pub marker: &'a str,
-    pub checked: Option<ListItemCheckedStatus>,
+    pub(crate) level: ListLevel,
+    pub(crate) marker: &'a str,
+    pub(crate) checked: Option<ListItemCheckedStatus>,
     /// Principal text - inline content that appears immediately after the list marker
-    pub principal: Vec<InlineNode<'a>>,
+    pub(crate) principal: Vec<InlineNode<'a>>,
     /// Attached blocks - blocks attached via continuation (+) or nesting
-    pub blocks: Vec<Block<'a>>,
-    pub location: Location,
+    pub(crate) blocks: Vec<Block<'a>>,
+    pub(crate) location: Location,
 }
 
 /// A `DescriptionList` represents a description list in a document.
@@ -55,23 +55,13 @@ pub struct DescriptionList<'a> {
 
 /// An item in a description list (term + description).
 ///
-/// # Structure
-///
-/// ```text
-/// term:: principal text    <- term, delimiter, principal_text
-///        description       <- description (blocks)
-/// ```
-///
-/// # Note on Field Names
-///
-/// - `description` is **singular** (not `descriptions`) - it holds the block content
-///   following the term
-/// - `principal_text` is inline content immediately after the delimiter on the same line
+/// Principal text follows the delimiter on the same line. Continuations and nested
+/// content are attached blocks, available through [`crate::ast::DescriptionListItemRef::blocks`].
 ///
 /// ```
-/// # use acdc_parser::DescriptionListItem;
-/// fn has_description(item: &DescriptionListItem) -> bool {
-///     !item.description.is_empty()  // Note: singular 'description'
+/// # use acdc_parser::ast::DescriptionListItemRef;
+/// fn has_description(item: DescriptionListItemRef<'_>) -> bool {
+///     item.blocks().next().is_some()
 /// }
 /// ```
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -79,21 +69,21 @@ pub struct DescriptionList<'a> {
 pub struct DescriptionListItem<'a> {
     /// Optional anchors (IDs) attached to this item.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub anchors: Vec<Anchor<'a>>,
+    pub(crate) anchors: Vec<Anchor<'a>>,
     /// The term being defined (inline content before the delimiter).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub term: Vec<InlineNode<'a>>,
+    pub(crate) term: Vec<InlineNode<'a>>,
     /// The delimiter used (`::`, `:::`, `::::`, or `;;`).
-    pub delimiter: &'a str,
+    pub(crate) delimiter: &'a str,
     /// Location of the delimiter in the source.
     #[serde(skip)]
-    pub delimiter_location: Option<Location>,
+    pub(crate) delimiter_location: Option<Location>,
     /// Inline content immediately after the delimiter on the same line.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub principal_text: Vec<InlineNode<'a>>,
+    pub(crate) principal_text: Vec<InlineNode<'a>>,
     /// Block content providing the description (singular, not plural).
-    pub description: Vec<Block<'a>>,
-    pub location: Location,
+    pub(crate) description: Vec<Block<'a>>,
+    pub(crate) location: Location,
 }
 
 /// A `UnorderedList` represents an unordered list in a document.
@@ -145,13 +135,13 @@ pub struct CalloutList<'a> {
 #[non_exhaustive]
 pub struct CalloutListItem<'a> {
     /// The callout reference (explicit or auto-numbered), numbered by item position.
-    pub callout: CalloutRef,
+    pub(crate) callout: CalloutRef,
     /// Principal text - inline content that appears after the callout marker.
-    pub principal: Vec<InlineNode<'a>>,
+    pub(crate) principal: Vec<InlineNode<'a>>,
     /// Attached blocks - blocks attached via continuation (though rarely used for callouts).
-    pub blocks: Vec<Block<'a>>,
+    pub(crate) blocks: Vec<Block<'a>>,
     /// Source location of this item.
-    pub location: Location,
+    pub(crate) location: Location,
 }
 
 macro_rules! list_edits {
@@ -303,6 +293,162 @@ impl<'a> CalloutList<'a> {
             items,
             location,
         }
+    }
+}
+
+macro_rules! item_content_edits {
+    ($($owner:ident, $principal:ident, $blocks:ident);+ $(;)?) => {
+        $(
+            impl<'a> $owner<'a> {
+                /// Replace prepared principal text without rebuilding registrations.
+                pub fn set_principal(&mut self, content: impl IntoIterator<Item = InlineNode<'a>>) {
+                    self.$principal = content.into_iter().collect();
+                }
+
+                /// Remove principal text, retaining each inline's original source lifetime.
+                pub fn take_principal(
+                    &mut self,
+                ) -> impl DoubleEndedIterator<Item = InlineNode<'a>> + ExactSizeIterator + use<'a> {
+                    std::mem::take(&mut self.$principal).into_iter()
+                }
+
+                /// Replace attached blocks without renesting or rebuilding registrations.
+                pub fn set_blocks(&mut self, blocks: impl IntoIterator<Item = Block<'a>>) {
+                    self.$blocks = blocks.into_iter().collect();
+                }
+
+                /// Append a prepared attached block without rebuilding registrations.
+                pub fn push_block(&mut self, block: Block<'a>) {
+                    self.$blocks.push(block);
+                }
+
+                /// Remove attached blocks, retaining their original source lifetimes.
+                pub fn take_blocks(
+                    &mut self,
+                ) -> impl DoubleEndedIterator<Item = Block<'a>> + ExactSizeIterator + use<'a> {
+                    std::mem::take(&mut self.$blocks).into_iter()
+                }
+
+                /// Replace the item span without relocating its content, markers or anchors.
+                pub fn set_location(&mut self, location: Location) {
+                    self.location = location;
+                }
+            }
+        )+
+    };
+}
+
+item_content_edits!(
+    ListItem, principal, blocks;
+    CalloutListItem, principal, blocks;
+    DescriptionListItem, principal_text, description;
+);
+
+impl<'a> ListItem<'a> {
+    /// Construct a list item without deriving nesting or checklist state from its marker.
+    #[must_use]
+    pub fn new(
+        principal: Vec<InlineNode<'a>>,
+        level: ListLevel,
+        marker: &'a str,
+        location: Location,
+    ) -> Self {
+        Self {
+            principal,
+            level,
+            marker,
+            checked: None,
+            blocks: Vec::new(),
+            location,
+        }
+    }
+
+    /// Replace the retained level without moving or renesting attached blocks.
+    pub fn set_level(&mut self, level: ListLevel) {
+        self.level = level;
+    }
+
+    /// Replace marker spelling without deriving a new level or checklist state.
+    pub fn replace_marker(&mut self, marker: &'a str) -> &'a str {
+        std::mem::replace(&mut self.marker, marker)
+    }
+
+    /// Replace checklist state; `None` restores an ordinary list item.
+    pub fn set_checked(&mut self, checked: Option<ListItemCheckedStatus>) {
+        self.checked = checked;
+    }
+}
+
+impl<'a> CalloutListItem<'a> {
+    /// Construct an explanation with a prepared marker and number.
+    #[must_use]
+    pub fn new(callout: CalloutRef, principal: Vec<InlineNode<'a>>, location: Location) -> Self {
+        Self {
+            callout,
+            principal,
+            blocks: Vec::new(),
+            location,
+        }
+    }
+
+    /// Replace the prepared marker without changing other items or source-code references.
+    pub fn replace_callout(&mut self, callout: CalloutRef) -> CalloutRef {
+        std::mem::replace(&mut self.callout, callout)
+    }
+}
+
+impl<'a> DescriptionListItem<'a> {
+    /// Construct an entry with prepared term content and retained delimiter spelling.
+    #[must_use]
+    pub fn new(term: Vec<InlineNode<'a>>, delimiter: &'a str, location: Location) -> Self {
+        Self {
+            term,
+            delimiter,
+            location,
+            anchors: Vec::new(),
+            delimiter_location: None,
+            principal_text: Vec::new(),
+            description: Vec::new(),
+        }
+    }
+
+    /// Replace prepared term content without rebuilding anchor or reference registrations.
+    pub fn set_term(&mut self, term: impl IntoIterator<Item = InlineNode<'a>>) {
+        self.term = term.into_iter().collect();
+    }
+
+    /// Remove term content, retaining each inline's original source lifetime.
+    pub fn take_term(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = InlineNode<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.term).into_iter()
+    }
+
+    /// Replace delimiter spelling without relocating its span or reparsing the entry.
+    pub fn replace_delimiter(&mut self, delimiter: &'a str) -> &'a str {
+        std::mem::replace(&mut self.delimiter, delimiter)
+    }
+
+    /// Replace the delimiter span without relocating term or principal content.
+    pub fn set_delimiter_location(&mut self, location: Option<Location>) {
+        self.delimiter_location = location;
+    }
+
+    /// Replace anchors in the supplied order without rebuilding registered targets.
+    pub fn set_anchors(&mut self, anchors: impl IntoIterator<Item = Anchor<'a>>) {
+        self.anchors = anchors.into_iter().collect();
+    }
+
+    /// Remove anchors, retaining their content and original source lifetimes.
+    pub fn take_anchors(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = Anchor<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.anchors).into_iter()
+    }
+
+    /// Append an anchor without rebuilding reference registrations.
+    pub fn push_anchor(&mut self, anchor: Anchor<'a>) {
+        self.anchors.push(anchor);
     }
 }
 

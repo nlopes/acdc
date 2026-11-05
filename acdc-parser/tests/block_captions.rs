@@ -174,14 +174,15 @@ fn a_list_continuation_block_takes_a_caption() -> Result<(), Error> {
     let Some(Block::UnorderedList(list)) = blocks.first() else {
         return Err(format!("expected a list, got {blocks:?}").into());
     };
-    let item = list.clone_items().next();
-    let block = item
-        .as_ref()
-        .and_then(|item| item.blocks.first())
+    let block = acdc_parser::ast::UnorderedListRef::from(list)
+        .items()
+        .next()
+        .and_then(|item| item.blocks().next())
+        .map(Block::from)
         .ok_or("expected a continuation block")?;
 
     assert_eq!(
-        numbered(block),
+        numbered(&block),
         Some((CaptionKind::Example, "Example".to_string(), Some(1)))
     );
     Ok(())

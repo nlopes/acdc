@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** list-item fields are private. Use typed item handles for reads,
+  selected item copies for independent edits, and prepared text, block and anchor
+  transfers to change owned items. Marker, nesting and checklist edits do not
+  reparse content or rebuild document registrations.
+
 - **Breaking:** the four list-container types have private fields. Read through
   typed list handles and use owned metadata, title and item edit methods.
   Item transfers retain source lifetimes, nesting, checklist state and stored

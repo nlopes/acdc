@@ -199,3 +199,22 @@ impl<'doc> CalloutListItemRef<'doc> {
         CalloutRef::from(&self.node.callout)
     }
 }
+
+macro_rules! item_copies {
+    ($($read:ident, $owner:ident);+ $(;)?) => {
+        $(
+            impl<'doc> From<$read<'doc>> for crate::$owner<'doc> {
+                /// Copy only this item's prepared values, without rebuilding registrations.
+                fn from(item: $read<'doc>) -> Self {
+                    item.node.clone()
+                }
+            }
+        )+
+    };
+}
+
+item_copies!(
+    ListItemRef, ListItem;
+    DescriptionListItemRef, DescriptionListItem;
+    CalloutListItemRef, CalloutListItem;
+);

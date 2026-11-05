@@ -174,6 +174,14 @@ source lifetimes. Items keep their nesting, checklist state and stored callout
 numbers. Metadata, title, marker and span edits do not rebuild registrations or
 rewrite child items.
 
+List items use `ListItemRef`, `DescriptionListItemRef`, and `CalloutListItemRef`
+for reads. `From` copies one selected item, including its attached blocks;
+independent sibling items are not copied. Constructors accept prepared content.
+Use `take_principal` / `set_principal`, `take_blocks` / `set_blocks`, and the
+term and anchor methods on description items to transfer content. Transfers can
+outlive the previous owner while the original source remains alive. Marker,
+level and callout edits keep their supplied values without changing other items.
+
 `IconRef` exposes the target, declared size, alt, tooltip, ID, role tokens, and
 option tokens. An icon ID is retained even when a converter does not emit it.
 To construct an icon, use `Icon::new(target, location)` and edit its content and
