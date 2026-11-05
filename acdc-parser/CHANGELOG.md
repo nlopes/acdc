@@ -58,7 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The named ASG profile exports basic tables with header/body/footer sections,
   cell content, widths, alignment, styles, and captured frame/grid/stripe settings.
-  Spans and nested AsciiDoc cell scopes still report unsupported properties.
+  Positive row/column spans retain cell order; inconsistent grids and nested
+  AsciiDoc cell scopes report explicit errors.
 
 - The named ASG profile preserves ordinary, unchecked, and checked list items
   distinctly, including nested checklists and item continuations.

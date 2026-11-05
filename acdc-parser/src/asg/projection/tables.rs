@@ -1,3 +1,5 @@
+mod grid;
+
 use serde_json::{Value, json};
 
 use crate::{
@@ -20,6 +22,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 "tables need the named acdc profile",
             ));
         }
+        grid::validate(table, path)?;
         let mut result = node("table", "block");
         result.insert("form".into(), "delimited".into());
         result.insert("delimiter".into(), block.delimiter.into());
@@ -92,14 +95,6 @@ impl<'a, 'doc> Export<'a, 'doc> {
         format: Option<&ColumnFormat>,
         path: &str,
     ) -> Result<Value, Error> {
-        for (name, span) in [("colspan", cell.colspan), ("rowspan", cell.rowspan)] {
-            if span != 1 {
-                return Err(unsupported(
-                    &pointer(path, name),
-                    "table spans have no supported mapping",
-                ));
-            }
-        }
         if !cell.initial_attributes.is_empty() {
             return Err(unsupported(
                 &pointer(path, "initial_attributes"),
@@ -107,6 +102,11 @@ impl<'a, 'doc> Export<'a, 'doc> {
             ));
         }
         let mut result = Node::new();
+        for (name, span) in [("colspan", cell.colspan), ("rowspan", cell.rowspan)] {
+            if span != 1 {
+                result.insert(name.into(), json!(span));
+            }
+        }
         if let Some(style) = cell.style {
             result.insert(
                 "style".into(),

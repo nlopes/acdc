@@ -173,20 +173,12 @@ fn table_decoration_keeps_source_defaults_after_prepared_metadata_edits() -> Res
 }
 
 #[test]
-fn strict_tables_spans_nested_scopes_and_unsupported_content_reject() -> Result<(), Error> {
+fn strict_tables_nested_scopes_and_unsupported_content_reject() -> Result<(), Error> {
     let parsed = parse("|===\n|Cell\n|===", &Options::default())?;
     assert!(
         matches!(asg::document(parsed.document()),Err(asg::Error::Unsupported {path,..}) if path=="/blocks/0/inner")
     );
     for (source, path) in [
-        (
-            "[cols=2]\n|===\n2+|Both\n|===",
-            "/blocks/0/rows/0/cells/0/colspan",
-        ),
-        (
-            "[cols=2]\n|===\n.2+|Tall |One\n|Two\n|===",
-            "/blocks/0/rows/0/cells/0/rowspan",
-        ),
         ("[cols=a]\n|===\n|Text.\n|===", "/blocks/0/columns/0/style"),
         (
             "|===\n|icon:heart[]\n|===",
@@ -229,7 +221,7 @@ fn strict_tables_spans_nested_scopes_and_unsupported_content_reject() -> Result<
 }
 
 #[test]
-fn table_schema_rejects_unknown_fields_wrong_types_and_unsupported_spans() -> Result<(), Error> {
+fn table_schema_rejects_unknown_fields_wrong_types_and_zero_spans() -> Result<(), Error> {
     let schema: Value = serde_json::from_str(include_str!("../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/asg/tables.adoc");
@@ -241,8 +233,8 @@ fn table_schema_rejects_unknown_fields_wrong_types_and_unsupported_spans() -> Re
         ("/blocks/0/header", "unknown", json!(true)),
         ("/blocks/0/rows/0/cells/0", "unknown", json!(true)),
         ("/blocks/0/rows/0/cells/0", "blocks", json!("flattened")),
-        ("/blocks/0/rows/0/cells/0", "colspan", json!(2)),
-        ("/blocks/0/rows/0/cells/0", "rowspan", json!(2)),
+        ("/blocks/0/rows/0/cells/0", "colspan", json!(0)),
+        ("/blocks/0/rows/0/cells/0", "rowspan", json!(0)),
         ("/blocks/0/rows/0/cells/0", "initial_attributes", json!({})),
         (
             "/blocks/0/columns/0",

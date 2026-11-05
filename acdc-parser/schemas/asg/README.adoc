@@ -391,7 +391,7 @@ The named acdc profile adds three closed forms:
 Strict export rejects them where the pin has no corresponding form. Unsupported
 nested meaning still reports its complete property path.
 
-== Basic tables
+== Tables
 
 The named acdc profile adds a closed `table` block with its actual delimiter,
 ordered `columns`, body `rows`, and optional `header` and `footer`. Each row has
@@ -411,10 +411,17 @@ the native captured defaults. That edit history is not another exported value.
 table span excluding its title/metadata. Unknown spans are omitted. Rows and cells
 have no independent native ranges, so export does not invent them.
 
-Basic export accepts unit spans only. Non-unit spans, AsciiDoc cell scopes, initial
-cell assignments, and nested cell blocks fail explicitly. Strict table rejection
-is unchanged. `fixtures/asg/tables.adoc` and its checked JSON cover table sections,
-empty cells, formatting, alignment, widths, captions, and changing document defaults.
+Positive `colspan` and `rowspan` values retain authored cell order, including
+header/body/footer transitions; unit dimensions are omitted. Export checks row
+bounds, declared width, arithmetic and overlap without inserting placeholder
+cells or allocating by a span's numeric size. Empty row sections and unspecified
+prepared widths remain valid. Column defaults follow physical cell order, as in
+the parser and asciidoctor.
+
+AsciiDoc cell scopes, initial assignments and nested blocks still fail explicitly.
+Strict table rejection is unchanged. `fixtures/asg/tables.adoc` and
+`fixtures/asg/table_spans.adoc`, with checked JSON, cover table sections, empty
+cells, formatting, spans, and changing document defaults.
 
 == Video targets
 

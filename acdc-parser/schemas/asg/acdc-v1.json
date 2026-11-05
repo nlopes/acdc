@@ -1268,10 +1268,12 @@
           "$ref": "#/$defs/nonSectionBlockBody"
         },
         "colspan": {
-          "const": 1
+          "type": "integer",
+          "minimum": 1
         },
         "rowspan": {
-          "const": 1
+          "type": "integer",
+          "minimum": 1
         },
         "halign": {
           "$ref": "#/$defs/acdcTableColumnFormat/properties/halign"
