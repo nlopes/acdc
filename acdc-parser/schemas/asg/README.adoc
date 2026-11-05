@@ -418,10 +418,18 @@ cells or allocating by a span's numeric size. Empty row sections and unspecified
 prepared widths remain valid. Column defaults follow physical cell order, as in
 the parser and asciidoctor.
 
-AsciiDoc cell scopes, initial assignments and nested blocks still fail explicitly.
-Strict table rejection is unchanged. `fixtures/asg/tables.adoc` and
-`fixtures/asg/table_spans.adoc`, with checked JSON, cover table sections, empty
-cells, formatting, spans, and changing document defaults.
+AsciiDoc cells retain their nested blocks, including supported sections and tables.
+`initial_attributes` is an ordered array of `attribute` names and set/unset
+`assignment` values. Enter a cell with a local copy of the current outer state,
+apply these initial assignments, then traverse its blocks in order. Discard that
+local state on leaving the cell. The initial assignments overlay inherited state;
+they do not replace the document's header snapshot. Body attribute events remain
+inside the cell, and sibling cells inherit the unchanged outer state.
+
+Ordinary cells keep paragraph content and literal context. Unsupported nested
+meaning fails at its actual path, and strict table rejection is unchanged.
+`fixtures/asg/tables.adoc`, `table_spans.adoc`, and `table_cells.adoc`, with checked
+JSON, cover sections, empty cells, formatting, spans, nested blocks and media scope.
 
 == Video targets
 

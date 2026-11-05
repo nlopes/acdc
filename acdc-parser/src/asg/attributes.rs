@@ -36,18 +36,25 @@ pub(super) fn block(
             "a rejected parser assignment is not an accepted attribute event",
         ));
     }
-    let assignment = match attribute.assignment() {
-        DocumentAttributeAssignment::Set(attribute) => {
-            serde_json::json!({"kind":"set", "value":value(attribute, &pointer(&at, "value"))?})
-        }
-        DocumentAttributeAssignment::Unset => serde_json::json!({"kind":"unset"}),
-    };
+    let assignment = assignment(attribute.assignment(), &at)?;
     Ok(Map::from_iter([
         ("name".into(), "attribute".into()),
         ("type".into(), "block".into()),
         ("attribute".into(), attribute.name.as_ref().into()),
         ("assignment".into(), assignment),
     ]))
+}
+
+pub(super) fn assignment(
+    value: &DocumentAttributeAssignment<'_>,
+    path: &str,
+) -> Result<Value, Error> {
+    Ok(match value {
+        DocumentAttributeAssignment::Set(attribute) => {
+            serde_json::json!({"kind":"set", "value":self::value(attribute, &pointer(path, "value"))?})
+        }
+        DocumentAttributeAssignment::Unset => serde_json::json!({"kind":"unset"}),
+    })
 }
 
 #[cfg(test)]

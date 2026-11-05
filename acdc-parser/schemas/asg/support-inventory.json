@@ -5740,7 +5740,7 @@
     },
     "named-basic-table-structure": {
       "handling": "context-dependent",
-      "reason": "Strict export rejects table owners. The named profile preserves ordered table/row/cell structure, column widths/alignment/styles, title/caption/metadata, known source spans, positive cell spans and current resolved presentation. Basic export rejects inconsistent span grids and nested AsciiDoc cell scopes. Row/cell ranges are not fabricated; original presentation defaults are edit history, while the current captured value is exported."
+      "reason": "Strict export rejects table owners. The named profile preserves ordered table/row/cell structure, column widths/alignment/styles, title/caption/metadata, known source spans, positive cell spans and current resolved presentation. Export rejects inconsistent span grids and unsupported nested meaning. Cell scopes retain initial assignments and nested blocks without changing outer state. Row/cell ranges are not fabricated; original presentation defaults are edit history, while the current captured value is exported."
     }
   },
   "strict_export_groups": {
@@ -6118,7 +6118,7 @@
       ]
     },
     "tables": {
-      "handling": "Strict table export rejects the owning table at inner. The named profile maps basic source forms and prepared values without fabricating defaults or flattening cell blocks; inconsistent spans, nested scopes and content retain explicit paths.",
+      "handling": "Strict table export rejects the owning table at inner. The named profile maps basic source forms and prepared values without fabricating defaults or flattening cell blocks; inconsistent spans and unsupported nested content retain explicit paths.",
       "tests": [
         {
           "file": "tests/asg_tables.rs",
@@ -6138,7 +6138,7 @@
         },
         {
           "file": "tests/asg_tables.rs",
-          "name": "strict_tables_nested_scopes_and_unsupported_content_reject"
+          "name": "strict_tables_and_invalid_ordinary_cell_blocks_reject"
         },
         {
           "file": "tests/asg_tables.rs",
@@ -6428,18 +6428,22 @@
             "#/$defs/acdcTableWidth",
             "#/$defs/acdcTablePresentation"
           ],
-          "handling": "Preserve actual delimiter, complete/delimited spans, table sections, column formats, cell block owners and literal context. Optional resolved presentation is a source-position snapshot, distinct from explicit metadata controls. Original edit defaults are not another graph value. Empty/present parts remain distinct. Positive cell spans retain original cell order across sections; inconsistent grids reject. Nested AsciiDoc scopes and initial assignments still reject.",
+          "handling": "Preserve actual delimiter, complete/delimited spans, table sections, column formats, cell block owners and literal context. Optional resolved presentation is a source-position snapshot, distinct from explicit metadata controls. Original edit defaults are not another graph value. Empty/present parts remain distinct. Positive cell spans retain original cell order across sections; inconsistent grids reject. AsciiDoc cells retain native nested blocks and ordered initial set/unset assignments. Each cell overlays inherited state locally; body events stay nested and do not leak into siblings or outer content.",
           "tests": [
             "asg_tables.rs::basic_tables_preserve_sections_cells_and_formatting",
             "asg_tables.rs::empty_table_parts_keep_presence_and_prepared_column_values",
             "asg_tables.rs::literal_column_context_preserves_prepared_verbatim_paragraphs",
             "asg_tables.rs::table_decoration_keeps_source_defaults_after_prepared_metadata_edits",
-            "asg_tables.rs::strict_tables_nested_scopes_and_unsupported_content_reject",
+            "asg_tables.rs::strict_tables_and_invalid_ordinary_cell_blocks_reject",
             "asg_tables.rs::table_schema_rejects_unknown_fields_wrong_types_and_zero_spans",
             "asg_table_spans.rs::spans_preserve_order_and_header_body_footer_transitions",
             "asg_table_spans.rs::invalid_prepared_spans_reject_at_the_owning_dimension",
             "asg_table_spans.rs::unspecified_width_does_not_allocate_by_span_size_or_invent_cells",
-            "asg_table_spans.rs::span_schema_is_positive_and_closed_inside_parent_blocks"
+            "asg_table_spans.rs::span_schema_is_positive_and_closed_inside_parent_blocks",
+            "asg_table_cells.rs::nested_cell_blocks_and_media_events_stay_in_their_scope",
+            "asg_table_cells.rs::initial_assignments_keep_native_order_and_distinct_normalized_snapshots",
+            "asg_table_cells.rs::nested_sections_and_tables_keep_native_block_owners",
+            "asg_table_cells.rs::nested_errors_and_initial_assignment_schema_remain_precise"
           ]
         }
       }

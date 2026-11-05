@@ -7,7 +7,9 @@ use crate::{
     TableGrid, TablePresentation, TableRow, TableStripes,
 };
 
-use super::{Error, Export, Node, Profile, diagnostics, metadata, node, pointer, unsupported};
+use super::{
+    Error, Export, Node, Profile, attributes, diagnostics, metadata, node, pointer, unsupported,
+};
 
 impl<'a, 'doc> Export<'a, 'doc> {
     pub(super) fn table(
@@ -26,17 +28,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
         let mut result = node("table", "block");
         result.insert("form".into(), "delimited".into());
         result.insert("delimiter".into(), block.delimiter.into());
-        let formats = table
-            .columns
-            .iter()
-            .enumerate()
-            .map(|(index, format)| {
-                column_format(
-                    format,
-                    &pointer(&pointer(path, "columns"), &index.to_string()),
-                )
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        let formats = table.columns.iter().map(column_format).collect();
         result.insert("columns".into(), Value::Array(formats));
         if let Some(header) = &table.header {
             result.insert(
@@ -95,12 +87,6 @@ impl<'a, 'doc> Export<'a, 'doc> {
         format: Option<&ColumnFormat>,
         path: &str,
     ) -> Result<Value, Error> {
-        if !cell.initial_attributes.is_empty() {
-            return Err(unsupported(
-                &pointer(path, "initial_attributes"),
-                "nested cell attribute scopes have no supported mapping",
-            ));
-        }
         let mut result = Node::new();
         for (name, span) in [("colspan", cell.colspan), ("rowspan", cell.rowspan)] {
             if span != 1 {
@@ -108,10 +94,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             }
         }
         if let Some(style) = cell.style {
-            result.insert(
-                "style".into(),
-                style_name(style, &pointer(path, "style"))?.into(),
-            );
+            result.insert("style".into(), style_name(style).into());
         }
         if let Some(halign) = cell.halign {
             result.insert("halign".into(), json!(halign));
@@ -121,50 +104,68 @@ impl<'a, 'doc> Export<'a, 'doc> {
         }
         let literal =
             cell.style.or_else(|| format.map(|format| format.style)) == Some(ColumnStyle::Literal);
-        let blocks = cell
-            .content
-            .iter()
-            .enumerate()
-            .map(|(index, child)| {
-                let at = pointer(&pointer(path, "blocks"), &index.to_string());
-                let Block::Paragraph(paragraph) = child else {
-                    return Err(
-                        unsupported(&at, "nested cell blocks have no supported mapping")
-                            .with_context(diagnostics::block_construct(child), child.location()),
-                    );
-                };
-                let mut value = self.paragraph(paragraph, &at, literal)?;
-                metadata::location(&mut value, child.location(), &at)?;
-                Ok(Value::Object(value))
-            })
-            .collect::<Result<Vec<_>, Error>>()?;
-        result.insert("blocks".into(), Value::Array(blocks));
+        let ascii_doc =
+            cell.style.or_else(|| format.map(|format| format.style)) == Some(ColumnStyle::AsciiDoc);
+        if !cell.initial_attributes.is_empty() {
+            if !ascii_doc {
+                return Err(unsupported(
+                    &pointer(path, "initial_attributes"),
+                    "cell initial attributes require AsciiDoc style",
+                ));
+            }
+            let initial = cell.initial_attributes.iter().enumerate().map(|(index, (name, value))| {
+                let at = pointer(&pointer(path, "initial_attributes"), &index.to_string());
+                Ok(json!({"attribute":name.as_ref(), "assignment":attributes::assignment(value, &pointer(&at, "assignment"))?}))
+            }).collect::<Result<Vec<_>, Error>>()?;
+            result.insert("initial_attributes".into(), Value::Array(initial));
+        }
+        let blocks = if ascii_doc {
+            self.blocks(&cell.content, &pointer(path, "blocks"))?
+        } else {
+            let blocks = cell
+                .content
+                .iter()
+                .enumerate()
+                .map(|(index, child)| {
+                    let at = pointer(&pointer(path, "blocks"), &index.to_string());
+                    let Block::Paragraph(paragraph) = child else {
+                        return Err(unsupported(
+                            &at,
+                            "nested cell blocks have no supported mapping",
+                        )
+                        .with_context(diagnostics::block_construct(child), child.location()));
+                    };
+                    let mut value = self.paragraph(paragraph, &at, literal)?;
+                    metadata::location(&mut value, child.location(), &at)?;
+                    Ok(Value::Object(value))
+                })
+                .collect::<Result<Vec<_>, Error>>()?;
+            Value::Array(blocks)
+        };
+        result.insert("blocks".into(), blocks);
         Ok(Value::Object(result))
     }
 }
 
-fn column_format(value: &ColumnFormat, path: &str) -> Result<Value, Error> {
+fn column_format(value: &ColumnFormat) -> Value {
     let width = match value.width {
         ColumnWidth::Proportional(value) => json!({"kind":"proportional","value":value}),
         ColumnWidth::Percentage(value) => json!({"kind":"percentage","value":value}),
         ColumnWidth::Auto => json!({"kind":"auto"}),
     };
-    let style = style_name(value.style, &pointer(path, "style"))?;
-    Ok(json!({"halign":value.halign,"valign":value.valign,"width":width,"style":style}))
+    let style = style_name(value.style);
+    json!({"halign":value.halign,"valign":value.valign,"width":width,"style":style})
 }
 
-fn style_name(style: ColumnStyle, path: &str) -> Result<&'static str, Error> {
+fn style_name(style: ColumnStyle) -> &'static str {
     match style {
-        ColumnStyle::Default => Ok("default"),
-        ColumnStyle::Emphasis => Ok("emphasis"),
-        ColumnStyle::Header => Ok("header"),
-        ColumnStyle::Literal => Ok("literal"),
-        ColumnStyle::Monospace => Ok("monospace"),
-        ColumnStyle::Strong => Ok("strong"),
-        ColumnStyle::AsciiDoc => Err(unsupported(
-            path,
-            "AsciiDoc cell scopes have no supported mapping",
-        )),
+        ColumnStyle::Default => "default",
+        ColumnStyle::Emphasis => "emphasis",
+        ColumnStyle::Header => "header",
+        ColumnStyle::Literal => "literal",
+        ColumnStyle::Monospace => "monospace",
+        ColumnStyle::Strong => "strong",
+        ColumnStyle::AsciiDoc => "asciidoc",
     }
 }
 

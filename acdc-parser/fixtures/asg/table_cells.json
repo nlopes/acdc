@@ -1,0 +1,616 @@
+{
+  "attributes": {},
+  "blocks": [
+    {
+      "caption": {
+        "counter": "table",
+        "kind": "numbered",
+        "label": "Table"
+      },
+      "columns": [
+        {
+          "halign": "left",
+          "style": "asciidoc",
+          "valign": "top",
+          "width": {
+            "kind": "proportional",
+            "value": 1
+          }
+        },
+        {
+          "halign": "left",
+          "style": "asciidoc",
+          "valign": "top",
+          "width": {
+            "kind": "proportional",
+            "value": 1
+          }
+        }
+      ],
+      "delimited_location": [
+        {
+          "col": 1,
+          "line": 4
+        },
+        {
+          "col": 5,
+          "line": 32
+        }
+      ],
+      "delimiter": "|====",
+      "form": "delimited",
+      "location": [
+        {
+          "col": 1,
+          "line": 3
+        },
+        {
+          "col": 5,
+          "line": 32
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "cols": "a,a"
+        },
+        "location": [
+          {
+            "col": 1,
+            "line": 3
+          },
+          {
+            "col": 13,
+            "line": 3
+          }
+        ]
+      },
+      "name": "table",
+      "presentation": {
+        "frame": "all",
+        "grid": "all",
+        "stripes": "none"
+      },
+      "rows": [
+        {
+          "cells": [
+            {
+              "blocks": [
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": "first"
+                  },
+                  "attribute": "imagesdir",
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 6
+                    },
+                    {
+                      "col": 17,
+                      "line": 6
+                    }
+                  ],
+                  "name": "attribute",
+                  "type": "block"
+                },
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": "first"
+                  },
+                  "attribute": "cell-label",
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 7
+                    },
+                    {
+                      "col": 18,
+                      "line": 7
+                    }
+                  ],
+                  "name": "attribute",
+                  "type": "block"
+                },
+                {
+                  "inlines": [
+                    {
+                      "location": [
+                        {
+                          "col": 1,
+                          "line": 9
+                        },
+                        {
+                          "col": 10,
+                          "line": 9
+                        }
+                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Paragraph "
+                    },
+                    {
+                      "form": "constrained",
+                      "inlines": [
+                        {
+                          "location": [
+                            {
+                              "col": 12,
+                              "line": 9
+                            },
+                            {
+                              "col": 15,
+                              "line": 9
+                            }
+                          ],
+                          "name": "text",
+                          "type": "string",
+                          "value": "bold"
+                        }
+                      ],
+                      "location": [
+                        {
+                          "col": 11,
+                          "line": 9
+                        },
+                        {
+                          "col": 16,
+                          "line": 9
+                        }
+                      ],
+                      "name": "span",
+                      "type": "inline",
+                      "variant": "strong"
+                    },
+                    {
+                      "location": [
+                        {
+                          "col": 17,
+                          "line": 9
+                        },
+                        {
+                          "col": 17,
+                          "line": 9
+                        }
+                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "."
+                    }
+                  ],
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 9
+                    },
+                    {
+                      "col": 17,
+                      "line": 9
+                    }
+                  ],
+                  "name": "paragraph",
+                  "type": "block"
+                },
+                {
+                  "items": [
+                    {
+                      "blocks": [
+                        {
+                          "items": [
+                            {
+                              "blocks": [],
+                              "location": [
+                                {
+                                  "col": 1,
+                                  "line": 12
+                                },
+                                {
+                                  "col": 14,
+                                  "line": 12
+                                }
+                              ],
+                              "marker": "**",
+                              "name": "listItem",
+                              "principal": [
+                                {
+                                  "location": [
+                                    {
+                                      "col": 4,
+                                      "line": 12
+                                    },
+                                    {
+                                      "col": 14,
+                                      "line": 12
+                                    }
+                                  ],
+                                  "name": "text",
+                                  "type": "string",
+                                  "value": "Nested item"
+                                }
+                              ],
+                              "type": "block"
+                            }
+                          ],
+                          "location": [
+                            {
+                              "col": 1,
+                              "line": 12
+                            },
+                            {
+                              "col": 14,
+                              "line": 12
+                            }
+                          ],
+                          "marker": "**",
+                          "name": "list",
+                          "type": "block",
+                          "variant": "unordered"
+                        }
+                      ],
+                      "location": [
+                        {
+                          "col": 1,
+                          "line": 11
+                        },
+                        {
+                          "col": 14,
+                          "line": 12
+                        }
+                      ],
+                      "marker": "*",
+                      "name": "listItem",
+                      "principal": [
+                        {
+                          "location": [
+                            {
+                              "col": 3,
+                              "line": 11
+                            },
+                            {
+                              "col": 6,
+                              "line": 11
+                            }
+                          ],
+                          "name": "text",
+                          "type": "string",
+                          "value": "Item"
+                        }
+                      ],
+                      "type": "block"
+                    }
+                  ],
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 11
+                    },
+                    {
+                      "col": 14,
+                      "line": 12
+                    }
+                  ],
+                  "marker": "*",
+                  "name": "list",
+                  "type": "block",
+                  "variant": "unordered"
+                },
+                {
+                  "caption": {
+                    "kind": "unnumbered"
+                  },
+                  "delimiter": "----",
+                  "form": "delimited",
+                  "inlines": [
+                    {
+                      "location": [
+                        {
+                          "col": 1,
+                          "line": 15
+                        },
+                        {
+                          "col": 14,
+                          "line": 15
+                        }
+                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "literal <code>"
+                    }
+                  ],
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 14
+                    },
+                    {
+                      "col": 4,
+                      "line": 16
+                    }
+                  ],
+                  "name": "listing",
+                  "type": "block"
+                },
+                {
+                  "caption": {
+                    "counter": "figure",
+                    "kind": "numbered",
+                    "label": "Figure"
+                  },
+                  "form": "macro",
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 18
+                    },
+                    {
+                      "col": 16,
+                      "line": 18
+                    }
+                  ],
+                  "name": "image",
+                  "target": "one.svg",
+                  "type": "block"
+                },
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": "changed"
+                  },
+                  "attribute": "imagesdir",
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 20
+                    },
+                    {
+                      "col": 19,
+                      "line": 20
+                    }
+                  ],
+                  "name": "attribute",
+                  "type": "block"
+                },
+                {
+                  "caption": {
+                    "counter": "figure",
+                    "kind": "numbered",
+                    "label": "Figure"
+                  },
+                  "form": "macro",
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 22
+                    },
+                    {
+                      "col": 20,
+                      "line": 22
+                    }
+                  ],
+                  "name": "image",
+                  "target": "changed.svg",
+                  "type": "block"
+                },
+                {
+                  "assignment": {
+                    "kind": "unset"
+                  },
+                  "attribute": "imagesdir",
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 24
+                    },
+                    {
+                      "col": 12,
+                      "line": 24
+                    }
+                  ],
+                  "name": "attribute",
+                  "type": "block"
+                },
+                {
+                  "caption": {
+                    "counter": "figure",
+                    "kind": "numbered",
+                    "label": "Figure"
+                  },
+                  "form": "macro",
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 26
+                    },
+                    {
+                      "col": 18,
+                      "line": 26
+                    }
+                  ],
+                  "name": "image",
+                  "target": "plain.svg",
+                  "type": "block"
+                }
+              ],
+              "initial_attributes": [
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": "article"
+                  },
+                  "attribute": "doctype"
+                },
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": ""
+                  },
+                  "attribute": "notitle"
+                },
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": ""
+                  },
+                  "attribute": "doctype-article"
+                }
+              ],
+              "style": "asciidoc"
+            },
+            {
+              "blocks": [
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": "second"
+                  },
+                  "attribute": "imagesdir",
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 28
+                    },
+                    {
+                      "col": 18,
+                      "line": 28
+                    }
+                  ],
+                  "name": "attribute",
+                  "type": "block"
+                },
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": "second"
+                  },
+                  "attribute": "cell-label",
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 29
+                    },
+                    {
+                      "col": 19,
+                      "line": 29
+                    }
+                  ],
+                  "name": "attribute",
+                  "type": "block"
+                },
+                {
+                  "caption": {
+                    "counter": "figure",
+                    "kind": "numbered",
+                    "label": "Figure"
+                  },
+                  "form": "macro",
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 31
+                    },
+                    {
+                      "col": 16,
+                      "line": 31
+                    }
+                  ],
+                  "name": "image",
+                  "target": "two.svg",
+                  "type": "block"
+                }
+              ],
+              "initial_attributes": [
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": "article"
+                  },
+                  "attribute": "doctype"
+                },
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": ""
+                  },
+                  "attribute": "notitle"
+                },
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": ""
+                  },
+                  "attribute": "doctype-article"
+                }
+              ],
+              "style": "asciidoc"
+            }
+          ]
+        }
+      ],
+      "type": "block"
+    },
+    {
+      "caption": {
+        "counter": "figure",
+        "kind": "numbered",
+        "label": "Figure"
+      },
+      "form": "macro",
+      "location": [
+        {
+          "col": 1,
+          "line": 34
+        },
+        {
+          "col": 18,
+          "line": 34
+        }
+      ],
+      "name": "image",
+      "target": "after.svg",
+      "type": "block"
+    }
+  ],
+  "header": {
+    "location": [
+      {
+        "col": 1,
+        "line": 1
+      },
+      {
+        "col": 14,
+        "line": 1
+      }
+    ],
+    "title": [
+      {
+        "location": [
+          {
+            "col": 3,
+            "line": 1
+          },
+          {
+            "col": 14,
+            "line": 1
+          }
+        ],
+        "name": "text",
+        "type": "string",
+        "value": "Scoped cells"
+      }
+    ]
+  },
+  "location": [
+    {
+      "col": 1,
+      "line": 1
+    },
+    {
+      "col": 18,
+      "line": 34
+    }
+  ],
+  "name": "document",
+  "profile": "urn:acdc:asg:1",
+  "type": "block"
+}

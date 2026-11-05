@@ -1249,7 +1249,8 @@
             "header",
             "literal",
             "monospace",
-            "strong"
+            "strong",
+            "asciidoc"
           ]
         },
         "width": {
@@ -1265,7 +1266,7 @@
       ],
       "properties": {
         "blocks": {
-          "$ref": "#/$defs/nonSectionBlockBody"
+          "$ref": "#/$defs/sectionBody"
         },
         "colspan": {
           "type": "integer",
@@ -1283,6 +1284,26 @@
         },
         "style": {
           "$ref": "#/$defs/acdcTableColumnFormat/properties/style"
+        },
+        "initial_attributes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "attribute",
+              "assignment"
+            ],
+            "properties": {
+              "attribute": {
+                "type": "string",
+                "pattern": "^[a-zA-Z0-9_][-a-zA-Z0-9_]*$"
+              },
+              "assignment": {
+                "$ref": "#/$defs/acdcAttributeEvent/properties/assignment"
+              }
+            }
+          }
         }
       }
     },

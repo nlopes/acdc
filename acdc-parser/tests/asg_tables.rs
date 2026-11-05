@@ -173,18 +173,15 @@ fn table_decoration_keeps_source_defaults_after_prepared_metadata_edits() -> Res
 }
 
 #[test]
-fn strict_tables_nested_scopes_and_unsupported_content_reject() -> Result<(), Error> {
+fn strict_tables_and_invalid_ordinary_cell_blocks_reject() -> Result<(), Error> {
     let parsed = parse("|===\n|Cell\n|===", &Options::default())?;
     assert!(
         matches!(asg::document(parsed.document()),Err(asg::Error::Unsupported {path,..}) if path=="/blocks/0/inner")
     );
-    for (source, path) in [
-        ("[cols=a]\n|===\n|Text.\n|===", "/blocks/0/columns/0/style"),
-        (
-            "|===\n|icon:heart[]\n|===",
-            "/blocks/0/rows/0/cells/0/blocks/0/inlines/0",
-        ),
-    ] {
+    for (source, path) in [(
+        "|===\n|icon:heart[]\n|===",
+        "/blocks/0/rows/0/cells/0/blocks/0/inlines/0",
+    )] {
         let parsed = parse(source, &Options::default())?;
         let result = asg::document_with_profile(parsed.document(), asg::Profile::Acdc);
         assert!(
@@ -246,7 +243,7 @@ fn table_schema_rejects_unknown_fields_wrong_types_and_zero_spans() -> Result<()
             "width",
             json!({"kind":"proportional","value":-1}),
         ),
-        ("/blocks/0/columns/0", "style", json!("asciidoc")),
+        ("/blocks/0/columns/0", "style", json!("unknown")),
         ("/blocks/0/presentation", "frame", json!("unknown")),
         ("/blocks/0", "header", json!(null)),
     ] {
