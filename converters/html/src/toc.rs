@@ -167,6 +167,27 @@ fn section_number_config<'a>(attributes: &'a TraversalContext<'_>) -> NumberingC
     NumberingConfig::new(attributes, part_signifier, chapter_signifier)
 }
 
+fn toc_class(toc_macro: Option<TableOfContentsRef<'_>>, default: &str, embedded: bool) -> String {
+    if let Some(toc_macro) = toc_macro {
+        let roles = toc_macro.roles();
+        if !roles.is_empty() {
+            let mut class = String::new();
+            for role in roles.iter() {
+                if !class.is_empty() {
+                    class.push(' ');
+                }
+                class.push_str(role);
+            }
+            return crate::inlines::escape_role(&class);
+        }
+    }
+    crate::inlines::escape_role(if embedded && default == "toc2" {
+        "toc"
+    } else {
+        default
+    })
+}
+
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_toc(
         &mut self,
@@ -196,14 +217,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             let semantic = processor.variant() == HtmlVariant::Semantic;
             let embedded = self.render_options.embedded;
 
-            // In embedded mode, sidebar positioning doesn't apply, so downgrade toc2 → toc
-            let toc_class = if embedded && config.toc_class() == "toc2" {
-                "toc"
-            } else {
-                config.toc_class()
-            };
-
-            let toc_class = crate::inlines::escape_role(toc_class);
+            // Embedded output downgrades only the default sidebar class.
+            let toc_class = toc_class(toc_macro, config.toc_class(), embedded);
 
             // toc::[] macro adds class="title" to the toctitle div
             let is_macro = placement == "macro";
@@ -274,5 +289,58 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acdc_parser::{CompatibilityMode, Options, ast::BlockKind, parse};
+
+    use super::toc_class;
+
+    #[rstest::rstest]
+    #[case("toc::[role=\"custom second\"]", "custom second", "custom second")]
+    #[case("[.preceding]\ntoc::[]", "preceding", "preceding")]
+    #[case(
+        "[.preceding]\ntoc::[role=\"last second\"]",
+        "last second",
+        "preceding last second"
+    )]
+    #[case("toc::[roles=\"alias second\"]", "alias second", "alias second")]
+    #[case("toc::[role=\"toc2\"]", "toc2", "toc2")]
+    #[case("toc::[]", "configured", "configured")]
+    #[case("toc::[role=\"\"]", "configured", "configured")]
+    fn authored_roles_replace_the_default_without_losing_parser_selection(
+        #[case] source: &str,
+        #[case] asciidoctor: &str,
+        #[case] draft: &str,
+        #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = parse(
+            source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let BlockKind::TableOfContents(toc) =
+            parsed.document().blocks().next().ok_or("toc")?.kind()
+        else {
+            return Err("toc".into());
+        };
+        assert_eq!(
+            toc_class(Some(toc), "configured", true),
+            if mode == CompatibilityMode::Asciidoctor {
+                asciidoctor
+            } else {
+                draft
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn only_default_sidebar_classes_are_downgraded_in_embedded_output() {
+        assert_eq!(toc_class(None, "toc2", true), "toc");
+        assert_eq!(toc_class(None, "toc2", false), "toc2");
+        assert_eq!(toc_class(None, "custom", true), "custom");
+        assert_eq!(toc_class(None, "a&b\"c", true), "a&amp;b&quot;c");
     }
 }
