@@ -1983,3 +1983,85 @@ mod unhandled_block_tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod footnote_repair_tests {
+    use std::rc::Rc;
+
+    use acdc_converters_core::{
+        Converter, Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource,
+        visitor::DocumentVisitor,
+    };
+    use acdc_parser::{
+        Block, CompatibilityMode, Document, Footnote, InlineMacro, InlineNode, Location,
+        Options as ParserOptions, Paragraph, ast::DocumentRef, parse,
+    };
+
+    use super::{HtmlVariant, HtmlVisitor, Processor, RenderOptions};
+
+    #[test]
+    fn repaired_references_have_one_definition_and_matching_destinations()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+            for id in [None, Some("kept")] {
+                let input = if id.is_some() {
+                    "footnote:kept[Retained *body*.]"
+                } else {
+                    "footnote:[Retained *body*.]"
+                };
+                let parsed = parse(
+                    input,
+                    &ParserOptions::builder()
+                        .with_compatibility_mode(mode)
+                        .build()?,
+                )?;
+                let mut document = Document::from(parsed.document());
+                document.set_blocks([Block::Paragraph(Paragraph::new(
+                    (0..2)
+                        .map(|_| {
+                            InlineNode::Macro(InlineMacro::Footnote(Footnote::reference(
+                                id,
+                                1,
+                                Location::default(),
+                            )))
+                        })
+                        .collect(),
+                    Location::default(),
+                ))]);
+                document.rebuild_footnotes()?;
+                for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+                    let processor = Rc::new(
+                        Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+                            .with_variant(variant)?,
+                    );
+                    let source = WarningSource::new("html");
+                    let mut warnings = Vec::new();
+                    let mut output = Vec::new();
+                    let mut visitor = HtmlVisitor::new(
+                        &mut output,
+                        processor,
+                        RenderOptions {
+                            embedded: true,
+                            ..RenderOptions::default()
+                        },
+                        Diagnostics::new(&source, &mut warnings),
+                    );
+                    let read = DocumentRef::from(&document);
+                    visitor.visit_document(&mut TraversalContext::new(read.attributes()), read)?;
+                    let output = String::from_utf8(output)?;
+                    let target = if variant == HtmlVariant::Standard {
+                        "_footnotedef_1"
+                    } else {
+                        "_footnote_1"
+                    };
+                    assert_eq!(output.matches(&format!("id=\"{target}\"")).count(), 1);
+                    assert_eq!(output.matches(&format!("href=\"#{target}\"")).count(), 2);
+                    assert_eq!(output.matches("id=\"_footnoteref_1\"").count(), 1);
+                    assert!(output.contains("<strong>body</strong>"));
+                    assert!(warnings.is_empty(), "{warnings:?}");
+                }
+            }
+        }
+        Ok(())
+    }
+}

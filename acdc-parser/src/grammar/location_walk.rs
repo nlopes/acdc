@@ -108,7 +108,69 @@ pub(crate) fn walk_inline_reference_texts_mut<'a, E>(
     AstWalker::new(|_| Ok(()), |_| Ok(()), visit).inlines(inlines)
 }
 
+/// Visit selected footnote roots; the callback owns traversal into note bodies.
+pub(crate) fn try_walk_footnote_roots_mut<'a, E>(
+    header: &mut Option<Header<'a>>,
+    blocks: &mut [Block<'a>],
+    visit: &mut impl FnMut(&mut crate::Footnote<'a>) -> Result<(), E>,
+) -> Result<(), E> {
+    let mut walker = AstWalker::new(
+        |_| Ok(()),
+        |node| {
+            if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+                visit(note)?;
+            }
+            Ok(())
+        },
+        |_, _| Ok(()),
+    );
+    walker.include_derived = false;
+    walker.footnote_bodies = false;
+    if let Some(header) = header {
+        walker.header(header)?;
+    }
+    walker.blocks(blocks)
+}
+
+pub(crate) fn try_walk_content_footnote_roots_mut<'a, E>(
+    nodes: &mut [InlineNode<'a>],
+    visit: &mut impl FnMut(&mut crate::Footnote<'a>) -> Result<(), E>,
+) -> Result<(), E> {
+    let mut walker = AstWalker::new(
+        |_| Ok(()),
+        |node| {
+            if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+                visit(note)?;
+            }
+            Ok(())
+        },
+        |_, _| Ok(()),
+    );
+    walker.include_derived = false;
+    walker.footnote_bodies = false;
+    walker.inlines(nodes)
+}
+
+/// Visit owned inline content without entering nested catalog copies.
+pub(crate) fn try_walk_owned_inline_nodes_mut<'a, E>(
+    node: &mut InlineNode<'a>,
+    visit: &mut impl FnMut(&mut InlineNode<'a>) -> Result<(), E>,
+) -> Result<(), E> {
+    let mut walker = AstWalker::new(|_| Ok(()), visit, |_, _| Ok(()));
+    walker.include_derived = false;
+    walker.inline(node)
+}
+
+pub(crate) fn try_walk_document_inline_nodes_mut<'a, E>(
+    document: &mut Document<'a>,
+    visit: &mut impl FnMut(&mut InlineNode<'a>) -> Result<(), E>,
+) -> Result<(), E> {
+    AstWalker::new(|_| Ok(()), visit, |_, _| Ok(())).document(document)
+}
+
 struct AstWalker<'a, FL, FI, FR> {
+    include_derived: bool,
+    footnote_bodies: bool,
     visit_location: FL,
     visit_inline: FI,
     visit_reference_text: FR,
@@ -123,6 +185,8 @@ where
 {
     fn new(visit_location: FL, visit_inline: FI, visit_reference_text: FR) -> Self {
         Self {
+            include_derived: true,
+            footnote_bodies: true,
             visit_location,
             visit_inline,
             visit_reference_text,
@@ -182,7 +246,9 @@ where
     fn anchor(&mut self, anchor: &mut Anchor<'a>) -> Result<(), E> {
         (self.visit_location)(&mut anchor.location)?;
         self.reference_text(&mut anchor.xreflabel, &mut anchor.reftext_source)?;
-        if let Some(label) = &mut anchor.bibliography_label {
+        if self.include_derived
+            && let Some(label) = &mut anchor.bibliography_label
+        {
             self.inlines(&mut label.content)?;
         }
         Ok(())
@@ -327,7 +393,9 @@ where
             InlineNode::Macro(m) => self.inline_macro(m)?,
             InlineNode::InlineAnchor(anchor) => {
                 self.reference_text(&mut anchor.xreflabel, &mut anchor.reftext_source)?;
-                if let Some(label) = &mut anchor.bibliography_label {
+                if self.include_derived
+                    && let Some(label) = &mut anchor.bibliography_label
+                {
                     self.inlines(&mut label.content)?;
                 }
             }
@@ -368,7 +436,9 @@ where
         // inline-bearing macro variants.
         match m {
             InlineMacro::Footnote(f) => {
-                if let Some(content) = &mut f.content {
+                if self.footnote_bodies
+                    && let Some(content) = &mut f.content
+                {
                     self.inlines(content)?;
                 }
             }
@@ -447,7 +517,9 @@ where
                 }
             }
         }
-        if let Some(catalog) = &mut term.catalog {
+        if self.include_derived
+            && let Some(catalog) = &mut term.catalog
+        {
             // Catalog labels share locations but are not new occurrences.
             (self.visit_location)(&mut catalog.location)?;
             self.index_term(catalog)?;
@@ -496,8 +568,12 @@ where
             | DelimitedBlockType::DelimitedOpen(blocks)
             | DelimitedBlockType::DelimitedSidebar(blocks)
             | DelimitedBlockType::DelimitedQuote(blocks) => self.blocks(blocks)?,
-            DelimitedBlockType::DelimitedComment(nodes)
-            | DelimitedBlockType::DelimitedListing(nodes)
+            DelimitedBlockType::DelimitedComment(nodes) => {
+                if self.include_derived {
+                    self.inlines(nodes)?;
+                }
+            }
+            DelimitedBlockType::DelimitedListing(nodes)
             | DelimitedBlockType::DelimitedLiteral(nodes)
             | DelimitedBlockType::DelimitedPass(nodes)
             | DelimitedBlockType::DelimitedVerse(nodes) => self.inlines(nodes)?,

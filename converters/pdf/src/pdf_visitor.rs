@@ -264,6 +264,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     toc_written: bool,
     pub(crate) page_numbering: PageNumberingState,
     populated_index_sections: HashSet<String>,
+    anonymous_footnote_references: HashSet<u32>,
     bibliography_backlinks_written: HashSet<String>,
     unsupported_metadata_warnings: HashSet<&'static str>,
     ordered_unstyled_scope_depth: usize,
@@ -398,6 +399,23 @@ impl ParagraphAlignment {
     }
 }
 
+fn anonymous_footnote_references(document: DocumentRef<'_>) -> HashSet<u32> {
+    document
+        .content_occurrences()
+        .flat_map(|field| field.content().inlines())
+        .filter_map(|inline| {
+            if let InlineKind::Footnote(note) = inline.kind()
+                && note.id().is_none()
+                && note.content().is_none()
+            {
+                Some(note.number())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn new(
         processor: Processor<'a>,
@@ -483,6 +501,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             document,
             toc_written: false,
             page_numbering: PageNumberingState::new(config.page_numbering),
+            anonymous_footnote_references: anonymous_footnote_references(document),
             populated_index_sections: HashSet::new(),
             bibliography_backlinks_written: HashSet::new(),
             unsupported_metadata_warnings: HashSet::new(),
@@ -4122,10 +4141,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             // Copied titles display the parsed marker without defining
             // another native footnote or duplicating the original label.
             let _ = write!(self.writer, "#super[{}]", footnote.number());
-        } else if let Some(id) = footnote.id().filter(|_| footnote.content().is_none()) {
-            // Typst label references reuse the definition's counter value
-            // without advancing the footnote counter.
-            let _ = write!(self.writer, "#footnote(<{}>)", encode_footnote_label(id));
+        } else if footnote.content().is_none() {
+            let label = footnote.id().map_or_else(
+                || format!("acdc-anonymous-footnote-{}", footnote.number()),
+                encode_footnote_label,
+            );
+            let _ = write!(self.writer, "#footnote(<{label}>)");
         } else {
             let _ = write!(
                 self.writer,
@@ -4139,6 +4160,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer.raw("]");
             if let Some(id) = footnote.id() {
                 let _ = write!(self.writer, "<{}>", encode_footnote_label(id));
+            } else if self
+                .anonymous_footnote_references
+                .contains(&footnote.number())
+            {
+                let _ = write!(
+                    self.writer,
+                    "<acdc-anonymous-footnote-{}>",
+                    footnote.number()
+                );
             }
         }
 

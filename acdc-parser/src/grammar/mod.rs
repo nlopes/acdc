@@ -7,6 +7,7 @@
 mod attributes;
 mod character_references;
 mod document;
+pub(crate) mod footnotes;
 pub(crate) mod helpers;
 mod inline_boundaries;
 mod inline_preprocessor;
@@ -14,7 +15,7 @@ mod inline_processing;
 pub(crate) mod inlines;
 mod line_map;
 mod location_mapping;
-mod location_walk;
+pub(crate) mod location_walk;
 mod marked_text;
 mod passthrough_processing;
 pub(crate) mod reference_text;

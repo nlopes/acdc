@@ -1113,31 +1113,43 @@ impl<'a> IndexTerm<'a> {
     }
 
     pub(crate) fn for_each_label_mut(&mut self, mut visit: impl FnMut(&mut Vec<InlineNode<'a>>)) {
+        self.try_for_each_label_mut(|nodes| {
+            visit(nodes);
+            Ok(())
+        })
+        .unwrap_or_else(|never: std::convert::Infallible| match never {});
+    }
+
+    pub(crate) fn try_for_each_label_mut<E>(
+        &mut self,
+        mut visit: impl FnMut(&mut Vec<InlineNode<'a>>) -> Result<(), E>,
+    ) -> Result<(), E> {
         match &mut self.kind {
-            IndexTermKind::Flow(term) => visit(term),
+            IndexTermKind::Flow(term) => visit(term)?,
             IndexTermKind::Concealed {
                 term,
                 secondary,
                 tertiary,
             } => {
-                visit(term);
+                visit(term)?;
                 if let Some(secondary) = secondary {
-                    visit(secondary);
+                    visit(secondary)?;
                 }
                 if let Some(tertiary) = tertiary {
-                    visit(tertiary);
+                    visit(tertiary)?;
                 }
             }
         }
         match &mut self.relationship {
-            Some(IndexTermRelationship::See { target }) => visit(target),
+            Some(IndexTermRelationship::See { target }) => visit(target)?,
             Some(IndexTermRelationship::SeeAlso { targets }) => {
                 for target in targets {
-                    visit(target);
+                    visit(target)?;
                 }
             }
             None => {}
         }
+        Ok(())
     }
 
     /// Returns the labels registered in the index catalog.

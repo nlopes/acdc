@@ -4682,3 +4682,62 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod footnote_repair_tests {
+    use acdc_converters_core::{Converter, WarningSource};
+    use acdc_parser::{
+        Block, CompatibilityMode, Document, Footnote, InlineMacro, InlineNode, Location, Paragraph,
+        ast::DocumentRef, parse,
+    };
+
+    use super::{
+        Diagnostics, ImageMap, Options, ParserOptions, Processor, RenderConfig, render_pdf,
+    };
+
+    #[test]
+    fn repaired_anonymous_references_reuse_one_native_pdf_footnote()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+            let parsed = parse(
+                "footnote:[Retained *body*.]",
+                &ParserOptions::builder()
+                    .with_compatibility_mode(mode)
+                    .build()?,
+            )?;
+            let mut document = Document::from(parsed.document());
+            document.set_blocks([Block::Paragraph(Paragraph::new(
+                (0..2)
+                    .map(|_| {
+                        InlineNode::Macro(InlineMacro::Footnote(Footnote::reference(
+                            None,
+                            1,
+                            Location::default(),
+                        )))
+                    })
+                    .collect(),
+                Location::default(),
+            ))]);
+            document.rebuild_footnotes()?;
+            let processor = Processor::new(Options::default(), ParserOptions::builder())?;
+            let source = WarningSource::new("pdf");
+            let mut warnings = Vec::new();
+            let typst = processor.convert_to_typst_source(
+                DocumentRef::from(&document),
+                &mut Diagnostics::new(&source, &mut warnings),
+            )?;
+            assert_eq!(typst.matches("<acdc-anonymous-footnote-1>").count(), 2);
+            assert_eq!(
+                typst
+                    .matches("#footnote(<acdc-anonymous-footnote-1>)")
+                    .count(),
+                1
+            );
+            assert_eq!(typst.matches("Retained").count(), 1);
+            let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+            assert!(rendered.pdf.starts_with(b"%PDF-"));
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+        Ok(())
+    }
+}

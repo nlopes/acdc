@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Repeated anonymous footnotes in edited document trees reuse their original PDF note and destination after `Document::rebuild_footnotes()`.
+
 - After an edited document rebuilds its reference and TOC catalogs, TOC links
   reach each heading even if another block owns the same ID. Cross-references
   retain the first target.

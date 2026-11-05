@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `Document::rebuild_footnotes()` repairs registrations and numbers after prepared
+  tree edits, including surviving and forward references and empty definitions.
+  It preserves definition provenance, selects the first named body and removes
+  unused registrations. Missing, ambiguous or cyclic bindings leave the tree
+  unchanged. It does not replay source attributes or rebuild other catalogs.
+
 - Prepared footnote occurrences distinguish references from empty definitions:
   `FootnoteRef::content()` returns `None` for references and `Some` for definitions.
   Native JSON omits `inlines` on references, while empty definitions retain `[]`.
