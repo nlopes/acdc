@@ -1,0 +1,13 @@
+video::movie.mp4[poster=cover.png,width=640,height=360]
+
+video::https://example.org/movie.mp4?part=1,2&mode=wide[poster=cover.png]
+
+video::first,second,third[youtube,width=640,height=360,start=3,opts="loop,muted"]
+
+video::first,,third,[youtube,end=12]
+
+video::,first,,last,[youtube]
+
+video::12345[vimeo,start=4,opts=autoplay]
+
+video::movie.mp4[poster=""]

@@ -391,6 +391,20 @@ The named acdc profile adds three closed forms:
 Strict export rejects them where the pin has no corresponding form. Unsupported
 nested meaning still reports its complete property path.
 
+== Video targets
+
+Both profiles preserve one complete video `target`, including commas and empty
+provider playlist slots. The retained `poster` control distinguishes YouTube or
+Vimeo from a poster image; export does not split the target or invent provider
+booleans. An explicit empty poster remains an empty string. Width, height,
+playback controls and options retain their native values.
+
+The target string comes from the native source. URL spelling stays intact;
+non-UTF-8 local paths fail explicitly. Path/name storage distinctions do not add
+video meaning when the target and provider controls are the same. Source locations
+remain on the video node. `fixtures/asg/video_targets.adoc` and its checked JSON
+cover local/URL targets, providers, ordered playlists and empty slots.
+
 == Checklists
 
 The named acdc profile adds optional boolean `checked` to ordered and unordered list items.

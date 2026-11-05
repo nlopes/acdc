@@ -125,7 +125,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Named index controls stay outside labels; bibliography labels retain empty and
   whitespace-only values. Inline anchors accept closing brackets in labels.
 - Image/audio/video/TOC macros with trailing nonwhitespace stay paragraph text.
-  Complete video playlists and provider posters are preserved. Table column
+  Complete video playlists and provider posters are preserved, including in
+  checked ASG export. Table column
   declarations are validated completely, and metadata/body edits refresh stored
   frame/grid/stripe decoration against the table's original defaults.
 - Generated section IDs honor declaration-time `idprefix`/`idseparator`, empty

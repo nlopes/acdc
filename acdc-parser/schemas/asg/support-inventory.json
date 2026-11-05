@@ -6099,6 +6099,18 @@
         {
           "file": "tests/asg_block_forms.rs",
           "name": "strict_export_accepts_real_admonition_delimiters_only"
+        },
+        {
+          "file": "tests/asg_video.rs",
+          "name": "complete_video_targets_and_provider_controls_survive_both_profiles"
+        },
+        {
+          "file": "tests/asg_video.rs",
+          "name": "video_source_variants_preserve_original_target_text"
+        },
+        {
+          "file": "tests/asg_video.rs",
+          "name": "non_utf8_video_paths_are_rejected_without_replacement_characters"
         }
       ]
     }
