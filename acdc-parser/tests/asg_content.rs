@@ -216,6 +216,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
             "/$defs",
             &[
                 "acdcReferenceRegistration",
+                "acdcLineBreak",
                 "acdcCallout",
                 "acdcAnchor",
                 "acdcInlineAnchor",
@@ -251,7 +252,7 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         }
     }
     for (path, count) in [
-        ("/$defs/inline/oneOf", 5),
+        ("/$defs/inline/oneOf", 6),
         ("/$defs/list/allOf", 2),
         ("/$defs/blockMacro/allOf", 1),
         ("/$defs/inlineSpan/properties/variant/enum", 1),

@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The acdc ASG profile preserves hard line breaks as semantic inline breaks,
+  including configured hard wrapping and breaks inside content attributes.
+
 - The acdc ASG profile retains inline callout markers, resolved list numbers and
   marker locations, including repeated and unmatched markers. Explicit and
   automatic markers remain distinct without changing code text.

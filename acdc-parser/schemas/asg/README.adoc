@@ -599,3 +599,13 @@ set; each AsciiDoc table cell has its own scope. The native AST retains no
 per-marker destination links, so export does not invent them or assume that only
 an adjacent code block can belong to a list. Strict export still rejects inline
 markers and prepared list numbers that its marker/order cannot express.
+
+== Inline line breaks
+
+A resolved hard line break uses `name: "break"` and `type: "inline"`, with its
+known source location. Ordinary source wrapping stays text. Literal code keeps
+its newlines and plus signs as text. This node preserves the parser's semantic
+break whether it came from an explicit marker or configured hard wrapping; the
+AST does not retain a separate source-form tag for those cases. Parsed/prepared
+breaks in content attributes use the same shape. Export does not insert newlines
+or backend markup. Strict upstream export rejects inline breaks.

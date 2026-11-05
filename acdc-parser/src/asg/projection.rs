@@ -201,6 +201,7 @@ fn inline_value(
             );
             result
         }
+        InlineNode::LineBreak(_) if settings.profile == Profile::Acdc => node("break", "inline"),
         InlineNode::Macro(value) => references::project(value, path, settings)?,
         InlineNode::SubscriptText(_)
         | InlineNode::SuperscriptText(_)

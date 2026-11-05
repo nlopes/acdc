@@ -1,0 +1,25 @@
+= Hard line breaks
+
+First +
+second
+soft wrap.
+
+[%hardbreaks]
+Configured first
+configured second.
+
+----
+Literal +
+newline
+----
+
+--
+Nested +
+paragraph.
+--
+
+[cols="a"]
+|===
+|Cell +
+continuation.
+|===

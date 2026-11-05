@@ -2603,11 +2603,11 @@
         "variants": {}
       },
       "representation": {
-        "policy": "unsupported"
+        "policy": "named-inline-breaks"
       },
       "properties": {
         "location": {
-          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "policy": "named-inline-breaks",
           "upstream": "#/$defs/location"
         }
       },
@@ -5759,6 +5759,10 @@
     "named-callout-numbers": {
       "handling": "context-dependent",
       "reason": "The named profile keeps inline marker form/number and marker spans, plus resolved list-item numbers and marker spans. Scoped parse order and equal numbers preserve association; repeated and unmatched markers remain. No destination graph is retained or invented. Strict inline markers and unrepresentable list numbers still reject."
+    },
+    "named-inline-breaks": {
+      "handling": "context-dependent",
+      "reason": "The named profile exports semantic inline hard breaks with known provenance, distinct from plain wrapping and literal code. Configured and explicit break source forms share the native node. Content attributes recurse through the same mapping; strict upstream export rejects."
     }
   },
   "strict_export_groups": {
@@ -6700,6 +6704,23 @@
             "asg_callouts.rs::scoped_numbers_keep_repeated_and_unmatched_associations",
             "asg_callouts.rs::prepared_markers_do_not_renumber_or_invent_locations",
             "asg_callouts.rs::callout_schema_closes_markers_and_scopes_item_numbers"
+          ]
+        },
+        "inline-breaks": {
+          "owners": {
+            "LineBreak": [
+              "location"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/acdcLineBreak"
+          ],
+          "handling": "The named profile exports semantic inline hard breaks with known provenance, distinct from plain wrapping and literal code. Configured and explicit break source forms share the native node. Content attributes recurse through the same mapping; strict upstream export rejects.",
+          "tests": [
+            "asg_line_breaks.rs::semantic_breaks_keep_wrapping_literal_text_and_nested_locations",
+            "asg_line_breaks.rs::prepared_content_attributes_keep_breaks_without_markup_or_fake_locations",
+            "asg_line_breaks.rs::soft_wrapping_and_literal_plus_signs_do_not_become_breaks",
+            "asg_line_breaks.rs::inline_break_schema_is_closed_and_distinct_from_page_breaks"
           ]
         }
       }

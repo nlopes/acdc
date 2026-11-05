@@ -795,6 +795,9 @@
         },
         {
           "$ref": "#/$defs/acdcCallout"
+        },
+        {
+          "$ref": "#/$defs/acdcLineBreak"
         }
       ]
     },
@@ -1818,6 +1821,25 @@
         "number": {
           "type": "integer",
           "minimum": 0
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "acdcLineBreak": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type"
+      ],
+      "properties": {
+        "name": {
+          "const": "break"
+        },
+        "type": {
+          "const": "inline"
         },
         "location": {
           "$ref": "#/$defs/location"
