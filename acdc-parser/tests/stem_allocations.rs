@@ -1,4 +1,4 @@
-use std::{alloc::System, hint::black_box};
+use std::{alloc::System, hint::black_box, process::Command};
 
 use acdc_parser::{Options, parse};
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -8,6 +8,19 @@ static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 
 #[test]
 fn stem_preprocessing_allocation_budgets() -> Result<(), Box<dyn std::error::Error>> {
+    // Pin time in a child process so timestamp-cache refreshes cannot enter
+    // the measured region, without changing this process's environment.
+    if std::env::var("SOURCE_DATE_EPOCH").as_deref() != Ok("0") {
+        let status = Command::new(std::env::current_exe()?)
+            .arg("--exact")
+            .arg("stem_preprocessing_allocation_budgets")
+            .arg("--nocapture")
+            .env("SOURCE_DATE_EPOCH", "0")
+            .status()?;
+        assert!(status.success());
+        return Ok(());
+    }
+
     let options = Options::default();
     let prose = "Plain words with *strong* and _emphasis_. ".repeat(100);
     // Byte budgets allow small target-dependent differences in type layout.

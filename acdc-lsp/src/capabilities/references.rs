@@ -106,10 +106,9 @@ pub(super) fn collect_xref_locations(
             if target_anchor == anchor_id
                 && let Some(uri) = source_uri(uri, xref_loc)
                 && let Some(location) = workspace.lsp_location(&uri, &xref_loc.location)
+                && !locations.contains(&location)
             {
-                if !locations.contains(&location) {
-                    locations.push(location);
-                }
+                locations.push(location);
             }
         }
     });

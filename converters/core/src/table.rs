@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn test_proportional_widths() {
-        let columns = vec![
+        let columns = [
             make_column(ColumnWidth::Proportional(1)),
             make_column(ColumnWidth::Proportional(3)),
         ];
@@ -231,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_equal_proportional_widths() {
-        let columns = vec![
+        let columns = [
             make_column(ColumnWidth::Proportional(1)),
             make_column(ColumnWidth::Proportional(1)),
             make_column(ColumnWidth::Proportional(1)),
@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     fn test_percentage_widths() {
-        let columns = vec![
+        let columns = [
             make_column(ColumnWidth::Percentage(25)),
             make_column(ColumnWidth::Percentage(75)),
         ];
@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_auto_widths() {
-        let columns = vec![
+        let columns = [
             make_column(ColumnWidth::Auto),
             make_column(ColumnWidth::Auto),
         ];
@@ -272,7 +272,7 @@ mod tests {
     #[test]
     fn test_percentage_over_100_normalized() {
         // [cols="34%,36%,31%"] sums to 101% → normalize to 100%
-        let columns = vec![
+        let columns = [
             make_column(ColumnWidth::Percentage(34)),
             make_column(ColumnWidth::Percentage(36)),
             make_column(ColumnWidth::Percentage(31)),
@@ -293,7 +293,7 @@ mod tests {
     #[test]
     fn test_percentage_under_100_normalized() {
         // [cols="20%,30%,40%"] sums to 90% → normalize to 100%
-        let columns = vec![
+        let columns = [
             make_column(ColumnWidth::Percentage(20)),
             make_column(ColumnWidth::Percentage(30)),
             make_column(ColumnWidth::Percentage(40)),
@@ -313,7 +313,7 @@ mod tests {
 
     #[test]
     fn test_percentage_exact_100_unchanged() {
-        let columns = vec![
+        let columns = [
             make_column(ColumnWidth::Percentage(25)),
             make_column(ColumnWidth::Percentage(25)),
             make_column(ColumnWidth::Percentage(50)),
@@ -325,7 +325,7 @@ mod tests {
     #[test]
     fn test_auto_with_percentage_over_100() {
         // [cols="~,60%,50%"] non-auto sum=110% → normalize percentages, auto stays 0.0
-        let columns = vec![
+        let columns = [
             make_column(ColumnWidth::Auto),
             make_column(ColumnWidth::Percentage(60)),
             make_column(ColumnWidth::Percentage(50)),
@@ -338,7 +338,7 @@ mod tests {
 
     #[test]
     fn test_all_auto_no_normalization() {
-        let columns = vec![
+        let columns = [
             make_column(ColumnWidth::Auto),
             make_column(ColumnWidth::Auto),
         ];
@@ -349,7 +349,7 @@ mod tests {
     #[test]
     fn test_complex_proportional() {
         // [cols="2,1,1,1,1"] -> 33.33%, 16.67%, 16.67%, 16.67%, 16.67%
-        let columns = vec![
+        let columns = [
             make_column(ColumnWidth::Proportional(2)),
             make_column(ColumnWidth::Proportional(1)),
             make_column(ColumnWidth::Proportional(1)),

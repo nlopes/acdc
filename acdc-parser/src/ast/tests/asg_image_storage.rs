@@ -34,11 +34,13 @@ fn image_support_composes_through_every_supported_content_owner() -> Result<(), 
     paragraph.metadata.caption = Some(Caption::CustomContent(ContentAttribute::new(
         source.content.clone(),
     )));
-    let mut document = Document::default();
-    document.header = Some(Header::new(
-        Title::new(source.content.clone()),
-        Location::default(),
-    ));
+    let mut document = Document {
+        header: Some(Header::new(
+            Title::new(source.content.clone()),
+            Location::default(),
+        )),
+        ..Document::default()
+    };
     document.blocks.push(Block::Paragraph(paragraph));
     let value = export(&document)?;
     for path in [

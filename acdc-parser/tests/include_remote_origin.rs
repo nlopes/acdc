@@ -225,7 +225,7 @@ fn assert_nested_include(
     else {
         return Err("expected three paragraphs".into());
     };
-    let expected_chain = vec![parent_uri, nested_target];
+    let expected_chain = [parent_uri, nested_target];
     assert_eq!(
         nested
             .location()

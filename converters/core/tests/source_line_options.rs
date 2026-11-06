@@ -1,3 +1,5 @@
+//! Source line controls preserve numbering and highlights for source-style blocks.
+
 use acdc_converters_core::code::SourceLineOptions;
 use acdc_parser::{
     AttributeValue, BlockMetadata, CompatibilityMode, Location, Options, Paragraph,

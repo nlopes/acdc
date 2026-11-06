@@ -1128,7 +1128,7 @@ fn expand_prepared_attribute<'a>(
         result.push(InlineNode::RawText(Raw {
             metadata: None,
             content: state.intern_str(&value[value_cursor..]),
-            location: location,
+            location,
             subs: vec![Substitution::SpecialChars],
         }));
     }

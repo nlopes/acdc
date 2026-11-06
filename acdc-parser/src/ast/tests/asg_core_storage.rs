@@ -16,9 +16,11 @@ fn modes() -> Result<[Options<'static>; 2], Error> {
     ])
 }
 fn owned_blocks(parsed: &crate::ParseResult) -> Document<'_> {
-    let mut document = Document::default();
-    document.location = parsed.document_storage().location.clone();
-    document.attributes = parsed.document_storage().attributes.clone();
+    let mut document = Document {
+        location: parsed.document_storage().location.clone(),
+        attributes: parsed.document_storage().attributes.clone(),
+        ..Document::default()
+    };
     document
         .blocks
         .clone_from(&parsed.document_storage().blocks);

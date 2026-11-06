@@ -22,10 +22,10 @@ fn document_assignments_are_structural_only_when_retained_as_blocks(
     let names = document
         .descendants()
         .filter_map(|node| {
-            if let StructuralRef::Block(block) = node {
-                if let BlockKind::DocumentAttribute(assignment) = block.kind() {
-                    return Some(assignment.name());
-                }
+            if let StructuralRef::Block(block) = node
+                && let BlockKind::DocumentAttribute(assignment) = block.kind()
+            {
+                return Some(assignment.name());
             }
             None
         })
@@ -301,10 +301,10 @@ fn included_and_cell_blocks_keep_original_source_locations(
     };
     let paragraphs = nodes
         .filter_map(|node| {
-            if let StructuralRef::Block(block) = node {
-                if let BlockKind::Paragraph(paragraph) = block.kind() {
-                    return Some(paragraph);
-                }
+            if let StructuralRef::Block(block) = node
+                && let BlockKind::Paragraph(paragraph) = block.kind()
+            {
+                return Some(paragraph);
             }
             None
         })

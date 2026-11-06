@@ -698,11 +698,10 @@ impl Workspace {
         if let Some(path) = includes::file_path(uri)
             && self.analysis_configuration().contains(uri)
             && let Some(text) = read_bounded(path.as_ref())
+            && let Ok(parsed) = parse(&text, self.parser_options_for(uri))
         {
-            if let Ok(parsed) = parse(&text, self.parser_options_for(uri)) {
-                let symbols = extract_workspace_symbols(parsed.document());
-                self.symbol_index.insert(uri.clone(), symbols);
-            }
+            let symbols = extract_workspace_symbols(parsed.document());
+            self.symbol_index.insert(uri.clone(), symbols);
         }
     }
 

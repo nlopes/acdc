@@ -9,9 +9,15 @@ use acdc_parser::{
 type Error = Box<dyn std::error::Error>;
 
 #[rstest::rstest]
+#[case::empty("")]
+#[case::double_quoted("\"Label π\"")]
+#[case::single_quoted("'Label π'")]
+#[case::empty_quotes("''")]
+#[case::trailing_text("\"α\"tail")]
+#[case::unterminated("\"π")]
 fn reference_snapshots_preserve_document_quote_characters(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
-    #[values("", "\"Label π\"", "'Label π'", "''", "\"α\"tail", "\"π")] value: &str,
+    #[case] value: &str,
 ) -> Result<(), Error> {
     let input = format!(
         ":table-caption: {value}\n:section-refsig: {value}\n:sectnums:\n\nxref:table[xrefstyle=short] xref:section[xrefstyle=short]\n\n:table-caption: Later\n:section-refsig: Later\n\n[[table]]\n.A table\n|===\n|Cell\n|===\n\n[[section]]\n== One\n\nBody.\n"

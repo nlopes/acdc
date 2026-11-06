@@ -43,7 +43,7 @@ impl<'doc> StructuralRef<'doc> {
     /// lists yield items, and tables yield header, body, then footer rows. Each row
     /// yields cells in stored order, with spanning cells occurring once.
     /// Other containers yield their retained blocks in order.
-    pub fn children(self) -> impl Iterator<Item = Self> + FusedIterator + Send + Sync + 'doc {
+    pub fn children(self) -> impl FusedIterator<Item = Self> + Send + Sync + 'doc {
         self.child_iter()
     }
 
@@ -54,7 +54,7 @@ impl<'doc> StructuralRef<'doc> {
     /// Flat walks allocate no memory. Nested walks use a growable stack of pending
     /// sibling iterators, whose space grows with nesting rather than node count.
     /// Traversal does not recurse on the call stack.
-    pub fn descendants(self) -> impl Iterator<Item = Self> + FusedIterator + Send + Sync + 'doc {
+    pub fn descendants(self) -> impl FusedIterator<Item = Self> + Send + Sync + 'doc {
         Descendants {
             current: self.child_iter(),
             ancestors: Vec::new(),
@@ -138,13 +138,13 @@ macro_rules! traversal_roots {
     ($($read:ident),+) => { $(
         impl<'doc> $read<'doc> {
             /// Direct structural children in [`StructuralRef::children`] order.
-            pub fn children(self) -> impl Iterator<Item = StructuralRef<'doc>> + FusedIterator + Send + Sync + 'doc {
+            pub fn children(self) -> impl FusedIterator<Item = StructuralRef<'doc>> + Send + Sync + 'doc {
                 StructuralRef::from(self).children()
             }
 
             /// Descendants in depth-first pre-order, excluding this node.
             /// See [`StructuralRef::descendants`] for order and stack behavior.
-            pub fn descendants(self) -> impl Iterator<Item = StructuralRef<'doc>> + FusedIterator + Send + Sync + 'doc {
+            pub fn descendants(self) -> impl FusedIterator<Item = StructuralRef<'doc>> + Send + Sync + 'doc {
                 StructuralRef::from(self).descendants()
             }
         }

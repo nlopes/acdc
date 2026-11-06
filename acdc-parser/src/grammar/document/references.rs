@@ -677,10 +677,10 @@ fn finalize_registered_inline<'a>(state: &ParserState<'a>, node: &mut InlineNode
                 );
             });
         }
-    } else if let InlineNode::Macro(InlineMacro::Footnote(footnote)) = node {
-        if let Some(content) = &mut footnote.content {
-            finalize_footnote_text(&mut footnote.registration_substitutions, content);
-        }
+    } else if let InlineNode::Macro(InlineMacro::Footnote(footnote)) = node
+        && let Some(content) = &mut footnote.content
+    {
+        finalize_footnote_text(&mut footnote.registration_substitutions, content);
     }
 }
 

@@ -116,7 +116,7 @@ fn empty_document_has_no_fabricated_catalog_entries() {
 fn catalog_locations_resolve_to_the_included_source() -> Result<(), Error> {
     let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/tests");
     let parsed = parse_file(
-        &fixtures.join("xref_included_sources.adoc"),
+        fixtures.join("xref_included_sources.adoc"),
         &Options::builder()
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,

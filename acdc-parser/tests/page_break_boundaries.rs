@@ -93,10 +93,10 @@ fn page_break_contexts_keep_original_source_ranges(
         .document()
         .descendants()
         .filter_map(|node| {
-            if let StructuralRef::Block(block) = node {
-                if matches!(block.kind(), BlockKind::PageBreak(_)) {
-                    return Some(block);
-                }
+            if let StructuralRef::Block(block) = node
+                && matches!(block.kind(), BlockKind::PageBreak(_))
+            {
+                return Some(block);
             }
             None
         })

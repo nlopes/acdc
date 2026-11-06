@@ -93,9 +93,11 @@ fn catalog_reads_match_registered_values_and_preserve_json(
 #[test]
 fn catalog_reads_do_not_repair_caller_edited_trees() -> Result<(), Error> {
     let parsed = parse("[#target]\n== Original\n", &Options::default())?;
-    let mut document = Document::default();
-    document.references = parsed.document_storage().references.clone();
-    document.toc_entries = parsed.document_storage().toc_entries.clone();
+    let mut document = Document {
+        references: parsed.document_storage().references.clone(),
+        toc_entries: parsed.document_storage().toc_entries.clone(),
+        ..Document::default()
+    };
     document.blocks.clear();
     let doc = DocumentRef::from(&document);
     assert_eq!(
@@ -171,9 +173,11 @@ fn catalog_snapshots_preserve_registered_state_without_refreshing(
         assert_eq!(original.references, original_references);
         assert_eq!(original.toc_entries, original_entries);
 
-        let mut stale = Document::default();
-        stale.references = original.references.clone();
-        stale.toc_entries = original.toc_entries.clone();
+        let mut stale = Document {
+            references: original.references.clone(),
+            toc_entries: original.toc_entries.clone(),
+            ..Document::default()
+        };
         stale.blocks.clear();
         let stale_doc = DocumentRef::from(&stale);
         for (id, reference) in stale_doc.references().iter() {
