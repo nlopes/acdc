@@ -158,6 +158,16 @@ The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage b
   fallbacks.
 - Custom macro extensions not supported
 
+== Convention warnings
+
+The first-section check accepts literal `NAME` or the effective `manname-title`,
+ignoring ASCII case. Empty or unset settings still accept `NAME`. Other headings
+retain the convention warning. The second section is still checked for `SYNOPSIS`.
+
+Authored section headings remain in the output. Asciidoctor can generate the name
+heading from `manname-title` instead. These convention warnings describe acdc's
+supported heading policy; they do not claim identical reference diagnostics.
+
 == Testing
 
 The rendered-font integration tests require `groff` and `mandoc` on `PATH`.

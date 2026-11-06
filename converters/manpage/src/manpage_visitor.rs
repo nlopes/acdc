@@ -405,6 +405,7 @@ impl<'a, W: Write> DocumentVisitor<'a> for ManpageVisitor<'a, '_, W> {
         let name_section_title =
             document_attribute_text((traversal).get("manname-title")).unwrap_or("Name");
         if let Some(ref first) = self.first_section_title
+            && !first.eq_ignore_ascii_case("Name")
             && !first.eq_ignore_ascii_case(name_section_title)
         {
             self.diagnostics.warn_with_advice(

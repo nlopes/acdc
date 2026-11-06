@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- A literal `NAME` heading no longer triggers a convention warning when
+  `manname-title` is custom or empty. Clean documents now pass
+  `--fail-on-warnings` under those settings; section text is preserved.
+
 - Mixed numeric and automatic table columns now preserve the authored numeric
   proportions, including `cols="2*3,~"`. Large supported widths no longer overflow;
   explicit zero widths use the renderer's one-en minimum.

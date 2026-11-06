@@ -624,6 +624,60 @@ fn fail_on_warnings_allows_clean_conversion() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[cfg(feature = "manpage")]
+#[test]
+fn fail_on_warnings_accepts_literal_name_with_custom_manname_title() -> Result<(), Box<dyn Error>> {
+    for mode in ["asciidoctor", "draft"] {
+        for embedded in [false, true] {
+            for (setting, heading, fails) in [
+                ("manname-title=NOMS", "NAME", false),
+                ("manname-title=", "NAME", false),
+                ("manname-title!", "NAME", false),
+                ("manname-title=NOMS", "NOMS", false),
+                ("manname-title=NOMS", "OTHER", true),
+            ] {
+                let source = format!(
+                    "= names(1)\n:doctype: manpage\n:revdate: 2026-11-06\n\n== {heading}\n\nnames - purpose\n\n== SYNOPSIS\n\nnames\n"
+                );
+                let mut args = vec![
+                    "convert",
+                    "--stdin",
+                    "-b",
+                    "manpage",
+                    "--out-file",
+                    "-",
+                    "--fail-on-warnings",
+                    "--compatibility-mode",
+                    mode,
+                    "-a",
+                    setting,
+                    "-a",
+                    "manname=names",
+                    "-a",
+                    "manpurpose=purpose",
+                ];
+                if embedded {
+                    args.push("--embedded");
+                }
+                let output = run_acdc(&args, Some(&source))?;
+                let stderr = output_text(&output.stderr);
+                assert_eq!(
+                    output.status.code(),
+                    Some(i32::from(fails)),
+                    "{setting}, {heading}: {stderr}"
+                );
+                assert_eq!(
+                    stderr.contains("name section should be first"),
+                    fails,
+                    "{stderr}"
+                );
+                assert!(output_text(&output.stdout).contains(".SH \"SYNOPSIS\""));
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(feature = "html")]
 #[test]
 fn fail_on_warnings_retains_file_and_stdout_output_for_file_input() -> Result<(), Box<dyn Error>> {
