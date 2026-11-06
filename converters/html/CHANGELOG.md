@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   automatic numbering off. Both variants emit the matching MathJax 4 setting and
   allow it under the generated Content Security Policy.
 
+- Both HTML variants honor `noheader`, `nofooter`, and `nofootnotes`, including
+  empty assignments. Unset attributes restore normal output. Header suppression
+  includes its automatic TOC; embedded TOCs, inline footnote markers, and document
+  metadata remain available, matching Asciidoctor.
+
 - Tables with mixed numeric and automatic column widths now match Asciidoctor
   proportions, including repeated specifications such as `cols="2*3,~"`. Explicit
   zero widths stay distinct from automatic columns, all-zero widths divide space

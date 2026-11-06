@@ -71,6 +71,16 @@ With an opted-in catalog, highlighted code links point to the indexed code line.
 
 Generates complete, standalone HTML documents with embedded CSS. No external dependencies needed - the output file contains everything required for display.
 
+Set `:noheader:`, `:nofooter:`, or `:nofootnotes:` to omit that part of the output
+in either HTML variant. Empty values enable these controls; an unset such as
+`:nofooter!:` restores normal output. `noheader` also omits a TOC placed in the
+standalone header. Embedded output keeps its TOC and honors `nofootnotes`.
+
+These controls preserve document metadata, source content, and inline footnote
+markers. Header and footer docinfo are separate and remain in standalone output.
+Body assignments to `nofooter` and `nofootnotes` take effect when the document
+ends; a body `noheader` assignment does not remove a header already rendered.
+
 === Asciidoctor-Compatible Styling
 
 Uses the same CSS as Asciidoctor for familiar, professional-looking output. The embedded stylesheet provides:

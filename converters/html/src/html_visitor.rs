@@ -921,12 +921,14 @@ impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVi
             }
         }
         let mut footnotes = doc.footnotes().peekable();
-        if footnotes.peek().is_some() {
+        if !traversal.contains_key("nofootnotes") && footnotes.peek().is_some() {
             self.render_footnotes(traversal, footnotes)?;
         }
         // Skip footer in embedded mode
         if !self.render_options.embedded {
-            self.render_body_footer()?;
+            if !traversal.contains_key("nofooter") {
+                self.render_body_footer()?;
+            }
             if let Some(content) = &self.docinfo.footer {
                 writeln!(self.writer, "{content}")?;
             }
@@ -970,9 +972,11 @@ impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVi
             }
             return Ok(());
         }
-        // When there's no header, emit a header wrapper for the TOC
-        // (matching asciidoctor which always emits <div id="header"> when TOC is enabled)
-        if doc.header().is_none() && !self.processor.toc_entries.is_empty() {
+        // Headerless documents still need a wrapper for an automatic TOC.
+        if doc.header().is_none()
+            && !traversal.contains_key("noheader")
+            && !self.processor.toc_entries.is_empty()
+        {
             let toc_config = acdc_converters_core::toc::Config::resolve(
                 None,
                 &TraversalContext::new(DocumentAttributesRef::from(
@@ -1031,6 +1035,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         if self.render_options.embedded {
             // In embedded mode, render the TOC but skip the header chrome
             self.render_toc(traversal, None, "auto")?;
+            return Ok(());
+        }
+        if traversal.contains_key("noheader") {
             return Ok(());
         }
         if self.processor.variant() == HtmlVariant::Semantic {
