@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: Test Manual
 :mansource: acdc
+:docdate: 2026-10-07
 :revdate: 2026-10-07
 :value: *bold*
 :empty:

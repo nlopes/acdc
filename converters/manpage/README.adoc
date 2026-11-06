@@ -158,6 +158,22 @@ The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage b
   fallbacks.
 - Custom macro extensions not supported
 
+== Date selection
+
+The printed manpage date comes from `docdate`, matching Asciidoctor. Use
+`:docdate: 2026-01-01` or the CLI option `-a docdate=2026-01-01` to pin it.
+`revdate` remains revision metadata and does not select the printed date.
+
+The default date comes from `SOURCE_DATE_EPOCH`, the source file's modification
+time, or the time the source is parsed. An empty `docdate` prints an empty date;
+a header unset also removes the date comment. `:reproducible:` suppresses both
+the printed date and its comment. Later body assignments do not change the date
+selected from the document header.
+
+Caller unsets follow acdc's attribute locking rules. The CLI option
+`-a docdate!` removes the date and its comment, even if the header sets it.
+Asciidoctor instead restores the default date for this caller unset.
+
 == Convention warnings
 
 The first-section check accepts literal `NAME` or the effective `manname-title`,

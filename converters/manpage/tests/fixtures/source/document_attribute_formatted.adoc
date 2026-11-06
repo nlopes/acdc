@@ -1,5 +1,6 @@
 = prepared-attributes(1)
 :doctype: manpage
+:docdate: 2026-10-02
 :revdate: 2026-10-02
 :name: Early
 :empty:

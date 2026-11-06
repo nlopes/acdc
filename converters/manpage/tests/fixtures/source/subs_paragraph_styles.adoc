@@ -1,5 +1,6 @@
 = STYLED-PARAGRAPHS(1)
 :doctype: manpage
+:docdate: 2026-11-03
 :revdate: 2026-11-03
 :word: expanded
 

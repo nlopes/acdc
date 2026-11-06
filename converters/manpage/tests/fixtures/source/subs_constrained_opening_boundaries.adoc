@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: Formatting boundaries
 :mansource: acdc
+:docdate: 2026-10-03
 :revdate: 2026-10-03
 :prepared: pass:q[<del>*Bold*</del>]
 :raw: pass:[<del>*literal*</del>]

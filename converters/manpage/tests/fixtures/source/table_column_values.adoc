@@ -1,5 +1,6 @@
 = column-controls(7)
 :doctype: manpage
+:docdate: 2026-11-04
 :revdate: 2026-11-04
 
 == NAME

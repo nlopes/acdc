@@ -49,7 +49,8 @@ fn write_comment_line<W: Write + ?Sized>(
 ) -> std::io::Result<()> {
     // Labels are right-aligned to 11 characters (including the colon)
     // This matches asciidoctor's comment header alignment
-    writeln!(w, r#".\"{:>11} {value}"#, format!("{label}:"))
+    let separator = if value.is_empty() { "" } else { " " };
+    writeln!(w, r#".\"{:>11}{separator}{value}"#, format!("{label}:"))
 }
 
 /// Write URL and MTO macro definitions for link handling.
@@ -142,18 +143,13 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             .or_else(|| document_attribute_text((doc.attributes()).get("man manual")))
             .or_else(|| document_attribute_text((doc.attributes()).get("man-manual")))
             .unwrap_or_default();
-        let date = document_attribute_text((doc.attributes()).get("revdate"))
-            .or_else(|| {
-                document_attribute_text(
-                    (self.processor.parser_options.document_attributes()).get("revdate"),
-                )
-            })
-            .map_or_else(
-                || chrono::Local::now().format("%Y-%m-%d").to_string(),
-                str::to_owned,
-            );
+        let date = if doc.attributes().contains("reproducible") {
+            None
+        } else {
+            document_attribute_text(doc.attributes().get("docdate"))
+        };
 
-        self.write_preamble_header(doc, mantitle, manvolnum, &date, mansource, manmanual)?;
+        self.write_preamble_header(doc, mantitle, manvolnum, date, mansource, manmanual)?;
 
         Ok(())
     }
@@ -164,7 +160,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         doc: DocumentRef<'a>,
         mantitle: &str,
         manvolnum: &str,
-        date: &str,
+        date: Option<&str>,
         mansource: &str,
         manmanual: &str,
     ) -> Result<(), Error> {
@@ -200,7 +196,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         write_comment_line(w, "Title", &title_for_comment)?;
         write_comment_line(w, "Author", &author_line)?;
         write_comment_line(w, "Generator", &format!("acdc {VERSION}"))?;
-        write_comment_line(w, "Date", date)?;
+        if let Some(date) = date {
+            write_comment_line(w, "Date", date)?;
+        }
         write_comment_line(w, "Manual", &manual_display)?;
         write_comment_line(w, "Source", &source_display)?;
         write_comment_line(w, "Language", "English")?;
@@ -224,7 +222,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             ".TH \"{}\" \"{}\" \"{}\" \"{}\" \"{}\"",
             escaped_title,
             escape_quoted(manvolnum),
-            escape_quoted(date),
+            escape_quoted(date.unwrap_or_default()),
             th_source,
             th_manual
         )?;

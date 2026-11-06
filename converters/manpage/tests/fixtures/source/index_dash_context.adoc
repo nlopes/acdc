@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: Index context
 :mansource: acdc
+:docdate: 2026-10-03
 :revdate: 2026-10-03
 :acdc-index:
 

@@ -1,0 +1,16 @@
+= dates(1)
+:doctype: manpage
+:revdate: 2004-05-06
+:docdate:
+
+== NAME
+
+dates - date controls
+
+== SYNOPSIS
+
+dates
+
+== DESCRIPTION
+
+Revision date: {revdate}.

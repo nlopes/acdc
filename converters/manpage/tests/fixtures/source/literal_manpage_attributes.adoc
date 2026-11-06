@@ -3,6 +3,7 @@
 :manname: 'authored-name'
 :manpurpose: "Quoted purpose"
 :manmanual: "Manual"
+:docdate: 2026-11-04
 :revdate: 2026-11-04
 
 == NAME

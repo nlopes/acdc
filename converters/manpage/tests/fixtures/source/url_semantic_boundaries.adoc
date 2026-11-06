@@ -2,6 +2,7 @@
 :doctype: manpage
 :manname: url-semantic-boundaries
 :manpurpose: inspect URLs following inline content
+:docdate: 2026-10-07
 :revdate: 2026-10-07
 :bold: pass:q[*Bold*]
 :raw: pass:[X]

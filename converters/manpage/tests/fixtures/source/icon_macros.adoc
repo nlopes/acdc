@@ -3,6 +3,7 @@
 :manmanual: Test Manual
 :mansource: Test 1.0
 :icons: font
+:docdate: 2025-06-01
 :revdate: 2025-06-01
 
 == Name

@@ -12,7 +12,6 @@ default = []
 [dependencies]
 acdc-converters-core.workspace = true
 acdc-parser.workspace = true
-chrono.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 

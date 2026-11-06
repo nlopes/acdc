@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: Empty formatting
 :mansource: acdc
+:docdate: 2026-10-01
 :revdate: 2026-10-01
 :blank:
 :markup: *introduced*

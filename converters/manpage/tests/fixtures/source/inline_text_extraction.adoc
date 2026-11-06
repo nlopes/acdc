@@ -3,6 +3,7 @@
 :experimental:
 :icons: font
 :stem: latexmath
+:docdate: 2026-08-02
 :revdate: 2026-08-02
 
 == Name

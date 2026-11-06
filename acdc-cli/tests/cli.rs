@@ -7,6 +7,7 @@ use std::{
     feature = "html",
     feature = "terminal",
     feature = "inspect",
+    feature = "manpage",
     feature = "pdf"
 ))]
 use tempfile::tempdir;
@@ -17,6 +18,7 @@ use tempfile::tempdir;
     feature = "inspect",
     feature = "execute",
     feature = "lint",
+    feature = "manpage",
     feature = "pdf"
 ))]
 use std::fs;
@@ -2591,6 +2593,100 @@ fn compatibility_mode_rejects_unknown_names_before_reading_input() -> Result<(),
         let error = output_text(&output.stderr);
         assert!(error.contains("expected asciidoctor or draft"), "{error}");
         assert_eq!(output.stdout.as_slice(), b"");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "manpage")]
+#[test]
+fn manpage_dates_use_docdate_and_reproducible_source_metadata() -> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    for (name, header, attributes, expected, comment) in [
+        (
+            "epoch",
+            ":revdate: 2004-05-06\n",
+            vec![],
+            "2000-01-01",
+            true,
+        ),
+        (
+            "header",
+            ":docdate: 2001-02-03\n:revdate: 2004-05-06\n",
+            vec![],
+            "2001-02-03",
+            true,
+        ),
+        (
+            "caller",
+            ":docdate: 2001-02-03\n",
+            vec!["docdate=2010-11-12"],
+            "2010-11-12",
+            true,
+        ),
+        (
+            "soft",
+            ":docdate: 2001-02-03\n",
+            vec!["docdate=2010-11-12@"],
+            "2001-02-03",
+            true,
+        ),
+        (
+            "caller_empty",
+            ":docdate: 2001-02-03\n",
+            vec!["docdate="],
+            "",
+            true,
+        ),
+        (
+            "caller_unset",
+            ":docdate: 2001-02-03\n",
+            vec!["docdate!"],
+            "",
+            false,
+        ),
+        ("header_unset", ":docdate!:\n", vec![], "", false),
+        (
+            "reproducible",
+            ":docdate: 2001-02-03\n:reproducible:\n",
+            vec![],
+            "",
+            false,
+        ),
+    ] {
+        let path = directory.path().join(format!("{name}.adoc"));
+        fs::write(
+            &path,
+            format!(
+                "= dates(1)\n:doctype: manpage\n{header}\n== NAME\n\ndates - date controls\n\n== SYNOPSIS\n\ndates\n"
+            ),
+        )?;
+        for mode in ["asciidoctor", "draft"] {
+            let mut command = Command::new(env!("CARGO_BIN_EXE_acdc"));
+            command
+                .args([
+                    "convert",
+                    "-b",
+                    "manpage",
+                    "--out-file",
+                    "-",
+                    "--fail-on-warnings",
+                    "--compatibility-mode",
+                    mode,
+                ])
+                .env("SOURCE_DATE_EPOCH", "946684800")
+                .env_remove("ACDC_LOG");
+            for attribute in &attributes {
+                command.args(["-a", attribute]);
+            }
+            let output = command.arg(&path).output()?;
+            assert!(output.status.success(), "{}", output_text(&output.stderr));
+            let output = output_text(&output.stdout);
+            assert!(
+                output.contains(&format!(".TH \"DATES\" \"1\" \"{expected}\"")),
+                "{name}: {output}"
+            );
+            assert_eq!(output.contains("Date:"), comment, "{name}: {output}");
+        }
     }
     Ok(())
 }

@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: File Formats Manual
 :mansource: MyApp 1.0
+:docdate: 2025-06-01
 :revdate: 2025-06-01
 
 == Name

@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: Deferred typography
 :mansource: acdc
+:docdate: 2026-10-03
 :revdate: 2026-10-03
 :normal-value: pass:n[(C) (R) (TM)]
 :replacement-value: pass:r[(C) ... don't word--word]

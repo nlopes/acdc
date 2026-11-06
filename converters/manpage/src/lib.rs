@@ -108,6 +108,7 @@ pub struct Processor<'a> {
 
 impl Processor<'_> {
     /// Convert a document to manpage output, writing to the provided writer.
+    /// Date fields use the document's resolved `docdate` unless `reproducible` is set.
     ///
     /// # Errors
     ///
@@ -116,21 +117,11 @@ impl Processor<'_> {
         &self,
         doc: DocumentRef<'_>,
         writer: W,
-        source_file: Option<&Path>,
+        _source_file: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
         let document = doc;
-        let mut attrs: DocumentAttributes<'_> = document.attributes().into();
-
-        if attrs.get("revdate").is_none()
-            && let Some(date_str) = source_file.and_then(file_modified_date)
-        {
-            attrs = ParserOptions::builder()
-                .with_attributes(attrs.into_inputs())
-                .with_attribute("revdate", date_str)
-                .build()?
-                .into_document_attributes();
-        }
+        let attrs: DocumentAttributes<'_> = document.attributes().into();
 
         // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
         let processor: Processor<'_> = Processor {
@@ -237,14 +228,6 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn name(&self) -> &'static str {
         "manpage"
     }
-}
-
-/// Get a file's modification date as a `YYYY-MM-DD` string.
-fn file_modified_date(path: &Path) -> Option<String> {
-    let metadata = std::fs::metadata(path).ok()?;
-    let modified = metadata.modified().ok()?;
-    let datetime: chrono::DateTime<chrono::Local> = modified.into();
-    Some(datetime.format("%Y-%m-%d").to_string())
 }
 
 #[cfg(test)]

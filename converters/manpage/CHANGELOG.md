@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Manpage dates use `docdate`, matching Asciidoctor's date source. Caller
+  overrides and empty or unset values are honored. `revdate` no longer selects
+  the printed date; use `docdate` to pin it. Default dates honor
+  `SOURCE_DATE_EPOCH` and source file
+  timestamps, and `reproducible` suppresses the date. Unlike Asciidoctor, a
+  caller unset (`-a docdate!`) suppresses the date instead of restoring its
+  default.
+
 - A literal `NAME` heading no longer triggers a convention warning when
   `manname-title` is custom or empty. Clean documents now pass
   `--fail-on-warnings` under those settings; section text is preserved.
