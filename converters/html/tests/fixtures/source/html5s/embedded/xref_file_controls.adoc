@@ -1,0 +1,17 @@
+= File controls
+
+xref:guide.adoc[Default] xref:guide.adoc[]
+
+:relfileprefix: manual/
+:relfilesuffix: .xhtml
+
+xref:guide.adoc#part[Configured] xref:guide.adoc#part[]
+
+:relfilesuffix:
+
+xref:guide.adoc#part[Empty] xref:guide.adoc#part[]
+
+:relfileprefix!:
+:relfilesuffix!:
+
+xref:guide.adoc[Restored] xref:guide.adoc[]

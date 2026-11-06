@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Cross-reference rendering supports exact output suffixes, including an empty
+  suffix that removes the source extension. Extension-based callers retain their
+  existing output.
+
 - Table widths now share one numeric scale. With `cols="2*3,~"`, the numeric
   columns keep 3% each and leave automatic space, matching Asciidoctor. Large
   supported widths no longer overflow, and all-zero numeric widths divide space

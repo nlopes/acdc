@@ -10,10 +10,10 @@ use std::{
 };
 
 use acdc_converters_core::{
-    InlineTextTransform, TraversalContext,
+    InlineTextTransform, TraversalContext, document_attribute_text,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
-    xref::{XrefDisplay, interdocument_xref, resolve_reference},
+    xref::{XrefDisplay, interdocument_xref, interdocument_xref_with_suffix, resolve_reference},
 };
 use acdc_parser::{
     StemNotation, Substitution,
@@ -1332,17 +1332,25 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &TraversalContext<'a>,
         target: &str,
     ) -> Option<(String, String)> {
-        let attributes = &traversal;
-        let extension = attributes
-            .get("relfilesuffix")
-            .and_then(|value| value.text())
-            .or_else(|| {
-                attributes
+        let (mut destination, mut text) =
+            if let Some(suffix) = document_attribute_text(traversal.get("relfilesuffix")) {
+                interdocument_xref_with_suffix(target, suffix)
+            } else {
+                let extension = traversal
                     .get("outfilesuffix")
                     .and_then(|value| value.text())
-            })
-            .unwrap_or("html");
-        interdocument_xref(target, extension.strip_prefix('.').unwrap_or(extension))
+                    .unwrap_or("html");
+                interdocument_xref(target, extension.strip_prefix('.').unwrap_or(extension))
+            }?;
+        if let Some(prefix) = document_attribute_text(traversal.get("relfileprefix"))
+            && !prefix.is_empty()
+            && !target.starts_with("//")
+            && url::Url::parse(target).is_err()
+        {
+            destination.insert_str(0, prefix);
+            text.insert_str(0, prefix);
+        }
+        Some((destination, text))
     }
 
     fn render_stem(

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Local file cross-references honor `relfileprefix` and the exact `relfilesuffix`
+  value, including an empty suffix. Automatic labels use the resulting file path.
+  Local anchors stay unchanged. Absolute and scheme-relative URIs keep their
+  existing suffix conversion and are never prefixed, unlike Asciidoctor 2.0.26.
+
 - Standalone HTML honors `eqnums`: empty or `AMS` selects AMS equation numbering,
   and `all` selects numbering for all displayed equations. `none` and unset keep
   automatic numbering off. Both variants emit the matching MathJax 4 setting and

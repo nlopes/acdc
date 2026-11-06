@@ -114,6 +114,22 @@ semantic backends, so cross-references can reach the rendered wrappers.
 Delimited quote blocks display their lead-in titles above the quoted content,
 including inside AsciiDoc table cells and attached list blocks.
 
+=== Cross-reference file paths
+
+Set `:relfileprefix: manual/` to prepend `manual/` to local file cross-references.
+The prefix also appears in automatic link labels. It does not affect local
+anchors, including references to anchors in included source files.
+
+`relfilesuffix` replaces source extensions such as `.adoc` with its exact value.
+For example, `:relfilesuffix: .xhtml` produces `guide.xhtml`, while an empty
+`:relfilesuffix:` produces `guide`. No dot is added. An unset value uses the
+normal output extension. These settings follow source-order body assignments.
+
+Absolute and scheme-relative URIs retain the existing source-extension conversion
+but never receive `relfileprefix`. Asciidoctor 2.0.26 can prepend the prefix to
+those URIs. `force-local-file-xrefs` has no effect on this mapping in either
+converter. References to included source files can still resolve to local anchors.
+
 === Section Numbering
 
 Documents with `:sectnums:` render numbered section headings (e.g., "1. Introduction", "1.1. Overview"). Control numbering depth with `:sectnumlevels:` (default 3, max 5).

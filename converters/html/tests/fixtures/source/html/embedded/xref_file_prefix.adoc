@@ -1,0 +1,18 @@
+= Files
+:relfileprefix: manual/
+:relfilesuffix: .xhtml
+
+[[local]]
+== Local
+
+xref:#local[Local label] xref:#local[]
+
+xref:guide.adoc[File] xref:guide.adoc[]
+
+xref:guide.adoc#part[Part] xref:guide.adoc#part[]
+
+xref:guide#part[Bare] xref:guide.pdf#part[PDF]
+
+xref:https://example.org/guide.adoc#part[Remote]
+
+xref://example.org/guide.adoc#part[Network]

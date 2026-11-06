@@ -279,6 +279,26 @@ fn caption_prefix(caption: CaptionRef<'_>, xref: CrossReferenceRef<'_>) -> Optio
 /// fallback.
 #[must_use]
 pub fn interdocument_xref(target: &str, output_extension: &str) -> Option<(String, String)> {
+    map_interdocument_xref(target, |stem| format!("{stem}.{output_extension}"))
+}
+
+/// Map a source-document cross-reference using an exact output suffix.
+///
+/// The suffix includes any leading punctuation and may be empty. Existing
+/// non-source extensions stay unchanged. Fragments remain in the destination
+/// and are omitted from the fallback text.
+#[must_use]
+pub fn interdocument_xref_with_suffix(
+    target: &str,
+    output_suffix: &str,
+) -> Option<(String, String)> {
+    map_interdocument_xref(target, |stem| format!("{stem}{output_suffix}"))
+}
+
+fn map_interdocument_xref(
+    target: &str,
+    convert_stem: impl FnOnce(&str) -> String,
+) -> Option<(String, String)> {
     if !is_interdocument_target(target) {
         return None;
     }
@@ -288,10 +308,7 @@ pub fn interdocument_xref(target: &str, output_extension: &str) -> Option<(Strin
         None => (target, None),
     };
     let stem = source_document_stem(path, fragment.is_some());
-    let display = stem.map_or_else(
-        || path.to_string(),
-        |stem| format!("{stem}.{output_extension}"),
-    );
+    let display = stem.map_or_else(|| path.to_string(), convert_stem);
     let destination = fragment.map_or_else(
         || display.clone(),
         |fragment| format!("{display}#{fragment}"),
@@ -326,7 +343,8 @@ mod tests {
     };
 
     use super::{
-        XrefDisplay, XrefGuard, interdocument_xref, resolve_local_reference, resolve_reference,
+        XrefDisplay, XrefGuard, interdocument_xref, interdocument_xref_with_suffix,
+        resolve_local_reference, resolve_reference,
     };
 
     fn resolve_xref<'doc, 'guard, 'xref>(
@@ -967,6 +985,32 @@ mod tests {
             Some(("manual.pdf#part".to_string(), "manual.pdf".to_string()))
         );
         assert_eq!(interdocument_xref("local-id", "html"), None);
+    }
+
+    #[test]
+    fn interdocument_suffix_is_literal_and_can_be_empty() {
+        for (suffix, file) in [
+            (".xhtml", "guide.xhtml"),
+            ("", "guide"),
+            ("html", "guidehtml"),
+        ] {
+            for target in ["guide.adoc#part", "guide.asciidoc#part", "guide#part"] {
+                assert_eq!(
+                    interdocument_xref_with_suffix(target, suffix),
+                    Some((format!("{file}#part"), file.to_string()))
+                );
+            }
+            assert_eq!(
+                interdocument_xref_with_suffix("guide.adoc", suffix),
+                Some((file.to_string(), file.to_string()))
+            );
+            assert_eq!(
+                interdocument_xref_with_suffix("guide.pdf#part", suffix),
+                Some(("guide.pdf#part".to_string(), "guide.pdf".to_string()))
+            );
+        }
+        assert_eq!(interdocument_xref_with_suffix("#part", ""), None);
+        assert_eq!(interdocument_xref_with_suffix("part", ""), None);
     }
 
     #[test]
