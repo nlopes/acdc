@@ -422,12 +422,21 @@ fn verify_monotonic_positions(prefix: &str, blocks: &[Block]) {
         let location = block.location();
         let start = location.absolute_start;
         // Metadata-line events precede the block whose source range contains them.
-        let contained_metadata_event = matches!(
-            previous,
-            Some(Block::DocumentAttribute(attribute))
-                if location.absolute_start <= attribute.location.absolute_start
-                    && location.absolute_end >= attribute.location.absolute_end
-        );
+        let contained_metadata_event = previous.is_some_and(|previous| {
+            let prefix_event = matches!(
+                previous,
+                Block::DocumentAttribute(_)
+                    | Block::Comment(_)
+                    | Block::DelimitedBlock(DelimitedBlock {
+                        inner: DelimitedBlockType::DelimitedComment(_),
+                        ..
+                    })
+            );
+            let previous_location = previous.location();
+            prefix_event
+                && location.absolute_start <= previous_location.absolute_start
+                && location.absolute_end >= previous_location.absolute_end
+        });
         assert!(
             start >= last_end || contained_metadata_event,
             "{prefix} starts at {start} but previous ended at {last_end}"

@@ -18,3 +18,4 @@ cc 767c8d55bdbca8f2735eb93f072dc165878ff6df3769b56cc3b1899241bff8e9 # shrinks to
 cc 5aa36eb456ef15f71645bd462eda60abf842cc614ce4f12ccf79c44e7bfc2faa # shrinks to input = ".Block Title\n:author: Name\n= Title\n\n"
 cc 50596e767c818de0fdd0d020ac43ac1ef108862f578a7dfd1e708c66182f99e7 # shrinks to input = "#highlighted#****\nSidebar content.\n****\n\n:author: Name\n.Block Title\n:author: Name\n[NOTE]\n====\nAdmonition\n====\n"
 cc f6c8d07d0fcadc128d4ebebceaaf8733c51d1a79a38201435721574876438871 # shrinks to input = "+0+\t \\#a"
+cc 6c7eeac0abfc6fb2fe8740f9672457c3b5bbd9c50594c5930dc96918233990ab # shrinks to input = ".,=== Level 3\n\n// a comment\n= Title\n\n"
