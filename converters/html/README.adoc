@@ -107,7 +107,7 @@ Supports all major AsciiDoc constructs:
 - **Index terms**: Visible `((term))` and concealed `\(((term,secondary,tertiary)))` with catalog generation
 
 Styled `[abstract]` and `[example]` paragraphs use the same visible block
-presentation as their delimited forms. Block IDs, first anchors, roles, titles,
+presentation as their delimited forms. Block IDs, selected anchors, roles, titles,
 captions, and inline formatting remain available in both the standard and
 semantic backends, so cross-references can reach the rendered wrappers.
 

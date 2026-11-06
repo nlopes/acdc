@@ -17,7 +17,7 @@ static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 type Error = Box<dyn std::error::Error>;
 
 #[rstest::rstest]
-fn headings_select_the_same_primary_id_as_reference_resolution(
+fn blocks_select_the_same_primary_id_as_reference_resolution(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let source = "[[header-first]]\n[[header-last]]\n= Document\n\n\
@@ -59,7 +59,7 @@ fn headings_select_the_same_primary_id_as_reference_resolution(
         .iter()
         .filter_map(|block| block.id().map(ElementIdRef::as_str))
         .collect::<Vec<_>>();
-    assert_eq!(ids, ["section-last", "paragraph-first", "dedicated"]);
+    assert_eq!(ids, ["section-last", "paragraph-last", "dedicated"]);
     for block in &blocks {
         if let Some(id) = block.id() {
             assert_eq!(id.origin(), IdOrigin::Explicit);
@@ -95,7 +95,7 @@ fn headings_select_the_same_primary_id_as_reference_resolution(
             .collect::<Vec<_>>(),
         ["dedicated", "alias"]
     );
-    for unregistered in ["header-first", "section-first", "paragraph-last", "alias"] {
+    for unregistered in ["header-first", "section-first", "paragraph-first", "alias"] {
         assert!(!parsed.document().references().contains(unregistered));
     }
     assert_eq!(serde_json::to_value(parsed.document())?, before);

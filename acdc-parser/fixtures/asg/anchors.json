@@ -4,45 +4,28 @@
     {
       "anchors": [
         {
-          "id": "para-last",
+          "id": "para-first",
           "location": [
             {
               "col": 1,
-              "line": 4
+              "line": 3
             },
             {
-              "col": 25,
-              "line": 4
-            }
-          ],
-          "reftext": [
-            {
-              "location": [
-                {
-                  "col": 13,
-                  "line": 4
-                },
-                {
-                  "col": 22,
-                  "line": 4
-                }
-              ],
-              "name": "text",
-              "type": "string",
-              "value": "Last label"
+              "col": 27,
+              "line": 3
             }
           ]
         }
       ],
-      "id": "para-first",
+      "id": "para-last",
       "id_location": [
         {
           "col": 1,
-          "line": 3
+          "line": 4
         },
         {
-          "col": 27,
-          "line": 3
+          "col": 25,
+          "line": 4
         }
       ],
       "inlines": [
@@ -554,19 +537,19 @@
       "owner": "/blocks/0/inlines/1",
       "target": "inline"
     },
-    "para-first": {
+    "para-last": {
       "location": [
         {
           "col": 1,
-          "line": 3
+          "line": 4
         },
         {
-          "col": 27,
-          "line": 3
+          "col": 25,
+          "line": 4
         }
       ],
       "owner": "/blocks/0",
-      "target": "para-first"
+      "target": "para-last"
     },
     "section-last": {
       "location": [

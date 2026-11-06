@@ -87,6 +87,21 @@ worker threads while their owner stays alive. `ParseResult` is `Send`, but is no
 `Sync`; sharing the owning result needs synchronization. These are API properties,
 not a promise of a particular parse time or memory layout.
 
+For blocks with metadata, the last authored block ID selects the primary anchor
+in both compatibility modes, matching Asciidoctor. This includes stacked
+`[[id]]` anchors and named `id` attributes. Earlier bracket anchors remain
+available through `anchors()`; they do not register reference aliases. A later
+ID replaces an earlier named ID. An ID without a label keeps the preceding
+reference text; an explicit label replaces it. `id()` and `primary_anchor()` read
+the selected identity without changing the document or its reference catalog.
+
+Native JSON retains metadata declarations. Read `metadata.id` when present;
+otherwise, select the final `metadata.anchors` entry. The named acdc ASG profile
+writes the selected identity as `id`. For caller-built `BlockMetadata`, an
+explicit `id` takes precedence over the anchor list. After editing a prepared
+document, call `rebuild_references_and_toc()` to update registrations. Reads and
+exports do not register anchors or invent source locations.
+
 ### Attributes and content
 
 Quote and verse expose `attribution()` and `citetitle()`; `caption_content()`

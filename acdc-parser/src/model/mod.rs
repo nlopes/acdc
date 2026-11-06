@@ -632,8 +632,7 @@ impl<'a> Block<'a> {
         }
     }
 
-    /// The anchor defining this block's id (its cross-reference target), if any:
-    /// the explicit `[#id]` or the first `[[id]]` anchor.
+    /// The authored anchor selected as this block's cross-reference target.
     pub(crate) fn anchor(&self) -> Option<&Anchor<'a>> {
         match self {
             Block::Section(b) => b.metadata.id_anchor(),

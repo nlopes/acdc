@@ -293,7 +293,14 @@ pub(super) fn push_metadata_anchor<'a>(
     // A later anchor label replaces named reftext; an ID alone does not.
     if anchor.reftext_source.is_some() && metadata.reftext_source.is_some() {
         metadata.reftext_source = anchor.reftext_source.take();
+    } else if anchor.reftext_source.is_none() && metadata.reftext_source.is_none() {
+        metadata.reftext_source = metadata
+            .anchors
+            .last_mut()
+            .and_then(|previous| previous.reftext_source.take());
     }
+    // A later block anchor overrides an earlier named ID.
+    metadata.id = None;
     metadata.anchors.push(anchor);
     Ok(())
 }

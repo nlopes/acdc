@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Blocks with stacked IDs now use the last authored ID for their HTML wrapper
+  and automatic cross-reference labels, matching Asciidoctor in both variants.
+  Earlier bracket anchors do not create extra link targets.
+
 - Lists marked `[%interactive]` render enabled checkbox inputs in both HTML
   variants, matching Asciidoctor. Nested lists need their own option. Ordinary
   items and default static checklists keep their existing output; uppercase `X`

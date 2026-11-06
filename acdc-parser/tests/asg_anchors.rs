@@ -23,10 +23,9 @@ fn retained_declarations_preserve_primary_selection_labels_and_locations() -> Re
         let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value, expected, "{mode:?}");
         for (path, expected) in [
-            ("/blocks/0/id", json!("para-first")),
+            ("/blocks/0/id", json!("para-last")),
             ("/blocks/0/reftext/0/value", json!("Last label")),
-            ("/blocks/0/anchors/0/id", json!("para-last")),
-            ("/blocks/0/anchors/0/reftext/0/value", json!("Last label")),
+            ("/blocks/0/anchors/0/id", json!("para-first")),
             ("/blocks/0/inlines/1/name", json!("anchor")),
             ("/blocks/0/inlines/1/id", json!("inline")),
             ("/blocks/0/inlines/1/reftext/0/variant", json!("strong")),
@@ -37,7 +36,8 @@ fn retained_declarations_preserve_primary_selection_labels_and_locations() -> Re
         }
         assert!(value.pointer("/blocks/0/id_location").is_some());
         assert!(value.pointer("/blocks/0/anchors/0/location").is_some());
-        assert!(!parsed.document().references().contains("para-last"));
+        assert!(value.pointer("/blocks/0/anchors/0/reftext").is_none());
+        assert!(!parsed.document().references().contains("para-first"));
         assert!(!parsed.document().references().contains("section-first"));
         assert_eq!(serde_json::to_value(parsed.document())?, before);
         assert!(

@@ -64,7 +64,7 @@ pub(super) fn label<'a, 'doc>(
 }
 
 pub(super) fn anchor<'a, 'doc>(value: &'a BlockMetadata<'doc>) -> Option<&'a Anchor<'doc>> {
-    value.id.as_ref().or_else(|| value.anchors.first())
+    value.id_anchor()
 }
 
 pub(super) fn title(

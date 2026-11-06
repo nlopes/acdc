@@ -17,9 +17,9 @@ impl<'doc> BlockRef<'doc> {
 
     /// The primary ID, including a parser-assigned section ID.
     ///
-    /// Sections select the dedicated ID or last anchor; other blocks select the
-    /// dedicated ID or first anchor, matching reference registration. Reads do
-    /// not generate an ID for a caller-built section without an assigned one.
+    /// Blocks with metadata select the dedicated ID or last retained anchor.
+    /// Reads do not generate an ID for a caller-built section without an
+    /// assigned one.
     ///
     /// ```
     /// use acdc_parser::{Options, parse, ast::IdOrigin};

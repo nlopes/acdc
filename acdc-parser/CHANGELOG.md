@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Blocks with metadata now select the last authored ID, including stacked
+  anchors and named IDs, in both compatibility modes. Cross-reference labels,
+  typed identity reads, and named ASG output agree with that selection, matching
+  Asciidoctor. Earlier bracket anchors remain declarations, not link aliases.
+
 - Empty inline formulas, buttons, and keyboard sequences remain shared acdc
   extensions in both compatibility modes. Asciidoctor leaves isolated empty
   forms literal. Empty and whitespace-only menu item lists remain distinct.

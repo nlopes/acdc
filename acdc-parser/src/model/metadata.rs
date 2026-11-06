@@ -192,14 +192,13 @@ impl<'a> BlockMetadata<'a> {
         defaults.contains(substitution)
     }
 
-    /// The anchor that defines this block's id: the explicit `id` (`[#id]`),
-    /// otherwise the first `[[id]]` anchor. `None` when the block has no id.
+    /// The selected explicit ID, otherwise the last retained block anchor.
     pub(crate) fn id_anchor(&self) -> Option<&Anchor<'a>> {
-        self.id.as_ref().or_else(|| self.anchors.first())
+        self.id.as_ref().or_else(|| self.anchors.last())
     }
 
     pub(crate) fn heading_anchor(&self) -> Option<&Anchor<'a>> {
-        self.id.as_ref().or_else(|| self.anchors.last())
+        self.id_anchor()
     }
 
     /// Replace scalar attributes without shadowing dedicated metadata.
