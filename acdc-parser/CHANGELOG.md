@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Thematic breaks keep named IDs and reference labels and select the last
+  authored ID in both compatibility modes. Stacked anchors no longer lose the
+  selected label. Earlier declarations remain available without becoming
+  registered aliases. Draft reports unresolved references inside these labels.
+
 - Blocks with metadata now select the last authored ID, including stacked
   anchors and named IDs, in both compatibility modes. Cross-reference labels,
   typed identity reads, and named ASG output agree with that selection, matching

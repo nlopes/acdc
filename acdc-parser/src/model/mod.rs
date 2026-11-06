@@ -649,7 +649,7 @@ impl<'a> Block<'a> {
             Block::CalloutList(b) => b.metadata.id_anchor(),
             Block::DescriptionList(b) => b.metadata.id_anchor(),
             Block::TableOfContents(b) => b.metadata.id_anchor(),
-            Block::ThematicBreak(b) => b.anchors.first(),
+            Block::ThematicBreak(b) => b.primary_anchor(),
             Block::DocumentAttribute(_) | Block::Comment(_) => None,
         }
     }

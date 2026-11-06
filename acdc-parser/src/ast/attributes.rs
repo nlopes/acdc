@@ -684,7 +684,7 @@ impl<'doc> AttributesRef<'doc> {
                     })
                 }),
             Owner::Header(node) => node.metadata.heading_anchor().map(ElementIdRef::from),
-            Owner::ThematicBreak(node) => node.anchors.first().map(ElementIdRef::from),
+            Owner::ThematicBreak(node) => node.primary_anchor().map(ElementIdRef::from),
             Owner::Paragraph(_)
             | Owner::Delimited(_)
             | Owner::Admonition(_)
@@ -706,7 +706,7 @@ impl<'doc> AttributesRef<'doc> {
 
     pub(super) fn primary_anchor(self) -> Option<AnchorRef<'doc>> {
         if let Owner::ThematicBreak(node) = self.owner {
-            return node.anchors.first().map(AnchorRef::from);
+            return node.primary_anchor().map(AnchorRef::from);
         }
         let metadata = self.metadata()?;
         let anchor = if matches!(self.owner, Owner::Section(_) | Owner::Header(_)) {

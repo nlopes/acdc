@@ -36,6 +36,7 @@ use crate::{
                 metadata_comment, metadata_marks_discrete_heading, order_block_prefix_events,
                 parse_block_attribute_list, push_metadata_anchor, resolve_block_content_attributes,
                 resolve_title, route_block_positions, route_media_attributes, select_heading_style,
+                thematic_break_anchors,
             },
             paragraph::{ParagraphParams, build_paragraph},
             references::{
@@ -1892,7 +1893,7 @@ peg::parser! {
         {
             tracing::debug!("Found thematic break block");
             Ok(Block::ThematicBreak(ThematicBreak {
-                anchors: block_metadata.metadata.anchors.clone(),
+                anchors: thematic_break_anchors(&block_metadata.metadata),
                 title: block_metadata.title.clone(),
                 location: state.create_block_location(start, span_end, offset),
             }))

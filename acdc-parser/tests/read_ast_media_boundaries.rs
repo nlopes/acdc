@@ -157,7 +157,7 @@ fn thematic_break_inventory_contains_only_retained_title_and_identity(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
-        ".Pause\n[[first]]\n[[alias,Label]]\n[role=not-retained,width=50]\n'''\n",
+        ".Pause\n[[first]]\n[[last,Label]]\n[role=not-retained,width=50]\n'''\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let BlockKind::ThematicBreak(rule) = parsed.document().blocks().next().ok_or("rule")?.kind()
@@ -165,10 +165,10 @@ fn thematic_break_inventory_contains_only_retained_title_and_identity(
         return Err("thematic break".into());
     };
     assert_eq!(text(rule.title().ok_or("title")?)?, "Pause");
-    assert_eq!(rule.id().ok_or("id")?.as_str(), "first");
+    assert_eq!(rule.id().ok_or("id")?.as_str(), "last");
     assert_eq!(
         rule.anchors().map(AnchorRef::id).collect::<Vec<_>>(),
-        ["first", "alias"]
+        ["first", "last"]
     );
     assert_eq!(
         text(
@@ -186,7 +186,7 @@ fn thematic_break_inventory_contains_only_retained_title_and_identity(
     );
     assert_eq!(
         rule.attributes().get("id"),
-        Some(AttributeValueRef::Text("first"))
+        Some(AttributeValueRef::Text("last"))
     );
     assert!(!rule.attributes().contains("role"));
     assert!(!rule.attributes().contains("width"));

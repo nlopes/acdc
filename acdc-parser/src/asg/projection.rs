@@ -508,13 +508,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 self.block_metadata(&mut result, &page.metadata, Some(&page.title), at)?;
                 result
             }
-            Block::ThematicBreak(thematic) => {
-                let mut result = node("break", "block");
-                result.insert("variant".into(), "thematic".into());
-                metadata::title(&mut result, &thematic.title, at, self.profile)?;
-                self.identity(&mut result, &thematic.anchors, Some(&thematic.title), at)?;
-                result
-            }
+            Block::ThematicBreak(thematic) => self.thematic_break(thematic, at)?,
             Block::Admonition(value) => self.admonition(value, at)?,
             Block::DocumentAttribute(attribute) => attributes::block(attribute, at, self.profile)?,
         };

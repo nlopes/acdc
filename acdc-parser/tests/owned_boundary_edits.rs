@@ -186,14 +186,21 @@ fn thematic_anchor_transfers_preserve_order_content_and_source_lifetimes() -> Re
     rebuilt.push_anchor(Anchor::new("second", Location::default()));
     rebuilt.set_location(Location::default());
     let read = ThematicBreakRef::from(&rebuilt);
-    assert_eq!(read.id().ok_or("id")?.as_str(), "original");
+    assert_eq!(read.id().ok_or("id")?.as_str(), "second");
     assert_eq!(
         read.anchors()
             .map(acdc_parser::ast::AnchorRef::id)
             .collect::<Vec<_>>(),
         ["original", "second", "second"]
     );
-    assert_eq!(read.id().ok_or("id")?.as_str().as_ptr(), id.as_ptr());
+    assert_eq!(
+        read.anchors()
+            .next()
+            .ok_or("original anchor")?
+            .id()
+            .as_ptr(),
+        id.as_ptr()
+    );
     Ok(())
 }
 

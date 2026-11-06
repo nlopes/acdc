@@ -154,8 +154,15 @@ pub(crate) fn blocks<'a, V: ReferenceVisitor<'a>>(
                 }
             }
             Block::DelimitedBlock(block) => delimited(visitor, &mut block.inner, record_toc)?,
+            Block::ThematicBreak(rule) => {
+                if let Some(label) = rule
+                    .primary_anchor()
+                    .and_then(|anchor| anchor.xreflabel.as_ref())
+                {
+                    inlines(visitor, label.as_inlines())?;
+                }
+            }
             Block::DiscreteHeader(_)
-            | Block::ThematicBreak(_)
             | Block::PageBreak(_)
             | Block::Image(_)
             | Block::Audio(_)

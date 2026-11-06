@@ -1,6 +1,6 @@
 use crate::{
     Admonition, AdmonitionForm, Anchor, BlockMetadata, DelimitedBlock, DelimitedBlockType,
-    DiscreteHeader, Paragraph, Source, Title,
+    DiscreteHeader, Paragraph, Source, ThematicBreak, Title,
 };
 
 use super::{
@@ -252,6 +252,55 @@ impl<'a, 'doc> Export<'a, 'doc> {
         let mut result = node("heading", "block");
         result.insert("level".into(), value.level.into());
         self.block_metadata(&mut result, &value.metadata, Some(&value.title), path)?;
+        Ok(result)
+    }
+
+    pub(super) fn thematic_break(
+        &mut self,
+        value: &'a ThematicBreak<'doc>,
+        path: &str,
+    ) -> Result<Node, Error> {
+        if self.profile == Profile::Upstream && value.anchors.len() > 1 {
+            return Err(unsupported(
+                &pointer(path, "anchors"),
+                "multiple break identities need a lossless mapping",
+            ));
+        }
+        let mut result = node("break", "block");
+        result.insert("variant".into(), "thematic".into());
+        metadata::title(&mut result, &value.title, path, self.profile)?;
+        super::super::identities::apply(
+            &mut result,
+            value.primary_anchor(),
+            value.anchors.iter(),
+            self.profile,
+            path,
+        )?;
+        if let Some(primary) = value.primary_anchor() {
+            if primary.is_bibliography() {
+                return Err(unsupported(
+                    &pointer(path, "anchors"),
+                    "bibliography identity has no supported upstream mapping",
+                ));
+            }
+            if let Some(label) = &primary.xreflabel {
+                result.insert(
+                    "reftext".into(),
+                    inlines(label.as_inlines(), &pointer(path, "reftext"), self.profile)?,
+                );
+            }
+            self.insert_target(
+                primary.id.into(),
+                Target {
+                    owner: Some(path.into()),
+                    title: value.title.is_present().then_some(&value.title),
+                    label: primary.xreflabel.as_ref(),
+                    section: None,
+                    caption: None,
+                },
+                path,
+            )?;
+        }
         Ok(result)
     }
 

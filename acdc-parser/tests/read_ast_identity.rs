@@ -202,7 +202,7 @@ fn restricted_and_absent_owners_do_not_synthesize_metadata() -> Result<(), Error
     )?;
     let mut blocks = parsed.document().blocks();
     let rule = blocks.next().ok_or("rule")?;
-    assert_eq!(rule.id().ok_or("rule ID")?.as_str(), "first");
+    assert_eq!(rule.id().ok_or("rule ID")?.as_str(), "second");
     assert_eq!(
         rule.anchors().map(AnchorRef::id).collect::<Vec<_>>(),
         ["first", "second"]

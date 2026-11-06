@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Thematic breaks honor named `id` and `reftext` attributes and select the last
+  stacked ID. Automatic labels keep inherited text, formatting, and title
+  fallbacks. Both variants retain acdc's HTML targets on horizontal rules;
+  Asciidoctor omits those IDs.
+
 - Blocks with stacked IDs now use the last authored ID for their HTML wrapper
   and automatic cross-reference labels, matching Asciidoctor in both variants.
   Earlier bracket anchors do not create extra link targets.

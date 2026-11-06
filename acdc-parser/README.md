@@ -102,6 +102,14 @@ explicit `id` takes precedence over the anchor list. After editing a prepared
 document, call `rebuild_references_and_toc()` to update registrations. Reads and
 exports do not register anchors or invent source locations.
 
+Thematic breaks also select the last authored ID. Their native JSON keeps IDs
+in the `anchors` array, including a surviving named `id`. The selected anchor
+owns its reference text; read it through `AnchorRef::reftext()`. Inherited labels
+keep their original source locations. The same selection applies to caller-built
+thematic breaks. Earlier declarations do not
+register aliases. HTML keeps an ID on the horizontal rule so links have a target;
+Asciidoctor omits that ID.
+
 ### Attributes and content
 
 Quote and verse expose `attribution()` and `citetitle()`; `caption_content()`

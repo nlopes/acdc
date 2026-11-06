@@ -1,0 +1,77 @@
+{
+  "recovery": null,
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 507,
+        "absolute_start": 492,
+        "file": "thematic_break_ids.adoc",
+        "location": [
+          {
+            "col": 5,
+            "line": 34
+          },
+          {
+            "col": 20,
+            "line": 34
+          }
+        ]
+      },
+      "message": "invalid reference: unused-stack"
+    },
+    {
+      "location": {
+        "absolute_end": 551,
+        "absolute_start": 532,
+        "file": "thematic_break_ids.adoc",
+        "location": [
+          {
+            "col": 45,
+            "line": 34
+          },
+          {
+            "col": 64,
+            "line": 34
+          }
+        ]
+      },
+      "message": "invalid reference: unused-inherited"
+    },
+    {
+      "location": {
+        "absolute_end": 584,
+        "absolute_start": 569,
+        "file": "thematic_break_ids.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 35
+          },
+          {
+            "col": 16,
+            "line": 35
+          }
+        ]
+      },
+      "message": "invalid reference: before-named"
+    },
+    {
+      "location": {
+        "absolute_end": 619,
+        "absolute_start": 603,
+        "file": "thematic_break_ids.adoc",
+        "location": [
+          {
+            "col": 35,
+            "line": 35
+          },
+          {
+            "col": 51,
+            "line": 35
+          }
+        ]
+      },
+      "message": "invalid reference: before-anchor"
+    }
+  ]
+}

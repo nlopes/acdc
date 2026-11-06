@@ -111,6 +111,12 @@ presentation as their delimited forms. Block IDs, selected anchors, roles, title
 captions, and inline formatting remain available in both the standard and
 semantic backends, so cross-references can reach the rendered wrappers.
 
+Thematic breaks accept `[[divider,Label]]` and
+`[id=divider,reftext='Label']`. The last ID wins; earlier declarations do not
+create link targets. An ID without a label keeps preceding reference text.
+The selected ID is emitted on `<hr>` in both HTML variants. This preserves an
+acdc extension: Asciidoctor omits the horizontal rule's ID.
+
 Delimited quote blocks display their lead-in titles above the quoted content,
 including inside AsciiDoc table cells and attached list blocks.
 

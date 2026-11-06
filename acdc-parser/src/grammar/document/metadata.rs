@@ -305,6 +305,19 @@ pub(super) fn push_metadata_anchor<'a>(
     Ok(())
 }
 
+/// Thematic breaks keep the selected ID and reference text on one anchor.
+pub(super) fn thematic_break_anchors<'a>(metadata: &BlockMetadata<'a>) -> Vec<Anchor<'a>> {
+    let mut anchors = metadata.anchors.clone();
+    anchors.extend(metadata.id.iter().cloned());
+    if let Some(primary) = anchors.last_mut()
+        && metadata.reftext.is_some()
+    {
+        primary.xreflabel.clone_from(&metadata.reftext);
+        primary.reftext_source = metadata.reftext_source;
+    }
+    anchors
+}
+
 pub(super) fn merge_attribute_metadata<'input>(
     metadata: &mut BlockMetadata<'input>,
     mut attribute_metadata: BlockMetadata<'input>,

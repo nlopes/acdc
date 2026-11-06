@@ -150,7 +150,7 @@ impl<'doc> ThematicBreakRef<'doc> {
         AttributesRef::thematic_break(self.node)
     }
 
-    /// The first retained anchor's ID, if present.
+    /// The last retained anchor's ID, if present.
     #[must_use]
     pub fn id(self) -> Option<ElementIdRef<'doc>> {
         self.attributes().id()

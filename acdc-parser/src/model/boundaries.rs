@@ -153,12 +153,18 @@ impl<'a> ThematicBreak<'a> {
         }
     }
 
+    /// The final retained anchor, if any.
+    pub(crate) fn primary_anchor(&self) -> Option<&Anchor<'a>> {
+        self.anchors.last()
+    }
+
     /// Replace anchors in their supplied order without rebuilding reference catalogs.
+    /// The last anchor supplies the primary ID and reference text.
     pub fn set_anchors(&mut self, anchors: impl IntoIterator<Item = Anchor<'a>>) {
         self.anchors = anchors.into_iter().collect();
     }
 
-    /// Append an anchor without rebuilding reference catalogs.
+    /// Append an anchor and select it as primary without rebuilding reference catalogs.
     pub fn push_anchor(&mut self, anchor: Anchor<'a>) {
         self.anchors.push(anchor);
     }
