@@ -106,10 +106,10 @@ fn resolve_custom_css(
 /// `MathJax` build on their own page.
 pub const MATHJAX_LOADER_URL: &str = "https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js";
 
-/// The inline `MathJax` configuration `<script>` acdc emits when `:stem:` is set,
-/// wrapping the JavaScript in `static/mathjax-config.js` (embedded at compile
-/// time). Exposed for embedded-mode consumers to reproduce the same
-/// configuration; its CSP `script-src` hash is [`MATHJAX_CONFIG_CSP_HASH`].
+/// The base `MathJax` configuration script. Standalone output adds an `eqnums`
+/// override when requested. Embedded consumers can set `MathJax.tex.tags` after
+/// this script and before loading `MathJax`. The base script's CSP `script-src`
+/// hash is [`MATHJAX_CONFIG_CSP_HASH`].
 pub const MATHJAX_CONFIG_SCRIPT: &str = concat!(
     "<script>",
     include_str!("../static/mathjax-config.js"),
@@ -122,8 +122,27 @@ pub const MATHJAX_CONFIG_SCRIPT: &str = concat!(
 /// script.
 pub const MATHJAX_CONFIG_CSP_HASH: &str = env!("ACDC_MATHJAX_CONFIG_CSP_HASH");
 
-fn add_mathjax<W: Write>(writer: &mut W) -> Result<(), Error> {
+fn mathjax_numbering_script(
+    attributes: DocumentAttributesRef<'_>,
+) -> Option<(&'static str, &'static str)> {
+    match document_attribute_text(attributes.get("eqnums")) {
+        Some("" | "AMS") => Some((
+            include_str!("../static/mathjax-eqnums-ams.js"),
+            env!("ACDC_MATHJAX_EQNUMS_AMS_CSP_HASH"),
+        )),
+        Some("all") => Some((
+            include_str!("../static/mathjax-eqnums-all.js"),
+            env!("ACDC_MATHJAX_EQNUMS_ALL_CSP_HASH"),
+        )),
+        _ => None,
+    }
+}
+
+fn add_mathjax<W: Write>(writer: &mut W, numbering: Option<&str>) -> Result<(), Error> {
     writeln!(writer, "{MATHJAX_CONFIG_SCRIPT}")?;
+    if let Some(script) = numbering {
+        writeln!(writer, "<script>{script}</script>")?;
+    }
     writeln!(
         writer,
         r#"<script defer src="{MATHJAX_LOADER_URL}"></script>"#
@@ -522,11 +541,17 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
 
     /// The acdc features this document uses, for building its CSP. Mirrors the
     /// gating the head uses to decide which scripts, fonts, and CDNs it emits.
-    fn csp_features(&self, stem: bool, font_icons: bool) -> crate::CspFeatures {
+    fn csp_features(
+        &self,
+        stem: bool,
+        font_icons: bool,
+        mathjax_numbering_hash: Option<&'static str>,
+    ) -> crate::CspFeatures {
         let attrs = DocumentAttributesRef::from(self.processor.document_attributes());
         let stylesheet_disabled = !attrs.contains("stylesheet") && attrs.is_explicit("stylesheet");
         crate::CspFeatures {
             stem,
+            mathjax_numbering_hash,
             webfonts: !(stylesheet_disabled
                 || !attrs.contains("webfonts") && attrs.is_explicit("webfonts")),
             icons_font: font_icons,
@@ -541,6 +566,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         font_icons: bool,
     ) -> Result<(), Error> {
         let dark_mode = self.is_dark_mode();
+        let numbering = mathjax_numbering_script(document.attributes());
 
         writeln!(
             self.writer,
@@ -563,7 +589,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             writeln!(
                 self.writer,
                 r#"<meta http-equiv="Content-Security-Policy" content="{}">"#,
-                self.csp_features(stem, font_icons)
+                self.csp_features(stem, font_icons, numbering.map(|(_, hash)| hash))
                     .content_security_policy()
             )?;
         }
@@ -578,7 +604,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
 
         // Add MathJax if stem is enabled
         if stem {
-            add_mathjax(&mut self.writer)?;
+            add_mathjax(&mut self.writer, numbering.map(|(script, _)| script))?;
         }
 
         // Add Font Awesome if icons are set to font mode

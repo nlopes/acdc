@@ -18,6 +18,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ACDC_REPLAY_PLAYER_CSP_HASH",
     )?;
     emit_csp_hash("static/mathjax-config.js", "ACDC_MATHJAX_CONFIG_CSP_HASH")?;
+    emit_csp_hash(
+        "static/mathjax-eqnums-ams.js",
+        "ACDC_MATHJAX_EQNUMS_AMS_CSP_HASH",
+    )?;
+    emit_csp_hash(
+        "static/mathjax-eqnums-all.js",
+        "ACDC_MATHJAX_EQNUMS_ALL_CSP_HASH",
+    )?;
     Ok(())
 }
 

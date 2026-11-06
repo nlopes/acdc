@@ -11,8 +11,7 @@
 //! CDN, while keeping passive resources (images, media, video embeds) permissive
 //! so arbitrary document content keeps loading.
 
-/// Which acdc features a document uses, so the right sources end up in its Content
-/// Security Policy. Defaults to all `false`.
+/// Features and script hashes used to build a document's Content Security Policy.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[expect(
     clippy::struct_excessive_bools,
@@ -22,6 +21,8 @@ pub(crate) struct CspFeatures {
     /// `:stem:` is set, so the inline `MathJax` config and the `MathJax` CDN loader are
     /// emitted.
     pub stem: bool,
+    /// Hash of the selected equation-numbering override, when STEM is enabled.
+    pub mathjax_numbering_hash: Option<&'static str>,
     /// Webfonts are linked (Google Fonts CSS + font files).
     pub webfonts: bool,
     /// `icons=font` is set, so the Font Awesome stylesheet (and its fonts) are loaded
@@ -56,6 +57,11 @@ impl CspFeatures {
             script_src.push_str(" '");
             script_src.push_str(crate::MATHJAX_CONFIG_CSP_HASH);
             script_src.push_str("' https://cdn.jsdelivr.net");
+            if let Some(hash) = self.mathjax_numbering_hash {
+                script_src.push_str(" '");
+                script_src.push_str(hash);
+                script_src.push('\'');
+            }
         }
 
         let mut style_src = String::from("style-src 'self' 'unsafe-inline'");

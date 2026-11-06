@@ -1,0 +1,1 @@
+MathJax.tex.tags = 'all';

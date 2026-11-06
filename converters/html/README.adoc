@@ -695,6 +695,15 @@ For details on the icon macro syntax, see the https://docs.asciidoctor.org/ascii
 
 Render mathematical formulas using MathJax 4. Enable it by setting the `:stem:` document attribute.
 
+In the document header, set `:eqnums:` or `:eqnums: AMS` to select AMS equation
+numbering, or `:eqnums: all` to select numbering for every displayed equation.
+An absent, unset, or `none` value keeps automatic numbering off. Other values
+also leave it off. Body assignments do not change this header setting.
+Both HTML variants emit the corresponding
+https://docs.mathjax.org/en/stable/input/tex/eqnumbers.html[MathJax 4 configuration].
+Formula source remains unchanged. Embedded output does not emit loader or
+configuration scripts; its host controls MathJax settings.
+
 [source,asciidoc]
 ....
 = My Document
