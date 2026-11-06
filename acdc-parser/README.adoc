@@ -1356,6 +1356,16 @@ addresses the document top; the empty entry in `DocumentRef::references()` suppl
 reference text. Converters must check the local flag before treating a target as
 a filename. When changing a destination, update both fields.
 
+Document `reftext` at the end of the header takes precedence over the label
+on the header's explicit ID. Both targets use the document title when that
+attribute is empty or unset. Explicit text on a cross-reference still wins.
+The authored header label remains separate in the AST and named ASG output.
+Caller attribute locks also apply to these labels; Asciidoctor can let header
+metadata override a locked `reftext`.
+Prepared reference repair retains the document label when the header ID or
+title changes. Body assignments do not replace this header snapshot; this
+remains a difference from Asciidoctor in both compatibility modes.
+
 For combined or partially included sources that keep file-qualified references,
 enable `Options::builder().with_force_local_file_xrefs()`.
 This turns `<<chapter.adoc#installation>>` into `<<installation>>` and keeps custom

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document `reftext` now overrides the authored header label for references to
+  its explicit ID in both modes, as it does for document-top references.
+  Empty and unset header values select the document title. Authored labels
+  remain separate, and prepared reference repair keeps the document label.
+
 - Thematic breaks keep named IDs and reference labels and select the last
   authored ID in both compatibility modes. Stacked anchors no longer lose the
   selected label. Earlier declarations remain available without becoming

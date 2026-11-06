@@ -63,7 +63,7 @@ impl Hash for SectionOccurrence {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum DocumentTopLabel {
+pub(crate) enum DocumentReferenceLabel {
     Header,
     Attribute,
 }
@@ -311,10 +311,10 @@ pub(crate) struct SectionReference {
 #[non_exhaustive]
 pub struct Reference<'a> {
     pub(crate) occurrence: Option<SectionOccurrence>,
-    pub(crate) document_top_label: Option<DocumentTopLabel>,
+    pub(crate) document_label: Option<DocumentReferenceLabel>,
     pub(crate) target: &'a str,
-    /// Optional cross-reference label from `reftext=` or `[[id,xreflabel]]`,
-    /// copied from the target's parsed content without another inline parse.
+    /// Optional prepared cross-reference label from target metadata or document
+    /// `reftext`.
     /// When set, it is the reference text; otherwise converters
     /// use `title` and, for captioned targets, `caption`.
     pub(crate) xreflabel: Option<ContentAttribute<'a>>,
@@ -417,7 +417,7 @@ impl<'a> Reference<'a> {
     pub fn new(target: &'a str, location: Location) -> Self {
         Self {
             occurrence: None,
-            document_top_label: None,
+            document_label: None,
             target,
             xreflabel: None,
             title: None,

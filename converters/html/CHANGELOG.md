@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- References to an explicit document ID now honor the header's document
+  `reftext`, matching document-top links and Asciidoctor in both HTML variants.
+  Empty or unset values fall back to the title; explicit link text still wins.
+
 - Thematic breaks honor named `id` and `reftext` attributes and select the last
   stacked ID. Automatic labels keep inherited text, formatting, and title
   fallbacks. Both variants retain acdc's HTML targets on horizontal rules;

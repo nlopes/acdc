@@ -7,7 +7,7 @@ use crate::{
     Anchor, Block, BlockMetadata, Caption, ContentAttribute, CrossReference, Document, Header,
     Location, Reference, ReferenceRepairError, Section, Title, TocEntry,
     grammar::reference_walk::{self, ReferenceVisitor},
-    model::{DocumentTopLabel, SectionOccurrence, displayed_reference_label},
+    model::{DocumentReferenceLabel, SectionOccurrence, displayed_reference_label},
 };
 
 struct RebuiltReferences<'a> {
@@ -138,10 +138,17 @@ impl<'a> ReferenceVisitor<'a> for AssignSections {
     }
 }
 
-fn document_top<'a>(document: &Document<'a>) -> Result<Reference<'a>, ReferenceRepairError> {
-    let previous = document.references.get("");
-    let origin = previous.and_then(|reference| reference.document_top_label);
-    if document.attributes.text("reftext").is_some() && origin != Some(DocumentTopLabel::Attribute)
+fn document_reference<'a>(document: &Document<'a>) -> Result<Reference<'a>, ReferenceRepairError> {
+    let previous = document.references.get("").or_else(|| {
+        document
+            .references
+            .values()
+            .find(|reference| reference.document_label == Some(DocumentReferenceLabel::Attribute))
+    });
+    let origin = previous.and_then(|reference| reference.document_label);
+    if (document.attributes.assignment("reftext").is_some()
+        || document.attributes.contains_key("reftext"))
+        && origin != Some(DocumentReferenceLabel::Attribute)
     {
         return Err(ReferenceRepairError::MissingDocumentReftext {
             location: Box::new(document.location.clone()),
@@ -166,8 +173,8 @@ fn document_top<'a>(document: &Document<'a>) -> Result<Reference<'a>, ReferenceR
     );
     let mut reference = Reference::new("", location);
     reference.title = title.map(|title| ContentAttribute::new(title.into_inlines()));
-    reference.document_top_label = Some(origin.unwrap_or(DocumentTopLabel::Header));
-    reference.xreflabel = if origin == Some(DocumentTopLabel::Attribute) {
+    reference.document_label = Some(origin.unwrap_or(DocumentReferenceLabel::Header));
+    reference.xreflabel = if origin == Some(DocumentReferenceLabel::Attribute) {
         previous.and_then(|reference| reference.xreflabel.clone())
     } else {
         document.header.as_ref().and_then(|header| {
@@ -189,7 +196,7 @@ impl Document<'_> {
     ///
     /// # Errors
     /// Returns an error without changing the document if a section has no assigned
-    /// or explicit ID, or a document-top label lacks prepared attribute context.
+    /// or explicit ID, or a document reference label lacks prepared attribute context.
     pub fn rebuild_references_and_toc(&mut self) -> Result<(), ReferenceRepairError> {
         let mut rebuilt = RebuiltReferences {
             entries: HashMap::new(),
@@ -200,10 +207,17 @@ impl Document<'_> {
         };
         if let Some(header) = &self.header {
             reference_walk::header(&mut rebuilt, header)?;
+            if let Some(anchor) = header.metadata.heading_anchor()
+                && let Some(reference) = rebuilt.entries.get_mut(anchor.id)
+            {
+                let prepared = document_reference(self)?;
+                reference.xreflabel = prepared.xreflabel;
+                reference.document_label = prepared.document_label;
+            }
         }
         reference_walk::blocks(&mut rebuilt, &mut self.blocks, true)?;
         if rebuilt.needs_document_top {
-            rebuilt.entries.insert("", document_top(self)?);
+            rebuilt.entries.insert("", document_reference(self)?);
         }
         for target in &rebuilt.automatic {
             let canonical = rebuilt

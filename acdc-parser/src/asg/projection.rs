@@ -644,8 +644,8 @@ impl<'a, 'doc> Export<'a, 'doc> {
             });
             let independent_label = self.profile == Profile::Acdc
                 && (reference.target != *id
-                    || reference.document_top_label
-                        == Some(crate::model::DocumentTopLabel::Attribute));
+                    || reference.document_label
+                        == Some(crate::model::DocumentReferenceLabel::Attribute));
             if self.profile == Profile::Upstream && reference.target != *id
                 || reference.title.as_ref().map(ContentAttribute::as_inlines)
                     != target.title.map(Title::as_inlines)

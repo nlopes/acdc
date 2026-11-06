@@ -1,8 +1,9 @@
 //! Reference registration and document finalization.
 
 use crate::{
-    Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlockType, Document, Header,
-    InlineMacro, InlineNode, Location, Reference, Section, Title, TocEntry, Warning, WarningKind,
+    Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlockType, Document,
+    DocumentAttributes, Header, InlineMacro, InlineNode, Location, Reference, Section, Title,
+    TocEntry, Warning, WarningKind,
     grammar::{
         ParserState,
         document::sections::warn_for_nested_special_section,
@@ -123,7 +124,7 @@ fn insert_untitled_reference<'a>(
         id,
         Reference {
             occurrence: None,
-            document_top_label: None,
+            document_label: None,
             target: id,
             xreflabel: None,
             title: None,
@@ -295,15 +296,20 @@ pub(super) fn resolve_source_target<'a>(
         .then_some(fragment)
 }
 
-pub(super) fn register_document_top<'a>(
+pub(super) fn register_document_references<'a>(
     state: &mut ParserState<'a>,
     document: &mut Document<'a>,
     xrefs: &[CrossReferenceUse<'a>],
+    natural_targets: &mut HashMap<&'a str, &'a str>,
 ) -> Result<(), crate::Error> {
-    if !xrefs
+    let needs_top = xrefs
         .iter()
-        .any(|xref| resolve_source_target(state, xref.target, xref.source_syntax) == Some(""))
-    {
+        .any(|xref| resolve_source_target(state, xref.target, xref.source_syntax) == Some(""));
+    let header_id = document
+        .header
+        .as_ref()
+        .and_then(|header| header.metadata.heading_anchor().map(|anchor| anchor.id));
+    if !needs_top && header_id.is_none() {
         return Ok(());
     }
     let title = document
@@ -323,7 +329,10 @@ pub(super) fn register_document_top<'a>(
         || document.location.clone(),
         |header| header.location.clone(),
     );
-    let label = if let Some(label) = document.attributes.text("reftext") {
+    let has_attribute = document.attributes.assignment("reftext").is_some()
+        || document.attributes.contains_key("reftext");
+    let label = if has_attribute {
+        let label = document.attributes.text("reftext").unwrap_or("");
         let source = crate::grammar::reference_text::capture_inline(
             state,
             state.intern_str(label),
@@ -338,15 +347,33 @@ pub(super) fn register_document_top<'a>(
             .as_ref()
             .and_then(|header| displayed_reference_label(metadata_xreflabel(&header.metadata)))
     };
+    let origin = if has_attribute {
+        crate::model::DocumentReferenceLabel::Attribute
+    } else {
+        crate::model::DocumentReferenceLabel::Header
+    };
+    if let Some(id) = header_id {
+        if let Some(reference) = document.references.get_mut(id) {
+            reference.xreflabel.clone_from(&label);
+            reference.document_label = Some(origin);
+        }
+        if has_attribute
+            && let Some(label) = document
+                .attributes
+                .text("reftext")
+                .filter(|label| !label.trim().is_empty())
+        {
+            natural_targets.insert(state.intern_str(label), id);
+        }
+    }
+    if !needs_top {
+        return Ok(());
+    }
     document.references.insert(
         "",
         Reference {
             occurrence: None,
-            document_top_label: Some(if document.attributes.text("reftext").is_some() {
-                crate::model::DocumentTopLabel::Attribute
-            } else {
-                crate::model::DocumentTopLabel::Header
-            }),
+            document_label: Some(origin),
             target: "",
             xreflabel: label,
             title: title.map(|title| ContentAttribute::new(title.into_inlines())),
@@ -404,7 +431,7 @@ fn register_section_reference<'a>(
             id,
             Reference {
                 occurrence: None,
-                document_top_label: None,
+                document_label: None,
                 target: id,
                 xreflabel: displayed_reference_label(xreflabel),
                 title: Some(ContentAttribute::new(section.title.clone().into_inlines())),
@@ -426,21 +453,6 @@ struct ParsingReferences<'s, 'a> {
 
 impl<'a> ReferenceVisitor<'a> for ParsingReferences<'_, 'a> {
     type Error = std::convert::Infallible;
-
-    fn header(&mut self, header: &Header<'a>) -> Result<(), Self::Error> {
-        if let Some(anchor) = header.metadata.heading_anchor() {
-            insert_reference(
-                self.state,
-                self.references,
-                anchor,
-                metadata_xreflabel(&header.metadata),
-                metadata_natural_label(self.state, &header.metadata),
-                Some(header_reference_title(header)),
-                None,
-            );
-        }
-        Ok(())
-    }
 
     fn section(&mut self, section: &mut Section<'a>, _record_toc: bool) -> Result<(), Self::Error> {
         register_section_reference(self.state, section, self.references);
@@ -493,9 +505,27 @@ impl<'a> ReferenceVisitor<'a> for ParsingReferences<'_, 'a> {
 pub(super) fn collect_header_references<'a>(
     state: &mut ParserState<'a>,
     header: &Header<'a>,
+    attributes: &DocumentAttributes<'a>,
     references: &mut ReferenceCatalog<'a>,
     uses: &mut Vec<CrossReferenceUse<'a>>,
 ) {
+    if let Some(anchor) = header.metadata.heading_anchor() {
+        let natural =
+            if attributes.assignment("reftext").is_some() || attributes.contains_key("reftext") {
+                None
+            } else {
+                metadata_natural_label(state, &header.metadata)
+            };
+        insert_reference(
+            state,
+            references,
+            anchor,
+            metadata_xreflabel(&header.metadata),
+            natural,
+            Some(header_reference_title(header)),
+            None,
+        );
+    }
     reference_walk::header(
         &mut ParsingReferences {
             state,

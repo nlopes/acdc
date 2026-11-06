@@ -10,7 +10,7 @@ use serde::{
 mod admonition;
 mod anchor;
 pub(crate) use anchor::{
-    BibliographyLabel, DocumentTopLabel, SectionOccurrence, SectionReference,
+    BibliographyLabel, DocumentReferenceLabel, SectionOccurrence, SectionReference,
     displayed_reference_label,
 };
 mod attributes;

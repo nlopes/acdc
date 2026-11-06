@@ -734,6 +734,56 @@
         }
       ],
       "owner": "/header",
+      "reftext": [
+        {
+          "form": "constrained",
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 2,
+                  "line": 1
+                },
+                {
+                  "col": 9,
+                  "line": 1
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Document"
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 1
+            },
+            {
+              "col": 10,
+              "line": 1
+            }
+          ],
+          "name": "span",
+          "type": "inline",
+          "variant": "strong"
+        },
+        {
+          "location": [
+            {
+              "col": 11,
+              "line": 1
+            },
+            {
+              "col": 16,
+              "line": 1
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": " label"
+        }
+      ],
       "target": "guide"
     },
     "inline": {

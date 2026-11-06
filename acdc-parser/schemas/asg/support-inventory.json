@@ -185,7 +185,7 @@
       },
       "strict_export_group": "decorations"
     },
-    "src/model/anchor.rs::DocumentTopLabel": {
+    "src/model/anchor.rs::DocumentReferenceLabel": {
       "shape": {
         "kind": "enum",
         "fields": [],
@@ -212,7 +212,7 @@
         "kind": "struct",
         "fields": [
           "occurrence",
-          "document_top_label",
+          "document_label",
           "target",
           "xreflabel",
           "title",
@@ -231,7 +231,7 @@
         "occurrence": {
           "policy": "derived-catalog"
         },
-        "document_top_label": {
+        "document_label": {
           "policy": "named-reference-registrations"
         },
         "target": {
@@ -6703,7 +6703,7 @@
               "title",
               "location",
               "caption",
-              "document_top_label"
+              "document_label"
             ]
           },
           "schema_pointers": [

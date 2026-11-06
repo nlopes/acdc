@@ -117,6 +117,12 @@ create link targets. An ID without a label keeps preceding reference text.
 The selected ID is emitted on `<hr>` in both HTML variants. This preserves an
 acdc extension: Asciidoctor omits the horizontal rule's ID.
 
+Document `reftext` in the header supplies automatic labels for both the explicit
+document ID and `xref:#[]`. Empty or unset values use the document title, and
+explicit link text takes precedence. Both HTML variants use the parser's header
+snapshot; later body assignments do not change these labels. The semantic
+variant resolves document-top labels where asciidoctor-html5s 0.5.1 emits `[]`.
+
 Delimited quote blocks display their lead-in titles above the quoted content,
 including inside AsciiDoc table cells and attached list blocks.
 

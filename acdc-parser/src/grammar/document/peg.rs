@@ -42,7 +42,7 @@ use crate::{
             references::{
                 ParsedSectionHeader, ReferenceCatalog, collect_header_references,
                 collect_references, finalize_inline_semantics, normalize_bibliography_lists,
-                register_document_top, register_section_header, resolve_source_target,
+                register_document_references, register_section_header, resolve_source_target,
                 resolve_xref_target,
             },
             revision::{IgnoredRevisionFields, RevisionInfo, process_revision_info},
@@ -189,7 +189,7 @@ peg::parser! {
             };
             let mut xrefs = Vec::new();
             if let Some(header) = &header {
-                collect_header_references(state, header, &mut references, &mut xrefs);
+                collect_header_references(state, header, &header_attributes, &mut references, &mut xrefs);
             }
             collect_references(state, &mut blocks, &mut references, &mut xrefs);
             let is_book = is_book_doctype(&header_attributes);
@@ -217,7 +217,7 @@ peg::parser! {
                 toc_entries,
                 references: references.entries,
             };
-            register_document_top(state, &mut document, &xrefs)?;
+            register_document_references(state, &mut document, &xrefs, &mut references.natural_targets)?;
             let reference_ids = document.references.keys().copied().collect::<HashSet<_>>();
 
             // An internal `<<id>>` whose target is absent from the catalog is an
