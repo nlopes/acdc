@@ -158,6 +158,17 @@ The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage b
   fallbacks.
 - Custom macro extensions not supported
 
+== Cross-reference labels
+
+Manpages display reference labels without interdocument links. For
+`xref:guide.adoc[]`, the converter looks up the local `guide` catalog entry.
+Its reference label or title supplies the text; otherwise the output is
+`[guide]`. Fragments remain part of the lookup key, as in `guide#part`.
+This matches Asciidoctor's manpage behavior. Local references such as
+`<<guide.adoc>>` keep the complete ID, and explicit labels take precedence.
+Labels follow the selected parser mode. In Draft mode, double-quoted `reftext`
+values stay literal; use single quotes for formatted labels.
+
 == Date selection
 
 The printed manpage date comes from `docdate`, matching Asciidoctor. Use

@@ -8,7 +8,7 @@ use acdc_converters_core::{
     TraversalContext, decode_numeric_char_refs,
     link::{link_fallback, mailto_fallback, mailto_target},
     substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
-    xref::{XrefDisplay, resolve_local_reference},
+    xref::{XrefDisplay, local_reference_id, resolve_local_reference},
 };
 use acdc_parser::{
     Substitution, SymbolKind,
@@ -717,16 +717,23 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         // guard both outlive the `&mut self` render calls.
         let references = Rc::clone(&self.processor.references);
         let guard = self.processor.xref_guard.clone();
-        let target = xref.target();
+        let target = local_reference_id(xref);
         // Manpages print reference text without a link. Asciidoctor uses a
         // matching local label even when the syntax selects another document.
-        match resolve_local_reference(references.get(target).map(ReferenceRef::from), xref, &guard)
-        {
+        match resolve_local_reference(
+            references.get(target.as_ref()).map(ReferenceRef::from),
+            xref,
+            &guard,
+        ) {
             // A reference to a level-1 section reads as that section's `.SH`
             // heading, which manpages upper-case. An explicit label reads as
             // written.
             XrefDisplay::Title(inlines, _scope) => {
-                let text_case = if self.processor.top_level_section_ids.contains(target) {
+                let text_case = if self
+                    .processor
+                    .top_level_section_ids
+                    .contains(target.as_ref())
+                {
                     TextCase::Uppercase
                 } else {
                     TextCase::Preserve

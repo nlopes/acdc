@@ -557,10 +557,17 @@ Backward full: <<figure-target>> and <<table-target>>.
     Ok(())
 }
 
-#[test]
-fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Error> {
+#[rstest::rstest]
+fn interdocument_xref_macros_use_file_keys_before_natural_titles(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
     let input = "= xref-targets(1)\n:doctype: manpage\n\n== NAME\n\nxref-targets - verify xref targets\n\n== SYNOPSIS\n\nEmpty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n";
-    let parsed = parse(input, &ParserOptions::default())?;
+    let parsed = parse(
+        input,
+        &ParserOptions::builder()
+            .with_compatibility_mode(mode)
+            .build()?,
+    )?;
     let doc = parsed.document();
     let mut output = Vec::new();
     let processor = Processor::new(
@@ -575,7 +582,7 @@ fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Er
     let output = String::from_utf8(output)?;
 
     for expected in [
-        "Empty: [Other.adoc]\\&.",
+        "Empty: [Other]\\&.",
         "Explicit: Other\\&.",
         "Shorthand: OTHER.ADOC\\&.",
         "Fragment: [Foo#Bar]\\&.",

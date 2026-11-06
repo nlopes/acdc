@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- File references such as `xref:guide.adoc[]` use the local `guide` reference
+  label when one exists. Missing or empty labels fall back to `[guide]`, matching
+  Asciidoctor. Explicit labels and local filename-like IDs keep their meaning.
+
 - Manpage dates use `docdate`, matching Asciidoctor's date source. Caller
   overrides and empty or unset values are honored. `revdate` no longer selects
   the printed date; use `docdate` to pin it. Default dates honor

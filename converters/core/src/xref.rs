@@ -1,6 +1,6 @@
 //! Automatic cross-reference display-text resolution.
 
-use std::{cell::Cell, rc::Rc};
+use std::{borrow::Cow, cell::Cell, rc::Rc};
 
 use acdc_parser::{
     XrefCaptionLabel, XrefSignifier, XrefStyle,
@@ -131,6 +131,9 @@ pub fn resolve_reference<'doc, 'guard, 'xref>(
 ///
 /// Manpages use matching local labels even for interdocument syntax. This keeps
 /// their display policy separate from the parser's retained target classification.
+/// External `.adoc` paths use their stem as the catalog key and fallback text.
+/// Empty reference labels use the target title or the ID fallback.
+/// Select the catalog entry with [`local_reference_id`].
 /// Label precedence, styles, fallbacks, and recursion guards follow
 /// [`resolve_reference`]; the occurrence remains unchanged.
 #[must_use]
@@ -139,12 +142,40 @@ pub fn resolve_local_reference<'doc, 'guard, 'xref>(
     xref: impl Into<CrossReferenceRef<'xref>>,
     guard: &'guard XrefGuard,
 ) -> XrefDisplay<'guard, ContentRef<'doc>> {
+    let xref = xref.into();
+    let target = local_reference_id(xref);
     resolve_local_content(
         reference,
         reference.and_then(ReferenceRef::title),
-        reference.and_then(ReferenceRef::xreflabel),
-        xref.into(),
+        reference
+            .and_then(ReferenceRef::xreflabel)
+            .filter(|label| !label.is_empty()),
+        &target,
+        xref,
         guard,
+    )
+}
+
+/// Catalog key for displaying a reference without an interdocument link.
+///
+/// External `.adoc` paths omit the source suffix and retain any fragment.
+/// Local IDs keep their spelling, including filename-like IDs. The occurrence's
+/// target and locality remain unchanged.
+#[must_use]
+pub fn local_reference_id(xref: CrossReferenceRef<'_>) -> Cow<'_, str> {
+    let target = xref.target();
+    if xref.target_is_local() {
+        return Cow::Borrowed(target);
+    }
+    let (path, fragment) = target
+        .split_once('#')
+        .map_or((target, None), |(path, fragment)| (path, Some(fragment)));
+    let Some(stem) = path.strip_suffix(".adoc") else {
+        return Cow::Borrowed(target);
+    };
+    fragment.map_or_else(
+        || Cow::Borrowed(stem),
+        |fragment| Cow::Owned(format!("{stem}#{fragment}")),
     )
 }
 
@@ -159,17 +190,17 @@ fn resolve_content<'guard, Content: Copy>(
     if !xref.target_is_local() {
         return XrefDisplay::External(target.to_string());
     }
-    resolve_local_content(reference, title, label, xref, guard)
+    resolve_local_content(reference, title, label, target, xref, guard)
 }
 
 fn resolve_local_content<'guard, Content: Copy>(
     reference: Option<ReferenceRef<'_>>,
     title: Option<Content>,
     label: Option<Content>,
+    target: &str,
     xref: CrossReferenceRef<'_>,
     guard: &'guard XrefGuard,
 ) -> XrefDisplay<'guard, Content> {
-    let target = xref.target();
     let fallback = if target.is_empty() { "^top" } else { target };
     let Some(reference) = reference else {
         return XrefDisplay::Unresolved(format!("[{fallback}]"));
@@ -339,12 +370,13 @@ mod tests {
     use acdc_parser::{
         Block, CrossReference, Document, Error, InlineMacro, InlineNode, Location, Options,
         ParseResult, SectionKind, XrefCaptionLabel, XrefSignifier, XrefStyle,
-        ast::CrossReferenceRef, parse,
+        ast::{BlockKind, BlockRef, CrossReferenceRef, InlineKind, InlineRef},
+        parse,
     };
 
     use super::{
         XrefDisplay, XrefGuard, interdocument_xref, interdocument_xref_with_suffix,
-        resolve_local_reference, resolve_reference,
+        local_reference_id, resolve_local_reference, resolve_reference,
     };
 
     fn resolve_xref<'doc, 'guard, 'xref>(
@@ -950,7 +982,7 @@ mod tests {
         for (target, expected) in [
             ("", "[^top]"),
             ("missing", "[missing]"),
-            ("other.adoc#part", "[other.adoc#part]"),
+            ("other.adoc#part", "[other#part]"),
         ] {
             let mut external = xref(target, XrefStyle::Basic);
             external.set_target_is_local(false);
@@ -959,6 +991,78 @@ mod tests {
             );
             assert!(!guard.is_resolving());
         }
+    }
+
+    #[test]
+    fn local_catalog_keys_preserve_locality_and_non_source_extensions() {
+        for (target, expected) in [
+            ("guide.adoc", "guide"),
+            ("guide.adoc#part", "guide#part"),
+            ("guide.adoc#", "guide#"),
+            ("dir/guide.adoc", "dir/guide"),
+            ("guide.pdf#part", "guide.pdf#part"),
+            ("guide.asciidoc", "guide.asciidoc"),
+            ("guide.adoc.bak", "guide.adoc.bak"),
+        ] {
+            for local in [false, true] {
+                let mut occurrence = xref(target, XrefStyle::Basic);
+                occurrence.set_target_is_local(local);
+                let read = CrossReferenceRef::from(&occurrence);
+                assert_eq!(
+                    local_reference_id(read),
+                    if local { target } else { expected }
+                );
+                assert_eq!(read.target(), target);
+                assert_eq!(read.target_is_local(), local);
+            }
+        }
+    }
+
+    #[test]
+    fn file_reference_display_uses_the_stem_catalog_entry() -> Result<(), Box<dyn std::error::Error>>
+    {
+        for mode in [
+            acdc_parser::CompatibilityMode::Asciidoctor,
+            acdc_parser::CompatibilityMode::Draft,
+        ] {
+            let parsed = parse(
+                "[#external.adoc,reftext=\"Stem label\"]\nTarget.\n\n[[external.adoc,Exact ID label]]\nOther target.\n\nxref:external.adoc[]\n",
+                &Options::builder().with_compatibility_mode(mode).build()?,
+            )?;
+            let references = parsed.document().references();
+            let Some(BlockKind::Paragraph(paragraph)) =
+                parsed.document().blocks().last().map(BlockRef::kind)
+            else {
+                return Err("expected reference paragraph".into());
+            };
+            let Some(InlineKind::CrossReference(occurrence)) =
+                paragraph.content().inlines().next().map(InlineRef::kind)
+            else {
+                return Err("expected cross-reference".into());
+            };
+            assert_eq!(occurrence.target(), "external.adoc");
+            assert!(!occurrence.target_is_local());
+            assert!(references.contains("external"));
+            assert!(references.contains("external.adoc"));
+            let key = local_reference_id(occurrence);
+            let reference = references.get(&key);
+            let guard = XrefGuard::default();
+            assert!(matches!(
+                resolve_reference(reference, occurrence, &guard),
+                XrefDisplay::External(target) if target == "external.adoc"
+            ));
+            let display = resolve_local_reference(reference, occurrence, &guard);
+            let XrefDisplay::Label(content, _) = display else {
+                return Err("expected the stem's reference label".into());
+            };
+            assert_eq!(
+                crate::InlineTextTransform::default().content_to_string(content),
+                "Stem label"
+            );
+            assert_eq!(occurrence.target(), "external.adoc");
+            assert!(!occurrence.target_is_local());
+        }
+        Ok(())
     }
 
     #[test]

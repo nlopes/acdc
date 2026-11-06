@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Text-only cross-reference display resolves external `.adoc` paths through
+  their source stem. Local filename-like IDs retain their spelling.
+
 - Cross-reference rendering supports exact output suffixes, including an empty
   suffix that removes the source extension. Extension-based callers retain their
   existing output.
