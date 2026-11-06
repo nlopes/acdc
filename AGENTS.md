@@ -75,19 +75,26 @@ acdc/
 
 ## Workspace features
 
-`pre-spec-subs`, `setext`, and `network` are declared in `acdc-parser` and forwarded by every crate that consumes them, so a workspace `--no-default-features` build turns them off consistently. The rest are converter-local.
+Language behavior follows `CompatibilityMode`, not Cargo features. Both modes
+and explicit `subs=` settings are available in every build. The former
+`pre-spec-subs` and `setext` features are removed; do not add them to commands or
+dependency declarations. Setext headings are supported in Asciidoctor mode.
+
+Cargo features select optional capabilities. Defaults below refer to the owning
+crate; check the CLI manifest for backend and tool selection.
 
 | Feature | Default | Crate | Notes |
 |---------|---------|-------|-------|
-| `pre-spec-subs` | on | parser (+ all converters and lint) | `acdc-parser/AGENTS.md` (parser contract) + `converters/AGENTS.md` (converter plumbing & fixtures) |
-| `setext` | off | parser | Setext (two-line underlined) headers; enabled by default by the CLI |
-| `network` | off | parser | Remote `include::https://...[]` (pulls in `ureq`) |
+| `asg` | off | parser, CLI | Checked upstream and named acdc ASG export; independent of compatibility mode |
+| `tck` | off | CLI | Fixed Draft-mode TCK adapter; enables `asg` |
+| `network` | off | parser, html, pdf | Remote includes and HTML/PDF image access; caller permission and safe mode still apply |
 | `highlighting` | off | html, terminal | syntect source highlighting |
 | `terminal` | off | html | Renders terminal previews into HTML; the cli exposes it as `html-terminal` |
 | `emulator` | off | terminal | Runs terminal output through a libghostty-vt terminal emulator and captures the rendered screen grid (static previews + session replays); the cli exposes it as `terminal-emulator` |
 | `images` | off | terminal | Inline terminal image rendering (viuer) |
 
-Parser substitution behavior must not depend on Cargo features. Converter substitution gates still use `pre-spec-subs`; do not add an ad-hoc cfg.
+Converters render resolved parser semantics and apply output escaping or retained
+raw-text substitutions. Do not reintroduce feature gates for language behavior.
 
 ## Debugging
 
@@ -99,11 +106,13 @@ When tests fail, identify the category and follow the appropriate path:
 
 ## Benchmarks
 
-`acdc-parser` has two Criterion benches. `parser_bench` (string-parse hot paths) runs
+`acdc-parser` has three Criterion benches. `parser_bench` (string-parse hot paths) runs
 under a bare `cargo bench`. `f1_include_bench` (include / partial-include parsing) is
 **disabled by default** (`bench`/`test` = false) so CI and `cargo bench`/`cargo test`
 skip it — it writes temp fixtures and takes minutes. Run it on demand when touching the
 include/preprocessor/remap paths: `cargo bench --bench f1_include_bench`.
+`conditional_bench` is also disabled by default. Run it on demand with
+`cargo bench -p acdc-parser --bench conditional_bench --all-features`.
 
 Beware machine drift: a single before/after run on this hardware shows a uniform few-percent
 shift (confirmed via a before-vs-before run) that swamps small real deltas. For trustworthy

@@ -2,8 +2,8 @@
 //!
 //! With highlighting enabled, writes canonical `.html` expectations.
 //! Without highlighting, writes only the required `.no-highlighting.html`
-//! alternatives. Substitution-dependent fixtures are omitted when substitutions
-//! are disabled. Optional arguments select source fixture stems.
+//! alternatives. Substitution fixtures follow the same highlighting rules.
+//! Optional arguments select source fixture stems.
 //!
 //! Run from the workspace root.
 

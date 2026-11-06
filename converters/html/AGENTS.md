@@ -2,8 +2,8 @@
 
 Architecture docs for the `acdc-converters-html` crate, focused on the stylesheet and CSS pipeline.
 
-For `[subs="…"]` plumbing (the `pre-spec-subs` feature, `effective_subs` call
-sites, fixture-naming conventions), see `converters/AGENTS.md`.
+For resolved substitutions, output escaping and fixture conventions, see
+`converters/AGENTS.md`. Substitution behavior does not depend on Cargo features.
 
 ## Feature-specific fixtures
 
@@ -12,8 +12,7 @@ Fixtures with a `source-highlighter` header attribute also need
 `.no-highlighting.html` expectations in each variant directory. The harness
 selects them when `highlighting` is disabled; it uses the parsed attributes,
 so an explicit unset selects the canonical expectation. Both modes exercise
-the same source inputs. Fixtures whose stems contain `subs` remain skipped
-when `pre-spec-subs` is disabled.
+the same source inputs, including all substitution fixtures.
 
 The generator follows the same selection rules. With highlighting disabled,
 it writes only the plain alternatives, preserving canonical expectations.
@@ -24,12 +23,11 @@ From the workspace root, scope regeneration by source stem:
 
 ```console
 cargo run -p acdc-converters-html --example generate_html_fixtures --all-features -- <fixture_name>
-cargo run -p acdc-converters-html --example generate_html_fixtures --no-default-features --features pre-spec-subs -- <fixture_name>
+cargo run -p acdc-converters-html --example generate_html_fixtures --no-default-features -- <fixture_name>
 ```
 
-CI checks all four combinations of `highlighting` and `pre-spec-subs`.
-The all-features converter step covers both enabled; HTML-specific steps
-cover substitutions alone, highlighting alone, and neither feature.
+CI runs the converter suite with all features. HTML-specific steps also test
+`--no-default-features` and `--no-default-features --features highlighting`.
 
 ## Stylesheet rendering pipeline
 

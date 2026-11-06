@@ -2,11 +2,19 @@
 
 ## Features
 
-`pre-spec-subs` (default-on) is forwarded to every selected converter (`acdc-converters-html?`, `acdc-converters-manpage?`, `acdc-converters-pdf?`, `acdc-converters-terminal?`), to `acdc-lint?`, and to `acdc-parser`. For the parser contract see `acdc-parser/AGENTS.md`; for converter plumbing see `converters/AGENTS.md`.
+`--compatibility-mode asciidoctor|draft` selects language behavior. Both modes
+and explicit `subs=` settings work in every build. The former `pre-spec-subs`
+and `setext` Cargo features and `--setext` flag are removed. Asciidoctor mode
+supports Setext headings. See `acdc-parser/AGENTS.md` and `converters/AGENTS.md`.
 
-`network` is forwarded to `acdc-converters-pdf?` as well as the parser and lint crate, so PDF builds can resolve remote images and logos under the converter's network policy.
+`network` enables parser remote includes and forwards to selected execute, lint,
+HTML and PDF crates. HTML/PDF image access still follows the converter's network
+policy, caller permission and safe mode.
 
-`setext` is default-on as a build feature and exposes the runtime `--setext` compatibility flag. `highlighting` forwards to whichever of the HTML and terminal backends are selected without enabling either backend itself.
+`highlighting` forwards to selected HTML and terminal backends without enabling
+either backend itself. `asg` enables checked upstream and named acdc exports.
+`tck` enables `asg` and the fixed Draft-mode TCK adapter. Native JSON is available
+without either export feature.
 
 ## Attribute overrides
 

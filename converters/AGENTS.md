@@ -2,7 +2,8 @@
 
 ## Architecture
 
-All converters implement the `Visitor` trait from `core/src/visitor.rs`.
+Shared traversal uses the typed `DocumentVisitor`, `BlockVisitor` and
+`InlineVisitor` traits exported by `core/src/visitor.rs`.
 
 Shared utilities in `core/`:
 - `substitutions.rs` — typography replacements, escape handling
@@ -11,41 +12,21 @@ Shared utilities in `core/`:
 - `code.rs` — syntax highlighting integration
 - `toc.rs` — table of contents generation
 
-## `subs=` plumbing (the `pre-spec-subs` feature)
+## Resolved substitutions
 
-- `acdc-converters-core::substitutions::SubsFlags`, `effective_subs`,
-  `effective_subs_flags`, and `apply_replacements` only exist when the
-  `pre-spec-subs` feature is enabled (default-on). The parser honors block
-  `subs=` in every build. With the converter feature off, output-specific
-  substitution handling still uses converter defaults.
-- The markdown converter does **not** honor `subs=` and intentionally has
-  no `pre-spec-subs` feature in its `Cargo.toml`. Don't treat that as a
-  regression to fix — markdown's output model doesn't need it.
-- **HTML** uses a separate `Vec<Substitution>` path returned by
-  `effective_subs(...)` at shallow block sites (`html/src/html_visitor.rs`).
-- **Terminal and manpage** carry an `Rc<Cell<SubsFlags>>` on their `Processor`
-  for the deep inline hot path. The `current_subs` field, its initializers,
-  and the paragraph snapshot/restore are all `#[cfg(feature = "pre-spec-subs")]`.
-  The PlainText arm calls a small `transform_plain` helper that has two
-  definitions (feature on/off) so the call site stays clean.
-- **When adding a new converter that honors `subs=`**: forward the feature in
-  `Cargo.toml` (`pre-spec-subs = ["acdc-parser/pre-spec-subs", "acdc-converters-core/pre-spec-subs"]`),
-  follow the manpage shape (snapshot/restore in `render_paragraph`, query
-  `current_subs.get()` in the PlainText arm), and gate both sides behind the
-  feature.
-- **Fixtures whose expected output depends on `subs=`** must include `subs`
-  in their stem (convention: `subs_…`). Under `--no-default-features`:
-  - The **html** and **manpage** harnesses use rstest glob discovery and
-    early-return in their `run_*_fixture` helper when
-    `file_name.contains("subs")`.
-  - The **terminal** harness uses an explicit `terminal_fixture_catalog!` list,
-    not glob discovery. Subs fixtures must be registered in that list
-    explicitly, and `test_fixture` has the matching `.contains("subs")`
-    early-return.
-  - The **markdown** harness runs substitution fixtures in both configurations.
-    The parser always honors structural substitutions, so `.md` is the active
-    expectation. The old `.no-subs.md` files remain as migration baselines.
-    Do not add a Markdown substitution feature or skip these fixtures.
+- The parser applies structural substitutions in every build. Converters read
+  resolved content and apply output escaping or the substitutions retained on raw
+  text. Do not reparse ordinary text or repeat resolved typography replacements.
+- `acdc-converters-core::substitutions::effective_subs` resolves block settings
+  against normal or verbatim defaults. Raw fragments retain their own ordered
+  settings; keep their treatment separate from ordinary body text.
+- The former `pre-spec-subs` feature, `SubsFlags` and feature-dependent converter
+  paths are removed. Do not restore them or add a Markdown substitution feature.
+- Substitution fixtures run with and without default features. Use `subs_…`
+  stems for these cases, but never skip them based on the removed feature.
+  Terminal fixtures still need entries in `terminal/tests/fixtures/catalog.rs`.
+- Markdown uses `.md` expectations in every build. Existing `.no-subs.md` files
+  are historical migration baselines; do not generate new variants.
 
 ## Test placement
 
@@ -69,13 +50,11 @@ Shared utilities in `core/`:
 cargo run -p acdc-converters-html --example generate_html_fixtures --all-features
 cargo run -p acdc-converters-terminal --example generate_terminal_fixtures --all-features
 cargo run -p acdc-converters-manpage --example generate_manpage_fixtures --all-features
-cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features --features acdc-converters-core/pre-spec-subs
+cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features
 cargo run -p acdc-converters-pdf --example generate_typst_fixtures --all-features
 
 # Regenerate a single Markdown fixture:
-cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features --features acdc-converters-core/pre-spec-subs -- <fixture_name>
-# Generate the disabled-substitution Markdown variant:
-cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --no-default-features -- <fixture_name>
+cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features -- <fixture_name>
 ```
 
 ### Terminal capability fixtures
