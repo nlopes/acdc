@@ -1,0 +1,53 @@
+= Empty inline macros
+:experimental:
+:stem: latexmath
+
+stem:[]
+
+asciimath:[]
+
+latexmath:[]
+
+stem:[ ]
+
+asciimath:[ ]
+
+latexmath:[ ]
+
+stem:[x]
+
+btn:[]
+
+kbd:[]
+
+menu:File[]
+
+btn:[ ]
+
+kbd:[ ]
+
+menu:File[ ]
+
+btn:[Save]
+
+kbd:[Ctrl]
+
+menu:File[Open]
+
+\stem:[]
+
+\btn:[]
+
+\kbd:[]
+
+*stem:[]*
+
+*btn:[]*
+
+*kbd:[]*
+
+stem:[] stem:[x]
+
+btn:[] btn:[Save]
+
+kbd:[] kbd:[Ctrl]

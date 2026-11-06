@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Empty inline formulas, buttons, and keyboard sequences remain shared acdc
+  extensions in both compatibility modes. Asciidoctor leaves isolated empty
+  forms literal. Empty and whitespace-only menu item lists remain distinct.
+
 - Table column widths above 4,294,967,295 now return a located parse error
   instead of silently selecting a default width. This bound differs from
   Asciidoctor, which accepts larger integers.

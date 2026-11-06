@@ -276,12 +276,21 @@ xref labels preserve whitespace; shorthand labels skip leading ASCII whitespace
 and keep trailing and nonbreaking spaces, matching Asciidoctor. An absent or
 empty xref label uses automatic reference text.
 
+Empty inline `stem:[]`, `asciimath:[]`, and `latexmath:[]` formulas are shared
+acdc extensions. Both modes recognize them as math with empty content, while
+Asciidoctor leaves isolated empty forms literal. Whitespace inside a formula
+is retained. Escaped forms stay literal, and adjacent macros remain separate.
+
 Keyboard sequences choose their first plus/comma separator after the first key
 character. A doubled final separator gives a literal key, as in `kbd:[Ctrl++]`.
 Menus use `>` when present, otherwise commas. Nested labels and escaped brackets
 stay inside their owning macro. Empty UI macros and formatted menu targets are
 shared acdc extensions; Asciidoctor can leave them literal or capture adjacent
 macros. UI availability still follows the selected mode and `experimental`.
+`kbd:[]` has no keys; `kbd:[ ]` has one empty key. `menu:File[]` has no items;
+`menu:File[ ]` has one empty item, which Asciidoctor omits. Empty and
+whitespace-only button labels both remain empty labels. Caller-built empty
+formulas and UI components also remain valid.
 Ordinary attributes can introduce key and menu separators. When `subs=` puts
 macros before attributes, introduced separators stay inside the existing label.
 Explicit attribute profiles keep their parsed content together as one label;
