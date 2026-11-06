@@ -114,6 +114,18 @@ semantic backends, so cross-references can reach the rendered wrappers.
 Delimited quote blocks display their lead-in titles above the quoted content,
 including inside AsciiDoc table cells and attached list blocks.
 
+=== Interactive checklists
+
+Add `[%interactive]` to a checklist to render enabled HTML checkbox inputs.
+The option applies only to that list. A nested list needs its own option.
+An `interactive` role or document attribute does not enable checkbox inputs.
+Ordinary list items stay unchanged.
+
+Without the option, standard HTML uses static symbols and semantic HTML uses
+disabled checkbox inputs. With the option, both variants record the initial
+state in `data-item-complete`, matching Asciidoctor. acdc also accepts uppercase
+`X` as a checked marker; Asciidoctor leaves that marker in the item text.
+
 === Cross-reference file paths
 
 Set `:relfileprefix: manual/` to prepend `manual/` to local file cross-references.

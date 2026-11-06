@@ -134,7 +134,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             1,
             false,
             1,
-            !semantic,
+            data.options().contains("interactive"),
         )?;
         writeln!(self.writer, "</ul>")?;
         writeln!(self.writer, "</{wrapper_tag}>")?;
@@ -212,7 +212,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             1,
             true,
             1,
-            !semantic,
+            data.options().contains("interactive"),
         )?;
         writeln!(self.writer, "</ol>")?;
         writeln!(self.writer, "</{wrapper_tag}>")?;
@@ -380,8 +380,8 @@ fn render_checked_status_list<W: Write + ?Sized>(
     Ok(())
 }
 
-/// Render nested list items hierarchically
-/// `depth` tracks the nesting level for ordered list style cycling (1 = top level)
+/// `interactive` applies only to this list level. `depth` selects the ordered-list
+/// numbering style (1 = top level).
 #[tracing::instrument(skip(visitor, traversal, items))]
 fn render_nested_list_items<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
@@ -390,11 +390,12 @@ fn render_nested_list_items<'a, W: Write>(
     expected_level: u8,
     is_ordered: bool,
     depth: u8,
-    wrap_li_in_p: bool,
+    interactive: bool,
 ) -> Result<(), Error> {
     let semantic = visitor.processor.variant() == HtmlVariant::Semantic;
+    let wrap_li_in_p = !semantic;
     while let Some(item) = items.next_if(|item| item.level() >= expected_level) {
-        render_list_item_content(traversal, item, visitor, wrap_li_in_p, semantic)?;
+        render_list_item_content(traversal, item, visitor, interactive, semantic)?;
         if item.level() == expected_level
             && let Some(next) = items.peek().copied()
             && next.level() > expected_level
@@ -413,7 +414,7 @@ fn render_nested_list_items<'a, W: Write>(
                 next.level(),
                 is_ordered,
                 depth + 1,
-                wrap_li_in_p,
+                false,
             )?;
             let writer = visitor.writer_mut();
             if is_ordered {
@@ -435,9 +436,10 @@ fn render_list_item_content<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
     item: ListItemRef<'a>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
-    wrap_li_in_p: bool,
+    interactive: bool,
     semantic: bool,
 ) -> Result<(), Error> {
+    let wrap_li_in_p = !semantic;
     let data = item;
     let writer = visitor.writer_mut();
     if semantic && data.checked().is_some() {
@@ -449,7 +451,7 @@ fn render_list_item_content<'a, W: Write>(
         if wrap_li_in_p {
             write!(writer, "<p>")?;
         }
-        render_checked_status(data.checked().as_ref(), writer, semantic)?;
+        render_checked_status(data.checked().as_ref(), writer, semantic, interactive)?;
         let _ = writer;
         visitor.visit_content(traversal, data.principal())?;
         let writer = visitor.writer_mut();
@@ -650,7 +652,7 @@ fn render_bare_ulist_semantic<'a, W: Write>(
         1,
         false,
         1,
-        false,
+        data.options().contains("interactive"),
     )?;
     writeln!(visitor.writer, "</ul>")?;
     Ok(())
@@ -679,7 +681,7 @@ fn render_bare_olist_semantic<'a, W: Write>(
         1,
         true,
         1,
-        false,
+        data.options().contains("interactive"),
     )?;
     writeln!(visitor.writer, "</ol>")?;
     Ok(())
@@ -811,33 +813,28 @@ fn render_checked_status<W: Write + ?Sized>(
     checked: Option<&ListItemCheckedStatus>,
     w: &mut W,
     semantic: bool,
+    interactive: bool,
 ) -> Result<(), Error> {
-    if semantic {
-        match checked {
-            Some(ListItemCheckedStatus::Checked) => {
-                write!(
-                    w,
-                    "<input class=\"task-list-item-checkbox\" type=\"checkbox\" disabled checked> "
-                )?;
-            }
-            Some(ListItemCheckedStatus::Unchecked) => {
-                write!(
-                    w,
-                    "<input class=\"task-list-item-checkbox\" type=\"checkbox\" disabled> "
-                )?;
-            }
-            Some(_) | None => {}
+    let (checked_attribute, completed, symbol) = match checked {
+        Some(ListItemCheckedStatus::Checked) => (" checked", "1", "&#10003; "),
+        Some(ListItemCheckedStatus::Unchecked) => ("", "0", "&#10063; "),
+        Some(_) | None => return Ok(()),
+    };
+    if semantic || interactive {
+        let class = if semantic {
+            " class=\"task-list-item-checkbox\""
+        } else {
+            ""
+        };
+        write!(w, "<input{class} type=\"checkbox\"")?;
+        if interactive {
+            write!(w, " data-item-complete=\"{completed}\"")?;
+        } else {
+            write!(w, " disabled")?;
         }
+        write!(w, "{checked_attribute}> ")?;
     } else {
-        match checked {
-            Some(ListItemCheckedStatus::Checked) => {
-                write!(w, "&#10003; ")?;
-            }
-            Some(ListItemCheckedStatus::Unchecked) => {
-                write!(w, "&#10063; ")?;
-            }
-            Some(_) | None => {}
-        }
+        write!(w, "{symbol}")?;
     }
     Ok(())
 }

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Lists marked `[%interactive]` render enabled checkbox inputs in both HTML
+  variants, matching Asciidoctor. Nested lists need their own option. Ordinary
+  items and default static checklists keep their existing output; uppercase `X`
+  remains an acdc extension for checked items.
+
 - Local file cross-references honor `relfileprefix` and the exact `relfilesuffix`
   value, including an empty suffix. Automatic labels use the resulting file path.
   Local anchors stay unchanged. Absolute and scheme-relative URIs keep their

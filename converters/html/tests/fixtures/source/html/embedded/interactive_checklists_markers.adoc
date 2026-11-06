@@ -1,0 +1,5 @@
+[%interactive]
+* [x] Lowercase
+* [X] Uppercase
+* [*] Star
+* [ ] Unchecked
