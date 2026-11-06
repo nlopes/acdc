@@ -163,7 +163,8 @@ The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage b
 Manpages display reference labels without interdocument links. For
 `xref:guide.adoc[]`, the converter looks up the local `guide` catalog entry.
 Its reference label or title supplies the text; otherwise the output is
-`[guide]`. Fragments remain part of the lookup key, as in `guide#part`.
+`[guide]`. Nonempty fragments remain part of the lookup key, as in `guide#part`;
+a trailing `#` is ignored.
 This matches Asciidoctor's manpage behavior. Local references such as
 `<<guide.adoc>>` keep the complete ID, and explicit labels take precedence.
 Labels follow the selected parser mode. In Draft mode, double-quoted `reftext`

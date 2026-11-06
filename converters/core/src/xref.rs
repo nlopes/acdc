@@ -158,7 +158,8 @@ pub fn resolve_local_reference<'doc, 'guard, 'xref>(
 
 /// Catalog key for displaying a reference without an interdocument link.
 ///
-/// External `.adoc` paths omit the source suffix and retain any fragment.
+/// External `.adoc` paths omit the source suffix and retain nonempty fragments.
+/// A trailing `#` does not contribute to the catalog key.
 /// Local IDs keep their spelling, including filename-like IDs. The occurrence's
 /// target and locality remain unchanged.
 #[must_use]
@@ -170,13 +171,12 @@ pub fn local_reference_id(xref: CrossReferenceRef<'_>) -> Cow<'_, str> {
     let (path, fragment) = target
         .split_once('#')
         .map_or((target, None), |(path, fragment)| (path, Some(fragment)));
-    let Some(stem) = path.strip_suffix(".adoc") else {
-        return Cow::Borrowed(target);
-    };
-    fragment.map_or_else(
-        || Cow::Borrowed(stem),
-        |fragment| Cow::Owned(format!("{stem}#{fragment}")),
-    )
+    let stem = path.strip_suffix(".adoc").unwrap_or(path);
+    match fragment.filter(|fragment| !fragment.is_empty()) {
+        None => Cow::Borrowed(stem),
+        Some(_) if stem == path => Cow::Borrowed(target),
+        Some(fragment) => Cow::Owned(format!("{stem}#{fragment}")),
+    }
 }
 
 fn resolve_content<'guard, Content: Copy>(
@@ -998,7 +998,8 @@ mod tests {
         for (target, expected) in [
             ("guide.adoc", "guide"),
             ("guide.adoc#part", "guide#part"),
-            ("guide.adoc#", "guide#"),
+            ("guide.adoc#", "guide"),
+            ("guide.pdf#", "guide.pdf"),
             ("dir/guide.adoc", "dir/guide"),
             ("guide.pdf#part", "guide.pdf#part"),
             ("guide.asciidoc", "guide.asciidoc"),
