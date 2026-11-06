@@ -1,6 +1,6 @@
 use std::error::Error as StdError;
 
-use acdc_parser::{Error, Options, parse};
+use acdc_parser::{CompatibilityMode, Error, Options, parse};
 
 type TestResult = Result<(), Box<dyn StdError>>;
 
@@ -117,4 +117,35 @@ fn csv_row_obeys_the_same_one_hundred_column_limit() -> TestResult {
 #[test]
 fn table_accepts_the_full_one_hundred_thousand_cell_boundary() -> TestResult {
     assert_parses(&psv_table_with_rows(1_000, 100, "100*| Same"))
+}
+
+#[test]
+fn column_width_limits_preserve_valid_boundaries_and_report_oversized_values() -> TestResult {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        for columns in ["0,0", "0,~", "4294967295,1", "2*4294967295%,~"] {
+            let source = format!("[cols=\"{columns}\"]\n|===\n|A |B |C\n|===\n");
+            assert!(parse(&source, &options).is_ok(), "{columns}");
+        }
+        for width in ["4294967296", "9999999999999999999999999999999999"] {
+            for columns in [
+                format!("{width},1"),
+                format!("2*<.>{width}a,~"),
+                format!("{width}%,~"),
+            ] {
+                let source = format!("[cols=\"{columns}\"]\n|===\n|A |B\n|===\n");
+                let Err(Error::Parse(location, message)) = parse(&source, &options) else {
+                    return Err(format!("expected a located width error for {columns}").into());
+                };
+                assert_eq!(
+                    message,
+                    format!(
+                        "table column width request of {width} exceeds the maximum of 4294967295"
+                    )
+                );
+                assert_eq!(location.location.start.line, 2);
+            }
+        }
+    }
+    Ok(())
 }

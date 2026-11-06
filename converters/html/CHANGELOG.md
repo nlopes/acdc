@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Tables with mixed numeric and automatic column widths now match Asciidoctor
+  proportions, including repeated specifications such as `cols="2*3,~"`. Explicit
+  zero widths stay distinct from automatic columns, all-zero widths divide space
+  equally, and maximum supported widths no longer cause arithmetic overflow.
+
 - Standard HTML wraps AsciiDoc table-cell blocks in `.content`, matching
   Asciidoctor and the bundled table CSS.
 - Inline STEM preserves authored spacing before punctuation and adjacent content.

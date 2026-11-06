@@ -1,0 +1,39 @@
+= width-controls(7)
+:doctype: manpage
+:revdate: 2026-11-06
+
+== NAME
+
+width-controls - table width controls
+
+== DESCRIPTION
+
+.Repeated widths with automatic space
+[cols="2*3,~"]
+|===
+|A |B |Automatic space
+|===
+
+.Mixed numeric and percentage weights
+[cols="1,50%"]
+|===
+|A |B
+|===
+
+.All zero numeric widths
+[cols="0,0"]
+|===
+|A |B
+|===
+
+.Zero beside automatic width
+[cols="0,~"]
+|===
+|A |Automatic space
+|===
+
+.Maximum repeated widths
+[cols="2*4294967295,~"]
+|===
+|A |B |Automatic space
+|===

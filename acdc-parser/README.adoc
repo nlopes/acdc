@@ -1461,7 +1461,9 @@ Tables accept at most 100 logical columns and 1,000 rows, bounding an accepted t
 to 100,000 materialized cells. The column bound also applies to `cols` multipliers,
 cell duplication counts, and column spans; row spans are bounded by the row limit.
 Larger requests and oversized CSV, TSV, DSV, or PSV dimensions return a located
-parse error before unbounded expansion.
+parse error before unbounded expansion. Numeric column widths must be between
+0 and 4,294,967,295; larger values return a located error instead of selecting
+a default width. Asciidoctor accepts larger integer widths.
 
 These are fixed internal safety limits. They cannot be changed through parser options
 or document attributes. This intentionally diverges from asciidoctor, which has no

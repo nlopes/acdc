@@ -44,7 +44,7 @@ fn table_limit_error(
     location: Location,
     resource: &str,
     requested: impl std::fmt::Display,
-    limit: usize,
+    limit: impl std::fmt::Display,
 ) -> Error {
     Error::Parse(
         Box::new(state.create_error_source_location(location)),
@@ -54,10 +54,11 @@ fn table_limit_error(
 
 /// Read a complete `[multiplier*][halign][.valign][width][style]` record.
 /// Invalid records contribute no columns, matching Asciidoctor.
-fn parse_column_spec(input: &str) -> Option<(usize, ColumnFormat)> {
+/// Numeric widths outside the supported u32 range return the authored value.
+fn parse_column_spec(input: &str) -> Result<Option<(usize, ColumnFormat)>, &str> {
     let (multiplier, input) = if let Some((count, rest)) = input.split_once('*') {
         if count.is_empty() || !count.bytes().all(|byte| byte.is_ascii_digit()) {
-            return None;
+            return Ok(None);
         }
         (count.parse().unwrap_or(MAX_TABLE_COLUMNS + 1), rest)
     } else {
@@ -70,7 +71,7 @@ fn parse_column_spec(input: &str) -> Option<(usize, ColumnFormat)> {
         [h @ (b'<' | b'^' | b'>')] | [h @ (b'<' | b'^' | b'>'), b'.'] => (Some(*h), None),
         [b'.', v @ (b'<' | b'^' | b'>')] => (None, Some(*v)),
         [h @ (b'<' | b'^' | b'>'), b'.', v @ (b'<' | b'^' | b'>')] => (Some(*h), Some(*v)),
-        _ => return None,
+        _ => return Ok(None),
     };
     let mut format = ColumnFormat {
         halign: match horizontal {
@@ -85,6 +86,7 @@ fn parse_column_spec(input: &str) -> Option<(usize, ColumnFormat)> {
         },
         ..ColumnFormat::default()
     };
+    let mut width_error = None;
     if let Some(tail) = rest.strip_prefix('~') {
         format.width = ColumnWidth::Auto;
         rest = tail;
@@ -93,16 +95,21 @@ fn parse_column_spec(input: &str) -> Option<(usize, ColumnFormat)> {
         let (width, tail) = rest.split_at(width_end);
         let percentage = tail.starts_with('%') && !width.is_empty();
         rest = if percentage {
-            tail.strip_prefix('%')?
+            tail.strip_prefix('%').unwrap_or(tail)
         } else {
             tail
         };
-        if let Ok(width) = width.parse() {
-            format.width = if percentage {
-                ColumnWidth::Percentage(width)
-            } else {
-                ColumnWidth::Proportional(width)
-            };
+        if !width.is_empty() {
+            match width.parse() {
+                Ok(width) => {
+                    format.width = if percentage {
+                        ColumnWidth::Percentage(width)
+                    } else {
+                        ColumnWidth::Proportional(width)
+                    };
+                }
+                Err(_) => width_error = Some(width),
+            }
         }
     }
     format.style = match rest.as_bytes() {
@@ -116,9 +123,13 @@ fn parse_column_spec(input: &str) -> Option<(usize, ColumnFormat)> {
             b's' => ColumnStyle::Strong,
             _ => ColumnStyle::Default,
         },
-        _ => return None,
+        _ => return Ok(None),
     };
-    Some((multiplier, format))
+    if let Some(width) = width_error {
+        Err(width)
+    } else {
+        Ok(Some((multiplier, format)))
+    }
 }
 
 /// Parse a table block with the selected separator and source ranges.
@@ -228,10 +239,19 @@ pub(super) fn parse_table_block_impl<'input>(
             }
             specs.resize(count, ColumnFormat::default());
         } else {
-            for (multiplier, spec) in cols
-                .split(if cols.contains(',') { ',' } else { ';' })
-                .filter_map(parse_column_spec)
-            {
+            for input in cols.split(if cols.contains(',') { ',' } else { ';' }) {
+                let Some((multiplier, spec)) = parse_column_spec(input).map_err(|width| {
+                    table_limit_error(
+                        state,
+                        table_location.clone(),
+                        "column width",
+                        width,
+                        u32::MAX,
+                    )
+                })?
+                else {
+                    continue;
+                };
                 let column_count = specs.len().saturating_add(multiplier);
                 if column_count > MAX_TABLE_COLUMNS {
                     return Err(table_limit_error(

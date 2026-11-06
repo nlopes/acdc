@@ -267,16 +267,17 @@ fn render_colgroup<W: Write + ?Sized>(writer: &mut W, table: TableRef<'_>) -> Re
         let widths = if table.columns().next().is_none() {
             // Fall back to equal distribution
             let width = 100.0 / f64::from(u32::try_from(col_count).unwrap_or(1));
-            vec![width; col_count]
+            vec![Some(width); col_count]
         } else {
             column_widths(table.columns())
         };
 
         for width in widths {
-            if width == 0.0 {
-                // Auto width - let the browser decide
+            let Some(width) = width else {
                 writeln!(writer, "<col>")?;
-            } else if (width - width.round()).abs() < 0.0001 {
+                continue;
+            };
+            if (width - width.round()).abs() < 0.0001 {
                 // Match asciidoctor's 4-decimal precision for non-round percentages
                 writeln!(writer, "<col style=\"width: {width:.0}%;\">")?;
             } else {

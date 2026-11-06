@@ -13,39 +13,33 @@ use acdc_parser::{
 
 /// Calculate percentage widths from typed column formats.
 ///
-/// Proportional and percentage widths are normalized together; automatic widths
-/// remain zero. An empty iterator produces no widths.
+/// Numeric widths share one scale. With automatic columns, numeric widths below
+/// a combined 100% keep their authored values; otherwise they fill 100%.
+/// `None` denotes an automatic column, distinct from an explicit zero width.
+/// All-zero numeric columns receive equal widths. Results are finite percentages
+/// between zero and 100. An empty iterator produces no widths.
 #[must_use]
 pub fn column_widths<'column>(
-    columns: impl Iterator<Item = ColumnFormatRef<'column>> + Clone,
-) -> Vec<f64> {
-    let total_proportional: u32 = columns
-        .clone()
-        .filter_map(|c| match c.width() {
-            ColumnWidth::Proportional(w) => Some(w),
-            ColumnWidth::Percentage(_) | ColumnWidth::Auto | _ => None,
-        })
-        .sum();
-
-    let mut widths: Vec<f64> = columns
+    columns: impl Iterator<Item = ColumnFormatRef<'column>>,
+) -> Vec<Option<f64>> {
+    let mut widths: Vec<_> = columns
         .map(|c| match c.width() {
-            ColumnWidth::Proportional(w) if total_proportional > 0 => {
-                (f64::from(w) / f64::from(total_proportional)) * 100.0
+            ColumnWidth::Proportional(width) | ColumnWidth::Percentage(width) => {
+                Some(f64::from(width))
             }
-            ColumnWidth::Percentage(p) => f64::from(p),
-            // No proportional context, auto, or unknown width - let renderer decide
-            ColumnWidth::Proportional(_) | ColumnWidth::Auto | _ => 0.0,
+            ColumnWidth::Auto | _ => None,
         })
         .collect();
-
-    // Normalize positive widths to 100%; automatic widths remain zero.
-    let pct_sum: f64 = widths.iter().filter(|w| **w > 0.0).sum();
-    if pct_sum > 0.0 && (pct_sum - 100.0).abs() > f64::EPSILON {
-        let scale = 100.0 / pct_sum;
-        for w in &mut widths {
-            if *w > 0.0 {
-                *w *= scale;
-            }
+    // Convert before summing: even a vector of maximum u32 widths has a finite
+    // f64 sum, while summing the authored integers can overflow.
+    let sum: f64 = widths.iter().flatten().sum();
+    let automatic = widths.iter().any(Option::is_none);
+    if sum == 0.0 && !automatic && !widths.is_empty() {
+        let count: f64 = widths.iter().map(|_| 1.0).sum();
+        widths.fill(Some(100.0 / count));
+    } else if sum > 0.0 && (sum - 100.0).abs() > f64::EPSILON && (!automatic || sum > 100.0) {
+        for width in widths.iter_mut().flatten() {
+            *width = *width / sum * 100.0;
         }
     }
 
@@ -212,10 +206,10 @@ mod tests {
         ColumnFormat::new().with_width(width)
     }
 
-    fn assert_widths_close(actual: &[f64], expected: &[f64]) {
+    fn assert_widths_close(actual: &[Option<f64>], expected: &[f64]) {
         assert_eq!(actual.len(), expected.len());
         for (actual, expected) in actual.iter().zip(expected) {
-            assert!((*actual - *expected).abs() < 0.01);
+            assert!(actual.is_some_and(|actual| (actual - *expected).abs() < 0.01));
         }
     }
 
@@ -239,7 +233,7 @@ mod tests {
         let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
         assert_eq!(widths.len(), 3);
         for w in &widths {
-            assert!((*w - 33.333).abs() < 0.01);
+            assert!(w.is_some_and(|w| (w - 33.333).abs() < 0.01));
         }
     }
 
@@ -250,7 +244,7 @@ mod tests {
             make_column(ColumnWidth::Percentage(75)),
         ];
         let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
-        assert_eq!(widths, vec![25.0, 75.0]);
+        assert_eq!(widths, vec![Some(25.0), Some(75.0)]);
     }
 
     #[test]
@@ -260,13 +254,13 @@ mod tests {
             make_column(ColumnWidth::Auto),
         ];
         let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
-        assert_eq!(widths, vec![0.0, 0.0]);
+        assert_eq!(widths, vec![None, None]);
     }
 
     #[test]
     fn test_empty_columns() {
         let widths = column_widths(std::iter::empty());
-        assert_eq!(widths, [] as [f64; 0]);
+        assert_eq!(widths, [] as [Option<f64>; 0]);
     }
 
     #[test]
@@ -278,7 +272,7 @@ mod tests {
             make_column(ColumnWidth::Percentage(31)),
         ];
         let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
-        let sum: f64 = widths.iter().sum();
+        let sum: f64 = widths.iter().flatten().sum();
         assert!((sum - 100.0).abs() < 0.01, "sum was {sum}");
         assert_widths_close(
             &widths,
@@ -299,7 +293,7 @@ mod tests {
             make_column(ColumnWidth::Percentage(40)),
         ];
         let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
-        let sum: f64 = widths.iter().sum();
+        let sum: f64 = widths.iter().flatten().sum();
         assert!((sum - 100.0).abs() < 0.01, "sum was {sum}");
         assert_widths_close(
             &widths,
@@ -319,7 +313,7 @@ mod tests {
             make_column(ColumnWidth::Percentage(50)),
         ];
         let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
-        assert_eq!(widths, vec![25.0, 25.0, 50.0]);
+        assert_eq!(widths, vec![Some(25.0), Some(25.0), Some(50.0)]);
     }
 
     #[test]
@@ -331,9 +325,14 @@ mod tests {
             make_column(ColumnWidth::Percentage(50)),
         ];
         let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
-        let pct_sum: f64 = widths.iter().sum();
+        let pct_sum: f64 = widths.iter().flatten().sum();
         assert!((pct_sum - 100.0).abs() < 0.01, "pct sum was {pct_sum}");
-        assert_widths_close(&widths, &[0.0, 60.0 * 100.0 / 110.0, 50.0 * 100.0 / 110.0]);
+        let mut widths = widths.into_iter();
+        assert_eq!(widths.next(), Some(None));
+        assert_widths_close(
+            &widths.collect::<Vec<_>>(),
+            &[60.0 * 100.0 / 110.0, 50.0 * 100.0 / 110.0],
+        );
     }
 
     #[test]
@@ -343,7 +342,7 @@ mod tests {
             make_column(ColumnWidth::Auto),
         ];
         let widths = column_widths(columns.iter().map(ColumnFormatRef::from));
-        assert_eq!(widths, vec![0.0, 0.0]);
+        assert_eq!(widths, vec![None, None]);
     }
 
     #[test]

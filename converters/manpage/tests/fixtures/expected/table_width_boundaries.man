@@ -1,0 +1,72 @@
+'\" t
+.\"     Title: width-controls
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-11-06
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "WIDTH\-CONTROLS" "7" "2026-11-06" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+width\-controls \- table width controls
+.SH "DESCRIPTION"
+.sp
+\fBTable 1. Repeated widths with automatic space\fR
+.br
+.TS
+allbox expand tab(:);
+ltw(2n) ltw(2n) lt.
+A:B:Automatic space
+.TE
+.sp
+\fBTable 2. Mixed numeric and percentage weights\fR
+.br
+.TS
+allbox expand tab(:);
+ltw(1n) ltw(59n).
+A:B
+.TE
+.sp
+\fBTable 3. All zero numeric widths\fR
+.br
+.TS
+allbox expand tab(:);
+ltw(30n) ltw(30n).
+A:B
+.TE
+.sp
+\fBTable 4. Zero beside automatic width\fR
+.br
+.TS
+allbox expand tab(:);
+ltw(1n) lt.
+A:Automatic space
+.TE
+.sp
+\fBTable 5. Maximum repeated widths\fR
+.br
+.TS
+allbox expand tab(:);
+ltw(30n) ltw(30n) lt.
+A:B:Automatic space
+.TE

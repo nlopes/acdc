@@ -233,20 +233,20 @@ fn width_plan(
 
     let widths = if table.columns().next().is_none() {
         let divisor = f64::from(u32::try_from(num_cols.max(1)).unwrap_or(u32::MAX));
-        vec![100.0 / divisor; num_cols]
+        vec![Some(100.0 / divisor); num_cols]
     } else {
         column_widths(table.columns())
     };
     let nominal_width = 60.0 * f64::from(requested_width.unwrap_or(100)) / 100.0;
     let modifiers = (0..num_cols)
         .map(|index| {
-            widths.get(index).map_or_else(String::new, |width| {
-                if *width > 0.0 {
+            widths
+                .get(index)
+                .copied()
+                .flatten()
+                .map_or_else(String::new, |width| {
                     format!("w({:.0}n)", (nominal_width * width / 100.0).max(1.0))
-                } else {
-                    String::new()
-                }
-            })
+                })
         })
         .collect();
 

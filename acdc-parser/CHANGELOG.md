@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Table column widths above 4,294,967,295 now return a located parse error
+  instead of silently selecting a default width. This bound differs from
+  Asciidoctor, which accepts larger integers.
+
 - Checked ASG export no longer confuses document attributes named `name`, `type`
   or `id` with node identities. It also rejects dangling footnotes retained only
   in index or reference labels, while keeping canonical note bodies unchanged.

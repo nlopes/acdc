@@ -685,12 +685,13 @@ fn apply_column_widths(table_widget: &mut Table, tbl: TableRef<'_>, num_cols: us
             .map(|i| {
                 widths
                     .get(i)
+                    .copied()
+                    .flatten()
                     .and_then(|width| {
                         let clamped = width.clamp(0.0, 100.0).round();
                         format!("{clamped:.0}")
                             .parse::<u16>()
                             .ok()
-                            .filter(|&p| p > 0)
                             .map(|percent| ColumnConstraint::Absolute(Width::Percentage(percent)))
                     })
                     .unwrap_or(ColumnConstraint::ContentWidth)

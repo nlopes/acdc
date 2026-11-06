@@ -93,7 +93,7 @@ T}
 .br
 .TS
 allbox expand tab(:);
-ldw(30n) ldw(30n) lt.
+ldw(2n) ldw(2n) lt.
 T{
 .sp
 \fBCell 1\fR

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Mixed numeric and automatic table columns now preserve the authored numeric
+  proportions, including `cols="2*3,~"`. Large supported widths no longer overflow,
+  and all-zero numeric widths divide space equally.
+
 - Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
 
 - Render attributed plus passthroughs without leaking their ID and role prefixes into the text.
