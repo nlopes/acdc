@@ -32,7 +32,8 @@ fn exact_span_roles_keep_optional_presence_and_token_reads() {
                         .split_whitespace()
                         .collect::<Vec<_>>()
                 );
-                assert_eq!(span.attributes().contains("role"), !tokens.is_empty());
+                assert_eq!(span.roles().is_present(), role.is_some());
+                assert_eq!(span.attributes().contains("role"), role.is_some());
                 owner.replace_role(Some("updated\trole"));
                 assert_eq!($read::from(&owner).role(), Some("updated\trole"));
             }};

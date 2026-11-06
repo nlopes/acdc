@@ -40,7 +40,7 @@ fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
             } else {
                 None
             };
-            metadata.roles = vec!["alpha", "beta", "alpha"];
+            metadata.roles = vec!["alpha", "beta", "alpha"].into();
             header.set_metadata(metadata)?;
             document.set_header(Some(header));
             let processor = Processor::new_with_variant(

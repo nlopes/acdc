@@ -5700,7 +5700,7 @@ mod tests {
         );
 
         let mut metadata = image.take_metadata();
-        metadata.roles = vec!["left", "unrelated", "right"];
+        metadata.roles = vec!["left", "unrelated", "right"].into();
         image.set_metadata(metadata)?;
         assert_eq!(
             block_image_alignment(Some(ImageRef::from(&image).attributes())),

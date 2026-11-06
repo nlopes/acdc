@@ -413,8 +413,8 @@ peg::parser! {
                             if attr_metadata.style.is_some() {
                                 metadata.style = attr_metadata.style;
                             }
-                            metadata.roles.extend(attr_metadata.roles);
-                            metadata.options.extend(attr_metadata.options);
+                            metadata.roles.append(attr_metadata.roles);
+                            metadata.options.append(attr_metadata.options);
                             for (name, value) in attr_metadata.attributes.iter() {
                                 metadata.attributes.set(name.clone(), value.clone());
                             }

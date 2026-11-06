@@ -85,8 +85,8 @@ fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(
     metadata
         .attributes
         .set("flag".into(), AttributeValue::Bool(true));
-    metadata.roles = vec!["one", "two"];
-    metadata.options = vec!["first", "second"];
+    metadata.roles = vec!["one", "two"].into();
+    metadata.options = vec!["first", "second"].into();
     let mut document = Document::default();
     paragraph.set_metadata(metadata)?;
     document.push_block(Block::Paragraph(paragraph));

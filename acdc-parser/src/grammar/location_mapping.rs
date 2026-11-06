@@ -1078,8 +1078,8 @@ mod tests {
             })
             .ok_or("expected an inline image")?;
 
-        assert_eq!(image.metadata.roles, ["hot", "cool"]);
-        assert_eq!(image.macro_attributes.options, ["foo", "bar"]);
+        assert_eq!(image.metadata.roles.as_slice(), ["hot", "cool"]);
+        assert_eq!(image.macro_attributes.options.as_slice(), ["foo", "bar"]);
         assert_eq!(
             image.metadata.id.as_ref().map(|anchor| anchor.id),
             Some("image-id")

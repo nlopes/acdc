@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+- Role and option metadata uses `TokenAssignment`. Convert prepared vectors with
+  `.into()`; use the default value for absence and an empty vector for explicit
+  emptiness. `TokensRef::is_present()` exposes the distinction. Native JSON and
+  supported ASG metadata retain empty arrays instead of omitting them. Strict
+  ASG export rejects explicit empty inline assignments where no mapping exists.
+
 - ID source locations are optional. Generated section IDs and caller-built IDs
   without recorded coordinates return `None` from `ElementIdRef::location()`.
   Native JSON omits unknown anchor and inline-ID locations instead of writing

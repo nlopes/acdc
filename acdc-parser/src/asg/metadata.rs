@@ -225,7 +225,7 @@ fn apply_with_primary(
     if !attributes.is_empty() {
         metadata.insert("attributes".into(), Value::Object(attributes));
     }
-    if !value.roles.is_empty() {
+    if !value.roles.is_absent() {
         metadata.insert(
             "roles".into(),
             Value::Array(
@@ -237,7 +237,7 @@ fn apply_with_primary(
             ),
         );
     }
-    if !value.options.is_empty() {
+    if !value.options.is_absent() {
         metadata.insert(
             "options".into(),
             Value::Array(
@@ -262,7 +262,7 @@ pub(super) fn apply_inline(
     node: &mut Map<String, Value>,
     value: &InlineMetadata<'_>,
     attributes: &ElementAttributes<'_>,
-    options: &[&str],
+    options: &crate::TokenAssignment<'_>,
     path: &str,
 ) -> Result<(), Error> {
     if let Some(id) = &value.id {
@@ -276,8 +276,8 @@ pub(super) fn apply_inline(
     if !attributes.is_empty() {
         metadata.insert("attributes".into(), Value::Object(attributes));
     }
-    for (name, values) in [("roles", value.roles.as_slice()), ("options", options)] {
-        if !values.is_empty() {
+    for (name, values) in [("roles", &value.roles), ("options", options)] {
+        if !values.is_absent() {
             metadata.insert(name.into(), serde_json::json!(values));
         }
     }
@@ -326,8 +326,8 @@ pub(super) fn empty(value: &BlockMetadata<'_>, path: &str) -> Result<(), Error> 
             !value.raw_positional_attributes().is_empty(),
             "positional_attributes",
         ),
-        (!value.roles.is_empty(), "roles"),
-        (!value.options.is_empty(), "options"),
+        (!value.roles.is_absent(), "roles"),
+        (!value.options.is_absent(), "options"),
         (value.style.is_some(), "style"),
         (value.id.is_some(), "id"),
         (!value.anchors.is_empty(), "anchors"),

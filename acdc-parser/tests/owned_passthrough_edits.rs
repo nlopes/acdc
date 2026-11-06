@@ -27,7 +27,7 @@ fn raw_copies_keep_identity_roles_text_and_ordered_substitutions() {
     let mut raw = Raw::new("λ *literal*", profile(), Location::default());
     let mut metadata = InlineMetadata::default();
     metadata.id = Some(ElementId::new("raw", Location::default()));
-    metadata.roles = vec!["first", "second", "first"];
+    metadata.roles = vec!["first", "second", "first"].into();
     raw.set_metadata(Some(metadata));
     let copy = Raw::from(RawRef::from(&raw));
     assert_eq!(copy, raw);
@@ -62,7 +62,7 @@ fn raw_metadata_transfers_keep_original_source_lifetimes() {
         let mut raw = Raw::new("text", Vec::new(), Location::default());
         let mut metadata = InlineMetadata::default();
         metadata.id = Some(ElementId::new(source.as_str(), Location::default()));
-        metadata.roles = vec![source.as_str()];
+        metadata.roles = vec![source.as_str()].into();
         raw.set_metadata(Some(metadata));
         raw.take_metadata()
     };

@@ -54,11 +54,11 @@ fn parser_tokens_and_identity_follow_existing_mode_semantics(
     };
     assert_eq!(
         paragraph.roles().iter().collect::<Vec<_>>(),
-        owner.metadata.roles
+        owner.metadata.roles.as_slice()
     );
     assert_eq!(
         paragraph.options().iter().collect::<Vec<_>>(),
-        owner.metadata.options
+        owner.metadata.options.as_slice()
     );
     assert_eq!(
         paragraph.attributes().get("id"),
@@ -77,11 +77,11 @@ fn parser_tokens_and_identity_follow_existing_mode_semantics(
     };
     assert_eq!(
         image.roles().iter().collect::<Vec<_>>(),
-        owner.metadata.roles
+        owner.metadata.roles.as_slice()
     );
     assert_eq!(
         image.options().iter().collect::<Vec<_>>(),
-        owner.metadata.options
+        owner.metadata.options.as_slice()
     );
     assert_inventory(image.attributes());
     assert_eq!(serde_json::to_value(parsed.document_storage())?, before);
@@ -109,8 +109,8 @@ fn dedicated_presence_suppresses_stale_map_entries() {
     assert_eq!(empty.style(), None);
 
     paragraph.title = Title::new(Vec::new());
-    paragraph.metadata.roles = vec!["one", "one", "two"];
-    paragraph.metadata.options = vec!["first", "second"];
+    paragraph.metadata.roles = vec!["one", "one", "two"].into();
+    paragraph.metadata.options = vec!["first", "second"].into();
     paragraph.metadata.style = Some("");
     let node = ParagraphRef::from(&paragraph);
     assert_inventory(node.attributes());
@@ -196,7 +196,7 @@ fn delimited_quote_content_suppresses_stale_scalar_attribution() -> Result<(), E
             .metadata
             .attributes
             .set("citetitle".into(), AttributeValue::from("SHADOW BOOK"));
-        block.metadata.roles = vec!["", "one", "one"];
+        block.metadata.roles = vec!["", "one", "one"].into();
         let BlockKind::Quote(quote) = BlockRef::from(&block).kind() else {
             return Err("quote".into());
         };

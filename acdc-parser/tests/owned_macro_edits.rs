@@ -362,9 +362,18 @@ fn remaining_control_replacement_is_checked_and_atomic() -> Result<(), Error> {
             let controls = node.take_attributes();
             assert_eq!(controls.get("valueless"), Some(&AttributeValue::None));
             assert!(node.clone_attributes().is_empty());
-            assert_eq!(node.clone_metadata().roles, ["role"]);
-            assert_eq!(node.take_options(), ["option"]);
-            assert_eq!(node.take_metadata().roles, ["role"]);
+            assert_eq!(
+                node.clone_metadata().roles.into_tokens().ok_or("roles")?,
+                ["role"]
+            );
+            assert_eq!(
+                node.take_options().into_tokens().ok_or("options")?,
+                ["option"]
+            );
+            assert_eq!(
+                node.take_metadata().roles.into_tokens().ok_or("roles")?,
+                ["role"]
+            );
             assert_eq!(node.clone_metadata(), InlineMetadata::default());
         }};
     }
@@ -406,9 +415,9 @@ fn xref_transfers_keep_buffers_source_lifetimes_and_display_snapshots() -> Resul
         let mut options = Vec::with_capacity(2);
         options.push("first");
         let pointer = options.as_ptr();
-        assert_eq!(node.replace_options(options), [] as [&str; 0]);
+        assert!(node.replace_options(options).is_absent());
         node.push_option("");
-        let options = node.take_options();
+        let options = node.take_options().into_tokens().ok_or("options")?;
         assert_eq!(options.as_ptr(), pointer);
         node.set_xrefstyle(XrefStyle::Short);
         node.set_caption_label(XrefCaptionLabel::AtReference(""));

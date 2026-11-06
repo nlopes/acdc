@@ -70,7 +70,7 @@ fn media_bulk_controls_are_checked_atomically_with_all_reserved_aliases() -> Res
             node.replace_options(vec!["first", "first", ""]);
             let mut metadata = InlineMetadata::default();
             metadata.id = Some(ElementId::new("id", Location::default()));
-            metadata.roles = vec!["one", "two"];
+            metadata.roles = vec!["one", "two"].into();
             node.set_metadata(metadata);
             for key in ["alt", "title", "id", "role", "roles", "opts", "options"] {
                 let before = node.clone();
@@ -140,17 +140,25 @@ fn media_option_and_metadata_transfers_keep_buffers_and_source_lifetimes() {
                 node.replace_options(options);
                 let old = node.replace_options(vec![replacement.as_str()]);
                 node.push_option("");
-                assert_eq!(node.take_options(), [replacement.as_str(), ""]);
+                assert_eq!(
+                    node.take_options().into_tokens().unwrap_or_default(),
+                    [replacement.as_str(), ""]
+                );
                 assert!($read::from(&node).options().is_empty());
                 let mut metadata = InlineMetadata::default();
-                metadata.roles = roles;
+                metadata.roles = roles.into();
                 node.set_metadata(metadata);
                 let copy = node.clone_metadata();
-                assert_eq!(copy.roles, [replacement.as_str()]);
+                assert_eq!(
+                    copy.roles.into_tokens().unwrap_or_default(),
+                    [replacement.as_str()]
+                );
                 let taken = node.take_metadata();
                 assert!($read::from(&node).roles().is_empty());
                 (old, taken.roles)
             };
+            let old = old.into_tokens().unwrap_or_default();
+            let roles = roles.into_tokens().unwrap_or_default();
             assert_eq!(old.as_ptr(), pointer);
             assert_eq!(old, [source.as_str(), "", source.as_str()]);
             assert_eq!(roles.as_ptr(), roles_pointer);

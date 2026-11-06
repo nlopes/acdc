@@ -192,7 +192,9 @@
       "metadata": {
         "attributes": {
           "custom": ""
-        }
+        },
+        "roles": [],
+        "options": []
       },
       "location": [
         {

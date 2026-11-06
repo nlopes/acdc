@@ -404,8 +404,8 @@ fn test_document_empty_attribute_list() -> Result<(), Error> {
     let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(metadata.id, None);
     assert_eq!(metadata.style, None);
-    assert_eq!(metadata.roles, [] as [&str; 0]);
-    assert_eq!(metadata.options, [] as [&str; 0]);
+    assert_eq!(metadata.roles.as_slice(), [] as [&str; 0]);
+    assert_eq!(metadata.options.as_slice(), [] as [&str; 0]);
     assert!(metadata.attributes.is_empty());
     Ok(())
 }
@@ -419,8 +419,8 @@ fn test_document_empty_attribute_list_with_discrete() -> Result<(), Error> {
     assert_eq!(metadata.id, None);
     // The `discrete` style is retained so a discrete heading renders it as a class.
     assert_eq!(metadata.style, Some("discrete"));
-    assert_eq!(metadata.roles, [] as [&str; 0]);
-    assert_eq!(metadata.options, [] as [&str; 0]);
+    assert_eq!(metadata.roles.as_slice(), [] as [&str; 0]);
+    assert_eq!(metadata.options.as_slice(), [] as [&str; 0]);
     Ok(())
 }
 
@@ -1204,8 +1204,8 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
     let result = document_parser::document(input, &mut state)??;
     let img = get_image(&result);
     assert_eq!(
-        img.metadata.roles,
-        vec![std::borrow::Cow::Borrowed("thumbnail")],
+        img.metadata.roles.as_slice(),
+        ["thumbnail"],
         "Named role= attribute should work"
     );
 
@@ -1228,7 +1228,7 @@ fn test_block_macro_uses_last_closing_bracket() -> Result<(), Error> {
     });
     assert!(image.is_some(), "document should contain an image block");
     if let Some(image) = image {
-        assert_eq!(image.metadata.roles, ["inline][100"]);
+        assert_eq!(image.metadata.roles.as_slice(), ["inline][100"]);
         assert_eq!(
             image.metadata.attributes.get("width"),
             Some(&AttributeValue::String("100".into()))

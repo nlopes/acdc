@@ -36,7 +36,13 @@ fn attribute_only_link_role_is_not_display_text() -> TestResult {
     );
     assert_eq!(link.clone().take_text(), []);
     assert_eq!(link.clone_attributes().iter().count(), 0);
-    assert_eq!(link.clone_metadata().roles, ["include"]);
+    assert_eq!(
+        link.clone_metadata()
+            .roles
+            .into_tokens()
+            .unwrap_or_default(),
+        ["include"]
+    );
 
     Ok(())
 }
@@ -60,7 +66,10 @@ fn attribute_only_url_role_is_not_display_text() -> TestResult {
     );
     assert_eq!(url.clone().take_text(), []);
     assert_eq!(url.clone_attributes().iter().count(), 0);
-    assert_eq!(url.clone_metadata().roles, ["include"]);
+    assert_eq!(
+        url.clone_metadata().roles.into_tokens().unwrap_or_default(),
+        ["include"]
+    );
 
     Ok(())
 }
@@ -150,7 +159,13 @@ fn link_with_text_and_attributes_parses_both() -> TestResult {
     );
     assert_plain_text(&link.clone().take_text(), "Example")?;
     assert_eq!(link.clone_attributes().iter().count(), 1);
-    assert_eq!(link.clone_metadata().roles, ["external"]);
+    assert_eq!(
+        link.clone_metadata()
+            .roles
+            .into_tokens()
+            .unwrap_or_default(),
+        ["external"]
+    );
     assert_eq!(
         link.clone_attributes().get_string("window").as_deref(),
         Some("_blank")
@@ -181,7 +196,10 @@ fn url_with_text_and_attributes_parses_both() -> TestResult {
     );
     assert_plain_text(&url.clone().take_text(), "Example")?;
     assert_eq!(url.clone_attributes().iter().count(), 1);
-    assert_eq!(url.clone_metadata().roles, ["external"]);
+    assert_eq!(
+        url.clone_metadata().roles.into_tokens().unwrap_or_default(),
+        ["external"]
+    );
     assert_eq!(
         url.clone_attributes().get_string("window").as_deref(),
         Some("_blank")
@@ -212,7 +230,14 @@ fn mailto_with_text_and_attributes_parses_both() -> TestResult {
     );
     assert_plain_text(&mailto.clone().take_text(), "Joe")?;
     assert_eq!(mailto.clone_attributes().iter().count(), 0);
-    assert_eq!(mailto.clone_metadata().roles, ["include"]);
+    assert_eq!(
+        mailto
+            .clone_metadata()
+            .roles
+            .into_tokens()
+            .unwrap_or_default(),
+        ["include"]
+    );
 
     Ok(())
 }

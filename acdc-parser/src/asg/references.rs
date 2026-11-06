@@ -227,7 +227,7 @@ fn with_metadata(
     mut node: Node,
     value: &InlineMetadata<'_>,
     attributes: &ElementAttributes<'_>,
-    options: &[&str],
+    options: &crate::TokenAssignment<'_>,
     tooltip: Option<&ContentAttribute<'_>>,
     path: &str,
     settings: InlineContext,
@@ -253,14 +253,14 @@ fn with_metadata(
 fn check(
     metadata: &InlineMetadata<'_>,
     attributes: &ElementAttributes<'_>,
-    options: &[&str],
+    options: &crate::TokenAssignment<'_>,
     tooltip: Option<&ContentAttribute<'_>>,
     path: &str,
 ) -> Result<(), Error> {
     for (present, property) in [
         (metadata.id.is_some(), "metadata/id"),
-        (!metadata.roles.is_empty(), "metadata/roles"),
-        (!options.is_empty(), "metadata/options"),
+        (!metadata.roles.is_absent(), "metadata/roles"),
+        (!options.is_absent(), "metadata/options"),
         (tooltip.is_some(), "tooltip"),
     ] {
         if present {

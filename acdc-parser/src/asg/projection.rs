@@ -735,7 +735,7 @@ fn raw_literal(raw: &crate::Raw<'_>, path: &str) -> Result<Node, Error> {
                 "passthrough identity is not representable in this ASG profile",
             ));
         }
-        if !metadata.roles.is_empty() {
+        if !metadata.roles.is_absent() {
             return Err(unsupported(
                 &pointer(&pointer(path, "metadata"), "roles"),
                 "passthrough roles are not representable in this ASG profile",

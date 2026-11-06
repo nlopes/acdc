@@ -99,7 +99,7 @@ fn hyperlink_scalar_replacement_rejects_reserved_aliases_atomically() -> Result<
             link.replace_options(vec!["first", "first", ""]);
             let mut metadata = InlineMetadata::default();
             metadata.id = Some(ElementId::new("id", Location::default()));
-            metadata.roles = vec!["role"];
+            metadata.roles = vec!["role"].into();
             link.set_metadata(metadata);
             link.set_attribute("window".into(), "_blank".into())?;
             for key in ["title", "id", "role", "roles", "opts", "options"] {
@@ -165,12 +165,18 @@ fn hyperlink_metadata_options_and_scalar_transfers_outlive_the_previous_owner() 
                 link.replace_options(options);
                 let old = link.replace_options(vec![replacement.as_str()]);
                 link.push_option("");
-                assert_eq!(link.take_options(), [replacement.as_str(), ""]);
+                assert_eq!(
+                    link.take_options().into_tokens().ok_or("options")?,
+                    [replacement.as_str(), ""]
+                );
                 assert!($read::from(&link).options().is_empty());
                 let mut metadata = InlineMetadata::default();
-                metadata.roles = roles;
+                metadata.roles = roles.into();
                 link.set_metadata(metadata);
-                assert_eq!(link.clone_metadata().roles, [replacement.as_str()]);
+                assert_eq!(
+                    link.clone_metadata().roles.into_tokens().ok_or("roles")?,
+                    [replacement.as_str()]
+                );
                 let roles = link.take_metadata().roles;
                 assert!($read::from(&link).roles().is_empty());
                 link.set_attribute(
@@ -179,6 +185,8 @@ fn hyperlink_metadata_options_and_scalar_transfers_outlive_the_previous_owner() 
                 )?;
                 (old, roles, link.take_attributes())
             };
+            let old = old.into_tokens().ok_or("options")?;
+            let roles = roles.into_tokens().ok_or("roles")?;
             assert_eq!(old.as_ptr(), pointer);
             assert_eq!(old, [source.as_str(), "", source.as_str()]);
             assert_eq!(roles.as_ptr(), roles_pointer);

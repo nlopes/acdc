@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `toc::[role="custom"]` and preceding role attributes now set the TOC container
   class, matching Asciidoctor. An authored `toc2` role stays intact in embedded
-  output; the default sidebar class still becomes `toc` there.
+  output; the default sidebar class still becomes `toc` there. An explicit
+  `role=""` clears the configured class. Asciidoctor mode also clears preceding
+  roles; Draft retains earlier roles under its additive attribute rules.
 
 - **Breaking:** library callers use converter-core’s document, block, and inline
   visitor traits with typed AST handles. The old owner visitor implementation

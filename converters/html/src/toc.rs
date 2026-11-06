@@ -170,7 +170,7 @@ fn section_number_config<'a>(attributes: &'a TraversalContext<'_>) -> NumberingC
 fn toc_class(toc_macro: Option<TableOfContentsRef<'_>>, default: &str, embedded: bool) -> String {
     if let Some(toc_macro) = toc_macro {
         let roles = toc_macro.roles();
-        if !roles.is_empty() {
+        if roles.is_present() {
             let mut class = String::new();
             for role in roles.iter() {
                 if !class.is_empty() {
@@ -309,7 +309,8 @@ mod tests {
     #[case("toc::[roles=\"alias second\"]", "alias second", "alias second")]
     #[case("toc::[role=\"toc2\"]", "toc2", "toc2")]
     #[case("toc::[]", "configured", "configured")]
-    #[case("toc::[role=\"\"]", "configured", "configured")]
+    #[case("toc::[role=\"\"]", "", "")]
+    #[case("[.preceding]\ntoc::[role=\"\"]", "", "preceding")]
     fn authored_roles_replace_the_default_without_losing_parser_selection(
         #[case] source: &str,
         #[case] asciidoctor: &str,

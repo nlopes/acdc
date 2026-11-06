@@ -1414,7 +1414,7 @@ mod title_media_tests {
                 metadata
                     .attributes
                     .set("citetitle".into(), AttributeValue::from("SHADOW BOOK"));
-                metadata.roles = vec!["", "one", "one"];
+                metadata.roles = vec!["", "one", "one"].into();
                 if let Block::Paragraph(node) = block {
                     assert!(node.set_metadata(metadata.clone()).is_err());
                     metadata.attributes.remove("attribution");
@@ -1549,7 +1549,7 @@ mod title_media_tests {
                         .anchors
                         .push(Anchor::new("fallback", Location::default()));
                 }
-                metadata.roles = vec!["one", "one"];
+                metadata.roles = vec!["one", "one"].into();
                 if let Block::Section(section) = block {
                     section.set_metadata(metadata)?;
                 } else if let Block::DiscreteHeader(header) = block {
@@ -1714,8 +1714,8 @@ mod title_media_tests {
                 metadata
                     .anchors
                     .push(Anchor::new("fallback", Location::default()));
-                metadata.roles = vec!["one", "one"];
-                metadata.options = vec!["autoplay", "nocontrols"];
+                metadata.roles = vec!["one", "one"].into();
+                metadata.options = vec!["autoplay", "nocontrols"].into();
                 metadata
                     .attributes
                     .set("align".into(), AttributeValue::from("'center'"));
@@ -1821,7 +1821,7 @@ mod title_media_tests {
             metadata
                 .anchors
                 .push(Anchor::new("fallback", Location::default()));
-            metadata.roles = vec!["one", "one"];
+            metadata.roles = vec!["one", "one"].into();
             metadata
                 .attributes
                 .set("width".into(), AttributeValue::from("\"75%\""));

@@ -206,7 +206,7 @@ pub(super) fn insert_named_metadata<'a>(
         }
         "options" => {
             attributes.options =
-                crate::grammar::helpers::parse_comma_separated_values(state, &value);
+                crate::grammar::helpers::parse_comma_separated_values(state, &value).into();
         }
         _ => attributes.attributes.set(name, value.into()),
     }

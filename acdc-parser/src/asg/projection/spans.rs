@@ -127,8 +127,8 @@ fn span_node(
     if let Some(id) = id {
         result.insert("id".into(), id.id.into());
     }
-    let roles: Vec<_> = role.unwrap_or_default().split_whitespace().collect();
-    if !roles.is_empty() {
+    if let Some(role) = role {
+        let roles: Vec<_> = role.split_whitespace().collect();
         result.insert("metadata".into(), serde_json::json!({"roles": roles}));
     }
     result.insert(

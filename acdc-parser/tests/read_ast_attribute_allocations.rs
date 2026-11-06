@@ -59,7 +59,7 @@ fn direct_attribute_reads_do_not_allocate_for_owned_text_or_content()
         String::from("\"owned text\"").into(),
     )?;
     let mut image_metadata = image.take_metadata();
-    image_metadata.roles = vec!["one", "two"];
+    image_metadata.roles = vec!["one", "two"].into();
     image.set_metadata(image_metadata);
     image.replace_options(vec!["first", "second"]);
     image.set_alt(Some(ContentAttribute::new(vec![InlineNode::PlainText(

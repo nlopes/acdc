@@ -204,7 +204,7 @@ fn handles_and_iterators_support_shared_reads_after_temporary_handles() {
     handle::<TokensRef<'_>>();
     let mut image = InlineImage::new(Source::Name("bird"), Location::default());
     let mut image_metadata = image.take_metadata();
-    image_metadata.roles = vec!["one", "two"];
+    image_metadata.roles = vec!["one", "two"].into();
     image.set_metadata(image_metadata);
     let entries = iterator(InlineImageRef::from(&image).attributes().iter());
     let tokens = iterator(InlineImageRef::from(&image).roles().iter());

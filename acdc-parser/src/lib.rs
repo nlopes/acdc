@@ -195,9 +195,9 @@ pub use model::{
     SourceUrl, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
     Substitution, SubstitutionOp, SubstitutionSpec, Subtitle, Superscript, Symbol, SymbolKind,
     Table, TableColumn, TableFrame, TableGrid, TableOfContents, TablePresentation, TableRow,
-    TableStripes, ThematicBreak, Title, TocEntry, UNNUMBERED_SECTION_STYLES, UnorderedList, Url,
-    VERBATIM, Verbatim, VerticalAlignment, Video, XrefCaptionLabel, XrefSignifier, XrefStyle,
-    substitute, substitute_attributes,
+    TableStripes, ThematicBreak, Title, TocEntry, TokenAssignment, UNNUMBERED_SECTION_STYLES,
+    UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video, XrefCaptionLabel,
+    XrefSignifier, XrefStyle, substitute, substitute_attributes,
 };
 pub use options::{CompatibilityMode, Options, OptionsBuilder, SafeMode};
 pub use parsed::{OwnedSource, ParseInlineResult, ParseResult};

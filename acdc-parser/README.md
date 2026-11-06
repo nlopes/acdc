@@ -102,9 +102,16 @@ body events.
 content, tokens, and substitution settings. `as_str()` reads exact scalar text,
 including empty strings and meaningful quotes. It does not render inline content.
 `roles` and `options` alias `role` and `opts`; iteration yields each canonical name
-once, in unspecified order. Empty role/option collections are currently absent.
-Formatting spans separately preserve an explicitly empty role, which makes a
-highlight a generic span rather than marked text.
+once, in unspecified order. `TokensRef::is_present()` distinguishes an absent
+assignment from an explicit empty one; `is_empty()` reports whether it has tokens.
+An explicit empty assignment remains in the attribute inventory and native JSON.
+Token equality compares presence and token order. An empty role on a formatting
+highlight makes it a generic span rather than marked text.
+
+Use `TokenAssignment::default()` for absent prepared roles/options and
+`TokenAssignment::new(Vec::new())` for explicit emptiness. Convert prepared
+vectors with `.into()`. Transfers retain presence; `into_tokens()` returns
+`None` for absence and `Some(Vec::new())` for an empty assignment.
 
 Missing content is `None`; explicitly empty content is `Some` with no inlines.
 `Title::default()` is absent; `Title::new(Vec::new())` is present and empty.

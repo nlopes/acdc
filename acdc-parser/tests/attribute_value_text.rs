@@ -46,7 +46,7 @@ fn all_value_kinds_keep_their_semantics_without_allocating() -> Result<(), Error
     );
     let mut image = InlineImage::new(Source::Name("bird"), Location::default());
     let mut metadata = image.take_metadata();
-    metadata.roles = vec!["one", "two"];
+    metadata.roles = vec!["one", "two"].into();
     image.set_metadata(metadata);
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
     let mut metadata = paragraph.take_metadata();

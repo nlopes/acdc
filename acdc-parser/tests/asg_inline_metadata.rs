@@ -67,7 +67,7 @@ fn empty_span_roles_preserve_generic_highlights_without_inventing_controls() -> 
                 .get(0)
                 .ok_or("inline node")?
                 .pointer("/metadata/roles"),
-            (!tokens.is_empty()).then(|| json!(tokens)).as_ref()
+            role.map(|_| json!(tokens)).as_ref()
         );
         assert!(
             value

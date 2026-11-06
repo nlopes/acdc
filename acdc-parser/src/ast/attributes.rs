@@ -21,8 +21,8 @@ use super::{
 ///
 /// Dedicated fields supply their values even when the scalar map contains a
 /// conflicting entry. An absent field stays absent; it does not reveal a stale
-/// map value. Empty role/option collections are absent because the owner does not
-/// distinguish an omitted collection from an explicitly empty one.
+/// map value. An explicit empty role/option assignment remains present with no
+/// tokens; an omitted assignment has no attribute entry.
 ///
 /// ```
 /// use acdc_parser::{Location, Paragraph, ast::{AttributeValueRef, ParagraphRef}};
@@ -470,11 +470,15 @@ impl<'doc> AttributesRef<'doc> {
             Field::Id => self.id().map(|id| AttributeValueRef::Text(id.as_str())),
             Field::Roles => {
                 let tokens = self.roles();
-                (!tokens.is_empty()).then_some(AttributeValueRef::Tokens(tokens))
+                tokens
+                    .is_present()
+                    .then_some(AttributeValueRef::Tokens(tokens))
             }
             Field::Options => {
                 let tokens = self.options();
-                (!tokens.is_empty()).then_some(AttributeValueRef::Tokens(tokens))
+                tokens
+                    .is_present()
+                    .then_some(AttributeValueRef::Tokens(tokens))
             }
             Field::Style => self.style().map(AttributeValueRef::Text),
             Field::Alt => self.alt().map(AttributeValueRef::Content),
@@ -726,28 +730,25 @@ impl<'doc> AttributesRef<'doc> {
 
     pub(super) fn roles(self) -> TokensRef<'doc> {
         match self.owner {
-            Owner::Raw(node) => TokensRef::new(
-                node.metadata
-                    .as_ref()
-                    .map(|metadata| metadata.roles.as_slice())
-                    .unwrap_or_default(),
-            ),
-            Owner::Bold(node) => TokensRef::from_text(node.role.unwrap_or_default()),
-            Owner::Italic(node) => TokensRef::from_text(node.role.unwrap_or_default()),
-            Owner::Monospace(node) => TokensRef::from_text(node.role.unwrap_or_default()),
-            Owner::Highlight(node) => TokensRef::from_text(node.role.unwrap_or_default()),
-            Owner::Subscript(node) => TokensRef::from_text(node.role.unwrap_or_default()),
-            Owner::Superscript(node) => TokensRef::from_text(node.role.unwrap_or_default()),
-            Owner::CurvedQuotation(node) => TokensRef::from_text(node.role.unwrap_or_default()),
-            Owner::CurvedApostrophe(node) => TokensRef::from_text(node.role.unwrap_or_default()),
-            Owner::InlineImage(node) => TokensRef::new(&node.metadata.roles),
-            Owner::Icon(node) => TokensRef::new(&node.metadata.roles),
-            Owner::CrossReference(node) => TokensRef::new(&node.metadata.roles),
-            Owner::IndexTerm(node) => TokensRef::new(&node.metadata.roles),
-            Owner::Link(node) => TokensRef::new(&node.metadata.roles),
-            Owner::Url(node) => TokensRef::new(&node.metadata.roles),
-            Owner::Mailto(node) => TokensRef::new(&node.metadata.roles),
-            Owner::ThematicBreak(_) => TokensRef::new(&[]),
+            Owner::Raw(node) => {
+                TokensRef::new(node.metadata.as_ref().map(|metadata| &metadata.roles))
+            }
+            Owner::Bold(node) => TokensRef::from_text(node.role),
+            Owner::Italic(node) => TokensRef::from_text(node.role),
+            Owner::Monospace(node) => TokensRef::from_text(node.role),
+            Owner::Highlight(node) => TokensRef::from_text(node.role),
+            Owner::Subscript(node) => TokensRef::from_text(node.role),
+            Owner::Superscript(node) => TokensRef::from_text(node.role),
+            Owner::CurvedQuotation(node) => TokensRef::from_text(node.role),
+            Owner::CurvedApostrophe(node) => TokensRef::from_text(node.role),
+            Owner::InlineImage(node) => TokensRef::new(Some(&node.metadata.roles)),
+            Owner::Icon(node) => TokensRef::new(Some(&node.metadata.roles)),
+            Owner::CrossReference(node) => TokensRef::new(Some(&node.metadata.roles)),
+            Owner::IndexTerm(node) => TokensRef::new(Some(&node.metadata.roles)),
+            Owner::Link(node) => TokensRef::new(Some(&node.metadata.roles)),
+            Owner::Url(node) => TokensRef::new(Some(&node.metadata.roles)),
+            Owner::Mailto(node) => TokensRef::new(Some(&node.metadata.roles)),
+            Owner::ThematicBreak(_) => TokensRef::new(None),
             Owner::Header(_)
             | Owner::Paragraph(_)
             | Owner::Section(_)
@@ -762,33 +763,29 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::Video(_)
             | Owner::TableOfContents(_)
             | Owner::DiscreteHeader(_)
-            | Owner::PageBreak(_) => TokensRef::new(
-                self.metadata()
-                    .map(|metadata| metadata.roles.as_slice())
-                    .unwrap_or_default(),
-            ),
+            | Owner::PageBreak(_) => {
+                TokensRef::new(self.metadata().map(|metadata| &metadata.roles))
+            }
         }
     }
 
     pub(super) fn options(self) -> TokensRef<'doc> {
         let options = if let Owner::IndexTerm(node) = self.owner {
-            node.options()
+            Some(node.options())
         } else if let Owner::CrossReference(node) = self.owner {
-            node.options()
+            Some(node.options())
         } else if let Owner::InlineImage(node) = self.owner {
-            node.options()
+            Some(node.options())
         } else if let Owner::Link(node) = self.owner {
-            node.options()
+            Some(node.options())
         } else if let Owner::Url(node) = self.owner {
-            node.options()
+            Some(node.options())
         } else if let Owner::Mailto(node) = self.owner {
-            node.options()
+            Some(node.options())
         } else if let Owner::Icon(node) = self.owner {
-            node.options()
+            Some(node.options())
         } else {
-            self.metadata()
-                .map(|metadata| metadata.options.as_slice())
-                .unwrap_or_default()
+            self.metadata().map(|metadata| &metadata.options)
         };
         TokensRef::new(options)
     }

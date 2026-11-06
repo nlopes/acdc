@@ -264,7 +264,7 @@ fn constructed_spans_keep_empty_identity_and_semantic_token_equality() -> Result
     };
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
     let mut metadata = paragraph.take_metadata();
-    metadata.roles = vec!["one", "two", "one"];
+    metadata.roles = vec!["one", "two", "one"].into();
     paragraph.set_metadata(metadata)?;
     let span = BoldRef::from(&bold);
     assert_eq!(span.id().ok_or("empty id")?.as_str(), "");
@@ -277,7 +277,8 @@ fn constructed_spans_keep_empty_identity_and_semantic_token_equality() -> Result
     bold.replace_role(Some(" \t\u{2003}"));
     let span = BoldRef::from(&bold);
     assert!(span.roles().is_empty());
-    assert!(!span.attributes().contains("role"));
+    assert!(span.roles().is_present());
+    assert!(span.attributes().contains("role"));
     let mut highlight = Highlight::new(Vec::new(), Form::Constrained, Location::default());
     assert!(HighlightRef::from(&highlight).is_marked());
     highlight.replace_role(Some(""));

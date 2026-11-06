@@ -116,7 +116,8 @@ impl<'doc> From<&'doc ElementId<'doc>> for ElementIdRef<'doc> {
 /// Role or option tokens in retained semantic order.
 ///
 /// Tokens preserve order, duplicates, and spelling. Span role text is split on
-/// whitespace; entries already stored as tokens are read as-is.
+/// whitespace; entries already stored as tokens are read as-is. Equality compares
+/// assignment presence as well as token values.
 #[derive(Clone, Copy, Debug)]
 pub struct TokensRef<'doc> {
     source: Tokens<'doc>,
@@ -124,26 +125,37 @@ pub struct TokensRef<'doc> {
 
 #[derive(Clone, Copy, Debug)]
 enum Tokens<'doc> {
+    Absent,
     List(&'doc [&'doc str]),
     Text(&'doc str),
 }
 
 impl<'doc> TokensRef<'doc> {
-    pub(super) fn new(tokens: &'doc [&'doc str]) -> Self {
+    pub(super) fn new(tokens: Option<&'doc crate::TokenAssignment<'doc>>) -> Self {
         Self {
-            source: Tokens::List(tokens),
+            source: match tokens {
+                Some(tokens) if !tokens.is_absent() => Tokens::List(tokens.as_slice()),
+                Some(_) | None => Tokens::Absent,
+            },
         }
     }
 
-    pub(super) fn from_text(text: &'doc str) -> Self {
+    pub(super) fn from_text(text: Option<&'doc str>) -> Self {
         Self {
-            source: Tokens::Text(text),
+            source: text.map_or(Tokens::Absent, Tokens::Text),
         }
+    }
+
+    /// Whether an assignment exists, including an explicitly empty assignment.
+    #[must_use]
+    pub fn is_present(self) -> bool {
+        !matches!(self.source, Tokens::Absent)
     }
 
     /// Iterate in token order, including any retained duplicates.
     pub fn iter(self) -> impl Iterator<Item = &'doc str> + Send + Sync + 'doc {
         let (list, text) = match self.source {
+            Tokens::Absent => (&[][..], ""),
             Tokens::List(tokens) => (tokens, ""),
             Tokens::Text(text) => (&[][..], text),
         };
@@ -154,6 +166,7 @@ impl<'doc> TokensRef<'doc> {
     #[must_use]
     pub fn is_empty(self) -> bool {
         match self.source {
+            Tokens::Absent => true,
             Tokens::List(tokens) => tokens.is_empty(),
             Tokens::Text(text) => text.split_whitespace().next().is_none(),
         }
@@ -168,7 +181,7 @@ impl<'doc> TokensRef<'doc> {
 
 impl PartialEq for TokensRef<'_> {
     fn eq(&self, other: &Self) -> bool {
-        self.iter().eq(other.iter())
+        self.is_present() == other.is_present() && self.iter().eq(other.iter())
     }
 }
 

@@ -103,7 +103,7 @@ fn replacing_metadata_preserves_content_and_macro_attributes() -> Result<(), Err
 
     assert_eq!(image.alt, alt);
     assert_eq!(image.tooltip, tooltip);
-    assert_eq!(image.options(), ["inline", "interactive"]);
+    assert_eq!(image.options().as_slice(), ["inline", "interactive"]);
     assert_eq!(
         image.attributes().get_string("custom").as_deref(),
         Some("kept")

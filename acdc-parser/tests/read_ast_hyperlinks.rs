@@ -241,8 +241,20 @@ fn transferring_scalar_controls_preserves_dedicated_metadata() -> Result<(), Err
     let mut link = link.with_attributes(controls)?;
     assert!(!link.clone_attributes().contains_key("old"));
     assert_eq!(LinkRef::from(&link).window(), Some("reading"));
-    assert_eq!(link.clone_metadata().roles, ["resource"]);
-    assert_eq!(link.clone().take_options(), ["nofollow"]);
+    assert_eq!(
+        link.clone_metadata()
+            .roles
+            .into_tokens()
+            .unwrap_or_default(),
+        ["resource"]
+    );
+    assert_eq!(
+        link.clone()
+            .take_options()
+            .into_tokens()
+            .unwrap_or_default(),
+        ["nofollow"]
+    );
     assert!(
         link.clone()
             .take_tooltip()
@@ -252,6 +264,12 @@ fn transferring_scalar_controls_preserves_dedicated_metadata() -> Result<(), Err
     );
     assert!(link.remove_attribute("window")?.is_some());
     assert!(LinkRef::from(&link).window().is_none());
-    assert_eq!(link.clone_metadata().roles, ["resource"]);
+    assert_eq!(
+        link.clone_metadata()
+            .roles
+            .into_tokens()
+            .unwrap_or_default(),
+        ["resource"]
+    );
     Ok(())
 }

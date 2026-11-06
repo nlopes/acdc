@@ -27,7 +27,10 @@ impl SourceLineOptions {
     pub fn resolve(metadata: &BlockMetadata<'_>, source: &str) -> Self {
         Self::resolve_values(
             metadata.style == Some("source"),
-            metadata.attributes.contains_key("linenums") || metadata.options.contains(&"linenums"),
+            metadata.attributes.contains_key("linenums")
+                || (&metadata.options)
+                    .into_iter()
+                    .any(|option| *option == "linenums"),
             string_attribute(metadata, "start"),
             string_attribute(metadata, "highlight"),
             source,

@@ -103,7 +103,7 @@ peg::parser! {
         = check_macros() check_passthrough_attributes() start:position!() attrs:inline_attributes() check_passthrough_prefix(start) index:attributed_passthrough_index(start) {?
             let pass = state.attribute_passthroughs.get(index).ok_or("plus passthrough")?;
             Ok(InlineNode::RawText(Raw {
-                metadata: Some(Box::new(crate::InlineMetadata { roles: attrs.0, id: attrs.1 })),
+                metadata: Some(Box::new(crate::InlineMetadata { roles: if attrs.0.is_empty() { crate::TokenAssignment::default() } else { attrs.0.into() }, id: attrs.1 })),
                 content: pass.text.unwrap_or_default(),
                 subs: pass.substitutions.clone(),
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),

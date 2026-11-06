@@ -27,6 +27,7 @@ pub(crate) mod section;
 pub(crate) mod substitution;
 mod tables;
 mod title;
+mod token_assignment;
 
 pub use admonition::{Admonition, AdmonitionForm, AdmonitionVariant};
 pub use anchor::{Anchor, Reference, TocEntry, UNNUMBERED_SECTION_STYLES};
@@ -60,6 +61,7 @@ pub use tables::{
     TableGrid, TablePresentation, TableRow, TableStripes, VerticalAlignment,
 };
 pub use title::{Subtitle, Title};
+pub use token_assignment::TokenAssignment;
 
 /// An editable `AsciiDoc` document tree.
 ///

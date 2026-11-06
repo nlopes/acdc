@@ -130,6 +130,9 @@
           ]
         }
       ],
+      "metadata": {
+        "roles": []
+      },
       "location": [
         {
           "line": 10,
@@ -235,6 +238,7 @@
       "type": "block",
       "form": "macro",
       "metadata": {
+        "roles": [],
         "options": [
           "one"
         ]

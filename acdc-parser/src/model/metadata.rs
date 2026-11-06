@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
-use crate::CompatibilityMode;
+use crate::{CompatibilityMode, TokenAssignment};
 
 use super::{
     Block,
@@ -91,10 +91,10 @@ pub struct BlockMetadata<'a> {
     // Preserve the original slots before routing consumes working slots.
     #[serde(skip)]
     pub(crate) retained_positional_attributes: Option<Vec<PositionalAttribute<'a>>>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub roles: Vec<Role<'a>>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub options: Vec<&'a str>,
+    #[serde(default, skip_serializing_if = "TokenAssignment::is_absent")]
+    pub roles: TokenAssignment<'a>,
+    #[serde(default, skip_serializing_if = "TokenAssignment::is_absent")]
+    pub options: TokenAssignment<'a>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<&'a str>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -242,17 +242,17 @@ impl<'a> BlockMetadata<'a> {
         Ok(())
     }
 
-    /// Set the options.
+    /// Set prepared options, including an explicit empty assignment.
     #[must_use]
     pub fn with_options(mut self, options: Vec<&'a str>) -> Self {
-        self.options = options;
+        self.options = options.into();
         self
     }
 
-    /// Set the roles.
+    /// Set prepared roles, including an explicit empty assignment.
     #[must_use]
     pub fn with_roles(mut self, roles: Vec<Role<'a>>) -> Self {
-        self.roles = roles;
+        self.roles = roles.into();
         self
     }
 
@@ -402,8 +402,8 @@ impl<'a> BlockMetadata<'a> {
     /// caption labels and ordinals do not make metadata nonempty.
     #[must_use]
     pub fn is_default(&self) -> bool {
-        self.roles.is_empty()
-            && self.options.is_empty()
+        self.roles.is_absent()
+            && self.options.is_absent()
             && self.style.is_none()
             && self.id.is_none()
             && self.anchors.is_empty()
@@ -486,15 +486,15 @@ impl<'a> ElementId<'a> {
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct InlineMetadata<'a> {
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub roles: Vec<Role<'a>>,
+    #[serde(skip_serializing_if = "TokenAssignment::is_absent")]
+    pub roles: TokenAssignment<'a>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<ElementId<'a>>,
 }
 
 impl InlineMetadata<'_> {
     pub(crate) fn is_empty(&self) -> bool {
-        self.roles.is_empty() && self.id.is_none()
+        self.roles.is_absent() && self.id.is_none()
     }
 }
 
@@ -509,7 +509,7 @@ pub struct ReservedAttribute {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct MacroAttributes<'a> {
     pub(crate) attributes: ElementAttributes<'a>,
-    pub(crate) options: Vec<&'a str>,
+    pub(crate) options: TokenAssignment<'a>,
 }
 
 impl<'a> MacroAttributes<'a> {
@@ -546,7 +546,7 @@ impl<'a> MacroAttributes<'a> {
     }
 
     pub(crate) fn is_empty(&self) -> bool {
-        self.attributes.is_empty() && self.options.is_empty()
+        self.attributes.is_empty() && self.options.is_absent()
     }
 }
 
@@ -565,10 +565,10 @@ fn check_attribute_name(name: &str, reserved: &[&str]) -> Result<(), ReservedAtt
 pub(crate) struct InlineMetadataView<'node, 'a> {
     #[serde(skip_serializing_if = "ElementAttributes::is_empty")]
     pub(crate) attributes: &'node ElementAttributes<'a>,
-    #[serde(skip_serializing_if = "<[_]>::is_empty")]
-    pub(crate) roles: &'node [Role<'a>],
-    #[serde(skip_serializing_if = "<[_]>::is_empty")]
-    pub(crate) options: &'node [&'a str],
+    #[serde(skip_serializing_if = "TokenAssignment::is_absent")]
+    pub(crate) roles: &'node TokenAssignment<'a>,
+    #[serde(skip_serializing_if = "TokenAssignment::is_absent")]
+    pub(crate) options: &'node TokenAssignment<'a>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) id: &'node Option<ElementId<'a>>,
 }

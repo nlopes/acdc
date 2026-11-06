@@ -140,7 +140,13 @@ fn named_index_controls_preserve_complete_child_labels() -> Result<(), Error> {
         )))?,
         "Child"
     );
-    assert_eq!(link.clone_metadata().roles, ["child"]);
+    assert_eq!(
+        link.clone_metadata()
+            .roles
+            .into_tokens()
+            .unwrap_or_default(),
+        ["child"]
+    );
     assert_eq!(acdc_parser::ast::PlainRef::from(after).text(), " after");
     assert_eq!(
         &source[acdc_parser::ast::LinkRef::from(link.as_ref())

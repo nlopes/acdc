@@ -37,7 +37,7 @@ fn link_attributes_keep_empty_nontext_and_quoted_values_after_owner_edits() -> R
 
         let mut metadata = link.take_metadata();
         metadata.id = Some(ElementId::new("'explicit'", Location::default()));
-        metadata.roles = vec!["'first", "second'"];
+        metadata.roles = vec!["'first", "second'"].into();
         link.set_metadata(metadata);
         assert_eq!(
             link_id_attr(LinkRef::from(&link).id()),
@@ -48,7 +48,7 @@ fn link_attributes_keep_empty_nontext_and_quoted_values_after_owner_edits() -> R
             " class=\"bare 'first second'\""
         );
         let mut metadata = link.take_metadata();
-        metadata.roles = vec!["duplicate", "duplicate"];
+        metadata.roles = vec!["duplicate", "duplicate"].into();
         link.set_metadata(metadata);
         assert_eq!(
             link_class_attr(LinkRef::from(&link).roles(), false),
@@ -88,7 +88,7 @@ fn media_link_controls_keep_their_own_window_and_option_rules()
         let mut image = Image::new(Source::Name("sample"), Location::default());
         let mut metadata = image.take_metadata();
         metadata.attributes.set("target".into(), "alias".into());
-        metadata.options = vec!["nofollow", "noopener"];
+        metadata.options = vec!["nofollow", "noopener"].into();
         image.set_metadata(metadata)?;
         if let Some(window) = window {
             let mut metadata = image.take_metadata();
@@ -103,7 +103,7 @@ fn media_link_controls_keep_their_own_window_and_option_rules()
             expected
         );
         let mut metadata = image.take_metadata();
-        metadata.options = vec!["noopener"];
+        metadata.options = vec!["noopener"].into();
         image.set_metadata(metadata)?;
         if expected == " rel=\"nofollow\"" {
             assert_eq!(

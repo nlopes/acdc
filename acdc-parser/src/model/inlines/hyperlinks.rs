@@ -183,7 +183,7 @@ macro_rules! hyperlink_controls {
 
             /// Option tokens in their retained order.
             #[must_use]
-            pub(crate) fn options(&self) -> &[&'a str] {
+            pub(crate) fn options(&self) -> &crate::TokenAssignment<'a> {
                 &self.macro_attributes.options
             }
 
@@ -224,13 +224,14 @@ macro_rules! hyperlink_controls {
                 std::mem::take(&mut self.macro_attributes.attributes)
             }
 
-            /// Replace prepared option names, retaining their order and source lifetimes.
-            pub fn replace_options(&mut self, options: Vec<&'a str>) -> Vec<&'a str> {
-                std::mem::replace(&mut self.macro_attributes.options, options)
+            /// Replace prepared options, retaining presence, order and source lifetimes.
+            /// An empty vector is an explicit assignment; the default value is absent.
+            pub fn replace_options(&mut self, options: impl Into<crate::TokenAssignment<'a>>) -> crate::TokenAssignment<'a> {
+                std::mem::replace(&mut self.macro_attributes.options, options.into())
             }
 
-            /// Transfer option names, leaving none.
-            pub fn take_options(&mut self) -> Vec<&'a str> {
+            /// Transfer the option assignment, leaving it absent.
+            pub fn take_options(&mut self) -> crate::TokenAssignment<'a> {
                 std::mem::take(&mut self.macro_attributes.options)
             }
 

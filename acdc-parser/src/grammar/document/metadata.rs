@@ -215,7 +215,7 @@ fn literal_attribute_inlines<'a>(
     }
 }
 
-fn unique(values: &mut Vec<&str>) {
+fn unique(values: &mut crate::TokenAssignment<'_>) {
     let mut seen = std::collections::HashSet::new();
     values.retain(|value| seen.insert(*value));
 }
@@ -333,8 +333,8 @@ pub(super) fn merge_attribute_metadata<'input>(
     if attribute_metadata.style.is_some() {
         metadata.style = attribute_metadata.style;
     }
-    metadata.roles.extend(attribute_metadata.roles);
-    metadata.options.extend(attribute_metadata.options);
+    metadata.roles.append(attribute_metadata.roles);
+    metadata.options.append(attribute_metadata.options);
     if mode == CompatibilityMode::Draft {
         unique(&mut metadata.roles);
         unique(&mut metadata.options);

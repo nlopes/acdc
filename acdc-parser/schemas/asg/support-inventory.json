@@ -5597,6 +5597,24 @@
         }
       },
       "strict_export_group": "core"
+    },
+    "src/model/token_assignment.rs::TokenAssignment": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "token-assignment"
+      },
+      "properties": {
+        "0": {
+          "policy": "token-assignment"
+        }
+      },
+      "strict_export_group": "inline-controls"
     }
   },
   "policies": {
@@ -5779,6 +5797,10 @@
     "named-interface-labels": {
       "handling": "context-dependent",
       "reason": "The named profile keeps ordered shortcut components, button content and menu target/steps as inline arrays, including empty components and resolved nesting. Source enablement and delimiter interpretation are already resolved. Export emits no backend UI markup and invents no component spans. Strict upstream export rejects."
+    },
+    "token-assignment": {
+      "handling": "context-dependent",
+      "reason": "Preserve absence separately from empty token arrays. Block metadata supports both profiles; inline metadata needs the named acdc profile."
     }
   },
   "strict_export_groups": {
