@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Short and full cross-references retain formatting in parsed custom `caption=`
+  prefixes. Only a final unformatted period and space are removed; punctuation
+  inside a styled span remains visible.
+
+- Automatic reference copies keep inline IDs and index occurrences on their
+  original content, so copied captions, titles, and labels do not repeat them.
+
 - Images and audio with quote characters in local filenames now render in both
   variants. Double quotes in their source attributes are escaped safely.
 

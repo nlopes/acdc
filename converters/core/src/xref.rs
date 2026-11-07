@@ -3,8 +3,8 @@
 use std::{borrow::Cow, cell::Cell, rc::Rc};
 
 use acdc_parser::{
-    XrefCaptionLabel, XrefSignifier, XrefStyle,
-    ast::{CaptionRef, ContentRef, CrossReferenceRef, ReferenceRef},
+    ContentAttribute, InlineNode, XrefCaptionLabel, XrefSignifier, XrefStyle,
+    ast::{CaptionRef, ContentRef, CrossReferenceRef, InlineKind, ReferenceRef},
 };
 
 /// Display content for an automatic cross-reference.
@@ -22,6 +22,12 @@ pub enum XrefDisplay<'r, Content> {
     Label(Content, XrefScope<'r>),
     /// A caption label and number or custom prefix, without the target title.
     ShortCaption(String),
+    /// A parsed custom prefix, with its final unformatted period and space omitted.
+    /// Render it through [`with_caption_prefix`] while holding the scope.
+    ShortCustomCaption(Content, XrefScope<'r>),
+    /// A parsed custom prefix followed by the target title in quotation marks.
+    /// Render the prefix through [`with_caption_prefix`] while holding the scope.
+    FullCustomCaption(Content, Content, XrefScope<'r>),
     /// A caption prefix and the target title in quotation marks. A numbered
     /// section other than a chapter or appendix takes this form too, as in
     /// `Section 1.1, "Title"`.
@@ -105,8 +111,9 @@ pub fn reference_text(reference: ReferenceRef<'_>) -> Option<ContentRef<'_>> {
 /// in `Section 1.1`; an unnumbered one is referenced by its title under every
 /// style. Selecting a style emphasizes chapter and appendix titles even without
 /// a number. Empty custom captions fall back to the title. Other custom captions
-/// omit one trailing period and space in short and full references. Captioned
-/// targets honor the style; table, example, and listing references can override the
+/// omit one final unformatted period and space in short and full references.
+/// Formatted prefixes retain their prepared inline content. Captioned targets
+/// honor the style; table, example, and listing references can override the
 /// target label with the label recorded at the reference position. Unknown
 /// local and untitled targets fall back to `[id]`,
 /// matching Asciidoctor, and so does a reference that `guard` reports as nested
@@ -179,13 +186,13 @@ pub fn local_reference_id(xref: CrossReferenceRef<'_>) -> Cow<'_, str> {
     }
 }
 
-fn resolve_content<'guard, Content: Copy>(
-    reference: Option<ReferenceRef<'_>>,
-    title: Option<Content>,
-    label: Option<Content>,
+fn resolve_content<'doc, 'guard>(
+    reference: Option<ReferenceRef<'doc>>,
+    title: Option<ContentRef<'doc>>,
+    label: Option<ContentRef<'doc>>,
     xref: CrossReferenceRef<'_>,
     guard: &'guard XrefGuard,
-) -> XrefDisplay<'guard, Content> {
+) -> XrefDisplay<'guard, ContentRef<'doc>> {
     let target = xref.target();
     if !xref.target_is_local() {
         return XrefDisplay::External(target.to_string());
@@ -193,14 +200,14 @@ fn resolve_content<'guard, Content: Copy>(
     resolve_local_content(reference, title, label, target, xref, guard)
 }
 
-fn resolve_local_content<'guard, Content: Copy>(
-    reference: Option<ReferenceRef<'_>>,
-    title: Option<Content>,
-    label: Option<Content>,
+fn resolve_local_content<'doc, 'guard>(
+    reference: Option<ReferenceRef<'doc>>,
+    title: Option<ContentRef<'doc>>,
+    label: Option<ContentRef<'doc>>,
     target: &str,
     xref: CrossReferenceRef<'_>,
     guard: &'guard XrefGuard,
-) -> XrefDisplay<'guard, Content> {
+) -> XrefDisplay<'guard, ContentRef<'doc>> {
     let fallback = if target.is_empty() { "^top" } else { target };
     let Some(reference) = reference else {
         return XrefDisplay::Unresolved(format!("[{fallback}]"));
@@ -227,6 +234,20 @@ fn resolve_local_content<'guard, Content: Copy>(
         && matches!(reference.section_name(), Some("chapter" | "appendix"))
     {
         XrefDisplay::Emphasized(None, title, guard.enter())
+    } else if let (Some(title), Some(CaptionRef::CustomContent(prefix))) =
+        (title, reference.caption())
+    {
+        let empty = crate::InlineTextTransform::default()
+            .rendered()
+            .content_to_string(prefix)
+            .is_empty();
+        if !empty && xref.xrefstyle() == XrefStyle::Short {
+            XrefDisplay::ShortCustomCaption(prefix, guard.enter())
+        } else if !empty && xref.xrefstyle() == XrefStyle::Full {
+            XrefDisplay::FullCustomCaption(prefix, title, guard.enter())
+        } else {
+            XrefDisplay::Title(title, guard.enter())
+        }
     } else if let (Some(title), Some(prefix)) = (
         title,
         reference
@@ -293,14 +314,56 @@ fn caption_prefix(caption: CaptionRef<'_>, xref: CrossReferenceRef<'_>) -> Optio
         CaptionRef::Custom(prefix) => {
             (!prefix.is_empty()).then(|| prefix.strip_suffix(". ").unwrap_or(prefix).to_string())
         }
-        CaptionRef::CustomContent(content) => {
-            let prefix = crate::inline_text::InlineTextTransform::default()
-                .rendered()
-                .content_to_string(content);
-            (!prefix.is_empty()).then(|| prefix.strip_suffix(". ").unwrap_or(&prefix).to_string())
+        CaptionRef::CustomContent(_) | CaptionRef::Numbered { .. } | CaptionRef::Unnumbered | _ => {
+            None
         }
-        CaptionRef::Numbered { .. } | CaptionRef::Unnumbered | _ => None,
     }
+}
+
+/// Render a custom reference prefix without one final unformatted period and space.
+///
+/// Formatting, raw substitutions, identity and source spans remain intact. The
+/// original content is unchanged; punctuation inside formatting remains visible.
+pub fn with_caption_prefix<R>(
+    content: ContentRef<'_>,
+    render: impl FnOnce(ContentRef<'_>) -> R,
+) -> R {
+    let Some((start, prefix)) = caption_suffix_start(content) else {
+        return render(content);
+    };
+    let mut nodes = ContentAttribute::from(content).into_inlines();
+    if prefix.is_empty() {
+        nodes.truncate(start);
+    } else {
+        nodes.truncate(start + 1);
+        if let Some(InlineNode::PlainText(node)) = nodes.last_mut() {
+            node.replace_text(prefix);
+        } else if let Some(InlineNode::RawText(node)) = nodes.last_mut() {
+            node.replace_text(prefix);
+        }
+    }
+    render(ContentRef::from(&ContentAttribute::new(nodes)))
+}
+
+fn caption_suffix_start(content: ContentRef<'_>) -> Option<(usize, &str)> {
+    let mut suffix = ". ";
+    for (index, node) in content.inlines().enumerate().rev() {
+        let text = if let InlineKind::Plain(text) = node.kind() {
+            text.text()
+        } else if let InlineKind::Raw(text) = node.kind()
+            && text.id().is_none()
+            && text.roles().is_empty()
+        {
+            text.text()
+        } else {
+            return None;
+        };
+        if let Some(prefix) = text.strip_suffix(suffix) {
+            return Some((index, prefix));
+        }
+        suffix = suffix.strip_suffix(text)?;
+    }
+    None
 }
 
 /// Map an inter-document cross-reference to a backend target and fallback text.
@@ -632,7 +695,9 @@ mod tests {
                 XrefDisplay::FullCaption(prefix, ..) => ("quoted", prefix),
                 XrefDisplay::Emphasized(prefix, ..) => ("emphasized", prefix.unwrap_or_default()),
                 // Reported as a value so the assertion shows what came back.
-                other @ (XrefDisplay::Label(..)
+                other @ (XrefDisplay::ShortCustomCaption(..)
+                | XrefDisplay::FullCustomCaption(..)
+                | XrefDisplay::Label(..)
                 | XrefDisplay::External(_)
                 | XrefDisplay::Fallback(_)
                 | XrefDisplay::Unresolved(_)
@@ -881,7 +946,8 @@ mod tests {
                 &xref("custom", XrefStyle::Short),
                 &guard
             ),
-            XrefDisplay::ShortCaption(prefix) if prefix == "Exhibit: "
+            XrefDisplay::ShortCustomCaption(prefix, _scope)
+                if crate::InlineTextTransform::default().content_to_string(prefix) == "Exhibit: "
         ));
         assert!(matches!(
             resolve_xref(
@@ -889,7 +955,8 @@ mod tests {
                 &xref("custom", XrefStyle::Full),
                 &guard
             ),
-            XrefDisplay::FullCaption(prefix, ..) if prefix == "Exhibit: "
+            XrefDisplay::FullCustomCaption(prefix, ..)
+                if crate::InlineTextTransform::default().content_to_string(prefix) == "Exhibit: "
         ));
         Ok(())
     }

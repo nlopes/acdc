@@ -102,7 +102,7 @@
 #imagecaption[#text("π ")#text("©")#text(" ")#text("→")#text(" — ")#text("Figure ")#text("→")#text(" — ")]
 ]
 
-#context link(query(<id-666967757265>).first().location())[#text("π © → — ")#text(", “")#text("Figure ")#text("→")#text(" — ")#text("”")]#text(".")
+#context link(query(<id-666967757265>).first().location())[#text("π ")#text("©")#text(" ")#text("→")#text(" — ")#text(", “")#text("Figure ")#text("→")#text(" — ")#text("”")]#text(".")
 
 #_acdc_image_callout([#text("π ")#text("©")#text(" ")#text("→")#text(" — ")])[
 #text("Admonition body.")

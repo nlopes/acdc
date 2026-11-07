@@ -18,6 +18,7 @@ terminal_fixture_catalog!([
     (ui_content_attributes, true),
     (video_target_preservation, true),
     (caption_content_attributes, true),
+    (xref_custom_caption_content, true),
 
     (media_attributes, true),
     (subs_url_opening_boundaries, true),

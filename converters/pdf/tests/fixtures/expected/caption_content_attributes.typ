@@ -116,4 +116,4 @@
 #imagecaption[#strong[#text("Custom")]#text(". ")#text("Image title")]
 ]
 
-#text("See ")#context link(query(<id-637573746f6d2d696d616765>).first().location())[#text("Custom")]#text(".")
+#text("See ")#context link(query(<id-637573746f6d2d696d616765>).first().location())[#strong[#text("Custom")]]#text(".")

@@ -7,7 +7,7 @@ use acdc_converters_core::{
     Diagnostics, InlineTextTransform, TraversalContext, WarningSource, decode_numeric_char_refs,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
-    xref::{XrefDisplay, resolve_reference},
+    xref::{XrefDisplay, resolve_reference, with_caption_prefix},
 };
 use acdc_parser::{
     Substitution,
@@ -451,6 +451,20 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
             XrefDisplay::FullCaption(prefix, inlines, _scope) => {
                 self.write_link_styled(processor, |visitor| {
                     write!(visitor.writer_mut(), "{prefix}, “")?;
+                    visitor.write_content(traversal, inlines)?;
+                    write!(visitor.writer_mut(), "”")?;
+                    Ok(())
+                })
+            }
+            XrefDisplay::ShortCustomCaption(prefix, _scope) => {
+                self.write_link_styled(processor, |visitor| {
+                    with_caption_prefix(prefix, |prefix| visitor.write_content(traversal, prefix))
+                })
+            }
+            XrefDisplay::FullCustomCaption(prefix, inlines, _scope) => {
+                self.write_link_styled(processor, |visitor| {
+                    with_caption_prefix(prefix, |prefix| visitor.write_content(traversal, prefix))?;
+                    write!(visitor.writer_mut(), ", “")?;
                     visitor.write_content(traversal, inlines)?;
                     write!(visitor.writer_mut(), "”")?;
                     Ok(())
@@ -966,6 +980,20 @@ fn render_cross_reference_to_writer<'a, W: Write + ?Sized>(
                 "{prefix}, “{}”",
                 render_inline_nodes_to_owned(inlines.inlines(), processor, traversal)?
             ),
+            XrefDisplay::ShortCustomCaption(prefix, _scope) => {
+                with_caption_prefix(prefix, |prefix| {
+                    render_content_with_styles_to_owned(prefix, processor, traversal)
+                })?
+            }
+            XrefDisplay::FullCustomCaption(prefix, inlines, _scope) => {
+                let prefix = with_caption_prefix(prefix, |prefix| {
+                    render_content_with_styles_to_owned(prefix, processor, traversal)
+                })?;
+                format!(
+                    "{prefix}, “{}”",
+                    render_inline_nodes_to_owned(inlines.inlines(), processor, traversal)?
+                )
+            }
             XrefDisplay::Emphasized(prefix, inlines, _scope) => {
                 let prefix = prefix.map_or_else(String::new, |mut prefix| {
                     prefix.push_str(", ");

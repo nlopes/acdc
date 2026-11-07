@@ -55,7 +55,7 @@ Book \(-> \(em \& \(em π \(co \(-> \(em \&
 .br
 [bird]
 .sp
-π \(co \(->\|\(em\|, \(lqFigure \(-> \(em \(rq\&.
+π \(co \(-> \(em , \(lqFigure \(-> \(em \(rq\&.
 .sp
 \fBπ \(co \(-> \(em \&:\fP
 .RS 4

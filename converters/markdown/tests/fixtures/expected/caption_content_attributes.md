@@ -20,4 +20,4 @@
 
 <strong>**Custom**. Image title</strong>
 
-See [Custom](#custom-image).
+See [**Custom**](#custom-image).

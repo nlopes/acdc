@@ -69,6 +69,21 @@ fn selected_terminal_text_works_in_every_build() -> Result<(), Error> {
 }
 
 #[test]
+fn formatted_caption_references_keep_text_and_bold_control_sequences() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/caption_content_attributes.adoc");
+    for capabilities in [TEXT_TERMINAL, OSC8_TERMINAL] {
+        let (output, _) = render_terminal(source, 80, capabilities)?;
+        let reference = output.lines().last().ok_or("reference line")?;
+        assert_eq!(strip_terminal_sequences(reference), "See Custom.");
+        assert!(
+            reference.contains("\u{1b}[1mCustom\u{1b}[22m"),
+            "{reference:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn selected_draft_buttons_render_in_plain_and_buffered_content() -> Result<(), Error> {
     let source = "B01 btn:[Run] and *btn:[Bold]* and https://example.org[btn:[Nested]].";
     let parsed = parse(

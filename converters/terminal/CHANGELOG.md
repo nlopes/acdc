@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Short and full cross-references retain formatting in parsed custom `caption=`
+  prefixes. Only a final unformatted period and space are removed; punctuation
+  inside a styled span remains visible.
+
 - Mixed numeric and automatic table columns now preserve the authored numeric
   proportions, including `cols="2*3,~"`. Large supported widths no longer overflow,
   and all-zero numeric widths divide space equally.

@@ -8,7 +8,7 @@ use acdc_converters_core::{
     TraversalContext, decode_numeric_char_refs,
     link::{link_fallback, mailto_fallback, mailto_target},
     substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
-    xref::{XrefDisplay, local_reference_id, resolve_local_reference},
+    xref::{XrefDisplay, local_reference_id, resolve_local_reference, with_caption_prefix},
 };
 use acdc_parser::{
     Substitution, SymbolKind,
@@ -755,6 +755,20 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 self.write_content(traversal, inlines)?;
                 let closing_quote = manify("”", EscapeMode::Normalize);
                 write!(self.writer_mut(), "{closing_quote}")?;
+                Ok(())
+            }
+            XrefDisplay::ShortCustomCaption(prefix, _scope) => {
+                with_caption_prefix(prefix, |prefix| self.write_content(traversal, prefix))
+            }
+            XrefDisplay::FullCustomCaption(prefix, inlines, _scope) => {
+                with_caption_prefix(prefix, |prefix| self.write_content(traversal, prefix))?;
+                write!(
+                    self.writer_mut(),
+                    "{}",
+                    manify(", “", EscapeMode::Normalize)
+                )?;
+                self.write_content(traversal, inlines)?;
+                write!(self.writer_mut(), "{}", manify("”", EscapeMode::Normalize))?;
                 Ok(())
             }
             XrefDisplay::Emphasized(prefix, inlines, _scope) => {

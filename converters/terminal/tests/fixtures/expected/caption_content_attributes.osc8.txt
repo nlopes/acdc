@@ -14,4 +14,4 @@
   A -- B Literal caption
 [3m[Image: photo][0m[2m (photo.png)[0m
   [1mCustom[22m. Image title
-See [38;5;12m[4mCustom[24m[39m.
+See [38;5;12m[4m[1mCustom[22m[24m[39m.

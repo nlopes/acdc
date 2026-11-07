@@ -66,9 +66,16 @@ fn assert_display(
 ) -> Result<(), Error> {
     match (owner, typed) {
         (XrefDisplay::Title(a, _), XrefDisplay::Title(b, _))
-        | (XrefDisplay::Label(a, _), XrefDisplay::Label(b, _)) => assert_content(a, b),
+        | (XrefDisplay::Label(a, _), XrefDisplay::Label(b, _))
+        | (XrefDisplay::ShortCustomCaption(a, _), XrefDisplay::ShortCustomCaption(b, _)) => {
+            assert_content(a, b);
+        }
         (XrefDisplay::FullCaption(a, ac, _), XrefDisplay::FullCaption(b, bc, _)) => {
             assert_eq!(a, b);
+            assert_content(ac, bc);
+        }
+        (XrefDisplay::FullCustomCaption(a, ac, _), XrefDisplay::FullCustomCaption(b, bc, _)) => {
+            assert_content(a, b);
             assert_content(ac, bc);
         }
         (XrefDisplay::Emphasized(a, ac, _), XrefDisplay::Emphasized(b, bc, _)) => {

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Short and full cross-references retain formatting in parsed custom `caption=`
+  prefixes. Only a final unformatted period and space are removed; punctuation
+  inside a styled span remains visible.
+
 - Text-only cross-reference display resolves external `.adoc` paths through
   their source stem and omits empty fragments. Local filename-like IDs retain
   their spelling.

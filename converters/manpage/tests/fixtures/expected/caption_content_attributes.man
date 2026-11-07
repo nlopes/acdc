@@ -67,4 +67,4 @@ A custom admonition label.
 .br
 [photo]
 .sp
-See Custom\&.
+See \fBCustom\fR\&.

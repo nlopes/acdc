@@ -1,0 +1,139 @@
+'\" t
+.\"     Title: xref-custom-caption-content
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-11-07
+.\"    Manual: Caption tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "XREF\-CUSTOM\-CAPTION\-CONTENT" "1" "2026-11-07" "acdc" "Caption tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+xref\-custom\-caption\-content \- formatted caption references
+.SH "DESCRIPTION"
+.sp
+Forward: \fBFirst\fR / \fBFirst\fR, \(lqAn \fIexample\fR\(rq / An \fIexample\fR\&.
+.sp
+\fB\fBFirst\fB\&. An \fIexample\fB\fR
+.br
+.RS 4
+.sp
+Body.
+.RE
+.sp
+Backward: \fBFirst\fR / \fBFirst\fR, \(lqAn \fIexample\fR\(rq\&.
+.sp
+\fB\fBTable prefix\fB\&. A table\fR
+.br
+.TS
+allbox tab(:);
+ltx.
+Cell
+.TE
+.sp
+Table: \fBTable prefix\fR / \fBTable prefix\fR, \(lqA table\(rq\&.
+.sp
+\fB\fBCode prefix\fB\&. A listing\fR
+.br
+.EX
+code
+.EE
+.sp
+Listing: \fBCode prefix\fR / \fBCode prefix\fR, \(lqA listing\(rq\&.
+.sp
+\fB\fBKeep.\fB Styled period\fR
+.br
+.RS 4
+.sp
+Body.
+.RE
+.sp
+Punctuation: \fBKeep.\fR  / \fBKeep.\fR , \(lqStyled period\(rq\&.
+.sp
+\fB\fBRaw\fB \&. Separate suffix\fR
+.br
+.RS 4
+.sp
+Body.
+.RE
+.sp
+Raw suffix: \fBRaw\fR  / \fBRaw\fR , \(lqSeparate suffix\(rq\&.
+.sp
+\fB\fIKeep. \fBAttributed raw suffix\fR
+.br
+.RS 4
+.sp
+Body.
+.RE
+.sp
+Raw role: \fIKeep. \fR / \fIKeep. \fR, \(lqAttributed raw suffix\(rq\&.
+.sp
+\fB\fBUnused\fB\&. A title\fR
+.br
+.RS 4
+.sp
+Body.
+.RE
+.sp
+Label: Chosen \fIlabel\fR / Chosen \fIlabel\fR\&.
+.sp
+\fB\fBSee\fB An \fIexample\fB\&. Nested reference\fR
+.br
+.RS 4
+.sp
+Body.
+.RE
+.sp
+Nested: \fBSee\fR [custom] / \fBSee\fR [custom], \(lqNested reference\(rq\&.
+.sp
+\fB\fBVisit\fB \c
+.URL "https://example.org" "\fBsite" "\fB\c"
+\&. External link\fR
+.br
+.RS 4
+.sp
+Body.
+.RE
+.sp
+Linked: \fBVisit\fR \c
+.URL "https://example.org" "site" "\fR\c"
+ / \fBVisit\fR \c
+.URL "https://example.org" "site" "\fR\c"
+, \(lqExternal link\(rq\&.
+.sp
+\fB\fBMark\fB [1]\&. Registered content\fR
+.br
+.RS 4
+.sp
+Body.
+.RE
+.sp
+Registered: \fBMark\fR [1] / \fBMark\fR [1], \(lqRegistered content\(rq\&.
+.sp
+Buffered: ^(\fBFirst\fR)\&.
+.EX
+\fBFirst\fR / \fBFirst\fR, \(lqAn \fIexample\fR\(rq
+\fBKeep.\fR  / \fBKeep.\fR , \(lqStyled period\(rq
+.EE
+.SH "NOTES"
+.IP [1] 4
+One note

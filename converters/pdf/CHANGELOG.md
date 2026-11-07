@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Short and full cross-references retain formatting in parsed custom `caption=`
+  prefixes. Only a final unformatted period and space are removed; punctuation
+  inside a styled span remains visible.
+
 - Repeated anonymous footnotes in edited document trees reuse their original PDF note and destination after `Document::rebuild_footnotes()`.
 
 - After an edited document rebuilds its reference and TOC catalogs, TOC links

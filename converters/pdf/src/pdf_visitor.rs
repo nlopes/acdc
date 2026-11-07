@@ -18,7 +18,7 @@ use acdc_converters_core::{
     table::{CellKind, GridRow, column_count, grid_rows},
     toc::{Config as TocConfig, NumberingConfig, entry_level, has_parts, number_prefixes},
     visitor::InlineVisitor,
-    xref::{XrefDisplay, interdocument_xref, resolve_reference},
+    xref::{XrefDisplay, interdocument_xref, resolve_reference, with_caption_prefix},
 };
 use acdc_parser::{
     CaptionKind, ColumnStyle, ColumnWidth, HorizontalAlignment, Location, SectionKind,
@@ -4461,7 +4461,23 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let previous = self.index_catalog.set_suspended(true);
         let previous_anchors = replace(&mut self.anchors.suspended, true);
         let reference = references.get(target).map(ReferenceRef::from);
-        let result = match resolve_reference(reference, xref, &guard) {
+        let result = self.write_xref_display(
+            traversal,
+            target,
+            resolve_reference(reference, xref, &guard),
+        );
+        self.anchors.suspended = previous_anchors;
+        self.index_catalog.set_suspended(previous);
+        result
+    }
+
+    fn write_xref_display(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        target: &str,
+        display: XrefDisplay<'_, ContentRef<'_>>,
+    ) -> Result<(), Error> {
+        match display {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => self
                 .write_labelled_link(target, |visitor| visitor.write_content(traversal, inlines)),
             XrefDisplay::ShortCaption(prefix) => self.write_labelled_link(target, |visitor| {
@@ -4471,6 +4487,19 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             XrefDisplay::FullCaption(prefix, inlines, _scope) => {
                 self.write_labelled_link(target, |visitor| {
                     visitor.write_text_expr(&prefix);
+                    visitor.write_text_expr(", “");
+                    visitor.write_content(traversal, inlines)?;
+                    visitor.write_text_expr("”");
+                    Ok(())
+                })
+            }
+            XrefDisplay::ShortCustomCaption(prefix, _scope) => self
+                .write_labelled_link(target, |visitor| {
+                    visitor.write_caption_reference_prefix(traversal, prefix)
+                }),
+            XrefDisplay::FullCustomCaption(prefix, inlines, _scope) => {
+                self.write_labelled_link(target, |visitor| {
+                    visitor.write_caption_reference_prefix(traversal, prefix)?;
                     visitor.write_text_expr(", “");
                     visitor.write_content(traversal, inlines)?;
                     visitor.write_text_expr("”");
@@ -4513,9 +4542,24 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     Ok(())
                 }
             }
-        };
-        self.anchors.suspended = previous_anchors;
-        self.index_catalog.set_suspended(previous);
+        }
+    }
+
+    fn write_caption_reference_prefix(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        prefix: ContentRef<'_>,
+    ) -> Result<(), Error> {
+        let previous = replace(&mut self.text_whitespace, TextWhitespace::Preserve);
+        let result = with_caption_prefix(prefix, |prefix| {
+            if prefix.is_empty() {
+                self.write_text_expr("");
+                Ok(())
+            } else {
+                self.write_content(traversal, prefix)
+            }
+        });
+        self.text_whitespace = previous;
         result
     }
 

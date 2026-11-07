@@ -1,8 +1,12 @@
 //! Registered caption display preserves prefix and recursion policy.
 
-use acdc_converters_core::xref::{XrefDisplay, XrefGuard, resolve_reference};
+use acdc_converters_core::{
+    InlineTextTransform,
+    xref::{XrefDisplay, XrefGuard, resolve_reference, with_caption_prefix},
+};
 use acdc_parser::{
     Caption, CompatibilityMode, ContentAttribute, CrossReference, Location, Options, XrefStyle,
+    ast::{CaptionRef, ContentRef, InlineKind},
     parse,
 };
 
@@ -15,29 +19,93 @@ fn registered_caption_content_keeps_formatting_policy_and_recursion_guard() -> R
             "[#target]\n.Title\n[caption='*Préfixe* ->. ']\n====\nBody.\n====\n",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let parsed_references = std::collections::HashMap::from(parsed.document().references());
-        let reference = parsed_references
+        let reference = parsed
+            .document()
+            .references()
             .get("target")
-            .map(acdc_parser::ast::ReferenceRef::from);
+            .ok_or("target")?;
+        let Some(CaptionRef::CustomContent(original)) = reference.caption() else {
+            return Err("expected parsed caption".into());
+        };
+        let before = ContentAttribute::from(original);
         let guard = XrefGuard::default();
         let mut xref = CrossReference::new("target", Location::default());
-        xref.set_xrefstyle(XrefStyle::Short);
-        assert!(matches!(
-            resolve_reference(reference, &xref, &guard),
-            XrefDisplay::ShortCaption(prefix) if prefix == "Préfixe →"
-        ));
-        assert!(!guard.is_resolving());
-        xref.set_xrefstyle(XrefStyle::Full);
-        let display = resolve_reference(reference, &xref, &guard);
-        assert!(
-            matches!(&display, XrefDisplay::FullCaption(prefix, _, _) if prefix == "Préfixe →")
-        );
-        assert!(matches!(
-            resolve_reference(reference, &xref, &guard),
-            XrefDisplay::Nested(text) if text == "[target]"
-        ));
-        drop(display);
-        assert!(!guard.is_resolving());
+        for style in [XrefStyle::Short, XrefStyle::Full] {
+            xref.set_xrefstyle(style);
+            let display = resolve_reference(Some(reference), &xref, &guard);
+            let prefix = if let XrefDisplay::ShortCustomCaption(prefix, _) = &display {
+                *prefix
+            } else if let XrefDisplay::FullCustomCaption(prefix, _, _) = &display {
+                *prefix
+            } else {
+                return Err(format!("expected custom caption, got {display:?}").into());
+            };
+            assert_eq!(prefix, original);
+            with_caption_prefix(prefix, |prefix| {
+                assert!(
+                    prefix
+                        .inlines()
+                        .any(|node| matches!(node.kind(), InlineKind::Bold(_)))
+                );
+                assert_eq!(
+                    InlineTextTransform::default().content_to_string(prefix),
+                    "Préfixe →"
+                );
+            });
+            assert!(guard.is_resolving());
+            assert!(matches!(
+                resolve_reference(Some(reference), &xref, &guard),
+                XrefDisplay::Nested(text) if text == "[target]"
+            ));
+            drop(display);
+            assert!(!guard.is_resolving());
+            assert_eq!(ContentAttribute::from(original), before);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn custom_caption_suffix_does_not_change_formatted_punctuation() -> Result<(), Error> {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        for (source, expected) in [
+            ("*Prefix*. ", "Prefix"),
+            ("*Prefix.* ", "Prefix. "),
+            ("**Prefix. **", "Prefix. "),
+            ("Prefix. ", "Prefix"),
+            ("Prefix. . ", "Prefix. "),
+            ("*Prefix* pass:[. ]", "Prefix "),
+            ("*Prefix* pass:[.] ", "Prefix "),
+            (
+                "[.underline]++Prefix. ++",
+                if mode == CompatibilityMode::Draft {
+                    "[.underline]Prefix"
+                } else {
+                    "Prefix. "
+                },
+            ),
+            ("*Prefix*.  ", "Prefix.  "),
+            ("*Prefix*.π", "Prefix.π"),
+            (". ", ""),
+        ] {
+            let source = format!("[#target,caption='{source}']\n.Title\n====\nBody.\n====\n");
+            let parsed = parse(&source, &options)?;
+            let reference = parsed
+                .document()
+                .references()
+                .get("target")
+                .ok_or("target")?;
+            let Some(CaptionRef::CustomContent(prefix)) = reference.caption() else {
+                return Err(format!("expected parsed caption: {source}").into());
+            };
+            let original = ContentAttribute::from(prefix);
+            let text = with_caption_prefix(prefix, |prefix| {
+                InlineTextTransform::default().content_to_string(prefix)
+            });
+            assert_eq!(text, expected, "{mode:?}: {source}");
+            assert_eq!(prefix, ContentRef::from(&original));
+        }
     }
     Ok(())
 }

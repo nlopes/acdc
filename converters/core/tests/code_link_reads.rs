@@ -1,11 +1,52 @@
 //! Code text, link destinations, and registered IDs inside source code.
 
 use acdc_converters_core::code::{CodeLinkTarget, code_inline_text, resolve_code_link};
-use acdc_parser::{Block, CompatibilityMode, Options, ast::InlineRef, parse, parse_inline};
+use acdc_parser::{
+    Block, CompatibilityMode, Options,
+    ast::{BlockKind, InlineRef},
+    parse, parse_inline,
+};
 
 type Error = Box<dyn std::error::Error>;
 
 type Target<'a> = Option<(&'a str, &'a str)>;
+
+#[test]
+fn custom_caption_code_links_keep_text_punctuation_and_nested_reference_guards() -> Result<(), Error>
+{
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        for (caption, short) in [
+            ("*Prefix*. ", "Prefix"),
+            ("*Prefix.* ", "Prefix. "),
+            ("*See* xref:target[]. ", "See [target]"),
+        ] {
+            let source = format!(
+                "xref:target[xrefstyle=short] / xref:target[xrefstyle=full]\n\n[#target,caption='{caption}']\n.Title\n====\nBody.\n====\n"
+            );
+            let parsed = parse(&source, &options)?;
+            let block = parsed.document().blocks().next().ok_or("paragraph")?;
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
+                return Err("expected paragraph".into());
+            };
+            let links = paragraph
+                .content()
+                .inlines()
+                .filter_map(|node| resolve_code_link(node, parsed.document().references(), "html"))
+                .collect::<Vec<_>>();
+            assert_eq!(
+                links
+                    .iter()
+                    .map(|link| link.text.as_str())
+                    .collect::<Vec<_>>(),
+                [short, &format!("{short}, “Title”")],
+                "{mode:?}: {caption}"
+            );
+            assert!(links.iter().all(|link| matches!(&link.target, Some(CodeLinkTarget::Internal(target)) if target == "target")));
+        }
+    }
+    Ok(())
+}
 
 const LINK_CASES: &[(&str, &str, &str, Target<'_>)] = &[
     (

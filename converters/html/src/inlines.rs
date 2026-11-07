@@ -13,7 +13,10 @@ use acdc_converters_core::{
     InlineTextTransform, TraversalContext, document_attribute_text,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
-    xref::{XrefDisplay, interdocument_xref, interdocument_xref_with_suffix, resolve_reference},
+    xref::{
+        XrefDisplay, interdocument_xref, interdocument_xref_with_suffix, resolve_reference,
+        with_caption_prefix,
+    },
 };
 use acdc_parser::{
     StemNotation, Substitution,
@@ -269,7 +272,7 @@ fn link_label_needs_split(node: InlineRef<'_>, in_reference: bool, index: bool) 
         InlineKind::Superscript(n) => n.content(),
         InlineKind::CurvedQuotation(n) => n.content(),
         InlineKind::CurvedApostrophe(n) => n.content(),
-        InlineKind::IndexTerm(_) if index => return true,
+        InlineKind::IndexTerm(_) if index && !in_reference => return true,
         InlineKind::IndexTerm(n) if n.is_visible() => n.term(),
         InlineKind::Plain(_)
         | InlineKind::Raw(_)
@@ -476,11 +479,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        write!(
-            self.writer_mut(),
-            "<a id=\"{}\"></a>",
-            escape_attribute(anchor.id())
-        )?;
+        if !self.processor.xref_guard.is_resolving() {
+            write!(
+                self.writer_mut(),
+                "<a id=\"{}\"></a>",
+                escape_attribute(anchor.id())
+            )?;
+        }
         if !anchor.is_bibliography() {
             return Ok(());
         }
@@ -531,6 +536,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         basic: bool,
     ) -> Result<(), Error> {
         if !basic {
+            let id = id.filter(|_| !self.processor.xref_guard.is_resolving());
             write_tag_with_attrs(self.writer_mut(), tag, id, role)?;
         }
         self.visit_content(traversal, content)?;
@@ -550,6 +556,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         content: ContentRef<'_>,
     ) -> Result<(), Error> {
         let (open_entity, close_entity) = entities;
+        let id = id.filter(|_| !self.processor.xref_guard.is_resolving());
         let has_attrs = id.is_some() || role.is_some();
         if has_attrs {
             write_tag_with_attrs(self.writer_mut(), "span", id, role)?;
@@ -587,10 +594,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
     fn render_raw(&mut self, r: RawRef<'_>) -> Result<(), Error> {
         let mut text = passthrough_substitution_text(r, self.text_boundaries());
-        if r.id().is_some() || !r.roles().is_empty() {
+        let id = r.id().filter(|_| !self.processor.xref_guard.is_resolving());
+        if id.is_some() || !r.roles().is_empty() {
             text = format!(
                 "<span{}{}>{text}</span>",
-                link_id_attr(r.id()),
+                link_id_attr(id),
                 link_class_attr(r.roles(), false)
             );
         }
@@ -701,10 +709,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let tag_role = if use_s_tag { None } else { span.role() };
 
         if !options.inlines_basic {
+            let id = span
+                .id()
+                .filter(|_| !self.processor.xref_guard.is_resolving());
             write_tag_with_attrs(
                 self.writer_mut(),
                 tag,
-                span.id().map(ElementIdRef::as_str),
+                id.map(ElementIdRef::as_str),
                 tag_role,
             )?;
         }
@@ -902,7 +913,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
 
         let link = l;
-        let id_attr = link_id_attr(link.id());
+        let id_attr = link_id_attr(
+            link.id()
+                .filter(|_| !self.processor.xref_guard.is_resolving()),
+        );
         let class_attr = link_class_attr(link.roles(), l.text().is_empty());
         let target_attr = link_control_attributes(link.attributes());
         let tooltip = tooltip_attribute(link.tooltip());
@@ -1012,7 +1026,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
 
         let link = u;
-        let id_attr = link_id_attr(link.id());
+        let id_attr = link_id_attr(
+            link.id()
+                .filter(|_| !self.processor.xref_guard.is_resolving()),
+        );
         let class_attr = link_class_attr(link.roles(), u.text().is_empty());
         let target_attr = link_control_attributes(link.attributes());
         let tooltip = tooltip_attribute(link.tooltip());
@@ -1059,7 +1076,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
 
         let link = m;
-        let id_attr = link_id_attr(link.id());
+        let id_attr = link_id_attr(
+            link.id()
+                .filter(|_| !self.processor.xref_guard.is_resolving()),
+        );
         let class_attr = link_class_attr(link.roles(), false);
         let target_attr = link_control_attributes(link.attributes());
         let tooltip = tooltip_attribute(link.tooltip());
@@ -1288,6 +1308,19 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 self.open_inline_link()?;
                 write!(self.writer_mut(), "&#8221;")?;
             }
+            XrefDisplay::ShortCustomCaption(prefix, _scope) => {
+                self.render_caption_prefix(traversal, prefix, options, subs)?;
+            }
+            XrefDisplay::FullCustomCaption(prefix, inlines, _scope) => {
+                self.render_caption_prefix(traversal, prefix, options, subs)?;
+                self.open_inline_link()?;
+                write!(self.writer_mut(), ", &#8220;")?;
+                for inline in inlines.inlines() {
+                    self.render_inline_node(traversal, inline, options, subs)?;
+                }
+                self.open_inline_link()?;
+                write!(self.writer_mut(), "&#8221;")?;
+            }
             XrefDisplay::Emphasized(prefix, inlines, _scope) => {
                 if let Some(prefix) = prefix {
                     self.open_inline_link()?;
@@ -1326,6 +1359,24 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             }
         }
         Ok(())
+    }
+
+    fn render_caption_prefix(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        prefix: ContentRef<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        with_caption_prefix(prefix, |prefix| {
+            if prefix.is_empty() {
+                return self.open_inline_link();
+            }
+            for inline in prefix.inlines() {
+                self.render_inline_node(traversal, inline, options, subs)?;
+            }
+            Ok(())
+        })
     }
 
     fn interdocument_xref(
@@ -1499,9 +1550,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         subs: &[Substitution],
     ) -> Result<Option<String>, Error> {
         let it = it.catalog();
-        // Occurrence anchors serve the opted-in catalog; TOC copies are not
-        // additional source occurrences.
-        if !options.toc_mode && self.processor.generate_index() {
+        // Reference and TOC copies are not additional source occurrences.
+        if !options.toc_mode
+            && !self.processor.xref_guard.is_resolving()
+            && self.processor.generate_index()
+        {
             let primary = self.render_index_term_label(traversal, it.term(), options, subs)?;
             let secondary = it
                 .secondary()

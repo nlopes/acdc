@@ -7,7 +7,7 @@ use acdc_parser::ast::{ContentRef, InlineKind, InlineRef, ReferencesRef};
 use crate::{
     InlineTextTransform,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
-    xref::{XrefDisplay, XrefGuard, interdocument_xref, resolve_reference},
+    xref::{XrefDisplay, XrefGuard, interdocument_xref, resolve_reference, with_caption_prefix},
 };
 
 /// A destination for a link embedded in source code.
@@ -96,6 +96,14 @@ pub fn resolve_code_link<'inline>(
                 }
                 XrefDisplay::ShortCaption(prefix) => prefix,
                 XrefDisplay::FullCaption(prefix, nodes, _) => {
+                    format!("{prefix}, “{}”", text.content_to_string(nodes))
+                }
+                XrefDisplay::ShortCustomCaption(prefix, _scope) => {
+                    with_caption_prefix(prefix, |prefix| text.content_to_string(prefix))
+                }
+                XrefDisplay::FullCustomCaption(prefix, nodes, _scope) => {
+                    let prefix =
+                        with_caption_prefix(prefix, |prefix| text.content_to_string(prefix));
                     format!("{prefix}, “{}”", text.content_to_string(nodes))
                 }
                 XrefDisplay::Emphasized(prefix, nodes, _) => {

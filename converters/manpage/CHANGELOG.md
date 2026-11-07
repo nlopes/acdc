@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Short and full cross-references retain formatting in parsed custom `caption=`
+  prefixes. Only a final unformatted period and space are removed; punctuation
+  inside a styled span remains visible.
+
 - File references such as `xref:guide.adoc[]` use the local `guide` reference
   label when one exists. Missing or empty labels fall back to `[guide]`, matching
   Asciidoctor. Explicit labels and local filename-like IDs keep their meaning.

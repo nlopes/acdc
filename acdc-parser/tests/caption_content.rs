@@ -321,3 +321,68 @@ fn expanded_caption_and_alt_keep_attribute_order_when_source_spans_coincide(
     }
     Ok(())
 }
+
+#[rstest::rstest]
+fn custom_caption_reference_content_stays_structured_in_exports(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values("example", "figure", "table", "listing")] kind: &str,
+) -> Result<(), Error> {
+    let body = match kind {
+        "example" => "====\nBody.\n====",
+        "figure" => "image::photo.png[Photo]",
+        "table" => "|===\n|Cell\n|===",
+        "listing" => "----\ncode\n----",
+        _ => return Err("unexpected caption kind".into()),
+    };
+    let source = format!(
+        ":prefix: *First*\n\n[#target,caption='{{prefix}}. ']\n:prefix: *Later*\n.Title\n{body}\n"
+    );
+    let parsed = parse(
+        &source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let reference = parsed
+        .document()
+        .references()
+        .get("target")
+        .ok_or("target")?;
+    let Some(CaptionRef::CustomContent(prefix)) = reference.caption() else {
+        return Err("expected parsed caption".into());
+    };
+    let native = serde_json::to_value(prefix)?;
+    assert_eq!(
+        native
+            .pointer("/0/variant")
+            .and_then(serde_json::Value::as_str),
+        Some("strong")
+    );
+    assert_eq!(
+        native
+            .pointer("/0/inlines/0/value")
+            .and_then(serde_json::Value::as_str),
+        Some("First")
+    );
+    #[cfg(feature = "asg")]
+    {
+        let exported =
+            acdc_parser::asg::inlines_with_profile(prefix, acdc_parser::asg::Profile::Acdc)?;
+        assert_eq!(
+            exported
+                .pointer("/0/variant")
+                .and_then(serde_json::Value::as_str),
+            Some("strong")
+        );
+        assert_eq!(
+            exported
+                .pointer("/0/inlines/0/value")
+                .and_then(serde_json::Value::as_str),
+            Some("First")
+        );
+        acdc_parser::asg::document_with_profile(
+            parsed.document(),
+            acdc_parser::asg::Profile::Acdc,
+        )?;
+    }
+    assert_eq!(serde_json::to_value(prefix)?, native);
+    Ok(())
+}

@@ -18,7 +18,7 @@ use acdc_converters_core::{
     table::{CellKind, GridRow, column_count, grid_rows, has_spans},
     toc::{Config as TocConfig, NumberingConfig, entry_level, has_parts, number_prefixes},
     visitor::{BlockVisitor, DocumentVisitor},
-    xref::{XrefDisplay, interdocument_xref, resolve_reference},
+    xref::{XrefDisplay, interdocument_xref, resolve_reference, with_caption_prefix},
 };
 use acdc_parser::{
     AdmonitionVariant, CaptionKind, ColumnStyle, ColumnWidth, HorizontalAlignment,
@@ -2558,6 +2558,23 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                         Ok(())
                     })
                 }
+                XrefDisplay::ShortCustomCaption(prefix, _scope) => {
+                    visitor.write_anchor_link(target, |visitor| {
+                        with_caption_prefix(prefix, |prefix| {
+                            visitor.write_content(traversal, prefix)
+                        })
+                    })
+                }
+                XrefDisplay::FullCustomCaption(prefix, inlines, _scope) => visitor
+                    .write_anchor_link(target, |visitor| {
+                        with_caption_prefix(prefix, |prefix| {
+                            visitor.write_content(traversal, prefix)
+                        })?;
+                        write!(visitor.writer, ", “")?;
+                        visitor.write_content(traversal, inlines)?;
+                        write!(visitor.writer, "”")?;
+                        Ok(())
+                    }),
                 XrefDisplay::Emphasized(prefix, inlines, _scope) => {
                     visitor.write_anchor_link(target, |visitor| {
                         if let Some(prefix) = prefix {
