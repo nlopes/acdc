@@ -162,8 +162,25 @@ fn cross_reference(
             ));
         }
     }
+    if xref.document_reftext.is_some() && settings.profile == Profile::Upstream {
+        return Err(unsupported(
+            &pointer(path, "document_reftext"),
+            "document label context has no supported upstream mapping",
+        ));
+    }
+    let mut node = reference("xref", xref.target, &xref.text, None, path, settings)?;
+    if let Some(content) = &xref.document_reftext {
+        node.insert(
+            "document_reftext".into(),
+            project_inlines(
+                content.as_inlines(),
+                &pointer(path, "document_reftext"),
+                settings,
+            )?,
+        );
+    }
     with_metadata(
-        reference("xref", xref.target, &xref.text, None, path, settings)?,
+        node,
         &xref.metadata,
         xref.attributes(),
         xref.options(),

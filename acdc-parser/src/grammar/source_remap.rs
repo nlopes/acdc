@@ -225,6 +225,9 @@ impl<'a> Remapper<'a> {
     /// file boundary (e.g. the document, or a section containing an `include::`)
     /// reports each endpoint's true file and line.
     fn remap_one(&self, loc: &mut Location) {
+        if loc.is_unknown() {
+            return;
+        }
         let Some((src_start, start_line, start_range)) = self.map_offset(loc.absolute_start) else {
             return;
         };

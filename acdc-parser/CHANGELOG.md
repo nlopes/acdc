@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document references in both modes use the `reftext` active at their source
+  position. Empty and unset body values select the title. Labels retain the
+  winning declaration's source location; caller values have no source location.
+  Prepared edits retain captured labels. Natural aliases keep their header
+  binding, unlike Asciidoctor's lookup-order-dependent alias cache.
+  `CrossReferenceRef::document_reftext()` reads the body context; native JSON
+  and named ASG expose `document_reftext` separately from explicit link text.
+
 - Description lists now nest under ordered and unordered items in both modes.
   Outer siblings remain in their list, and a blank line before `+` attaches the
   next block to the ordinary parent. Same-line description markers stay literal.

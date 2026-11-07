@@ -79,7 +79,7 @@ pub(super) fn owners(document: &Map<String, Value>) -> Result<BTreeMap<String, S
     super::walk::objects(
         document,
         "",
-        &["catalog", "anchors", "references"],
+        &["catalog", "anchors", "references", "document_reftext"],
         &mut |node, path| {
             let owner = path == "/header"
                 || node

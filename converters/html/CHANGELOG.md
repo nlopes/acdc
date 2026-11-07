@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- References to the document top and header ID use body `reftext` values in
+  source order. Empty and unset values select the title; explicit link text stays intact.
+
 - Description lists render every term with one shared definition. Absent
   definitions omit the definition wrapper; authored empty principals stay present.
   Horizontal lists put shared terms in one cell.

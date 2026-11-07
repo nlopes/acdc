@@ -24,6 +24,14 @@ impl<'doc> CrossReferenceRef<'doc> {
         ContentRef::new(&self.node.text)
     }
 
+    /// Document label selected at this automatic reference's source position.
+    /// `None` uses the target's header snapshot; empty content uses its title.
+    /// Explicit text takes precedence. Other target kinds ignore this value.
+    #[must_use]
+    pub fn document_reftext(self) -> Option<ContentRef<'doc>> {
+        self.node.document_reftext.as_deref().map(ContentRef::from)
+    }
+
     /// Style used when there is no explicit label or target reference text.
     #[must_use]
     pub fn xrefstyle(self) -> XrefStyle {

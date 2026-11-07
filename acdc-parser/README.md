@@ -1094,9 +1094,25 @@ attribute is empty or unset. Explicit text on a cross-reference still wins.
 The authored header label remains separate in the AST and named ASG output.
 Caller attribute locks also apply to these labels; Asciidoctor can let header
 metadata override a locked `reftext`.
-Prepared reference repair retains the document label when the header ID or
-title changes. Body assignments do not replace this header snapshot; this
-remains a difference from Asciidoctor in both compatibility modes.
+In both modes, accepted body `reftext` entries select the label for following
+references to either document target. Empty and unset values select the title.
+Nested blocks and includes follow the same source order; AsciiDoc table-cell
+changes remain local to their cell. Attribute references in a label use the values
+at its declaration. Natural aliases retain their header declaration binding;
+Asciidoctor's alias cache can instead depend on which reference is resolved first.
+
+`CrossReferenceRef::document_reftext()` reads the retained body context. `None`
+uses the header snapshot, while present empty content selects the title.
+`CrossReference::set_document_reftext()` replaces or clears that context on an
+owned reference. Native JSON and the named ASG profile expose `document_reftext`
+separately from explicit inline text; the pinned upstream ASG profile rejects it.
+Known label locations identify the winning attribute value, including its include
+chain. Caller values have no source location.
+
+Prepared reference repair retains both the header label and each occurrence's
+body context when IDs, titles, attributes, or block order change. It does not
+replay source declarations. `DocumentRef::attributes()` stays the end-of-header
+snapshot.
 
 For combined or partially included sources that keep file-qualified references,
 enable `Options::builder().with_force_local_file_xrefs()`.

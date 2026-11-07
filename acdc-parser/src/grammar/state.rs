@@ -33,6 +33,7 @@ struct XrefCaptionLabelSnapshot<'a> {
     listing: XrefCaptionLabel<'a>,
     table: XrefCaptionLabel<'a>,
     signifiers: &'a [XrefSignifier<'a>; REFSIG_ATTRIBUTES.len()],
+    document_reftext: Option<usize>,
 }
 
 #[derive(Debug, Default)]
@@ -53,6 +54,8 @@ pub(crate) struct ParserState<'a> {
     // Nested inline labels must retain the authored passthrough syntax.
     pub(super) reference_text_context: Option<Rc<super::reference_text::ReferenceTextContext<'a>>>,
     pub(crate) document_attributes: Rc<DocumentAttributes<'a>>,
+    pub(super) header_reftext_source: Option<usize>,
+    pub(super) body_reftext_source: Option<usize>,
     /// Attributes inherited by the current nested document. Asciidoctor-style
     /// table cells may read these values, but attribute entries in the cell
     /// cannot replace or unset them.
@@ -456,9 +459,18 @@ impl<'a> ParserState<'a> {
             listing: label("listing-caption"),
             table: label("table-caption"),
             signifiers,
+            document_reftext: self.body_reftext_source,
         });
         snapshots.last = Some((Rc::downgrade(&self.document_attributes), snapshot));
         snapshot
+    }
+
+    pub(super) fn xref_document_reftext(&self, snapshot: NonZeroUsize) -> Option<usize> {
+        self.xref_caption_label_snapshots
+            .borrow()
+            .entries
+            .get(snapshot.get() - 1)
+            .and_then(|labels| labels.document_reftext)
     }
 
     pub(crate) fn xref_signifiers(
@@ -506,6 +518,7 @@ impl<'a> ParserState<'a> {
         let AttributeDeclaration { name, value } = declaration;
         let key = Cow::Borrowed(*name);
         let set = !matches!(value, RawAttributeValue::Unset);
+        let previous_attributes = (key == "reftext").then(|| Rc::clone(&self.document_attributes));
         let (value, profile_warning) = value.resolve_with_warning(&self.document_attributes);
         let force_locked = self
             .nested_parent_attributes
@@ -544,6 +557,15 @@ impl<'a> ParserState<'a> {
                 return None;
             }
         };
+        if let Some(attributes) = previous_attributes {
+            let source =
+                super::reference_text::capture_document_attribute(self, &location, attributes);
+            if in_header {
+                self.header_reftext_source = Some(source);
+            } else {
+                self.body_reftext_source = Some(source);
+            }
+        }
         if key == "toc2" && set {
             self.add_warning(Warning::new(
                 WarningKind::DeprecatedToc2Attribute,
@@ -605,6 +627,8 @@ impl<'a> ParserState<'a> {
             attribute_sources: Rc::default(),
             reference_text_sources: Rc::default(),
             reference_text_context: None,
+            header_reftext_source: None,
+            body_reftext_source: None,
             document_attributes: Rc::new(options.document_attributes.clone()),
             options,
             nested_parent_attributes: None,
@@ -660,6 +684,8 @@ impl<'a> ParserState<'a> {
             attribute_sources: Rc::default(),
             reference_text_sources: Rc::default(),
             reference_text_context: None,
+            header_reftext_source: None,
+            body_reftext_source: None,
             document_attributes: Rc::new(DocumentAttributes::empty()),
             nested_parent_attributes: None,
             hardbreaks: false,
@@ -710,6 +736,8 @@ impl<'a> ParserState<'a> {
             attribute_sources: Rc::clone(&parent.attribute_sources),
             reference_text_sources: Rc::clone(&parent.reference_text_sources),
             reference_text_context: parent.reference_text_context.clone(),
+            header_reftext_source: parent.header_reftext_source,
+            body_reftext_source: parent.body_reftext_source,
             document_attributes: Rc::clone(&parent.document_attributes),
             nested_parent_attributes: parent.nested_parent_attributes.clone(),
             hardbreaks: parent.hardbreaks,

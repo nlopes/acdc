@@ -8,7 +8,7 @@ use crate::{
         ParserState,
         document::sections::warn_for_nested_special_section,
         helpers::{BlockParsingMetadata, is_valid_bibliography_id},
-        location_walk::walk_document_inline_nodes_mut,
+        location_walk::try_walk_document_inline_nodes_mut,
         reference_walk::{
             self, ReferenceVisitor, header_title as header_reference_title, metadata_xreflabel,
         },
@@ -142,7 +142,12 @@ pub(super) fn finalize_inline_semantics<'a>(
     document: &mut Document<'a>,
     reference_ids: &HashSet<&'a str>,
     natural_targets: &HashMap<&'a str, &'a str>,
-) {
+) -> Result<(), crate::Error> {
+    let document_targets = document
+        .references
+        .iter()
+        .filter_map(|(target, reference)| reference.document_label.is_some().then_some(*target))
+        .collect::<HashSet<_>>();
     let caption_kinds = document
         .references
         .iter()
@@ -165,10 +170,10 @@ pub(super) fn finalize_inline_semantics<'a>(
             &mut footnote.content,
         );
     }
-    walk_document_inline_nodes_mut(document, &mut |inline| {
+    try_walk_document_inline_nodes_mut(document, &mut |inline| {
         finalize_registered_inline(state, inline);
         let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
-            return;
+            return Ok(());
         };
         if let Some(target) = resolve_source_target(state, xref.target, xref.source_syntax) {
             xref.target = target;
@@ -186,14 +191,23 @@ pub(super) fn finalize_inline_semantics<'a>(
             xref.target = target;
         }
         let Some(snapshot) = xref.caption_label_snapshot_id.take() else {
-            return;
+            return Ok(());
         };
         if let Some(kind) = caption_kinds.get(xref.target) {
             xref.caption_label = state.xref_caption_label(snapshot, *kind);
         }
+        if xref.target_is_local
+            && document_targets.contains(xref.target)
+            && let Some(source) = state.xref_document_reftext(snapshot)
+        {
+            xref.document_reftext = Some(crate::grammar::reference_text::resolve_shared(
+                state, source,
+            )?);
+        }
         xref.section_signifiers = state.xref_signifiers(snapshot);
         xref.refresh_signifier(section_names.get(xref.target).copied());
-    });
+        Ok(())
+    })
 }
 
 pub(super) fn metadata_natural_label<'a>(
@@ -333,12 +347,9 @@ pub(super) fn register_document_references<'a>(
         || document.attributes.contains_key("reftext");
     let label = if has_attribute {
         let label = document.attributes.text("reftext").unwrap_or("");
-        let source = crate::grammar::reference_text::capture_inline(
-            state,
-            state.intern_str(label),
-            location.absolute_start,
-            false,
-        );
+        let source = state.header_reftext_source.unwrap_or_else(|| {
+            crate::grammar::reference_text::capture_unknown(state, state.intern_str(label))
+        });
         let content = crate::grammar::reference_text::resolve(state, source)?;
         displayed_reference_label(Some(&content))
     } else {

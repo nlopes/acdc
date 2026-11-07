@@ -48,9 +48,9 @@ Body.
 == An appendix
 "#;
 
-fn resolve_xref<'doc, 'guard, 'xref>(
+fn resolve_xref<'doc, 'guard>(
     reference: Option<&'doc acdc_parser::Reference<'doc>>,
-    xref: impl Into<CrossReferenceRef<'xref>>,
+    xref: impl Into<CrossReferenceRef<'doc>>,
     guard: &'guard XrefGuard,
 ) -> XrefDisplay<'guard, ContentRef<'doc>> {
     resolve_reference(reference.map(ReferenceRef::from), xref, guard)
@@ -187,24 +187,15 @@ fn typed_xrefs_preserve_empty_titles_labels_and_temporary_overrides() -> Result<
             independent.set_xreflabel(label);
             let guard = XrefGuard::default();
             let other_guard = XrefGuard::default();
-            let owner = {
-                let caption = String::from("Plate");
-                let signifier = String::from("Unit");
-                let mut xref = CrossReference::new("figure", Location::default());
-                xref.set_xrefstyle(XrefStyle::Full);
-                xref.set_caption_label(XrefCaptionLabel::AtReference(&caption));
-                xref.set_signifier(XrefSignifier::AtReference(&signifier));
-                resolve_xref(Some(&reference), &xref, &guard)
-            };
-            let typed = {
-                let caption = String::from("Plate");
-                let signifier = String::from("Unit");
-                let mut xref = CrossReference::new("figure", Location::default());
-                xref.set_xrefstyle(XrefStyle::Full);
-                xref.set_caption_label(XrefCaptionLabel::AtReference(&caption));
-                xref.set_signifier(XrefSignifier::AtReference(&signifier));
-                resolve_reference(Some(ReferenceRef::from(&independent)), &xref, &other_guard)
-            };
+            let caption = String::from("Plate");
+            let signifier = String::from("Unit");
+            let mut xref = CrossReference::new("figure", Location::default());
+            xref.set_xrefstyle(XrefStyle::Full);
+            xref.set_caption_label(XrefCaptionLabel::AtReference(&caption));
+            xref.set_signifier(XrefSignifier::AtReference(&signifier));
+            let owner = resolve_xref(Some(&reference), &xref, &guard);
+            let typed =
+                resolve_reference(Some(ReferenceRef::from(&independent)), &xref, &other_guard);
             assert_display(owner, typed)?;
             assert!(!guard.is_resolving());
             assert!(!other_guard.is_resolving());
@@ -229,11 +220,9 @@ fn typed_xref_label_borrows_the_catalog_text() -> Result<(), Error> {
         return Err("plain label".into());
     };
     let guard = XrefGuard::default();
-    let display = {
-        let target = String::from("target");
-        let xref = CrossReference::new(&target, Location::default());
-        resolve_reference(Some(reference), &xref, &guard)
-    };
+    let target = String::from("target");
+    let xref = CrossReference::new(&target, Location::default());
+    let display = resolve_reference(Some(reference), &xref, &guard);
     let XrefDisplay::Label(content, scope) = display else {
         return Err("label result".into());
     };

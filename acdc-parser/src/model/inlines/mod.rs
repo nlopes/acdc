@@ -531,6 +531,9 @@ where
     if !x.text.is_empty() {
         map.serialize_entry("inlines", &x.text)?;
     }
+    if let Some(content) = &x.document_reftext {
+        map.serialize_entry("document_reftext", content.as_ref())?;
+    }
     map.serialize_entry("location", &x.location)
 }
 

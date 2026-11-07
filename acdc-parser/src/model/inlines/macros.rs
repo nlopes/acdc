@@ -1,4 +1,4 @@
-use std::{fmt, num::NonZeroUsize};
+use std::{fmt, num::NonZeroUsize, sync::Arc};
 
 use serde::Serialize;
 
@@ -413,6 +413,7 @@ pub struct CrossReference<'a> {
     pub(crate) metadata: InlineMetadata<'a>,
     pub(crate) macro_attributes: MacroAttributes<'a>,
     pub(crate) caption_label_snapshot_id: Option<NonZeroUsize>,
+    pub(crate) document_reftext: Option<Arc<ContentAttribute<'a>>>,
     pub(crate) resolve_natural_target: bool,
     pub(crate) source_syntax: XrefSourceSyntax,
 }
@@ -435,9 +436,17 @@ impl<'a> CrossReference<'a> {
             metadata: InlineMetadata::default(),
             macro_attributes: MacroAttributes::default(),
             caption_label_snapshot_id: None,
+            document_reftext: None,
             resolve_natural_target: false,
             source_syntax: XrefSourceSyntax::Literal,
         }
+    }
+
+    /// Replace the document label captured at this reference's source position.
+    /// `None` uses the target's header snapshot; empty content uses its title.
+    /// This has no effect on explicit text or targets outside the document header.
+    pub fn set_document_reftext(&mut self, content: Option<ContentAttribute<'a>>) {
+        self.document_reftext = content.map(Arc::new);
     }
 
     /// Scalar controls and extensions, excluding identity, roles, options, and xref style.
@@ -645,6 +654,7 @@ impl fmt::Debug for CrossReference<'_> {
             .field("location", &self.location)
             .field("xrefstyle", &self.xrefstyle)
             .field("caption_label", &self.caption_label)
+            .field("document_reftext", &self.document_reftext)
             .field("signifier", &self.signifier)
             .field("metadata", &self.metadata)
             .field("macro_attributes", &self.macro_attributes)
@@ -660,6 +670,7 @@ impl PartialEq for CrossReference<'_> {
             && self.location == other.location
             && self.xrefstyle == other.xrefstyle
             && self.caption_label == other.caption_label
+            && self.document_reftext == other.document_reftext
             && self.signifier == other.signifier
             && self.metadata == other.metadata
             && self.macro_attributes == other.macro_attributes

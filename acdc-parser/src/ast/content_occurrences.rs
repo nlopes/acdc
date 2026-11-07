@@ -13,7 +13,8 @@ use super::{
 /// nodes visit their own fields before their children, in [`StructuralRef::children`]
 /// order. This is semantic order, not a sort by source position.
 ///
-/// Document footnote, reference and TOC catalogs, index snapshots, and generated
+/// Captured document-reference labels, document footnote, reference and TOC
+/// catalogs, index snapshots, and generated
 /// bibliography citation text are excluded. The walk neither renders content nor
 /// changes registrations. It uses a growable stack proportional to nesting and
 /// does not recurse on the call stack.

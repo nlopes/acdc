@@ -255,7 +255,7 @@ peg::parser! {
                 &mut document,
                 &reference_ids,
                 &references.natural_targets,
-            );
+            )?;
             Ok(document)
         }
 

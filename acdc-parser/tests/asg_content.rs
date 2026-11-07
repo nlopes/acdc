@@ -197,7 +197,7 @@ const EXTENSION_ADDITIONS: &[(&str, &[&str])] = &[
     ),
     (
         "/$defs/inlineRef/properties",
-        &["id", "metadata", "tooltip"],
+        &["id", "metadata", "tooltip", "document_reftext"],
     ),
     (
         "/properties/header/properties",

@@ -554,6 +554,14 @@ Independent document-attribute `reftext` labels and header aliases use the
 reference registration contract. Strict export still rejects subtitle and header metadata. Author
 reconciliation and the end-of-header document attribute snapshot are unchanged.
 
+Automatic document references can carry `document_reftext`, an inline array
+captured from an accepted body attribute entry. Absence uses the header snapshot;
+an empty array selects the title. Explicit inline text stays separate. Known
+locations identify the declaration value and its include chain. Caller values
+have no source location. These derived labels do not register inline IDs.
+Prepared repair preserves captured contexts without replaying attribute entries.
+The pinned upstream profile rejects this occurrence context.
+
 == Proposed upstream additions
 
 link:proposals/README.adoc[The content/image proposal] contains minimal schema

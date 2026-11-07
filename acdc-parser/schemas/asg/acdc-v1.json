@@ -1034,6 +1034,9 @@
         },
         "tooltip": {
           "$ref": "#/$defs/inlines"
+        },
+        "document_reftext": {
+          "$ref": "#/$defs/inlines"
         }
       }
     },

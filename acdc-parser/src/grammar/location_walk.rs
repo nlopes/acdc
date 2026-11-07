@@ -3,7 +3,7 @@
 //! The common walk keeps the child set and visit order consistent. Each callback
 //! runs before the callbacks for a node's children.
 
-use std::{convert::Infallible, marker::PhantomData};
+use std::{collections::HashMap, convert::Infallible, marker::PhantomData, sync::Arc};
 
 use crate::model::{
     Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlock, DelimitedBlockType, Document,
@@ -175,6 +175,7 @@ struct AstWalker<'a, FL, FI, FR> {
     visit_inline: FI,
     visit_reference_text: FR,
     inline_lifetime: PhantomData<fn(&mut InlineNode<'a>)>,
+    document_labels: HashMap<*const ContentAttribute<'a>, Arc<ContentAttribute<'a>>>,
 }
 
 impl<'a, FL, FI, FR, E> AstWalker<'a, FL, FI, FR>
@@ -191,6 +192,7 @@ where
             visit_inline,
             visit_reference_text,
             inline_lifetime: PhantomData,
+            document_labels: HashMap::new(),
         }
     }
 
@@ -474,6 +476,20 @@ where
                 self.inlines(&mut m.text)?;
             }
             InlineMacro::CrossReference(x) => {
+                if self.include_derived
+                    && let Some(content) = &mut x.document_reftext
+                {
+                    let key = Arc::as_ptr(content);
+                    if let Some(visited) = self.document_labels.get(&key) {
+                        *content = Arc::clone(visited);
+                    } else {
+                        // Keep one mapped copy per declaration across all occurrences.
+                        let mut mapped = Arc::clone(content);
+                        self.inlines(Arc::make_mut(&mut mapped).inlines_mut())?;
+                        self.document_labels.insert(key, Arc::clone(&mapped));
+                        *content = mapped;
+                    }
+                }
                 if let Some(id) = &mut x.metadata.id {
                     (self.visit_location)(&mut id.location)?;
                 }

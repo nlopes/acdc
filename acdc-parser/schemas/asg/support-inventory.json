@@ -1293,6 +1293,7 @@
           "metadata",
           "macro_attributes",
           "caption_label_snapshot_id",
+          "document_reftext",
           "resolve_natural_target",
           "source_syntax"
         ],
@@ -1350,6 +1351,9 @@
         "source_syntax": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inlineRef"
+        },
+        "document_reftext": {
+          "policy": "named-document-label-context"
         }
       },
       "strict_export_group": "references"
@@ -5851,6 +5855,10 @@
     "token-assignment": {
       "handling": "context-dependent",
       "reason": "Preserve absence separately from empty token arrays. Block metadata supports both profiles; inline metadata needs the named acdc profile."
+    },
+    "named-document-label-context": {
+      "handling": "context-dependent",
+      "reason": "The named profile retains the document label selected at an automatic reference, including empty content for title fallback and known declaration locations. Strict upstream export rejects this context. Authored inline text remains separate."
     }
   },
   "strict_export_groups": {

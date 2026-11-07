@@ -18,7 +18,7 @@ use acdc_parser::{
 use crate::{
     decode_numeric_char_refs,
     substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
-    xref::reference_text,
+    xref::reference_text_at,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -276,7 +276,10 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
         if self.resolving_xref {
             return write!(w, "[{target}]");
         }
-        match references.get(target).and_then(reference_text) {
+        match references
+            .get(target)
+            .and_then(|reference| reference_text_at(reference, xref))
+        {
             Some(nodes) => Self {
                 resolving_xref: true,
                 ..self

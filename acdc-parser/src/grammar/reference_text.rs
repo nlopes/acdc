@@ -1,6 +1,6 @@
 //! Reference-label interpretation and temporary inputs used by natural lookup.
 
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use super::{
     ParserState,
@@ -24,7 +24,8 @@ pub(super) struct ReferenceTextContext<'a> {
 pub(super) struct ReferenceTextSource<'a> {
     value: ResolvedContentAttribute<'a>,
     substitutions: Option<SubstitutionPlan>,
-    content: Option<ContentAttribute<'a>>,
+    content: Option<Arc<ContentAttribute<'a>>>,
+    unknown_location: bool,
 }
 
 fn capture<'a>(
@@ -38,6 +39,7 @@ fn capture<'a>(
         value,
         substitutions,
         content: None,
+        unknown_location: false,
     });
     id
 }
@@ -107,6 +109,64 @@ pub(super) fn capture_inline<'a>(
     )
 }
 
+pub(super) fn capture_document_attribute<'a>(
+    state: &ParserState<'a>,
+    location: &crate::Location,
+    attributes: Rc<crate::DocumentAttributes<'a>>,
+) -> usize {
+    let text = state.intern_str(state.document_attributes.text("reftext").unwrap_or(""));
+    let Some(last) = state
+        .input
+        .get(location.absolute_end..)
+        .and_then(|tail| tail.chars().next())
+    else {
+        return capture_unknown(state, text);
+    };
+    let end = location.absolute_end + last.len_utf8();
+    let Some(declaration) = state.input.get(location.absolute_start..end) else {
+        return capture_unknown(state, text);
+    };
+    let Some((_, value)) = declaration
+        .strip_prefix(':')
+        .and_then(|line| line.split_once(':'))
+    else {
+        return capture_unknown(state, text);
+    };
+    let authored = value.trim_start_matches([' ', '\t']);
+    let start = location.absolute_start + declaration.len() - authored.len();
+    let expanded = expand_attribute_list(authored, &attributes, state.options.compatibility_mode);
+    let mut map = expanded.source_map;
+    if expanded.text != text {
+        // Normalized values still refer to the complete authored value.
+        map = SourceMap::default();
+        map.add_replacement(
+            0,
+            authored.len(),
+            text.len(),
+            super::inline_preprocessor::ProcessedKind::Attribute,
+        );
+    }
+    capture(
+        state,
+        ResolvedContentAttribute {
+            text,
+            quote: AttributeQuote::Unquoted,
+            source_map: map.with_origin(SourceMap::default(), start),
+            source_range: start..start + authored.len(),
+            attributes,
+        },
+        Some(restricted_substitutions()),
+    )
+}
+
+pub(super) fn capture_unknown<'a>(state: &ParserState<'a>, text: &'a str) -> usize {
+    let id = capture_inline(state, text, 0, false);
+    if let Some(source) = state.reference_text_sources.borrow_mut().get_mut(id) {
+        source.unknown_location = true;
+    }
+    id
+}
+
 pub(super) fn text<'a>(state: &ParserState<'a>, id: Option<usize>) -> Option<&'a str> {
     id.and_then(|id| {
         state
@@ -137,6 +197,13 @@ pub(super) fn resolve<'a>(
     state: &ParserState<'a>,
     id: usize,
 ) -> Result<ContentAttribute<'a>, Error> {
+    Ok((*resolve_shared(state, id)?).clone())
+}
+
+pub(super) fn resolve_shared<'a>(
+    state: &ParserState<'a>,
+    id: usize,
+) -> Result<Arc<ContentAttribute<'a>>, Error> {
     let source = source(state, id)?;
     if let Some(content) = source.content {
         return Ok(content);
@@ -162,7 +229,15 @@ pub(super) fn resolve<'a>(
             subs: vec![Substitution::SpecialChars],
         })]
     };
-    let content = ContentAttribute::new(nodes);
+    let mut content = ContentAttribute::new(nodes);
+    if source.unknown_location {
+        for node in content.inlines_mut() {
+            super::location_walk::walk_inline_locations_mut(node, &mut |location| {
+                *location = crate::Location::default();
+            });
+        }
+    }
+    let content = Arc::new(content);
     state
         .reference_text_sources
         .borrow_mut()

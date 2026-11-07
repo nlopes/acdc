@@ -1,4 +1,4 @@
-//! Automatic reference results retain catalog content without retaining occurrence controls.
+//! Automatic reference results borrow prepared content and retain their resolution guard.
 
 use acdc_converters_core::{
     InlineTextTransform,
@@ -12,7 +12,7 @@ use acdc_parser::{
 type TestError = Box<dyn std::error::Error>;
 
 #[test]
-fn resolved_title_outlives_the_occurrence_and_keeps_its_guard() -> Result<(), TestError> {
+fn resolved_title_keeps_catalog_content_and_its_guard() -> Result<(), TestError> {
     let parsed = parse("[#target]\n== A *title*\n\nBody.\n", &Options::default())?;
     let parsed_references = std::collections::HashMap::from(parsed.document().references());
     let reference = parsed_references
@@ -20,11 +20,9 @@ fn resolved_title_outlives_the_occurrence_and_keeps_its_guard() -> Result<(), Te
         .map(acdc_parser::ast::ReferenceRef::from);
     let guard = XrefGuard::default();
     let shared = guard.clone();
-    let display = {
-        let target = String::from("target");
-        let occurrence = CrossReference::new(&target, Location::default());
-        resolve_reference(reference, CrossReferenceRef::from(&occurrence), &guard)
-    };
+    let target = String::from("target");
+    let occurrence = CrossReference::new(&target, Location::default());
+    let display = resolve_reference(reference, CrossReferenceRef::from(&occurrence), &guard);
     let XrefDisplay::Title(content, scope) = display else {
         return Err(format!("expected title, got {display:?}").into());
     };
@@ -54,9 +52,9 @@ fn caption_prefixes_own_temporary_overrides_and_read_current_controls() -> Resul
         .get("target")
         .map(acdc_parser::ast::ReferenceRef::from);
     let guard = XrefGuard::default();
+    let label = String::from("Plate");
+    let mut occurrence = CrossReference::new("target", Location::default());
     let display = {
-        let label = String::from("Plate");
-        let mut occurrence = CrossReference::new("target", Location::default());
         occurrence.set_xrefstyle(XrefStyle::Short);
         occurrence.set_caption_label(XrefCaptionLabel::AtReference(&label));
         assert!(matches!(

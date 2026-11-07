@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Automatic document references and plain-text extraction use body `reftext`
+  values in source order. Empty and unset values fall back to the document title.
+  **Breaking:** keep the occurrence alive while using `resolve_reference` or
+  `resolve_local_reference` results; returned content can borrow its saved label.
+
 - Index sections attached to shared description-list definitions remain visible
   to converters.
 

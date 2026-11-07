@@ -514,6 +514,7 @@ fn parse_table_cell<'a>(
             .nested_parent_attributes
             .replace(Rc::clone(&state.document_attributes));
         let outer_hardbreaks = state.hardbreaks;
+        let outer_reftext = state.body_reftext_source;
         let outer_context = std::mem::replace(&mut state.block_context, BlockContext::Document);
         let outer_toc_len = state.toc_entries.len();
         let outer_pending_callouts = std::mem::take(&mut state.pending_callouts);
@@ -532,6 +533,7 @@ fn parse_table_cell<'a>(
         state.document_attributes = outer_attributes;
         state.nested_parent_attributes = outer_parent_attributes;
         state.hardbreaks = outer_hardbreaks;
+        state.body_reftext_source = outer_reftext;
         state.block_context = outer_context;
         state.toc_entries.truncate(outer_toc_len);
         state.pending_callouts = outer_pending_callouts;

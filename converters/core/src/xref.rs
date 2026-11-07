@@ -91,10 +91,8 @@ impl Drop for XrefScope<'_> {
     }
 }
 
-/// The inline nodes a target's reference text is made of, if it has any.
-///
-/// The precedence is [`resolve_reference`]'s, without the distinctions a rendering
-/// backend needs: plain-text extraction treats a label and a title alike.
+/// The default reference label or title stored in the target catalog.
+/// [`resolve_reference`] also selects a document label captured at the occurrence.
 #[must_use]
 pub fn reference_text(reference: ReferenceRef<'_>) -> Option<ContentRef<'_>> {
     reference.xreflabel().or_else(|| reference.title())
@@ -103,8 +101,8 @@ pub fn reference_text(reference: ReferenceRef<'_>) -> Option<ContentRef<'_>> {
 /// Resolve an empty cross-reference's display content.
 ///
 /// Accepts typed handles and references to cross-reference owners. The result
-/// borrows the catalog and guard independently; occurrence controls may be dropped after
-/// resolution.
+/// borrows the catalog or the occurrence's retained document label. Keep both
+/// alive while rendering the result; the guard has an independent lifetime.
 ///
 /// Explicit reference labels take precedence over caption styles and target
 /// titles. Numbered sections honor the style with their word and number, as
@@ -120,16 +118,17 @@ pub fn reference_text(reference: ReferenceRef<'_>) -> Option<ContentRef<'_>> {
 /// inside another one's text. Inter-document targets are returned separately
 /// for backend-specific links, even if the local catalog contains the same ID.
 #[must_use]
-pub fn resolve_reference<'doc, 'guard, 'xref>(
+pub fn resolve_reference<'doc, 'guard>(
     reference: Option<ReferenceRef<'doc>>,
-    xref: impl Into<CrossReferenceRef<'xref>>,
+    xref: impl Into<CrossReferenceRef<'doc>>,
     guard: &'guard XrefGuard,
 ) -> XrefDisplay<'guard, ContentRef<'doc>> {
+    let xref = xref.into();
     resolve_content(
         reference,
         reference.and_then(ReferenceRef::title),
-        reference.and_then(ReferenceRef::xreflabel),
-        xref.into(),
+        occurrence_label(reference, xref),
+        xref,
         guard,
     )
 }
@@ -144,9 +143,9 @@ pub fn resolve_reference<'doc, 'guard, 'xref>(
 /// Label precedence, styles, fallbacks, and recursion guards follow
 /// [`resolve_reference`]; the occurrence remains unchanged.
 #[must_use]
-pub fn resolve_local_reference<'doc, 'guard, 'xref>(
+pub fn resolve_local_reference<'doc, 'guard>(
     reference: Option<ReferenceRef<'doc>>,
-    xref: impl Into<CrossReferenceRef<'xref>>,
+    xref: impl Into<CrossReferenceRef<'doc>>,
     guard: &'guard XrefGuard,
 ) -> XrefDisplay<'guard, ContentRef<'doc>> {
     let xref = xref.into();
@@ -154,13 +153,30 @@ pub fn resolve_local_reference<'doc, 'guard, 'xref>(
     resolve_local_content(
         reference,
         reference.and_then(ReferenceRef::title),
-        reference
-            .and_then(ReferenceRef::xreflabel)
-            .filter(|label| !label.is_empty()),
+        occurrence_label(reference, xref).filter(|label| !label.is_empty()),
         &target,
         xref,
         guard,
     )
+}
+
+pub(crate) fn reference_text_at<'doc>(
+    reference: ReferenceRef<'doc>,
+    xref: CrossReferenceRef<'doc>,
+) -> Option<ContentRef<'doc>> {
+    occurrence_label(Some(reference), xref).or_else(|| reference.title())
+}
+
+fn occurrence_label<'doc>(
+    reference: Option<ReferenceRef<'doc>>,
+    xref: CrossReferenceRef<'doc>,
+) -> Option<ContentRef<'doc>> {
+    if reference.is_some_and(ReferenceRef::is_document)
+        && let Some(label) = xref.document_reftext()
+    {
+        return (!label.is_empty()).then_some(label);
+    }
+    reference.and_then(ReferenceRef::xreflabel)
 }
 
 /// Catalog key for displaying a reference without an interdocument link.
@@ -442,9 +458,9 @@ mod tests {
         local_reference_id, resolve_local_reference, resolve_reference,
     };
 
-    fn resolve_xref<'doc, 'guard, 'xref>(
+    fn resolve_xref<'doc, 'guard>(
         reference: Option<&'doc acdc_parser::Reference<'doc>>,
-        xref: impl Into<acdc_parser::ast::CrossReferenceRef<'xref>>,
+        xref: impl Into<acdc_parser::ast::CrossReferenceRef<'doc>>,
         guard: &'guard XrefGuard,
     ) -> XrefDisplay<'guard, acdc_parser::ast::ContentRef<'doc>> {
         resolve_reference(
@@ -1192,11 +1208,8 @@ mod tests {
         let references = &parsed_references;
         let guard = XrefGuard::default();
 
-        let display = resolve_xref(
-            references.get("titled"),
-            &xref("titled", XrefStyle::Basic),
-            &guard,
-        );
+        let occurrence = xref("titled", XrefStyle::Basic);
+        let display = resolve_xref(references.get("titled"), &occurrence, &guard);
         assert!(matches!(display, XrefDisplay::Title(..)));
         assert!(guard.is_resolving());
         // While the outer resolution is open, a nested one cannot recurse.
@@ -1230,11 +1243,8 @@ mod tests {
         let guard = XrefGuard::default();
         let clone = guard.clone();
 
-        let display = resolve_xref(
-            references.get("titled"),
-            &xref("titled", XrefStyle::Basic),
-            &guard,
-        );
+        let occurrence = xref("titled", XrefStyle::Basic);
+        let display = resolve_xref(references.get("titled"), &occurrence, &guard);
         assert!(clone.is_resolving());
         drop(display);
         assert!(!clone.is_resolving());

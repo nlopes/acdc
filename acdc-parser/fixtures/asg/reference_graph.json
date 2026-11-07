@@ -649,12 +649,12 @@
             {
               "location": [
                 {
-                  "col": 2,
-                  "line": 1
+                  "col": 12,
+                  "line": 4
                 },
                 {
-                  "col": 9,
-                  "line": 1
+                  "col": 19,
+                  "line": 4
                 }
               ],
               "name": "text",
@@ -664,12 +664,12 @@
           ],
           "location": [
             {
-              "col": 1,
-              "line": 1
+              "col": 11,
+              "line": 4
             },
             {
-              "col": 10,
-              "line": 1
+              "col": 20,
+              "line": 4
             }
           ],
           "name": "span",
@@ -679,12 +679,12 @@
         {
           "location": [
             {
-              "col": 11,
-              "line": 1
+              "col": 21,
+              "line": 4
             },
             {
-              "col": 16,
-              "line": 1
+              "col": 26,
+              "line": 4
             }
           ],
           "name": "text",
@@ -741,12 +741,12 @@
             {
               "location": [
                 {
-                  "col": 2,
-                  "line": 1
+                  "col": 12,
+                  "line": 4
                 },
                 {
-                  "col": 9,
-                  "line": 1
+                  "col": 19,
+                  "line": 4
                 }
               ],
               "name": "text",
@@ -756,12 +756,12 @@
           ],
           "location": [
             {
-              "col": 1,
-              "line": 1
+              "col": 11,
+              "line": 4
             },
             {
-              "col": 10,
-              "line": 1
+              "col": 20,
+              "line": 4
             }
           ],
           "name": "span",
@@ -771,12 +771,12 @@
         {
           "location": [
             {
-              "col": 11,
-              "line": 1
+              "col": 21,
+              "line": 4
             },
             {
-              "col": 16,
-              "line": 1
+              "col": 26,
+              "line": 4
             }
           ],
           "name": "text",

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- References to the document top and header ID use body `reftext` values in
+  source order. Empty and unset values select the title; explicit link text stays intact.
+
 - Description lists retain all terms in a shared group and emit its definition
   once in standard, horizontal, Q&A, ordered, and unordered styles.
 

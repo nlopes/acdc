@@ -97,6 +97,12 @@ impl<'doc> ReferencesRef<'doc> {
 }
 
 impl<'doc> ReferenceRef<'doc> {
+    /// Whether this target is the document top or its explicit header ID.
+    #[must_use]
+    pub fn is_document(self) -> bool {
+        self.node.document_label.is_some()
+    }
+
     /// The registered resolved caption, including empty prefixes and unset ordinals.
     /// Reads keep the catalog snapshot even if the target block has since changed.
     ///
