@@ -758,7 +758,8 @@ mod tests {
     }
 
     #[test]
-    fn completions_and_conditionals_use_the_header_snapshot() -> Result<(), Box<dyn Error>> {
+    fn completions_keep_the_header_snapshot_while_conditionals_follow_source_order()
+    -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri = "file:///completion-snapshot.adoc".parse::<Uri>()?;
         let source = "= Document\n:custom-kept: header\n:custom-empty:\n:custom-removed: value\n:custom-removed!:\n\n:custom-body: body\n:custom-kept!:\n\nifdef::custom-kept[]\nKept.\nendif::[]\n\nifdef::custom-body[]\nBody.\nendif::[]\n";
@@ -775,7 +776,7 @@ mod tests {
                 .iter()
                 .map(|condition| condition.is_active)
                 .collect::<Vec<_>>(),
-            [true, false]
+            [false, true]
         );
         Ok(())
     }

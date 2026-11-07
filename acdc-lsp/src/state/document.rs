@@ -387,10 +387,44 @@ fn evaluate_condition(
     if is_ifndef { !result } else { result }
 }
 
+/// Recover primary-source spellings with the decisions made by preprocessing.
+pub(crate) fn evaluated_conditionals(text: &str, parsed: &ParseResult) -> Vec<ConditionalBlock> {
+    let lines: Vec<_> = text.lines().collect();
+    parsed
+        .conditionals()
+        .filter_map(|evaluation| {
+            if evaluation.source_file().is_some()
+                || (!evaluation.is_inline() && evaluation.end_line().is_none())
+            {
+                return None;
+            }
+            let start_line = evaluation.start_line().checked_sub(1)?;
+            let line = lines.get(start_line)?.trim();
+            let (rest, kind) = if let Some(rest) = line.strip_prefix("ifdef::") {
+                (rest, ConditionalDirectiveKind::Ifdef)
+            } else {
+                (
+                    line.strip_prefix("ifndef::")?,
+                    ConditionalDirectiveKind::Ifndef,
+                )
+            };
+            let (attributes, operation) = parse_conditional_attributes(rest.split_once('[')?.0);
+            Some(ConditionalBlock {
+                kind,
+                attributes,
+                operation,
+                is_active: evaluation.is_active(),
+                start_line,
+                end_line: evaluation.end_line().and_then(|line| line.checked_sub(1)),
+            })
+        })
+        .collect()
+}
+
 /// Extract conditional directive blocks (ifdef/ifndef/endif) from raw text.
 ///
-/// The preprocessor flattens these before the AST is built. We scan raw text
-/// to recover them for graying out inactive branches in the editor.
+/// Used when parsing failed or was skipped. Successful parses use the recorded
+/// preprocessing decisions, which include source-ordered attribute changes.
 pub(crate) fn extract_conditionals(
     text: &str,
     attrs: DocumentAttributesRef<'_>,

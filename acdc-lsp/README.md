@@ -88,6 +88,11 @@ update keeps its current value; setting it to `null` restores the initialization
 Invalid values leave the settings unchanged and produce a warning. Previews use the
 same mode, including the explicit HTML5 preview. Include access limits stay unchanged.
 
+Inactive `ifdef` and `ifndef` overlays follow attribute assignments and unsets in
+source order, including selected nested includes. They use the parser's decisions
+for the configured backend and enclosing conditions. If parsing fails, the server
+keeps its best-effort raw-source conditional scan.
+
 For debugging, you can enable trace logging:
 
 ```bash

@@ -786,9 +786,9 @@ impl Workspace {
                                 (source, parse_result.source_location(&location))
                             })
                             .collect();
-                        conditionals = Some(crate::state::document::extract_conditionals(
+                        conditionals = Some(crate::state::document::evaluated_conditionals(
                             &text,
-                            doc.attributes(),
+                            &parse_result,
                         ));
                     }
                     // Drain warnings into LSP diagnostics before handing the

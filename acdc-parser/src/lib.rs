@@ -200,7 +200,7 @@ pub use model::{
     XrefSignifier, XrefStyle, substitute, substitute_attributes,
 };
 pub use options::{CompatibilityMode, Options, OptionsBuilder, SafeMode};
-pub use parsed::{OwnedSource, ParseInlineResult, ParseResult};
+pub use parsed::{ConditionalEvaluation, OwnedSource, ParseInlineResult, ParseResult};
 pub use source_provider::{
     IncludeLoader, IncludeSource, IncludeSourceError, IncludeSourceErrorKind,
     IncludeSourceProvider, IncludeSourceTarget,
@@ -369,7 +369,7 @@ pub fn parse_from_reader<R: std::io::Read>(
     reader: R,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
-    let mut options = options
+    let options = options
         .clone()
         .prepare_for_parse(document_attribute::InputKind::Reader);
     // Shared across the preprocessor and the grammar state so both layers'
@@ -379,22 +379,7 @@ pub fn parse_from_reader<R: std::io::Read>(
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process_reader(reader, &options, Rc::clone(&warnings_handle))?
     };
-    if let Some(front_matter) = result.front_matter {
-        options
-            .document_attributes
-            .set_text("front-matter".into(), front_matter.into());
-    }
-    let text: Box<str> = result.text.into_owned().into_boxed_str();
-    let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
-    parse_input(
-        text,
-        options,
-        None,
-        result.leveloffset_ranges,
-        result.source_ranges,
-        result.included_files,
-        warnings_handle,
-    )
+    parse_input(result, options, None, warnings_handle)
 }
 
 /// Parse `AsciiDoc` content from a string.
@@ -437,7 +422,7 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// Recoverable problems appear in the result's warnings.
 #[instrument(skip_all, fields(input_len = input.len(), safe_mode = ?options.safe_mode))]
 pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
-    let mut options = options
+    let options = options
         .clone()
         .prepare_for_parse(document_attribute::InputKind::String);
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
@@ -445,22 +430,7 @@ pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process(input, &options, Rc::clone(&warnings_handle))?
     };
-    if let Some(front_matter) = result.front_matter {
-        options
-            .document_attributes
-            .set_text("front-matter".into(), front_matter.into());
-    }
-    let text: Box<str> = result.text.into_owned().into_boxed_str();
-    let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
-    parse_input(
-        text,
-        options,
-        None,
-        result.leveloffset_ranges,
-        result.source_ranges,
-        result.included_files,
-        warnings_handle,
-    )
+    parse_input(result, options, None, warnings_handle)
 }
 
 /// Parse `AsciiDoc` content from a file.
@@ -493,7 +463,7 @@ pub fn parse_file<P: AsRef<Path>>(
     file_path: P,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
-    let mut options = options
+    let options = options
         .clone()
         .prepare_for_parse(document_attribute::InputKind::File(file_path.as_ref()));
     let path = file_path.as_ref().to_path_buf();
@@ -508,22 +478,7 @@ pub fn parse_file<P: AsRef<Path>>(
             Rc::clone(&warnings_handle),
         )?
     };
-    if let Some(front_matter) = result.front_matter {
-        options
-            .document_attributes
-            .set_text("front-matter".into(), front_matter.into());
-    }
-    let text: Box<str> = result.text.into_owned().into_boxed_str();
-    let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
-    parse_input(
-        text,
-        options,
-        Some(path),
-        result.leveloffset_ranges,
-        result.source_ranges,
-        result.included_files,
-        warnings_handle,
-    )
+    parse_input(result, options, Some(path), warnings_handle)
 }
 
 /// Helper to convert a PEG parse error to our `SourceLocation` type,
@@ -554,14 +509,19 @@ fn peg_error_to_source_location(
 
 #[instrument(skip_all)]
 fn parse_input(
-    input: Box<str>,
-    options: Options<'_>,
+    result: preprocessor::PreprocessorResult<'_>,
+    mut options: Options<'_>,
     file_path: Option<PathBuf>,
-    leveloffset_ranges: Vec<model::LeveloffsetRange>,
-    source_ranges: Vec<model::SourceRange>,
-    included_files: std::collections::HashSet<String>,
     warnings_handle: Rc<RefCell<Vec<Warning>>>,
 ) -> Result<ParseResult, Error> {
+    if let Some(front_matter) = result.front_matter {
+        options
+            .document_attributes
+            .set_text("front-matter".into(), front_matter.into());
+    }
+    let input = result.text.into_owned().into_boxed_str();
+    let _span = tracing::info_span!("grammar_parse", input_len = input.len()).entered();
+    let source_ranges = result.source_ranges;
     tracing::trace!(input_len = input.len(), "post preprocessor");
     // Pin the preprocessed source text and a fresh `bumpalo::Bump` arena
     // together. The grammar borrows `&owner.source` and allocates every owned
@@ -580,42 +540,48 @@ fn parse_input(
     let warnings_for_state = Rc::clone(&warnings_handle);
 
     let source_files = parsed::SourceFiles::new(file_path.clone(), &source_ranges);
-    ParseResult::try_new(owner, warnings_handle, source_files, move |owner| {
-        let mut state =
-            grammar::ParserState::new(&owner.source, &owner.arena, Rc::new(options_owned));
-        state.current_file = file_path.map(std::sync::Arc::new);
-        state.leveloffset_ranges = leveloffset_ranges;
-        state.source_ranges = source_ranges;
-        state.included_files = included_files;
-        state.warnings = warnings_for_state;
-        state.warn_unsupported_compat_mode(None);
-        if state.document_attributes.contains_key("toc2") {
-            state.add_warning(Warning::new(WarningKind::DeprecatedToc2Attribute, None));
-        }
-        let result = match grammar::document_parser::document(&owner.source, &mut state) {
-            Ok(Ok(mut doc)) => {
-                grammar::reference_text::finish_document(&mut state, &mut doc)?;
-                // Rewrite every node's location from preprocessed coordinates to the
-                // original source (file + line + byte offset). No-op when the
-                // preprocessor recorded no ranges (no includes/edits).
-                grammar::remap_document_to_source(
-                    &mut doc,
-                    &state.source_ranges,
-                    &owner.source,
-                    &state.line_map,
-                );
-                Ok(doc)
+    ParseResult::try_new(
+        owner,
+        warnings_handle,
+        source_files,
+        result.conditionals,
+        move |owner| {
+            let mut state =
+                grammar::ParserState::new(&owner.source, &owner.arena, Rc::new(options_owned));
+            state.current_file = file_path.map(std::sync::Arc::new);
+            state.leveloffset_ranges = result.leveloffset_ranges;
+            state.source_ranges = source_ranges;
+            state.included_files = result.included_files;
+            state.warnings = warnings_for_state;
+            state.warn_unsupported_compat_mode(None);
+            if state.document_attributes.contains_key("toc2") {
+                state.add_warning(Warning::new(WarningKind::DeprecatedToc2Attribute, None));
             }
-            Ok(Err(e)) => Err(e),
-            Err(error) => {
-                tracing::error!("error parsing document content");
-                let source_location = peg_error_to_source_location(&error, &state);
-                Err(Error::Parse(Box::new(source_location), error.to_string()))
-            }
-        };
-        state.emit_warnings();
-        result
-    })
+            let result = match grammar::document_parser::document(&owner.source, &mut state) {
+                Ok(Ok(mut doc)) => {
+                    grammar::reference_text::finish_document(&mut state, &mut doc)?;
+                    // Rewrite every node's location from preprocessed coordinates to the
+                    // original source (file + line + byte offset). No-op when the
+                    // preprocessor recorded no ranges (no includes/edits).
+                    grammar::remap_document_to_source(
+                        &mut doc,
+                        &state.source_ranges,
+                        &owner.source,
+                        &state.line_map,
+                    );
+                    Ok(doc)
+                }
+                Ok(Err(e)) => Err(e),
+                Err(error) => {
+                    tracing::error!("error parsing document content");
+                    let source_location = peg_error_to_source_location(&error, &state);
+                    Err(Error::Parse(Box::new(source_location), error.to_string()))
+                }
+            };
+            state.emit_warnings();
+            result
+        },
+    )
 }
 
 /// Parse inline `AsciiDoc` content from a string.

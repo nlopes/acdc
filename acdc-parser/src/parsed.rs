@@ -13,7 +13,13 @@
 //! `OwnedSource` covers the parse-failure case (we have the text but no
 //! AST) without paying for an empty arena.
 
-use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    path::{Path, PathBuf},
+    rc::Rc,
+    sync::Arc,
+};
 
 use bumpalo::Bump;
 
@@ -102,6 +108,51 @@ self_cell::self_cell! {
     impl {Debug}
 }
 
+/// A conditional decision made while reading the source, before block parsing.
+///
+/// The result uses attributes at the directive and all enclosing conditions.
+/// It describes this parse and does not change when a document is copied or edited.
+#[derive(Clone, Debug)]
+pub struct ConditionalEvaluation {
+    pub(crate) file: Option<Arc<PathBuf>>,
+    pub(crate) start_line: usize,
+    pub(crate) active: bool,
+    pub(crate) inline: bool,
+    pub(crate) end_line: Option<usize>,
+}
+
+impl ConditionalEvaluation {
+    /// Original source file, absent for primary string or reader input.
+    #[must_use]
+    pub fn source_file(&self) -> Option<&Path> {
+        self.file.as_deref().map(PathBuf::as_path)
+    }
+
+    /// One-based opening line in the original source.
+    #[must_use]
+    pub fn start_line(&self) -> usize {
+        self.start_line
+    }
+
+    /// Whether the condition and all enclosing conditions selected its content.
+    #[must_use]
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+
+    /// Whether the directive contains its content on the opening line.
+    #[must_use]
+    pub fn is_inline(&self) -> bool {
+        self.inline
+    }
+
+    /// One-based closing line in the same file, absent for inline or unclosed directives.
+    #[must_use]
+    pub fn end_line(&self) -> Option<usize> {
+        self.end_line
+    }
+}
+
 /// Owns a parsed document, its backing text, and non-fatal warnings.
 ///
 /// A successful parse can contain recovered content. Check [`Self::source_recovery`]
@@ -113,6 +164,7 @@ pub struct ParseResult {
     warnings: Vec<Warning>,
     source_recovery: Option<Box<Warning>>,
     source_files: SourceFiles,
+    conditionals: Vec<ConditionalEvaluation>,
 }
 
 impl ParseResult {
@@ -121,6 +173,7 @@ impl ParseResult {
         owner: OwnedInput,
         warnings_handle: Rc<RefCell<Vec<Warning>>>,
         source_files: SourceFiles,
+        conditionals: Vec<ConditionalEvaluation>,
         builder: impl for<'a> FnOnce(&'a OwnedInput) -> Result<Document<'a>, E>,
     ) -> Result<Self, E> {
         let cell = ParsedDocumentCell::try_new(owner, builder)?;
@@ -146,6 +199,7 @@ impl ParseResult {
             warnings,
             source_recovery,
             source_files,
+            conditionals,
         })
     }
 
@@ -199,6 +253,15 @@ impl ParseResult {
     #[must_use]
     pub fn resolve_location(&self, location: crate::ast::LocationRef<'_>) -> SourceLocation {
         self.source_location(location.as_location())
+    }
+
+    /// Conditional decisions in preprocessing order, including selected include sources.
+    ///
+    /// Each decision retains original file and line numbers, including directives
+    /// whose content was omitted. These records describe the parsed source and
+    /// remain separate from authored AST content.
+    pub fn conditionals(&self) -> impl ExactSizeIterator<Item = &ConditionalEvaluation> {
+        self.conditionals.iter()
     }
 
     /// Borrow the collected warnings.

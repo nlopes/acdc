@@ -1033,6 +1033,13 @@ For reindented includes, line and column are original-source coordinates but byt
 offsets remain in preprocessed coordinates. Do not use them to slice the original
 file.
 
+`ParseResult::conditionals()` reports preprocessing decisions in source order,
+including selected includes. Each decision retains its original file and opening
+line, its closing line when present, and whether its content was active after
+all enclosing conditions. These decisions use attributes at the directive, not
+the end-of-header snapshot. Locations have line-level precision. They describe
+the parsed source and remain separate from copied or edited document content.
+
 `ParseResult::source_recovery()` returns the first warning about omitted or
 recovered content, including disabled includes, incomplete tables, unmatched
 block delimiters, and unresolved footnotes rendered as text. It remains available after `take_warnings()` and excludes

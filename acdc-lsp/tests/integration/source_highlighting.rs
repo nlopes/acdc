@@ -134,3 +134,90 @@ fn authored_section_ids_share_definition_highlighting() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn conditional_overlays_follow_body_changes_and_selected_nested_includes() -> TestResult {
+    let project = Project::new("conditional-source-order")?;
+    let uri = project.uri("main.adoc")?;
+    fs::write(
+        project.path().join("selected.adoc"),
+        "// tag::chosen[]\ninclude::nested.adoc[lines=2]\n// end::chosen[]\n:omitted:\n",
+    )?;
+    fs::write(project.path().join("nested.adoc"), ":unused:\n:included:\n")?;
+    let source = concat!(
+        "= Conditional overlays\r\n:header: set\r\n\r\n:body:\r\n",
+        "ifdef::body[]\r\n== Body selected é😀\r\nendif::[]\r\n\r\n",
+        ":header!:\r\nifdef::header[]\r\n== Header excluded\r\nendif::[]\r\n\r\n",
+        "include::selected.adoc[tag=chosen]\r\n",
+        "ifdef::included[]\r\n== Include selected\r\nendif::[]\r\n\r\n",
+        "ifdef::omitted[]\r\n== Include excluded\r\nendif::[]\r\n\r\n",
+        "ifdef::missing[]\r\n:leak:\r\nendif::[]\r\n",
+        "ifdef::leak[]\r\n== Leak excluded\r\nendif::[]\r\n\r\n",
+        "ifeval::[1 == 0]\r\nifdef::body[]\r\n== Nested excluded\r\nendif::[]\r\nendif::[]\r\n\r\n",
+        "ifdef::backend-html5[]\r\n== HTML selected\r\nendif::[]\r\n",
+        "ifdef::backend-pdf[]\r\n== PDF selected\r\nendif::[]\r\n\r\n",
+        "Outside *bold* é😀.\r\n",
+    );
+    for mode in ["asciidoctor", "draft"] {
+        for backend in ["html5", "pdf"] {
+            let mut client = LspTestClient::new()?;
+            client.initialize_with_options(json!({"compatibilityMode":mode,"backend":backend}))?;
+            client.open_document(&uri, source)?;
+            let diagnostics = client.wait_for_diagnostics(&uri)?;
+            let tokens = decoded(&mut client, &uri)?;
+            let symbols = client.send_request(
+                "textDocument/documentSymbol",
+                json!({"textDocument":{"uri":uri}}),
+            )?;
+            let names = serde_json::to_string(&symbols)?;
+            for (line, text) in source.lines().enumerate() {
+                let line = u32::try_from(line)?;
+                if text.starts_with("== ") {
+                    let inactive = text.contains("excluded")
+                        || (text.contains("HTML selected") && backend == "pdf")
+                        || (text.contains("PDF selected") && backend == "html5");
+                    assert_eq!(
+                        tokens.contains(&[
+                            line,
+                            0,
+                            u32::try_from(text.encode_utf16().count())?,
+                            5,
+                            4
+                        ]),
+                        inactive,
+                        "{mode}/{backend}: {text}: {tokens:?}"
+                    );
+                    assert_eq!(
+                        names.contains(text.trim_start_matches("== ")),
+                        !inactive,
+                        "{mode}/{backend}: {names}"
+                    );
+                    let hints = diagnostics
+                        .get("diagnostics")
+                        .and_then(serde_json::Value::as_array)
+                        .ok_or("diagnostics")?;
+                    assert_eq!(
+                        hints.iter().any(|hint| hint
+                            .get("message")
+                            .and_then(serde_json::Value::as_str)
+                            .is_some_and(|message| message.starts_with("Inactive conditional"))
+                            && hint.pointer("/range/start/line") == Some(&json!(line - 1))),
+                        inactive
+                    );
+                } else if text.starts_with("Outside") {
+                    let bold = source_range(line, text, "*bold*")?;
+                    assert!(tokens.contains(&[
+                        line,
+                        bold.start.character,
+                        bold.end.character - bold.start.character,
+                        4,
+                        0
+                    ]));
+                    assert_eq!(tokens.iter().filter(|token| token[0] == line).count(), 1);
+                }
+            }
+            client.shutdown();
+        }
+    }
+    Ok(())
+}

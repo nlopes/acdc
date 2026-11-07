@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `ParseResult::conditionals()` exposes preprocessing decisions in source order,
+  with original source files and line numbers. Tools can use the selected branches
+  without evaluating conditions against the end-of-header attribute snapshot.
+
 - Documented that accepted assignments immediately before an open block closes
   still affect later content in both modes. Asciidoctor defines attribute entries
   inside delimited blocks as undefined behavior.

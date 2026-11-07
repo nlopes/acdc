@@ -7,14 +7,15 @@ use std::{
     ops::Range,
     path::{Component, Path, PathBuf},
     rc::Rc,
+    sync::Arc,
 };
 
 use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
 
 use crate::{
-    DocumentAttributeValue, DocumentAttributes, IncludeSource, IncludeSourceError,
-    IncludeSourceErrorKind, IncludeSourceProvider, IncludeSourceTarget, Location, Options, Warning,
-    WarningKind,
+    ConditionalEvaluation, DocumentAttributeValue, DocumentAttributes, IncludeSource,
+    IncludeSourceError, IncludeSourceErrorKind, IncludeSourceProvider, IncludeSourceTarget,
+    Location, Options, Warning, WarningKind,
     error::{Error, SourceLocation},
     model::{LeveloffsetRange, Position, SourceRange},
 };
@@ -62,6 +63,7 @@ pub(crate) struct PreprocessorResult<'input> {
     /// Fully included `AsciiDoc` source names, relative to the entry base directory,
     /// without their extensions. Partial and unsuccessful includes are omitted.
     pub(crate) included_files: HashSet<String>,
+    pub(crate) conditionals: Vec<ConditionalEvaluation>,
     /// Front matter captured from the primary input. Included front matter does not replace it.
     pub(crate) front_matter: Option<String>,
     comment_context: comment::BlockContext,
@@ -77,6 +79,7 @@ impl PreprocessorResult<'_> {
             leveloffset_ranges: self.leveloffset_ranges,
             source_ranges: self.source_ranges,
             included_files: self.included_files,
+            conditionals: self.conditionals,
             front_matter: self.front_matter,
             comment_context: self.comment_context,
         }
@@ -387,6 +390,7 @@ struct ConditionalFrame<'input> {
     conditional: conditional::Conditional<'input>,
     active: bool,
     opening_line: usize,
+    evaluation: usize,
 }
 
 /// Mutable state accumulated during preprocessing.
@@ -401,11 +405,12 @@ struct PreprocessorState<'input> {
     leveloffset_ranges: Vec<LeveloffsetRange>,
     source_ranges: Vec<SourceRange>,
     included_files: HashSet<String>,
+    conditionals: Vec<ConditionalEvaluation>,
     /// The file the in-progress output is being read from, used as the `file`
     /// of the main-file [`SourceRange`]s recorded below. `None` for stdin/string
     /// input — ranges are still recorded (so line/offset remapping works) with a
     /// `None` file.
-    source_file: Option<PathBuf>,
+    source_file: Option<Arc<PathBuf>>,
     /// Byte offset of each 1-indexed source line in the (normalized) primary input,
     /// so a run/chunk anchored at a source line can record its origin-file byte
     /// offset. `src_line_starts[n - 1]` is the start of source line `n`.
@@ -451,7 +456,9 @@ impl<'input> PreprocessorState<'input> {
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
-            source_file: source_origin.and_then(|origin| origin.as_path().map(Path::to_path_buf)),
+            conditionals: Vec::new(),
+            source_file: source_origin
+                .and_then(|origin| origin.as_path().map(|path| Arc::new(path.to_path_buf()))),
             src_line_starts,
             line_origins,
             run: None,
@@ -565,7 +572,7 @@ impl<'input> PreprocessorState<'input> {
             self.push_source_range(
                 run.out_start,
                 self.byte_offset,
-                self.source_file.clone(),
+                self.source_file.as_deref().cloned(),
                 // Own content: the include chain is empty here; an enclosing
                 // `include::` prepends its target when this file's ranges are merged.
                 Vec::new(),
@@ -586,7 +593,7 @@ impl<'input> PreprocessorState<'input> {
         self.push_source_range(
             start,
             self.byte_offset,
-            self.source_file.clone(),
+            self.source_file.as_deref().cloned(),
             Vec::new(),
             origin,
         );
@@ -1085,6 +1092,7 @@ impl Preprocessor {
         state: &mut PreprocessorState<'_>,
     ) {
         state.included_files.extend(include_result.included_files);
+        state.conditionals.extend(include_result.conditionals);
         state.flush_borrowed_run();
         let start_offset = state.byte_offset;
 
@@ -1204,6 +1212,14 @@ impl Preprocessor {
                     ctx.current_file(),
                 )?;
 
+            let evaluation = out.conditionals.len();
+            out.conditionals.push(ConditionalEvaluation {
+                file: out.source_file.clone(),
+                start_line: ctx.source_line,
+                active,
+                inline: is_inline,
+                end_line: None,
+            });
             if is_inline {
                 if active {
                     scanner.record_expansion(&content, attributes);
@@ -1214,6 +1230,7 @@ impl Preprocessor {
                     conditional,
                     active,
                     opening_line: ctx.source_line,
+                    evaluation,
                 });
             }
             return Ok(true);
@@ -1236,6 +1253,9 @@ impl Preprocessor {
                 return Err(Error::InvalidConditionalDirective(Box::new(
                     Self::create_source_location(ctx.source_line, ctx.current_file()),
                 )));
+            }
+            if let Some(evaluation) = out.conditionals.get_mut(frame.evaluation) {
+                evaluation.end_line = Some(ctx.source_line);
             }
             stack.pop();
             return Ok(true);
@@ -1345,6 +1365,7 @@ impl Preprocessor {
                 leveloffset_ranges: Vec::new(),
                 source_ranges: Vec::new(),
                 included_files: HashSet::new(),
+                conditionals: Vec::new(),
                 front_matter: None,
                 comment_context: scanner.block_context(),
             });
@@ -1404,6 +1425,7 @@ impl Preprocessor {
                 leveloffset_ranges: Vec::new(),
                 source_ranges,
                 included_files: HashSet::new(),
+                conditionals: Vec::new(),
                 front_matter: None,
                 comment_context: scanner.block_context(),
             };
@@ -1565,6 +1587,7 @@ impl Preprocessor {
             leveloffset_ranges: out.leveloffset_ranges,
             source_ranges: out.source_ranges,
             included_files: out.included_files,
+            conditionals: out.conditionals,
             front_matter: captured_front_matter,
             comment_context: scanner.block_context(),
         })
@@ -1736,6 +1759,7 @@ mod tests {
                 target: "included.adoc".into(),
                 source_ranges: Vec::new(),
                 included_files: HashSet::new(),
+                conditionals: Vec::new(),
                 document_attributes: None,
                 comment_context: None,
             };
