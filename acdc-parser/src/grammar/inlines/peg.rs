@@ -2648,7 +2648,7 @@ peg::parser! {
         }
 
         rule path_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' | '\u{80}'..='\u{10FFFF}' ]
-        rule media_path_char() = path_char() / "%"
+        rule media_path_char() = path_char() / ['%' | '\'' | '"']
         rule internal_media_path_spaces() = [' ']+ &media_path_char()
 
         pub rule source() -> Source<'input>

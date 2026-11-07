@@ -1,0 +1,34 @@
+= Quoted media paths
+:asset: 'attribute.png
+
+Inline: image:'inline.png["Alt, label",title="Inline tip"].
+
+Inline: image:"double.png[Second].
+
+Inside: image:photo's.png[Inside].
+
+Spaced: image:dir/"quoted image.png[Spaced].
+
+image::'block.png["Block, alt",title="Block title"]
+
+image::"double block.png[Second,title="Named title"]
+
+Attribute: image:{asset}[Attribute].
+
+image::{asset}[Block attribute]
+
+audio::'audio clip.mp3[title="Quoted audio"]
+
+Escaped: \image:'literal.png[*Literal*].
+
+Incomplete: image:'unfinished.png[Alt
+
+include::includes/media_quoted_targets.adoc[lines=2..2]
+
+include::includes/media_quoted_targets.adoc[lines=4..4]
+
+[cols=a,options=noheader]
+|===
+|
+include::includes/media_quoted_targets.adoc[lines=2..4]
+|===

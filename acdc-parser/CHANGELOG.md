@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Local image and block audio filenames now accept literal single and double
+  quotes. Quoted alt and title values remain separate from the target. Inline
+  filenames keep ASCII apostrophes; Asciidoctor can replace them with typographic
+  apostrophes.
+
 - Explicit overrides of character-replacement attributes now follow the same
   substitution order as ordinary attributes. For example, `:quot: ->` produces
   an arrow under normal substitutions in both modes. Built-in values remain literal.

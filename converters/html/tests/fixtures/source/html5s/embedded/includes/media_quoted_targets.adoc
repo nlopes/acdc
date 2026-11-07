@@ -1,0 +1,4 @@
+// Selected include control
+α image:'included.png["Included, alt",title="Included tip"] ω
+
+image::"included block.png[Block]

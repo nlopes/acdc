@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Images and audio with quote characters in local filenames now render in both
+  variants. Double quotes in their source attributes are escaped safely.
+
 - Explicit replacement-attribute values now resolve arrow typography using the
   same substitution order as ordinary attributes in both variants.
 

@@ -1175,6 +1175,18 @@ in the URL. acdc keeps its existing nested inline structure under the selected
 SDR-5 separation of parsing and conversion; SDR-5 does not prescribe these exact
 boundary decisions.
 
+== Local media targets
+
+Local image and block audio paths accept literal single and double quotes in
+both modes. For example, `image:'photo.png[Alt]` uses a filename that starts with
+an apostrophe. Quotes belong to the filename; quoted alt and title values start
+inside the attribute list. Existing spaces and percent escapes are preserved.
+
+acdc preserves ASCII apostrophes in filenames. Asciidoctor can replace an internal
+apostrophe in an inline image target with a typographic apostrophe, while its
+block targets keep the ASCII character. HTML output escapes double quotes in
+source attributes.
+
 == Explicit link targets
 
 An explicit `link:` macro accepts custom schemes and paths with colons, such

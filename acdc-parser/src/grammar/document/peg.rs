@@ -3910,7 +3910,7 @@ peg::parser! {
             Ok(result)
         }
 
-        rule path_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' | '%' | '\u{80}'..='\u{10FFFF}' ]
+        rule path_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' | '%' | '\'' | '"' | '\u{80}'..='\u{10FFFF}' ]
         rule internal_path_spaces() = [' ']+ &path_char()
         rule path_match() = path_char() (path_char() / internal_path_spaces())*
 
