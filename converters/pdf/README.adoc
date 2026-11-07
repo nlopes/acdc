@@ -135,8 +135,17 @@ Block images with `float=left` or `float=right` render on the requested side, bu
 Typst does not yet support wrapping paragraph text beside a floating image, so the converter emits a warning for each affected image.
 Native side wrapping is tracked in https://github.com/typst/typst/issues/5181[Typst issue 5181].
 
-Raw inline passthrough content is always emitted through Typst's escaped text boundary.
-Unlike Asciidoctor PDF, backend-specific markup in `+++...+++` or `pass:[]` is displayed literally and cannot execute Typst code.
+Raw HTML in `+++...+++` and `pass:[]` stays literal in PDF output.
+This includes emphasis tags, nested tags, unsupported tags, and incomplete tags.
+HTML `id` and `href` attributes do not create PDF destinations or links.
+Native AsciiDoc anchors, links, and supported roles keep their normal behavior.
+
+Selected AsciiDoc substitutions still apply before PDF output. Use `_emphasis_`,
+`*strong*`, or `pass:q[_emphasis_]` for formatting. Single- and double-plus
+passthroughs keep protected markup literal. Passthrough blocks display their
+content as unframed monospace text. Asciidoctor PDF instead interprets a limited
+pseudo-HTML vocabulary in raw inline content. acdc does not interpret raw HTML
+or execute raw Typst code.
 
 == PDF substitutions for browser-only behavior
 

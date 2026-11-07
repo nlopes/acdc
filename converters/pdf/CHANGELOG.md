@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Documented that raw HTML tags and their link attributes stay literal in PDF.
+  Use AsciiDoc formatting or `pass:q[...]` for styled text. Asciidoctor PDF
+  instead interprets supported inline HTML tags.
+
 - Short and full cross-references retain formatting in parsed custom `caption=`
   prefixes. Only a final unformatted period and space are removed; punctuation
   inside a styled span remains visible.

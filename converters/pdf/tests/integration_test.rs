@@ -4153,3 +4153,68 @@ fn rebuilt_toc_does_not_link_to_a_same_id_paragraph_with_equal_source_spans() ->
     }
     Ok(())
 }
+
+#[rstest::rstest]
+fn raw_html_stays_literal_without_creating_pdf_links_or_destinations(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let source = include_str!("fixtures/source/pdf_raw_markup.adoc");
+    let parsed = parse(
+        source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+    let before = Document::from(parsed.document());
+    let pdf = render_parsed(&parsed)?;
+    assert_eq!(Document::from(parsed.document()), before);
+    let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+    let text = pdf
+        .extract_text(&pages)?
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    for expected in [
+        "P01 <em>single protected</em>.",
+        "P02 <em>double protected</em>.",
+        "P03 <em>raw emphasis</em>.",
+        "P04 <strong>raw strong</strong>.",
+        "P05 <em>outer <strong>nested</strong></em>.",
+        "P06 <widget>unknown</widget>.",
+        "P07 <em>unclosed.",
+        "P08 </em>unopened.",
+        "P09 <em></em>.",
+        "P10 A B.",
+        "P11 &lt;em&gt;encoded&lt;/em&gt;.",
+        "P12 +<em>escaped</em>+.",
+        "P13 <em>expanded</em>.",
+        "P14 <em>{word}</em>.",
+        "P15 <em> AsciiDoc bold </em>.",
+        "P16 <em>expanded</em>.",
+        "P17 <em>{word}</em>.",
+        r#"P20 <a id="html-only" href="https://example.org/raw">raw link</a>."#,
+        r#"P22 #panic("literal Typst")."#,
+        "B01 <em>block raw</em>",
+        "B02 <strong>pass style</strong>",
+        "B03 <em>expanded</em>",
+        "B04 <em>AsciiDoc bold expanded</em>",
+    ] {
+        assert!(
+            text.contains(expected),
+            "{mode:?}: missing {expected:?}: {text}"
+        );
+    }
+    let mut links = Vec::new();
+    for page in pages {
+        links.extend(
+            external_link_rects(&pdf, page)?
+                .into_iter()
+                .map(|(uri, _)| uri),
+        );
+    }
+    assert_eq!(links, ["https://example.org/native"]);
+    let destinations = named_destinations(&pdf)?;
+    assert!(destinations.contains_key("native"));
+    assert!(destinations.contains_key("block-anchor"));
+    assert!(!destinations.contains_key("html-only"));
+    Ok(())
+}
