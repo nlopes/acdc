@@ -1,0 +1,69 @@
+= Positional Precedence
+
+[source,rust,linenums,language=python,linenums=named]
+----
+same list
+----
+
+[source,rust,linenums]
+[language=python,linenums=named]
+----
+later named
+----
+
+[source,language=python,linenums=named]
+[source,rust,linenums]
+----
+later positional
+----
+
+[quote,Positional,Citation,attribution=Named,citetitle=NamedTitle]
+____
+Same-list attribution.
+____
+
+[quote,Positional,Citation]
+[attribution=Named,citetitle=NamedTitle]
+____
+Later named attribution.
+____
+
+[verse,attribution=Named,citetitle=NamedTitle]
+[verse,Positional,Citation]
+____
+Later positional attribution.
+____
+
+[alt=Earlier,width=50,height=60]
+image::photo.png[Later,100,200]
+
+image::photo.png[Positional,100,200,alt=Named,width=300,height=400]
+
+image::photo.png[width=300,100,200]
+
+[alt=Named]
+[Positional]
+image::photo.png[]
+
+[Ignored,50,60]
+image::photo.png[Alt]
+
+[poster=earlier.jpg,width=50,height=60]
+video::movie.mp4[later.jpg,100,200]
+
+video::movie.mp4[poster.jpg,100,200,poster=named.jpg,width=300,height=400]
+
+[poster=Named]
+[Positional]
+video::movie.mp4[]
+
+audio::sound.ogg[one,two,three]
+
+[width=10]
+image::photo.png[Alt,""]
+
+[quote,attribution=Earlier,citetitle=EarlierBook]
+[quote,"",""]
+____
+Quoted empty positions have mode-specific effects.
+____

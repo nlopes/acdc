@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -92,15 +93,15 @@
 
 #text("G04 *source* {value} (C) ")#link("https://example.org")[#text("Link")]#text(".")
 
-#text("G05 ")#strong[#text("source")]#text(" *bold* © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("G05 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")
 
-#text("G06 ")#strong[#text("source")]#text(" *bold* © link:https://example.org[Link].")
+#text("G06 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" link:https://example.org[Link].")
 
 #text("G07 *source* *bold* (C) link:https://example.org[Link].")
 
 #text("G08 *source* {value} (C) link:https://example.org[Link].")
 
-#text("G09 ")#strong[#text("bold")]#text(" © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("G09 ")#strong[#text("bold")]#text(" ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")
 
 #text("G10 ")#link("https://example.org")[#text("Link")]#text(".")
 
@@ -108,9 +109,9 @@
 
 #text("G12 footnote:[Literal note.] anchor:literal[] indexterm:[Literal].")
 
-#text("G13 ")#strong[#text("source")]#text(" *bold* © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("G13 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")
 
-#text("G14 ")#strong[#text("source")]#text(" *bold* © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("G14 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")
 
 #text("G15 ")#strong[#text("source")]#text(" {value} (C) link:https://example.org[Link].")
 
@@ -148,4 +149,4 @@
 
 #text("G28 café *accentué* *bold*.")
 
-#text("G29 ")#strong[#text("defaults restored")]#text(" © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("G29 ")#strong[#text("defaults restored")]#text(" ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")

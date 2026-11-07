@@ -275,6 +275,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Late {name} *bold*",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 11,
@@ -386,6 +389,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Macro {name} *bold*",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 11,
@@ -570,6 +576,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "Root {name}",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 14,
@@ -587,6 +596,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "Child *bold*",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 14,
@@ -604,6 +616,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "Leaf {empty}end",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 14,
@@ -701,6 +716,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "{pair}",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 14,
@@ -718,6 +736,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "Second",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 14,
@@ -841,6 +862,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "Alias {name}",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 17,
@@ -862,6 +886,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Target {name}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 17,
@@ -1029,6 +1056,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "Related *bold*",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 17,
@@ -1051,6 +1081,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "Other *bold*",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 17,
@@ -1159,6 +1192,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Nested {name}",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 20,
@@ -1312,6 +1348,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Early ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 20,
@@ -1333,6 +1372,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "bold",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 20,
@@ -1360,6 +1402,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": " {name}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 20,
@@ -1494,6 +1539,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Expanded *Styled*",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 23,
@@ -1606,6 +1654,9 @@
                     "name": "raw",
                     "type": "string",
                     "value": "Hidden *bold*",
+                    "substitutions": [
+                      "special_chars"
+                    ],
                     "location": [
                       {
                         "line": 23,
@@ -1774,6 +1825,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Code {name} *bold*",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 28,
@@ -1852,6 +1906,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Gone{empty}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 28,
@@ -1947,6 +2004,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Only once",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 33,
@@ -1978,6 +2038,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Footnote footnote:[Only once]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 33,
@@ -2038,6 +2101,9 @@
               "name": "raw",
               "type": "string",
               "value": "Second note",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 33,
@@ -2170,6 +2236,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Character {amp} {asterisk}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 36,
@@ -2244,6 +2313,9 @@
               "name": "raw",
               "type": "string",
               "value": "{name}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 36,
@@ -2274,6 +2346,9 @@
               "name": "raw",
               "type": "string",
               "value": "*plain*",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 36,
@@ -2293,6 +2368,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Protected \\{name} ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 36,
@@ -2308,6 +2386,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "*plain*",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 36,

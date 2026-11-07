@@ -1,0 +1,5 @@
+Excluded text.
+    [bibliography]
+    * [[[included-empty,]]] Empty included label.
+    * [[[included-spaces,  ]]] Whitespace included label.
+Excluded text.

@@ -33,6 +33,9 @@
           "name": "raw",
           "type": "string",
           "value": "*attribute bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 8,
@@ -85,6 +88,9 @@
               "name": "raw",
               "type": "string",
               "value": "attribute bold",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 10,
@@ -143,6 +149,9 @@
           "name": "raw",
           "type": "string",
           "value": "(C)",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 12,
@@ -186,9 +195,9 @@
           ]
         },
         {
-          "name": "raw",
+          "name": "symbol",
           "type": "string",
-          "value": "(C)",
+          "value": "©",
           "location": [
             {
               "line": 14,
@@ -235,6 +244,9 @@
           "name": "raw",
           "type": "string",
           "value": "https://example.com",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 16,
@@ -331,6 +343,9 @@
           "name": "raw",
           "type": "string",
           "value": "*attribute bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 20,
@@ -377,6 +392,9 @@
           "name": "raw",
           "type": "string",
           "value": "<mark>inserted</mark>",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 22,
@@ -423,6 +441,9 @@
           "name": "raw",
           "type": "string",
           "value": "&lt;mark&gt;inserted&lt;/mark&gt;",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 24,
@@ -469,6 +490,9 @@
           "name": "raw",
           "type": "string",
           "value": "&#169;",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 26,
@@ -515,6 +539,9 @@
           "name": "raw",
           "type": "string",
           "value": "&amp;#169;",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 28,
@@ -576,6 +603,9 @@
           "name": "raw",
           "type": "string",
           "value": "+",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 30,

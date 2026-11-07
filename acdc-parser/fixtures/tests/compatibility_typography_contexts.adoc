@@ -1,0 +1,16 @@
+= Typography contexts
+:value: (TM)
+
+Earlier.
+
+π🚀 *Nested (C)* and footnote:n[Note (R).]
+
+.Titled (C)
+Paragraph {value}.
+
+[cols=a]
+|===
+|π🚀 (C) ... and *inner (R)* and footnote:n[].
+|===
+
+include::includes/compatibility_typography.adoc[tag=selected,indent=0]

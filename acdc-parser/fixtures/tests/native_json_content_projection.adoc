@@ -1,0 +1,29 @@
+= Native content projection
+:label: *Expanded*
+
+[title='',reftext='',caption='',extension=kept]
+image::empty.png[alt='']
+
+[title='{label}',reftext='Reference _label_',caption='Custom: ']
+image::rich.png[Alt]
+
+image::absent.png[]
+
+[quote,attribution='',citetitle='']
+____
+Present empty credits.
+____
+
+[quote,attribution='*Author*',citetitle='_Book_']
+____
+Rich credits.
+____
+
+[quote]
+____
+Absent credits.
+____
+
+image:inline.png[alt='',title=''] and image:rich-inline.png[alt='*Alt*',title='_Tip_'].
+
+Literal pass:c[<tag> &copy;] and pass:[<raw>] with enabled (C) typography.

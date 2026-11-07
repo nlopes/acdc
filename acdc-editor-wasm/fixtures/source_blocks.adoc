@@ -1,0 +1,95 @@
+= Block source
+:toc:
+:stem:
+
+.Block *title*
+[#paragraph.role]
+Paragraph.
+
+== Heading
+
+[discrete]
+=== Discrete
+
+* [x] Checked
+* [ ] Unchecked
++
+Attached *paragraph*.
+
+. Ordered
+. Second
+
+Term:: Description with _formatting_.
+
+[source,rust]
+----
+let value = 1; // <1>
+----
+<1> Callout explanation.
+
+....
+Literal <content>.
+....
+
+++++
+<strong>Raw HTML</strong>
+++++
+
+[verse]
+____
+*Verse* line.
+____
+
+[quote,Author,Book]
+____
+Quoted *paragraph*.
+____
+
+NOTE: A note.
+
+[IMPORTANT]
+====
+An admonition block.
+====
+
+.Example
+====
+Nested *paragraph*.
+====
+
+****
+Sidebar _content_.
+****
+
+--
+Open block.
+--
+
+[cols="a,a",options=header]
+|===
+|First |Second
+|*Cell* |Another cell
+|===
+
+[stem]
+++++
+x^2
+++++
+
+image::bird.svg[Bird]
+
+audio::bird.ogg[]
+
+video::bird.mp4[]
+
+'''
+
+<<<
+
+// Line comment
+
+////
+Block comment.
+////
+
+toc::[]

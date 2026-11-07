@@ -1,0 +1,4 @@
+Ignored.
+// tag::selected[]
+  π🚀 Included (TM) ... and link:manual.html[Label (C)].
+// end::selected[]

@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: Quote's manual
 :mansource: 3'4 source
+:docdate: 2026-10-03
 :revdate: 2026-10-03
 
 == NAME

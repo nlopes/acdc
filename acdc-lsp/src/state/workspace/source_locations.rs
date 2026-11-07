@@ -201,13 +201,20 @@ fn file_rename_uses_included_source_directory() -> Result<(), Box<dyn Error>> {
 #[test]
 fn diagnostics_follow_source_locations_and_clear_after_last_parent() -> Result<(), Box<dyn Error>> {
     let workspace = Workspace::new();
-    let first = file_uri("first.adoc")?;
-    let second = file_uri("second.adoc")?;
-    let chapter = file_uri("chapter.adoc")?;
-    let options = options_with_sources(&[(
-        "chapter.adoc",
+    let directory =
+        std::env::temp_dir().join(format!("acdc-diagnostic-routing-{}", std::process::id()));
+    std::fs::create_dir_all(&directory)?;
+    let first = Uri::from_file_path(directory.join("first.adoc")).ok_or("first URI")?;
+    let second = Uri::from_file_path(directory.join("second.adoc")).ok_or("second URI")?;
+    let chapter = Uri::from_file_path(directory.join("chapter.adoc")).ok_or("chapter URI")?;
+    std::fs::write(
+        directory.join("chapter.adoc"),
         "// omitted\n// omitted\n=== Skipped\n\nSee <<missing>>.\n\nimage::missing.png[]\n",
-    )])?;
+    )?;
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Server)
+        .with_base_dir(&directory)
+        .build()?;
     let text = "= Book\n\ninclude::chapter.adoc[lines=3..7]\n";
     for uri in [&first, &second] {
         let affected =
@@ -249,6 +256,7 @@ fn diagnostics_follow_source_locations_and_clear_after_last_parent() -> Result<(
     let affected = workspace.remove_document(&second);
     assert!(affected.contains(&chapter));
     assert_eq!(workspace.diagnostics_for(&chapter).0, []);
+    std::fs::remove_dir_all(directory)?;
     Ok(())
 }
 
@@ -337,5 +345,40 @@ fn rename_does_not_change_references_without_an_editable_definition() -> Result<
             rename::compute_rename(&doc, &uri, &workspace, Position::new(line, 8), "new").is_none()
         );
     }
+    Ok(())
+}
+
+#[test]
+fn navigation_omits_unknown_and_cross_file_source_ranges() -> Result<(), Box<dyn Error>> {
+    let workspace = Workspace::new();
+    let uri = file_uri("unavailable-coordinates.adoc")?;
+    let mut location = acdc_parser::Location::default();
+    location.start = acdc_parser::Position::new(1, 1);
+    location.end = acdc_parser::Position::new(1, 2);
+    assert!(workspace.lsp_location(&uri, &location).is_none());
+    workspace.update_document(uri.clone(), "😀x".into(), 1);
+    let target = workspace
+        .lsp_location(&uri, &location)
+        .ok_or("known text")?;
+    assert_eq!(target.range.end, Position::new(0, 3));
+    location.end.file = Some(std::sync::Arc::new(vec!["unknown.adoc".into()]));
+    assert!(workspace.lsp_location(&uri, &location).is_none());
+    Ok(())
+}
+
+#[test]
+fn file_only_definitions_remain_zero_width_without_reading_a_target() -> Result<(), Box<dyn Error>>
+{
+    let workspace = Workspace::new();
+    let uri = file_uri("file-only-target.adoc")?;
+    let mut location = acdc_parser::Location::default();
+    location.start = acdc_parser::Position::new(1, 1);
+    assert_eq!(
+        workspace
+            .lsp_location(&uri, &location)
+            .ok_or("file target")?
+            .range,
+        tower_lsp_server::ls_types::Range::default()
+    );
     Ok(())
 }

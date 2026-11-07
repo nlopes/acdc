@@ -1,0 +1,5 @@
+Outside selection.
+// tag::selected[]
+    Included café: {wrapped}.
+// end::selected[]
+Outside selection.

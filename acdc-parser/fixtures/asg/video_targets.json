@@ -1,0 +1,178 @@
+{
+  "blocks": [
+    {
+      "form": "macro",
+      "location": [
+        {
+          "col": 1,
+          "line": 1
+        },
+        {
+          "col": 55,
+          "line": 1
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "height": "360",
+          "poster": "cover.png",
+          "width": "640"
+        }
+      },
+      "name": "video",
+      "target": "movie.mp4",
+      "type": "block"
+    },
+    {
+      "form": "macro",
+      "location": [
+        {
+          "col": 1,
+          "line": 3
+        },
+        {
+          "col": 73,
+          "line": 3
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "poster": "cover.png"
+        }
+      },
+      "name": "video",
+      "target": "https://example.org/movie.mp4?part=1,2&mode=wide",
+      "type": "block"
+    },
+    {
+      "form": "macro",
+      "location": [
+        {
+          "col": 1,
+          "line": 5
+        },
+        {
+          "col": 81,
+          "line": 5
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "height": "360",
+          "poster": "youtube",
+          "start": "3",
+          "width": "640"
+        },
+        "options": [
+          "loop",
+          "muted"
+        ]
+      },
+      "name": "video",
+      "target": "first,second,third",
+      "type": "block"
+    },
+    {
+      "form": "macro",
+      "location": [
+        {
+          "col": 1,
+          "line": 7
+        },
+        {
+          "col": 36,
+          "line": 7
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "end": "12",
+          "poster": "youtube"
+        }
+      },
+      "name": "video",
+      "target": "first,,third,",
+      "type": "block"
+    },
+    {
+      "form": "macro",
+      "location": [
+        {
+          "col": 1,
+          "line": 9
+        },
+        {
+          "col": 29,
+          "line": 9
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "poster": "youtube"
+        }
+      },
+      "name": "video",
+      "target": ",first,,last,",
+      "type": "block"
+    },
+    {
+      "form": "macro",
+      "location": [
+        {
+          "col": 1,
+          "line": 11
+        },
+        {
+          "col": 41,
+          "line": 11
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "poster": "vimeo",
+          "start": "4"
+        },
+        "options": [
+          "autoplay"
+        ]
+      },
+      "name": "video",
+      "target": "12345",
+      "type": "block"
+    },
+    {
+      "form": "macro",
+      "location": [
+        {
+          "col": 1,
+          "line": 13
+        },
+        {
+          "col": 27,
+          "line": 13
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "poster": ""
+        }
+      },
+      "name": "video",
+      "target": "movie.mp4",
+      "type": "block"
+    }
+  ],
+  "location": [
+    {
+      "col": 1,
+      "line": 1
+    },
+    {
+      "col": 27,
+      "line": 13
+    }
+  ],
+  "name": "document",
+  "profile": "urn:acdc:asg:1",
+  "type": "block"
+}

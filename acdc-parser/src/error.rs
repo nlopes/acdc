@@ -243,6 +243,8 @@ impl Error {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct SourceLocation {
+    /// The file containing the start. Cross-file spans also carry endpoint
+    /// include chains in `location`.
     pub file: Option<PathBuf>,
     pub location: Location,
 }
@@ -376,4 +378,36 @@ mod tests {
             "Parsing error: unexpected token, position: line: 1, column: 6"
         );
     }
+}
+
+/// An explicit reference/TOC rebuild lacks prepared identity or label context.
+#[derive(Clone, Debug, PartialEq, thiserror::Error)]
+#[non_exhaustive]
+pub enum ReferenceRepairError {
+    /// A new heading needs an explicit ID or a new source parse to assign one.
+    #[error("section has no assigned ID; supply an explicit ID or reparse its source")]
+    UnassignedSectionId {
+        /// The caller-provided section span.
+        location: Box<Location>,
+    },
+    /// A document attribute has no retained prepared reference-label snapshot.
+    #[error("document reftext has no prepared label; reparse its source")]
+    MissingDocumentReftext {
+        /// The caller-provided document span.
+        location: Box<Location>,
+    },
+}
+
+/// An explicit caption rebuild lacks a compatible prepared prefix.
+#[derive(Clone, Debug, PartialEq, thiserror::Error)]
+#[non_exhaustive]
+pub enum CaptionRepairError {
+    /// Supply a resolved caption or reparse source to recover declaration context.
+    #[error(
+        "caption has no prepared context for this block; supply a resolved caption or reparse its source"
+    )]
+    MissingContext {
+        /// The caller-provided block span.
+        location: Box<Location>,
+    },
 }

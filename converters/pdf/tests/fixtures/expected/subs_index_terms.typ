@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -104,7 +105,7 @@
 
 #text("Direct link: ")#metadata(none)<__indexterm-18>#text("direct ")#link("https://example.com")[#text("Ada")]#text(".")
 
-#text("Replacements: ")#metadata(none)<__indexterm-19>#text("copyright © — arrow →")#text(".")
+#text("Replacements: ")#metadata(none)<__indexterm-19>#text("copyright ")#text("©")#text(" — ")#text("arrow ")#text("→")#text(".")
 
 #text("Formatted hierarchy: ")#metadata(none)<__indexterm-20>#text(".")
 
@@ -178,7 +179,7 @@
 #v(0.75em)
 #text(weight: "bold")[#text("C")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("copyright © — arrow →")#_acdc_index_pages((<__indexterm-19>,), "term")]
+#par(hanging-indent: 1em)[#text("copyright ")#text("©")#text(" — ")#text("arrow ")#text("→")#_acdc_index_pages((<__indexterm-19>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("D")]
 #v(0.25em)

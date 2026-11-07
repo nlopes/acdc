@@ -7,16 +7,322 @@ use std::{
 };
 
 use acdc_converters_core::{
-    Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, TraversalContext,
-    WarningSource, visitor::Visitor,
+    Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, WarningSource,
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
-use acdc_converters_html::{HtmlVariant, HtmlVisitor, Processor, RenderOptions};
-use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, parse_file};
+use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
+use acdc_parser::{
+    AttributeValue, Block, CompatibilityMode, DelimitedBlockType, Options as ParserOptions,
+    SafeMode, Table, parse, parse_file,
+};
 
 mod support;
 
 type Error = Box<dyn StdError>;
+
+#[test]
+fn quoted_header_values_stay_inside_html_attributes() -> Result<(), Error> {
+    let source = "= Header\n:author: \"Jane Doe\"\n:email: \"jane@example.org\"\n\nBody.\n";
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Processor::new_with_variant(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+                variant,
+            )?;
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let warning_source = WarningSource::new("html");
+            processor.convert_to_writer(
+                parsed.document(),
+                &mut output,
+                &RenderOptions::default(),
+                &mut Diagnostics::new(&warning_source, &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            for expected in [
+                "<meta name=\"author\" content=\"&quot;Jane Doe&quot;\">",
+                "href=\"mailto:&quot;jane@example.org&quot;\"",
+                "class=\"author\">&quot;Jane Doe&quot;</span>",
+            ] {
+                assert!(output.contains(expected), "missing {expected}: {output}");
+            }
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn image_text_preserves_curved_quotation_punctuation() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/html/embedded/resolved_curved_quotes.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Processor::new_with_variant(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+                variant,
+            )?;
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let warning_source = WarningSource::new("html");
+            processor.convert_to_writer(
+                parsed.document(),
+                &mut output,
+                &RenderOptions::default(),
+                &mut Diagnostics::new(&warning_source, &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            for expected in [
+                r#"alt="“alt”""#,
+                r#"title="“tooltip”""#,
+                r#"alt="&quot;`block alt`&quot;""#,
+            ] {
+                assert!(output.contains(expected), "missing {expected}: {output}");
+            }
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn block_substitutions_are_honored_in_every_build() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/html/embedded/subs_runtime_builds.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        assert_eq!(parsed.document().footnotes().count(), 0);
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Processor::new_with_variant(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+                variant,
+            )?;
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let warning_source = WarningSource::new("html");
+            let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
+            processor.convert_to_writer(
+                parsed.document(),
+                &mut output,
+                &RenderOptions::default(),
+                &mut diagnostics,
+            )?;
+            let output = String::from_utf8(output)?;
+            for expected in [
+                "<em>raw paragraph</em> & *literal* footnote:[Unregistered.]",
+                "&lt;em&gt;escaped paragraph&lt;/em&gt; &amp; *literal*",
+                "<em>raw listing</em> & literal",
+                "&lt;em&gt;escaped listing&lt;/em&gt; &amp; literal",
+                "alpha < beta & raw",
+                "alpha &lt; beta &amp; escaped",
+            ] {
+                assert!(output.contains(expected), "missing {expected}: {output}");
+            }
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn decoded_attribute_values_keep_literal_quotes() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/html/embedded/decoded_attribute_values.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Processor::new_with_variant(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+                variant,
+            )?;
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let warning_source = WarningSource::new("html");
+            let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
+            processor.convert_to_writer(
+                parsed.document(),
+                &mut output,
+                &RenderOptions::default(),
+                &mut diagnostics,
+            )?;
+            let output = String::from_utf8(output)?;
+            for expected in [
+                "id=\"'link-id'\"",
+                "class=\"'link-role'\"",
+                "target=\"'review'\"",
+                "id=\"'url-id'\"",
+                "class=\"'url-role'\"",
+                "target=\"'url-pane'\"",
+                "id=\"'mail-id'\"",
+                "class=\"'mail-role'\"",
+                "target=\"'mail-pane'\"",
+                "target=\"''\"",
+                "target=\"'_blank'\"",
+                "style=\"width: &quot;75%&quot;;\"",
+            ] {
+                assert!(output.contains(expected), "missing {expected}: {output}");
+            }
+            let alignment = match variant {
+                HtmlVariant::Standard => "text-'center'",
+                HtmlVariant::Semantic => "text-align: 'center'",
+            };
+            assert!(output.contains(alignment), "{output}");
+            assert!(!output.contains("rel=\"noopener\""), "{output}");
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn decoded_source_controls_keep_literal_quotes() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/html/embedded/decoded_source_controls.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Processor::new_with_variant(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+                variant,
+            )?;
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let warning_source = WarningSource::new("html");
+            let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
+            processor.convert_to_writer(
+                parsed.document(),
+                &mut output,
+                &RenderOptions::default(),
+                &mut diagnostics,
+            )?;
+            let output = String::from_utf8(output)?;
+            assert!(!output.contains("value '#'"), "{output}");
+            assert!(output.contains(">'Catalog'</a>"), "{output}");
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn inline_identity_attributes_cannot_create_html_elements() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/html/embedded/inline_identity_attributes.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Processor::new_with_variant(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+                variant,
+            )?;
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let warning_source = WarningSource::new("html");
+            let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
+            processor.convert_to_writer(
+                parsed.document(),
+                &mut output,
+                &RenderOptions::default(),
+                &mut diagnostics,
+            )?;
+            let output = String::from_utf8(output)?;
+            assert!(!output.contains("<svg"), "{output}");
+            for expected in [
+                "id=\"unsafe&quot;&gt;&lt;svg/onload=alert(1)&gt;\"",
+                "id=\"quote&quot;target\"",
+                "href=\"#quote&quot;target\"",
+                "id=\"link&quot;target\"",
+                "id=\"url&quot;target\"",
+                "id=\"mail&quot;target\"",
+                "id=\"code&quot;target\"",
+                "class=\"safe&quot;data\"",
+                "target=\"frame&quot;pane\"",
+            ] {
+                assert!(output.contains(expected), "missing {expected}: {output}");
+            }
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn block_identity_attributes_cannot_create_html_elements() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/html/embedded/block_identity_attributes.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Processor::new_with_variant(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+                variant,
+            )?;
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let warning_source = WarningSource::new("html");
+            let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
+            processor.convert_to_writer(
+                parsed.document(),
+                &mut output,
+                &RenderOptions::default(),
+                &mut diagnostics,
+            )?;
+            let output = String::from_utf8(output)?;
+            assert!(!output.contains("<svg"), "{output}");
+            for expected in [
+                "id=\"document&quot;target\"",
+                "id=\"paragraph&quot;target\"",
+                "id=\"section&quot;target\"",
+                "id=\"discrete&quot;target\"",
+                "href=\"#section&quot;target\"",
+                "document&quot;role",
+                "toc&quot;role",
+            ] {
+                assert!(output.contains(expected), "missing {expected}: {output}");
+            }
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
 
 fn rendered_code_texts(output: &str) -> Result<Vec<String>, Error> {
     output
@@ -46,15 +352,53 @@ fn rendered_code_texts(output: &str) -> Result<Vec<String>, Error> {
         .collect()
 }
 
+#[test]
+fn resolved_xml_delimiters_survive_plain_and_highlighted_rendering() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/html/embedded/subs_resolved_code_text.adoc");
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        for settings in [
+            vec![("source-highlighter", AttributeValue::Bool(false))],
+            vec![(
+                "source-highlighter",
+                AttributeValue::String("syntect".into()),
+            )],
+            vec![
+                (
+                    "source-highlighter",
+                    AttributeValue::String("syntect".into()),
+                ),
+                ("highlight-css", AttributeValue::String("class".into())),
+            ],
+            vec![
+                (
+                    "source-highlighter",
+                    AttributeValue::String("syntect".into()),
+                ),
+                (
+                    "highlight-style",
+                    AttributeValue::String("missing-theme".into()),
+                ),
+            ],
+        ] {
+            let output = convert_string_with_variant(source, &settings, variant)?;
+            assert_eq!(
+                rendered_code_texts(&output)?,
+                ["<tag>café ©</tag> <!--(1)-->"]
+            );
+        }
+    }
+    Ok(())
+}
+
 #[rstest::rstest]
 #[case("highlighted_callout_positions")]
 #[case("callout_icon_guards")]
 #[case("callout_xml_line_comment")]
 #[case("callout_prefix_spaces")]
-#[cfg_attr(feature = "pre-spec-subs", case("subs_highlighted_callout_positions"))]
-#[cfg_attr(feature = "pre-spec-subs", case("subs_callout_icon_guards"))]
-#[cfg_attr(feature = "pre-spec-subs", case("subs_callout_xml_line_comment"))]
-#[cfg_attr(feature = "pre-spec-subs", case("subs_callout_prefix_spaces"))]
+#[case("subs_highlighted_callout_positions")]
+#[case("subs_callout_icon_guards")]
+#[case("subs_callout_xml_line_comment")]
+#[case("subs_callout_prefix_spaces")]
 fn highlighted_callouts_preserve_plain_code_text_and_targets(
     #[case] stem: &str,
 ) -> Result<(), Error> {
@@ -117,7 +461,7 @@ fn quote_titles_keep_macro_targets_once() -> Result<(), Error> {
         include_str!("fixtures/source/html/embedded/quote_block_titles.adoc"),
         &ParserOptions::default(),
     )?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         let output = render_fixture_document(parsed.document(), variant, true)?;
         let ids = output
@@ -137,7 +481,7 @@ fn quote_titles_keep_macro_targets_once() -> Result<(), Error> {
             assert!(ids.contains(&target), "unresolved {target} in {variant:?}");
         }
     }
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     Ok(())
 }
 
@@ -221,7 +565,7 @@ fn plain_source_keeps_text_callouts_and_wrap_options() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", not(feature = "highlighting")))]
+#[cfg(not(feature = "highlighting"))]
 #[test]
 fn plain_code_keeps_enabled_macros_and_literal_controls() -> Result<(), Error> {
     for (directory, variant) in [
@@ -259,12 +603,12 @@ fn plain_code_keeps_enabled_macros_and_literal_controls() -> Result<(), Error> {
 fn formatted_attribute_footnotes_keep_unique_link_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("document_attribute_formatted")?;
     check_link_label_footnote_targets("document_attribute_profile_edges")?;
-    #[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+    #[cfg(feature = "highlighting")]
     check_link_label_footnote_targets("subs_document_attribute_formatted")?;
     Ok(())
 }
 
-#[cfg(all(feature = "highlighting", feature = "pre-spec-subs"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn document_attribute_pass_raw_tags_remain_nested_under_highlighting() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -401,7 +745,6 @@ fn link_label_brackets_keep_footnote_links_separate() -> Result<(), Error> {
 #[test]
 fn passthrough_brackets_keep_unique_link_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("passthrough_brackets")?;
-    #[cfg(feature = "pre-spec-subs")]
     check_link_label_footnote_targets("subs_passthrough_brackets")?;
     Ok(())
 }
@@ -409,7 +752,7 @@ fn passthrough_brackets_keep_unique_link_targets() -> Result<(), Error> {
 #[test]
 fn anchor_macros_keep_unique_targets_without_nested_links() -> Result<(), Error> {
     check_link_label_footnote_targets("anchor_macro")?;
-    #[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+    #[cfg(feature = "highlighting")]
     check_link_label_footnote_targets("subs_anchor_macro_highlighting")?;
     Ok(())
 }
@@ -427,9 +770,8 @@ fn callout_nested_lists_keep_unique_link_targets() -> Result<(), Error> {
 #[test]
 fn xref_nested_footnotes_have_separate_unique_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("xref_nested_footnotes")?;
-    #[cfg(feature = "pre-spec-subs")]
     check_link_label_footnote_targets("subs_xref_nested_footnotes")?;
-    #[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+    #[cfg(feature = "highlighting")]
     check_link_label_footnote_targets("subs_xref_nested_footnotes_highlighting")?;
     Ok(())
 }
@@ -439,16 +781,31 @@ fn footnotes_in_link_labels_have_separate_unique_targets() -> Result<(), Error> 
     check_link_label_footnote_targets("footnotes_in_link_labels")
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_footnotes_in_link_labels_have_separate_unique_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("subs_footnotes_in_link_labels")
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn highlighted_footnotes_in_link_labels_have_separate_unique_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("subs_footnotes_in_link_labels_highlighting")
+}
+
+#[rstest::rstest]
+#[case("subs_resolved_index_catalog")]
+#[case("index_dash_context")]
+#[case("subs_index_stage_labels")]
+#[case("subs_visible_index_typography")]
+fn resolved_index_catalogs_keep_unique_occurrences_and_valid_links(
+    #[case] stem: &str,
+) -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join(format!("tests/fixtures/source/html/embedded/{stem}.adoc"));
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        check_link_targets(&render_fixture(&path, variant, true)?, stem)?;
+    }
+    Ok(())
 }
 
 fn check_link_label_footnote_targets(name: &str) -> Result<(), Error> {
@@ -462,15 +819,21 @@ fn check_link_label_footnote_targets(name: &str) -> Result<(), Error> {
 }
 
 fn check_link_structure(output: &str, name: &str) -> Result<(), Error> {
+    assert!(
+        output.contains("href=\"#_footnote"),
+        "no footnote links in {name}"
+    );
+    check_link_targets(output, name)
+}
+
+fn check_link_targets(output: &str, name: &str) -> Result<(), Error> {
     let mut inside_anchor = false;
-    let mut footnote_links = 0;
     let mut ids = HashSet::new();
     for part in output.split('<').skip(1) {
         let tag = part.split_once('>').ok_or("unterminated HTML tag")?.0;
         if tag.starts_with("a ") {
             assert!(!inside_anchor, "nested anchor in {name}: <{tag}>");
             inside_anchor = true;
-            footnote_links += usize::from(tag.contains("href=\"#_footnote"));
         } else if tag == "/a" {
             assert!(inside_anchor, "unmatched closing anchor in {name}");
             inside_anchor = false;
@@ -481,7 +844,6 @@ fn check_link_structure(output: &str, name: &str) -> Result<(), Error> {
         }
     }
     assert!(!inside_anchor, "unclosed anchor in {name}");
-    assert!(footnote_links > 0, "no footnote links in {name}");
     for tail in output.split("href=\"#").skip(1) {
         let id = tail.split_once('"').ok_or("unterminated link")?.0;
         assert!(ids.contains(id), "missing target {id} in {name}");
@@ -511,7 +873,7 @@ fn index_relationships_target_their_own_catalog() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn highlighted_index_links_resolve_inside_code() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -536,7 +898,7 @@ fn highlighted_index_links_resolve_inside_code() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn index_dash_context_keeps_highlighted_link_offsets_and_catalog_targets() -> Result<(), Error> {
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
@@ -596,6 +958,7 @@ fn index_dash_context_keeps_highlighted_link_offsets_and_catalog_targets() -> Re
                     _ => !in_tag,
                 })
                 .collect::<String>();
+            let visible = acdc_converters_core::decode_numeric_char_refs(&visible);
             assert!(visible.contains("prefix--Tail"), "{mode}: {output}");
             assert!(visible.contains("Before--tail"), "{mode}: {output}");
             assert!(
@@ -629,7 +992,7 @@ fn index_dash_context_keeps_highlighted_link_offsets_and_catalog_targets() -> Re
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[rstest::rstest]
 #[case::link_labels("subs_footnotes_in_link_labels_highlighting")]
 #[case::cross_references("subs_xref_nested_footnotes_highlighting")]
@@ -656,7 +1019,7 @@ fn class_highlighting_fixtures_select_class_spans(#[case] stem: &str) -> Result<
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[rstest::rstest]
 #[case::primary("subs_highlight_attributes", true)]
 #[case::deprecated("subs_highlight_attributes_legacy", true)]
@@ -688,7 +1051,7 @@ fn highlight_attribute_fixtures_preserve_mode_and_targets(
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn visible_index_typography_keeps_following_links_and_unique_targets() -> Result<(), Error> {
     for stem in [
@@ -723,7 +1086,6 @@ fn visible_index_typography_keeps_following_links_and_unique_targets() -> Result
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn highlighted_index_catalog_follows_source_occurrences() -> Result<(), Error> {
     let input = include_str!("fixtures/source/html/embedded/subs_index_occurrence_order.adoc");
@@ -814,7 +1176,7 @@ fn highlighted_index_catalog_follows_source_occurrences() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn visible_index_typography_keeps_registration_labels_and_source_order() -> Result<(), Error> {
     let input = ":source-highlighter: syntect\n:acdc-index:\n\n\
@@ -864,7 +1226,7 @@ fn visible_index_typography_keeps_registration_labels_and_source_order() -> Resu
     Ok(())
 }
 
-#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[cfg(feature = "highlighting")]
 #[test]
 fn visible_index_typography_survives_missing_theme_fallback() -> Result<(), Error> {
     let input = read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join(
@@ -975,7 +1337,7 @@ fn oversized_source_indent_is_a_bounded_structured_warning() -> Result<(), Error
                 .with_attribute("source-highlighter", highlighter)
                 .build()?;
             let parsed = parse(&input, &options)?;
-            let attributes = parsed.document().attributes.clone();
+            let attributes = acdc_parser::DocumentAttributes::from(parsed.document().attributes());
             let processor = Processor::new_with_variant(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_attributes(attributes.into_inputs()),
@@ -1019,10 +1381,6 @@ fn run_fixture_test(
         .and_then(|s| s.to_str())
         .ok_or("Invalid fixture file name")?;
 
-    if support::skip_fixture(file_name) {
-        return Ok(());
-    }
-
     let parsed = parse_file(
         path,
         &ParserOptions::builder()
@@ -1061,7 +1419,7 @@ fn render_fixture(path: &Path, variant: HtmlVariant, embedded: bool) -> Result<S
 }
 
 fn render_fixture_document(
-    doc: &acdc_parser::Document<'_>,
+    doc: acdc_parser::ast::DocumentRef<'_>,
     variant: HtmlVariant,
     embedded: bool,
 ) -> Result<String, Error> {
@@ -1073,11 +1431,16 @@ fn render_fixture_document(
         converter_options,
         ParserOptions::builder()
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .with_attributes(doc.attributes.clone().into_inputs()),
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
         variant,
     )?;
     let render_options = RenderOptions {
         embedded,
+        source_dir: doc
+            .attributes()
+            .get("docdir")
+            .and_then(|value| value.text())
+            .map(PathBuf::from),
         ..RenderOptions::default()
     };
 
@@ -1342,7 +1705,8 @@ fn convert_string_with_variant(
         .build();
     let processor = Processor::new_with_variant(
         converter_options,
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
         variant,
     )?;
     let render_options = RenderOptions::default();
@@ -1365,7 +1729,6 @@ fn stem_formulas_are_literal_text_in_both_html_variants() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn stem_attribute_substitutions_do_not_turn_formula_text_into_html() -> Result<(), Error> {
     let source = ":formula: x < y & z\n\n[stem,subs=\"+attributes\"]\n++++\n{formula}\n++++";
@@ -1376,7 +1739,6 @@ fn stem_attribute_substitutions_do_not_turn_formula_text_into_html() -> Result<(
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn stem_block_substitution_none_retains_authored_html() -> Result<(), Error> {
     let source = "[stem,subs=none]\n++++\n<i>x</i>\n++++";
@@ -1429,44 +1791,6 @@ fn standalone_description_and_keywords_are_escaped_when_present() -> Result<(), 
 }
 
 #[test]
-fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
-    let parsed = parse("text", &ParserOptions::default())?;
-    let block = parsed
-        .document()
-        .blocks
-        .first()
-        .ok_or("missing parsed block")?;
-    let processor = Processor::new_with_variant(
-        ConverterOptions::default(),
-        ParserOptions::builder()
-            .with_attributes(parsed.document().attributes.clone().into_inputs()),
-        HtmlVariant::Standard,
-    )?;
-    let source = WarningSource::new("html").with_variant("standard");
-    let mut warnings = Vec::new();
-    {
-        let diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header =
-            acdc_converters_core::Converter::document_attributes(&processor).clone();
-        let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(
-            Vec::new(),
-            std::rc::Rc::new(processor),
-            RenderOptions::default(),
-            diagnostics,
-        );
-        visitor.visit_unhandled_block(&mut traversal, block)?;
-    }
-
-    let warning = warnings.first().ok_or("missing unhandled block warning")?;
-    assert_eq!(warning.source.converter, "html");
-    assert_eq!(warning.source.variant.as_deref(), Some("standard"));
-    assert!(warning.message.contains("omitted from HTML output"));
-    assert!(warning.advice().is_some());
-    Ok(())
-}
-
-#[test]
 fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Error> {
     let parser_options = ParserOptions::default();
     let parsed = parse("[big]#large#\n", &parser_options)?;
@@ -1474,7 +1798,8 @@ fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Erro
     let converter_options = ConverterOptions::builder().embedded(true).build();
     let processor = Processor::new_with_variant(
         converter_options,
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
         HtmlVariant::Standard,
     )?;
     let output_path = temp_output_path("html-warning", "html");
@@ -1540,7 +1865,9 @@ fn deprecated_highlight_attributes_warn_once_per_conversion(
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         let processor = Processor::new_with_variant(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
             variant,
         )?;
         let source = processor.warning_source();
@@ -1587,8 +1914,9 @@ fn deprecated_highlight_warnings_are_returned_in_conversion_result() -> Result<(
         let temp = tempfile::tempdir()?;
         let processor = Processor::new_with_variant(
             ConverterOptions::builder().embedded(true).build(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
             variant,
         )?;
         let result = processor.convert_to_file(
@@ -1669,7 +1997,9 @@ fn interdocument_xref_macros_do_not_link_to_matching_local_titles() -> Result<()
         let doc = parsed.document();
         let processor = Processor::new_with_variant(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
             variant,
         )?;
         let mut output = Vec::new();
@@ -1733,7 +2063,9 @@ fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Erro
         let doc = parsed.document();
         let processor = Processor::new_with_variant(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
             variant,
         )?;
         let mut output = Vec::new();
@@ -1945,7 +2277,9 @@ fn main() {
             let doc = parsed.document();
             let processor = Processor::new_with_variant(
                 ConverterOptions::default(),
-                ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+                ParserOptions::builder().with_attributes(
+                    acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+                ),
                 variant,
             )?;
             let mut linked = Vec::new();
@@ -2051,7 +2385,9 @@ fn main() {
             let doc = parsed.document();
             let processor = Processor::new_with_variant(
                 ConverterOptions::default(),
-                ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+                ParserOptions::builder().with_attributes(
+                    acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+                ),
                 variant,
             )?;
             let mut output = Vec::new();
@@ -2205,7 +2541,6 @@ fn main() {
     }
 
     #[test]
-    #[cfg(feature = "pre-spec-subs")]
     fn attribute_substitution_applied_with_highlighting() -> Result<(), Error> {
         let input = r#":source-highlighter: syntect
 :version: 1.0
@@ -2400,7 +2735,9 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
             HtmlVariant::Standard,
         )?;
 
@@ -2466,7 +2803,9 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
             HtmlVariant::Standard,
         )?;
 
@@ -2522,7 +2861,9 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
             HtmlVariant::Standard,
         )?;
 
@@ -2571,7 +2912,9 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
             HtmlVariant::Standard,
         )?;
 
@@ -2636,7 +2979,9 @@ mod docinfo {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
             HtmlVariant::Standard,
         )?;
         let render_options = RenderOptions {
@@ -2896,7 +3241,9 @@ mod docinfo {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
             HtmlVariant::Standard,
         )?;
         let render_options = RenderOptions {
@@ -3011,7 +3358,9 @@ mod toc_footnote {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
             HtmlVariant::Standard,
         )?;
         let render_options = RenderOptions {
@@ -3095,13 +3444,12 @@ fn table_paragraphs_keep_boundaries_in_both_variants() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn asciidoc_table_paragraphs_keep_unique_link_targets() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/source/html/embedded/subs_table_asciidoc_paragraphs.adoc");
     let parsed = parse_file(&path, &ParserOptions::default())?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         for embedded in [true, false] {
             let output = render_fixture_document(parsed.document(), variant, embedded)?;
@@ -3134,6 +3482,224 @@ fn heading_and_title_footnotes_keep_unique_link_targets() -> Result<(), Error> {
         for embedded in [true, false] {
             let output = render_fixture_document(parsed.document(), variant, embedded)?;
             check_link_structure(&output, "heading_and_title_macro_registration")?;
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn unresolved_table_decoration_matches_the_parsed_presentation() -> Result<(), Error> {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        for local in [
+            "",
+            "[frame=ends,grid=cols,stripes=even]\n",
+            "[frame=none,grid=none,stripes=none]\n",
+            "[frame=\"\",grid=\"\",stripes=\"\"]\n",
+            "[frame=topbot,grid=INVALID,stripes=hover]\n",
+        ] {
+            let source = format!(
+                "= Tables\n:table-frame: sides\n:table-grid: rows\n:table-stripes: odd\n\n{local}|===\n|One |Two\n|===\n"
+            );
+            let parsed = parse(
+                &source,
+                &ParserOptions::builder()
+                    .with_compatibility_mode(mode)
+                    .build()?,
+            )?;
+            let mut resolved = acdc_parser::Document::default();
+            resolved.set_attributes(acdc_parser::DocumentAttributes::from(
+                parsed.document().attributes(),
+            ));
+            resolved.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+            let mut unresolved = acdc_parser::Document::default();
+            unresolved.set_attributes(acdc_parser::DocumentAttributes::from(
+                acdc_parser::ast::DocumentRef::from(&resolved).attributes(),
+            ));
+            unresolved.set_blocks(
+                acdc_parser::ast::DocumentRef::from(&resolved)
+                    .blocks()
+                    .map(acdc_parser::Block::from),
+            );
+            let mut blocks: Vec<_> = unresolved.take_blocks().collect();
+            let Some(Block::DelimitedBlock(block)) = blocks.first_mut() else {
+                return Err("expected table block".into());
+            };
+            let mut body = block.clone_body();
+            let DelimitedBlockType::DelimitedTable(table) = &mut body else {
+                return Err("expected table".into());
+            };
+            assert!(table.presentation().is_some());
+            let acdc_parser::ast::BlockKind::Table(source) =
+                acdc_parser::ast::BlockRef::from(&*block).kind()
+            else {
+                return Err("expected table".into());
+            };
+            let location = acdc_parser::Location::from(source.delimited_location());
+            *table = Table::new(table.take_rows().collect(), location)
+                .with_header(table.take_header())
+                .with_footer(table.take_footer())
+                .with_columns(table.take_columns().collect());
+            assert!(table.presentation().is_none());
+            block.replace_body(body);
+            unresolved.set_blocks(blocks);
+            for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+                let processor = Processor::new_with_variant(
+                    ConverterOptions::default(),
+                    ParserOptions::builder(),
+                    variant,
+                )?;
+                let options = RenderOptions {
+                    embedded: true,
+                    ..RenderOptions::default()
+                };
+                let mut outputs = Vec::new();
+                for document in [&resolved, &unresolved] {
+                    let mut output = Vec::new();
+                    let mut warnings = Vec::new();
+                    let warning_source = WarningSource::new("html");
+                    let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
+                    processor.convert_to_writer(
+                        document.into(),
+                        &mut output,
+                        &options,
+                        &mut diagnostics,
+                    )?;
+                    assert!(warnings.is_empty(), "{warnings:?}");
+                    outputs.push(output);
+                }
+                assert_eq!(
+                    outputs.first(),
+                    outputs.get(1),
+                    "{mode:?} {variant:?} {local:?}"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
+fn checked_table_metadata_edits_reach_rendered_decoration(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(
+        "= Tables\n:table-frame: ends\n:table-grid: cols\n:table-stripes: odd\n\n\
+         :table-frame: sides\n:table-grid: rows\n:table-stripes: even\n\n\
+         [frame=none,grid=none,stripes=none]\n|===\n|Cell\n|===\n",
+        &ParserOptions::builder()
+            .with_compatibility_mode(mode)
+            .build()?,
+    )?;
+    let mut document = acdc_parser::Document::default();
+    document.set_attributes(acdc_parser::DocumentAttributes::from(
+        parsed.document().attributes(),
+    ));
+    document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+    for (declarations, classes) in [
+        (Some(("none", "none", "none")), "frame-none grid-none"),
+        (
+            Some(("all", "cols", "odd")),
+            "frame-all grid-cols stripes-odd",
+        ),
+        (None, "frame-sides grid-rows stripes-even"),
+    ] {
+        let mut blocks: Vec<_> = document.take_blocks().collect();
+        let block = blocks
+            .iter_mut()
+            .find_map(|block| {
+                if let Block::DelimitedBlock(block) = block {
+                    Some(block)
+                } else {
+                    None
+                }
+            })
+            .ok_or("missing table")?;
+        let mut metadata = block.clone_metadata();
+        for (name, value) in ["frame", "grid", "stripes"].into_iter().zip(
+            declarations.map_or([None; 3], |(frame, grid, stripes)| {
+                [Some(frame), Some(grid), Some(stripes)]
+            }),
+        ) {
+            if let Some(value) = value {
+                metadata.attributes.set(name.into(), value.into());
+            } else {
+                metadata.attributes.remove(name);
+            }
+        }
+        block.set_metadata(metadata)?;
+        document.set_blocks(blocks);
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let output = render_fixture_document((&document).into(), variant, true)?;
+            let prefix = match variant {
+                HtmlVariant::Standard => "tableblock ",
+                HtmlVariant::Semantic => "",
+            };
+            assert!(
+                output.contains(&format!("<table class=\"{prefix}{classes} stretch\">")),
+                "{mode:?} {variant:?}: {output}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn constructed_character_references_render_without_double_escaping() -> Result<(), Error> {
+    use acdc_parser::{
+        Block, CharacterReference, CharacterReferenceKind, Document, Location, Paragraph,
+    };
+    let mut doc = Document::default();
+    let mut content = Vec::new();
+    for kind in [
+        CharacterReferenceKind::Named("copy"),
+        CharacterReferenceKind::Numeric(65),
+    ] {
+        content.push(acdc_parser::InlineNode::CharacterReference(
+            CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
+        ));
+    }
+    doc.push_block(Block::Paragraph(Paragraph::new(
+        content,
+        Location::default(),
+    )));
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let html = render_fixture_document((&doc).into(), variant, true)?;
+        assert!(html.contains("&copy;&#65;"), "{html}");
+        assert!(!html.contains("&amp;copy;"), "{html}");
+    }
+    Ok(())
+}
+
+#[test]
+fn head_title_keeps_literal_text_inside_the_title_element() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/html/standalone/character_reference_head_text.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor = Processor::new_with_variant(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+                variant,
+            )?;
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            processor.convert_to_writer(
+                parsed.document(),
+                &mut output,
+                &RenderOptions::default(),
+                &mut Diagnostics::new(&WarningSource::new("html"), &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let (head, _) = output.split_once("</head>").ok_or("HTML head")?;
+            assert!(head.contains("<title>Active © and &amp;#169; Bold &lt;/title&gt;&lt;script&gt;probe()&lt;/script&gt;: Sub &amp; and &amp;amp;</title>"), "{head}");
+            assert_eq!(head.matches("</title>").count(), 1);
+            assert!(!head.contains("<script>probe()"));
+            assert!(warnings.is_empty(), "{warnings:?}");
         }
     }
     Ok(())

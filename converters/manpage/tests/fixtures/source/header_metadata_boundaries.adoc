@@ -1,4 +1,5 @@
 :doctype: manpage
+:docdate: 2026-10-04
 :revdate: 2026-10-04
 :manname: header-metadata-boundaries
 :manpurpose: stop metadata at a blank line

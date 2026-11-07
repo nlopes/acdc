@@ -691,8 +691,7 @@
                   "line": 34,
                   "col": 39
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",
@@ -860,6 +859,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1176,7 +1176,23 @@
             "anchors": [
               {
                 "id": "target",
-                "xreflabel": "Target",
+                "xreflabel": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Target",
+                    "location": [
+                      {
+                        "line": 55,
+                        "col": 10
+                      },
+                      {
+                        "line": 55,
+                        "col": 15
+                      }
+                    ]
+                  }
+                ],
                 "location": [
                   {
                     "line": 55,

@@ -1,0 +1,44 @@
+= Combined semantics: Exported content
+:experimental:
+:icons: font
+:stem: latexmath
+:name: span
+:type: inline
+:id: real
+
+[#real]*Bold* with ~sub~ and ^super^, icon:star[title=Favorite], btn:[Save], kbd:[Ctrl+C] and menu:File[Save].
+
+[[sample]]
+.Example title
+====
+Text with footnote:note[Canonical note.] and indexterm2:[*Visible* term].
+====
+
+See <<real,Bold>> and footnote:note[]. Formula stem:[x < y]. +
+Next line.
+
+[quote,'*Ada*','_Notes_']
+____
+Quotation.
+____
+
+[cols="1,1a",frame=none,grid=none]
+|===
+|Ordinary |Nested icon:check[alt=Done] and image:photo.png[alt='*Photo*',title=Tip].
+|===
+
+[source]
+----
+value <1>
+----
+<1> Explanation.
+
+[latexmath]
+++++
+x + y
+++++
+
+video::RvRhUHTV_8k,_SvwdK_HibQ[youtube]
+
+* [x] Done
+* [ ] Pending

@@ -7,8 +7,9 @@ use std::{
 };
 
 use acdc_parser::{
-    IncludeLoader, IncludeSource, IncludeSourceError, IncludeSourceErrorKind, IncludeSourceTarget,
-    Options, Parser, SafeMode, parse, parse_file, parse_from_reader, parse_inline,
+    DocumentAttributeValue, IncludeLoader, IncludeSource, IncludeSourceError,
+    IncludeSourceErrorKind, IncludeSourceTarget, Options, Parser, SafeMode, parse, parse_file,
+    parse_from_reader, parse_inline,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -44,9 +45,9 @@ fn document_traces_omit_source_and_options() -> TestResult {
     assert_eq!(
         parsed
             .document()
-            .attributes
+            .attributes()
             .get("private-attribute")
-            .and_then(|value| value.text()),
+            .and_then(DocumentAttributeValue::text),
         Some("PRIVATE_ATTRIBUTE")
     );
     assert!(logs_contain("input_len="));
@@ -65,8 +66,18 @@ fn inline_traces_omit_text_labels_and_targets() -> TestResult {
     let options = Options::builder()
         .with_attribute("experimental", true)
         .build()?;
-    assert_ne!(parse_inline(source, &options)?.inlines(), []);
-    assert_ne!(Parser::new(source).parse_inline()?.inlines(), []);
+    assert_ne!(
+        parse_inline(source, &options)?.content().inlines().count(),
+        0
+    );
+    assert_ne!(
+        Parser::new(source)
+            .parse_inline()?
+            .content()
+            .inlines()
+            .count(),
+        0
+    );
     logs_assert(assert_no_source_data);
     Ok(())
 }
@@ -169,14 +180,18 @@ fn nested_include_traces_omit_content_and_source_paths() -> TestResult {
         );
         let block = parsed
             .document()
-            .blocks
-            .first()
+            .blocks()
+            .next()
             .ok_or("expected included content")?;
-        assert!(block.location().start.file.as_ref().is_some_and(|chain| {
-            chain
-                .iter()
-                .any(|path| path.ends_with("PRIVATE_SECOND.adoc"))
-        }));
+        assert!(
+            block
+                .location()
+                .start()
+                .include_chain()
+                .is_some_and(|mut chain| {
+                    chain.any(|path| path.ends_with("PRIVATE_SECOND.adoc"))
+                })
+        );
     }
     assert!(logs_contain("node_count="));
     logs_assert(assert_no_source_data);
@@ -194,8 +209,8 @@ fn manpage_traces_omit_titles_and_filenames() -> TestResult {
         let parsed = parse_file(&file.0, &options)?;
         parsed
             .document()
-            .blocks
-            .first()
+            .blocks()
+            .next()
             .ok_or("expected manpage body")?;
     }
     assert!(logs_contain("derived manpage attributes from header"));
@@ -204,13 +219,12 @@ fn manpage_traces_omit_titles_and_filenames() -> TestResult {
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn setext_traces_omit_titles() -> TestResult {
-    let options = Options::builder().with_setext().build()?;
+    let options = Options::builder().build()?;
     let parsed = parse("PRIVATE_TITLE\n=============\n\nPRIVATE_BODY\n", &options)?;
-    assert!(parsed.document().header.is_some());
+    assert!(parsed.document().header().is_some());
     assert!(logs_contain("Processing setext document title"));
     logs_assert(assert_no_source_data);
     Ok(())

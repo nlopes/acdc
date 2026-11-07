@@ -1,0 +1,13 @@
+= Verbatim contexts
+
+Earlier.
+
+[cols="a"]
+|===
+|[subs="+replacements"]
+----
+α🚀 (C) ... Sam's ->
+----
+|===
+
+include::includes/compatibility_typography_verbatim.adoc[lines=2..6,indent=0]

@@ -217,6 +217,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 22,
@@ -278,6 +281,9 @@
               "name": "raw",
               "type": "string",
               "value": "B | + {word} + | +{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 24,
@@ -296,7 +302,7 @@
               "location": [
                 {
                   "line": 24,
-                  "col": 38
+                  "col": 39
                 },
                 {
                   "line": 24,
@@ -339,6 +345,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 26,
@@ -406,6 +415,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "{word}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 28,
@@ -479,6 +491,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 30,
@@ -602,6 +617,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 36,
@@ -663,6 +681,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 38,
@@ -724,6 +745,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 40,
@@ -816,6 +840,9 @@
               "name": "raw",
               "type": "string",
               "value": " {word} ",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 44,
@@ -877,6 +904,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word} + then +{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 46,
@@ -938,6 +968,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}\t+ then +{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 48,
@@ -999,6 +1032,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}\n+ then +{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 50,
@@ -1213,6 +1249,9 @@
               "name": "raw",
               "type": "string",
               "value": "+before +{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 62,
@@ -1231,7 +1270,7 @@
               "location": [
                 {
                   "line": 62,
-                  "col": 22
+                  "col": 23
                 },
                 {
                   "line": 62,
@@ -1274,6 +1313,9 @@
               "name": "raw",
               "type": "string",
               "value": "++before +{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 64,
@@ -1292,7 +1334,7 @@
               "location": [
                 {
                   "line": 64,
-                  "col": 23
+                  "col": 24
                 },
                 {
                   "line": 64,
@@ -1350,6 +1392,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 66,
@@ -1368,7 +1413,7 @@
               "location": [
                 {
                   "line": 66,
-                  "col": 26
+                  "col": 27
                 },
                 {
                   "line": 66,
@@ -1441,6 +1486,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 68,
@@ -1459,7 +1507,7 @@
               "location": [
                 {
                   "line": 68,
-                  "col": 27
+                  "col": 28
                 },
                 {
                   "line": 68,
@@ -1553,6 +1601,9 @@
               "name": "raw",
               "type": "string",
               "value": "B | +{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 74,
@@ -1625,6 +1676,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "{word}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 77,
@@ -1759,6 +1813,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "{word}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 80,
@@ -1899,6 +1956,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 84,
@@ -2003,6 +2063,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 93,
@@ -2133,6 +2196,9 @@
               "name": "raw",
               "type": "string",
               "value": "https://example.org[Site] ((Dormant term)) footnote:[Dormant note.]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 99,
@@ -2194,6 +2260,9 @@
               "name": "raw",
               "type": "string",
               "value": "footnote:[Dormant code note.]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 101,
@@ -2261,6 +2330,9 @@
               "name": "raw",
               "type": "string",
               "value": "{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 1,
@@ -2346,6 +2418,9 @@
               "name": "raw",
               "type": "string",
               "value": "B | + {word} + | +{word}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 3,
@@ -2370,7 +2445,7 @@
               "location": [
                 {
                   "line": 3,
-                  "col": 38,
+                  "col": 39,
                   "file": [
                     "includes/single-plus.adoc"
                   ]
@@ -2409,7 +2484,7 @@
           "col": 1
         },
         {
-          "line": 16,
+          "line": 3,
           "col": 55,
           "file": [
             "includes/single-plus.adoc"

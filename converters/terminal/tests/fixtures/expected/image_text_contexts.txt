@@ -1,0 +1,11 @@
+[1m[4mImage text contexts[0m
+[3m[Image: © → — ][0m[2m (bird.png)[0m
+[Image: © → --].
+[3m[Image: *Literal* footnote:unused[Note] & <tag> — ][0m[2m (bird.png)[0m
+[3m[Image: [1mFormatted[22m → — ][0m[2m (bird.png)[0m
+[3m[Image: π ] © → — ][0m[2m (bird.png)[0m
+[3m[Image: Expanded π © → — ][0m[2m (bird.png)[0m
+[3m[Image: π © → — ][0m[2m (bird.png)[0m
+[Image: ].
+[3m[Image: bird][0m[2m (bird.png)[0m
+[3m[Image: ][0m[2m (bird.png)[0m

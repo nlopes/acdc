@@ -104,7 +104,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "shared",
-          "inlines": [],
           "location": [
             {
               "line": 5,
@@ -135,7 +134,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "shared",
-          "inlines": [],
           "location": [
             {
               "line": 5,
@@ -197,7 +195,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "shared",
-          "inlines": [],
           "location": [
             {
               "line": 7,
@@ -228,7 +225,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "shared",
-          "inlines": [],
           "location": [
             {
               "line": 8,
@@ -259,7 +255,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "shared",
-          "inlines": [],
           "location": [
             {
               "line": 9,
@@ -353,7 +348,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "expanded",
-          "inlines": [],
           "location": [
             {
               "line": 12,
@@ -415,7 +409,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "expanded",
-          "inlines": [],
           "location": [
             {
               "line": 16,
@@ -482,6 +475,9 @@
               "name": "raw",
               "type": "string",
               "value": "literal",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 18,
@@ -539,7 +535,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "pass",
-          "inlines": [],
           "location": [
             {
               "line": 19,
@@ -570,7 +565,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "pass",
-          "inlines": [],
           "location": [
             {
               "line": 20,
@@ -664,7 +658,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "blank",
-          "inlines": [],
           "location": [
             {
               "line": 22,
@@ -695,7 +688,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "blank",
-          "inlines": [],
           "location": [
             {
               "line": 23,
@@ -787,6 +779,9 @@
           "name": "raw",
           "type": "string",
           "value": "footnote:shared[Passthrough replacement.]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 26,

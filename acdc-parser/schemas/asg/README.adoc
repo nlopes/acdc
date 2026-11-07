@@ -1,0 +1,724 @@
+= Pinned ASG schema and model inventory
+
+`schema.json` is an unchanged copy of the AsciiDoc ASG draft at
+https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4/asg/schema.json[revision 68ed0b22e8d9b919897542d8ae14f03e7dbdd2e4].
+Its identifier is `https://schemas.asciidoc.org/asg/1-0-0/draft-01`.
+Its SHA-256 is `61fc73c612d7fe79e795dc0db2fd8bf8393d146dfcc8815fa7feca864f769675`;
+its upstream Git blob is `71f41d7b02675c14c9b298b53e85f737a26bf19c`.
+The identifier alone does not pin its contents.
+The accompanying `LICENSE-EPL-2.0` and `NOTICE.adoc` come from the same revision.
+The Rust audit code uses the crate's normal license.
+
+== Run the audit
+
+From the workspace root:
+
+[source,console]
+----
+cargo run -p acdc-parser --example asg_schema_audit --all-features --locked --offline
+----
+
+The command writes a JSON report to stdout and never rewrites fixtures.
+It checks the schema pin, validator controls, fixture pairing, every native
+JSON expectation, and locations throughout the tree, including unsupported
+nodes. Parser diagnostics are separate expectations and are not treated as ASTs.
+Supporting files under `includes/` are excluded from fixture discovery.
+Every outcome or diagnostic expectation needs an owning `.adoc` source.
+There are no orphan exceptions; the former empty `document_title.json` was removed.
+
+A native audit exits successfully when it completes, even when native values
+do not fit the ASG schema. Read `counts`, each file's `schema_errors`, and
+`location_findings`. These are native-format observations, not successful ASG
+exports or AsciiDoc conformance results. File names are relative to the fixture
+root. An unreadable file or invalid fixture layout fails the command.
+Use `--fixtures DIR` to audit a different fixture directory.
+
+To validate supplied ASG JSON, add `--validate FILE...` after `--`.
+This mode exits unsuccessfully if any supplied file is invalid JSON or fails
+schema validation. Errors include both instance and schema JSON Pointer paths.
+Validation does not fetch a moving schema or enable HTTP reference retrieval.
+The validator reads the exact vendored bytes. The schema's `defaults` annotations
+do not insert values or change the input.
+
+The controls include a formatted title, a structurally invalid title, an unknown
+property, and a schema-valid title with deliberately wrong text. The last case
+shows why schema validation cannot prove that an exporter preserved meaning.
+
+== Read the inventory
+
+`support-inventory.json` lists every top-level backing-model struct, enum
+variant and payload, and alias. This includes nonserialized semantic properties
+and separately classified parser/source helpers. A test compares its declaration
+and field coverage with the current Rust sources. The inventory is an internal
+mapping record, not a promise about public AST storage or a checked export API.
+Shared policies are defined once; each property names its policy and any upstream
+schema location. Each declaration also names a strict-export group with its current
+handling and executable evidence. Tests reject missing groups and stale evidence.
+Extension records also check their owner/property names, schema pointers and test
+references against the current files.
+
+[cols="1,3",options="header"]
+|===
+|Classification |Meaning
+|`mapping-candidate` |The schema has a possible representation. The owner and every nested semantic value still need a tested, lossless mapping.
+|`context-dependent` |Representation depends on the owner, form, presence, or effective controls. Preserve the meaning or reject it.
+|`reject` |No lossless upstream representation is established. This applies at any nesting depth.
+|`source-only` |Source spelling or temporary parser state can be omitted after its meaning and permitted provenance are preserved.
+|`derived-check` |A catalog can be omitted only when supported exported owners retain everything needed to reconstruct it. Otherwise reject it.
+|===
+
+A compatible child or metadata field does not make an unsupported owner
+representable. Block titles and reference text have inline-array fields in the
+schema. Formatted attribution, citation, caption, alternative text, and tooltips
+must not be flattened into metadata strings just to pass validation.
+The named acdc profile supplies bounded mappings for inline images, icons, UI
+macros, footnotes, index terms, tables, additional spans, inline metadata and
+ordered body assignments. Strict upstream export rejects these additions. Delimited admonitions have a schema form; paragraph
+admonitions must not acquire an invented delimiter.
+
+Block positional slots must come from the authoritative owner, including gaps
+and empty values. Native JSON can omit those slots and other semantic state;
+serializing native JSON and rewriting it is not a complete export strategy.
+Export must not expand attributes, parse strings again, register macros, or run
+a converter. Missing and empty values remain distinct where they carry meaning.
+
+The location audit checks every serialized location and reports nodes without
+one. An unavailable optional location can be omitted by an exporter; a required
+unknown location must fail export. Never invent line zero or replace it with
+one. Line/column validation does not prove original byte-offset correctness,
+include-chain fidelity, or correct source attachment.
+
+Changes to this schema pin require a reviewed mapping and new validator controls.
+Keep extension schemas separately named and versioned; do not edit the upstream
+schema to make native JSON pass.
+
+== Checked upstream export
+
+Enable the `asg` Cargo feature and call `asg::document(parsed.document())` or
+`asg::inlines(parsed.content())`. Export reads the AST directly, then validates
+against this pin. It returns a complete JSON value or a typed error with a
+JSON Pointer path. Unsupported-value and invalid-location errors identify the
+nearest semantic owner and retain its coordinates when known. An unknown inner
+location stays unknown; an outer document range is not substituted for it.
+Schema loading and invalid projected output have separate error variants.
+It never expands attributes, parses strings again, registers
+macros, or invokes a converter. Native JSON and parsing behavior stay unchanged.
+
+The initial subset includes document attributes, headers/authors, paragraphs,
+ordinary unnumbered sections, plain text, raw text without remaining
+operations, raw text with exactly one escaping stage, resolved typographic
+symbols, strong/emphasis/code/mark spans without inline IDs or roles, and supported
+links and cross-references. Ordered, unordered, callout and description lists retain
+their item structure.
+Supported delimited, leaf and macro blocks retain their actual forms and bodies.
+Titles and reference labels retain their inline structure and empty presence.
+Document presence is an empty string, explicit unsets are null, and integers
+retain their attribute-reference spelling. Protected document values are rejected
+when their insertion behavior cannot fit a scalar string.
+
+Block metadata retains string attributes, true presence, styles, ordered roles
+and options, and retained positional slots. A gap omits its `$N` key; a retained
+explicit empty value emits an empty string. Positional values remain available
+after callers edit named attributes. Conflicting `$N` names, unset or ambiguous
+scalar values, multiple IDs, bibliography meaning, and independent reference
+labels are rejected. A primary block ID and its selected reftext are promoted
+to the block. Source coordinates of the ID token have no upstream field.
+
+Unsupported values include uncovered block forms, other inline macros, missing span
+variants, inline identities/controls, subtitles/header metadata, ordered body
+assignments, captions, attribution/citation, unresolved substitution instructions, and
+nondefault section category/numbering. Verbatim leaves require a supported literal, listing or verse body; they cannot
+be flattened into ordinary paragraph text.
+A section without a title is rejected, while a present empty title stays an
+empty array.
+
+Character references retain their named identity or canonical decimal numeric
+value. The parser identifies them during replacements, according to the selected
+compatibility mode and substitution order. Literal ampersands and escaped
+references stay text. Export never infers reference meaning from a string.
+Invalid XML numeric values fail export; unknown names retain their identity.
+Protected literal text and raw output remain distinct supported forms.
+
+Ordinary line and delimited source comments and parser/edit history can be omitted.
+A title or semantic metadata on a delimited comment is rejected, rather than omitted. Derived
+reference and TOC entries can be omitted only when their titles, labels, category,
+and numbering agree with supported exported owners. Extra or stale catalog
+meaning is rejected; exporting does not repair catalogs. Byte offsets and ID-token
+coordinates have no upstream fields. Completely unknown optional locations are
+omitted; partially known or invalid coordinates fail. Export success does not
+promise source reconstruction or complete AsciiDoc conformance.
+
+== Strict-export coverage
+
+These groups describe the current checked subset. Helper and payload types inherit
+their owning construct's decision; membership does not promise independent export.
+The property inventory remains authoritative for each declaration.
+
+[cols="2,1,5",options="header"]
+|===
+|Group |Declarations |Current handling
+|`core` |7 |Documents, headers/authors, paragraphs and ordinary sections; recurse into all owned content.
+|`literal-content` |13 |Resolved text/references and four span forms; reject unsupported controls and verbatim context.
+|`block-metadata` |6 |Preserve supported scalar values, identity and slots; reject unsupported presence or independent meaning.
+|`document-values` |7 |Preserve resolved assignments; reject protected insertion behavior.
+|`catalogs` |5 |Omit reconstructible entries; reject extra or stale meaning.
+|`locations` |4 |Preserve known endpoints/include chains; omit unknown optional locations; reject invalid ones.
+|`dispatch` |4 |Exhaustive owner decisions; a rejected owner rejects its entire subtree.
+|`source-state` |8 |Omit comments and resolved routing/history; retain effective values and IDs.
+|`pending-content` |3 |Reject unresolved content.
+|`substitutions` |7 |Preserve resolved settings through text/raw nodes; reject unknown instructions and pending raw operations.
+|`decorations` |13 |Accept default section policy; reject numbering, category, captions and attribution/citation.
+|`body-assignments` |2 |Reject ordered assignments and retained events.
+|`inline-controls` |4 |Reject identities/roles on supported spans and populated controls on unsupported macros.
+|`references` |11 |Preserve link/xref targets and effective labels; reject unsupported controls and ambiguous target classification.
+|`lists` |11 |Preserve list families, markers, terms, principal and nested content; reject checklists and unrecoverable item state.
+|`blocks` |12 |Preserve supported forms, bodies and media targets; reject missing provenance or unsupported content properties.
+|`unsupported-owners` |19 |Reject the entire block, inline, macro or payload without inventing a form.
+|===
+
+The evidence covers positive mappings, rejected owners/properties and permitted
+omissions. Adding a model declaration or field requires an inventory decision;
+adding a mapping also requires semantic assertions beyond schema validity.
+
+== acdc extension profile
+
+`asg::document_with_profile(document, asg::Profile::Acdc)` selects
+`acdc-v1.json`, identified by `urn:acdc:asg:1`. Each extended document includes
+that identifier in its required `profile` field. This is an acdc format, not
+upstream ASG conformance. `asg::document` and `Profile::Upstream` keep the strict
+upstream contract. Parser compatibility mode and output profile are independent.
+
+The schema is a separately named derivative of the pinned schema, under the
+same EPL-2.0 license and notices. Its closed definitions are changed directly;
+adding an `allOf` sibling would not extend a closed upstream object. Tests compare
+the complete derived schema with the pin and allow only the documented additions.
+Both validators use local schema bytes and do not fetch references.
+
+Titles and reference text keep the upstream inline-array representation.
+Attribution and citation use `attribution` and `citetitle` inline arrays on their
+owning block. An absent field stays absent; a present empty field becomes `[]`.
+Literal values stay text nodes, and parsed formatting keeps its nodes. Export does
+not expand attributes, parse strings, or duplicate raw metadata strings.
+
+A block's resolved `caption` has one of three closed forms:
+
+* `{"kind":"unnumbered"}` retains caption-capable state without a prefix.
+* `{"kind":"custom","prefix":[...]}` retains an explicit prefix as inline content.
+  A literal programmatic prefix becomes text without an invented source location.
+* `{"kind":"numbered","counter":"example","label":"Example","number":1}`
+  retains the counter, literal label and assigned ordinal. The other counters are
+  `figure`, `listing` and `table`. An unassigned ordinal omits `number`; it is not zero.
+
+This supports captioned listings and examples, including their retained titles
+and reconstructible reference catalogs. A stale catalog still fails export.
+Nondefault cross-reference controls and other uncovered semantics retain their
+explicit errors. The sections below describe the supported named-profile nodes.
+Nested content is checked under the same schema; unknown fields are invalid.
+`support-inventory.json` records these additions separately from strict support.
+
+== Images in the acdc profile
+
+An inline image has `name: "image"`, `type: "inline"` and its complete `target`.
+Optional `alt` and `tooltip` fields are inline arrays, including `[]` for explicit
+empty values. Omitting `alt` retains the filename fallback policy; export does not
+invent fallback content. A block image has macro form and an optional `alt` array.
+Its block title and resolved caption remain separate; it has no inline tooltip.
+The schema permits block `alt` only on image macros, not audio, video or TOC nodes.
+
+Inline image IDs are promoted to `id`. Scalar controls, such as dimensions and
+links, stay in `metadata.attributes`; roles and options retain their order.
+Values stay strings, including numeric spelling, and true presence becomes an
+empty string. Unset or ambiguous scalar state fails explicitly. Macro/node and
+content locations are retained; ID-token coordinates follow the documented
+source-only omission policy. No HTML tags or output escaping are introduced.
+
+Images compose through supported spans, link labels, document/block titles,
+reference text, captions, attribution and citation content. Every recursive call
+uses the selected profile. Unsupported nested nodes and unknown or malformed
+image fields fail; an extension does not enable arbitrary macros.
+`asg::inlines_with_profile(content, Profile::Acdc)` applies the same checks to a
+standalone array. Strict document and inline export keep their upstream errors.
+
+== References
+
+Links, URL macros, mail links and autolinks export as `ref` with variant `link`.
+Explicit labels keep their inline tree. Automatic link labels become their effective
+text, including URI scheme hiding, without changing the destination. Generated
+label text has no invented source location. Bracketed email autolinks keep their
+angle brackets as text outside the reference.
+
+Mail query values are percent-encoded in the destination; body line endings become
+CRLF. Existing unrelated query headers retain their spelling. Positional subject
+or body values replace only the corresponding query headers, including explicit
+empty values. The visible fallback label still uses the original destination.
+
+Cross-references export as variant `xref`. An empty `inlines` array retains automatic
+label selection; the exported target owns its title and reftext. Export does not
+copy a computed label into the reference or resolve it again. Nondefault styles,
+caption labels and signifiers fail because upstream references have no fields for
+them. Unchanged built-in signifier snapshots are default behavior and can be omitted. A target whose local/external classification cannot be recovered from its
+text also fails. Strict upstream export rejects populated reference metadata and
+tooltips at their exact property, including explicitly empty values.
+
+In the acdc profile, references retain `id`, inline-array `tooltip`, and
+`metadata.attributes`, `metadata.roles` and `metadata.options`. A present empty
+tooltip stays `[]`; absent metadata fields stay absent. Reference controls retain
+the same string/presence rules as inline images. Nondefault xref styles, caption
+labels, signifiers and independent target classification still fail explicitly.
+
+Strong, emphasis and code spans retain IDs and ordered role tokens. An attributed
+highlight exports as `variant: "generic"`; an ordinary highlight stays `mark`.
+This distinction also preserves an explicitly empty role. Span metadata permits
+only roles. Inline image and reference metadata permit roles, options and scalar
+attributes, with no block location or positional fields. Node and content locations
+remain separate from ID-token coordinates, which have no ASG field.
+
+For example, `[.review]#Text#` exports as a generic span with
+`metadata.roles: ["review"]`, while `#Text#` exports as a mark.
+link:../../fixtures/asg/inline_metadata.adoc[The inline metadata fixture] and its
+link:../../fixtures/asg/inline_metadata.json[checked JSON] cover links, mail,
+xrefs and formatted spans with a nested image. Inline IDs retain untitled target
+semantics. Duplicate identities and stale catalog values still fail; independently
+owned labels use the reference registration contract below.
+
+== Resolved substitution effects
+
+Both export profiles preserve the effects of supported block `subs=` settings.
+Formatting, expanded attributes, macros, typography and character references
+come from the resolved nodes. Ordinary body text exports as `text` when special
+character escaping is active, or `raw` when it is disabled. This treatment follows
+formatting spans and explicit link labels. A verbatim body retains its actual
+block form and can contain formatted children without losing their literal text.
+
+Titles, alternative text and tooltips keep their own content boundaries. Raw
+fragments also keep their own treatment: a protected fragment with one remaining
+special-character stage becomes `text`, even inside an unescaped body. A raw
+passthrough remains `raw`. Automatic reference labels retain their existing
+fallback behavior.
+
+The original list/group/modifier spelling is source-only once these effects are
+represented. Equivalence tests compare explicit settings with ordinary text or
+protected/raw passthrough nodes. No additional policy field or compatibility
+selector is needed in the graph, and export never repeats language substitutions.
+Standalone inline export uses normal escaping and has no surrounding block
+context. Export the document when body `subs=` or a verbatim context matters.
+Unknown block instructions and unresolved raw operations still fail at a specific
+property. Parser compatibility mode and Cargo features do not select export policy.
+link:../../fixtures/asg/substitutions.adoc[The substitution fixture] and its
+link:../../fixtures/asg/substitutions.json[checked JSON] show these boundaries.
+
+== Ordered document attribute events
+
+The document's `attributes` object remains the end-of-header snapshot. In the
+acdc profile, accepted body assignments occupy their existing position in the
+`blocks` array. The node's discriminator is separate from the attribute's name:
+
+[source,json]
+----
+{"name":"attribute","type":"block","attribute":"imagesdir","assignment":{"kind":"set","value":"images"}}
+{"name":"attribute","type":"block","attribute":"imagesdir","assignment":{"kind":"unset"}}
+----
+
+A set value is a string: presence is `""`, literal false is `"false"`, and integers
+retain their attribute-reference spelling. An unset has no `value` field.
+Events inside supported nested bodies stay in those bodies. Consumers visit
+these arrays in order; the exporter does not replay assignments or repeat
+substitutions. This retains settings such as a later `imagesdir` change that
+still affects media conversion after inline attribute references are resolved.
+
+Known event locations are retained. Protected values that cannot fit a scalar,
+rejected assignments and unresolved parser-prefix events fail explicitly. Strict
+upstream export still rejects body events. Unsupported table/cell owners also
+continue to fail, so their scope cannot be silently lost.
+link:../../fixtures/asg/body_attributes.adoc[The ordered-event fixture] and its
+link:../../fixtures/asg/body_attributes.json[checked JSON] show header values,
+set/unset events, metadata-adjacent assignments and nested media.
+
+== Lists
+
+Ordered and unordered lists preserve the list marker and each item's marker,
+principal text and attached blocks. An item's level can be omitted only when its
+marker gives the same level. Description-list terms stay inline arrays inside the
+required `terms` array. Each native item supplies one term; export does not merge
+adjacent definitions. A single ordinary item ID and reftext are supported; aliases
+and bibliography identity are rejected. Delimiter-token coordinates are source
+provenance without an upstream field; the item's full location is preserved.
+
+Callout markers describe the resolved tree: explicit markers contain the stored
+number; automatic markers use `<.>` and recover the number from item position.
+The list marker comes from its first item. Invalid authored numbers have already
+been diagnosed and normalized by the parser; export does not recreate their
+source spelling. An automatic number that disagrees with item position is rejected.
+Inline callout references and their associations require the named acdc profile.
+
+Empty lists, checklist state, independent levels, unsupported nested content and
+sections inside item attachments fail explicitly. Supported list metadata and
+catalog entries use the same rules as other supported blocks.
+
+== Blocks and media
+
+Supported delimited bodies keep their opening delimiter. Literal, listing and verse
+bodies can contain verbatim leaves because the owning block preserves their
+presentation. Code in an ordinary paragraph still fails. Indented and styled leaf
+paragraphs retain their source form from the native paragraph and its retained
+pre-inline source; export does not invent a delimiter. Parent paragraph
+forms and synthetic quote markers require the named acdc profile.
+
+Audio, video, image and TOC nodes use macro form. Targets come from the native source;
+video playlists remain one complete target, including commas. The provider selector stays in
+its retained `poster` attribute, as supplied by the native owner. Retained positional slots follow the selected parser
+policy; a consumed provider is not reinserted as an extra slot. Discrete headings
+retain their level and present title, and page/thematic breaks retain their variant.
+Single ordinary identities use the same rules as other supported owners.
+
+Every semantic property must still have a mapping. Parsed captions, including
+unnumbered caption state, and explicit image alternative content are rejected until
+supported by a named content extension. Uncaptioned library-built listings, examples
+and images can be exported. Strict export rejects tables and block STEM.
+
+Delimited admonitions retain their actual opening delimiter in both profiles,
+including open-block `--` and longer example delimiters. Source-free library
+construction without a supplied form is rejected.
+
+The named acdc profile adds three closed forms:
+
+* Paragraph/indented admonitions keep `blocks` and their `variant`, with no delimiter.
+* Styled parent paragraphs (sidebar, example, quote, abstract and partintro) keep
+  their native `inlines` and paragraph/indented `form`. Export adds no child paragraph.
+* Marked quotes use `form: "marked"`, `marker: ">"` or `marker: "\""`, and their
+  native `blocks`. A single source marker is not a paired delimiter.
+
+`fixtures/asg/block_forms.adoc` and its checked JSON demonstrate these forms.
+Strict export rejects them where the pin has no corresponding form. Unsupported
+nested meaning still reports its complete property path.
+
+== Registered reference targets
+
+The acdc profile's `references` object records the native catalog's actual lookup
+keys. Each entry has a canonical `target`, an `owner` JSON Pointer into the export,
+and its known target `location`. A declaration that was not registered stays out
+of this map. Export does not register targets or repair an edited catalog.
+
+Ordinary entries use the owner's title, effective reference text and caption;
+header titles combine the separate title and subtitle for reference display.
+An alias with independent reference text stores `reftext` in its catalog entry.
+A missing property inherits the owner's label, `null` removes it, and `[]` retains
+an explicitly empty label. Document-level `:reftext:` also owns an independent,
+already resolved label. Without a header, document-top references use the first
+root section title, or no title when there is no section. No raw text is reparsed.
+
+Dangling aliases, stale owner titles/captions/primary labels, duplicate identities
+and unsupported reference classifications still fail with an exact path. The
+strict upstream profile keeps its existing reconstructible-catalog boundary.
+
+== Anchor declarations
+
+The named profile adds ordinary inline `anchor` nodes with `id`, optional parsed
+`reftext`, and known source location. On blocks and headers, `id_location` records
+the selected authored ID's known range. A generated ID has no fabricated range.
+Extra retained declarations appear in ordered `anchors`, each with its own ID,
+optional label and known location. Absent and empty labels stay distinct.
+
+These declarations are not automatically registered reference targets. acdc's
+existing primary selection is the dedicated ID or first anchor on ordinary
+blocks, and the dedicated ID or last anchor on headings. Asciidoctor selects the
+last stacked anchor on ordinary blocks too; this export does not change acdc's
+parser or converter behavior. A block's effective `reftext` stays separate from
+labels retained on its extra declarations. An unused label on the selected
+anchor does not replace the effective block label.
+
+Strict export still rejects additional identities and inline anchors. Pending
+labels and bibliography anchors remain explicit unsupported cases. The source
+and checked JSON in `fixtures/asg/anchors.adoc` show declarations, formatted
+inline labels, primary selection, and unresolved extra declarations.
+
+== Index terms
+
+The named profile adds an `indexterm` inline with `visibility` (`visible` or
+`hidden`), parsed primary `term`, and optional `secondary` and `tertiary` arrays.
+Missing levels differ from empty ones. A typed `relationship` holds either a
+`see` target or ordered `see-also` targets. Common inline metadata retains IDs,
+roles, options and scalar controls separately from labels.
+
+A distinct registration snapshot appears in `catalog`, with the same label and
+relationship fields and its own known location. This matters when substitutions
+run after index registration or a prepared edit changes display content. When
+registration labels and location equal the occurrence, the catalog value is
+implicit rather than another copy. Captured scalar controls are not another
+indexing value. Export reads the existing labels without registering or parsing
+anything; pending registration substitutions fail explicitly.
+
+Strict rejection is unchanged. `fixtures/asg/index_terms.adoc` and its checked
+JSON show both ordinary labels and differences introduced after registration.
+
+== Footnotes
+
+The named profile stores registered bodies once in the owning document or cell
+`footnotes` array, in native catalog order. Each entry retains its positive `number`, optional named `id`,
+parsed `inlines`, and known source location. Inline `footnote` occurrences retain
+`form` (`definition` or `reference`), assigned `number`, optional `id`, and their
+own location. Their body belongs to the registered entry, not another inline copy.
+
+An AsciiDoc cell has a `footnotes` array, including an empty array when it owns
+no definitions. Omission means the cell shares its containing owner. Names are
+unique within each owner, and numbers are unique across all owners. Export
+rejects cross-owner bindings and duplicate numbers. See
+`fixtures/asg/table_cell_footnotes.adoc` and its JSON example.
+
+For a retained prepared reference, number zero stays unresolved even if a later
+catalog entry has that name. Missing references recovered by the parser remain
+its recovered text; export does not turn that text back into a footnote. Empty definition content remains `[]`. Catalog-only bodies
+remain present. Export checks unique identities and number/body agreement, rejects
+reference cycles and pending substitutions, and never registers or renumbers notes.
+Prepared stale trees require explicit document repair before export.
+
+Standalone inline export still rejects footnotes because it has no document
+registration context. Strict upstream rejection is unchanged. The source and
+checked JSON in `fixtures/asg/footnotes.adoc` cover ordinary and selected-title
+notes; tests also cover nested cells, empty bodies and invalid prepared graphs.
+
+== Tables
+
+The named acdc profile adds a closed `table` block with its actual delimiter,
+ordered `columns`, body `rows`, and optional `header` and `footer`. Each row has
+`cells`; each cell retains its native child `blocks`, including paragraph inline
+trees. Export does not flatten them or create paragraph wrappers. Empty cells
+and rows remain empty arrays, and a present empty header/footer stays present.
+
+Column widths distinguish proportional, percentage and auto values. Column
+formats and cell overrides retain alignment and style. Literal cell/column style
+preserves verbatim presentation without changing the paragraph owner. The optional
+`presentation` records frame, grid and stripes captured at the table's source
+position; it is not recomputed from the end-of-header snapshot. Explicit metadata
+controls remain separate from this contextual result. Prepared metadata edits use
+the native captured defaults. That edit history is not another exported value.
+
+`location` covers the complete block, while `delimited_location` retains the native
+table span excluding its title/metadata. Unknown spans are omitted. Rows and cells
+have no independent native ranges, so export does not invent them.
+
+Positive `colspan` and `rowspan` values retain authored cell order, including
+header/body/footer transitions; unit dimensions are omitted. Export checks row
+bounds, declared width, arithmetic and overlap without inserting placeholder
+cells or allocating by a span's numeric size. Empty row sections and unspecified
+prepared widths remain valid. Column defaults follow physical cell order, as in
+the parser and asciidoctor.
+
+AsciiDoc cells retain their nested blocks, including supported sections and tables.
+`initial_attributes` is an ordered array of `attribute` names and set/unset
+`assignment` values. Enter a cell with a local copy of the current outer state,
+apply these initial assignments, then traverse its blocks in order. Discard that
+local state on leaving the cell. The initial assignments overlay inherited state;
+they do not replace the document's header snapshot. Body attribute events remain
+inside the cell, and sibling cells inherit the unchanged outer state.
+
+Ordinary cells keep paragraph content and literal context. Unsupported nested
+meaning fails at its actual path, and strict table rejection is unchanged.
+`fixtures/asg/tables.adoc`, `table_spans.adoc`, and `table_cells.adoc`, with checked
+JSON, cover sections, empty cells, formatting, spans, nested blocks and media scope.
+
+== Video targets
+
+Both profiles preserve one complete video `target`, including commas and empty
+provider playlist slots. The retained `poster` control distinguishes YouTube or
+Vimeo from a poster image; export does not split the target or invent provider
+booleans. An explicit empty poster remains an empty string. Width, height,
+playback controls and options retain their native values.
+
+The target string comes from the native source. URL spelling stays intact;
+non-UTF-8 local paths fail explicitly. Path/name storage distinctions do not add
+video meaning when the target and provider controls are the same. Source locations
+remain on the video node. `fixtures/asg/video_targets.adoc` and its checked JSON
+cover local/URL targets, providers, ordered playlists and empty slots.
+
+== Checklists
+
+The named acdc profile adds optional boolean `checked` to ordered and unordered list items.
+Omission means an ordinary item, `false` means unchecked, and `true` means checked.
+Marker spelling, principal inlines and attached blocks remain separate. Nested
+checklists preserve the same structure. Prepared ordered-list items can also
+retain explicitly supplied state; authored ordered-list checkbox text follows the
+parser's existing language rules. Callout items cannot carry checkbox state.
+
+The native owner does not retain whether a checked box used `x`, `X`, or `*`;
+export preserves the state without inventing that source spelling. Strict export
+still rejects checklist state. `fixtures/asg/checklists.adoc` demonstrates mixed
+ordinary/checklist items, nesting, formatting and a continuation.
+
+== Header content
+
+The named acdc profile keeps `header.title` and optional `header.subtitle` as
+separate inline arrays. An absent subtitle is omitted; a present empty subtitle
+is `[]`. Export does not combine them to fit the upstream title field. Header
+identity, reftext, roles/options and scalar attributes use the same projection as
+block metadata. Content fields keep their own inline arrays.
+
+Header IDs and document-top references use the parser's existing full reference
+title: main title, `: `, then subtitle when present. This derived catalog value
+does not replace either field. Stale or duplicate registrations still fail.
+Independent document-attribute `reftext` labels and header aliases use the
+reference registration contract. Strict export still rejects subtitle and header metadata. Author
+reconciliation and the end-of-header document attribute snapshot are unchanged.
+
+Automatic document references can carry `document_reftext`, an inline array
+captured from an accepted body attribute entry. Absence uses the header snapshot;
+an empty array selects the title. Explicit inline text stays separate. Known
+locations identify the declaration value and its include chain. Caller values
+have no source location. These derived labels do not register inline IDs.
+Prepared repair preserves captured contexts without replaying attribute entries.
+The pinned upstream profile rejects this occurrence context.
+
+== Proposed upstream additions
+
+link:proposals/README.adoc[The content/image proposal] contains minimal schema
+patches, semantic examples and executable positive/negative controls. It separates
+promoted caption content from the open question of resolved caption state.
+It has not been submitted upstream and does not change either export contract.
+
+== Semantic regression checks
+
+The parser tests run every source fixture in both compatibility modes. Expected
+JSON records the selected language behavior; it is not an upstream-schema claim.
+`tests/attribute_contract.rs` checks a compact set across public reads, native JSON
+and checked ASG: introduced title formatting, caption prefixes, literal quote
+content, declaration snapshots, image text, selected-only footnotes and empty
+versus absent values. A deliberately wrong title still passes the schema and
+fails the expected semantic comparison.
+
+Run the export tests with `--all-features`, or with
+`--no-default-features --features asg` to check the same contracts without parser
+capabilities. CI uses the vendored schemas and a fixed TCK revision. All 13
+pinned TCK cases must pass. The CLI adapter alone omits derived caption state and
+unreferenced generated heading IDs; regular ASG exports keep their contracts.
+The link:../../../.github/tck/README.adoc[TCK projection] does not replace native
+fixture or converter regression suites, or establish full language conformance.
+
+== Callout markers
+
+The acdc profile represents inline markers as `callout` nodes with `form`
+(`explicit` or `auto`), resolved `number`, and known source `location`. Zero is
+retained when it occurs in a native marker. Code text and neighboring comment
+guards stay separate text nodes; export does not strip them or render markers.
+
+Callout-list items retain their existing marker spelling, a positive resolved
+`number`, and a known `callout_location` for the marker itself. The marker already
+distinguishes explicit and automatic forms. These fields also preserve prepared
+automatic numbers that cannot be recovered from item order. The parser discards
+an invalid authored explicit list index after it emits a diagnostic; export does
+not reconstruct that discarded spelling.
+
+Association uses scoped order and equal resolved numbers. The parser accumulates
+verbatim markers until a callout list consumes them. Repeated markers can refer
+to one explanation; unmatched markers and unmatched explanations remain present.
+Entering a callout list isolates child markers and consumes the outer pending
+set; each AsciiDoc table cell has its own scope. The native AST retains no
+per-marker destination links, so export does not invent them or assume that only
+an adjacent code block can belong to a list. Strict export still rejects inline
+markers and prepared list numbers that its marker/order cannot express.
+
+== Shared description definitions
+
+A description item owns ordered terms and at most one definition. Both profiles
+keep `terms` as inline arrays, optional `principal`, and one `blocks` array.
+A missing principal is omitted; an authored empty principal remains an empty
+array. No definition body is copied into a term.
+
+The acdc profile adds `term_metadata` in matching term order. Each closed
+`dlistTerm` record retains its marker, identities, and known term/delimiter
+locations without repeating inline content. Registered targets point to the
+owning metadata record. Export tests check equal term and metadata counts.
+`definition_present` distinguishes absence from an intentionally empty
+constructed definition; `definition_location` retains its known source span.
+Unknown constructed locations follow the existing optional-location policy.
+
+Strict upstream export rejects explicit term identities, differing term markers,
+and a present definition with neither principal nor blocks. These values have no
+lossless upstream representation. The pinned upstream schema is unchanged.
+
+== Inline line breaks
+
+A resolved hard line break uses `name: "break"` and `type: "inline"`, with its
+known source location. Ordinary source wrapping stays text. Literal code keeps
+its newlines and plus signs as text. This node preserves the parser's semantic
+break whether it came from an explicit marker or configured hard wrapping; the
+AST does not retain a separate source-form tag for those cases. Parsed/prepared
+breaks in content attributes use the same shape. Export does not insert newlines
+or backend markup. Strict upstream export rejects inline breaks.
+
+== Typography spans
+
+The acdc profile adds `subscript` and `superscript` to the existing inline span
+variants. Both keep nested content, constrained/unconstrained form, roles, ID and
+known location. Typographic quotations use one `quotation` span variant with a
+`quotes` pair: `["“", "”"]` or `["‘", "’"]`. The pair gives the exact resolved
+opening and closing characters; the `inlines` array contains only the quotation's
+nested content. This avoids a separate node for each native quote type without
+losing Unicode meaning or inline metadata. A standalone curved apostrophe stays
+canonical text `’`, as it already does in strict export.
+
+Literal protection remains text/raw content. Export does not recognize markup
+inside those strings or apply typography again. Strict export still rejects the
+four unsupported span types; the upstream pin is unchanged.
+
+== Block mathematical content
+
+Real mathematical blocks reuse the upstream `stem` leaf, delimited `form`,
+actual `delimiter`, metadata and `inlines` fields. The acdc profile adds explicit
+resolved `notation`: `latexmath` or `asciimath`. Its formula body is zero or one
+literal `text`/`raw` node. Empty text becomes `[]`; nonempty text stays exact,
+including spaces, markup-like characters and unexpanded attribute spelling.
+Supported attribute expansion has already happened in the parser. Special-character
+escaping selects `text`; disabled escaping selects `raw`. Export does not parse
+formula text as prose, translate notation or emit backend mathematics delimiters.
+The formula has no independent native span, so no child location is invented.
+
+Undelimited `[stem]`, `[latexmath]` and `[asciimath]` styles stay ordinary paragraphs,
+as they do in Asciidoctor; export does not invent a mathematical paragraph form.
+Strict export rejects resolved block notation because the pin cannot preserve it.
+
+== Inline mathematical content
+
+Inline mathematics uses `name: "stem"`, `type: "inline"`, resolved `notation`,
+protected `inlines`, and known source location. It shares the block formula
+content and notation contract, with no block form or delimiter. Surrounding
+formatting stays outside the formula; markup-like formula characters remain
+literal. Native inline math uses its own special-character escaping, independent
+of the enclosing prose treatment. Empty formulas keep `inlines: []`.
+
+The same node is accepted inside content attributes, notes and supported nested
+containers. Export does not translate notation, parse a formula or emit MathJax
+markup. Strict upstream export still rejects inline mathematics.
+
+== Interface macros
+
+The acdc profile preserves buttons, keyboard shortcuts and menus without backend
+markup. A `button` has `inlines`; a `keyboard` has ordered `keys`, each an inline
+array; a `menu` has inline-array `target` and ordered inline-array `items`.
+Empty arrays keep empty labels/components distinct from missing fields. Menu
+separators and shortcut punctuation have already been resolved by the parser;
+export does not split strings or insert display separators. Known owner and
+child locations are retained without inventing spans for array components.
+
+These labels use the same resolved inline treatment as their surrounding
+content, including protected fragments and nested semantic nodes. Source macros
+that were disabled remain literal text; export does not enable them. Native
+empty button/keyboard macros remain semantic nodes, although Asciidoctor retains
+those empty source forms literally. Strict export rejects all three macro kinds.
+
+== Icons
+
+The named profile exports `icon` inline nodes with a target and optional
+`alt`/`tooltip` inline arrays. Absent content selects the consumer's fallback;
+`[]` retains explicitly empty content. Identity, roles, options and scalar
+controls use the same bounded metadata contract as inline images. Size,
+rotation, flip and link settings are retained as controls, without CSS classes,
+asset paths or rendered labels invented by the exporter. Document `icons`,
+`iconsdir` and `icontype` settings remain in document attributes, ordered body
+events and AsciiDoc cell snapshots. Strict upstream export rejects icons.
+See `fixtures/asg/icons.adoc` and its JSON example.
+
+== Coverage and remaining boundaries
+
+link:COVERAGE.adoc[The coverage guide] reconciles the supported shapes, permitted
+omissions and explicit errors. It also records the limited TCK scope. Native JSON
+fixtures, checked export fixtures and language conformance are different checks.

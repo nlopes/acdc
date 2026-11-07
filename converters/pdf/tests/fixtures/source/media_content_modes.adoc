@@ -1,0 +1,18 @@
+= Media content rendering
+:icons: image
+:iconsdir: .
+:icontype: svg
+
+[NOTE,caption='*Care*',icon=inline-image-dimensions]
+A custom icon and caption.
+
+icon:inline-image-dimensions[alt="*Image*",link=https://example.org,height=24]
+
+:!icons:
+
+[NOTE,caption='*Care*']
+A custom caption without an icon.
+
+icon:heart[alt="*Text*",link=https://example.org]
+
+image:missing.svg[*Visible fallback*,link=https://example.org]

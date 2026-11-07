@@ -6,9 +6,11 @@ use acdc_converters_core::{
         appendix_number_prefix, book_chapter_signifier, effective_section_level,
         part_number_prefix, section_number_prefix,
     },
-    visitor::WritableVisitor,
 };
-use acdc_parser::{DiscreteHeader, Section, SectionKind};
+use acdc_parser::{
+    SectionKind,
+    ast::{DiscreteHeaderRef, SectionRef},
+};
 
 use crate::{Error, HtmlVariant, HtmlVisitor, build_class};
 
@@ -17,24 +19,25 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_section(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        section: &'a Section<'a>,
+        section: SectionRef<'a>,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
+        let data = section;
 
-        let is_index_section = section.kind == SectionKind::Index;
+        let is_index_section = data.kind() == SectionKind::Index;
         let render_catalog = is_index_section && processor.generate_index();
 
-        self.render_section_header(traversal, section)?;
+        self.render_section_header(traversal, data)?;
 
         // Keep authored content before the generated catalog.
-        for nested_block in &section.content {
+        for nested_block in section.blocks() {
             traversal.visit_block(self, nested_block)?;
         }
         if render_catalog {
-            crate::index::render(section, self)?;
+            crate::index::render(self)?;
         }
 
-        self.render_section_footer(section)?;
+        self.render_section_footer(data)?;
         Ok(())
     }
 
@@ -44,19 +47,19 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_section_header(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        section: &'a Section<'a>,
+        section: SectionRef<'_>,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
-        let id = section.id();
-        let effective_level = effective_section_level(section.level, section.kind);
+        let id = crate::inlines::escape_attribute(&section.resolve_id());
+        let effective_level = effective_section_level(section.level(), section.kind());
 
-        let is_appendix = section.kind == SectionKind::Appendix;
-        let is_part = section.level == 0 && section.kind == SectionKind::Normal;
+        let is_appendix = section.kind() == SectionKind::Appendix;
+        let is_part = section.level() == 0 && section.kind() == SectionKind::Normal;
         let heading_level = effective_level + 1; // Level 1 = h2
 
         if is_part {
             // Parts (level 0) in book doctype: standalone h1 with class="sect0", no wrapper div
-            let class = build_class("sect0", &section.metadata.roles);
+            let class = build_class("sect0", section.roles().iter());
             write!(
                 self.writer,
                 "<h{heading_level} id=\"{id}\" class=\"{class}\">"
@@ -71,11 +74,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             if processor.variant() == HtmlVariant::Semantic {
                 let class = build_class(
                     &format!("doc-section level-{effective_level}"),
-                    &section.metadata.roles,
+                    section.roles().iter(),
                 );
                 writeln!(self.writer, "<section class=\"{class}\">")?;
             } else {
-                let class = build_class(&format!("sect{effective_level}"), &section.metadata.roles);
+                let class = build_class(&format!("sect{effective_level}"), section.roles().iter());
                 writeln!(self.writer, "<div class=\"{class}\">")?;
             }
             write!(self.writer, "<h{heading_level} id=\"{id}\">")?;
@@ -84,7 +87,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 let prefix = if is_appendix {
                     appendix_number_prefix(number, string_attribute(traversal, "appendix-caption"))
                 } else {
-                    let signifier = (section.level == 1 && section.kind == SectionKind::Normal)
+                    let signifier = (section.level() == 1 && section.kind() == SectionKind::Normal)
                         .then(|| book_chapter_signifier(traversal, None))
                         .flatten();
                     section_number_prefix(number, signifier)
@@ -93,7 +96,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             }
         }
 
-        self.visit_title(traversal, &section.title)?;
+        self.visit_title(traversal, section.title())?;
         writeln!(self.writer, "</h{heading_level}>")?;
 
         // sect1 (or appendix demoted to sect1) gets a sectionbody wrapper in standard mode
@@ -106,10 +109,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     /// Render the section footer (closing tags)
     ///
     /// Call this after walking the section's nested blocks.
-    fn render_section_footer(&mut self, section: &'a Section<'a>) -> Result<(), Error> {
+    fn render_section_footer(&mut self, section: SectionRef<'_>) -> Result<(), Error> {
         let processor = self.processor.clone();
-        let effective_level = effective_section_level(section.level, section.kind);
-        let is_part = section.level == 0 && section.kind == SectionKind::Normal;
+        let effective_level = effective_section_level(section.level(), section.kind());
+        let is_part = section.level() == 0 && section.kind() == SectionKind::Normal;
 
         // Normal level-0 parts have no wrapper element to close.
         if is_part {
@@ -135,17 +138,17 @@ fn string_attribute<'a>(attributes: &'a TraversalContext<'_>, name: &str) -> Opt
 
 pub(crate) fn visit_discrete_header<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    header: &DiscreteHeader,
+    header: DiscreteHeaderRef<'_>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
-    let level = header.level + 1; // Level 1 = h2
-    let id = Section::generate_id_string(&header.metadata, &header.title);
+    let id = crate::inlines::escape_attribute(&header.resolve_id());
+    let level = header.level() + 1; // Level 1 = h2
 
     // asciidoctor emits a `class` only when the discreteness came from the
     // `discrete`/`float` block style (`[discrete]` → `class="discrete"`, plus any
     // roles). The bare positional form (`[#id,discrete]`) renders no class at all.
-    let class = match header.metadata.style {
-        Some(style @ ("discrete" | "float")) => Some(build_class(style, &header.metadata.roles)),
+    let class = match header.style() {
+        Some(style @ ("discrete" | "float")) => Some(build_class(style, header.roles().iter())),
         _ => None,
     };
 
@@ -156,7 +159,7 @@ pub(crate) fn visit_discrete_header<'a, W: Write>(
         write!(w, "<h{level} id=\"{id}\">")?;
     }
     let _ = w;
-    visitor.visit_title(traversal, &header.title)?;
+    visitor.visit_title(traversal, header.title())?;
     w = visitor.writer_mut();
     writeln!(w, "</h{level}>")?;
     Ok(())

@@ -1,24 +1,24 @@
 use std::{path::Path, sync::Arc};
 
 use acdc_parser::{
-    Block, DelimitedBlockType, IncludeLoader, IncludeSource, IncludeSourceError,
-    IncludeSourceErrorKind, IncludeSourceProvider, IncludeSourceTarget, InlineMacro, InlineNode,
-    Options, ParseResult, SafeMode, Stem, StemContent, StemNotation, parse, parse_inline,
+    IncludeLoader, IncludeSource, IncludeSourceError, IncludeSourceErrorKind,
+    IncludeSourceProvider, IncludeSourceTarget, Options, ParseResult, SafeMode, StemNotation,
+    ast::{BlockKind, BlockRef, InlineKind, StemBlockRef, StemRef},
+    parse, parse_inline,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-fn inline_stem(parsed: &ParseResult) -> Result<&Stem<'_>, Box<dyn std::error::Error>> {
+fn inline_stem(parsed: &ParseResult) -> Result<StemRef<'_>, Box<dyn std::error::Error>> {
     parsed
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .find_map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return None;
             };
-            paragraph.content.iter().find_map(|node| {
-                if let InlineNode::Macro(InlineMacro::Stem(stem)) = node {
+            paragraph.content().inlines().find_map(|node| {
+                if let InlineKind::Stem(stem) = node.kind() {
                     Some(stem)
                 } else {
                     None
@@ -28,16 +28,12 @@ fn inline_stem(parsed: &ParseResult) -> Result<&Stem<'_>, Box<dyn std::error::Er
         .ok_or_else(|| "expected an inline STEM macro".into())
 }
 
-fn block_stem(parsed: &ParseResult) -> Result<&StemContent<'_>, Box<dyn std::error::Error>> {
+fn block_stem(parsed: &ParseResult) -> Result<StemBlockRef<'_>, Box<dyn std::error::Error>> {
     parsed
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .find_map(|block| {
-            let Block::DelimitedBlock(block) = block else {
-                return None;
-            };
-            if let DelimitedBlockType::DelimitedStem(stem) = &block.inner {
+            if let BlockKind::Stem(stem) = block.kind() {
                 Some(stem)
             } else {
                 None
@@ -60,8 +56,8 @@ fn stem_document_notation_applies_to_inline_and_block_content(
 ) -> TestResult {
     let source = format!("{header}\nInline stem:[x^2].\n\n[stem]\n++++\nsqrt(4)\n++++\n");
     let parsed = parse(&source, &Options::default())?;
-    assert_eq!(inline_stem(&parsed)?.notation, expected);
-    assert_eq!(block_stem(&parsed)?.notation, expected);
+    assert_eq!(inline_stem(&parsed)?.notation(), expected);
+    assert_eq!(block_stem(&parsed)?.notation(), expected);
     Ok(())
 }
 
@@ -81,8 +77,8 @@ fn stem_block_notation_overrides_the_document(
     let source = format!(":stem: latexmath\n\n[{style}]\n++++\nα + β\n++++\n");
     let parsed = parse(&source, &Options::default())?;
     let stem = block_stem(&parsed)?;
-    assert_eq!(stem.notation, expected);
-    assert_eq!(stem.content, "α + β");
+    assert_eq!(stem.notation(), expected);
+    assert_eq!(stem.text(), "α + β");
     Ok(())
 }
 
@@ -94,7 +90,7 @@ fn stem_inline_notation_overrides_the_document() -> TestResult {
     ] {
         let source = format!(":stem: {document}\n\n{prefix}:[x^2]");
         let parsed = parse(&source, &Options::default())?;
-        assert_eq!(inline_stem(&parsed)?.notation, expected);
+        assert_eq!(inline_stem(&parsed)?.notation(), expected);
     }
     Ok(())
 }
@@ -103,22 +99,21 @@ fn stem_inline_notation_overrides_the_document() -> TestResult {
 fn stem_notation_follows_caller_values_and_body_assignments() -> TestResult {
     let options = Options::builder().with_attribute("stem", "tex").build()?;
     let parsed = parse(":stem: asciimath\n\nstem:[x^2]", &options)?;
-    assert_eq!(inline_stem(&parsed)?.notation, StemNotation::Latexmath);
+    assert_eq!(inline_stem(&parsed)?.notation(), StemNotation::Latexmath);
     let parsed = parse(
         ":stem: asciimath\n\nstem:[a]\n\n:stem: tex\n\nstem:[b]\n\n:stem!:\n\nstem:[c]",
         &Options::default(),
     )?;
     let notations = parsed
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .filter_map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return None;
             };
-            paragraph.content.iter().find_map(|node| {
-                if let InlineNode::Macro(InlineMacro::Stem(stem)) = node {
-                    Some(stem.notation.clone())
+            paragraph.content().inlines().find_map(|node| {
+                if let InlineKind::Stem(stem) = node.kind() {
+                    Some(stem.notation())
                 } else {
                     None
                 }
@@ -146,13 +141,15 @@ fn stem_default_substitutions_preserve_attributes_and_formula_operators() -> Tes
         ":value: expanded\n\nBefore stem:[{value} *x* + y --] after {value}.\n\n[stem]\n++++\n{value} *x* +y+ --\n++++",
         &Options::default(),
     )?;
-    assert_eq!(inline_stem(&parsed)?.content, "{value} *x* + y --");
-    assert_eq!(block_stem(&parsed)?.content, "{value} *x* +y+ --");
-    let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+    assert_eq!(inline_stem(&parsed)?.text(), "{value} *x* + y --");
+    assert_eq!(block_stem(&parsed)?.text(), "{value} *x* +y+ --");
+    let Some(BlockKind::Paragraph(paragraph)) =
+        parsed.document().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected the first paragraph".into());
     };
-    assert!(paragraph.content.iter().any(|node| {
-        matches!(node, InlineNode::PlainText(text) if text.content.contains("expanded"))
+    assert!(paragraph.content().inlines().any(|node| {
+        matches!(node.kind(), InlineKind::Plain(text) if text.text().contains("expanded"))
     }));
     Ok(())
 }
@@ -169,10 +166,10 @@ fn stem_passthroughs_run_before_formula_attributes_are_protected() -> TestResult
         let source = format!(":value: a longer value\n\nπ {{value}} stem:[{formula}] ω {{value}}.");
         let parsed = parse(&source, &Options::default())?;
         let stem = inline_stem(&parsed)?;
-        assert_eq!(stem.content, expected);
-        assert_eq!(stem.location.start.column, 11);
+        assert_eq!(stem.text(), expected);
+        assert_eq!(stem.location().start().column(), 11);
         assert_eq!(
-            &source[stem.location.absolute_start..=stem.location.absolute_end],
+            &source[stem.location().absolute_start()..=stem.location().absolute_end()],
             format!("stem:[{formula}]")
         );
     }
@@ -184,10 +181,10 @@ fn stem_bracket_escapes_preserve_unicode_source_locations() -> TestResult {
     let source = "π stem:[α \\in [0,1\\]] ω.";
     let parsed = parse(source, &Options::default())?;
     let stem = inline_stem(&parsed)?;
-    assert_eq!(stem.content, "α \\in [0,1]");
-    assert_eq!(stem.location.start.column, 3);
+    assert_eq!(stem.text(), "α \\in [0,1]");
+    assert_eq!(stem.location().start().column(), 3);
     assert_eq!(
-        &source[stem.location.absolute_start..=stem.location.absolute_end],
+        &source[stem.location().absolute_start()..=stem.location().absolute_end()],
         "stem:[α \\in [0,1\\]]"
     );
     Ok(())
@@ -201,7 +198,7 @@ fn stem_keeps_its_bracket_escape_and_multiline_contracts() -> TestResult {
         ("stem:[x\n  + y]", "x\n  + y"),
     ] {
         let parsed = parse(source, &Options::default())?;
-        assert_eq!(inline_stem(&parsed)?.content, expected);
+        assert_eq!(inline_stem(&parsed)?.text(), expected);
     }
     Ok(())
 }
@@ -216,9 +213,9 @@ fn stem_latex_removes_one_enclosing_dollar_pair() -> TestResult {
     ] {
         let parsed = parse(source, &Options::default())?;
         let stem = inline_stem(&parsed)?;
-        assert_eq!(stem.content, expected);
+        assert_eq!(stem.text(), expected);
         assert_eq!(
-            &source[stem.location.absolute_start..=stem.location.absolute_end],
+            &source[stem.location().absolute_start()..=stem.location().absolute_end()],
             source
         );
     }
@@ -235,9 +232,9 @@ fn stem_formula_validity_is_separate_from_container_syntax() -> TestResult {
     let parsed = parse_inline("stem:[x^2", &Options::default())?;
     assert!(
         parsed
+            .content()
             .inlines()
-            .iter()
-            .all(|node| !matches!(node, InlineNode::Macro(InlineMacro::Stem(_))))
+            .all(|node| !matches!(node.kind(), InlineKind::Stem(_)))
     );
     Ok(())
 }
@@ -245,12 +242,11 @@ fn stem_formula_validity_is_separate_from_container_syntax() -> TestResult {
 #[test]
 fn stem_unterminated_block_retains_the_formula_and_warns() -> TestResult {
     let parsed = parse("[stem]\n++++\nα + β", &Options::default())?;
-    assert_eq!(block_stem(&parsed)?.content, "α + β");
+    assert_eq!(block_stem(&parsed)?.text(), "α + β");
     assert_eq!(parsed.warnings().len(), 1);
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn stem_substitutions_expand_attributes_only_when_requested() -> TestResult {
     for (substitutions, expected) in [
@@ -262,8 +258,9 @@ fn stem_substitutions_expand_attributes_only_when_requested() -> TestResult {
         let source =
             format!(":value: expanded\n\n[stem,subs=\"{substitutions}\"]\n++++\n{{value}}\n++++");
         let parsed = parse(&source, &Options::default())?;
-        assert_eq!(block_stem(&parsed)?.content, expected);
-        let Some(Block::DelimitedBlock(block)) = parsed.document().blocks.first() else {
+        assert_eq!(block_stem(&parsed)?.text(), expected);
+        let Some(BlockKind::Stem(block)) = parsed.document().blocks().next().map(BlockRef::kind)
+        else {
             return Err("expected the STEM block".into());
         };
         assert_eq!(block.source_text(), Some("{value}\n"));
@@ -272,14 +269,16 @@ fn stem_substitutions_expand_attributes_only_when_requested() -> TestResult {
         ":value: expanded\n\n[subs=attributes]\nstem:[{value}]",
         &Options::default(),
     )?;
-    let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Paragraph(paragraph)) =
+        parsed.document().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected a paragraph with macros disabled".into());
     };
     assert!(
         !paragraph
-            .content
-            .iter()
-            .any(|node| matches!(node, InlineNode::Macro(InlineMacro::Stem(_))))
+            .content()
+            .inlines()
+            .any(|node| matches!(node.kind(), InlineKind::Stem(_)))
     );
     Ok(())
 }
@@ -287,15 +286,17 @@ fn stem_substitutions_expand_attributes_only_when_requested() -> TestResult {
 #[test]
 fn stem_escaped_macros_still_expand_surrounding_attributes() -> TestResult {
     let parsed = parse(":value: expanded\n\n\\stem:[{value}]", &Options::default())?;
-    let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Paragraph(paragraph)) =
+        parsed.document().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected a literal escaped macro".into());
     };
     let mut text = String::new();
-    for node in &paragraph.content {
-        let InlineNode::PlainText(plain) = node else {
+    for node in paragraph.content().inlines() {
+        let InlineKind::Plain(plain) = node.kind() else {
             return Err("expected plain escaped macro text".into());
         };
-        text.push_str(plain.content);
+        text.push_str(plain.text());
     }
     assert_eq!(text, "stem:[expanded]");
     Ok(())
@@ -333,9 +334,9 @@ fn stem_nested_selected_includes_keep_the_original_source_location() -> TestResu
         .build()?;
     let parsed = parse("include::outer.adoc[]", &options)?;
     let stem = inline_stem(&parsed)?;
-    assert_eq!(stem.notation, StemNotation::Latexmath);
-    assert_eq!(stem.content, "α \\in [0,1]");
-    let source = parsed.source_location(&stem.location);
+    assert_eq!(stem.notation(), StemNotation::Latexmath);
+    assert_eq!(stem.text(), "α \\in [0,1]");
+    let source = parsed.resolve_location(stem.location());
     assert_eq!(
         source.file.as_deref().and_then(Path::file_name),
         Some(Path::new("inner.adoc").as_os_str())
@@ -344,14 +345,13 @@ fn stem_nested_selected_includes_keep_the_original_source_location() -> TestResu
         (source.location.start.line, source.location.start.column),
         (2, 3)
     );
-    assert_eq!(block_stem(&parsed)?.content, "β < γ");
-    let Some(Block::DelimitedBlock(block)) = parsed.document().blocks.last() else {
+    assert_eq!(block_stem(&parsed)?.text(), "β < γ");
+    let Some(BlockKind::Stem(block)) = parsed.document().blocks().last().map(BlockRef::kind) else {
         return Err("expected the included STEM block".into());
     };
-    let open = parsed.source_location(
+    let open = parsed.resolve_location(
         block
-            .open_delimiter_location
-            .as_ref()
+            .open_delimiter_location()
             .ok_or("missing opening delimiter")?,
     );
     assert_eq!(

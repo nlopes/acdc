@@ -27,7 +27,23 @@
         {
           "name": "button",
           "type": "inline",
-          "label": "Click Me",
+          "label": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Click Me",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 16
+                },
+                {
+                  "line": 3,
+                  "col": 23
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 3,

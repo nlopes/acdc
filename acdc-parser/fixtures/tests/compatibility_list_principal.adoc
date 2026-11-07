@@ -1,0 +1,28 @@
+= List boundaries
+
+Ordinary paragraph
+* this is wrapped text
+. this is also text
+
+* Principal
+wrapped principal
+** Nested principal
+* Sibling principal
+
+one
++
+two
+
+* Item with an attribute
++
+:continued: first \
+* continued attribute value
+
+Value: {continued}
+
+Final empty term::
+
+[[after-empty]]
+== Heading after the empty term
+
+Heading body.

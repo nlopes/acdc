@@ -1,0 +1,13 @@
+P01 pass:r[\'word\' ...].
+
+P02 pass:r[\*literal* \_literal_ \`literal` \#literal#].
+
+P03 pass:r[\(C) \(R) \(TM) \...].
+
+P04 pass:c,r[\*literal* \'word\' (C) ->].
+
+P05 pass:r,c[\*literal* \'word\' (C) ->].
+
+P06 pass:c[\*literal* \'word\' (C) ->].
+
+P07 pass:r[<i data-label="_keep*">Raw body</i>].

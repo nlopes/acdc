@@ -9,7 +9,7 @@
         {
           "name": "image",
           "type": "inline",
-          "title": [
+          "tooltip": [
             {
               "name": "text",
               "type": "string",

@@ -1,0 +1,25 @@
+= Styled boundaries
+
+[literal]
+* First item
+* Second item
+
+[source,text]
+Code content before a delimiter
+----
+following block
+----
+
+[source,text]
+image::sample.png[Sample]
+
+[verse]
+paragraph
+.Side title
+tail
+
+[source]
+ indented
+----
+Following content inside the delimiter
+----

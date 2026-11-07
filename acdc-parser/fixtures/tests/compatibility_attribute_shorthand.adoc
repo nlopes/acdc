@@ -1,0 +1,43 @@
+= Attribute Shorthand
+:identity: café
+
+[note#first.one.two%ready]
+Ordinary shorthand.
+
+["note#quoted.double%ready"]
+Quoted punctuation.
+
+['note#quoted.single%ready']
+Single-quoted punctuation.
+
+[note..role]
+An empty role makes the Draft shorthand literal.
+
+[note#]
+An empty ID makes the Draft shorthand literal.
+
+[%]
+An empty option is not a Draft shorthand.
+
+[note#one#two.role]
+The last ID wins.
+
+["source.demo"]
+// This comment follows the selected style.
+*Source paragraph content.*
+
+[note#{identity}.expanded]
+An expanded ID points to the authored reference.
+
+include::includes/compatibility_attribute_shorthand.adoc[lines=2..4]
+
+[cols=a]
+|===
+|["note#nested.role"]
+Quoted shorthand in a table cell.
+|===
+
+image::photo.svg[note#literal.role%ready]
+
+[role=named,.later]
+Only the first slot can carry shorthand.

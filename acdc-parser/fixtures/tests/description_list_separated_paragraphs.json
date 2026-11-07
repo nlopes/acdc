@@ -7,11 +7,26 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "CPU",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "CPU",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 1
+                    },
+                    {
+                      "line": 1,
+                      "col": 3
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 1,
@@ -19,30 +34,41 @@
                 },
                 {
                   "line": 1,
-                  "col": 3
+                  "col": 5
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "The brain of the computer.",
-              "location": [
-                {
-                  "line": 1,
-                  "col": 7
-                },
-                {
-                  "line": 1,
-                  "col": 32
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "The brain of the computer.",
+                "location": [
+                  {
+                    "line": 1,
+                    "col": 7
+                  },
+                  {
+                    "line": 1,
+                    "col": 32
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 1,
+                "col": 7
+              },
+              {
+                "line": 1,
+                "col": 32
+              }
+            ]
+          },
           "location": [
             {
               "line": 1,
@@ -50,7 +76,7 @@
             },
             {
               "line": 1,
-              "col": 33
+              "col": 32
             }
           ]
         }
@@ -62,7 +88,7 @@
         },
         {
           "line": 1,
-          "col": 33
+          "col": 32
         }
       ]
     },
@@ -102,11 +128,26 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Memory",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Memory",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 1
+                    },
+                    {
+                      "line": 5,
+                      "col": 6
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 5,
@@ -114,30 +155,41 @@
                 },
                 {
                   "line": 5,
-                  "col": 6
+                  "col": 8
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "RAM stores temporary data.",
-              "location": [
-                {
-                  "line": 5,
-                  "col": 10
-                },
-                {
-                  "line": 5,
-                  "col": 35
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "RAM stores temporary data.",
+                "location": [
+                  {
+                    "line": 5,
+                    "col": 10
+                  },
+                  {
+                    "line": 5,
+                    "col": 35
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 5,
+                "col": 10
+              },
+              {
+                "line": 5,
+                "col": 35
+              }
+            ]
+          },
           "location": [
             {
               "line": 5,
@@ -145,7 +197,7 @@
             },
             {
               "line": 5,
-              "col": 36
+              "col": 35
             }
           ]
         }
@@ -157,7 +209,7 @@
         },
         {
           "line": 5,
-          "col": 36
+          "col": 35
         }
       ]
     }

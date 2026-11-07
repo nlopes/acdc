@@ -375,6 +375,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -657,6 +658,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -767,6 +769,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -921,7 +924,23 @@
             "anchors": [
               {
                 "id": "target",
-                "xreflabel": "Target",
+                "xreflabel": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Target",
+                    "location": [
+                      {
+                        "line": 42,
+                        "col": 10
+                      },
+                      {
+                        "line": 42,
+                        "col": 15
+                      }
+                    ]
+                  }
+                ],
                 "location": [
                   {
                     "line": 42,

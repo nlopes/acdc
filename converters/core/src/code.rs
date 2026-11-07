@@ -1,8 +1,11 @@
-use acdc_parser::{AttributeValue, BlockMetadata};
+use acdc_parser::{
+    AttributeValue, BlockMetadata,
+    ast::{AttributeValueRef, AttributesRef},
+};
 
 mod link;
 pub use link::{
-    CodeLink, CodeLinkTarget, code_inline_children, code_inline_text, resolve_code_link,
+    CodeLink, CodeLinkTarget, code_inline_content, code_inline_text, resolve_code_link,
 };
 
 /// Line-oriented rendering options for a source block.
@@ -22,22 +25,56 @@ impl SourceLineOptions {
     /// with a custom `start`; otherwise they use physical one-based lines.
     #[must_use]
     pub fn resolve(metadata: &BlockMetadata<'_>, source: &str) -> Self {
-        if metadata.style != Some("source") {
+        Self::resolve_values(
+            metadata.style == Some("source"),
+            metadata.attributes.contains_key("linenums")
+                || (&metadata.options)
+                    .into_iter()
+                    .any(|option| *option == "linenums"),
+            string_attribute(metadata, "start"),
+            string_attribute(metadata, "highlight"),
+            source,
+        )
+    }
+
+    /// Resolve source-line decoration from element attributes.
+    ///
+    /// Uses the same selector and numbering rules as [`Self::resolve`].
+    #[must_use]
+    pub fn from_attributes(attributes: AttributesRef<'_>, source: &str) -> Self {
+        let text = |name| match attributes.get(name) {
+            Some(AttributeValueRef::Text(value)) => Some(value),
+            _ => None,
+        };
+        Self::resolve_values(
+            text("style") == Some("source"),
+            attributes.contains("linenums")
+                || matches!(attributes.get("options"), Some(AttributeValueRef::Tokens(tokens)) if tokens.contains("linenums")),
+            text("start"),
+            text("highlight"),
+            source,
+        )
+    }
+
+    fn resolve_values(
+        source_style: bool,
+        numbered: bool,
+        start: Option<&str>,
+        highlight: Option<&str>,
+        source: &str,
+    ) -> Self {
+        if !source_style {
             return Self::default();
         }
-        let numbered =
-            metadata.attributes.contains_key("linenums") || metadata.options.contains(&"linenums");
         let line_number_start = numbered.then(|| {
-            string_attribute(metadata, "start")
+            start
                 .and_then(|value| value.parse::<usize>().ok())
                 .filter(|value| *value > 0)
                 .unwrap_or(1)
         });
-        let highlighted_lines = string_attribute(metadata, "highlight")
-            .map_or_else(Vec::new, |spec| {
-                resolve_highlighted_lines(source, spec, line_number_start.unwrap_or(1))
-            });
-
+        let highlighted_lines = highlight.map_or_else(Vec::new, |spec| {
+            resolve_highlighted_lines(source, spec, line_number_start.unwrap_or(1))
+        });
         Self {
             line_number_start,
             highlighted_lines,
@@ -143,18 +180,35 @@ fn update_highlighted_line(lines: &mut [bool], line: usize, exclude: bool) {
 /// `[source,text]` and other arbitrary languages get proper `<code>` wrappers.
 #[must_use]
 pub fn detect_language<'a, 'b: 'a>(metadata: &'a BlockMetadata<'b>) -> Option<&'a str> {
-    let is_source = metadata.style == Some("source");
-    if !is_source {
-        return None;
-    }
+    language_for_style(
+        metadata.style.map(AttributeValueRef::Text),
+        metadata
+            .attributes
+            .get("language")
+            .map(AttributeValueRef::from),
+    )
+}
 
-    metadata.attributes.get("language").and_then(|value| {
-        if let acdc_parser::AttributeValue::String(value) = value {
-            Some(value.as_ref())
-        } else {
-            None
-        }
-    })
+/// Read the language control on a source block.
+///
+/// Empty, unknown, and quoted strings remain unchanged. Other styles and
+/// non-text values have no source language. Document defaults are separate.
+#[must_use]
+pub fn source_language(attributes: AttributesRef<'_>) -> Option<&str> {
+    language_for_style(attributes.get("style"), attributes.get("language"))
+}
+
+fn language_for_style<'text>(
+    style: Option<AttributeValueRef<'_>>,
+    language: Option<AttributeValueRef<'text>>,
+) -> Option<&'text str> {
+    if matches!(style, Some(AttributeValueRef::Text("source")))
+        && let Some(AttributeValueRef::Text(language)) = language
+    {
+        Some(language)
+    } else {
+        None
+    }
 }
 
 /// Get the default line comment prefix for a programming language.
@@ -187,7 +241,9 @@ mod tests {
 
     use super::SourceLineOptions;
 
-    fn metadata(attributes: &[(&'static str, &'static str)]) -> BlockMetadata<'static> {
+    fn metadata(
+        attributes: &[(&'static str, &'static str)],
+    ) -> Result<BlockMetadata<'static>, acdc_parser::ReservedAttribute> {
         let mut values = ElementAttributes::default();
         for (name, value) in attributes {
             values.set(
@@ -201,8 +257,9 @@ mod tests {
     }
 
     #[test]
-    fn resolves_numbering_start_and_visible_highlight_numbers() {
-        let metadata = metadata(&[("linenums", ""), ("start", "10"), ("highlight", "10;12")]);
+    fn resolves_numbering_start_and_visible_highlight_numbers()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let metadata = metadata(&[("linenums", ""), ("start", "10"), ("highlight", "10;12")])?;
 
         assert_eq!(
             SourceLineOptions::resolve(&metadata, "ten\neleven\ntwelve"),
@@ -211,16 +268,18 @@ mod tests {
                 highlighted_lines: vec![1, 3],
             }
         );
+        Ok(())
     }
 
     #[test]
-    fn resolves_ranges_exclusions_and_open_ends() {
-        let metadata = metadata(&[("highlight", "1..,!2,4")]);
+    fn resolves_ranges_exclusions_and_open_ends() -> Result<(), Box<dyn std::error::Error>> {
+        let metadata = metadata(&[("highlight", "1..,!2,4")])?;
 
         assert_eq!(
             SourceLineOptions::resolve(&metadata, "one\ntwo\nthree\nfour").highlighted_lines,
             [1, 3, 4]
         );
+        Ok(())
     }
 
     #[test]

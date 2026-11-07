@@ -1,0 +1,24 @@
+Legacy guide
+============
+
+[#legacy]
+First level
+-----------
+// Comment after a heading.
+
+First body and <<legacy>>.
+
+Second level
+~~~~~~~~~~~~
+
+Second body.
+
+Third level
+^^^^^^^^^^^
+
+Third body.
+
+Fourth level
+++++++++++++
+
+Fourth body.

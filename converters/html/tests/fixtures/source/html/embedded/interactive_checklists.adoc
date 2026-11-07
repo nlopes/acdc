@@ -1,0 +1,24 @@
+= Lists
+:interactive:
+
+.Static
+* [x] Checked
+* [ ] Unchecked
+* Ordinary
+
+.Interactive
+[.choices%interactive]
+* [x] Checked
+* [ ] Unchecked
+* Ordinary
+
+.Role only
+[.interactive]
+* [x] Checked
+* [ ] Unchecked
+
+[options=interactive]
+* [x] Options alias
+
+[opts=interactive]
+* [ ] Opts alias

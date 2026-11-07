@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -84,31 +85,31 @@
 
 #heading(level: 1)[#text("Cases")] <id-5f6361736573>
 
-#text("R01 ")#text("→ ⇒ ← ⇐")#text(".")
+#text("R01 ")#text("→")#text(" ")#text("⇒")#text(" ")#text("←")#text(" ")#text("⇐")#text(".")
 
-#text("R02 ")#text("-> => <- <=")#text(".")
+#text("R02 ")#text("->")#text(" ")#text("=>")#text(" ")#text("<-")#text(" ")#text("<=")#text(".")
 
-#text("R03 ")#text("-> => <- <=")#text(".")
+#text("R03 ")#text("->")#text(" ")#text("=>")#text(" ")#text("<-")#text(" ")#text("<=")#text(".")
 
 #text("R04 ")#text("-> => <- <=")#text(".")
 
-#text("R05 ")#text("-> => <- <=")#text(".")
+#text("R05 ")#text("->")#text(" ")#text("=>")#text(" ")#text("<-")#text(" ")#text("<=")#text(".")
 
-#text("R06 ")#text("\\-> \\=> \\<- \\<=")#text(".")
+#text("R06 ")#text("\\")#text("->")#text(" \\")#text("=>")#text(" \\")#text("<-")#text(" \\")#text("<=")#text(".")
 
-#text("R07 ")#text("→→⇒←⇐")#text(".")
+#text("R07 ")#text("→")#text("→")#text("⇒")#text("←")#text("⇐")#text(".")
 
 #text("R08 ")#raw("→ ⇒ ← ⇐")#text(".")
 
-#text("R09 ")#text("→ ⇒ ← ⇐")#text(".")
+#text("R09 ")#text("→")#text(" ")#text("⇒")#text(" ")#text("←")#text(" ")#text("⇐")#text(".")
 
-#text("R10 pass:c,r[→ ⇒ ← ⇐].")
+#text("R10 pass:c,r[")#text("→")#text(" ")#text("⇒")#text(" ")#text("←")#text(" ")#text("⇐")#text("].")
 
-#text("R11 ")#text("→ ⇒ ← ⇐")#text(" and ")#text("-> => <- <=")#text(".")
+#text("R11 ")#text("→")#text(" ")#text("⇒")#text(" ")#text("←")#text(" ")#text("⇐")#text(" and ")#text("->")#text(" ")#text("=>")#text(" ")#text("<-")#text(" ")#text("<=")#text(".")
 
 #text("R12 ")#text("-")#text(">")#text(" and ")#text("->")#text(".")
 
-#text("R13 ")#text("© … <x> ")#text("&copy;")#text(" \\*Bold\\*")#text(".")
+#text("R13 ")#text("©")#text(" ")#text("…")#text(" <x> ")#text("©")#text(" \\*Bold\\*")#text(".")
 
 #text("R14 ")#text("-")#text(">")#text(" =")#text(">")#text(" ")#text("<")#text("- ")#text("<")#text("=")#text(".")
 
@@ -116,22 +117,22 @@
 
 #raw(block: true, lang: "rust", "// R17 → ⇒ ← ⇐ and -> => <- <=.\n// R18 -> => <- <=.")
 
-#text("R19 ")#text("→ ⇒ ← ⇐")#text(".")
+#text("R19 ")#text("→")#text(" ")#text("⇒")#text(" ")#text("←")#text(" ")#text("⇐")#text(".")
 
-#text("R20 ")#text("→ ⇒ ← ⇐")#text(".")
+#text("R20 ")#text("→")#text(" ")#text("⇒")#text(" ")#text("←")#text(" ")#text("⇐")#text(".")
 
-#text("R21 ")#text("-> => <- <=")#text(".")
+#text("R21 ")#text("->")#text(" ")#text("=>")#text(" ")#text("<-")#text(" ")#text("<=")#text(".")
 
-#text("R22 ")#text("\\-")#text(">")#text(" \\=")#text(">")#text(" ")#text("&lt;")#text("- ")#text("&lt;")#text("=")#text(".")
+#text("R22 ")#text("\\-")#text(">")#text(" \\=")#text(">")#text(" ")#text("&lt;")#text("-")#text(" ")#text("&lt;")#text("=")#text(".")
 
-#text("R23 ")#text("⇐→ ")#text("&")#text(".")
+#text("R23 ")#text("⇐")#text("→")#text(" ")#text("&")#text(".")
 
 #text("R24 ")#text("-")#text(">")#text(" =")#text(">")#text(" ")#text("<")#text("- ")#text("<")#text("=")#text(".")
 
-#text("R25 ")#text("-&gt; =&gt; &lt;- &lt;=")#text(".")
+#text("R25 ")#text("-&gt;")#text(" ")#text("=&gt;")#text(" ")#text("&lt;-")#text(" ")#text("&lt;=")#text(".")
 
-#text("R26 ")#text("<→ <⇒")#text(".")
+#text("R26 ")#text("<")#text("→")#text(" ")#text("<")#text("⇒")#text(".")
 
-#text("R27 ")#text("←> ⇐>")#text(".")
+#text("R27 ")#text("←")#text(">")#text(" ")#text("⇐")#text(">")#text(".")
 
-#text("R28 ")#text("\\<→ \\<⇒")#text(".")
+#text("R28 ")#text("\\")#text("<")#text("→")#text(" \\")#text("<")#text("⇒")#text(".")

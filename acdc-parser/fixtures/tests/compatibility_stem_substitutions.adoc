@@ -1,0 +1,19 @@
+= Unsupported STEM substitutions
+:stem:
+:value: expanded
+
+stem:attributes[{value} footnote:discarded[Discarded.] pass:q[*Raw*]] and {value}.
+
+latexmath:quotes[*x*] and asciimath:+attributes[{value}].
+
+stem:quotes,attributes[α \[x\] *x*].
+
+[stem,subs="quotes,attributes"]
+++++
+{value} *x* --
+++++
+
+[subs=attributes]
+stem:attributes[{value}].
+
+Escaped: \stem:attributes[{value}].

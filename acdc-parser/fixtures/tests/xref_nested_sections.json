@@ -34,7 +34,7 @@
     "doctype": "book",
     "sectnumlevels": "1",
     "sectnums": true,
-    "toc": "",
+    "toc": true,
     "xrefstyle": "full"
   },
   "blocks": [
@@ -86,6 +86,8 @@
               "name": "xref",
               "type": "inline",
               "target": "inner",
+              "target_is_local": true,
+              "xrefstyle": "full",
               "location": [
                 {
                   "line": 11,
@@ -147,6 +149,8 @@
               "name": "xref",
               "type": "inline",
               "target": "deep",
+              "target_is_local": true,
+              "xrefstyle": "short",
               "location": [
                 {
                   "line": 13,
@@ -208,6 +212,8 @@
               "name": "xref",
               "type": "inline",
               "target": "sibling",
+              "target_is_local": true,
+              "xrefstyle": "full",
               "location": [
                 {
                   "line": 15,
@@ -314,6 +320,7 @@
               {
                 "columns": [
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "paragraph",
@@ -338,6 +345,8 @@
                             "name": "xref",
                             "type": "inline",
                             "target": "inner",
+                            "target_is_local": true,
+                            "xrefstyle": "full",
                             "location": [
                               {
                                 "line": 23,
@@ -399,6 +408,8 @@
                             "name": "xref",
                             "type": "inline",
                             "target": "deep",
+                            "target_is_local": true,
+                            "xrefstyle": "full",
                             "location": [
                               {
                                 "line": 25,
@@ -460,6 +471,8 @@
                             "name": "xref",
                             "type": "inline",
                             "target": "outer",
+                            "target_is_local": true,
+                            "xrefstyle": "full",
                             "location": [
                               {
                                 "line": 27,
@@ -525,12 +538,12 @@
                               "id": "inner",
                               "location": [
                                 {
-                                  "line": 5,
-                                  "col": 4
+                                  "line": 29,
+                                  "col": 1
                                 },
                                 {
-                                  "line": 5,
-                                  "col": 13
+                                  "line": 29,
+                                  "col": 10
                                 }
                               ]
                             }
@@ -564,12 +577,12 @@
                                   "id": "deep",
                                   "location": [
                                     {
-                                      "line": 7,
+                                      "line": 32,
                                       "col": 1
                                     },
                                     {
-                                      "line": 8,
-                                      "col": 8
+                                      "line": 32,
+                                      "col": 9
                                     }
                                   ]
                                 }
@@ -630,6 +643,8 @@
                                     "name": "xref",
                                     "type": "inline",
                                     "target": "inner",
+                                    "target_is_local": true,
+                                    "xrefstyle": "short",
                                     "location": [
                                       {
                                         "line": 37,
@@ -719,12 +734,12 @@
                               "id": "second",
                               "location": [
                                 {
-                                  "line": 13,
-                                  "col": 22
+                                  "line": 39,
+                                  "col": 1
                                 },
                                 {
-                                  "line": 13,
-                                  "col": 32
+                                  "line": 39,
+                                  "col": 11
                                 }
                               ]
                             }
@@ -754,6 +769,8 @@
                                 "name": "xref",
                                 "type": "inline",
                                 "target": "second",
+                                "target_is_local": true,
+                                "xrefstyle": "full",
                                 "location": [
                                   {
                                     "line": 42,
@@ -808,6 +825,7 @@
                     "style": "asciidoc"
                   },
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "paragraph",
@@ -832,6 +850,8 @@
                             "name": "xref",
                             "type": "inline",
                             "target": "inner",
+                            "target_is_local": true,
+                            "xrefstyle": "full",
                             "location": [
                               {
                                 "line": 45,
@@ -897,12 +917,12 @@
                               "id": "sibling",
                               "location": [
                                 {
-                                  "line": 2,
-                                  "col": 2
+                                  "line": 47,
+                                  "col": 1
                                 },
                                 {
-                                  "line": 2,
-                                  "col": 13
+                                  "line": 47,
+                                  "col": 12
                                 }
                               ]
                             }
@@ -932,6 +952,8 @@
                                 "name": "xref",
                                 "type": "inline",
                                 "target": "sibling",
+                                "target_is_local": true,
+                                "xrefstyle": "full",
                                 "location": [
                                   {
                                     "line": 50,
@@ -1092,6 +1114,8 @@
               "name": "xref",
               "type": "inline",
               "target": "after",
+              "target_is_local": true,
+              "xrefstyle": "full",
               "location": [
                 {
                   "line": 56,

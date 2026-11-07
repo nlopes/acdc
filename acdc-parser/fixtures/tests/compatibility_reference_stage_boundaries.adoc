@@ -1,0 +1,26 @@
+= Reference stage boundaries
+
+Plain: pass:c,r,q[Before &a__b__c; after].
+
+Bold: pass:c,r,q[*Before &a__b__c; after*].
+
+Italic: pass:c,r,q[__Before &a__b__c; after__].
+
+Nested: pass:c,r,q[*Before &é__b__c; +literal+ after*].
+
+Several: pass:c,r,q[Before &_a_; and &d__e__f; after].
+
+Escaped: pass:c,r,q[Before \&a__b__c; after].
+
+Quotes first: pass:c,q,r[Before &a__b__c; after].
+
+Link: pass:c,r,m[link:page.html[Before &a__b__c; after]].
+
+Numeric marker: pass:c,r,q[#Before &#169; after#].
+
+include::includes/reference_stage_boundaries.adoc[lines=2..3,indent=0]
+
+[cols="a"]
+|===
+|Cell: pass:c,r,q[*Before &a__b__c; after*].
+|===

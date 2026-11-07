@@ -1,5 +1,6 @@
 = link-formatting-subs(1)
 :doctype: manpage
+:docdate: 2026-10-05
 :revdate: 2026-10-05
 :source-highlighter: rouge
 :acdc-index:

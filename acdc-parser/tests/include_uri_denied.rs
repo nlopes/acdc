@@ -6,7 +6,9 @@ use std::{
 };
 
 use acdc_parser::{
-    Block, InlineMacro, InlineNode, Options, ParseResult, SafeMode, WarningKind, parse_file,
+    Options, ParseResult, SafeMode, WarningKind,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse_file,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -38,40 +40,52 @@ impl Drop for TempDocument {
     }
 }
 
-fn assert_plain_paragraph(block: &Block<'_>, expected: &str) -> TestResult {
-    let Block::Paragraph(paragraph) = block else {
+fn assert_plain_paragraph(block: BlockKind<'_>, expected: &str) -> TestResult {
+    let BlockKind::Paragraph(paragraph) = block else {
         return Err(format!("expected paragraph, got {block:?}").into());
     };
-    let [InlineNode::PlainText(text)] = paragraph.content.as_slice() else {
+    let [InlineKind::Plain(text)] = &*paragraph
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err(format!("expected plain paragraph text, got {paragraph:?}").into());
     };
-    assert_eq!(text.content, expected);
+    assert_eq!(text.text(), expected);
     Ok(())
 }
 
 fn assert_denied_uri_fallback(result: &ParseResult, target: &str) -> TestResult {
-    let [before, Block::Paragraph(fallback), after] = result.document().blocks.as_slice() else {
+    let [before, BlockKind::Paragraph(fallback), after] = &*result
+        .document()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err(format!(
             "expected before, fallback, and after paragraphs, got {:?}",
-            result.document().blocks
+            result.document().blocks().collect::<Vec<_>>()
         )
         .into());
     };
-    assert_plain_paragraph(before, "BEFORE")?;
-    assert_plain_paragraph(after, "AFTER")?;
+    assert_plain_paragraph(*before, "BEFORE")?;
+    assert_plain_paragraph(*after, "AFTER")?;
 
-    let [InlineNode::Macro(InlineMacro::Link(link))] = fallback.content.as_slice() else {
-        return Err(format!("expected one fallback link, got {:?}", fallback.content).into());
+    let [InlineKind::Link(link)] = &*fallback
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err(format!("expected one fallback link, got {:?}", fallback.content()).into());
     };
-    assert_eq!(link.target.to_string(), target);
-    assert_eq!(link.text, []);
-    assert_eq!(link.attributes.iter().count(), 1);
-    assert_eq!(
-        link.attributes.get_string("role").as_deref(),
-        Some("include")
-    );
-    assert_eq!(fallback.location.start.line, 3);
-    assert!(fallback.location.start.file.is_none());
+    assert_eq!(link.target().to_string(), target);
+    assert!(link.text().is_empty());
+    assert_eq!(link.attributes().iter().count(), 1);
+    assert_eq!(link.roles().iter().collect::<Vec<_>>(), ["include"]);
+    assert_eq!(fallback.location().start().line(), 3);
+    assert!(fallback.location().start().include_chain().is_none());
     let [warning] = result.warnings() else {
         return Err("expected a content-recovery warning".into());
     };
@@ -112,14 +126,28 @@ fn compat_mode_omits_include_role_from_denied_uri_fallback() -> TestResult {
 
     let result = parse_file(&document.path, &options)?;
 
-    let [Block::Paragraph(fallback)] = result.document().blocks.as_slice() else {
-        return Err(format!("unexpected blocks: {:?}", result.document().blocks).into());
+    let [BlockKind::Paragraph(fallback)] = &*result
+        .document()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err(format!(
+            "unexpected blocks: {:?}",
+            result.document().blocks().collect::<Vec<_>>()
+        )
+        .into());
     };
-    let [InlineNode::Macro(InlineMacro::Link(link))] = fallback.content.as_slice() else {
-        return Err(format!("expected one fallback link, got {:?}", fallback.content).into());
+    let [InlineKind::Link(link)] = &*fallback
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err(format!("expected one fallback link, got {:?}", fallback.content()).into());
     };
-    assert_eq!(link.target.to_string(), target);
-    assert_eq!(link.attributes.iter().count(), 0);
+    assert_eq!(link.target().to_string(), target);
+    assert_eq!(link.attributes().iter().count(), 0);
     let [warning] = result.warnings() else {
         return Err("expected a content-recovery warning".into());
     };

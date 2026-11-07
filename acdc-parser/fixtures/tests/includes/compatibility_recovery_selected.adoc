@@ -1,0 +1,12 @@
+// tag::selected[]
+    α🚀 footnote:included[] and footnote:included[].
+
+    [cols="a"]
+    |===
+    |Earlier.
+
+    α🚀 **footnote:cell[] and footnote:cell[].**
+
+    pass:m[footnote:cell-raw[\] and footnote:cell-raw[\]]
+    |===
+// end::selected[]

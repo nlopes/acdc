@@ -1,0 +1,4 @@
+Unselected source.
+    Included é: pass:c,r,q[*Before &a__b__c; after*].
+    And pass:c,r,q[Before &é__b__c; after].
+Unselected source.

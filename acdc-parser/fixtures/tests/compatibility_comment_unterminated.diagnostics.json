@@ -1,0 +1,40 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 63,
+      "absolute_start": 60,
+      "file": "compatibility_comment_unterminated.adoc",
+      "location": [
+        {
+          "col": 1,
+          "line": 5
+        },
+        {
+          "col": 4,
+          "line": 5
+        }
+      ]
+    },
+    "message": "unterminated comment block (opened by `////`)"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 63,
+        "absolute_start": 60,
+        "file": "compatibility_comment_unterminated.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 5
+          },
+          {
+            "col": 4,
+            "line": 5
+          }
+        ]
+      },
+      "message": "unterminated comment block (opened by `////`)"
+    }
+  ]
+}

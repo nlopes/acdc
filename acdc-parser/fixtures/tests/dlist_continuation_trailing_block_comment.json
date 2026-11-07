@@ -7,64 +7,26 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "span",
-              "type": "inline",
-              "variant": "emphasis",
-              "form": "constrained",
-              "inlines": [
+              "content": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Included in",
-                  "location": [
-                    {
-                      "line": 1,
-                      "col": 2
-                    },
-                    {
-                      "line": 1,
-                      "col": 12
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 1,
-                  "col": 1
-                },
-                {
-                  "line": 1,
-                  "col": 13
-                }
-              ]
-            }
-          ],
-          "delimiter": "::",
-          "description": [
-            {
-              "name": "open",
-              "type": "block",
-              "form": "delimited",
-              "delimiter": "--",
-              "blocks": [
-                {
-                  "name": "paragraph",
-                  "type": "block",
+                  "name": "span",
+                  "type": "inline",
+                  "variant": "emphasis",
+                  "form": "constrained",
                   "inlines": [
                     {
                       "name": "text",
                       "type": "string",
-                      "value": "open content",
+                      "value": "Included in",
                       "location": [
                         {
-                          "line": 4,
-                          "col": 1
+                          "line": 1,
+                          "col": 2
                         },
                         {
-                          "line": 4,
+                          "line": 1,
                           "col": 12
                         }
                       ]
@@ -72,61 +34,125 @@
                   ],
                   "location": [
                     {
-                      "line": 4,
+                      "line": 1,
                       "col": 1
                     },
                     {
-                      "line": 4,
-                      "col": 12
+                      "line": 1,
+                      "col": 13
                     }
                   ]
                 }
               ],
+              "delimiter": "::",
               "location": [
                 {
-                  "line": 3,
+                  "line": 1,
                   "col": 1
                 },
                 {
-                  "line": 5,
-                  "col": 2
-                }
-              ]
-            },
-            {
-              "name": "comment",
-              "type": "block",
-              "form": "delimited",
-              "delimiter": "////",
-              "blocks": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "hidden block comment\nspanning lines",
-                  "location": [
-                    {
-                      "line": 9,
-                      "col": 1
-                    },
-                    {
-                      "line": 10,
-                      "col": 14
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 8,
-                  "col": 1
-                },
-                {
-                  "line": 11,
-                  "col": 4
+                  "line": 1,
+                  "col": 15
                 }
               ]
             }
           ],
+          "definition": {
+            "blocks": [
+              {
+                "name": "open",
+                "type": "block",
+                "form": "delimited",
+                "delimiter": "--",
+                "blocks": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "open content",
+                        "location": [
+                          {
+                            "line": 4,
+                            "col": 1
+                          },
+                          {
+                            "line": 4,
+                            "col": 12
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 4,
+                        "col": 1
+                      },
+                      {
+                        "line": 4,
+                        "col": 12
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 3,
+                    "col": 1
+                  },
+                  {
+                    "line": 5,
+                    "col": 2
+                  }
+                ]
+              },
+              {
+                "name": "comment",
+                "type": "block",
+                "form": "delimited",
+                "delimiter": "////",
+                "blocks": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "hidden block comment\nspanning lines",
+                    "location": [
+                      {
+                        "line": 9,
+                        "col": 1
+                      },
+                      {
+                        "line": 10,
+                        "col": 14
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 8,
+                    "col": 1
+                  },
+                  {
+                    "line": 11,
+                    "col": 4
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 3,
+                "col": 1
+              },
+              {
+                "line": 11,
+                "col": 4
+              }
+            ]
+          },
           "location": [
             {
               "line": 1,

@@ -1,0 +1,17 @@
+:word: *Initial*
+
+include::includes/block_passthrough_selected.adoc[lines=2..5,indent=0]
+
+:word: *Later*
+
+[cols="a"]
+|===
+|
+[subs=normal]
+++++
+café *Cell* {word} (C) footnote:cell[Cell note.]
+++++
+
+[pass,subs="attributes,quotes"]
+{word}
+|===

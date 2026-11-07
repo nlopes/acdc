@@ -1,0 +1,20 @@
+= Nested list boundaries
+
+include::includes/compatibility_list_selected.adoc[tag=selected]
+
+[cols="a"]
+|===
+|* Cell item
++
+Cell paragraph
+* Cell sibling or text
+|===
+
+----
+First <1>
+Second <2>
+----
+<1> First callout
++
+Callout attachment.
+<2> Second callout

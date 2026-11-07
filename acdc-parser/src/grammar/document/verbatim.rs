@@ -1,25 +1,24 @@
 //! Verbatim block and paragraph content.
 
 use crate::{
-    Block, BlockMetadata, DelimitedBlockType, Error, InlineNode, Paragraph, Plain,
+    AttributeValue, Block, BlockMetadata, DelimitedBlockType, Error, InlineNode, Paragraph, Plain,
+    Verbatim,
     grammar::{
         ParserState,
         document::{
             callouts::resolve_verbatim_callouts,
             delimited::{DelimitedKind, DelimitedParams},
-            metadata::extract_source_attributes,
+            paragraph::common_indent,
         },
         helpers::BlockParsingMetadata,
+        inline_processing::process_verbatim_inlines,
         location_walk::walk_inline_nodes_mut,
     },
     model::{
-        PositionalAttribute, Substitution,
+        Substitution,
         substitution::{SubstitutionPlan, VERBATIM},
     },
 };
-
-#[cfg(feature = "pre-spec-subs")]
-use crate::grammar::inline_processing::process_verbatim_inlines;
 
 /// Verbatim block (`----` listing or `....` literal, including the Markdown fence):
 /// preserves whitespace while resolving enabled inline substitutions and callouts.
@@ -29,17 +28,6 @@ pub(super) fn verbatim_inner<'input>(
     metadata: &mut BlockMetadata<'input>,
     p: &DelimitedParams<'input>,
 ) -> Result<DelimitedBlockType<'input>, Error> {
-    // A Markdown fence language becomes a positional `source` style so language
-    // detection works like `[source,lang]` (never set for `....`/`----`).
-    if let Some(language) = p.lang {
-        metadata.prepend_synthetic_positional_attribute(PositionalAttribute {
-            value: language,
-            substitutions: false,
-            location: None,
-        });
-        metadata.style = Some("source");
-    }
-    extract_source_attributes(state, metadata);
     metadata.move_positional_attributes_to_attributes();
     let content_location = state.create_block_location(p.content_start, p.content_end, p.offset);
     let (inlines, callouts) = resolve_verbatim_callouts(
@@ -61,11 +49,9 @@ pub(super) fn verbatim_inner<'input>(
 }
 
 pub(super) fn verbatim_substitutions(metadata: &BlockParsingMetadata<'_>) -> SubstitutionPlan {
-    #[cfg(feature = "pre-spec-subs")]
     if let Some(spec) = &metadata.metadata.substitutions {
         return SubstitutionPlan::from_substitutions(&spec.resolve(VERBATIM));
     }
-    let _ = metadata;
     SubstitutionPlan::from_substitutions(VERBATIM)
 }
 
@@ -74,12 +60,12 @@ fn needs_verbatim_inlines(substitutions: SubstitutionPlan) -> bool {
         Substitution::Quotes,
         Substitution::Attributes,
         Substitution::Macros,
+        Substitution::Replacements,
     ]
     .iter()
     .any(|substitution| substitutions.enabled(substitution))
 }
 
-#[cfg(feature = "pre-spec-subs")]
 pub(super) fn resolve_verbatim_inlines<'a>(
     state: &mut ParserState<'a>,
     metadata: &BlockParsingMetadata<'_>,
@@ -89,33 +75,95 @@ pub(super) fn resolve_verbatim_inlines<'a>(
     if !needs_verbatim_inlines(substitutions) {
         return Ok(inlines);
     }
+    let comment_prefix = metadata.metadata.attributes.get("line-comment");
     let metadata = BlockParsingMetadata {
         substitutions,
         ..BlockParsingMetadata::default()
     };
     let mut resolved = Vec::new();
-    for node in inlines {
+    let mut inlines = inlines.into_iter().peekable();
+    let mut xml_tail = false;
+    while let Some(node) = inlines.next() {
         if let InlineNode::VerbatimText(text) = node {
+            let prefix = if xml_tail && text.content.starts_with("-->") {
+                3
+            } else {
+                0
+            };
+            xml_tail = false;
+            if prefix != 0 {
+                resolved.push(InlineNode::VerbatimText(Verbatim {
+                    content: &text.content[..prefix],
+                    location: state.create_block_location(
+                        text.location.absolute_start,
+                        text.location.absolute_start + prefix,
+                        0,
+                    ),
+                }));
+            }
+            let guard = (substitutions
+                .precedes(&Substitution::Callouts, &Substitution::Replacements)
+                && matches!(inlines.peek(), Some(InlineNode::CalloutRef(_))))
+            .then(|| callout_guard(text.content, comment_prefix))
+            .flatten();
+            let end = guard.unwrap_or(text.content.len());
             resolved.extend(process_verbatim_inlines(
                 state,
                 &metadata,
-                text.location.absolute_start,
-                text.content,
+                text.location.absolute_start + prefix,
+                &text.content[prefix..end],
             )?);
+            if guard.is_some() {
+                // A callout guard is already consumed when later replacements run.
+                let start = match resolved.last() {
+                    Some(InlineNode::VerbatimText(last))
+                        if last.location.absolute_end + 1 == text.location.absolute_start + end
+                            && text.content[..end].ends_with(last.content) =>
+                    {
+                        let start = end - last.content.len();
+                        resolved.pop();
+                        start
+                    }
+                    _ => end,
+                };
+                resolved.push(InlineNode::VerbatimText(Verbatim {
+                    content: &text.content[start..],
+                    location: state.create_block_location(
+                        text.location.absolute_start + start,
+                        text.location.absolute_start + text.content.len(),
+                        0,
+                    ),
+                }));
+            }
         } else {
+            xml_tail = substitutions.precedes(&Substitution::Callouts, &Substitution::Replacements)
+                && matches!(node, InlineNode::CalloutRef(_))
+                && matches!(resolved.last(), Some(InlineNode::VerbatimText(text)) if text.content.ends_with("<!--"));
             resolved.push(node);
         }
     }
     Ok(resolved)
 }
 
-#[cfg(not(feature = "pre-spec-subs"))]
-pub(super) fn resolve_verbatim_inlines<'a>(
-    _state: &mut ParserState<'a>,
-    _metadata: &BlockParsingMetadata<'_>,
-    inlines: Vec<InlineNode<'a>>,
-) -> Result<Vec<InlineNode<'a>>, Error> {
-    Ok(inlines)
+fn callout_guard(text: &str, prefix: Option<&AttributeValue<'_>>) -> Option<usize> {
+    if let Some(body) = text.strip_suffix("<!--") {
+        return Some(body.len());
+    }
+    let candidate = text.strip_suffix(' ').unwrap_or(text);
+    let strip = |prefix: &str| {
+        if prefix.is_empty() {
+            return None;
+        }
+        candidate
+            .strip_suffix(prefix)
+            .or_else(|| text.strip_suffix(prefix))
+            .map(str::len)
+    };
+    match prefix {
+        Some(AttributeValue::String(prefix)) => strip(prefix),
+        Some(_) => None,
+        None => ["//", "#", "--", ";;"].into_iter().find_map(strip),
+    }
 }
 
 pub(super) fn get_literal_paragraph<'input>(
@@ -160,11 +208,8 @@ pub(super) fn get_literal_paragraph<'input>(
     }
     state.pending_callouts.extend(callouts);
 
-    // Mixed indentation preserves all leading spaces, as in Asciidoctor.
-    let all_lines_have_leading_space = content
-        .lines()
-        .all(|line| line.is_empty() || line.starts_with(' '));
-    if all_lines_have_leading_space {
+    let indent = common_indent(content);
+    if indent != 0 {
         for node in &mut inlines {
             // Parse before dedenting so callouts and nested formatting keep source locations.
             walk_inline_nodes_mut(node, &mut |node| {
@@ -182,7 +227,12 @@ pub(super) fn get_literal_paragraph<'input>(
                         let strip = !first || starts_line;
                         first = false;
                         if strip {
-                            line.strip_prefix(' ').unwrap_or(line)
+                            line.get(..indent)
+                                .filter(|prefix| {
+                                    prefix.bytes().all(|byte| byte == b' ' || byte == b'\t')
+                                })
+                                .and_then(|_| line.get(indent..))
+                                .unwrap_or(line)
                         } else {
                             line
                         }

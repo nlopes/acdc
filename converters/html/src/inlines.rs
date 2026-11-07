@@ -1,46 +1,8 @@
-//! Inline content rendering for HTML conversion.
+//! Render resolved inline content as HTML.
 //!
-//! # Security Model and HTML Escaping
-//!
-//! `AsciiDoc` follows a **trusted document author** model, similar to Markdown. The document
-//! author is trusted to create safe content, and certain features intentionally allow raw HTML
-//! output for flexibility.
-//!
-//! ## Escaping Behavior by Content Type
-//!
-//! ### `PlainText`
-//! - **Always escaped**: HTML special characters (`<`, `>`, `&`, `"`, `'`) are converted to entities
-//! - **Typography applied**: Em-dashes, ellipses, and smart quotes (unless in basic/verbatim mode)
-//! - Example: `<script>` → `&lt;script&gt;`
-//!
-//! ### `RawText` (Passthrough Content)
-//! - **Never escaped by default**: Intentionally outputs raw HTML
-//! - Used for passthrough blocks (`++++...++++`) and inline passthroughs (`pass:[]`, `+++...+++`)
-//! - **Escaping when verbatim**: Only escaped when in verbatim context (listing/literal blocks)
-//! - Example: `pass:[<strong>test</strong>]` → `<strong>test</strong>` (raw HTML)
-//!
-//! ### `VerbatimText` (Code Blocks)
-//! - **Always escaped**: Used in listing and literal blocks to display code
-//! - **Callout processing**: Handles `<1>`, `<2>` markers specially
-//! - Example in listing block: `<h1>` → `&lt;h1&gt;`
-//!
-//! ### Passthrough with `SpecialChars` Substitution
-//! - `pass:c[...]` or `pass:specialchars[...]` → HTML is escaped
-//! - Example: `pass:c[<strong>test</strong>]` → `&lt;strong&gt;test&lt;/strong&gt;`
-//!
-//! ## Why This Design?
-//!
-//! This matches asciidoctor's security model where:
-//! 1. Document authors are trusted (like Markdown, not like user-generated HTML)
-//! 2. Passthrough is a feature for intentionally embedding raw HTML
-//! 3. Regular content is always escaped for safety
-//! 4. Code blocks escape HTML to display it correctly
-//!
-//! ## ID Attributes
-//!
-//! Currently, acdc auto-generates section IDs from titles rather than accepting custom IDs.
-//! This is inherently safe. When custom ID support is added, asciidoctor does NOT escape
-//! IDs, trusting the document author to provide safe values.
+//! Plain and verbatim text retain the parser's formatting and typography decisions.
+//! Block substitutions control output escaping. Raw text uses its own profile,
+//! including intentional HTML. IDs and attribute values are escaped when written.
 
 use std::{
     io::{self, Write},
@@ -48,31 +10,37 @@ use std::{
 };
 
 use acdc_converters_core::{
-    InlineTextTransform, TraversalContext, inlines_to_string,
+    InlineTextTransform, TraversalContext, document_attribute_text,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
-    media::resolve_target,
-    substitutions::{
-        Replacements, TextBoundaries, apply_passthrough_replacements, protect_replacement_escapes,
-        restore_escaped_patterns, strip_backslash_escapes,
+    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
+    xref::{
+        XrefDisplay, interdocument_xref, interdocument_xref_with_suffix, resolve_reference,
+        with_caption_prefix,
     },
-    visitor::{Visitor, WritableVisitor},
-    xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, AttributeValue, Autolink, Bold, Button, CalloutRef, CrossReference, CurvedApostrophe,
-    CurvedQuotation, ElementAttributes, Footnote, Highlight, Icon, Image, IndexTerm,
-    IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto, Menu,
-    Monospace, Pass, Plain, Raw, Stem, StemNotation, Subscript, Substitution, Superscript, Url,
-    Verbatim, strip_quotes,
+    StemNotation, Substitution,
+    ast::{
+        AnchorRef, AttributeValueRef, AttributesRef, AutolinkRef, BoldRef, ButtonRef, CalloutRef,
+        ContentRef, CrossReferenceRef, CurvedApostropheRef, CurvedQuotationRef, ElementIdRef,
+        FootnoteRef, HighlightRef, IconRef, IndexTermRef, IndexTermRelationshipRef, InlineImageRef,
+        InlineKind, InlineRef, ItalicRef, KeyboardRef, LinkRef, MailtoRef, MenuRef, MonospaceRef,
+        PassRef, PlainRef, RawRef, StemRef, SubscriptRef, SuperscriptRef, TokensRef, UrlRef,
+        VerbatimRef,
+    },
 };
 
 use crate::{
     Error, HtmlVariant, HtmlVisitor, IndexCatalogRelationship, IndexTermLabel, RenderOptions,
     constants::{encode_html_entities, escape_ampersands},
-    icon::write_icon,
     image::image_link_control_attributes,
-    image_helpers::{alt_text_from_filename, write_dimension_attributes},
+    image_helpers::attribute_scalar,
 };
+
+#[cfg(test)]
+mod attribute_reads_tests;
+#[cfg(test)]
+mod text_reads_tests;
 
 fn replacements() -> Replacements<'static> {
     let mut replacements = Replacements::unicode();
@@ -90,16 +58,11 @@ fn replacements() -> Replacements<'static> {
     replacements
 }
 
-fn passthrough_substitution_text(
-    text: &str,
-    subs: &[Substitution],
-    text_boundaries: TextBoundaries,
-) -> String {
-    let replacements = replacements();
-    let mut text = text.to_string();
+fn passthrough_substitution_text(raw: RawRef<'_>, text_boundaries: TextBoundaries) -> String {
+    let mut text = raw.text().to_owned();
     let mut applied_special_chars = false;
 
-    for substitution in subs {
+    for substitution in raw.substitutions() {
         match substitution {
             Substitution::SpecialChars => {
                 // Keep source arrow characters until replacements have run.
@@ -109,8 +72,13 @@ fn passthrough_substitution_text(
                 applied_special_chars = true;
             }
             Substitution::Replacements => {
-                text = apply_passthrough_replacements(&text, subs, &replacements, text_boundaries)
-                    .into_owned();
+                text = apply_passthrough_replacements_iter(
+                    &text,
+                    raw.substitutions(),
+                    &replacements(),
+                    text_boundaries,
+                )
+                .into_owned();
             }
             Substitution::Attributes
             | Substitution::Macros
@@ -130,9 +98,9 @@ fn passthrough_substitution_text(
     }
 }
 
-/// Escape `&` to `&amp;` in URL strings for use in HTML.
+/// Escape a URL for a quoted HTML attribute.
 pub(crate) fn escape_href(url: &str) -> String {
-    url.replace('&', "&amp;")
+    escape_attribute(url)
 }
 
 /// Escape literal text for HTML character data.
@@ -151,34 +119,33 @@ pub(crate) fn escape_attribute(text: &str) -> String {
     escape_pcdata(text).replace('"', "&quot;")
 }
 
-fn raw_fragment_placeholder(index: usize) -> String {
-    format!("\0{index}\0")
+pub(crate) fn escape_role(role: &str) -> String {
+    // Roles retain source entity references, including an authored &amp;.
+    escape_ampersands(role)
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }
 
-/// Extract the `role` attribute as a non-empty, unquoted string.
-///
-/// Returns `None` when the attribute is absent, non-string, or empty after stripping quotes.
-fn role_from_attrs(attributes: &ElementAttributes) -> Option<String> {
-    attributes.get("role").and_then(|v| match v {
-        AttributeValue::String(s) => {
-            let role = strip_quotes(s);
-            if role.is_empty() {
-                None
-            } else {
-                Some(role.to_string())
-            }
-        }
-        AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-    })
+fn raw_fragment_placeholder(index: usize) -> String {
+    format!("\0{index}\0")
 }
 
 /// Build the ` class="..."` attribute (with leading space) for link-like anchors.
 ///
 /// - `bare` adds the `bare` class when `true` (asciidoctor's convention for empty link text
 ///   on URL/link macros; `Mailto` passes `false` because it does not use `bare`).
-/// - `role` contributes additional class tokens.
+/// - `roles` contributes additional class tokens.
 /// - Returns an empty string when neither applies.
-fn link_class_attr(role: Option<String>, bare: bool) -> String {
+fn link_class_attr(roles: TokensRef<'_>, bare: bool) -> String {
+    let mut role = String::new();
+    for (index, token) in roles.iter().enumerate() {
+        if index > 0 {
+            role.push(' ');
+        }
+        role.push_str(token);
+    }
+    let role = (!role.is_empty()).then(|| escape_role(&role));
     match (bare, role) {
         (true, Some(role)) => format!(" class=\"bare {role}\""),
         (true, None) => " class=\"bare\"".to_string(),
@@ -187,37 +154,37 @@ fn link_class_attr(role: Option<String>, bare: bool) -> String {
     }
 }
 
-fn link_id_attr(attributes: &ElementAttributes<'_>) -> String {
-    attributes
-        .get_string("id")
-        .map_or_else(String::new, |id| format!(" id=\"{id}\""))
+fn link_id_attr(id: Option<ElementIdRef<'_>>) -> String {
+    id.map_or_else(String::new, |id| {
+        format!(" id=\"{}\"", escape_attribute(id.as_str()))
+    })
 }
 
-/// Extract `target` and `rel` attributes from `window` or `target` attribute values.
-///
-/// Maps the `AsciiDoc` `window` (preferred) or `target` attribute to HTML:
-/// - `window=_blank` / `target=_blank` → `target="_blank" rel="noopener"`
-/// - `window=<other>` / `target=<other>` → `target="<other>"`
-fn window_attrs(attributes: &ElementAttributes) -> String {
+/// Apply hyperlink window and relationship controls, retaining the `target` alias.
+fn link_control_attributes(attributes: AttributesRef<'_>) -> String {
     let get_str = |key: &str| {
-        attributes.get(key).and_then(|v| match v {
-            AttributeValue::String(s) => {
-                let s = strip_quotes(s);
-                if s.is_empty() {
-                    None
-                } else {
-                    Some(s.to_string())
-                }
+        attributes.get(key).and_then(|value| {
+            if let AttributeValueRef::Text(s) = value {
+                (!s.is_empty()).then_some(s)
+            } else {
+                None
             }
-            AttributeValue::Bool(_) | AttributeValue::None | _ => None,
         })
     };
     let window = get_str("window").or_else(|| get_str("target"));
-    match window {
-        Some(w) if w == "_blank" => " target=\"_blank\" rel=\"noopener\"".to_string(),
-        Some(w) => format!(" target=\"{w}\""),
-        None => String::new(),
+    let has_option = |name| matches!(attributes.get("opts"), Some(AttributeValueRef::Tokens(options)) if options.contains(name));
+    let nofollow = has_option("nofollow");
+    let noopener = window.is_some_and(|window| window == "_blank" || has_option("noopener"));
+    let mut controls = window.map_or_else(String::new, |window| {
+        format!(" target=\"{}\"", escape_attribute(window))
+    });
+    match (nofollow, noopener) {
+        (true, true) => controls.push_str(" rel=\"nofollow noopener\""),
+        (true, false) => controls.push_str(" rel=\"nofollow\""),
+        (false, true) => controls.push_str(" rel=\"noopener\""),
+        (false, false) => {}
     }
+    controls
 }
 
 /// Helper to write an HTML opening tag with optional id and role attributes.
@@ -233,14 +200,7 @@ fn write_tag_with_attrs<W: Write + ?Sized>(
     id: Option<&str>,
     role: Option<&str>,
 ) -> io::Result<()> {
-    // Roles retain source entity references; escape the quoted attribute without
-    // turning an authored &amp; into a literal entity name.
-    let role = role.map(|role| {
-        escape_ampersands(role)
-            .replace('<', "&lt;")
-            .replace('>', "&gt;")
-            .replace('"', "&quot;")
-    });
+    let role = role.map(escape_role);
     match (id.map(escape_attribute), role) {
         (Some(id), Some(role)) => write!(writer, "<{tag} id=\"{id}\" class=\"{role}\">"),
         (Some(id), None) => write!(writer, "<{tag} id=\"{id}\">"),
@@ -292,56 +252,109 @@ impl InlineLink {
     }
 }
 
-fn link_label_needs_split(node: &InlineNode<'_>, in_reference: bool, index: bool) -> bool {
-    let children = match node {
-        InlineNode::Macro(
-            InlineMacro::Footnote(_)
-            | InlineMacro::Link(_)
-            | InlineMacro::Url(_)
-            | InlineMacro::Mailto(_)
-            | InlineMacro::Autolink(_),
-        )
-        | InlineNode::InlineAnchor(_) => return true,
+fn link_label_needs_split(node: InlineRef<'_>, in_reference: bool, index: bool) -> bool {
+    let children = match node.kind() {
+        InlineKind::Footnote(_)
+        | InlineKind::Link(_)
+        | InlineKind::Url(_)
+        | InlineKind::Mailto(_)
+        | InlineKind::Autolink(_)
+        | InlineKind::Anchor(_) => return true,
         // Automatic references already being resolved render as text to break cycles.
-        InlineNode::Macro(InlineMacro::CrossReference(n))
-            if !n.text.is_empty() || !in_reference =>
-        {
-            return true;
-        }
-        InlineNode::Macro(InlineMacro::Image(n)) => {
-            return n.metadata.attributes.contains_key("link");
-        }
-        InlineNode::Macro(InlineMacro::CrossReference(n)) => &n.text,
-        InlineNode::BoldText(n) => &n.content,
-        InlineNode::ItalicText(n) => &n.content,
-        InlineNode::MonospaceText(n) => &n.content,
-        InlineNode::HighlightText(n) => &n.content,
-        InlineNode::SubscriptText(n) => &n.content,
-        InlineNode::SuperscriptText(n) => &n.content,
-        InlineNode::CurvedQuotationText(n) => &n.content,
-        InlineNode::CurvedApostropheText(n) => &n.content,
-        InlineNode::Macro(InlineMacro::IndexTerm(_)) if index => return true,
-        InlineNode::Macro(InlineMacro::IndexTerm(n)) if n.is_visible() => n.term(),
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
+        InlineKind::CrossReference(n) if !n.text().is_empty() || !in_reference => return true,
+        InlineKind::Image(n) => return n.attributes().contains("link"),
+        InlineKind::CrossReference(n) => n.text(),
+        InlineKind::Bold(n) => n.content(),
+        InlineKind::Italic(n) => n.content(),
+        InlineKind::Monospace(n) => n.content(),
+        InlineKind::Highlight(n) => n.content(),
+        InlineKind::Subscript(n) => n.content(),
+        InlineKind::Superscript(n) => n.content(),
+        InlineKind::CurvedQuotation(n) => n.content(),
+        InlineKind::CurvedApostrophe(n) => n.content(),
+        InlineKind::IndexTerm(_) if index && !in_reference => return true,
+        InlineKind::IndexTerm(n) if n.is_visible() => n.term(),
+        InlineKind::Plain(_)
+        | InlineKind::Raw(_)
+        | InlineKind::Verbatim(_)
+        | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::CharacterReference(_)
+        | InlineKind::Symbol(_)
+        | InlineKind::LineBreak(_)
+        | InlineKind::Callout(_)
+        | InlineKind::Icon(_)
+        | InlineKind::Keyboard(_)
+        | InlineKind::Button(_)
+        | InlineKind::Menu(_)
+        | InlineKind::Pass(_)
+        | InlineKind::Stem(_)
+        | InlineKind::IndexTerm(_)
         | _ => return false,
     };
     children
-        .iter()
+        .inlines()
         .any(|node| link_label_needs_split(node, in_reference, index))
 }
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
+    pub(crate) fn visit_inline_ref(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: InlineRef<'_>,
+    ) -> Result<(), Error> {
+        let saved = self.render_options.in_inline_span;
+        if acdc_converters_core::visitor::is_formatting_span(node) {
+            self.render_options.in_inline_span = true;
+        }
+        let options = self.render_options.clone();
+        let subs = self.current_subs.clone();
+        let result = self.render_inline_node(traversal, node, &options, &subs);
+        self.render_options.in_inline_span = saved;
+        result
+    }
+
+    pub(crate) fn visit_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        content: ContentRef<'_>,
+    ) -> Result<(), Error> {
+        self.visit_inline_refs(traversal, content.inlines())
+    }
+
+    pub(crate) fn visit_inline_refs<'inline>(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
+    ) -> Result<(), Error> {
+        let previous_boundaries = self.text_boundaries;
+        let siblings = nodes.clone();
+        let result = (|| {
+            for (index, node) in nodes.enumerate() {
+                let boundaries = if self.render_options.in_inline_span {
+                    TextBoundaries::NONE
+                } else {
+                    previous_boundaries
+                };
+                self.text_boundaries = boundaries
+                    .with_ordinary_replacements(false)
+                    .for_inline_refs(
+                        Some(node),
+                        siblings.clone().take(index).rev(),
+                        siblings.clone().skip(index + 1),
+                    );
+                self.visit_inline_ref(traversal, node)?;
+            }
+            self.close_inline_link()
+        })();
+        self.text_boundaries = previous_boundaries;
+        result
+    }
+
     /// Render inline content without nesting generated anchors inside label links.
     pub(crate) fn render_inline_node(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        node: &InlineNode,
+        node: InlineRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
@@ -396,36 +409,59 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_inline_node_content(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        node: &InlineNode,
+        node: InlineRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        // The parser selects formatting, including explicit attribute profiles
-        // in code. Block substitutions still govern text escaping and typography.
-        match node {
-            InlineNode::PlainText(p) => self.render_plain(p, options, subs),
-            InlineNode::RawText(r) => self.render_raw(r),
-            InlineNode::VerbatimText(v) => self.render_verbatim(traversal, v, options, subs),
-            InlineNode::CalloutRef(c) => self.render_callout_ref(traversal, c),
-            InlineNode::BoldText(b) => self.render_bold(traversal, b, options),
-            InlineNode::ItalicText(i) => self.render_italic(traversal, i, options),
-            InlineNode::HighlightText(h) => self.render_highlight(traversal, h, options),
-            InlineNode::MonospaceText(m) => self.render_monospace(traversal, m, options),
-            InlineNode::CurvedQuotationText(c) => self.render_curved_quotation(traversal, c),
-            InlineNode::CurvedApostropheText(c) => self.render_curved_apostrophe(traversal, c),
-            InlineNode::StandaloneCurvedApostrophe(_) => self.render_standalone_apostrophe(),
-            InlineNode::SuperscriptText(s) => self.render_superscript(traversal, s),
-            InlineNode::SubscriptText(s) => self.render_subscript(traversal, s),
-            InlineNode::Macro(m) => self.render_inline_macro(traversal, m, options, subs),
-            InlineNode::LineBreak(_) => {
+        match node.kind() {
+            InlineKind::Plain(p) => self.render_plain(p, options, subs),
+            InlineKind::CharacterReference(reference) => {
+                write!(self.writer_mut(), "{}", reference.kind())?;
+                Ok(())
+            }
+            InlineKind::Symbol(symbol) => {
+                write!(
+                    self.writer_mut(),
+                    "{}",
+                    replacements().symbol(symbol.kind())
+                )?;
+                Ok(())
+            }
+            InlineKind::Raw(r) => self.render_raw(r),
+            InlineKind::Verbatim(v) => self.render_verbatim(v, subs),
+            InlineKind::Callout(c) => self.render_callout_ref(traversal, c),
+            InlineKind::Bold(b) => self.render_bold(traversal, b, options),
+            InlineKind::Italic(i) => self.render_italic(traversal, i, options),
+            InlineKind::Highlight(h) => self.render_highlight(traversal, h, options),
+            InlineKind::Monospace(m) => self.render_monospace(traversal, m, options),
+            InlineKind::CurvedQuotation(c) => self.render_curved_quotation(traversal, c),
+            InlineKind::CurvedApostrophe(c) => self.render_curved_apostrophe(traversal, c),
+            InlineKind::StandaloneCurvedApostrophe(_) => self.render_standalone_apostrophe(),
+            InlineKind::Superscript(s) => self.render_superscript(traversal, s),
+            InlineKind::Subscript(s) => self.render_subscript(traversal, s),
+            InlineKind::LineBreak(_) => {
                 writeln!(self.writer_mut(), "<br>")?;
                 Ok(())
             }
-            InlineNode::InlineAnchor(anchor) if !options.toc_mode => {
+            InlineKind::Anchor(anchor) if !options.toc_mode => {
                 self.render_inline_anchor(traversal, anchor, options, subs)
             }
             // TOC links cannot contain nested anchors.
-            InlineNode::InlineAnchor(_) => Ok(()),
+            InlineKind::Anchor(_) => Ok(()),
+            InlineKind::Autolink(_)
+            | InlineKind::Link(_)
+            | InlineKind::Image(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Url(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::Button(_)
+            | InlineKind::CrossReference(_)
+            | InlineKind::Stem(_)
+            | InlineKind::Icon(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Menu(_)
+            | InlineKind::IndexTerm(_) => self.render_inline_macro(traversal, node, options, subs),
             _unsupported => {
                 self.diagnostics.warn_with_advice(
                     "an unsupported parser inline variant was omitted from HTML output",
@@ -439,11 +475,17 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_inline_anchor(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        anchor: &Anchor<'_>,
+        anchor: AnchorRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        write!(self.writer_mut(), "<a id=\"{}\"></a>", anchor.id)?;
+        if !self.processor.xref_guard.is_resolving() {
+            write!(
+                self.writer_mut(),
+                "<a id=\"{}\"></a>",
+                escape_attribute(anchor.id())
+            )?;
+        }
         if !anchor.is_bibliography() {
             return Ok(());
         }
@@ -454,14 +496,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        write!(self.writer_mut(), "[{}]", escape_pcdata(anchor.id))?;
+        write!(self.writer_mut(), "[{}]", escape_pcdata(anchor.id()))?;
         Ok(())
     }
 
     fn render_bibliography_inline_fragment(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        inlines: &[InlineNode<'_>],
+        inlines: ContentRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<String, Error> {
@@ -473,7 +515,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         );
         visitor.current_subs = subs.to_vec();
         visitor.captured_raw_fragments = Some(Vec::new());
-        visitor.visit_inline_nodes(traversal, inlines)?;
+        visitor.visit_content(traversal, inlines)?;
         let captured = visitor.captured_raw_fragments.take().unwrap_or_default();
         let html = String::from_utf8(visitor.into_writer()).map_err(io::Error::other)?;
         let mut html = html.replace('<', "&lt;").replace('>', "&gt;");
@@ -490,13 +532,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         tag: &str,
         id: Option<&str>,
         role: Option<&str>,
-        content: &[InlineNode<'_>],
+        content: ContentRef<'_>,
         basic: bool,
     ) -> Result<(), Error> {
         if !basic {
+            let id = id.filter(|_| !self.processor.xref_guard.is_resolving());
             write_tag_with_attrs(self.writer_mut(), tag, id, role)?;
         }
-        self.visit_inline_nodes(traversal, content)?;
+        self.visit_content(traversal, content)?;
         if !basic {
             write!(self.writer_mut(), "</{tag}>")?;
         }
@@ -510,16 +553,17 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         entities: (&str, &str),
         id: Option<&str>,
         role: Option<&str>,
-        content: &[InlineNode<'_>],
+        content: ContentRef<'_>,
     ) -> Result<(), Error> {
         let (open_entity, close_entity) = entities;
+        let id = id.filter(|_| !self.processor.xref_guard.is_resolving());
         let has_attrs = id.is_some() || role.is_some();
         if has_attrs {
             write_tag_with_attrs(self.writer_mut(), "span", id, role)?;
         }
         self.open_inline_link()?;
         write!(self.writer_mut(), "{open_entity}")?;
-        self.visit_inline_nodes(traversal, content)?;
+        self.visit_content(traversal, content)?;
         self.open_inline_link()?;
         write!(self.writer_mut(), "{close_entity}")?;
         self.close_inline_link()?;
@@ -531,18 +575,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
     fn render_plain(
         &mut self,
-        p: &Plain<'_>,
+        p: PlainRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        // Attribute substitution already applied by the inline preprocessor during parsing.
-        let content = &p.content;
-        // Escaped text must also bypass typography replacements.
-        let effective_subs: &[Substitution] = if p.escaped { &[] } else { subs };
-
-        // Formatting is already represented by inline nodes. Plain text can
-        // contain literal delimiters introduced after quote substitution.
-        let text = substitution_text(content, effective_subs, options, self.text_boundaries());
+        if p.text().is_empty() {
+            return Ok(());
+        }
+        let text = escape_inline_text(p.text(), subs);
         let w = self.writer_mut();
         if options.hardbreaks {
             write!(w, "{}", text.replace('\n', "<br>"))?;
@@ -552,15 +592,16 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         Ok(())
     }
 
-    fn render_raw(&mut self, r: &Raw<'_>) -> Result<(), Error> {
-        // RawText comes from passthroughs — attribute expansion was already handled (or
-        // explicitly skipped) by the preprocessor. Do NOT apply block subs.
-        let content = &r.content;
-        let text = if r.subs.is_empty() {
-            content.to_string()
-        } else {
-            passthrough_substitution_text(content, &r.subs, self.text_boundaries())
-        };
+    fn render_raw(&mut self, r: RawRef<'_>) -> Result<(), Error> {
+        let mut text = passthrough_substitution_text(r, self.text_boundaries());
+        let id = r.id().filter(|_| !self.processor.xref_guard.is_resolving());
+        if id.is_some() || !r.roles().is_empty() {
+            text = format!(
+                "<span{}{}>{text}</span>",
+                link_id_attr(id),
+                link_class_attr(r.roles(), false)
+            );
+        }
         if let Some(captured) = self.captured_raw_fragments.as_mut() {
             let index = captured.len();
             captured.push(text);
@@ -571,32 +612,18 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         Ok(())
     }
 
-    fn render_verbatim(
-        &mut self,
-        _traversal: &mut TraversalContext<'a>,
-        v: &Verbatim<'_>,
-        options: &RenderOptions,
-        subs: &[Substitution],
-    ) -> Result<(), Error> {
-        // The parser has already applied quotes and attributes in the requested order.
-        // Re-parsing this text would activate markup introduced by late attributes.
-        let verbatim_options = RenderOptions {
-            inlines_verbatim: true,
-            ..options.clone()
-        };
-
-        let text = substitution_text(v.content, subs, &verbatim_options, self.text_boundaries());
-        write!(self.writer_mut(), "{text}")?;
+    fn render_verbatim(&mut self, v: VerbatimRef<'_>, subs: &[Substitution]) -> Result<(), Error> {
+        write!(self.writer_mut(), "{}", escape_inline_text(v.text(), subs))?;
         Ok(())
     }
 
     fn render_callout_ref(
         &mut self,
         traversal: &TraversalContext<'_>,
-        callout: &CalloutRef,
+        callout: CalloutRef<'_>,
     ) -> Result<(), Error> {
         let html =
-            crate::callouts::marker_html(callout.number, crate::callouts::font_icons(traversal));
+            crate::callouts::marker_html(callout.number(), crate::callouts::font_icons(traversal));
         self.writer_mut().write_all(html.as_bytes())?;
         Ok(())
     }
@@ -604,15 +631,15 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_bold(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        b: &Bold<'_>,
+        span: BoldRef<'_>,
         options: &RenderOptions,
     ) -> Result<(), Error> {
         self.render_simple_quote(
             traversal,
             "strong",
-            b.id,
-            b.role,
-            &b.content,
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
+            span.content(),
             options.inlines_basic,
         )
     }
@@ -620,15 +647,15 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_italic(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        i: &Italic<'_>,
+        span: ItalicRef<'_>,
         options: &RenderOptions,
     ) -> Result<(), Error> {
         self.render_simple_quote(
             traversal,
             "em",
-            i.id,
-            i.role,
-            &i.content,
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
+            span.content(),
             options.inlines_basic,
         )
     }
@@ -636,15 +663,15 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_monospace(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        m: &Monospace<'_>,
+        span: MonospaceRef<'_>,
         options: &RenderOptions,
     ) -> Result<(), Error> {
         self.render_simple_quote(
             traversal,
             "code",
-            m.id,
-            m.role,
-            &m.content,
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
+            span.content(),
             options.inlines_basic,
         )
     }
@@ -652,11 +679,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_highlight(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        h: &Highlight<'_>,
+        span: HighlightRef<'_>,
         options: &RenderOptions,
     ) -> Result<(), Error> {
         // Warn about deprecated built-in roles.
-        if let Some(role) = h.role {
+        if let Some(role) = span.role() {
             for r in role
                 .split_whitespace()
                 .filter(|r| matches!(*r, "big" | "small"))
@@ -669,22 +696,30 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
 
         let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let use_s_tag = is_semantic && h.role == Some("line-through");
+        let use_s_tag = is_semantic && span.role() == Some("line-through");
         // Asciidoctor treats an ID or role as an attributed span rather than a mark.
         let tag = if use_s_tag {
             "s"
-        } else if h.id.is_some() || h.role.is_some() {
+        } else if span.id().is_some() || span.role().is_some() {
             "span"
         } else {
             "mark"
         };
-        // <s> gets no role attribute (h.role is consumed by the tag choice itself).
-        let tag_role = if use_s_tag { None } else { h.role };
+        // The semantic <s> tag replaces the line-through role.
+        let tag_role = if use_s_tag { None } else { span.role() };
 
         if !options.inlines_basic {
-            write_tag_with_attrs(self.writer_mut(), tag, h.id, tag_role)?;
+            let id = span
+                .id()
+                .filter(|_| !self.processor.xref_guard.is_resolving());
+            write_tag_with_attrs(
+                self.writer_mut(),
+                tag,
+                id.map(ElementIdRef::as_str),
+                tag_role,
+            )?;
         }
-        self.visit_inline_nodes(traversal, &h.content)?;
+        self.visit_content(traversal, span.content())?;
         if !options.inlines_basic {
             write!(self.writer_mut(), "</{tag}>")?;
         }
@@ -694,17 +729,29 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_curved_quotation(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        c: &CurvedQuotation<'_>,
+        span: CurvedQuotationRef<'_>,
     ) -> Result<(), Error> {
-        self.render_curved(traversal, ("&ldquo;", "&rdquo;"), c.id, c.role, &c.content)
+        self.render_curved(
+            traversal,
+            ("&ldquo;", "&rdquo;"),
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
+            span.content(),
+        )
     }
 
     fn render_curved_apostrophe(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        c: &CurvedApostrophe<'_>,
+        span: CurvedApostropheRef<'_>,
     ) -> Result<(), Error> {
-        self.render_curved(traversal, ("&lsquo;", "&rsquo;"), c.id, c.role, &c.content)
+        self.render_curved(
+            traversal,
+            ("&lsquo;", "&rsquo;"),
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
+            span.content(),
+        )
     }
 
     fn render_standalone_apostrophe(&mut self) -> Result<(), Error> {
@@ -715,26 +762,40 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_superscript(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        s: &Superscript<'_>,
+        span: SuperscriptRef<'_>,
     ) -> Result<(), Error> {
         // Note: superscript doesn't check inlines_basic (pass false to preserve behavior).
-        self.render_simple_quote(traversal, "sup", s.id, s.role, &s.content, false)
+        self.render_simple_quote(
+            traversal,
+            "sup",
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
+            span.content(),
+            false,
+        )
     }
 
     fn render_subscript(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        s: &Subscript<'_>,
+        span: SubscriptRef<'_>,
     ) -> Result<(), Error> {
         // Note: subscript doesn't check inlines_basic (pass false to preserve behavior).
-        self.render_simple_quote(traversal, "sub", s.id, s.role, &s.content, false)
+        self.render_simple_quote(
+            traversal,
+            "sub",
+            span.id().map(ElementIdRef::as_str),
+            span.role(),
+            span.content(),
+            false,
+        )
     }
 
     /// Render an inline macro by dispatching to the per-variant renderer.
     fn render_inline_macro(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        m: &InlineMacro,
+        m: InlineRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
@@ -755,22 +816,39 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             }
             return Ok(());
         }
-        match m {
-            InlineMacro::Autolink(al) => self.render_autolink(al, options),
-            InlineMacro::Link(l) => self.render_link(traversal, l, options, subs),
-            InlineMacro::Image(i) => self.render_inline_image(traversal, i),
-            InlineMacro::Pass(p) => self.render_pass(p, options, subs),
-            InlineMacro::Url(u) => self.render_url(traversal, u, options, subs),
-            InlineMacro::Mailto(m) => self.render_mailto(traversal, m, options, subs),
-            InlineMacro::Footnote(f) => self.render_footnote(f, options),
-            InlineMacro::Button(b) => self.render_button(b),
-            InlineMacro::CrossReference(xref) => self.render_xref(traversal, xref, options, subs),
-            InlineMacro::Stem(s) => self.render_stem(traversal, s),
-            InlineMacro::Icon(i) => self.render_icon(traversal, i),
-            InlineMacro::Keyboard(k) => self.render_keyboard(k),
-            InlineMacro::Menu(menu) => self.render_menu(menu),
-            InlineMacro::IndexTerm(it) => self.render_indexterm(traversal, it, options, subs),
-            _ => Err(io::Error::new(
+        match m.kind() {
+            InlineKind::Autolink(al) => self.render_autolink(al, options),
+            InlineKind::Link(l) => self.render_link(traversal, l, options, subs),
+            InlineKind::Image(i) => self.render_inline_image(traversal, i),
+            InlineKind::Pass(p) => self.render_pass(p),
+            InlineKind::Url(u) => self.render_url(traversal, u, options, subs),
+            InlineKind::Mailto(m) => self.render_mailto(traversal, m, options, subs),
+            InlineKind::Footnote(f) => self.render_footnote(traversal, f, options),
+            InlineKind::Button(b) => self.render_button(traversal, b),
+            InlineKind::CrossReference(xref) => self.render_xref(traversal, xref, options, subs),
+            InlineKind::Stem(s) => self.render_stem(traversal, s),
+            InlineKind::Icon(i) => self.render_icon(traversal, i),
+            InlineKind::Keyboard(k) => self.render_keyboard(traversal, k),
+            InlineKind::Menu(menu) => self.render_menu(traversal, menu),
+            InlineKind::IndexTerm(it) => self.render_indexterm(traversal, it, options, subs),
+            InlineKind::Plain(_)
+            | InlineKind::Raw(_)
+            | InlineKind::Verbatim(_)
+            | InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::CharacterReference(_)
+            | InlineKind::Symbol(_)
+            | InlineKind::LineBreak(_)
+            | InlineKind::Anchor(_)
+            | InlineKind::Callout(_)
+            | _ => Err(io::Error::new(
                 io::ErrorKind::Unsupported,
                 format!("Unsupported inline macro: {m:?}"),
             )
@@ -778,11 +856,15 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
     }
 
-    fn render_autolink(&mut self, al: &Autolink<'_>, options: &RenderOptions) -> Result<(), Error> {
+    fn render_autolink(
+        &mut self,
+        al: AutolinkRef<'_>,
+        options: &RenderOptions,
+    ) -> Result<(), Error> {
         let w = self.writer_mut();
-        let href_str = al.url.to_string();
+        let href_str = al.target().to_string();
         let (display_text, angle_brackets) =
-            autolink_fallback(&href_str, al.bracketed, al.hides_uri_scheme());
+            autolink_fallback(&href_str, al.is_bracketed(), al.hides_uri_scheme());
         let display_text = escape_href(display_text);
 
         if options.inlines_basic || options.toc_mode {
@@ -812,39 +894,44 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_link(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        l: &Link<'_>,
+        l: LinkRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        let target_str = l.target.to_string();
+        let target_str = l.target().to_string();
         let fallback = escape_href(link_fallback(&target_str, l.hides_uri_scheme()));
 
         if options.inlines_basic || options.toc_mode {
-            if l.text.is_empty() {
+            if l.text().is_empty() {
                 write!(self.writer_mut(), "{fallback}")?;
             } else {
-                for inline in &l.text {
+                for inline in l.text().inlines() {
                     self.render_inline_node(traversal, inline, options, subs)?;
                 }
             }
             return Ok(());
         }
 
-        let id_attr = link_id_attr(&l.attributes);
-        let class_attr = link_class_attr(role_from_attrs(&l.attributes), l.text.is_empty());
-        let target_attr = window_attrs(&l.attributes);
+        let link = l;
+        let id_attr = link_id_attr(
+            link.id()
+                .filter(|_| !self.processor.xref_guard.is_resolving()),
+        );
+        let class_attr = link_class_attr(link.roles(), l.text().is_empty());
+        let target_attr = link_control_attributes(link.attributes());
+        let tooltip = tooltip_attribute(link.tooltip());
         self.with_inline_link(
             InlineLink::new(
                 escape_href(&target_str),
                 id_attr,
-                format!("{class_attr}{target_attr}"),
+                format!("{class_attr}{target_attr}{tooltip}"),
             ),
             |visitor| {
-                if l.text.is_empty() {
+                if l.text().is_empty() {
                     visitor.open_inline_link()?;
                     write!(visitor.writer_mut(), "{fallback}")?;
                 } else {
-                    for inline in &l.text {
+                    for inline in l.text().inlines() {
                         visitor.render_inline_node(traversal, inline, options, subs)?;
                     }
                 }
@@ -856,106 +943,108 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_inline_image(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        i: &Image<'_>,
+        image: InlineImageRef<'_>,
     ) -> Result<(), Error> {
         let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let source = escape_href(&resolve_target(&i.source.to_string(), traversal));
+        let markup = self.image_markup(
+            traversal,
+            image.source(),
+            image.attributes(),
+            image.options(),
+            image.alt(),
+            image.tooltip(),
+        )?;
+        let mut classes = vec!["image"];
+        if let Some(AttributeValueRef::Text(float)) = image.attributes().get("float") {
+            classes.push(float);
+        }
+        classes.extend(image.roles().iter());
+        let has_wrapper = !is_semantic || classes.len() > 1;
         let w = self.writer_mut();
-        // Inline images use a span wrapper (not in semantic mode)
-        if !is_semantic {
-            write!(w, "<span class=\"image\">")?;
+        if has_wrapper {
+            write!(w, "<span class=\"{}\">", escape_role(&classes.join(" ")))?;
         }
 
-        // alt text: title (first positional) > `alt` attr > filename
-        let alt_text = if i.title.is_empty() {
-            i.metadata.attributes.get("alt").map_or_else(
-                || alt_text_from_filename(&i.source),
-                std::string::ToString::to_string,
-            )
-        } else {
-            inlines_to_string(&i.title)
-        };
-
-        let link = i.metadata.attributes.get("link");
-        let link_controls = image_link_control_attributes(&i.metadata);
+        let link = image.attributes().get("link").and_then(attribute_scalar);
+        let link_controls = image_link_control_attributes(image.attributes(), image.options());
         if let Some(link) = link {
             write!(
                 w,
                 "<a class=\"image\" href=\"{}\"{link_controls}>",
-                escape_href(&link.to_string()),
+                escape_attribute(link),
             )?;
         }
 
-        write!(w, "<img src=\"{source}\" alt=\"{alt_text}\"")?;
-        write_dimension_attributes(w, &i.metadata)?;
-        if let Some(title) = i.metadata.attributes.get("title") {
-            write!(w, " title=\"{title}\"")?;
-        }
-        write!(w, ">")?;
+        write!(w, "{markup}")?;
 
         if link.is_some() {
             write!(w, "</a>")?;
         }
-        if !is_semantic {
+        if has_wrapper {
             write!(w, "</span>")?;
         }
         Ok(())
     }
 
-    fn render_pass(
-        &mut self,
-        p: &Pass<'_>,
-        options: &RenderOptions,
-        subs: &[Substitution],
-    ) -> Result<(), Error> {
-        let Some(text) = p.text else { return Ok(()) };
-        // Only escape when SpecialChars substitution is enabled (pass:c[]).
-        // Otherwise output raw HTML (pass:[], +++...+++).
-        if p.substitutions.contains(&Substitution::SpecialChars) {
-            let text = substitution_text(text, subs, options, self.text_boundaries());
-            write!(self.writer_mut(), "{text}")?;
+    fn render_pass(&mut self, p: PassRef<'_>) -> Result<(), Error> {
+        let Some(text) = p.text() else { return Ok(()) };
+        let text = if p
+            .substitutions()
+            .any(|sub| sub == Substitution::SpecialChars)
+        {
+            encode_html_entities(
+                &escape_ampersands(text)
+                    .replace('>', "&gt;")
+                    .replace('<', "&lt;"),
+            )
         } else {
-            write!(self.writer_mut(), "{text}")?;
-        }
+            text.to_owned()
+        };
+        write!(self.writer_mut(), "{text}")?;
         Ok(())
     }
 
     fn render_url(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        u: &Url<'_>,
+        u: UrlRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        let target_str = u.target.to_string();
+        let target_str = u.target().to_string();
         let fallback = escape_href(link_fallback(&target_str, u.hides_uri_scheme()));
 
         if options.toc_mode {
-            if u.text.is_empty() {
+            if u.text().is_empty() {
                 write!(self.writer_mut(), "{fallback}")?;
             } else {
-                for inline in &u.text {
+                for inline in u.text().inlines() {
                     self.render_inline_node(traversal, inline, options, subs)?;
                 }
             }
             return Ok(());
         }
 
-        let id_attr = link_id_attr(&u.attributes);
-        let class_attr = link_class_attr(role_from_attrs(&u.attributes), u.text.is_empty());
-        let target_attr = window_attrs(&u.attributes);
+        let link = u;
+        let id_attr = link_id_attr(
+            link.id()
+                .filter(|_| !self.processor.xref_guard.is_resolving()),
+        );
+        let class_attr = link_class_attr(link.roles(), u.text().is_empty());
+        let target_attr = link_control_attributes(link.attributes());
+        let tooltip = tooltip_attribute(link.tooltip());
         self.with_inline_link(
             InlineLink::new(
                 escape_href(&target_str),
                 id_attr,
-                format!("{class_attr}{target_attr}"),
+                format!("{class_attr}{target_attr}{tooltip}"),
             ),
             |visitor| {
-                if u.text.is_empty() {
+                if u.text().is_empty() {
                     visitor.open_inline_link()?;
                     write!(visitor.writer_mut(), "{fallback}")?;
                 } else {
-                    for inline in &u.text {
+                    for inline in u.text().inlines() {
                         visitor.render_inline_node(traversal, inline, options, subs)?;
                     }
                 }
@@ -967,40 +1056,45 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_mailto(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        m: &Mailto<'_>,
+        m: MailtoRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        let target_str = m.target.to_string();
+        let target_str = m.target().to_string();
         // `mailto:` never emits `class="bare"` (asciidoctor's convention).
         let fallback = escape_href(mailto_fallback(&target_str));
 
         if options.toc_mode {
-            if m.text.is_empty() {
+            if m.text().is_empty() {
                 write!(self.writer_mut(), "{fallback}")?;
             } else {
-                for inline in &m.text {
+                for inline in m.text().inlines() {
                     self.render_inline_node(traversal, inline, options, subs)?;
                 }
             }
             return Ok(());
         }
 
-        let id_attr = link_id_attr(&m.attributes);
-        let class_attr = link_class_attr(role_from_attrs(&m.attributes), false);
-        let target_attr = window_attrs(&m.attributes);
+        let link = m;
+        let id_attr = link_id_attr(
+            link.id()
+                .filter(|_| !self.processor.xref_guard.is_resolving()),
+        );
+        let class_attr = link_class_attr(link.roles(), false);
+        let target_attr = link_control_attributes(link.attributes());
+        let tooltip = tooltip_attribute(link.tooltip());
         self.with_inline_link(
             InlineLink::new(
-                escape_href(&mailto_target(m)),
+                escape_href(&mailto_target(link)),
                 id_attr,
-                format!("{class_attr}{target_attr}"),
+                format!("{class_attr}{target_attr}{tooltip}"),
             ),
             |visitor| {
-                if m.text.is_empty() {
+                if m.text().is_empty() {
                     visitor.open_inline_link()?;
                     write!(visitor.writer_mut(), "{fallback}")?;
                 } else {
-                    for inline in &m.text {
+                    for inline in m.text().inlines() {
                         visitor.render_inline_node(traversal, inline, options, subs)?;
                     }
                 }
@@ -1009,13 +1103,17 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         )
     }
 
-    fn render_footnote(&mut self, f: &Footnote<'_>, options: &RenderOptions) -> Result<(), Error> {
+    fn render_footnote(
+        &mut self,
+        traversal: &TraversalContext<'a>,
+        f: FootnoteRef<'_>,
+        options: &RenderOptions,
+    ) -> Result<(), Error> {
         // Reused notes and copies in reference text must not repeat the original IDs.
-        let is_ref =
-            self.processor.xref_guard.is_resolving() || (f.id.is_some() && f.content.is_empty());
+        let is_ref = self.processor.xref_guard.is_resolving() || f.content().is_none();
         let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
         let w = self.writer_mut();
-        let number = f.number;
+        let number = f.number();
 
         if options.inlines_basic {
             write!(w, "[{number}]")?;
@@ -1048,8 +1146,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
 
         write!(w, "<sup class=\"{sup_class}\"")?;
-        if !is_ref && let Some(id) = &f.id {
-            write!(w, " id=\"_footnote_{id}\"")?;
+        if !is_ref && let Some(id) = f.id() {
+            let id = traversal.footnote_label(number).unwrap_or(id);
+            write!(w, " id=\"_footnote_{}\"", escape_attribute(id))?;
         }
         if is_ref {
             write!(
@@ -1065,13 +1164,19 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         Ok(())
     }
 
-    fn render_button(&mut self, b: &Button<'_>) -> Result<(), Error> {
-        let processor = self.processor.clone();
-        let w = self.writer_mut();
-        if processor.variant() == HtmlVariant::Semantic {
-            write!(w, "<kbd class=\"button\"><samp>{}</samp></kbd>", b.label)?;
+    fn render_button(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        b: ButtonRef<'_>,
+    ) -> Result<(), Error> {
+        let content = self.content_html(traversal, b.label())?;
+        if self.processor.variant() == HtmlVariant::Semantic {
+            write!(
+                self.writer_mut(),
+                "<kbd class=\"button\"><samp>{content}</samp></kbd>"
+            )?;
         } else {
-            write!(w, "<b class=\"button\">{}</b>", b.label)?;
+            write!(self.writer_mut(), "<b class=\"button\">{content}</b>")?;
         }
         Ok(())
     }
@@ -1079,20 +1184,26 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_xref(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        xref: &CrossReference<'_>,
+        xref: CrossReferenceRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        let target = xref.target;
+        let target = xref.target();
         // An `xref:` macro's `role=` becomes the link's class, as in
         // asciidoctor, whatever the link text. An empty role adds no class,
         // matching how a `link:` macro's role is handled here.
-        let class = xref
-            .role
-            .filter(|role| !role.is_empty())
-            .map(|role| format!(" class=\"{}\"", escape_attribute(role)))
-            .unwrap_or_default();
-        if xref.text.is_empty() {
+        let mut class = if xref.roles().is_empty() {
+            String::new()
+        } else {
+            format!(
+                " class=\"{}\"",
+                escape_role(&xref.roles().iter().collect::<Vec<_>>().join(" "))
+            )
+        };
+        if !xref.target_is_local() {
+            class.push_str(&link_control_attributes(xref.attributes()));
+        }
+        if xref.text().is_empty() {
             // Resolve via the id -> reference map (sections + titled blocks):
             // xreflabel (from [[id,Custom Text]]) > caption style or target title >
             // fallback `[id]`.
@@ -1106,8 +1217,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             // The processor handle is cloned so the borrowed reference text and
             // the resolution guard both outlive the `&mut self` render calls.
             let processor = Rc::clone(&self.processor);
-            let display = resolve_xref(
-                processor.references.get(target),
+            let display = resolve_reference(
+                processor
+                    .references
+                    .get(target)
+                    .map(acdc_parser::ast::ReferenceRef::from),
                 xref,
                 &processor.xref_guard,
             );
@@ -1140,7 +1254,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 |visitor: &mut Self| visitor.render_xref_display(traversal, display, options, subs);
             return if linked {
                 self.with_inline_link(
-                    InlineLink::new(format!("#{target}"), String::new(), class),
+                    InlineLink::new(escape_href(&format!("#{target}")), String::new(), class),
                     render,
                 )
             } else {
@@ -1149,21 +1263,21 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
 
         if options.inlines_basic || options.toc_mode {
-            for inline in &xref.text {
+            for inline in xref.text().inlines() {
                 self.render_inline_node(traversal, inline, options, subs)?;
             }
             return Ok(());
         }
 
-        let href = if !xref.target_is_local
+        let href = if !xref.target_is_local()
             && let Some((external_target, _)) = Self::interdocument_xref(traversal, target)
         {
             escape_href(&external_target)
         } else {
-            format!("#{target}")
+            escape_href(&format!("#{target}"))
         };
         self.with_inline_link(InlineLink::new(href, String::new(), class), |visitor| {
-            for inline in &xref.text {
+            for inline in xref.text().inlines() {
                 visitor.render_inline_node(traversal, inline, options, subs)?;
             }
             Ok(())
@@ -1173,13 +1287,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_xref_display(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        display: XrefDisplay<'_, '_>,
+        display: XrefDisplay<'_, ContentRef<'_>>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
         match display {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
-                for inline in inlines {
+                for inline in inlines.inlines() {
                     self.render_inline_node(traversal, inline, options, subs)?;
                 }
             }
@@ -1190,7 +1304,20 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             XrefDisplay::FullCaption(prefix, inlines, _scope) => {
                 self.open_inline_link()?;
                 write!(self.writer_mut(), "{}, &#8220;", escape_pcdata(&prefix))?;
-                for inline in inlines {
+                for inline in inlines.inlines() {
+                    self.render_inline_node(traversal, inline, options, subs)?;
+                }
+                self.open_inline_link()?;
+                write!(self.writer_mut(), "&#8221;")?;
+            }
+            XrefDisplay::ShortCustomCaption(prefix, _scope) => {
+                self.render_caption_prefix(traversal, prefix, options, subs)?;
+            }
+            XrefDisplay::FullCustomCaption(prefix, inlines, _scope) => {
+                self.render_caption_prefix(traversal, prefix, options, subs)?;
+                self.open_inline_link()?;
+                write!(self.writer_mut(), ", &#8220;")?;
+                for inline in inlines.inlines() {
                     self.render_inline_node(traversal, inline, options, subs)?;
                 }
                 self.open_inline_link()?;
@@ -1201,7 +1328,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     self.open_inline_link()?;
                     write!(self.writer_mut(), "{}, ", escape_pcdata(&prefix))?;
                 }
-                let split = inlines.iter().any(|node| {
+                let split = inlines.inlines().any(|node| {
                     link_label_needs_split(
                         node,
                         self.processor.xref_guard.is_resolving(),
@@ -1214,7 +1341,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     self.open_inline_link()?;
                 }
                 write!(self.writer_mut(), "<em>")?;
-                for inline in inlines {
+                for inline in inlines.inlines() {
                     self.render_inline_node(traversal, inline, options, subs)?;
                 }
                 if split {
@@ -1236,27 +1363,53 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         Ok(())
     }
 
+    fn render_caption_prefix(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        prefix: ContentRef<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        with_caption_prefix(prefix, |prefix| {
+            if prefix.is_empty() {
+                return self.open_inline_link();
+            }
+            for inline in prefix.inlines() {
+                self.render_inline_node(traversal, inline, options, subs)?;
+            }
+            Ok(())
+        })
+    }
+
     fn interdocument_xref(
         traversal: &TraversalContext<'a>,
         target: &str,
     ) -> Option<(String, String)> {
-        let attributes = &traversal;
-        let extension = attributes
-            .get("relfilesuffix")
-            .and_then(|value| value.text())
-            .or_else(|| {
-                attributes
+        let (mut destination, mut text) =
+            if let Some(suffix) = document_attribute_text(traversal.get("relfilesuffix")) {
+                interdocument_xref_with_suffix(target, suffix)
+            } else {
+                let extension = traversal
                     .get("outfilesuffix")
                     .and_then(|value| value.text())
-            })
-            .unwrap_or("html");
-        interdocument_xref(target, extension.strip_prefix('.').unwrap_or(extension))
+                    .unwrap_or("html");
+                interdocument_xref(target, extension.strip_prefix('.').unwrap_or(extension))
+            }?;
+        if let Some(prefix) = document_attribute_text(traversal.get("relfileprefix"))
+            && !prefix.is_empty()
+            && !target.starts_with("//")
+            && url::Url::parse(target).is_err()
+        {
+            destination.insert_str(0, prefix);
+            text.insert_str(0, prefix);
+        }
+        Some((destination, text))
     }
 
     fn render_stem(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        s: &Stem<'_>,
+        s: StemRef<'_>,
     ) -> Result<(), Error> {
         let forced = if self.processor.variant() == HtmlVariant::Semantic {
             traversal
@@ -1266,12 +1419,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         } else {
             None
         };
-        let notation = forced.as_ref().unwrap_or(&s.notation);
+        let notation = forced.unwrap_or_else(|| s.notation());
         let w = self.writer_mut();
-        let content = escape_pcdata(s.content);
+        let content = escape_pcdata(s.text());
         match notation {
-            StemNotation::Latexmath => writeln!(w, "\\({content}\\)")?,
-            StemNotation::Asciimath => writeln!(w, "\\${content}\\$")?,
+            StemNotation::Latexmath => write!(w, "\\({content}\\)")?,
+            StemNotation::Asciimath => write!(w, "\\${content}\\$")?,
         }
         Ok(())
     }
@@ -1279,92 +1432,131 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_icon(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        i: &Icon<'_>,
+        icon: IconRef<'_>,
     ) -> Result<(), Error> {
-        write_icon(&mut self.writer, traversal, i)?;
+        let markup = self.icon_markup(traversal, icon)?;
+        write!(self.writer_mut(), "{markup}")?;
         Ok(())
     }
 
-    fn render_keyboard(&mut self, k: &Keyboard<'_>) -> Result<(), Error> {
-        let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let key_class = if is_semantic { " class=\"key\"" } else { "" };
-        let w = self.writer_mut();
-
-        if k.keys.len() == 1
-            && let Some(key) = k.keys.first()
-        {
-            write!(w, "<kbd{key_class}>{key}</kbd>")?;
-            return Ok(());
+    fn render_keyboard(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        keyboard: KeyboardRef<'_>,
+    ) -> Result<(), Error> {
+        let semantic = self.processor.variant() == HtmlVariant::Semantic;
+        let tag = if semantic { "kbd" } else { "span" };
+        let class = if semantic { " class=\"key\"" } else { "" };
+        let multiple = keyboard.keys().take(2).count() != 1;
+        if multiple {
+            write!(self.writer_mut(), "<{tag} class=\"keyseq\">")?;
         }
-
-        if is_semantic {
-            write!(w, "<kbd class=\"keyseq\">")?;
-        } else {
-            write!(w, "<span class=\"keyseq\">")?;
-        }
-        for (i, key) in k.keys.iter().enumerate() {
-            if i > 0 {
-                write!(w, "+")?;
+        for (index, key) in keyboard.keys().enumerate() {
+            let content = self.content_html(traversal, key)?;
+            if index > 0 {
+                write!(self.writer_mut(), "+")?;
             }
-            write!(w, "<kbd{key_class}>{key}</kbd>")?;
+            write!(self.writer_mut(), "<kbd{class}>{content}</kbd>")?;
         }
-        if is_semantic {
-            write!(w, "</kbd>")?;
-        } else {
-            write!(w, "</span>")?;
+        if multiple {
+            write!(self.writer_mut(), "</{tag}>")?;
         }
         Ok(())
     }
 
-    fn render_menu(&mut self, menu: &Menu<'_>) -> Result<(), Error> {
-        let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
-        let w = self.writer_mut();
-
-        if menu.items.is_empty() {
-            if is_semantic {
-                write!(w, "<kbd class=\"menu\"><samp>{}</samp></kbd>", menu.target)?;
+    fn render_menu(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        menu: MenuRef<'_>,
+    ) -> Result<(), Error> {
+        let semantic = self.processor.variant() == HtmlVariant::Semantic;
+        let target = self.content_html(traversal, menu.target())?;
+        let mut items = menu.items().peekable();
+        if items.peek().is_none() {
+            if semantic {
+                write!(
+                    self.writer_mut(),
+                    "<kbd class=\"menu\"><samp>{target}</samp></kbd>"
+                )?;
             } else {
-                write!(w, "<b class=\"menuref\">{}</b>", menu.target)?;
+                write!(self.writer_mut(), "<b class=\"menuref\">{target}</b>")?;
             }
             return Ok(());
         }
-
-        if is_semantic {
-            write!(w, "<kbd class=\"menuseq\">")?;
-            write!(w, "<kbd class=\"menu\"><samp>{}</samp></kbd>", menu.target)?;
-            for item in &menu.items {
-                write!(w, "&#160;<span class=\"caret\">&#8250;</span>&#32;")?;
-                write!(w, "<kbd class=\"menu\"><samp>{item}</samp></kbd>")?;
-            }
-            write!(w, "</kbd>")?;
-            return Ok(());
+        if semantic {
+            write!(
+                self.writer_mut(),
+                "<kbd class=\"menuseq\"><kbd class=\"menu\"><samp>{target}</samp></kbd>"
+            )?;
+        } else {
+            write!(
+                self.writer_mut(),
+                "<span class=\"menuseq\"><b class=\"menu\">{target}</b>"
+            )?;
         }
-
-        write!(w, "<span class=\"menuseq\">")?;
-        write!(w, "<b class=\"menu\">{}</b>", menu.target)?;
-        for (i, item) in menu.items.iter().enumerate() {
-            write!(w, "&#160;<i class=\"fa fa-angle-right caret\"></i> ")?;
-            if i == menu.items.len() - 1 {
-                write!(w, "<b class=\"menuitem\">{item}</b>")?;
+        let font = acdc_converters_core::icon::IconMode::from_attributes(traversal)
+            == acdc_converters_core::icon::IconMode::Font;
+        while let Some(item) = items.next() {
+            let content = self.content_html(traversal, item)?;
+            if semantic {
+                write!(
+                    self.writer_mut(),
+                    "&#160;<span class=\"caret\">&#8250;</span>&#32;<kbd class=\"menu\"><samp>{content}</samp></kbd>"
+                )?;
             } else {
-                write!(w, "<b class=\"submenu\">{item}</b>")?;
+                if font {
+                    write!(
+                        self.writer_mut(),
+                        "&#160;<i class=\"fa fa-angle-right caret\"></i> "
+                    )?;
+                } else {
+                    write!(self.writer_mut(), "&#160;<b class=\"caret\">&#8250;</b> ")?;
+                }
+                let class = if items.peek().is_none() {
+                    "menuitem"
+                } else {
+                    "submenu"
+                };
+                write!(self.writer_mut(), "<b class=\"{class}\">{content}</b>")?;
             }
         }
-        write!(w, "</span>")?;
+        write!(
+            self.writer_mut(),
+            "</{}>",
+            if semantic { "kbd" } else { "span" }
+        )?;
         Ok(())
+    }
+
+    pub(crate) fn content_html(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        content: ContentRef<'_>,
+    ) -> Result<String, Error> {
+        let mut visitor = HtmlVisitor::new(
+            Vec::new(),
+            Rc::clone(&self.processor),
+            self.render_options.clone(),
+            self.diagnostics.reborrow(),
+        );
+        visitor.current_subs.clone_from(&self.current_subs);
+        visitor.visit_content(traversal, content)?;
+        Ok(String::from_utf8(visitor.into_writer()).map_err(io::Error::other)?)
     }
 
     pub(crate) fn register_indexterm(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        it: &IndexTerm<'_>,
+        it: IndexTermRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<Option<String>, Error> {
-        let it = it.catalog_entry();
-        // Occurrence anchors serve the opted-in catalog; TOC copies are not
-        // additional source occurrences.
-        if !options.toc_mode && self.processor.generate_index() {
+        let it = it.catalog();
+        // Reference and TOC copies are not additional source occurrences.
+        if !options.toc_mode
+            && !self.processor.xref_guard.is_resolving()
+            && self.processor.generate_index()
+        {
             let primary = self.render_index_term_label(traversal, it.term(), options, subs)?;
             let secondary = it
                 .secondary()
@@ -1374,11 +1566,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 .tertiary()
                 .map(|inlines| self.render_index_term_label(traversal, inlines, options, subs))
                 .transpose()?;
-            let relationship = match it.relationship.as_ref() {
-                Some(IndexTermRelationship::See { target }) => IndexCatalogRelationship::See(
+            let relationship = match it.relationship() {
+                Some(IndexTermRelationshipRef::See { target }) => IndexCatalogRelationship::See(
                     self.render_index_term_label(traversal, target, options, subs)?,
                 ),
-                Some(IndexTermRelationship::SeeAlso { targets }) => {
+                Some(IndexTermRelationshipRef::SeeAlso { targets }) => {
                     IndexCatalogRelationship::SeeAlso(
                         targets
                             .iter()
@@ -1406,7 +1598,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_indexterm(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        it: &IndexTerm<'_>,
+        it: IndexTermRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
@@ -1418,14 +1610,19 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         // Concealed terms: no visible text.
         if it.is_visible() {
             let boundaries = self.text_boundaries();
+            let siblings = it.term().inlines();
             let result = it
                 .term()
-                .iter()
+                .inlines()
                 .enumerate()
                 .try_for_each(|(index, inline)| {
                     self.text_boundaries = boundaries
-                        .with_ordinary_replacements(subs.contains(&Substitution::Replacements))
-                        .for_inline(it.term(), index);
+                        .with_ordinary_replacements(false)
+                        .for_inline_refs(
+                            Some(inline),
+                            siblings.clone().take(index).rev(),
+                            siblings.clone().skip(index + 1),
+                        );
                     self.render_inline_node(traversal, inline, options, subs)
                 });
             self.text_boundaries = boundaries;
@@ -1437,7 +1634,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_index_term_label(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        inlines: &[InlineNode<'_>],
+        inlines: ContentRef<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<IndexTermLabel, Error> {
@@ -1451,86 +1648,61 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             self.diagnostics.reborrow(),
         );
         visitor.current_subs = subs.to_vec();
-        visitor.visit_inline_nodes(traversal, inlines)?;
+        visitor.visit_content(traversal, inlines)?;
         let html = String::from_utf8(visitor.into_writer()).map_err(io::Error::other)?;
         Ok(IndexTermLabel {
-            plain: InlineTextTransform::default().to_string(inlines),
+            plain: InlineTextTransform::default()
+                .decode_char_refs(true)
+                .content_to_string(inlines),
             html,
         })
     }
 }
 
-fn substitution_text(
-    text: &str,
-    subs: &[Substitution],
-    options: &RenderOptions,
-    text_boundaries: TextBoundaries,
-) -> String {
-    debug_assert!(
-        !text.is_empty(),
-        "substitution_text called with empty text - caller should filter empty content"
-    );
-    if text.is_empty() {
-        tracing::debug!(
-            "substitution_text called with empty text - caller should filter empty content"
-        );
-        return String::new();
+fn escape_inline_text(text: &str, subs: &[Substitution]) -> String {
+    if !subs.contains(&Substitution::SpecialChars) {
+        return text.to_owned();
     }
-
-    let should_escape = subs.contains(&Substitution::SpecialChars);
-
-    // Determine if we should apply typography replacements
-    // Based on substitutions list, skip for basic mode (passthrough)
-    let should_apply_replacements =
-        subs.contains(&Substitution::Replacements) && !options.inlines_basic;
-
-    // Strip backslash escapes first (before any other processing)
-    // Only needed when replacements are applied (escape sequences only matter for replacements)
-    let text = if should_apply_replacements {
-        if options.inlines_verbatim || !subs.contains(&Substitution::Quotes) {
-            protect_replacement_escapes(text, true).into_owned()
-        } else {
-            strip_backslash_escapes(text)
-        }
-    } else {
-        text.to_string()
-    };
-
-    // Escape source ampersands before replacements so entities produced by the
-    // replacement table remain valid HTML.
-    let text = if should_escape {
-        escape_ampersands(&text)
-    } else {
-        text
-    };
-
-    // Apply all typography replacements (em-dashes, arrows, symbols, ellipsis, apostrophes)
-    // This must happen after & escaping (replacements produce & entities) and before <> escaping
-    let text = if should_apply_replacements {
-        replacements().apply(&text, text_boundaries)
-    } else {
-        text
-    };
-
-    // Restore escaped patterns (convert placeholders back to literal forms)
-    // This must happen after typography substitutions but BEFORE escaping < and >
-    // so that restored patterns like => and <- don't get their angle brackets escaped
-    let text = if should_apply_replacements {
-        restore_escaped_patterns(&text)
-    } else {
-        text
-    };
-
-    if !should_escape {
-        return text;
-    }
-
-    // Escape < and > after restore so that restored patterns (e.g., \=> → =>) keep literal chars
-    let text = text.replace('>', "&gt;").replace('<', "&lt;");
-
-    // Encode non-ASCII Unicode characters as HTML numeric entities
-    // to match asciidoctor's output format
+    let text = text
+        .replace('&', "&amp;")
+        .replace('>', "&gt;")
+        .replace('<', "&lt;");
     encode_html_entities(&text)
+}
+
+pub(crate) fn tooltip_attribute(content: Option<ContentRef<'_>>) -> String {
+    content.map_or_else(String::new, |content| {
+        let text = InlineTextTransform::default()
+            .rendered()
+            .decode_char_refs(true)
+            .content_to_string(content);
+        format!(
+            " title=\"{}\"",
+            crate::image_helpers::escape_image_text(&text)
+        )
+    })
+}
+
+impl<'doc, W: Write> acdc_converters_core::visitor::InlineVisitor<'doc>
+    for HtmlVisitor<'doc, '_, W>
+{
+    type Error = Error;
+
+    fn visit_inline_nodes(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        content: ContentRef<'_>,
+    ) -> Result<(), Self::Error> {
+        self.visit_content(traversal, content)
+    }
+
+    fn visit_inline_node(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        node: InlineRef<'_>,
+    ) -> Result<(), Self::Error> {
+        self.visit_inline_ref(traversal, node)
+    }
 }
 
 #[cfg(test)]

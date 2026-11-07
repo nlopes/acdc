@@ -63,6 +63,29 @@ pub(super) const fn is_plain_text_safe(b: u8) -> bool {
     )
 }
 
+pub(super) fn link_label_opening_ahead(state: &ParserState<'_>, position: usize) -> bool {
+    if state
+        .failed_link_target_range
+        .get()
+        .is_some_and(|(start, end)| start <= position && position <= end)
+    {
+        return false;
+    }
+    let input = state.input.as_bytes();
+    let Some(remaining) = input.get(position..) else {
+        return false;
+    };
+    let end = remaining
+        .iter()
+        .position(|byte| matches!(byte, b'[' | b' ' | b'\t' | b'\r' | b'\n' | 0x0b | 0x0c))
+        .map_or(input.len(), |offset| position + offset);
+    if input.get(end) == Some(&b'[') {
+        return true;
+    }
+    state.failed_link_target_range.set(Some((position, end)));
+    false
+}
+
 /// Check whether `@` appears within [`EMAIL_LOCAL_PART_MAX`] bytes from `pos`.
 pub(super) fn has_at_sign_ahead(state: &ParserState, pos: usize) -> bool {
     use crate::grammar::state::AtLookahead;
@@ -108,6 +131,16 @@ pub(super) fn structural_token_allowed(
     start: usize,
     len: usize,
 ) -> bool {
+    let index = state
+        .resolved_reference_ranges
+        .partition_point(|range| range.end <= start);
+    if state
+        .resolved_reference_ranges
+        .get(index)
+        .is_some_and(|range| range.start < start + len)
+    {
+        return false;
+    }
     !state
         .inline_ctx
         .substitutions

@@ -81,6 +81,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -176,6 +177,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -271,6 +273,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -366,6 +369,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -386,7 +390,6 @@
                   "name": "footnote",
                   "type": "inline",
                   "id": "shared",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 13,
@@ -445,6 +448,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -465,7 +469,6 @@
                   "name": "footnote",
                   "type": "inline",
                   "id": "shared",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 15,
@@ -524,6 +527,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -544,7 +548,6 @@
                   "name": "footnote",
                   "type": "inline",
                   "id": "shared",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 17,
@@ -603,6 +606,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "footnote",
@@ -683,6 +687,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -763,12 +768,12 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "footnote",
                   "type": "inline",
                   "id": "shared",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 23,
@@ -812,6 +817,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -939,6 +945,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1082,6 +1089,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1176,7 +1184,13 @@
             {
               "name": "xref",
               "type": "inline",
+              "metadata": {
+                "roles": [
+                  "hot"
+                ]
+              },
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1271,7 +1285,13 @@
             {
               "name": "xref",
               "type": "inline",
+              "metadata": {
+                "roles": [
+                  "quoted"
+                ]
+              },
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1367,6 +1387,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1462,6 +1483,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1532,8 +1554,7 @@
                           "line": 38,
                           "col": 61
                         }
-                      ],
-                      "attributes": {}
+                      ]
                     },
                     {
                       "name": "text",
@@ -1656,6 +1677,7 @@
               "name": "xref",
               "type": "inline",
               "target": "other.adoc#there",
+              "target_is_local": false,
               "inlines": [
                 {
                   "name": "text",
@@ -1676,7 +1698,6 @@
                   "name": "footnote",
                   "type": "inline",
                   "id": "shared",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 40,
@@ -1735,6 +1756,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1813,6 +1835,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1891,6 +1914,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1911,6 +1935,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 46,
@@ -1969,6 +1996,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -2032,6 +2060,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -2095,6 +2124,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -2157,7 +2187,14 @@
             {
               "name": "xref",
               "type": "inline",
+              "metadata": {
+                "roles": [
+                  "automatic"
+                ]
+              },
               "target": "target",
+              "target_is_local": true,
+              "xrefstyle": "short",
               "location": [
                 {
                   "line": 54,

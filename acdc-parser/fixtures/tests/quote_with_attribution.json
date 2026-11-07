@@ -11,9 +11,12 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Albert Einstein",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 1,
@@ -21,16 +24,19 @@
               },
               {
                 "line": 1,
-                "col": 24
+                "col": 23
               }
             ]
           }
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Letter to Max Born",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 1,
@@ -38,7 +44,7 @@
               },
               {
                 "line": 1,
-                "col": 44
+                "col": 43
               }
             ]
           }

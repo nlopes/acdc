@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -102,7 +103,7 @@
 
 #raw(block: true, "P07 (C) (R) (TM) ... word--word © ® ™")
 
-#text("P08 ")#text("© … don’t word—​word")#text(" and (C).")
+#text("P08 ")#text("©")#text(" ")#text("…")#text(" don")#text("’")#text("t word")#text("—​")#text("word")#text(" and (C).")
 
 #{
   // Slice highlighted text without discarding its syntax styles.
@@ -194,4 +195,4 @@
 [#text("(1)")], [#text("Deferred replacements retain callout numbering.")],
 )
 
-#text("P16 pass:r[©] and ©.")
+#text("P16 pass:r[")#text("©")#text("] and ")#text("©")#text(".")

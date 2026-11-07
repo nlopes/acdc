@@ -11,9 +11,12 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "https://example.com/docs[Example Docs]",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 1,
@@ -21,7 +24,7 @@
               },
               {
                 "line": 1,
-                "col": 47
+                "col": 46
               }
             ]
           }

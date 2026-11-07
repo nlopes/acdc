@@ -1,4 +1,6 @@
-use std::{collections::HashMap, io::Write};
+#[cfg(test)]
+use std::collections::HashMap;
+use std::io::Write;
 
 use acdc_converters_core::{
     TraversalContext,
@@ -6,9 +8,11 @@ use acdc_converters_core::{
         appendix_number_prefix, book_chapter_signifier, effective_section_level,
         part_number_prefix, section_number_prefix,
     },
-    visitor::WritableVisitor,
 };
-use acdc_parser::{DiscreteHeader, InlineNode, Section, SectionKind};
+use acdc_parser::{
+    SectionKind,
+    ast::{DiscreteHeaderRef, SectionRef},
+};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -20,23 +24,23 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     pub(crate) fn render_section(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        section: &'a Section<'a>,
+        section: SectionRef<'a>,
     ) -> Result<(), crate::Error> {
-        if section.metadata.options.contains(&"notitle") {
+        if section.options().iter().any(|value| value == "notitle") {
             return Ok(());
         }
 
         let processor = self.processor;
-        let effective_level = effective_section_level(section.level, section.kind);
-        let is_appendix = section.kind == SectionKind::Appendix;
-        let is_part = section.level == 0 && section.kind == SectionKind::Normal;
+        let effective_level = effective_section_level(section.level(), section.kind());
+        let is_appendix = section.kind() == SectionKind::Appendix;
+        let is_part = section.level() == 0 && section.kind() == SectionKind::Normal;
 
         let prefix = section.number().map_or_else(String::new, |number| {
             if is_appendix {
                 appendix_number_prefix(number, string_attribute(traversal, "appendix-caption"))
             } else if is_part {
                 part_number_prefix(number, string_attribute(traversal, "part-signifier"))
-            } else if section.level == 1 && section.kind == SectionKind::Normal {
+            } else if section.level() == 1 && section.kind() == SectionKind::Normal {
                 let signifier = book_chapter_signifier(traversal, Some("Chapter"));
                 section_number_prefix(number, signifier)
             } else {
@@ -44,7 +48,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             }
         });
 
-        let raw_title = extract_title_text(&section.title, &processor.references);
+        let raw_title = crate::extract_heading_content(section.title(), &processor.references);
         let title = format!("{prefix}{raw_title}");
 
         let tw = processor.terminal_width;
@@ -107,12 +111,12 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
     pub(crate) fn render_discrete_header(
         &mut self,
-        header: &DiscreteHeader,
+        header: DiscreteHeaderRef<'_>,
     ) -> Result<(), crate::Error> {
         let processor = self.processor;
         let w = self.writer_mut();
         // Discrete headers render similar to level 4 sections (bold only)
-        let styled = extract_title_text(&header.title, &processor.references)
+        let styled = crate::extract_heading_content(header.title(), &processor.references)
             .bold()
             .with(processor.appearance.colors.section_h4);
         QueueableCommand::queue(w, PrintStyledContent(styled))?;
@@ -126,46 +130,34 @@ fn string_attribute<'a>(attributes: &'a TraversalContext<'_>, name: &str) -> Opt
     attributes.get(name).and_then(|value| value.text())
 }
 
-/// Plain text for a section or header title, which terminal output renders as a
-/// styled single line rather than through the inline pipeline.
+#[cfg(test)]
 fn extract_title_text(
-    title: &[InlineNode],
+    title: &[acdc_parser::InlineNode<'_>],
     references: &HashMap<&str, acdc_parser::Reference<'_>>,
 ) -> String {
-    crate::extract_heading_text(title, references)
+    acdc_converters_core::InlineTextTransform::default()
+        .decode_char_refs(true)
+        .references(references.into())
+        .to_string(title)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use acdc_parser::{
-        Bold, CalloutRef, CalloutRefKind, Form, InlineMacro, InlineNode, Link, Location, Plain,
-        Source, Verbatim,
+        Bold, CalloutRef, Form, InlineMacro, InlineNode, Link, Location, Plain, Source, Verbatim,
     };
 
     fn plain(s: &str) -> InlineNode<'_> {
-        InlineNode::PlainText(Plain {
-            content: s,
-            location: Location::default(),
-            escaped: false,
-        })
+        InlineNode::PlainText(Plain::new(s, Location::default()))
     }
 
     fn verbatim(s: &str) -> InlineNode<'_> {
-        InlineNode::VerbatimText(Verbatim {
-            content: s,
-            location: Location::default(),
-        })
+        InlineNode::VerbatimText(Verbatim::new(s, Location::default()))
     }
 
     fn bold(nodes: Vec<InlineNode>) -> InlineNode {
-        InlineNode::BoldText(Bold {
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            content: nodes,
-            location: Location::default(),
-        })
+        InlineNode::BoldText(Bold::new(nodes, Form::Constrained, Location::default()))
     }
 
     /// A catalog is only consulted for a cross-reference with no text of its
@@ -191,20 +183,20 @@ mod tests {
 
     #[test]
     fn extract_link_macro_with_text() {
-        let link = InlineNode::Macro(InlineMacro::Link(
+        let link = InlineNode::Macro(InlineMacro::Link(Box::new(
             Link::new(Source::Name("https://example.com"), Location::default())
                 .with_text(vec![plain("Example")]),
-        ));
+        )));
         let title = [plain("See "), link];
         assert_eq!(extract_title_text(&title, &no_references()), "See Example");
     }
 
     #[test]
     fn extract_link_macro_without_text() {
-        let link = InlineNode::Macro(InlineMacro::Link(Link::new(
+        let link = InlineNode::Macro(InlineMacro::Link(Box::new(Link::new(
             Source::Name("https://example.com"),
             Location::default(),
-        )));
+        ))));
         let title = [link];
         assert_eq!(
             extract_title_text(&title, &no_references()),
@@ -225,11 +217,7 @@ mod tests {
     fn extract_callout_ref() {
         let title = [
             plain("Code "),
-            InlineNode::CalloutRef(CalloutRef {
-                kind: CalloutRefKind::Explicit,
-                number: 1,
-                location: Location::default(),
-            }),
+            InlineNode::CalloutRef(CalloutRef::explicit(1, Location::default())),
         ];
         assert_eq!(extract_title_text(&title, &no_references()), "Code <1>");
     }
@@ -238,9 +226,9 @@ mod tests {
     fn extract_standalone_curved_apostrophe() {
         let title = [
             plain("it"),
-            InlineNode::StandaloneCurvedApostrophe(acdc_parser::StandaloneCurvedApostrophe {
-                location: Location::default(),
-            }),
+            InlineNode::StandaloneCurvedApostrophe(acdc_parser::StandaloneCurvedApostrophe::new(
+                Location::default(),
+            )),
             plain("s"),
         ];
         assert_eq!(extract_title_text(&title, &no_references()), "it\u{2019}s");

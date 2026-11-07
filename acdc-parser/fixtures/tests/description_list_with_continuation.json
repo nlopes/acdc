@@ -7,74 +7,100 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "CPU",
-              "location": [
-                {
-                  "line": 1,
-                  "col": 1
-                },
-                {
-                  "line": 1,
-                  "col": 3
-                }
-              ]
-            }
-          ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "The brain of the computer.",
-              "location": [
-                {
-                  "line": 1,
-                  "col": 7
-                },
-                {
-                  "line": 1,
-                  "col": 32
-                }
-              ]
-            }
-          ],
-          "description": [
-            {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
+              "content": [
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "This is a continuation paragraph about CPU.",
+                  "value": "CPU",
                   "location": [
                     {
-                      "line": 3,
+                      "line": 1,
                       "col": 1
                     },
                     {
-                      "line": 3,
-                      "col": 43
+                      "line": 1,
+                      "col": 3
                     }
                   ]
                 }
               ],
+              "delimiter": "::",
               "location": [
                 {
-                  "line": 3,
+                  "line": 1,
                   "col": 1
                 },
                 {
-                  "line": 3,
-                  "col": 43
+                  "line": 1,
+                  "col": 5
                 }
               ]
             }
           ],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "The brain of the computer.",
+                "location": [
+                  {
+                    "line": 1,
+                    "col": 7
+                  },
+                  {
+                    "line": 1,
+                    "col": 32
+                  }
+                ]
+              }
+            ],
+            "blocks": [
+              {
+                "name": "paragraph",
+                "type": "block",
+                "inlines": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "This is a continuation paragraph about CPU.",
+                    "location": [
+                      {
+                        "line": 3,
+                        "col": 1
+                      },
+                      {
+                        "line": 3,
+                        "col": 43
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 3,
+                    "col": 1
+                  },
+                  {
+                    "line": 3,
+                    "col": 43
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 1,
+                "col": 7
+              },
+              {
+                "line": 3,
+                "col": 43
+              }
+            ]
+          },
           "location": [
             {
               "line": 1,
@@ -87,91 +113,118 @@
           ]
         },
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Memory",
-              "location": [
+              "content": [
                 {
-                  "line": 5,
-                  "col": 1
-                },
-                {
-                  "line": 5,
-                  "col": 6
-                }
-              ]
-            }
-          ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "RAM stores temporary data.",
-              "location": [
-                {
-                  "line": 5,
-                  "col": 10
-                },
-                {
-                  "line": 5,
-                  "col": 35
-                }
-              ]
-            }
-          ],
-          "description": [
-            {
-              "name": "admonition",
-              "type": "block",
-              "variant": "note",
-              "blocks": [
-                {
-                  "name": "paragraph",
-                  "type": "block",
-                  "inlines": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "This is an admonition continuation.",
-                      "location": [
-                        {
-                          "line": 7,
-                          "col": 7
-                        },
-                        {
-                          "line": 7,
-                          "col": 41
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Memory",
                   "location": [
                     {
-                      "line": 7,
-                      "col": 7
+                      "line": 5,
+                      "col": 1
                     },
                     {
-                      "line": 7,
-                      "col": 41
+                      "line": 5,
+                      "col": 6
                     }
                   ]
                 }
               ],
+              "delimiter": "::",
               "location": [
                 {
-                  "line": 7,
+                  "line": 5,
                   "col": 1
                 },
                 {
-                  "line": 7,
-                  "col": 41
+                  "line": 5,
+                  "col": 8
                 }
               ]
             }
           ],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "RAM stores temporary data.",
+                "location": [
+                  {
+                    "line": 5,
+                    "col": 10
+                  },
+                  {
+                    "line": 5,
+                    "col": 35
+                  }
+                ]
+              }
+            ],
+            "blocks": [
+              {
+                "name": "admonition",
+                "type": "block",
+                "variant": "note",
+                "form": "paragraph",
+                "blocks": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "This is an admonition continuation.",
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 7
+                          },
+                          {
+                            "line": 7,
+                            "col": 41
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 7,
+                        "col": 7
+                      },
+                      {
+                        "line": 7,
+                        "col": 41
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 7,
+                    "col": 1
+                  },
+                  {
+                    "line": 7,
+                    "col": 41
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 5,
+                "col": 10
+              },
+              {
+                "line": 7,
+                "col": 41
+              }
+            ]
+          },
           "location": [
             {
               "line": 5,

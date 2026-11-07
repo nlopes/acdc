@@ -55,6 +55,6 @@ Attribute *body* Early.
 .IP [3] 4
 Late {name} *literal* (C).
 .IP [4] 4
-\(co. \fBBold\fR
+\(co\&. \fBBold\fR
 .IP [5] 4
 Last note.

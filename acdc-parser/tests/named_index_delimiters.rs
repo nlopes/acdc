@@ -1,4 +1,8 @@
-use acdc_parser::{InlineMacro, InlineNode, Options, parse, parse_inline};
+use acdc_parser::{
+    InlineMacro, InlineNode, Options,
+    ast::{InlineKind, InlineRef},
+    parse, parse_inline,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -6,15 +10,17 @@ type Error = Box<dyn std::error::Error>;
 fn named_index_delimiters_register_notes_and_anchors_once() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/named_index_delimiters.adoc");
     let parsed = parse(source, &Options::default())?;
-    let [note] = parsed.document().footnotes.as_slice() else {
+    let mut definitions = parsed.document().footnotes();
+    let (Some(note), None) = (definitions.next(), definitions.next()) else {
         return Err("expected one footnote definition".into());
     };
-    assert_eq!(note.id, Some("one"));
-    let [InlineNode::PlainText(body)] = note.content.as_slice() else {
+    assert_eq!(note.id(), Some("one"));
+    let mut content = note.content().inlines().map(InlineRef::kind);
+    let (Some(InlineKind::Plain(body)), None) = (content.next(), content.next()) else {
         return Err("expected complete footnote body".into());
     };
-    assert_eq!(body.content, "Only note.");
-    assert!(parsed.document().references.contains_key("inner"));
+    assert_eq!(body.text(), "Only note.");
+    assert!(parsed.document().references().contains("inner"));
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -24,15 +30,27 @@ fn named_index_delimiters_preserve_registration_time_macro_text() -> Result<(), 
     let label = "Before https://example.org[Link] after";
     let source = format!("indexterm2:[{label}]");
     let parsed = parse_inline(&source, &Options::default())?;
-    let [InlineNode::Macro(InlineMacro::IndexTerm(term))] = parsed.inlines() else {
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Macro(InlineMacro::IndexTerm(term))] = parsed_inlines.as_slice() else {
         return Err("expected index term".into());
     };
-    let [InlineNode::PlainText(catalog)] = term.catalog_entry().term() else {
+    let content = acdc_parser::ContentAttribute::from(
+        acdc_parser::ast::IndexTermRef::from(term.as_ref())
+            .catalog()
+            .term(),
+    )
+    .into_inlines();
+    let [InlineNode::RawText(catalog)] = content.as_slice() else {
         return Err("expected literal catalog text".into());
     };
-    assert_eq!(catalog.content, label);
+    let catalog = acdc_parser::ast::RawRef::from(catalog);
+    assert_eq!(catalog.text(), label);
     assert_eq!(
-        &source[catalog.location.absolute_start..=catalog.location.absolute_end],
+        catalog.substitutions().collect::<Vec<_>>(),
+        [acdc_parser::Substitution::SpecialChars]
+    );
+    assert_eq!(
+        &source[catalog.location().absolute_start()..=catalog.location().absolute_end()],
         label
     );
     Ok(())
@@ -43,8 +61,8 @@ fn named_index_delimiters_register_only_visible_targets() -> Result<(), Error> {
     let source =
         "indexterm2:[anchor:visible[]Shown] indexterm:[anchor:hidden[]Hidden]\n\n<<visible>>.";
     let parsed = parse(source, &Options::default())?;
-    assert!(parsed.document().references.contains_key("visible"));
-    assert!(!parsed.document().references.contains_key("hidden"));
+    assert!(parsed.document().references().contains("visible"));
+    assert!(!parsed.document().references().contains("hidden"));
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -74,23 +92,37 @@ fn named_index_delimiters_preserve_complete_children_and_source_spans(
     };
     let source = format!("α {outer}[{label}] ω");
     let parsed = parse_inline(&source, &Options::default())?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
     let [
         _,
         InlineNode::Macro(InlineMacro::IndexTerm(term)),
         InlineNode::PlainText(tail),
-    ] = parsed.inlines()
+    ] = parsed_inlines.as_slice()
     else {
-        return Err(format!("expected complete index term: {:?}", parsed.inlines()).into());
+        return Err(format!(
+            "expected complete index term: {:?}",
+            parsed_inlines.as_slice()
+        )
+        .into());
     };
-    assert_eq!(tail.content, " ω");
+    assert_eq!(acdc_parser::ast::PlainRef::from(tail).text(), " ω");
     assert_eq!(
-        &source[term.location.absolute_start..=term.location.absolute_end],
+        &source[acdc_parser::ast::IndexTermRef::from(term.as_ref())
+            .location()
+            .absolute_start()
+            ..=acdc_parser::ast::IndexTermRef::from(term.as_ref())
+                .location()
+                .absolute_end()],
         format!("{outer}[{label}]")
     );
-    let [InlineNode::PlainText(_), node, InlineNode::PlainText(after)] = term.term() else {
-        return Err(format!("expected complete child macro: {:?}", term.term()).into());
+    let content = acdc_parser::ContentAttribute::from(
+        acdc_parser::ast::IndexTermRef::from(term.as_ref()).term(),
+    )
+    .into_inlines();
+    let [InlineNode::PlainText(_), node, InlineNode::PlainText(after)] = content.as_slice() else {
+        return Err(format!("expected complete child macro: {:?}", content.as_slice()).into());
     };
-    assert_eq!(after.content, " after");
+    assert_eq!(acdc_parser::ast::PlainRef::from(after).text(), " after");
     let location = node.location();
     assert_eq!(
         &source[location.absolute_start..=location.absolute_end],

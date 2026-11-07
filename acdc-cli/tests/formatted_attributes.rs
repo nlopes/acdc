@@ -1,11 +1,11 @@
 #![cfg(all(feature = "html", feature = "pdf", feature = "manpage"))]
 
 use acdc_converters_core::{Converter, Diagnostics, Options as ConverterOptions, WarningSource};
-use acdc_parser::{Document, Options, parse};
+use acdc_parser::{Document, DocumentAttributes, Options, ast::DocumentRef, parse};
 
 type Error = Box<dyn std::error::Error>;
 
-fn render<'a, C: Converter<'a>>(converter: &C, doc: &Document<'_>) -> Result<Vec<u8>, Error> {
+fn render<'a, C: Converter<'a>>(converter: &C, doc: DocumentRef<'_>) -> Result<Vec<u8>, Error> {
     let source = WarningSource::new(converter.name());
     let mut warnings = Vec::new();
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -24,9 +24,9 @@ fn formatted_attribute_document_can_be_parsed_once_for_three_backends() -> Resul
         &Options::default(),
     )?;
     let doc = parsed.document();
-    let text = serde_json::to_value(&doc.attributes)?;
+    let text = serde_json::to_value(DocumentAttributes::from(doc.attributes()))?;
     let tree = serde_json::to_value(doc)?;
-    let notes = doc.footnotes.clone();
+    let notes = Document::from(doc).take_footnotes().collect::<Vec<_>>();
     let html = acdc_converters_html::Processor::new(
         ConverterOptions::builder().embedded(true).build(),
         Options::builder(),
@@ -40,8 +40,14 @@ fn formatted_attribute_document_can_be_parsed_once_for_three_backends() -> Resul
     assert!(String::from_utf8(output)?.contains("Early"));
     let output = render(&pdf, doc)?;
     assert!(output.starts_with(b"%PDF-"));
-    assert_eq!(text, serde_json::to_value(&doc.attributes)?);
+    assert_eq!(
+        text,
+        serde_json::to_value(DocumentAttributes::from(doc.attributes()))?
+    );
     assert_eq!(tree, serde_json::to_value(doc)?);
-    assert_eq!(notes, doc.footnotes);
+    assert_eq!(
+        notes,
+        Document::from(doc).take_footnotes().collect::<Vec<_>>()
+    );
     Ok(())
 }

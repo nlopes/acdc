@@ -1,0 +1,14 @@
+[cols="1,1,1,1",options="header,footer"]
+|====
+2+|Heading |Third |Fourth
+2.2+|Wide and tall |One |Two
+|Three |Four
+4+|Footer
+|====
+
+[cols="1,1",options="header,footer"]
+|===
+.2+|Header span |Head
+|Body
+|Foot one |Foot two
+|===

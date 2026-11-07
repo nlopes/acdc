@@ -1,15 +1,19 @@
-use acdc_parser::{Block, InlineMacro, InlineNode, Location, Options, parse};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef, LocationRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
-fn source_span<'s>(source: &'s str, location: &Location) -> Result<&'s str, Error> {
-    let start = location.absolute_start;
-    let end = location.absolute_end;
+fn source_span<'s>(source: &'s str, location: LocationRef<'_>) -> Result<&'s str, Error> {
+    let start = location.absolute_start();
+    let end = location.absolute_end();
     let last = source
         .get(end..)
         .and_then(|tail| tail.chars().next())
         .ok_or("invalid inclusive end")?;
-    for (offset, position) in [(start, &location.start), (end, &location.end)] {
+    for (offset, position) in [(start, location.start()), (end, location.end())] {
         let prefix = source.get(..offset).ok_or("invalid character boundary")?;
         let line = prefix.chars().filter(|&c| c == '\n').count() + 1;
         let column = prefix
@@ -20,7 +24,7 @@ fn source_span<'s>(source: &'s str, location: &Location) -> Result<&'s str, Erro
             .count()
             + 1;
         assert_eq!(
-            (position.line as usize, position.column as usize),
+            (position.line() as usize, position.column() as usize),
             (line, column)
         );
     }
@@ -29,17 +33,20 @@ fn source_span<'s>(source: &'s str, location: &Location) -> Result<&'s str, Erro
         .ok_or_else(|| "invalid source span".into())
 }
 
-fn assert_literal_spans(source: &str, nodes: &[InlineNode<'_>]) -> Result<(), Error> {
+fn assert_literal_spans<'doc>(
+    source: &str,
+    nodes: impl IntoIterator<Item = InlineRef<'doc>>,
+) -> Result<(), Error> {
     for node in nodes {
-        if let InlineNode::PlainText(text) = node {
-            assert_eq!(source_span(source, &text.location)?, text.content);
-        } else if let InlineNode::RawText(raw) = node {
-            assert_eq!(source_span(source, &raw.location)?, raw.content);
-        } else if let InlineNode::BoldText(bold) = node {
-            assert_literal_spans(source, &bold.content)?;
-        } else if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
-            assert_literal_spans(source, term.term())?;
-            assert_literal_spans(source, term.catalog_entry().term())?;
+        if let InlineKind::Plain(text) = node.kind() {
+            assert_eq!(source_span(source, text.location())?, text.text());
+        } else if let InlineKind::Raw(raw) = node.kind() {
+            assert_eq!(source_span(source, raw.location())?, raw.text());
+        } else if let InlineKind::Bold(bold) = node.kind() {
+            assert_literal_spans(source, bold.content().inlines())?;
+        } else if let InlineKind::IndexTerm(term) = node.kind() {
+            assert_literal_spans(source, term.term().inlines())?;
+            assert_literal_spans(source, term.catalog().term().inlines())?;
         } else {
             return Err(format!("unexpected node: {node:?}").into());
         }
@@ -63,10 +70,15 @@ fn passthrough_fragments_have_exact_inclusive_source_spans() -> Result<(), Error
         "pass:macros,quotes[((Term *café*))]",
     ] {
         let parsed = parse(source, &Options::default())?;
-        let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(paragraph)] = &*parsed
+            .document()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected one paragraph".into());
         };
-        assert_literal_spans(source, &paragraph.content)?;
+        assert_literal_spans(source, paragraph.content().inlines())?;
     }
     Ok(())
 }
@@ -75,22 +87,30 @@ fn passthrough_fragments_have_exact_inclusive_source_spans() -> Result<(), Error
 fn passthrough_newline_ends_before_the_next_delimiter() -> Result<(), Error> {
     let source = include_str!("../fixtures/tests/passthrough_at_line_start.adoc");
     let parsed = parse(source, &Options::default())?;
-    let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(paragraph)] = &*parsed
+        .document()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected one paragraph".into());
     };
     let text = paragraph
-        .content
-        .iter()
+        .content()
+        .inlines()
         .find_map(|node| {
-            if let InlineNode::PlainText(text) = node {
-                (text.content == " or\n").then_some(text)
+            if let InlineKind::Plain(text) = node.kind() {
+                (text.text() == " or\n").then_some(text)
             } else {
                 None
             }
         })
         .ok_or("missing newline fragment")?;
-    assert_eq!((text.location.end.line, text.location.end.column), (1, 48));
-    assert_eq!(source_span(source, &text.location)?, " or\n");
+    assert_eq!(
+        (text.location().end().line(), text.location().end().column()),
+        (1, 48)
+    );
+    assert_eq!(source_span(source, text.location())?, " or\n");
     Ok(())
 }
 
@@ -102,16 +122,21 @@ fn passthrough_hardbreak_maps_to_its_marker_without_the_newline() -> Result<(), 
     ] {
         let source = format!(":plus: +\n\npass:a,p[{body}]");
         let parsed = parse(&source, &Options::default())?;
-        let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(paragraph)] = &*parsed
+            .document()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected one paragraph".into());
         };
         let mut breaks = 0;
-        for node in &paragraph.content {
-            if let InlineNode::LineBreak(line_break) = node {
-                assert_eq!(source_span(&source, &line_break.location)?, marker);
+        for node in paragraph.content().inlines() {
+            if let InlineKind::LineBreak(line_break) = node.kind() {
+                assert_eq!(source_span(&source, line_break.location())?, marker);
                 breaks += 1;
             } else {
-                assert_literal_spans(&source, std::slice::from_ref(node))?;
+                assert_literal_spans(&source, std::iter::once(node))?;
             }
         }
         assert_eq!(breaks, 1);
@@ -125,29 +150,43 @@ fn passthrough_formatted_attribute_maps_to_the_complete_reference() -> Result<()
         for stages in ["attributes,quotes,macros", "attributes,macros,quotes"] {
             let source = format!(":value: {value}\n\npass:{stages}[((Term {{value}}))]");
             let parsed = parse(&source, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let [BlockKind::Paragraph(paragraph)] = &*parsed
+                .document()
+                .blocks()
+                .map(BlockRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err("expected one paragraph".into());
             };
-            let [InlineNode::Macro(InlineMacro::IndexTerm(term))] = paragraph.content.as_slice()
+            let [InlineKind::IndexTerm(term)] = &*paragraph
+                .content()
+                .inlines()
+                .map(InlineRef::kind)
+                .collect::<Vec<_>>()
             else {
                 return Err("expected one index term".into());
             };
             let bold = term
                 .term()
-                .iter()
+                .inlines()
                 .find_map(|node| {
-                    if let InlineNode::BoldText(bold) = node {
+                    if let InlineKind::Bold(bold) = node.kind() {
                         Some(bold)
                     } else {
                         None
                     }
                 })
                 .ok_or("missing formatted attribute")?;
-            assert_eq!(source_span(&source, &bold.location)?, "{value}");
-            let [InlineNode::RawText(raw)] = bold.content.as_slice() else {
+            assert_eq!(source_span(&source, bold.location())?, "{value}");
+            let [InlineKind::Raw(raw)] = &*bold
+                .content()
+                .inlines()
+                .map(InlineRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err("missing formatted attribute text".into());
             };
-            assert_eq!(source_span(&source, &raw.location)?, "{value}");
+            assert_eq!(source_span(&source, raw.location())?, "{value}");
         }
     }
     Ok(())
@@ -158,23 +197,32 @@ fn passthrough_escape_does_not_shift_a_following_attribute_span() -> Result<(), 
     for value in ["é", "Expanded"] {
         let source = format!(":name: {value}\n\npass:a,m[\\((Literal {{name}}))]");
         let parsed = parse(&source, &Options::default())?;
-        let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(paragraph)] = &*parsed
+            .document()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected one paragraph".into());
         };
         let [
-            InlineNode::RawText(prefix),
-            InlineNode::RawText(attribute),
-            InlineNode::RawText(suffix),
-        ] = paragraph.content.as_slice()
+            InlineKind::Raw(prefix),
+            InlineKind::Raw(attribute),
+            InlineKind::Raw(suffix),
+        ] = &*paragraph
+            .content()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
         else {
             return Err("expected escaped prefix, attribute, and suffix".into());
         };
-        assert_eq!(prefix.content, "((Literal ");
-        assert_eq!(source_span(&source, &prefix.location)?, "\\((Literal ");
-        assert_eq!(attribute.content, value);
-        assert_eq!(source_span(&source, &attribute.location)?, "{name}");
-        assert_eq!(suffix.content, "))");
-        assert_eq!(source_span(&source, &suffix.location)?, "))");
+        assert_eq!(prefix.text(), "((Literal ");
+        assert_eq!(source_span(&source, prefix.location())?, "\\((Literal ");
+        assert_eq!(attribute.text(), value);
+        assert_eq!(source_span(&source, attribute.location())?, "{name}");
+        assert_eq!(suffix.text(), "))");
+        assert_eq!(source_span(&source, suffix.location())?, "))");
     }
     Ok(())
 }

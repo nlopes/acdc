@@ -1,0 +1,12 @@
+[1m[4mDecoded output controls[0m
+Inline [38;5;12m[Image: Inline alternative][39m[2m ('https://example.org/inline')[0m.
+[38;5;12m[Image: Block alternative][39m[2m ('https://example.org/block')[0m
+  Figure 1. Block alternative
+[38;5;12m[Icon: Custom icon][39m[2m ('https://example.org/icon')[0m
+
+[38;5;12m│[39m ℹ️ [1mNote:[0m
+[38;5;12m│[39m Custom label image.
+[38;5;12m│[39m
+[38;5;12mQuoted role[39m[2m (https://example.org)[0m and [38;5;12mPlain role[39m[2m (https://example.net)[0m.
+[38;5;12m[Video: clip.mp4][39m[2m (clip.mp4)[0m
+[Poster: 'literal.svg]

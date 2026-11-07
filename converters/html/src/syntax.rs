@@ -31,7 +31,7 @@ use acdc_converters_core::{
     substitutions::TextBoundaries,
 };
 #[cfg(feature = "highlighting")]
-use acdc_parser::{BlockMetadata, InlineNode};
+use acdc_parser::ast::{AttributesRef, InlineKind, InlineRef};
 
 #[cfg(feature = "highlighting")]
 use crate::Error;
@@ -62,7 +62,7 @@ pub(crate) struct HighlightOptions<'a> {
     pub(crate) theme_name: &'a str,
     pub(crate) mode: HighlightMode,
     pub(crate) font_icons: bool,
-    pub(crate) text_context: Option<&'a [InlineNode<'a>]>,
+    pub(crate) text_context: Option<&'a [InlineRef<'a>]>,
 }
 
 /// The `ClassStyle` used for class-based output.  Every scope token is
@@ -79,11 +79,10 @@ const SYNTAX_CLASS_STYLE: syntect::html::ClassStyle =
 #[cfg(feature = "highlighting")]
 pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
-    inlines: &[InlineNode],
-    metadata: &BlockMetadata<'_>,
+    inlines: &[InlineRef<'_>],
+    attributes: Option<AttributesRef<'_>>,
     options: HighlightOptions<'_>,
     links: &[HighlightedLink],
-    replacements: bool,
     diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> Result<(), Error> {
     let HighlightOptions {
@@ -94,10 +93,9 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         text_context,
     } = options;
     let (code, callouts) = extract_text_and_callouts(
-        inlines,
-        replacements,
+        inlines.iter().copied(),
         TextBoundaries::BOTH,
-        text_context,
+        &text_context.unwrap_or(inlines).iter().copied(),
         diagnostics,
     );
     let syntax_set = SyntaxSet::load_defaults_newlines();
@@ -107,7 +105,9 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         .or_else(|| syntax_set.find_syntax_by_extension(language))
         .unwrap_or_else(|| syntax_set.find_syntax_plain_text());
 
-    let options = SourceLineOptions::resolve(metadata, &code);
+    let options = attributes
+        .map(|attributes| SourceLineOptions::from_attributes(attributes, &code))
+        .unwrap_or_default();
     if options.is_empty() && links.is_empty() && callouts.is_empty() {
         return match mode {
             HighlightMode::Inline => {
@@ -275,7 +275,7 @@ fn source_highlight_colour(theme_name: &str) -> String {
     )
 }
 
-/// Inline-style highlighting (existing behaviour).
+/// Inline-style highlighting (existing behavior).
 #[cfg(feature = "highlighting")]
 fn highlight_code_inline<W: Write + ?Sized>(
     writer: &mut W,
@@ -329,7 +329,7 @@ fn highlight_code_classed<W: Write + ?Sized>(
 
 /// Generate a CSS stylesheet for class-based syntax highlighting.
 ///
-/// Returns the CSS rules that map `.syntax-*` classes to the colours of
+/// Returns the CSS rules that map `.syntax-*` classes to the colors of
 /// the given theme. Embed this in a `<style>` block in the `<head>`.
 #[cfg(feature = "highlighting")]
 pub(crate) fn highlight_css(theme_name: &str) -> Result<String, Error> {
@@ -372,70 +372,83 @@ fn html_escape(s: &str) -> String {
 /// Returns the code text with a space standing in for each callout, plus the
 /// placeholders' byte offsets and callout numbers in source order.
 /// Ordinary fragments and captured labels must already contain display text.
-/// Visible index labels retain their profiles and use `replacements` for
-/// ordinary label text.
+/// Visible index labels retain their own raw-text profiles.
 #[cfg(feature = "highlighting")]
-pub(crate) fn extract_text_and_callouts(
-    inlines: &[InlineNode],
-    replacements: bool,
+pub(crate) fn extract_text_and_callouts<'inline>(
+    inlines: impl Iterator<Item = InlineRef<'inline>>,
     boundaries: TextBoundaries,
-    text_context: Option<&[InlineNode]>,
+    text_context: &(impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone),
     mut diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> (String, Vec<(usize, usize)>) {
     let mut result = String::new();
     let mut callouts = Vec::new();
-    let text_context = text_context.unwrap_or(inlines);
 
-    for (index, node) in inlines.iter().enumerate() {
+    for (index, node) in inlines.enumerate() {
         #[allow(clippy::match_same_arms)]
-        match node {
-            InlineNode::VerbatimText(verbatim) => {
-                result.push_str(verbatim.content);
+        match node.kind() {
+            InlineKind::Verbatim(verbatim) => {
+                result.push_str(verbatim.text());
             }
-            InlineNode::RawText(raw) => {
-                result.push_str(raw.content);
+            InlineKind::Raw(raw) => {
+                result.push_str(raw.text());
             }
-            InlineNode::PlainText(plain) => {
-                result.push_str(plain.content);
+            InlineKind::Plain(plain) => {
+                result.push_str(plain.text());
             }
-            InlineNode::LineBreak(_) => {
+            InlineKind::Symbol(symbol) => result.push_str(symbol.text()),
+            InlineKind::CharacterReference(reference) => result.push_str(
+                &acdc_converters_core::character_reference_text(reference.kind()),
+            ),
+            InlineKind::LineBreak(_) => {
                 result.push('\n');
             }
-            InlineNode::CalloutRef(callout) => {
-                callouts.push((result.len(), callout.number));
+            InlineKind::Callout(callout) => {
+                callouts.push((result.len(), callout.number()));
                 // Marker-only lines still need a line number/highlight. Replacing
                 // this space with the marker adds no rendered whitespace.
                 result.push(' ');
             }
-            InlineNode::Macro(acdc_parser::InlineMacro::IndexTerm(term)) => {
+            InlineKind::IndexTerm(term) => {
                 if term.is_visible() {
-                    // Index labels remain structured until text extraction, so
-                    // apply their display substitutions here. Catalog labels
-                    // are registered independently from the original nodes.
-                    let text = InlineTextTransform::default()
+                    let _ = InlineTextTransform::default()
                         .line_break("\n")
                         .decode_char_refs(true)
-                        .rendered_replacements(replacements)
+                        .rendered()
                         .text_boundaries(
                             boundaries
-                                .with_ordinary_replacements(replacements)
-                                .for_inline(text_context, index),
+                                .with_ordinary_replacements(false)
+                                .for_inline_refs(
+                                    text_context.clone().nth(index),
+                                    text_context.clone().take(index).rev(),
+                                    text_context.clone().skip(index + 1),
+                                ),
                         )
-                        .to_string(std::slice::from_ref(node));
-                    result.push_str(&text);
+                        .write_inlines(&mut result, std::iter::once(node));
                 }
             }
-            InlineNode::BoldText(_)
-            | InlineNode::ItalicText(_)
-            | InlineNode::MonospaceText(_)
-            | InlineNode::HighlightText(_)
-            | InlineNode::SubscriptText(_)
-            | InlineNode::SuperscriptText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_) => {}
+            InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::Anchor(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::Icon(_)
+            | InlineKind::Image(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Button(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Url(_)
+            | InlineKind::Link(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::CrossReference(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Stem(_) => {}
             node => {
                 if let Some(diagnostics) = diagnostics.as_deref_mut() {
                     diagnostics.warn_with_advice(
@@ -454,78 +467,126 @@ pub(crate) fn extract_text_and_callouts(
 #[cfg(all(test, feature = "highlighting"))]
 mod tests {
     use super::*;
-    use acdc_parser::{CalloutRef, CalloutRefKind, Location, Verbatim};
+    use acdc_parser::{
+        CalloutRef, CompatibilityMode, InlineNode, LineBreak, Location, Options, Plain, Raw,
+        Substitution, Verbatim,
+    };
 
     fn create_verbatim_inlines(content: &str) -> Vec<InlineNode<'_>> {
-        vec![InlineNode::VerbatimText(Verbatim {
+        vec![InlineNode::VerbatimText(Verbatim::new(
             content,
-            location: Location::default(),
-        })]
+            Location::default(),
+        ))]
     }
 
     fn create_callout_ref(number: usize) -> InlineNode<'static> {
-        InlineNode::CalloutRef(CalloutRef {
-            kind: CalloutRefKind::Explicit,
-            number,
-            location: Location::default(),
-        })
+        InlineNode::CalloutRef(CalloutRef::explicit(number, Location::default()))
     }
 
     #[test]
     fn test_extract_text_and_callouts_from_verbatim() {
         let inlines = create_verbatim_inlines("fn main() {\n    println!(\"Hello\");\n}");
-        let (text, callouts) =
-            extract_text_and_callouts(&inlines, false, TextBoundaries::BOTH, None, None);
+        let (text, callouts) = extract_text_and_callouts(
+            inlines.iter().map(InlineRef::from),
+            TextBoundaries::BOTH,
+            &inlines.iter().map(InlineRef::from),
+            None,
+        );
         assert_eq!(text, "fn main() {\n    println!(\"Hello\");\n}");
         assert_eq!(callouts, []);
     }
 
     #[test]
     fn test_extract_text_and_callouts_with_callouts() {
-        let inlines = vec![
-            InlineNode::VerbatimText(Verbatim {
-                content: "let x = 1; ",
-                location: Location::default(),
-            }),
+        let inlines = [
+            InlineNode::VerbatimText(Verbatim::new("let x = 1; ", Location::default())),
             create_callout_ref(1),
-            InlineNode::VerbatimText(Verbatim {
-                content: "\nlet y = 2; ",
-                location: Location::default(),
-            }),
+            InlineNode::VerbatimText(Verbatim::new("\nlet y = 2; ", Location::default())),
             create_callout_ref(2),
-            InlineNode::VerbatimText(Verbatim {
-                content: "\n",
-                location: Location::default(),
-            }),
+            InlineNode::VerbatimText(Verbatim::new("\n", Location::default())),
         ];
 
-        let (text, callouts) =
-            extract_text_and_callouts(&inlines, false, TextBoundaries::BOTH, None, None);
+        let (text, callouts) = extract_text_and_callouts(
+            inlines.iter().map(InlineRef::from),
+            TextBoundaries::BOTH,
+            &inlines.iter().map(InlineRef::from),
+            None,
+        );
         assert_eq!(text, "let x = 1;  \nlet y = 2;  \n");
         assert_eq!(callouts, [(11, 1), (24, 2)]);
     }
 
     #[test]
+    fn extraction_preserves_prepared_text_and_unicode_callout_offsets() {
+        let inlines = [
+            InlineNode::PlainText(Plain::new("été -- ", Location::default())),
+            InlineNode::RawText(Raw::new(
+                "(C)",
+                vec![Substitution::Replacements],
+                Location::default(),
+            )),
+            InlineNode::VerbatimText(Verbatim::new("日本語", Location::default())),
+            InlineNode::LineBreak(LineBreak::new(Location::default())),
+            create_callout_ref(7),
+            create_callout_ref(2),
+        ];
+        let (text, callouts) = extract_text_and_callouts(
+            inlines.iter().map(InlineRef::from),
+            TextBoundaries::BOTH,
+            &inlines.iter().map(InlineRef::from),
+            None,
+        );
+        assert_eq!(text, "été -- (C)日本語\n  ");
+        assert_eq!(callouts, [(22, 7), (23, 2)]);
+    }
+
+    #[test]
+    fn extraction_keeps_resolved_index_typography_after_text_projection()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+            let options = Options::builder().with_compatibility_mode(mode).build()?;
+            let parsed = acdc_parser::parse("prefixindexterm2:[--]tail", &options)?;
+            let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+            let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
+            let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed_blocks.first() else {
+                return Err("expected paragraph".into());
+            };
+            let content: Vec<_> = paragraph.clone().take_content().collect();
+            let [_, term, tail] = content.as_slice() else {
+                return Err("expected three inline fragments".into());
+            };
+            let prepared = [
+                InlineNode::VerbatimText(Verbatim::new(" ", Location::default())),
+                term.clone(),
+                tail.clone(),
+            ];
+            let (text, callouts) = extract_text_and_callouts(
+                prepared.iter().map(InlineRef::from),
+                TextBoundaries::BOTH,
+                &content.iter().map(InlineRef::from),
+                None,
+            );
+            assert_eq!(text, " —\u{200b}tail", "{mode:?}");
+            assert_eq!(callouts, []);
+        }
+        Ok(())
+    }
+
+    #[test]
     #[allow(clippy::expect_used)]
     fn test_highlight_code_with_callouts() -> Result<(), Error> {
-        let inlines = vec![
-            InlineNode::VerbatimText(Verbatim {
-                content: "let x = 1; ",
-                location: Location::default(),
-            }),
+        let inlines = [
+            InlineNode::VerbatimText(Verbatim::new("let x = 1; ", Location::default())),
             create_callout_ref(1),
-            InlineNode::VerbatimText(Verbatim {
-                content: "\nlet y = 2; ",
-                location: Location::default(),
-            }),
+            InlineNode::VerbatimText(Verbatim::new("\nlet y = 2; ", Location::default())),
             create_callout_ref(2),
         ];
 
         let mut buffer = Vec::new();
         highlight_code(
             &mut buffer,
-            &inlines,
-            &BlockMetadata::new(),
+            &inlines.iter().map(InlineRef::from).collect::<Vec<_>>(),
+            None,
             HighlightOptions {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
@@ -534,7 +595,6 @@ mod tests {
                 text_context: None,
             },
             &[],
-            false,
             None,
         )?;
 
@@ -564,8 +624,8 @@ mod tests {
         let mut buffer = Vec::new();
         highlight_code(
             &mut buffer,
-            &inlines,
-            &BlockMetadata::new(),
+            &inlines.iter().map(InlineRef::from).collect::<Vec<_>>(),
+            None,
             HighlightOptions {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
@@ -574,7 +634,6 @@ mod tests {
                 text_context: None,
             },
             &[],
-            false,
             None,
         )?;
 
@@ -596,8 +655,8 @@ mod tests {
         let mut buffer = Vec::new();
         highlight_code(
             &mut buffer,
-            &inlines,
-            &BlockMetadata::new(),
+            &inlines.iter().map(InlineRef::from).collect::<Vec<_>>(),
+            None,
             HighlightOptions {
                 language: "unknown_lang_xyz",
                 theme_name: DEFAULT_THEME_LIGHT,
@@ -606,7 +665,6 @@ mod tests {
                 text_context: None,
             },
             &[],
-            false,
             None,
         )?;
 
@@ -630,8 +688,8 @@ mod tests {
         let mut buffer = Vec::new();
         highlight_code(
             &mut buffer,
-            &inlines,
-            &BlockMetadata::new(),
+            &inlines.iter().map(InlineRef::from).collect::<Vec<_>>(),
+            None,
             HighlightOptions {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
@@ -640,7 +698,6 @@ mod tests {
                 text_context: None,
             },
             &[],
-            false,
             None,
         )?;
 
@@ -659,24 +716,18 @@ mod tests {
     #[test]
     #[allow(clippy::expect_used)]
     fn test_highlight_class_mode_with_callouts() -> Result<(), Error> {
-        let inlines = vec![
-            InlineNode::VerbatimText(Verbatim {
-                content: "let x = 1; ",
-                location: Location::default(),
-            }),
+        let inlines = [
+            InlineNode::VerbatimText(Verbatim::new("let x = 1; ", Location::default())),
             create_callout_ref(1),
-            InlineNode::VerbatimText(Verbatim {
-                content: "\nlet y = 2; ",
-                location: Location::default(),
-            }),
+            InlineNode::VerbatimText(Verbatim::new("\nlet y = 2; ", Location::default())),
             create_callout_ref(2),
         ];
 
         let mut buffer = Vec::new();
         highlight_code(
             &mut buffer,
-            &inlines,
-            &BlockMetadata::new(),
+            &inlines.iter().map(InlineRef::from).collect::<Vec<_>>(),
+            None,
             HighlightOptions {
                 language: "rust",
                 theme_name: DEFAULT_THEME_LIGHT,
@@ -685,7 +736,6 @@ mod tests {
                 text_context: None,
             },
             &[],
-            false,
             None,
         )?;
 
@@ -860,5 +910,36 @@ fn decoded_entity(entity: &str) -> Option<char> {
             };
             char::from_u32(value)
         }
+    }
+}
+
+#[cfg(all(test, feature = "highlighting"))]
+mod character_reference_tests {
+    use super::{TextBoundaries, extract_text_and_callouts};
+    use acdc_parser::{
+        CharacterReference, CharacterReferenceKind, InlineNode, Location, ast::InlineRef,
+    };
+
+    #[test]
+    fn character_references_reach_highlighted_code_as_characters() -> Result<(), &'static str> {
+        let nodes = [
+            InlineNode::CharacterReference(
+                CharacterReference::new(CharacterReferenceKind::Numeric(65), Location::default())
+                    .ok_or("invalid reference")?,
+            ),
+            InlineNode::CharacterReference(
+                CharacterReference::new(
+                    CharacterReferenceKind::Named("NotEqualTilde"),
+                    Location::default(),
+                )
+                .ok_or("invalid reference")?,
+            ),
+        ];
+        let inlines = nodes.iter().map(InlineRef::from);
+        let (text, callouts) =
+            extract_text_and_callouts(inlines.clone(), TextBoundaries::NONE, &inlines, None);
+        assert_eq!(text, "A≂̸");
+        assert_eq!(callouts, []);
+        Ok(())
     }
 }

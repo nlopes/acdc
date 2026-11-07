@@ -56,7 +56,7 @@ A cross-reference: [38;5;12m[4msee Inline Formatting[24m[39m.
 A footnote reference.[38;5;14m[1m[1][0m
 A keyboard shortcut: [Ctrl+C].
 A button: [38;5;15m[1m[OK][0m.
-A  menu:File > Save As... > PDF.
+A  menu:File > Save As… > PDF.
 An inline image: [Image: Logo].
 An index term: terminal rendering is useful.
 A pass-through: <raw>content</raw>.

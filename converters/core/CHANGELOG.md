@@ -7,6 +7,120 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document traversal now provides footnote bodies and distinct output labels
+  for notes owned by AsciiDoc table cells. Custom document visitors can use
+  `TraversalContext::with_document()` to provide the same context.
+
+- Automatic document references and plain-text extraction use body `reftext`
+  values in source order. Empty and unset values fall back to the document title.
+  **Breaking:** keep the occurrence alive while using `resolve_reference` or
+  `resolve_local_reference` results; returned content can borrow its saved label.
+
+- Index sections attached to shared description-list definitions remain visible
+  to converters.
+
+- Short and full cross-references retain formatting in parsed custom `caption=`
+  prefixes. Only a final unformatted period and space are removed; punctuation
+  inside a styled span remains visible.
+
+- Text-only cross-reference display resolves external `.adoc` paths through
+  their source stem and omits empty fragments. Local filename-like IDs retain
+  their spelling.
+
+- Cross-reference rendering supports exact output suffixes, including an empty
+  suffix that removes the source extension. Extension-based callers retain their
+  existing output.
+
+- Table widths now share one numeric scale. With `cols="2*3,~"`, the numeric
+  columns keep 3% each and leave automatic space, matching Asciidoctor. Large
+  supported widths no longer overflow, and all-zero numeric widths divide space
+  equally. **Breaking:** `column_widths` returns `Vec<Option<f64>>`; `None` is
+  automatic, while `Some(0.0)` is an explicit zero width.
+
+- **Breaking:** use `code_inline_content` and `visit_index_inlines` for typed
+  code children and index discovery. The owner-slice and owner-callback APIs
+  have been removed. Selection, offsets, visibility and early errors are unchanged.
+
+- **Breaking:** table helpers now use typed parser handles. Replace
+  `calculate_column_widths`, `determine_column_count`, `build_grid`, and
+  `table_has_spans` with `column_widths`, `column_count`, `grid_rows`, and
+  `has_spans`. Span placement and row-group behavior are unchanged.
+
+- **Breaking:** replace `visitor::Visitor` and `WritableVisitor` implementations
+  with `DocumentVisitor`, `BlockVisitor`, and `InlineVisitor`. Block callbacks
+  always receive `BlockRef`; dispatch still accepts constructed blocks through
+  `Into<BlockRef>`. Callbacks select their children, and attribute replay and
+  error stopping remain unchanged.
+
+- Rust callers pass `ReferencesRef` to `InlineTextTransform::references` and `resolve_code_link`, and `ReferenceRef` to `reference_text`. Use `document.references()` or `ReferencesRef::from(&catalog)`; `reference_text` returns `ContentRef`. Label precedence and rendered output are unchanged.
+
+- Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
+
+- Code-link labels and index occurrence offsets use the display characters of parsed references. Escaped references remain literal, and offsets count UTF-8 bytes in the decoded text.
+
+- Image and icon alternative-text helpers return the display characters of parsed references, while escaped reference text stays literal.
+
+- Text extraction supports constructed character-reference nodes. `decode_char_refs(true)` decodes known names and valid numeric values; unknown or invalid values keep their reference spelling.
+
+- Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+
+- Removed the obsolete `SubsFlags`, `effective_subs_flags`, `apply_replacements`, and `baseline_subs` APIs. Use `effective_subs` for block output settings and retained Raw profiles for deferred text substitutions. The free `substitutions::substitute_attributes` wrapper is replaced by `TraversalContext::substitute_attributes` for raw source templates.
+
+- Text extraction keeps resolved ordinary and verbatim text literal, including when `subs=none` disables formatting. Use `InlineTextTransform::rendered()` for Raw fragments with remaining substitutions; it replaces `rendered_replacements(bool)` and cannot reapply typography to resolved text.
+
+- Document text attributes and media directories retain literal quote characters; only attribute-list syntax removes its enclosing delimiters.
+
+- Media playback controls retain literal quotes in start/end values, playlists, language and hashes. A quoted provider name remains a local poster value, matching Asciidoctor. Code-link anchors keep their parsed IDs.
+
+- Icon alternatives retain the parser-selected text, including literal trailing dashes.
+
+- Image alternatives retain the parser-selected text, including literal trailing dashes in inline images.
+
+### Added
+
+- Converters can resolve explicit block substitution settings in every build.
+  The list-based `effective_subs` helper no longer requires `pre-spec-subs`.
+
+- Text reads now return parser-resolved copyright and trademark signs,
+  ellipses, word-internal apostrophes, and em dashes. Replacement escapes return their
+  literal value, including when rendered replacements are disabled.
+
+- Typed automatic-reference resolution can apply the manpage policy of using
+  matching local labels for interdocument syntax. The source target classification
+  and other backends' reference behavior stay unchanged.
+
+### Breaking changes
+
+- Replace `resolve_xref` with `resolve_reference` and pass a typed catalog
+  target. Explicit display types use `XrefDisplay<'guard, ContentRef<'catalog>>`.
+  Label precedence, caption styles, and recursion guards are unchanged.
+- Table grid rows now use `GridRow<Row>`; existing explicit row types become
+  `GridRow<&TableRow<'_>>`. Typed table consumers can use `column_count`,
+  `grid_rows`, and `has_spans` with the same span placement and row ordering.
+
+- `effective_subs` and `effective_subs_flags` now accept
+  `Option<SubstitutionSpecRef>`; convert existing optional owner references with
+  `.map(Into::into)`. Block defaults and ordering are unchanged. List-based
+  resolution is available in every build.
+
+- Boxed mail macros passed to `mailto_target` now need `.as_ref()`. Direct
+  `&Mailto` references and typed `MailtoRef` handles are accepted.
+
+- `TraversalContext::visit_block` and `visit_blocks` accept typed blocks and
+  iterators alongside existing owner inputs. Calls that explicitly name generic
+  arguments must supply the inferred input type too: `visit_block::<V, _>` or
+  `visit_blocks::<V, _>`. Ordinary calls remain unchanged.
+
+- `TraversalContext::header()` now returns `DocumentAttributesRef`; callers with
+  explicit header type annotations must update them. Contexts accept typed header
+  snapshots, body assignments, and table-cell scopes alongside existing owner
+  inputs, with unchanged source-order values and parent-scope restoration.
+
+- Image and icon alternative-text helpers accept optional `ContentAttribute`
+  values. Plain-text extraction supports rich media and UI labels. Video helpers
+  preserve the complete local target and interpret provider playlists separately.
+  Replace `video::watch_urls` with `TryUrl::try_url(false)` for the single target.
+
 ### Performance
 
 - Copied cross-reference catalogs use less memory for numbered sections.
@@ -18,6 +132,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   paragraph.
 
 ### Added
+
+- Code renderers can inspect formatting-span and visible-index-term content
+  through typed parser handles, including explicitly empty formatting.
+
+- Library converters can resolve TOC settings and number prefixes from typed
+  macro and catalog reads. Existing owner-based calls remain supported.
+
+- Library converters can detect index sections from typed block iterators.
+  Existing slice calls keep the same search boundaries and short-circuiting.
+
+- Library converters can discover index occurrences from typed inline iterators.
+  Existing owner callbacks retain their original references, occurrence order,
+  plain-text byte offsets, and first-error stopping.
+
+- Library converters can calculate column widths from typed format iterators.
+  Existing slice calls retain proportional, percentage, automatic, and
+  normalization behavior.
+
+- Text extraction can write typed inline iterators directly to a caller's buffer,
+  including temporary fragments. Existing text policies, surrounding word context,
+  and writer errors are preserved.
+
+- Source code text extraction accepts typed inline iterators. Existing owner
+  slice calls retain displayed text, visible index terms, footnote markers,
+  and link detection.
+
+- Source-code links can be resolved from typed inline handles. Existing owner
+  calls retain label formatting, fallback text, destinations, and registered IDs.
+
+- `SourceLineOptions::from_attributes` accepts typed element attributes for
+  source numbering and highlights. The metadata-based `resolve` remains supported
+  with the same selector rules.
+
+- Library converters can read source languages from typed block attributes.
+  Unknown and empty names are preserved; document defaults stay separate.
+
+- Video URL generation and playback-range helpers accept typed reads. Existing
+  calls retain provider playlists, private hashes, empty times, and URL spelling.
+
+- Image and icon alternative-text helpers accept typed targets and content.
+  Existing calls retain their fallback text, empty values, and return lifetimes.
+
+- Library converters can resolve automatic references from typed parser handles,
+  with the same label precedence, caption styles, and recursion protection.
+
+- Library converters can derive typography context from typed inline iterators,
+  retaining word boundaries across anchors and index labels.
+
+- Library converters can build email destinations and icon image sources from
+  typed parser handles. Existing owner calls keep their query and path handling.
+
+- Library converters can apply passthrough replacements from lazy substitution
+  profiles without copying the profile, with the same ordered replacement rules.
+
+- Library converters can render typed inline content through `visitor::InlineVisitor`,
+  including temporary text and parsed fragments whose lifetime is shorter than the
+  document's. Callbacks keep content selection, sibling handling, and rendering
+  policy under converter control.
+  Formatting-span checks accept typed reads alongside existing owner inputs.
+
+- Library converters can use `visitor::DocumentVisitor` with typed document and
+  header reads. Its default traversal preserves the existing document hook order,
+  preamble wrappers, attribute replay, and first-error stopping. Hooks select the
+  header and inline content to render.
+
+- Library visitors can handle typed blocks through `visitor::BlockVisitor`, with
+  source-order attribute replay and the existing nested cell scopes. The before
+  hook sees the previous value; the block callback sees the accepted assignment.
+  Callbacks choose their own children and content coverage.
+
+- Typed caption reads preserve the existing cross-reference display policy,
+  including formatted prefixes, empty-caption fallback, and reference styles.
+
+- Plain-text extraction accepts typed parser content while preserving source
+  text, rendered typography, reference fallbacks, and media alternatives.
+  Existing slice-based calls remain supported.
 
 - Rendered text extraction retains dash and apostrophe context across index labels
   and invisible targets without changing source labels. Spaced dashes consume one
@@ -99,7 +289,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `substitutions::effective_subs(spec, is_verbatim)` — shared resolver for
   per-block `[subs="…"]` lists against the `NORMAL` / `VERBATIM` baselines.
   Previously lived in the HTML converter; promoted so terminal, manpage, and
-  future backends can honour `subs=` uniformly.
+  future backends can honor `subs=` uniformly.
 - **Structured converter warnings** — `Warning`, `WarningSource`,
   and `Diagnostics` let converters return non-fatal user-facing warnings
   alongside `ConversionResult` without baking backend-specific warning categories
@@ -120,6 +310,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   escapable patterns alongside `\(TM)`, preventing accidental symbol conversion.
 
 ### Fixed
+
+- Generated cross-reference labels now preserve the resolved custom caption text, including escaped typography and literal values.
+
+- Plain-text output preserves curved quotation marks around formatted content,
+  including image alternative text and tooltips.
+
+- Image descriptions preserve literal quotes in alt text across converters.
+
+- Media URLs retain end-only playback ranges. YouTube URLs support lists and
+  dynamic playlists, language, related videos, and fullscreen controls; Vimeo
+  embed URLs retain start positions and private-video hashes, matching Asciidoctor.
 
 - Passthrough arrows follow their substitution order: `pass:c,r[->]` renders
   `→`, while `pass:r,c[->]` and `pass:r[->]` remain literal, matching
@@ -252,6 +453,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   documents without sections incorrectly rendered preamble wrappers. ([#275])
 
 ### Changed
+
+- Resolved source arrows now expose their semantic Unicode value
+  through inline text reads, including passthroughs with special characters
+  before replacements.
 
 - Library converter options now default to Secure, matching the parser API.
   Select a lower safe mode explicitly for trusted documents that need resources.

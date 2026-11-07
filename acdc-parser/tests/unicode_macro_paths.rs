@@ -1,4 +1,8 @@
-use acdc_parser::{Block, InlineMacro, InlineNode, Options, parse, parse_inline};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, BlockRef, ContentRef, InlineKind, InlineRef},
+    parse, parse_inline,
+};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -6,11 +10,12 @@ fn unexpected(message: &str, actual: impl std::fmt::Debug) -> Box<dyn std::error
     std::io::Error::other(format!("{message}, got {actual:?}")).into()
 }
 
-fn assert_plain_text(text: &[InlineNode<'_>], expected: &str) -> TestResult {
-    let [InlineNode::PlainText(text)] = text else {
+fn assert_plain_text(text: ContentRef<'_>, expected: &str) -> TestResult {
+    let [InlineKind::Plain(text)] = &*text.inlines().map(InlineRef::kind).collect::<Vec<_>>()
+    else {
         return Err(unexpected("expected plain macro text", text));
     };
-    assert_eq!(text.content, expected);
+    assert_eq!(text.text(), expected);
     Ok(())
 }
 
@@ -29,15 +34,20 @@ fn xref_accepts_non_ascii_path_characters() -> TestResult {
         ),
     ] {
         let parsed = parse_inline(input, &Options::default())?;
-        let [InlineNode::Macro(InlineMacro::CrossReference(xref))] = parsed.inlines() else {
+        let [InlineKind::CrossReference(xref)] = &*parsed
+            .content()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err(unexpected(
                 "expected one cross-reference macro",
-                parsed.inlines(),
+                parsed.content(),
             ));
         };
 
-        assert_eq!(xref.target, target);
-        assert_plain_text(&xref.text, text)?;
+        assert_eq!(xref.target(), target);
+        assert_plain_text(xref.text(), text)?;
     }
 
     Ok(())
@@ -46,25 +56,40 @@ fn xref_accepts_non_ascii_path_characters() -> TestResult {
 #[test]
 fn other_inline_macros_accept_non_ascii_path_characters() -> TestResult {
     let parsed = parse_inline("link:die_straße.adoc[street]", &Options::default())?;
-    let [InlineNode::Macro(InlineMacro::Link(link))] = parsed.inlines() else {
-        return Err(unexpected("expected one link macro", parsed.inlines()));
+    let [InlineKind::Link(link)] = &*parsed
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err(unexpected("expected one link macro", parsed.content()));
     };
-    assert_eq!(link.target.to_string(), "die_straße.adoc");
+    assert_eq!(link.target().to_string(), "die_straße.adoc");
 
     let parsed = parse_inline("image:straße.png[street]", &Options::default())?;
-    let [InlineNode::Macro(InlineMacro::Image(image))] = parsed.inlines() else {
+    let [InlineKind::Image(image)] = &*parsed
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err(unexpected(
             "expected one inline image macro",
-            parsed.inlines(),
+            parsed.content(),
         ));
     };
-    assert_eq!(image.source.to_string(), "straße.png");
+    assert_eq!(image.source().to_string(), "straße.png");
 
     let parsed = parse_inline("icon:straße[]", &Options::default())?;
-    let [InlineNode::Macro(InlineMacro::Icon(icon))] = parsed.inlines() else {
-        return Err(unexpected("expected one icon macro", parsed.inlines()));
+    let [InlineKind::Icon(icon)] = &*parsed
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err(unexpected("expected one icon macro", parsed.content()));
     };
-    assert_eq!(icon.target.to_string(), "straße");
+    assert_eq!(icon.target().to_string(), "straße");
 
     Ok(())
 }
@@ -76,23 +101,24 @@ fn block_media_macros_accept_non_ascii_path_characters() -> TestResult {
         &Options::default(),
     )?;
     let [
-        Block::Image(image),
-        Block::Audio(audio),
-        Block::Video(video),
-    ] = parsed.document().blocks.as_slice()
+        BlockKind::Image(image),
+        BlockKind::Audio(audio),
+        BlockKind::Video(video),
+    ] = &*parsed
+        .document()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
     else {
         return Err(unexpected(
             "expected image, audio, and video blocks",
-            &parsed.document().blocks,
+            parsed.document().blocks().collect::<Vec<_>>(),
         ));
     };
 
-    assert_eq!(image.source.to_string(), "straße.png");
-    assert_eq!(audio.source.to_string(), "straße.mp3");
-    let [video_source] = video.sources.as_slice() else {
-        return Err(unexpected("expected one video source", &video.sources));
-    };
-    assert_eq!(video_source.to_string(), "straße.mp4");
+    assert_eq!(image.source().to_string(), "straße.png");
+    assert_eq!(audio.source().to_string(), "straße.mp3");
+    assert_eq!(video.source().to_string(), "straße.mp4");
 
     Ok(())
 }

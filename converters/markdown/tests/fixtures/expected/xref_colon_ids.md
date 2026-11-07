@@ -46,8 +46,8 @@ Ordinary target.
 
 C08 [Topic One](#topic:one) and [Backward macro](#topic:one).
 
-C09 [Attribute](#topic:one) and [Passthrough](#topic:one) and <<a-b.c:d,Passed shorthand>>.
+C09 [Attribute](#topic:one) and [Passthrough](#topic:one) and \<\<a-b.c:d,Passed shorthand\>\>.
 
-C10 xref:topic:one\[Escaped\] and <<topic:one>> and xref:topic:one\[unfinished.
+C10 xref:topic:one\[Escaped\] and \<\<topic:one\>\> and xref:topic:one\[unfinished.
 
 C11 [Directory dot](#dir.name/topic:one) and [Missing dotted shorthand](#missing.id) and [External file](missing.id).

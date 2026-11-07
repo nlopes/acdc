@@ -16,21 +16,24 @@
 - **Preprocessor** (`src/preprocessor/`) handles includes, conditionals, and document attributes before parsing.
 - `ParseResult` owns the parsed document and its backing text. Public callers borrow through `document()`.
 
-## `pre-spec-subs` — parser contract
+## Block substitutions
 
-The default-on `pre-spec-subs` feature governs whether `[subs="..."]` block attributes are parsed and surfaced.
+Both compatibility modes honor explicit `subs=` settings in every build. Draft
+supports these controls as an acdc extension. Resolve groups and modifiers with
+`SubstitutionSpec::resolve()`; keep structural decisions in the resolved plan.
 
-**Public surface (feature-gated):**
-- `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata.substitutions` exist **only** under `pre-spec-subs`.
-- `Substitution`, `substitute()`, `NORMAL`, `VERBATIM`, `HEADER` are public unconditionally — attribute reference expansion (`{attr}` → value) needs them either way.
+The former `pre-spec-subs` and `setext` features are removed.
+Do not add language control flow or test skips behind Cargo features. Use mode
+fixtures for language differences. Supported settings do not warn. Unsupported entries use
+`WarningKind::ContentRecovery` and preserve source; supported entries still apply.
+STEM supports attribute expansion and output escaping, not formatted formulas.
 
-**Diagnostics — two paths, both via `Warning` / `Diagnostics`:**
-- Feature **on**: warn that custom substitutions are experimental and may change.
-- Feature **off**: warn that the setting is not honored and record source recovery, available through `ParseResult::source_recovery()` even after `take_warnings()`.
+Converter substitution and fixture rules live in `converters/AGENTS.md`.
 
-Converter-side plumbing (`SubsFlags`, `effective_subs`, fixture naming) lives in `converters/AGENTS.md`.
-
-`setext` and `network` are off by default in the parser crate. Setext headings also require `OptionsBuilder::with_setext()`; remote includes require caller-supplied `allow-uri-read` and a safe mode below Secure.
+Setext headings follow `CompatibilityMode::Asciidoctor`; Draft excludes them.
+There is no `OptionsBuilder::with_setext()` switch. The optional `network`
+capability is off by default. Built-in remote includes also require caller-supplied
+`allow-uri-read` and a safe mode below Secure.
 
 ## Document attribute policy
 
@@ -39,7 +42,7 @@ Converter-side plumbing (`SubsFlags`, `effective_subs`, fixture naming) lives in
 - `Options` classifies API-supplied values as caller input and supplies the per-parse input context.
 - The CLI parses assignment syntax, and converters may add processor defaults. Consumers use the parser's value and text views; they do not duplicate parser policy.
 - Keep policy inputs and decisions internal. The public parser API exposes stable semantic and presentation views, not converter-specific or test-specific controls.
-- `Document::attributes` is the end-of-header snapshot. Accepted body changes are ordered `Block::DocumentAttribute` nodes; use `assignment()` to distinguish a set value from an unset.
+- `DocumentRef::attributes()` is the end-of-header snapshot. Accepted body changes are ordered document-attribute nodes; match `BlockKind::DocumentAttribute` and use `assignment()` to distinguish a set value from an unset.
 - When changing the policy, test document entries, parser `Options` and builder input, CLI `-a` input, locked and soft `@` assignments and unsets, and header/body exceptions. Compare both the official attribute documentation and the current asciidoctor implementation.
 
 ## Documentation
@@ -65,12 +68,14 @@ Put supporting include inputs in `fixtures/tests/includes/` with the `.adoc`
 extension. Fixture discovery excludes that folder; test documents include them
 using relative paths.
 
-Ask before regenerating expected JSON. From the workspace root, select exact top-level fixture filenames:
+Generate new expectations without asking. Get approval before regenerating or
+changing existing expectations. From the workspace root, select exact paths
+relative to `fixtures/tests`:
 ```bash
 cargo run -p acdc-parser --example generate_parser_fixtures --all-features -- example.adoc
 ```
 
-With no filenames, the generator rewrites all top-level parser JSON fixtures. Record `git status --short` before running it and inspect every changed fixture afterward. Create `.adoc` inputs directly; use the generator only for expected JSON. Use stable nextest expressions instead of generated fixture numbers when running one fixture test. Do not use the CLI to generate fixtures.
+Every fixture runs in both compatibility modes. Use a shared expectation only when both modes agree. With no filenames, the generator processes all shared fixtures supported by the current build and fails if it encounters a paired case. Use `--pair` with exact filenames to create or update both mode expectations, or `--mode asciidoctor` / `--mode draft` to update one existing partner. Use `--diagnostics` to record warnings, recovery, and diagnostic locations; adding paired diagnostics also requires `--pair`. Record `git status --short` before running the generator and inspect every changed fixture afterward. Create `.adoc` inputs directly; use the generator for expected output. Filter nextest by the stable case name, such as `-E 'test(=inline_image::asciidoctor)'`. Do not use the CLI to generate fixtures.
 
 `fixtures/preprocessor/` contains supporting scenarios, not automatically discovered tests. Each root input must be opened by a Rust test.
 

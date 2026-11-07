@@ -1,0 +1,762 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Typography word contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 26
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 4,
+        "col": 7
+      }
+    ]
+  },
+  "attributes": {
+    "empty": true,
+    "lead": "Sam",
+    "tail": "s"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Earlier.",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 8
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "π Sam",
+                        "location": [
+                          {
+                            "line": 11,
+                            "col": 1
+                          },
+                          {
+                            "line": 11,
+                            "col": 8
+                          }
+                        ]
+                      },
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "'",
+                        "substitutions": [
+                          "special_chars"
+                        ],
+                        "location": [
+                          {
+                            "line": 11,
+                            "col": 9
+                          },
+                          {
+                            "line": 11,
+                            "col": 9
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "s and Sam",
+                        "location": [
+                          {
+                            "line": 11,
+                            "col": 10
+                          },
+                          {
+                            "line": 11,
+                            "col": 18
+                          }
+                        ]
+                      },
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "'",
+                        "substitutions": [
+                          "special_chars"
+                        ],
+                        "location": [
+                          {
+                            "line": 11,
+                            "col": 19
+                          },
+                          {
+                            "line": 11,
+                            "col": 19
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "s and Sam",
+                        "location": [
+                          {
+                            "line": 11,
+                            "col": 20
+                          },
+                          {
+                            "line": 11,
+                            "col": 33
+                          }
+                        ]
+                      },
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "'",
+                        "substitutions": [
+                          "special_chars"
+                        ],
+                        "location": [
+                          {
+                            "line": 11,
+                            "col": 34
+                          },
+                          {
+                            "line": 11,
+                            "col": 41
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "s.",
+                        "location": [
+                          {
+                            "line": 11,
+                            "col": 42
+                          },
+                          {
+                            "line": 11,
+                            "col": 43
+                          }
+                        ]
+                      }
+                    ],
+                    "metadata": {
+                      "substitutions": [
+                        "specialchars",
+                        "replacements",
+                        "attributes"
+                      ]
+                    },
+                    "location": [
+                      {
+                        "line": 10,
+                        "col": 2
+                      },
+                      {
+                        "line": 11,
+                        "col": 43
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "π Sam",
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 1
+                          },
+                          {
+                            "line": 14,
+                            "col": 8
+                          }
+                        ]
+                      },
+                      {
+                        "name": "symbol",
+                        "type": "string",
+                        "value": "’",
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 9
+                          },
+                          {
+                            "line": 14,
+                            "col": 9
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "s and Sam",
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 10
+                          },
+                          {
+                            "line": 14,
+                            "col": 18
+                          }
+                        ]
+                      },
+                      {
+                        "name": "symbol",
+                        "type": "string",
+                        "value": "’",
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 19
+                          },
+                          {
+                            "line": 14,
+                            "col": 19
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "s and Sam",
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 20
+                          },
+                          {
+                            "line": 14,
+                            "col": 33
+                          }
+                        ]
+                      },
+                      {
+                        "name": "symbol",
+                        "type": "string",
+                        "value": "’",
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 41
+                          },
+                          {
+                            "line": 14,
+                            "col": 41
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "s.",
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 42
+                          },
+                          {
+                            "line": 14,
+                            "col": 43
+                          }
+                        ]
+                      }
+                    ],
+                    "metadata": {
+                      "substitutions": [
+                        "specialchars",
+                        "attributes",
+                        "replacements"
+                      ]
+                    },
+                    "location": [
+                      {
+                        "line": 13,
+                        "col": 1
+                      },
+                      {
+                        "line": 14,
+                        "col": 43
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 9,
+            "col": 1
+          },
+          {
+            "line": 15,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "π Sam",
+          "location": [
+            {
+              "line": 4,
+              "col": 3,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 10,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "'",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 11,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 11,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s and Sam",
+          "location": [
+            {
+              "line": 4,
+              "col": 12,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 20,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "'",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 21,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 21,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s and Sam",
+          "location": [
+            {
+              "line": 4,
+              "col": 22,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 35,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "'",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 36,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 43,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s.",
+          "location": [
+            {
+              "line": 4,
+              "col": 44,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 45,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "specialchars",
+          "replacements",
+          "attributes"
+        ]
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 3,
+          "file": [
+            "includes/compatibility_typography_word_context.adoc"
+          ]
+        },
+        {
+          "line": 4,
+          "col": 45,
+          "file": [
+            "includes/compatibility_typography_word_context.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "π Sam",
+          "location": [
+            {
+              "line": 7,
+              "col": 3,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 7,
+              "col": 10,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "’",
+          "location": [
+            {
+              "line": 7,
+              "col": 11,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 7,
+              "col": 11,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s and Sam",
+          "location": [
+            {
+              "line": 7,
+              "col": 12,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 7,
+              "col": 20,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "’",
+          "location": [
+            {
+              "line": 7,
+              "col": 21,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 7,
+              "col": 21,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s and Sam",
+          "location": [
+            {
+              "line": 7,
+              "col": 22,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 7,
+              "col": 35,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "’",
+          "location": [
+            {
+              "line": 7,
+              "col": 43,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 7,
+              "col": 43,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s.",
+          "location": [
+            {
+              "line": 7,
+              "col": 44,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            },
+            {
+              "line": 7,
+              "col": 45,
+              "file": [
+                "includes/compatibility_typography_word_context.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "specialchars",
+          "attributes",
+          "replacements"
+        ]
+      },
+      "location": [
+        {
+          "line": 6,
+          "col": 3,
+          "file": [
+            "includes/compatibility_typography_word_context.adoc"
+          ]
+        },
+        {
+          "line": 7,
+          "col": 45,
+          "file": [
+            "includes/compatibility_typography_word_context.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 7,
+      "col": 45,
+      "file": [
+        "includes/compatibility_typography_word_context.adoc"
+      ]
+    }
+  ]
+}

@@ -55,8 +55,7 @@
               "line": 1,
               "col": 42
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -108,6 +107,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "external"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://github.com/anthropics/claude-code"
@@ -138,10 +142,7 @@
               "line": 3,
               "col": 97
             }
-          ],
-          "attributes": {
-            "role": "external"
-          }
+          ]
         },
         {
           "name": "text",
@@ -192,8 +193,7 @@
               "line": 3,
               "col": 152
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -229,11 +229,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Here's a URL with attributes: ",
+          "value": "Here",
           "location": [
             {
               "line": 5,
               "col": 1
+            },
+            {
+              "line": 5,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "’",
+          "location": [
+            {
+              "line": 5,
+              "col": 5
+            },
+            {
+              "line": 5,
+              "col": 5
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s a URL with attributes: ",
+          "location": [
+            {
+              "line": 5,
+              "col": 6
             },
             {
               "line": 5,
@@ -245,6 +275,28 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "attributes": {
+              "target": "_blank"
+            }
+          },
+          "tooltip": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Official Rust docs",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 89
+                },
+                {
+                  "line": 5,
+                  "col": 106
+                }
+              ]
+            }
+          ],
           "target": {
             "type": "url",
             "value": "https://rust-lang.org"
@@ -275,11 +327,7 @@
               "line": 5,
               "col": 121
             }
-          ],
-          "attributes": {
-            "target": "_blank",
-            "title": "Official Rust docs"
-          }
+          ]
         },
         {
           "name": "text",

@@ -1,4 +1,8 @@
-use acdc_parser::{Block, InlineNode, Options, parse};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, BlockRef, InlineKind},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -12,25 +16,30 @@ fn constrained_opening_punctuation_keeps_formatting_and_source_spans() -> Result
             let quoted = format!("{marker}café{marker}");
             let source = format!("P {prefix}{quoted} Q.\n");
             let parsed = parse(&source, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let [BlockKind::Paragraph(paragraph)] = &*parsed
+                .document()
+                .blocks()
+                .map(BlockRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err("expected one paragraph".into());
             };
             let span = paragraph
-                .content
-                .iter()
+                .content()
+                .inlines()
                 .find(|node| {
                     matches!(
-                        (variant, node),
-                        ("bold", InlineNode::BoldText(_))
-                            | ("italic", InlineNode::ItalicText(_))
-                            | ("code", InlineNode::MonospaceText(_))
-                            | ("mark", InlineNode::HighlightText(_))
+                        (variant, node.kind()),
+                        ("bold", InlineKind::Bold(_))
+                            | ("italic", InlineKind::Italic(_))
+                            | ("code", InlineKind::Monospace(_))
+                            | ("mark", InlineKind::Highlight(_))
                     )
                 })
                 .ok_or_else(|| format!("missing {variant}: {source:?}"))?
                 .location();
             assert_eq!(
-                &parsed.source()[span.absolute_start..=span.absolute_end],
+                &parsed.source()[span.absolute_start()..=span.absolute_end()],
                 quoted,
                 "{source:?}"
             );
@@ -48,30 +57,40 @@ fn constrained_opening_barriers_stay_literal() -> Result<(), Error> {
             }
             let source = format!("P {prefix}{marker}word{marker} Q.\n");
             let parsed = parse(&source, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let [BlockKind::Paragraph(paragraph)] = &*parsed
+                .document()
+                .blocks()
+                .map(BlockRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err("expected one paragraph".into());
             };
             assert!(
-                paragraph.content.iter().all(|node| !matches!(
-                    node,
-                    InlineNode::BoldText(_)
-                        | InlineNode::ItalicText(_)
-                        | InlineNode::MonospaceText(_)
-                        | InlineNode::HighlightText(_)
+                paragraph.content().inlines().all(|node| !matches!(
+                    node.kind(),
+                    InlineKind::Bold(_)
+                        | InlineKind::Italic(_)
+                        | InlineKind::Monospace(_)
+                        | InlineKind::Highlight(_)
                 )),
                 "unexpected formatting: {source:?}"
             );
         }
     }
     let parsed = parse("P &#word# Q.\n", &Options::default())?;
-    let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(paragraph)] = &*parsed
+        .document()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected one paragraph".into());
     };
     assert!(
         paragraph
-            .content
-            .iter()
-            .all(|node| !matches!(node, InlineNode::HighlightText(_)))
+            .content()
+            .inlines()
+            .all(|node| !matches!(node.kind(), InlineKind::Highlight(_)))
     );
     Ok(())
 }
@@ -81,14 +100,19 @@ fn constrained_opening_after_raw_tags_keeps_nested_source_spans() -> Result<(), 
     for newline in ["\n", "\r\n"] {
         let source = format!("P pass:q[<del>*bold _café_*</del>] Q.{newline}");
         let parsed = parse(&source, &Options::default())?;
-        let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(paragraph)] = &*parsed
+            .document()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected one paragraph".into());
         };
         let bold = paragraph
-            .content
-            .iter()
+            .content()
+            .inlines()
             .find_map(|node| {
-                if let InlineNode::BoldText(bold) = node {
+                if let InlineKind::Bold(bold) = node.kind() {
                     Some(bold)
                 } else {
                     None
@@ -96,17 +120,17 @@ fn constrained_opening_after_raw_tags_keeps_nested_source_spans() -> Result<(), 
             })
             .ok_or("missing bold after raw tag")?;
         assert_eq!(
-            &parsed.source()[bold.location.absolute_start..=bold.location.absolute_end],
+            &parsed.source()[bold.location().absolute_start()..=bold.location().absolute_end()],
             "*bold _café_*"
         );
         let italic = bold
-            .content
-            .iter()
-            .find(|node| matches!(node, InlineNode::ItalicText(_)))
+            .content()
+            .inlines()
+            .find(|node| matches!(node.kind(), InlineKind::Italic(_)))
             .ok_or("missing nested italic")?
             .location();
         assert_eq!(
-            &parsed.source()[italic.absolute_start..=italic.absolute_end],
+            &parsed.source()[italic.absolute_start()..=italic.absolute_end()],
             "_café_"
         );
     }

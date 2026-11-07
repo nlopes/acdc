@@ -28,9 +28,57 @@
           "name": "keyboard",
           "type": "inline",
           "keys": [
-            "Ctrl",
-            "Alt",
-            "Del"
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Ctrl",
+                "location": [
+                  {
+                    "line": 3,
+                    "col": 16
+                  },
+                  {
+                    "line": 3,
+                    "col": 19
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Alt",
+                "location": [
+                  {
+                    "line": 3,
+                    "col": 22
+                  },
+                  {
+                    "line": 3,
+                    "col": 24
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Del",
+                "location": [
+                  {
+                    "line": 3,
+                    "col": 27
+                  },
+                  {
+                    "line": 3,
+                    "col": 29
+                  }
+                ]
+              }
+            ]
           ],
           "location": [
             {

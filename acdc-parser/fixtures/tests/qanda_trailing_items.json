@@ -40,11 +40,26 @@
       },
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Answered question?",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Answered question?",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 1
+                    },
+                    {
+                      "line": 4,
+                      "col": 18
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 4,
@@ -52,30 +67,41 @@
                 },
                 {
                   "line": 4,
-                  "col": 18
+                  "col": 20
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "This question has an answer.",
-              "location": [
-                {
-                  "line": 4,
-                  "col": 22
-                },
-                {
-                  "line": 4,
-                  "col": 49
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "This question has an answer.",
+                "location": [
+                  {
+                    "line": 4,
+                    "col": 22
+                  },
+                  {
+                    "line": 4,
+                    "col": 49
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 4,
+                "col": 22
+              },
+              {
+                "line": 4,
+                "col": 49
+              }
+            ]
+          },
           "location": [
             {
               "line": 4,
@@ -83,16 +109,31 @@
             },
             {
               "line": 4,
-              "col": 50
+              "col": 49
             }
           ]
         },
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Trailing unanswered question?",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Trailing unanswered question?",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 1
+                    },
+                    {
+                      "line": 5,
+                      "col": 29
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 5,
@@ -100,13 +141,11 @@
                 },
                 {
                   "line": 5,
-                  "col": 29
+                  "col": 31
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "description": [],
           "location": [
             {
               "line": 5,
@@ -114,7 +153,7 @@
             },
             {
               "line": 5,
-              "col": 32
+              "col": 31
             }
           ]
         }
@@ -126,7 +165,7 @@
         },
         {
           "line": 5,
-          "col": 32
+          "col": 31
         }
       ]
     }

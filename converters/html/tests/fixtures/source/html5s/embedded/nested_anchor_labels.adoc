@@ -1,0 +1,20 @@
+= Bracket anchor labels
+:fragment: [expanded]
+
+Before [[target,link:https://example.org[Link] footnote:[Note] (C)]] after.
+
+Before [[nested,Label [nested] tail]] after.
+
+Before [[formatted,*Bold [nested]* label]] after.
+
+Before [[unicode,λ🚀 [first] [second] tail]] after.
+
+Before [[expanded,Label {fragment} tail]] after.
+
+Before [[ending,Label [nested]]] after.
+
+Escaped \[[escaped,Label [nested] tail]] after.
+
+Incomplete [[incomplete,Label [nested] tail
+
+See <<target>>, <<nested>>, <<formatted>>, <<unicode>>, <<expanded>>, and <<ending>>.

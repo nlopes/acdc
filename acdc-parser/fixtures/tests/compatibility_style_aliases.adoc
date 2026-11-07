@@ -1,0 +1,21 @@
+= Style aliases
+
+[float]
+== Legacy discrete heading
+
+Body after the heading.
+
+[discrete]
+== Discrete heading
+
+[normal]
+  *Normal* paragraph.
+
+[paragraph]
+  *Paragraph* alias.
+
+[normal]
+Ordinary normal paragraph.
+
+[paragraph]
+Ordinary paragraph alias.

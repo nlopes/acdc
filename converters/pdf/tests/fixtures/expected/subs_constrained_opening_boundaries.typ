@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -94,7 +95,7 @@
 
 #text("P05 ")#text(">")#strong[#text("Bold")]#text(" <")#emph[#text("Italic")]#text(" &")#raw("Code")#text(".")
 
-#text("P06 ")#text(">")#strong[#text("Bold")]#text(" <")#emph[#text("Italic")]#text(" &")#raw("Code")#text(".")
+#text("P06 ")#text("pass:q,c[>*Bold* <_Italic_ &`Code`]")#text(".")
 
 #text("P07 ")#text("<del>")#strong[#text("Bold")]#text("</del>")#text(" ")#text("<del>")#text("*literal*")#text("</del>")#text(".")
 
@@ -189,6 +190,6 @@
 #blocktitle[#text("P15 >")#strong[#text("Bold")]#text(" =")#emph[#text("Italic")]#text(" &")#raw("Code")#text(".")]
 #text("paragraph.")
 
-#heading(level: 2)[#text("P16 >")#strong[#text("Bold")]#text(" =")#emph[#text("Italic")]#text(" &")#raw("Code")#text(".")] <acdc-section-0>
+#heading(level: 2)[#text("P16 >")#strong[#text("Bold")]#text(" =")#emph[#text("Italic")]#text(" &")#raw("Code")#text(".")] <id-5f7031365f626f6c645f6974616c69635f636f6465>
 
 #text("end.")

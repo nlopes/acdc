@@ -1,0 +1,10 @@
+= Nested passthrough recovery
+
+Earlier.
+
+[cols="a"]
+|===
+|Cell café: pass:q,c[α *Éva*].
+|===
+
+include::includes/compatibility_passthrough_contexts.adoc[tag=selected,indent=0]

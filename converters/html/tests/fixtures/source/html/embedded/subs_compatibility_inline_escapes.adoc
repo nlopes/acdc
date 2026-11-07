@@ -1,0 +1,24 @@
+= Shared inline escape policy
+:experimental:
+
+\*Bold\* and \_Italic\_ and \`Mono\` and \#Mark\#.
+
+\**Bold** and \__Italic__ and \``Mono`` and \##Mark##.
+
+\^super^ and \~sub~ and *active*.
+
+link:https://example.org[\*Literal\*] and link:https://example.org[*Rich*].
+
+\kbd:[Ctrl+*C*] and \btn:[*Save*] and \menu:File[*Open*].
+
+\footnote:inactive[*Literal*] and \anchor:inactive-anchor[*Literal*].
+
+\xref:missing[*Literal*] and \indexterm2:[*Literal*].
+
+footnote:active[Registered once.]
+
+[subs="specialchars,macros"]
+\*Literal\* and ((Term (R))).
+
+[subs="specialchars,quotes"]
+\footnote:disabled[*Rich*] and \*Literal\*.

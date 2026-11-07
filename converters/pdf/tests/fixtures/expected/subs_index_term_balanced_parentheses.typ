@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -90,9 +91,9 @@
 
 #text("S01 ")#metadata(none)<__indexterm-1>#text("Term (R)")#text(" after.")
 
-#text("S02 ")#metadata(none)<__indexterm-2>#text("Term ®")#text(" after.")
+#text("S02 ")#metadata(none)<__indexterm-2>#text("Term ")#text("®")#text(" after.")
 
-#text("S03 ")#metadata(none)<__indexterm-3>#text("Term ®")#text(" after.")
+#text("S03 ")#metadata(none)<__indexterm-3>#text("Term ")#text("®")#text(" after.")
 
 #{
   let index-anchors = (
@@ -313,7 +314,7 @@
 }
 #raw(block: true, "S15 ((Disabled macro ®)) after.")
 
-#text("S16 ")#counter(footnote).update(0)#footnote[#text("A ")#metadata(none)<__indexterm-15>#text("Footnote ®")#text(" term.")]#text(" after.")
+#text("S16 ")#counter(footnote).update(0)#footnote[#text("A ")#metadata(none)<__indexterm-15>#text("Footnote ")#text("®")#text(" term.")]#text(" after.")
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 
@@ -356,8 +357,8 @@
 #columns(2, gutter: 12pt)[
 #text(weight: "bold")[#text("@")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("(R)")#text(" Literal")#_acdc_index_pages((<__indexterm-10>,), "term")]
 #par(hanging-indent: 1em)[#text("(R)")#text(" Escaped")#_acdc_index_pages((<__indexterm-9>,), "term")]
+#par(hanging-indent: 1em)[#text("(R)")#text(" Literal")#_acdc_index_pages((<__indexterm-10>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("A")]
 #v(0.25em)
@@ -366,12 +367,12 @@
 #text(weight: "bold")[#text("C")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("Code (R)")#_acdc_index_pages((<__indexterm-4>,), "term")]
-#par(hanging-indent: 1em)[#text("Code ®")#_acdc_index_pages((<__indexterm-5>,<__indexterm-7>,), "term")]
+#par(hanging-indent: 1em)[#text("Code ")#text("®")#_acdc_index_pages((<__indexterm-5>,<__indexterm-7>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("F")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("fn((x)) tail")#_acdc_index_pages((<__indexterm-6>,), "term")]
-#par(hanging-indent: 1em)[#text("Footnote ®")#_acdc_index_pages((<__indexterm-15>,), "term")]
+#par(hanging-indent: 1em)[#text("Footnote ")#text("®")#_acdc_index_pages((<__indexterm-15>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("L")]
 #v(0.25em)
@@ -383,5 +384,5 @@
 #text(weight: "bold")[#text("T")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("Term (R)")#_acdc_index_pages((<__indexterm-1>,<__indexterm-2>,), "term")]
-#par(hanging-indent: 1em)[#text("Term ®")#_acdc_index_pages((<__indexterm-3>,), "term")]
+#par(hanging-indent: 1em)[#text("Term ")#text("®")#_acdc_index_pages((<__indexterm-3>,), "term")]
 ]

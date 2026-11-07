@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -96,7 +97,7 @@
 
 ], table.cell(x: 0, y: 4, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text(".P05 Block-looking title P05 Ordinary paragraph text.")
 
-], table.cell(x: 0, y: 5, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("P06 Before. ==== P06 Example-looking text. ==== …. P06 Literal-looking text. …. ")#emph[#text("__")]#text(" P06 Quote-looking text. ")#emph[#text("__")]#text(" — P06 Open-looking text. — P06 End.")
+], table.cell(x: 0, y: 5, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("P06 Before. ==== P06 Example-looking text. ==== ")#text("…")#text(". P06 Literal-looking text. ")#text("…")#text(". ")#emph[#text("__")]#text(" P06 Quote-looking text. ")#emph[#text("__")]#text(" — ")#text("P06 Open-looking text.")#text(" — ")#text("P06 End.")
 
 ], table.cell(x: 0, y: 6, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("P07 Before. P07 After.")
 
@@ -112,7 +113,7 @@
 
 ]], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableemphasis[#text("E10 Before. ---- E10 Inside. ---- E10 After.")
 
-]], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tablemonospace[#text("M11 Before. …. M11 Inside. …. M11 After.")
+]], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tablemonospace[#text("M11 Before. ")#text("…")#text(". M11 Inside. ")#text("…")#text(". M11 After.")
 
 ]], table.cell(x: 3, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableheader[#text("H12 Before. ")#emph[#text("__")]#text(" H12 Inside. ")#emph[#text("__")]#text(" H12 After.")
 

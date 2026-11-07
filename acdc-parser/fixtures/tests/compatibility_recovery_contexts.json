@@ -1,0 +1,550 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Recovery contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 19
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 19
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Earlier.",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 8
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "α🚀 ",
+          "location": [
+            {
+              "line": 2,
+              "col": 5,
+              "file": [
+                "includes/compatibility_recovery_selected.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 7,
+              "file": [
+                "includes/compatibility_recovery_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "[included]",
+          "location": [
+            {
+              "line": 2,
+              "col": 8,
+              "file": [
+                "includes/compatibility_recovery_selected.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 26,
+              "file": [
+                "includes/compatibility_recovery_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 2,
+              "col": 27,
+              "file": [
+                "includes/compatibility_recovery_selected.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 31,
+              "file": [
+                "includes/compatibility_recovery_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "[included]",
+          "location": [
+            {
+              "line": 2,
+              "col": 32,
+              "file": [
+                "includes/compatibility_recovery_selected.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 50,
+              "file": [
+                "includes/compatibility_recovery_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 2,
+              "col": 51,
+              "file": [
+                "includes/compatibility_recovery_selected.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 51,
+              "file": [
+                "includes/compatibility_recovery_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 5,
+          "file": [
+            "includes/compatibility_recovery_selected.adoc"
+          ]
+        },
+        {
+          "line": 2,
+          "col": 51,
+          "file": [
+            "includes/compatibility_recovery_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Earlier.",
+                        "location": [
+                          {
+                            "line": 6,
+                            "col": 6,
+                            "file": [
+                              "includes/compatibility_recovery_selected.adoc"
+                            ]
+                          },
+                          {
+                            "line": 6,
+                            "col": 13,
+                            "file": [
+                              "includes/compatibility_recovery_selected.adoc"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 6,
+                        "col": 6,
+                        "file": [
+                          "includes/compatibility_recovery_selected.adoc"
+                        ]
+                      },
+                      {
+                        "line": 6,
+                        "col": 13,
+                        "file": [
+                          "includes/compatibility_recovery_selected.adoc"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "α🚀 ",
+                        "location": [
+                          {
+                            "line": 8,
+                            "col": 5,
+                            "file": [
+                              "includes/compatibility_recovery_selected.adoc"
+                            ]
+                          },
+                          {
+                            "line": 8,
+                            "col": 7,
+                            "file": [
+                              "includes/compatibility_recovery_selected.adoc"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "unconstrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "[cell]",
+                            "location": [
+                              {
+                                "line": 8,
+                                "col": 10,
+                                "file": [
+                                  "includes/compatibility_recovery_selected.adoc"
+                                ]
+                              },
+                              {
+                                "line": 8,
+                                "col": 24,
+                                "file": [
+                                  "includes/compatibility_recovery_selected.adoc"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": " and ",
+                            "location": [
+                              {
+                                "line": 8,
+                                "col": 25,
+                                "file": [
+                                  "includes/compatibility_recovery_selected.adoc"
+                                ]
+                              },
+                              {
+                                "line": 8,
+                                "col": 29,
+                                "file": [
+                                  "includes/compatibility_recovery_selected.adoc"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "[cell]",
+                            "location": [
+                              {
+                                "line": 8,
+                                "col": 30,
+                                "file": [
+                                  "includes/compatibility_recovery_selected.adoc"
+                                ]
+                              },
+                              {
+                                "line": 8,
+                                "col": 44,
+                                "file": [
+                                  "includes/compatibility_recovery_selected.adoc"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".",
+                            "location": [
+                              {
+                                "line": 8,
+                                "col": 45,
+                                "file": [
+                                  "includes/compatibility_recovery_selected.adoc"
+                                ]
+                              },
+                              {
+                                "line": 8,
+                                "col": 45,
+                                "file": [
+                                  "includes/compatibility_recovery_selected.adoc"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 8,
+                            "col": 8,
+                            "file": [
+                              "includes/compatibility_recovery_selected.adoc"
+                            ]
+                          },
+                          {
+                            "line": 8,
+                            "col": 47,
+                            "file": [
+                              "includes/compatibility_recovery_selected.adoc"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 8,
+                        "col": 5,
+                        "file": [
+                          "includes/compatibility_recovery_selected.adoc"
+                        ]
+                      },
+                      {
+                        "line": 8,
+                        "col": 47,
+                        "file": [
+                          "includes/compatibility_recovery_selected.adoc"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "[cell-raw]",
+                        "location": [
+                          {
+                            "line": 10,
+                            "col": 12,
+                            "file": [
+                              "includes/compatibility_recovery_selected.adoc"
+                            ]
+                          },
+                          {
+                            "line": 10,
+                            "col": 21,
+                            "file": [
+                              "includes/compatibility_recovery_selected.adoc"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": " and ",
+                        "location": [
+                          {
+                            "line": 10,
+                            "col": 32,
+                            "file": [
+                              "includes/compatibility_recovery_selected.adoc"
+                            ]
+                          },
+                          {
+                            "line": 10,
+                            "col": 36,
+                            "file": [
+                              "includes/compatibility_recovery_selected.adoc"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "[cell-raw]",
+                        "location": [
+                          {
+                            "line": 10,
+                            "col": 37,
+                            "file": [
+                              "includes/compatibility_recovery_selected.adoc"
+                            ]
+                          },
+                          {
+                            "line": 10,
+                            "col": 46,
+                            "file": [
+                              "includes/compatibility_recovery_selected.adoc"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 10,
+                        "col": 5,
+                        "file": [
+                          "includes/compatibility_recovery_selected.adoc"
+                        ]
+                      },
+                      {
+                        "line": 10,
+                        "col": 57,
+                        "file": [
+                          "includes/compatibility_recovery_selected.adoc"
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 5,
+            "col": 5,
+            "file": [
+              "includes/compatibility_recovery_selected.adoc"
+            ]
+          },
+          {
+            "line": 11,
+            "col": 8,
+            "file": [
+              "includes/compatibility_recovery_selected.adoc"
+            ]
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 4,
+          "col": 5,
+          "file": [
+            "includes/compatibility_recovery_selected.adoc"
+          ]
+        },
+        {
+          "line": 11,
+          "col": 8,
+          "file": [
+            "includes/compatibility_recovery_selected.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 11,
+      "col": 8,
+      "file": [
+        "includes/compatibility_recovery_selected.adoc"
+      ]
+    }
+  ]
+}

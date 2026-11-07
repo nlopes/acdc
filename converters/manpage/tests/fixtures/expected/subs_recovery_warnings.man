@@ -1,0 +1,76 @@
+'\" t
+.\"     Title: recovery-warnings
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-01-01
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "RECOVERY\-WARNINGS" "1" "2026-01-01" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+recovery\-warnings \- located source recovery
+.SH "DESCRIPTION"
+.sp
+Earlier.
+.sp
+α🚀 [missing] and [missing]\&.
+.sp
+\fBBold [bold] and [bold]\&.\fR
+.sp
+\c
+.URL "manual.html" "Before [link] and [link] after." "\fR\c"
+
+.sp
+[raw] and [raw]
+.sp
+[escaped] and [escaped]
+.sp
+[expanded] and [expanded]
+.sp
+\fBTitle [caption]\fR
+.br
+Paragraph.
+.sp
+\fBChosen [selected]\fR
+.br
+Paragraph.
+.sp
+\fBChosen\fR
+.br
+Paragraph.
+.sp
+[Alt [alt]]
+.sp
+Escaped footnote:literal[] and \estem:quotes[x].
+.sp
+footnote:literal[]
+.sp
+footnote:literal[]
+.RS 0
+.IP \(bu 2
+[]
+.RE
+.sp
+\fBBefore [[bad id]] after.\fR
+.sp
+See [unresolved]\&.

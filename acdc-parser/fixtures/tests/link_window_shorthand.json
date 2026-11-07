@@ -55,6 +55,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "attributes": {
+              "window": "_blank"
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -85,10 +90,7 @@
               "line": 3,
               "col": 30
             }
-          ],
-          "attributes": {
-            "window": "_blank"
-          }
+          ]
         }
       ],
       "location": [
@@ -125,6 +127,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "attributes": {
+              "window": "_blank"
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -155,10 +162,7 @@
               "line": 5,
               "col": 37
             }
-          ],
-          "attributes": {
-            "window": "_blank"
-          }
+          ]
         }
       ],
       "location": [
@@ -195,6 +199,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "mailto",
+          "metadata": {
+            "attributes": {
+              "window": "_blank"
+            }
+          },
           "target": {
             "type": "url",
             "value": "mailto:person@example.com"
@@ -225,10 +234,7 @@
               "line": 7,
               "col": 41
             }
-          ],
-          "attributes": {
-            "window": "_blank"
-          }
+          ]
         }
       ],
       "location": [
@@ -265,6 +271,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "attributes": {
+              "window": "reader"
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -295,10 +306,7 @@
               "line": 9,
               "col": 64
             }
-          ],
-          "attributes": {
-            "window": "reader"
-          }
+          ]
         }
       ],
       "location": [
@@ -335,6 +343,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "attributes": {
+              "window": "_blank"
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.com"
@@ -348,10 +361,7 @@
               "line": 11,
               "col": 39
             }
-          ],
-          "attributes": {
-            "window": "_blank"
-          }
+          ]
         }
       ],
       "location": [

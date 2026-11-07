@@ -1,0 +1,635 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Native bibliography labels",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 28
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 28
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Ordinary ",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "anchor",
+          "type": "inline",
+          "id": "ordinary",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Label",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 21
+                },
+                {
+                  "line": 3,
+                  "col": 25
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 10
+            },
+            {
+              "line": 3,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 3,
+              "col": 28
+            },
+            {
+              "line": 3,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "anchor",
+          "type": "inline",
+          "id": "macro",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Macro label",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 46
+                },
+                {
+                  "line": 3,
+                  "col": 56
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 33
+            },
+            {
+              "line": 3,
+              "col": 57
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " targets.",
+          "location": [
+            {
+              "line": 3,
+              "col": 58
+            },
+            {
+              "line": 3,
+              "col": 66
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 66
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "unordered",
+      "marker": "*",
+      "metadata": {
+        "style": "bibliography"
+      },
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "default",
+              "bibliography": true,
+              "location": [
+                {
+                  "line": 6,
+                  "col": 3
+                },
+                {
+                  "line": 6,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " An automatic label.",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 16
+                },
+                {
+                  "line": 6,
+                  "col": 35
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "formatted",
+              "xreflabel": [
+                {
+                  "name": "span",
+                  "type": "inline",
+                  "variant": "strong",
+                  "form": "constrained",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "café ",
+                      "location": [
+                        {
+                          "line": 7,
+                          "col": 17
+                        },
+                        {
+                          "line": 7,
+                          "col": 21
+                        }
+                      ]
+                    },
+                    {
+                      "name": "symbol",
+                      "type": "string",
+                      "value": "©",
+                      "location": [
+                        {
+                          "line": 7,
+                          "col": 22
+                        },
+                        {
+                          "line": 7,
+                          "col": 24
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 16
+                    },
+                    {
+                      "line": 7,
+                      "col": 25
+                    }
+                  ]
+                }
+              ],
+              "bibliography": true,
+              "bibliography_label": [
+                {
+                  "name": "span",
+                  "type": "inline",
+                  "variant": "strong",
+                  "form": "constrained",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "café ",
+                      "location": [
+                        {
+                          "line": 7,
+                          "col": 17
+                        },
+                        {
+                          "line": 7,
+                          "col": 21
+                        }
+                      ]
+                    },
+                    {
+                      "name": "symbol",
+                      "type": "string",
+                      "value": "©",
+                      "location": [
+                        {
+                          "line": 7,
+                          "col": 22
+                        },
+                        {
+                          "line": 7,
+                          "col": 24
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 16
+                    },
+                    {
+                      "line": 7,
+                      "col": 25
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 7,
+                  "col": 3
+                },
+                {
+                  "line": 7,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " A formatted label.",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 29
+                },
+                {
+                  "line": 7,
+                  "col": 47
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 47
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 47
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "unordered",
+      "marker": "*",
+      "metadata": {
+        "style": "bibliography",
+        "substitutions": [
+          "specialcharacters",
+          "quotes",
+          "macros"
+        ]
+      },
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "literal",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café ",
+                  "location": [
+                    {
+                      "line": 10,
+                      "col": 14
+                    },
+                    {
+                      "line": 10,
+                      "col": 18
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "©",
+                  "location": [
+                    {
+                      "line": 10,
+                      "col": 19
+                    },
+                    {
+                      "line": 10,
+                      "col": 21
+                    }
+                  ]
+                }
+              ],
+              "bibliography": true,
+              "bibliography_label": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "café (C)",
+                  "location": [
+                    {
+                      "line": 10,
+                      "col": 14
+                    },
+                    {
+                      "line": 10,
+                      "col": 21
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 10,
+                  "col": 3
+                },
+                {
+                  "line": 10,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " Literal display text and a resolved citation.",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 25
+                },
+                {
+                  "line": 10,
+                  "col": 70
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 70
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 70
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "See ",
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "default",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 12,
+              "col": 5
+            },
+            {
+              "line": 12,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 12,
+              "col": 16
+            },
+            {
+              "line": 12,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "formatted",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 12,
+              "col": 18
+            },
+            {
+              "line": 12,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", and ",
+          "location": [
+            {
+              "line": 12,
+              "col": 31
+            },
+            {
+              "line": 12,
+              "col": 36
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "literal",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 12,
+              "col": 37
+            },
+            {
+              "line": 12,
+              "col": 47
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 12,
+              "col": 48
+            },
+            {
+              "line": 12,
+              "col": 48
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 48
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 12,
+      "col": 48
+    }
+  ]
+}

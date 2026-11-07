@@ -1,4 +1,8 @@
-use acdc_parser::{Block, InlineNode, Options, parse};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, BlockRef, InlineKind},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -13,30 +17,34 @@ fn empty_quoted_attributes_preserve_original_source_spans() -> Result<(), Error>
                 let source =
                     format!("= Empty{newline}:blank:{newline}{newline}α {quoted} ω.{newline}");
                 let parsed = parse(&source, &Options::default())?;
-                let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                let [BlockKind::Paragraph(paragraph)] = &*parsed
+                    .document()
+                    .blocks()
+                    .map(BlockRef::kind)
+                    .collect::<Vec<_>>()
+                else {
                     return Err("expected a paragraph".into());
                 };
-                let [
-                    InlineNode::PlainText(_),
-                    formatted,
-                    InlineNode::PlainText(_),
-                ] = paragraph.content.as_slice()
-                else {
-                    return Err(
-                        format!("expected one formatted span: {:?}", paragraph.content).into(),
-                    );
+                let nodes = paragraph.content().inlines().collect::<Vec<_>>();
+                let [prefix, formatted, suffix] = nodes.as_slice() else {
+                    return Err(format!("expected one formatted span: {nodes:?}").into());
                 };
-                assert!(!matches!(formatted, InlineNode::PlainText(_)), "{source:?}");
+                assert!(matches!(prefix.kind(), InlineKind::Plain(_)));
+                assert!(matches!(suffix.kind(), InlineKind::Plain(_)));
+                assert!(
+                    !matches!(formatted.kind(), InlineKind::Plain(_)),
+                    "{source:?}"
+                );
                 let location = formatted.location();
                 assert_eq!(
-                    &parsed.source()[location.absolute_start..=location.absolute_end],
+                    &parsed.source()[location.absolute_start()..=location.absolute_end()],
                     quoted,
                     "{source:?}"
                 );
-                assert_eq!(location.start.line, 4);
-                assert_eq!(location.end.line, 4);
-                assert_eq!(location.start.column, 3);
-                assert_eq!(location.end.column as usize, 2 + quoted.len());
+                assert_eq!(location.start().line(), 4);
+                assert_eq!(location.end().line(), 4);
+                assert_eq!(location.start().column(), 3);
+                assert_eq!(location.end().column() as usize, 2 + quoted.len());
             }
         }
     }

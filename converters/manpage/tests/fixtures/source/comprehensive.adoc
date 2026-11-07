@@ -4,6 +4,7 @@ Test Author <test@example.com>; Second Author <second@example.com>
 :manmanual: Comprehensive Manual
 :mansource: Test Suite 1.0
 :man-linkstyle: blue R <>
+:docdate: 2025-06-01
 :revdate: 2025-06-01
 :experimental:
 

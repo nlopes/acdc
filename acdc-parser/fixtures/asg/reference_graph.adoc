@@ -1,0 +1,14 @@
+[[earlier,Earlier header]]
+[[guide,Guide label]]
+= Main: Subtitle
+:reftext: *Document* label
+
+[#block,reftext='Block *label*']
+.Block title
+Paragraph with [[inline,_Inline_]] an anchor and [#span]*bold*.
+
+References: <<guide>>, <<earlier>>, <<block>>, <<inline>>, <<span>>, xref:#[].
+
+== First section
+
+Section text.

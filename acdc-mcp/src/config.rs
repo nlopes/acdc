@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_parser::AttributeValue;
+use acdc_parser::{AttributeValue, CompatibilityMode};
 use clap::Parser;
 
 use crate::error::{Error, Result};
@@ -21,6 +21,9 @@ pub(super) struct Cli {
     /// Use only --root directories; do not add the current project directory.
     #[arg(long, requires = "root")]
     strictly_root_folders: bool,
+    /// Parser compatibility mode, independent of document attributes and allowed roots.
+    #[arg(long, value_name = "MODE", default_value_t = CompatibilityMode::default())]
+    compatibility_mode: CompatibilityMode,
     /// Document attribute: NAME=VALUE, NAME (set), or NAME! (unset). Repeat as needed.
     #[arg(short = 'a', long = "attribute", value_parser = parse_attribute)]
     attributes: Vec<(String, AttributeValue<'static>)>,
@@ -35,7 +38,11 @@ impl Cli {
             };
             self.root.push(current_directory);
         }
-        Config::new(self.root, self.attributes.into_iter().collect())
+        Config::new(
+            self.root,
+            self.attributes.into_iter().collect(),
+            self.compatibility_mode,
+        )
     }
 }
 
@@ -56,6 +63,7 @@ fn parse_attribute(input: &str) -> std::result::Result<(String, AttributeValue<'
 #[derive(Clone, Debug)]
 pub(super) struct Config {
     roots: Vec<PathBuf>,
+    compatibility_mode: CompatibilityMode,
     attributes: BTreeMap<String, AttributeValue<'static>>,
 }
 
@@ -63,6 +71,7 @@ impl Config {
     fn new(
         roots: Vec<PathBuf>,
         attributes: BTreeMap<String, AttributeValue<'static>>,
+        compatibility_mode: CompatibilityMode,
     ) -> Result<Self> {
         let mut canonical = BTreeSet::new();
         for root in roots {
@@ -77,12 +86,17 @@ impl Config {
         }
         Ok(Self {
             roots: canonical.into_iter().collect(),
+            compatibility_mode,
             attributes,
         })
     }
 
     pub(super) fn roots(&self) -> &[PathBuf] {
         &self.roots
+    }
+
+    pub(super) fn compatibility_mode(&self) -> CompatibilityMode {
+        self.compatibility_mode
     }
 
     pub(super) fn attributes(&self) -> &BTreeMap<String, AttributeValue<'static>> {
@@ -211,5 +225,29 @@ mod tests {
             matches!(&cli.attributes[2], (name, AttributeValue::Bool(false)) if name == "disabled")
         );
         assert!(Cli::try_parse_from(["reader", "--root", ".", "-a", "=value"]).is_err());
+    }
+    #[test]
+    fn compatibility_mode_uses_canonical_names_and_rejects_invalid_values() {
+        use acdc_parser::CompatibilityMode;
+        let default = Cli::try_parse_from(["acdc-mcp"]).unwrap();
+        assert_eq!(default.compatibility_mode, CompatibilityMode::Asciidoctor);
+        for (name, expected) in [
+            ("asciidoctor", CompatibilityMode::Asciidoctor),
+            ("draft", CompatibilityMode::Draft),
+        ] {
+            let selected = Cli::try_parse_from(["acdc-mcp", "--compatibility-mode", name]).unwrap();
+            assert_eq!(selected.compatibility_mode, expected);
+        }
+        for name in ["Draft", "", "other"] {
+            let error = Cli::try_parse_from([
+                "acdc-mcp",
+                "--root",
+                "/unreadable-unused-root",
+                "--compatibility-mode",
+                name,
+            ])
+            .unwrap_err();
+            assert_eq!(error.kind(), clap::error::ErrorKind::ValueValidation);
+        }
     }
 }

@@ -1,0 +1,5 @@
+Excluded before.
+// tag::selected[]
+    Included café {alias}.
+// end::selected[]
+Excluded after.

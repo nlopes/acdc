@@ -357,6 +357,7 @@ pub(crate) struct IncludeResult {
     /// relative to the beginning of `content`.
     pub(crate) source_ranges: Vec<SourceRange>,
     pub(crate) included_files: HashSet<String>,
+    pub(crate) conditionals: Vec<crate::ConditionalEvaluation>,
     pub(crate) document_attributes: Option<crate::DocumentAttributes<'static>>,
     pub(super) comment_context: Option<super::comment::BlockContext>,
 }
@@ -388,6 +389,7 @@ impl IncludeResult {
             target: String::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
+            conditionals: Vec::new(),
             document_attributes: None,
             comment_context: None,
         }
@@ -408,6 +410,7 @@ impl IncludeResult {
             target: String::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
+            conditionals: Vec::new(),
             document_attributes: None,
             comment_context: None,
         }
@@ -422,6 +425,7 @@ impl IncludeResult {
             target: String::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
+            conditionals: Vec::new(),
             document_attributes: None,
             comment_context: None,
         }
@@ -813,6 +817,7 @@ impl<'a> Include<'a> {
             target: self.target_as_written().to_string(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
+            conditionals: Vec::new(),
             document_attributes: None,
             comment_context: None,
         };
@@ -831,6 +836,7 @@ impl<'a> Include<'a> {
             included.leveloffset_ranges = preprocessed.result.leveloffset_ranges;
             included.source_ranges = preprocessed.result.source_ranges;
             included.included_files = preprocessed.result.included_files;
+            included.conditionals = preprocessed.result.conditionals;
             included.document_attributes = Some(preprocessed.document_attributes);
             included.comment_context = Some(preprocessed.result.comment_context);
             let full = match &self.selection {
@@ -925,7 +931,9 @@ impl<'a> Include<'a> {
             return Ok(UrlIncludeOutcome::Fallback(Box::new(
                 IncludeResult::link_fallback(
                     self.target_as_written(),
-                    self.options.document_attributes.contains_key("compat-mode"),
+                    self.options
+                        .compatibility_mode
+                        .legacy_controls_enabled(&self.options.document_attributes),
                 ),
             )));
         }
@@ -1023,7 +1031,9 @@ impl<'a> Include<'a> {
             ));
             return Ok(IncludeResult::link_fallback(
                 self.target_as_written(),
-                self.options.document_attributes.contains_key("compat-mode"),
+                self.options
+                    .compatibility_mode
+                    .legacy_controls_enabled(&self.options.document_attributes),
             ));
         }
 
@@ -1100,7 +1110,9 @@ impl<'a> Include<'a> {
                     ));
                     return Ok(IncludeResult::link_fallback(
                         self.target_as_written(),
-                        self.options.document_attributes.contains_key("compat-mode"),
+                        self.options
+                            .compatibility_mode
+                            .legacy_controls_enabled(&self.options.document_attributes),
                     ));
                 }
                 self.warn_located(format!("include uri not readable: {uri}"));
@@ -1118,7 +1130,6 @@ impl<'a> Include<'a> {
                 .options
                 .document_attributes
                 .text("leveloffset")
-                .map(crate::strip_quotes)
                 .and_then(|s| s.parse::<isize>().ok())
                 .unwrap_or(0);
 

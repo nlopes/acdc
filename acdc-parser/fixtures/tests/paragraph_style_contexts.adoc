@@ -1,0 +1,18 @@
+= Paragraph style contexts
+
+include::includes/paragraph_style_body.adoc[tag=body]
+
+* List
++
+[sidebar#list-side]
+List *Sidebar* footnote:list[List note].
+
+[cols="a"]
+|===
+|
+[pass]
+<span>*Cell raw*</span>
+
+[NOTE#cell-note]
+Cell *Note* footnote:cell[Cell note].
+|===

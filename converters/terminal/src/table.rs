@@ -2,22 +2,19 @@ use std::io::{self, BufWriter};
 
 use acdc_converters_core::{
     Converter, Diagnostics, TraversalContext,
-    table::{
-        CellKind, GridRow, build_grid, calculate_column_widths, determine_column_count,
-        table_has_spans,
-    },
-    visitor::WritableVisitor,
+    table::{CellKind, GridRow, column_count, column_widths, grid_rows, has_spans},
 };
 
 use acdc_parser::{
-    BlockMetadata, ColumnFormat, ColumnStyle, HorizontalAlignment, Table as ParserTable,
-    TableColumn, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
+    ColumnStyle, HorizontalAlignment, TableFrame, TableGrid, TablePresentation, TableStripes,
+    VerticalAlignment,
+    ast::{AttributeValueRef, AttributesRef, ColumnFormatRef, TableCellRef, TableRef, TableRowRef},
 };
 use comfy_table::{
     Attribute, Cell, CellAlignment, ColumnConstraint, ContentArrangement, Table, Width,
 };
 
-use crate::{Error, Processor, TerminalVisitor};
+use crate::{Error, Processor, TerminalVisitor, terminal_visitor::has_token};
 
 /// Map `HorizontalAlignment` to comfy-table `CellAlignment`.
 fn map_alignment(align: HorizontalAlignment) -> CellAlignment {
@@ -30,9 +27,8 @@ fn map_alignment(align: HorizontalAlignment) -> CellAlignment {
 
 /// Render a cell's content to a string, applying column style formatting.
 fn render_cell_content<'a>(
-    col: &'a TableColumn<'a>,
-    col_index: usize,
-    columns: &[ColumnFormat],
+    col: TableCellRef<'a>,
+    column: Option<ColumnFormatRef<'_>>,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
     diagnostics: &mut Diagnostics<'_>,
@@ -40,14 +36,12 @@ fn render_cell_content<'a>(
     let buffer = Vec::new();
     let inner = BufWriter::new(buffer);
     let mut temp_visitor = TerminalVisitor::new(inner, processor, diagnostics.reborrow());
-    let scoped = col
-        .style
-        .or_else(|| columns.get(col_index).map(|column| column.style))
-        == Some(ColumnStyle::AsciiDoc);
+    let scoped =
+        col.style().or_else(|| column.map(ColumnFormatRef::style)) == Some(ColumnStyle::AsciiDoc);
     let mut render = |traversal: &mut TraversalContext<'a>| {
-        col.content
-            .iter()
-            .try_for_each(|block| traversal.visit_block(&mut temp_visitor, block))
+        col.blocks()
+            .try_for_each(|block| traversal.visit_block(&mut temp_visitor, block))?;
+        temp_visitor.render_footnotes(traversal, col.footnotes())
     };
     if scoped {
         traversal.with_table_cell(col, render)
@@ -60,34 +54,23 @@ fn render_cell_content<'a>(
         .map_err(io::IntoInnerError::into_error)?;
     let text = String::from_utf8(buffer).unwrap_or_default();
 
-    Ok(apply_cell_format(
-        Cell::new(text),
-        col,
-        col_index,
-        columns,
-        processor,
-    ))
+    Ok(apply_cell_format(Cell::new(text), col, column, processor))
 }
 
 fn apply_cell_format(
     mut cell: Cell,
-    col: &TableColumn<'_>,
-    col_index: usize,
-    columns: &[ColumnFormat],
+    col: TableCellRef<'_>,
+    column: Option<ColumnFormatRef<'_>>,
     processor: &Processor<'_>,
 ) -> Cell {
     // Determine effective alignment: cell override > column default
-    let effective_halign = col
-        .halign
-        .or_else(|| columns.get(col_index).map(|c| c.halign));
+    let effective_halign = col.halign().or_else(|| column.map(ColumnFormatRef::halign));
     if let Some(align) = effective_halign {
         cell = cell.set_alignment(map_alignment(align));
     }
 
     // Determine effective style: cell override > column default
-    let effective_style = col
-        .style
-        .or_else(|| columns.get(col_index).map(|c| c.style));
+    let effective_style = col.style().or_else(|| column.map(ColumnFormatRef::style));
     if let Some(style) = effective_style {
         match style {
             ColumnStyle::Strong => {
@@ -115,20 +98,18 @@ fn apply_cell_format(
 }
 
 fn effective_valign(
-    col: &TableColumn<'_>,
-    col_index: usize,
-    columns: &[ColumnFormat],
+    col: TableCellRef<'_>,
+    column: Option<ColumnFormatRef<'_>>,
 ) -> VerticalAlignment {
-    col.valign
-        .or_else(|| columns.get(col_index).map(|column| column.valign))
+    col.valign()
+        .or_else(|| column.map(ColumnFormatRef::valign))
         .unwrap_or_default()
 }
 
 fn pad_cell_vertically(
     cell: Cell,
-    col: &TableColumn<'_>,
-    col_index: usize,
-    columns: &[ColumnFormat],
+    col: TableCellRef<'_>,
+    column: Option<ColumnFormatRef<'_>>,
     processor: &Processor<'_>,
     max_lines: usize,
 ) -> Cell {
@@ -138,31 +119,34 @@ fn pad_cell_vertically(
     if padding == 0 {
         return cell;
     }
-    let (before, after) = if effective_valign(col, col_index, columns) == VerticalAlignment::Top {
+    let (before, after) = if effective_valign(col, column) == VerticalAlignment::Top {
         (0, padding)
-    } else if effective_valign(col, col_index, columns) == VerticalAlignment::Middle {
+    } else if effective_valign(col, column) == VerticalAlignment::Middle {
         (padding / 2, padding - padding / 2)
     } else {
         (padding, 0)
     };
     let padded = format!("{}{}{}", "\n".repeat(before), content, "\n".repeat(after));
-    apply_cell_format(Cell::new(padded), col, col_index, columns, processor)
+    apply_cell_format(Cell::new(padded), col, column, processor)
+}
+
+fn row_cells_with_columns<'doc>(
+    row: TableRowRef<'doc>,
+    table: TableRef<'doc>,
+) -> impl Iterator<Item = (TableCellRef<'doc>, Option<ColumnFormatRef<'doc>>)> {
+    row.cells()
+        .zip(table.columns().map(Some).chain(std::iter::repeat(None)))
 }
 
 fn render_row_cells<'a>(
-    row: &'a acdc_parser::TableRow<'a>,
-    columns: &[ColumnFormat],
+    row: TableRowRef<'a>,
+    table: TableRef<'a>,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<Vec<Cell>, Error> {
-    let cells = row
-        .columns
-        .iter()
-        .enumerate()
-        .map(|(index, col)| {
-            render_cell_content(col, index, columns, processor, traversal, diagnostics)
-        })
+    let cells = row_cells_with_columns(row, table)
+        .map(|(cell, column)| render_cell_content(cell, column, processor, traversal, diagnostics))
         .collect::<Result<Vec<_>, _>>()?;
     let max_lines = cells
         .iter()
@@ -171,11 +155,8 @@ fn render_row_cells<'a>(
         .unwrap_or(1);
     Ok(cells
         .into_iter()
-        .zip(&row.columns)
-        .enumerate()
-        .map(|(index, (cell, col))| {
-            pad_cell_vertically(cell, col, index, columns, processor, max_lines)
-        })
+        .zip(row_cells_with_columns(row, table))
+        .map(|(cell, (col, column))| pad_cell_vertically(cell, col, column, processor, max_lines))
         .collect())
 }
 
@@ -301,7 +282,7 @@ fn classify_lines(output: &str, num_grid_rows: usize) -> Vec<LineType> {
 #[allow(clippy::too_many_lines)]
 fn remove_span_borders(
     output: &str,
-    grid: &[GridRow<'_>],
+    grid: &[GridRow<TableRowRef<'_>>],
     num_cols: usize,
     boundaries: &[usize],
     line_types: &[LineType],
@@ -521,7 +502,7 @@ fn visible_line_len(line: &str) -> usize {
 /// `HSpan` origin — i.e., the cell it continues from (upward) was `HSpan`.
 /// This means the vertical separator should also be removed for `VSpan` rows
 /// that are part of a combined colspan+rowspan.
-fn is_hspan_origin(grid: &[GridRow<'_>], row_idx: usize, col_idx: usize) -> bool {
+fn is_hspan_origin(grid: &[GridRow<TableRowRef<'_>>], row_idx: usize, col_idx: usize) -> bool {
     // Walk upward through VSpan cells until we find the row that isn't VSpan
     let mut r = row_idx;
     while r > 0 {
@@ -627,25 +608,22 @@ fn apply_table_presentation(
 
 /// Build `comfy_table` cells from a logical grid row.
 fn build_comfy_cells_from_grid<'a>(
-    grid_row: &GridRow<'a>,
-    tbl: &'a ParserTable<'a>,
+    grid_row: &GridRow<TableRowRef<'a>>,
+    tbl: TableRef<'a>,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<Vec<Cell>, Error> {
     let mut cells = Vec::with_capacity(grid_row.cells.len());
+    let mut source_cells = row_cells_with_columns(grid_row.ast_row, tbl).enumerate();
     for kind in &grid_row.cells {
         let cell = match kind {
             CellKind::Content { cell_index } => {
-                if let Some(col) = grid_row.ast_row.columns.get(*cell_index) {
-                    let mut c = render_cell_content(
-                        col,
-                        *cell_index,
-                        &tbl.columns,
-                        processor,
-                        traversal,
-                        diagnostics,
-                    )?;
+                if let Some((_, (col, column))) =
+                    source_cells.find(|(index, _)| index == cell_index)
+                {
+                    let mut c =
+                        render_cell_content(col, column, processor, traversal, diagnostics)?;
                     if grid_row.is_header {
                         c = c
                             .fg(processor.appearance.colors.table_header)
@@ -670,24 +648,18 @@ fn build_comfy_cells_from_grid<'a>(
         .map(|cell| cell.content().lines().count().max(1))
         .max()
         .unwrap_or(1);
+    let mut source_cells = row_cells_with_columns(grid_row.ast_row, tbl).enumerate();
     for (grid_index, kind) in grid_row.cells.iter().enumerate() {
         let CellKind::Content { cell_index } = kind else {
             continue;
         };
-        let Some(col) = grid_row.ast_row.columns.get(*cell_index) else {
+        let Some((_, (col, column))) = source_cells.find(|(index, _)| index == cell_index) else {
             continue;
         };
         let Some(cell) = cells.get_mut(grid_index) else {
             continue;
         };
-        *cell = pad_cell_vertically(
-            cell.clone(),
-            col,
-            *cell_index,
-            &tbl.columns,
-            processor,
-            max_lines,
-        );
+        *cell = pad_cell_vertically(cell.clone(), col, column, processor, max_lines);
         if grid_row.is_header {
             *cell = cell
                 .clone()
@@ -705,21 +677,22 @@ fn build_comfy_cells_from_grid<'a>(
 }
 
 /// Configure column width constraints on the table widget.
-fn apply_column_widths(table_widget: &mut Table, tbl: &ParserTable<'_>, num_cols: usize) {
-    if !tbl.columns.is_empty() {
-        let widths = calculate_column_widths(&tbl.columns);
+fn apply_column_widths(table_widget: &mut Table, tbl: TableRef<'_>, num_cols: usize) {
+    if tbl.columns().next().is_some() {
+        let widths = column_widths(tbl.columns());
         // Widths may have fewer entries than num_cols if cols attribute doesn't
         // match the logical column count. Pad with auto (ContentWidth).
         let constraints: Vec<ColumnConstraint> = (0..num_cols)
             .map(|i| {
                 widths
                     .get(i)
+                    .copied()
+                    .flatten()
                     .and_then(|width| {
                         let clamped = width.clamp(0.0, 100.0).round();
                         format!("{clamped:.0}")
                             .parse::<u16>()
                             .ok()
-                            .filter(|&p| p > 0)
                             .map(|percent| ColumnConstraint::Absolute(Width::Percentage(percent)))
                     })
                     .unwrap_or(ColumnConstraint::ContentWidth)
@@ -732,74 +705,59 @@ fn apply_column_widths(table_widget: &mut Table, tbl: &ParserTable<'_>, num_cols
 fn render_table_without_spans<'a>(
     traversal: &mut TraversalContext<'a>,
     table_widget: &mut Table,
-    tbl: &'a ParserTable<'a>,
+    tbl: TableRef<'a>,
     visitor: &mut TerminalVisitor<'a, '_, impl std::io::Write>,
     processor: &Processor<'a>,
     presentation: TablePresentation,
 ) -> Result<String, Error> {
-    apply_column_widths(table_widget, tbl, tbl.columns.len());
+    apply_column_widths(table_widget, tbl, tbl.columns().count());
 
-    if let Some(header) = &tbl.header {
-        let header_cells: Vec<_> = render_row_cells(
-            header,
-            &tbl.columns,
-            processor,
-            traversal,
-            &mut visitor.diagnostics,
-        )?
-        .into_iter()
-        .map(|cell| {
-            cell.fg(processor.appearance.colors.table_header)
-                .add_attribute(Attribute::Bold)
-        })
-        .collect();
+    if let Some(header) = tbl.header() {
+        let header_cells: Vec<_> =
+            render_row_cells(header, tbl, processor, traversal, &mut visitor.diagnostics)?
+                .into_iter()
+                .map(|cell| {
+                    cell.fg(processor.appearance.colors.table_header)
+                        .add_attribute(Attribute::Bold)
+                })
+                .collect();
         table_widget.set_header(header_cells);
     }
 
-    for (row_idx, row) in tbl.rows.iter().enumerate() {
-        let cells = render_row_cells(
-            row,
-            &tbl.columns,
-            processor,
-            traversal,
-            &mut visitor.diagnostics,
-        )?
-        .into_iter()
-        .map(|mut cell| {
-            if stripe_row(presentation.stripes(), row_idx) {
-                cell = cell.add_attribute(Attribute::Dim);
-            }
-            cell
-        })
-        .collect::<Vec<_>>();
+    for (row_idx, row) in tbl.rows().enumerate() {
+        let cells = render_row_cells(row, tbl, processor, traversal, &mut visitor.diagnostics)?
+            .into_iter()
+            .map(|mut cell| {
+                if stripe_row(presentation.stripes(), row_idx) {
+                    cell = cell.add_attribute(Attribute::Dim);
+                }
+                cell
+            })
+            .collect::<Vec<_>>();
         table_widget.add_row(cells);
     }
 
-    if let Some(footer) = &tbl.footer {
-        let footer_cells: Vec<_> = render_row_cells(
-            footer,
-            &tbl.columns,
-            processor,
-            traversal,
-            &mut visitor.diagnostics,
-        )?
-        .into_iter()
-        .map(|cell| {
-            cell.fg(processor.appearance.colors.table_footer)
-                .add_attribute(Attribute::Bold)
-        })
-        .collect();
+    if let Some(footer) = tbl.footer() {
+        let footer_cells: Vec<_> =
+            render_row_cells(footer, tbl, processor, traversal, &mut visitor.diagnostics)?
+                .into_iter()
+                .map(|cell| {
+                    cell.fg(processor.appearance.colors.table_footer)
+                        .add_attribute(Attribute::Bold)
+                })
+                .collect();
         table_widget.add_row(footer_cells);
     }
 
     let rendered = format!("{table_widget}");
     let boundaries = find_column_boundaries(&rendered);
-    let row_count =
-        usize::from(tbl.header.is_some()) + tbl.rows.len() + usize::from(tbl.footer.is_some());
+    let row_count = usize::from(tbl.header().is_some())
+        + tbl.rows().count()
+        + usize::from(tbl.footer().is_some());
     let line_types = classify_lines(&rendered, row_count);
     Ok(apply_table_presentation(
         &rendered,
-        tbl.header.is_some(),
+        tbl.header().is_some(),
         &boundaries,
         &line_types,
         presentation,
@@ -808,14 +766,13 @@ fn render_table_without_spans<'a>(
 
 pub(crate) fn visit_table<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
-    tbl: &'a ParserTable<'a>,
-    metadata: &BlockMetadata<'_>,
+    tbl: TableRef<'a>,
     visitor: &mut TerminalVisitor<'a, '_, W>,
     processor: &Processor<'a>,
 ) -> Result<(), Error> {
     let terminal_width = processor.terminal_width;
     let presentation = tbl.presentation().unwrap_or_else(|| {
-        TablePresentation::from_attributes(metadata, |name| {
+        TablePresentation::resolve_with(Some(tbl.attributes()), |name| {
             (processor.document_attributes()).get(name)
         })
     });
@@ -825,13 +782,13 @@ pub(crate) fn visit_table<'a, W: std::io::Write>(
         .set_content_arrangement(ContentArrangement::Dynamic)
         .load_style(comfy_table::presets::UTF8_FULL.with_rounded_corners())
         .enforce_styling();
-    if let Some(width) = table_width(metadata, terminal_width) {
+    if let Some(width) = table_width(tbl.attributes(), terminal_width) {
         table_widget.set_width(u16::try_from(width).unwrap_or(80));
     }
 
-    if table_has_spans(tbl) {
-        let num_cols = determine_column_count(tbl);
-        let grid = build_grid(tbl, num_cols);
+    if has_spans(tbl) {
+        let num_cols = column_count(tbl);
+        let grid = grid_rows(tbl, num_cols);
 
         apply_column_widths(&mut table_widget, tbl, num_cols);
 
@@ -875,7 +832,7 @@ pub(crate) fn visit_table<'a, W: std::io::Write>(
         let result =
             apply_table_presentation(&result, header_set, &boundaries, &line_types, presentation);
 
-        let result = align_table(&result, metadata, terminal_width);
+        let result = align_table(&result, tbl.attributes(), terminal_width);
         let w = visitor.writer_mut();
         writeln!(w, "{result}")?;
         return Ok(());
@@ -889,20 +846,23 @@ pub(crate) fn visit_table<'a, W: std::io::Write>(
         processor,
         presentation,
     )?;
-    let rendered = align_table(&rendered, metadata, terminal_width);
+    let rendered = align_table(&rendered, tbl.attributes(), terminal_width);
     let w = visitor.writer_mut();
     writeln!(w, "{rendered}")?;
     Ok(())
 }
 
-fn table_width(metadata: &BlockMetadata<'_>, terminal_width: usize) -> Option<usize> {
-    let constrained = metadata.attributes.get_string("width").and_then(|width| {
-        let width = width.trim().trim_end_matches('%');
-        width.parse::<usize>().ok().filter(|width| *width > 0)
-    });
+fn table_width(attributes: AttributesRef<'_>, terminal_width: usize) -> Option<usize> {
+    let constrained = attributes
+        .get("width")
+        .and_then(AttributeValueRef::as_str)
+        .and_then(|width| {
+            let width = width.trim().trim_end_matches('%');
+            width.parse::<usize>().ok().filter(|width| *width > 0)
+        });
     if constrained.is_none()
-        && metadata.options.contains(&"autowidth")
-        && !metadata.roles.contains(&"stretch")
+        && has_token(attributes, "opts", "autowidth")
+        && !has_token(attributes, "role", "stretch")
     {
         return None;
     }
@@ -910,18 +870,18 @@ fn table_width(metadata: &BlockMetadata<'_>, terminal_width: usize) -> Option<us
     Some((terminal_width.saturating_mul(percent) / 100).max(1))
 }
 
-fn align_table(output: &str, metadata: &BlockMetadata<'_>, terminal_width: usize) -> String {
-    let alignment = metadata
-        .attributes
-        .get_string("align")
-        .or_else(|| metadata.attributes.get_string("float"))
-        .and_then(|value| matches!(value.as_ref(), "left" | "center" | "right").then_some(value));
+fn align_table(output: &str, attributes: AttributesRef<'_>, terminal_width: usize) -> String {
+    let alignment = attributes
+        .get("align")
+        .and_then(AttributeValueRef::as_str)
+        .or_else(|| attributes.get("float").and_then(AttributeValueRef::as_str))
+        .and_then(|value| matches!(value, "left" | "center" | "right").then_some(value));
     let Some(alignment) = alignment else {
         return output.to_string();
     };
     let width = output.lines().map(visible_line_len).max().unwrap_or(0);
     let remaining = terminal_width.saturating_sub(width);
-    let indent = match alignment.as_ref() {
+    let indent = match alignment {
         "center" => remaining / 2,
         "right" => remaining,
         _ => 0,
@@ -942,28 +902,25 @@ mod tests {
     use super::*;
     use crate::create_test_processor;
     use acdc_converters_core::WarningSource;
-    use acdc_parser::{Block, DelimitedBlockType};
 
     /// Parse an `AsciiDoc` string and extract the first table from the document.
     ///
-    /// Leaks the parsed document so the returned `Table<'static>` borrows
+    /// Leaks the parsed document so the returned `TableRef<'static>` borrows
     /// from memory that lives for the rest of the test process.
     #[allow(clippy::expect_used)]
-    fn parse_table(adoc: &str) -> ParserTable<'static> {
-        let options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(adoc, &options).expect("Failed to parse AsciiDoc");
-        let parsed: &'static acdc_parser::ParseResult = Box::leak(Box::new(parsed));
+    fn parse_table(adoc: &str) -> TableRef<'static> {
+        let parsed = acdc_parser::parse(adoc, &acdc_parser::Options::default())
+            .expect("Failed to parse AsciiDoc");
+        let parsed = Box::leak(Box::new(parsed));
         parsed
             .document()
-            .blocks
-            .iter()
+            .blocks()
             .find_map(|block| {
-                if let Block::DelimitedBlock(db) = block
-                    && let DelimitedBlockType::DelimitedTable(table) = &db.inner
-                {
-                    return Some(table.clone());
+                if let acdc_parser::ast::BlockKind::Table(table) = block.kind() {
+                    Some(table)
+                } else {
+                    None
                 }
-                None
             })
             .expect("No table found in document")
     }
@@ -991,13 +948,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(
-            &mut traversal,
-            &table,
-            &BlockMetadata::default(),
-            &mut visitor,
-            &processor,
-        )?;
+        visit_table(&mut traversal, table, &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1035,13 +986,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(
-            &mut traversal,
-            &table,
-            &BlockMetadata::default(),
-            &mut visitor,
-            &processor,
-        )?;
+        visit_table(&mut traversal, table, &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1069,13 +1014,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(
-            &mut traversal,
-            &table,
-            &BlockMetadata::default(),
-            &mut visitor,
-            &processor,
-        )?;
+        visit_table(&mut traversal, table, &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1108,13 +1047,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(
-            &mut traversal,
-            &table,
-            &BlockMetadata::default(),
-            &mut visitor,
-            &processor,
-        )?;
+        visit_table(&mut traversal, table, &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1150,13 +1083,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(
-            &mut traversal,
-            &table,
-            &BlockMetadata::default(),
-            &mut visitor,
-            &processor,
-        )?;
+        visit_table(&mut traversal, table, &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1191,13 +1118,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(
-            &mut traversal,
-            &table,
-            &BlockMetadata::default(),
-            &mut visitor,
-            &processor,
-        )?;
+        visit_table(&mut traversal, table, &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1229,13 +1150,7 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(
-            &mut traversal,
-            &table,
-            &BlockMetadata::default(),
-            &mut visitor,
-            &processor,
-        )?;
+        visit_table(&mut traversal, table, &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);

@@ -2,13 +2,122 @@ use std::path::PathBuf;
 
 use acdc_converters_core::{
     Converter, Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource,
-    visitor::Visitor,
+    visitor::DocumentVisitor,
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_terminal::{Capabilities, Processor, TerminalVisitor};
-use acdc_parser::{Options as ParserOptions, parse};
+use acdc_parser::{CompatibilityMode, Options as ParserOptions, parse};
 
 type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn selected_terminal_text_works_in_every_build() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/subs_resolved_text.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for capabilities in [TEXT_TERMINAL, OSC8_TERMINAL] {
+            let osc8 = capabilities.osc8_links;
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_terminal_width(80)
+            .with_terminal_capabilities(capabilities);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let warning_source = WarningSource::new("terminal");
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&warning_source, &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let text = strip_terminal_sequences(&output)
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ");
+            for expected in [
+                r"R02 X \*word* (C) -> *literal*.",
+                r"R03 X \*word* (C) -> *literal*.",
+                "R04 tail © →",
+                r"R05 X \*word* (C) ->",
+                "Title © bold",
+                "R07 Body (C) *literal*.",
+                "R08 Normal © →",
+                r"R09 \*literal* \'word\' © →.",
+                "R10 © Next",
+            ] {
+                assert!(text.contains(expected), "missing {expected}: {text}");
+            }
+            if osc8 {
+                assert!(
+                    output.contains("\u{1b}]8;;https://example.org"),
+                    "{output:?}"
+                );
+            }
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn formatted_caption_references_keep_text_and_bold_control_sequences() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/caption_content_attributes.adoc");
+    for capabilities in [TEXT_TERMINAL, OSC8_TERMINAL] {
+        let (output, _) = render_terminal(source, 80, capabilities)?;
+        let reference = output.lines().last().ok_or("reference line")?;
+        assert_eq!(strip_terminal_sequences(reference), "See Custom.");
+        assert!(
+            reference.contains("\u{1b}[1mCustom\u{1b}[22m"),
+            "{reference:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn selected_draft_buttons_render_in_plain_and_buffered_content() -> Result<(), Error> {
+    let source = "B01 btn:[Run] and *btn:[Bold]* and https://example.org[btn:[Nested]].";
+    let parsed = parse(
+        source,
+        &ParserOptions::builder()
+            .with_compatibility_mode(CompatibilityMode::Draft)
+            .build()?,
+    )?;
+    for capabilities in [TEXT_TERMINAL, OSC8_TERMINAL] {
+        let processor = Processor::new(
+            ConverterOptions::default(),
+            ParserOptions::builder().with_compatibility_mode(CompatibilityMode::Draft),
+        )?
+        .with_terminal_capabilities(capabilities);
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let warning_source = WarningSource::new("terminal");
+        processor.write_to(
+            parsed.document(),
+            &mut output,
+            None,
+            None,
+            &mut Diagnostics::new(&warning_source, &mut warnings),
+        )?;
+        let output = String::from_utf8(output)?;
+        let text = strip_terminal_sequences(&output);
+        for label in ["[Run]", "[Bold]", "[Nested]"] {
+            assert!(text.contains(label), "{text}");
+        }
+        assert!(!text.contains("btn:"), "{text}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+    Ok(())
+}
 
 #[cfg(feature = "images")]
 fn temp_output_path(name: &str, extension: &str) -> PathBuf {
@@ -25,7 +134,8 @@ fn render_terminal(
     let doc = parsed.document();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(width)
     .with_dark_mode(true)
@@ -70,10 +180,12 @@ fn buffered_blocks_share_attributes_but_asciidoc_cells_restore_them() -> Result<
         let document = parsed.document();
         let processor = Processor::new(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(document.attributes()).into_inputs(),
+            ),
         )?
         .with_terminal_capabilities(TEXT_TERMINAL);
-        let mut traversal = TraversalContext::new(&document.attributes);
+        let mut traversal = TraversalContext::new(document.attributes());
         let source = WarningSource::new("terminal");
         let mut warnings = Vec::new();
         let diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -93,10 +205,11 @@ fn buffered_blocks_share_attributes_but_asciidoc_cells_restore_them() -> Result<
 fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
     let parsed = parse("Paragraph.\n", &ParserOptions::default())?;
     let doc = parsed.document();
-    let block = doc.blocks.first().ok_or("missing test block")?;
+    let block = doc.blocks().next().ok_or("missing test block")?;
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
@@ -176,15 +289,6 @@ macro_rules! terminal_fixture_catalog {
 include!("fixtures/catalog.rs");
 
 fn test_fixture_variants(fixture_name: &str, has_osc8_variant: bool) -> Result<(), Error> {
-    // Fixtures whose name contains `subs` test `[subs="…"]` behaviour, which
-    // only takes effect under the `pre-spec-subs` feature. When the feature
-    // is off, skip — the expected output captures the feature-on behaviour
-    // and cannot match.
-    #[cfg(not(feature = "pre-spec-subs"))]
-    if fixture_name.contains("subs") {
-        return Ok(());
-    }
-
     test_fixture_variant(fixture_name, false)?;
     if has_osc8_variant {
         test_fixture_variant(fixture_name, true)?;
@@ -212,7 +316,7 @@ fn test_fixture_variant(fixture_name: &str, osc8: bool) -> Result<(), Error> {
             .build(),
         ParserOptions::builder()
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .with_attributes(doc.attributes.clone().into_inputs()),
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(80)
     .with_dark_mode(true)
@@ -231,12 +335,22 @@ fn test_fixture_variant(fixture_name: &str, osc8: bool) -> Result<(), Error> {
         &mut diagnostics,
     )?;
 
+    let plain_name = if osc8 {
+        format!("{fixture_name}.no-highlighting.osc8.txt")
+    } else {
+        format!("{fixture_name}.no-highlighting.txt")
+    };
+    let plain_path = PathBuf::from("tests/fixtures/expected").join(plain_name);
     let fixture_name = if osc8 {
         format!("{fixture_name}.osc8.txt")
     } else {
         format!("{fixture_name}.txt")
     };
-    let expected_path = PathBuf::from("tests/fixtures/expected").join(&fixture_name);
+    let expected_path = if !cfg!(feature = "highlighting") && plain_path.is_file() {
+        plain_path
+    } else {
+        PathBuf::from("tests/fixtures/expected").join(&fixture_name)
+    };
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
@@ -263,7 +377,13 @@ fn osc8_expected_files_match_fixture_catalog() -> Result<(), Error> {
         .read_dir()?
         .filter_map(Result::ok)
         .filter_map(|entry| entry.file_name().into_string().ok())
-        .filter_map(|name| name.strip_suffix(".osc8.txt").map(str::to_string))
+        .filter_map(|name| {
+            name.strip_suffix(".osc8.txt").map(|name| {
+                name.strip_suffix(".no-highlighting")
+                    .unwrap_or(name)
+                    .to_owned()
+            })
+        })
         .collect::<BTreeSet<_>>();
     let fixture_names = TERMINAL_FIXTURES
         .iter()
@@ -292,7 +412,9 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
         let mut output = Vec::new();
         let processor = Processor::new(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?
         .with_terminal_width(80);
         let mut warnings = Vec::new();
@@ -319,7 +441,8 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(80);
     let mut warnings = Vec::new();
@@ -352,7 +475,8 @@ fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Er
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(80);
     let mut warnings = Vec::new();
@@ -383,7 +507,8 @@ fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Erro
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(80);
     let mut warnings = Vec::new();
@@ -419,7 +544,8 @@ fn none_ordered_list_style_suppresses_marker() -> Result<(), Error> {
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(80);
     let mut warnings = Vec::new();
@@ -443,7 +569,9 @@ fn markerless_ordered_list_styles_suppress_markers() -> Result<(), Error> {
         let mut output = Vec::new();
         let processor = Processor::new(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?
         .with_terminal_width(80);
         let mut warnings = Vec::new();
@@ -467,7 +595,9 @@ fn markerless_unordered_list_styles_suppress_markers() -> Result<(), Error> {
         let mut output = Vec::new();
         let processor = Processor::new(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?
         .with_terminal_width(80);
         let mut warnings = Vec::new();
@@ -491,7 +621,9 @@ fn markerless_checklist_styles_keep_the_checkbox() -> Result<(), Error> {
         let mut output = Vec::new();
         let processor = Processor::new(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?
         .with_terminal_width(80);
         let mut warnings = Vec::new();
@@ -517,7 +649,8 @@ fn image_failure_warning_is_returned_in_conversion_result() -> Result<(), Error>
     let doc = parsed.document();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(80);
     let output_path = temp_output_path("terminal-warning", "txt");
@@ -698,14 +831,8 @@ fn source_options_and_mixed_php_fallback_are_visible_and_deduplicated() -> Resul
             "missing {expected:?} in {output:?}"
         );
     }
-    #[cfg(feature = "pre-spec-subs")]
     assert!(
         strip_terminal_sequences(&output).contains("acdc"),
-        "{output:?}"
-    );
-    #[cfg(not(feature = "pre-spec-subs"))]
-    assert!(
-        strip_terminal_sequences(&output).contains("{project}"),
         "{output:?}"
     );
     assert!(!output.contains("// <1>"), "{output:?}");
@@ -763,15 +890,7 @@ fn image_media_and_hidden_schemes_keep_static_link_information() -> Result<(), E
     let input = ":hide-uri-scheme:\n\nimage::https://media.example/photo-file.png[Useful alt,link=https://images.example/view]\n\nInline image:https://media.example/photo-file.png[Inline alt,link=https://images.example/inline].\n\nInner link precedence: link:https://outer.example[image:https://media.example/inner.png[Inner alt,link=https://inner.example]].\n\n.Audio title\naudio::sound.ogg[start=2,end=4]\n\naudio::https://media.example/remote.ogg[]\n\n.Video title\nvideo::first.mp4,second.webm[poster=cover.jpg]\n\nvideo::https://media.example/remote.mp4[]\n\nvideo::[]\n\nlink:https://example.com[] https://example.org[] <https://example.net/path> link:https://window.example[Window link,window=_blank,role=external]\n";
     let (plain, warnings) = render_terminal(input, 80, TEXT_TERMINAL)?;
 
-    assert_eq!(
-        warnings
-            .iter()
-            .filter(|warning| warning.contains("video has no source"))
-            .count(),
-        1,
-        "{warnings:?}"
-    );
-    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(warnings.is_empty(), "{warnings:?}");
     for expected in [
         "[Image: Useful alt]",
         "https://images.example/view",
@@ -783,10 +902,9 @@ fn image_media_and_hidden_schemes_keep_static_link_information() -> Result<(), E
         "sound.ogg#t=2,4",
         "[Audio: remote.ogg]",
         "https://media.example/remote.ogg",
-        "[Video source 1/2: Video title]",
-        "first.mp4",
-        "[Video source 2/2: Video title]",
-        "second.webm",
+        "[Video: Video title]",
+        "first.mp4,second.webm",
+        "video::[]",
         "[Poster: cover.jpg]",
         "[Video: remote.mp4]",
         "https://media.example/remote.mp4",
@@ -821,5 +939,53 @@ fn image_media_and_hidden_schemes_keep_static_link_information() -> Result<(), E
         "{osc8:?}"
     );
     assert!(osc8.contains("example.com"), "{osc8:?}");
+    Ok(())
+}
+
+#[test]
+fn constructed_character_references_render_in_plain_and_formatted_content() -> Result<(), Error> {
+    use acdc_parser::{
+        Block, Bold, CharacterReference, CharacterReferenceKind, Document, Form, InlineNode,
+        Location, Paragraph,
+    };
+    let mut content = Vec::new();
+    for kind in [
+        CharacterReferenceKind::Numeric(169),
+        CharacterReferenceKind::Named("amp"),
+        CharacterReferenceKind::Named("unknown"),
+    ] {
+        content.push(InlineNode::CharacterReference(
+            CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
+        ));
+    }
+    let bold = InlineNode::BoldText(Bold::new(
+        content.clone(),
+        Form::Constrained,
+        Location::default(),
+    ));
+    content.push(bold);
+    let mut doc = Document::default();
+    doc.push_block(Block::Paragraph(Paragraph::new(
+        content,
+        Location::default(),
+    )));
+    let processor = Processor::new(
+        ConverterOptions::builder().embedded(true).build(),
+        ParserOptions::builder(),
+    )?;
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let warning_source = WarningSource::new("terminal");
+    processor.write_to(
+        (&doc).into(),
+        &mut output,
+        None,
+        None,
+        &mut Diagnostics::new(&warning_source, &mut warnings),
+    )?;
+    let output = strip_terminal_sequences(&String::from_utf8(output)?);
+    assert_eq!(output.matches(r"©&&unknown;").count(), 2, "{output}");
+    assert!(output.contains(r"©&&unknown;"), "{output}");
+    assert!(warnings.is_empty(), "{warnings:?}");
     Ok(())
 }

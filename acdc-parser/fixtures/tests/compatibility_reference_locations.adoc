@@ -1,0 +1,31 @@
+= Reference locations
+:label: *Éclair λ*
+
+[id=unicode,reftext='Préfixe {label} fin']
+== Unicode title
+
+An inline [[inline-location,λ *café*]] anchor and anchor:macro-location[λ *café*].
+
+include::includes/compatibility_reference_locations.adoc[tag=selected]
+
+[cols="a"]
+|===
+|
+[id=cell,reftext='Cell *label*']
+Cell body.
+
+See <<cell>>.
+|===
+
+See <<unicode>>, <<inline-location>>, <<macro-location>>, and <<included>>.
+
+[title='anchor:title-anchor[Title label]']
+A block with an anchor in its title.
+
+An index label ((anchor:index-anchor[Index label])) and a formatted *[[formatted-anchor,Formatted label]]* anchor.
+
+pass:n[anchor:pass-anchor[Pass label\]]]
+
+A note footnote:[anchor:note-anchor[Note label]].
+
+See <<title-anchor>>, <<index-anchor>>, <<formatted-anchor>>, <<pass-anchor>>, and <<note-anchor>>.

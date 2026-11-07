@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/tck.yml'
+      - '.github/tck/**'
       - 'acdc-parser/**'
       - 'acdc-cli/**'
       - 'converters/**'
@@ -14,6 +15,7 @@ on:
     branches: '*'
     paths:
       - '.github/workflows/tck.yml'
+      - '.github/tck/**'
       - 'acdc-parser/**'
       - 'acdc-cli/**'
       - 'converters/**'
@@ -33,7 +35,12 @@ jobs:
         path: acdc
 
     - name: Clone asciidoc-tck
-      run: git clone --depth 1 https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck.git asciidoc-tck
+      run: |
+        git init asciidoc-tck
+        git -C asciidoc-tck remote add origin https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck.git
+        git -C asciidoc-tck fetch --depth 1 origin cdfada9c2768b164eadf4bc12e9f9c68e6caf68a
+        git -C asciidoc-tck checkout --detach FETCH_HEAD
+        test "$(git -C asciidoc-tck rev-parse HEAD)" = cdfada9c2768b164eadf4bc12e9f9c68e6caf68a
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
@@ -49,7 +56,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v7
       with:
-        node-version: '20'
+        node-version: '25.8.2'
         cache: 'npm'
         cache-dependency-path: asciidoc-tck/package-lock.json
 
@@ -59,8 +66,12 @@ jobs:
 
     - name: Install asciidoc-tck dependencies
       working-directory: asciidoc-tck
-      run: npm install
+      run: npm ci
 
-    - name: Run TCK tests
-      working-directory: asciidoc-tck
-      run: RUST_LOG= node harness/bin/asciidoc-tck.js cli -c '../acdc/target/debug/acdc tck'
+    - name: Test the compatibility gate
+      working-directory: acdc
+      run: node --test .github/tck/check.test.mjs
+
+    - name: Check TCK compatibility
+      working-directory: acdc
+      run: node .github/tck/check.mjs ../asciidoc-tck target/debug/acdc

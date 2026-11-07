@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -119,7 +120,7 @@
 #imagecaption[#text("Figure 1. ")#text("Caption outside link")]
 ]
 
-#link("https://example.com/missing")[#text("[Missing linked image]")]#text(" | missing.svg")
+#link("https://example.com/missing")[#text("[")#text("Missing linked image")#text("]")]#text(" | missing.svg")
 
 #heading(level: 2)[#text("Inline images")] <id-5f696e6c696e655f696d61676573>
 

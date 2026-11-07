@@ -111,7 +111,8 @@ fn render_to_grid(asciidoc: &str, cols: u16, rows: u16) -> Result<RenderedGrid, 
 
     let processor = Processor::new(
         ConverterOptions::default(),
-        acdc_parser::Options::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        acdc_parser::Options::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_terminal_width(usize::from(cols));
     let mut output = Vec::new();
@@ -283,7 +284,6 @@ fn paragraph_roles_survive_terminal_emulation() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_quotes_survive_line_numbers_and_terminal_emulation() -> Result<(), Error> {
     // ANSI snapshots alone cannot show whether numbering reset an active style.

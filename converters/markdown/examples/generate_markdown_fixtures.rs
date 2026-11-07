@@ -6,9 +6,6 @@ use acdc_converters_core::{Converter, Diagnostics, GeneratorMetadata, Options, W
 use acdc_converters_markdown::{MarkdownVariant, Processor};
 use acdc_parser::Options as ParserOptions;
 
-#[path = "../tests/support/mod.rs"]
-mod fixture_support;
-
 fn main() -> Result<(), Box<dyn Error>> {
     let mut arguments = std::env::args_os().skip(1);
     let requested_fixture = arguments.next();
@@ -47,8 +44,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
             .build()?;
         let parsed = acdc_parser::parse_file(&input_path, &parser_options)?;
-        let output_path =
-            fixture_support::expected_fixture_path(expected_dir, stem, parsed.warnings());
+        let output_path = expected_dir.join(format!("{stem}.md"));
         let doc = parsed.document();
         let variant = if stem.starts_with("commonmark_") {
             MarkdownVariant::CommonMark
@@ -63,7 +59,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             options,
             acdc_parser::Options::builder()
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .with_attributes(doc.attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+                ),
         )?
         .with_variant(variant);
         let mut output = Vec::new();

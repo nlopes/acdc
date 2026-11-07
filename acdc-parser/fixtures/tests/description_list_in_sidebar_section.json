@@ -65,11 +65,26 @@
               "type": "block",
               "items": [
                 {
-                  "term": [
+                  "terms": [
                     {
-                      "name": "text",
-                      "type": "string",
-                      "value": "FI",
+                      "content": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "FI",
+                          "location": [
+                            {
+                              "line": 6,
+                              "col": 1
+                            },
+                            {
+                              "line": 6,
+                              "col": 2
+                            }
+                          ]
+                        }
+                      ],
+                      "delimiter": "::",
                       "location": [
                         {
                           "line": 6,
@@ -77,30 +92,41 @@
                         },
                         {
                           "line": 6,
-                          "col": 2
+                          "col": 4
                         }
                       ]
                     }
                   ],
-                  "delimiter": "::",
-                  "principal_text": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "First term definition.\nContinuation of first term.",
-                      "location": [
-                        {
-                          "line": 6,
-                          "col": 6
-                        },
-                        {
-                          "line": 7,
-                          "col": 27
-                        }
-                      ]
-                    }
-                  ],
-                  "description": [],
+                  "definition": {
+                    "principal": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "First term definition.\nContinuation of first term.",
+                        "location": [
+                          {
+                            "line": 6,
+                            "col": 6
+                          },
+                          {
+                            "line": 7,
+                            "col": 27
+                          }
+                        ]
+                      }
+                    ],
+                    "blocks": [],
+                    "location": [
+                      {
+                        "line": 6,
+                        "col": 6
+                      },
+                      {
+                        "line": 7,
+                        "col": 27
+                      }
+                    ]
+                  },
                   "location": [
                     {
                       "line": 6,
@@ -108,16 +134,31 @@
                     },
                     {
                       "line": 7,
-                      "col": 28
+                      "col": 27
                     }
                   ]
                 },
                 {
-                  "term": [
+                  "terms": [
                     {
-                      "name": "text",
-                      "type": "string",
-                      "value": "#ref",
+                      "content": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "#ref",
+                          "location": [
+                            {
+                              "line": 9,
+                              "col": 1
+                            },
+                            {
+                              "line": 9,
+                              "col": 4
+                            }
+                          ]
+                        }
+                      ],
+                      "delimiter": "::",
                       "location": [
                         {
                           "line": 9,
@@ -125,30 +166,41 @@
                         },
                         {
                           "line": 9,
-                          "col": 4
+                          "col": 6
                         }
                       ]
                     }
                   ],
-                  "delimiter": "::",
-                  "principal_text": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Second term with hash prefix.",
-                      "location": [
-                        {
-                          "line": 9,
-                          "col": 8
-                        },
-                        {
-                          "line": 9,
-                          "col": 36
-                        }
-                      ]
-                    }
-                  ],
-                  "description": [],
+                  "definition": {
+                    "principal": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Second term with hash prefix.",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 8
+                          },
+                          {
+                            "line": 9,
+                            "col": 36
+                          }
+                        ]
+                      }
+                    ],
+                    "blocks": [],
+                    "location": [
+                      {
+                        "line": 9,
+                        "col": 8
+                      },
+                      {
+                        "line": 9,
+                        "col": 36
+                      }
+                    ]
+                  },
                   "location": [
                     {
                       "line": 9,
@@ -156,7 +208,7 @@
                     },
                     {
                       "line": 9,
-                      "col": 37
+                      "col": 36
                     }
                   ]
                 }
@@ -168,7 +220,7 @@
                 },
                 {
                   "line": 9,
-                  "col": 37
+                  "col": 36
                 }
               ]
             }

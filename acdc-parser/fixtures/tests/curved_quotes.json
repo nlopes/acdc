@@ -297,11 +297,71 @@
             {
               "name": "text",
               "type": "string",
-              "value": "00s.\nHis desk overflowed with heaps of paper, apple cores and squeaky toys.\nWe couldn't find Olaf's keyboard.\nThe state of his desk was replicated, in triplicate, across all of\nthe werewolves",
+              "value": "00s.\nHis desk overflowed with heaps of paper, apple cores and squeaky toys.\nWe couldn",
               "location": [
                 {
                   "line": 11,
                   "col": 44
+                },
+                {
+                  "line": 13,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "’",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 10
+                },
+                {
+                  "line": 13,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "t find Olaf",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 11
+                },
+                {
+                  "line": 13,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "’",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 22
+                },
+                {
+                  "line": 13,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "s keyboard.\nThe state of his desk was replicated, in triplicate, across all of\nthe werewolves",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 23
                 },
                 {
                   "line": 15,

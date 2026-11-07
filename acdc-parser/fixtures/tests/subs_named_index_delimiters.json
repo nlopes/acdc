@@ -213,8 +213,7 @@
                       "line": 15,
                       "col": 53
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -239,6 +238,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/code[Link] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 15,
@@ -364,6 +366,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before footnote:code[Code note.] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 16,
@@ -470,8 +475,7 @@
                       "line": 17,
                       "col": 67
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 }
               ],
               "tertiary": [
@@ -499,6 +503,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "Code",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 17,
@@ -516,6 +523,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "link:https://example.org/hidden[Hidden, label]",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 17,
@@ -533,6 +543,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "Tail",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 17,
@@ -699,8 +712,7 @@
                       "line": 22,
                       "col": 57
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -725,6 +737,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/format[",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 22,
@@ -746,6 +761,9 @@
                           "name": "raw",
                           "type": "string",
                           "value": "Bold",
+                          "substitutions": [
+                            "special_chars"
+                          ],
                           "location": [
                             {
                               "line": 22,
@@ -773,6 +791,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 22,
@@ -999,8 +1020,7 @@
                       "line": 34,
                       "col": 60
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -1025,6 +1045,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/reordered[*Bold*] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 34,
@@ -1166,8 +1189,7 @@
                       "line": 37,
                       "col": 30
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -1192,6 +1214,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/attribute[Expanded] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 37,
@@ -1307,6 +1332,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before {label} after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 40,
@@ -1448,8 +1476,7 @@
                       "line": 42,
                       "col": 61
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "raw",
@@ -1716,7 +1743,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "code",
-              "inlines": [],
               "location": [
                 {
                   "line": 46,

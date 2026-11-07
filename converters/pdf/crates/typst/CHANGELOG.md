@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Italic text in custom captions stays italic when the caption theme already uses italic text, matching Asciidoctor PDF.
+
 - Literal backticks and spacing acute accents no longer attach to the preceding
   letter in IBM Plex Serif. Combining accents remain enabled.
 
@@ -44,5 +46,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   metadata.
 - Initial shared Typst writer, escaping, page preamble, header/footer,
   watermark, image, callout, list, table, and source-code styling helpers for
-  PDF converters. Every font stack ends with the bundled colour emoji face, so
+  PDF converters. Every font stack ends with the bundled color emoji face, so
   emoji render as glyphs in body text, headings, and code, under any theme.

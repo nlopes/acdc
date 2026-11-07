@@ -1,0 +1,13 @@
+= Nested protected word context
+
+Earlier paragraph.
+
+include::includes/subs_profile_word_context.adoc[lines=2..6,indent=0]
+
+[cols="1a"]
+|===
+|
+α🚀 Sam'pass:[s]; pass:r[left--]right.
+
+**pass:[Sam]'s**; footnote:cell[Sampass:r['s]].
+|===

@@ -62,7 +62,7 @@ Before the recursive section: SEE [recursive] AGAIN\&.
 .sp
 Caption body.
 .RE
-.SH "FORMATTING BOLD ITALIC MONO HIGHLIGHT SUPER SUB QUOTE APOSTROPHE"
+.SH "FORMATTING BOLD ITALIC MONO HIGHLIGHT SUPER SUB “QUOTE” ‘APOSTROPHE’"
 .sp
 Formatting body.
 .SH "REFERENCES TARGET TITLE | A CODE LABEL | [UNTITLED] | [MISSING] | OWN TEXT"
@@ -83,7 +83,7 @@ Image body.
 .SH "EXTERNAL [OTHER] AND [OTHER#PART] AND OTHER PART"
 .sp
 External reference body.
-.SH "CHARACTERS IT\(aqS \(aq &#39; &#x2019;"
+.SH "CHARACTERS IT’S \(aq \(aq ’"
 .sp
 Character body.
 .SH "SEE SEE [RECURSIVE] AGAIN AGAIN"

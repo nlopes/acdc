@@ -1,0 +1,4 @@
+// tag::selected[]
+Included *raw* {value}
+// Included raw slash line
+// end::selected[]

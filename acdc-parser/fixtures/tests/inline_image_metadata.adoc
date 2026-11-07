@@ -1,0 +1,9 @@
+= Inline image metadata
+
+image:photo.png[Positional alt,120,80,id=positional,role="left featured",opts="interactive",link=https://example.org,title="Tooltip",data-marker=retained]
+
+image:photo.png[Ignored positional,90,60,alt="Named alt",width=240,height=160,title="Named tooltip",id=named]
+
+image:photo.png[alt="",title=""] and image:photo.png[]
+
+image:photo.png[Alt,caption="Block caption",attribution="Author",citetitle="Book",reftext="Label",custom="Retained"]

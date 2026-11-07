@@ -1,0 +1,687 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Styled open contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 22
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {
+    "kind": "pass",
+    "value": "expanded"
+  },
+  "blocks": [
+    {
+      "name": "pass",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "--",
+      "metadata": {
+        "style": "pass"
+      },
+      "inlines": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Included *raw* {value}\n// Included raw slash line",
+          "location": [
+            {
+              "line": 2,
+              "col": 1,
+              "file": [
+                "includes/styled_open_body.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 26,
+              "file": [
+                "includes/styled_open_body.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 2
+        }
+      ]
+    },
+    {
+      "name": "verse",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "--",
+      "metadata": {
+        "style": "verse",
+        "attribution": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Included Author",
+            "substitutions": [
+              "special_chars"
+            ],
+            "location": [
+              {
+                "line": 2,
+                "col": 8,
+                "file": [
+                  "includes/styled_open_start.adoc"
+                ]
+              },
+              {
+                "line": 2,
+                "col": 22,
+                "file": [
+                  "includes/styled_open_start.adoc"
+                ]
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "raw",
+            "type": "string",
+            "value": "Included Citation",
+            "substitutions": [
+              "special_chars"
+            ],
+            "location": [
+              {
+                "line": 2,
+                "col": 24,
+                "file": [
+                  "includes/styled_open_start.adoc"
+                ]
+              },
+              {
+                "line": 2,
+                "col": 40,
+                "file": [
+                  "includes/styled_open_start.adoc"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included é ",
+          "location": [
+            {
+              "line": 4,
+              "col": 1,
+              "file": [
+                "includes/styled_open_start.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 11,
+              "file": [
+                "includes/styled_open_start.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "verse",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 13,
+                  "file": [
+                    "includes/styled_open_start.adoc"
+                  ]
+                },
+                {
+                  "line": 4,
+                  "col": 17,
+                  "file": [
+                    "includes/styled_open_start.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 12,
+              "file": [
+                "includes/styled_open_start.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 18,
+              "file": [
+                "includes/styled_open_start.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\n// Included slash line\nCaller continuation.\n// Caller slash line",
+          "location": [
+            {
+              "line": 4,
+              "col": 19,
+              "file": [
+                "includes/styled_open_start.adoc"
+              ]
+            },
+            {
+              "line": 12,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 1,
+          "file": [
+            "includes/styled_open_start.adoc"
+          ]
+        },
+        {
+          "line": 13,
+          "col": 2
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "unordered",
+      "marker": "*",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "List item",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 3
+                },
+                {
+                  "line": 15,
+                  "col": 11
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "name": "sidebar",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "--",
+              "metadata": {
+                "style": "sidebar"
+              },
+              "blocks": [
+                {
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Sidebar continuation.",
+                      "location": [
+                        {
+                          "line": 19,
+                          "col": 1
+                        },
+                        {
+                          "line": 19,
+                          "col": 21
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 1
+                    },
+                    {
+                      "line": 19,
+                      "col": 21
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 17,
+                  "col": 1
+                },
+                {
+                  "line": 20,
+                  "col": 2
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 2
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 2
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "quote",
+                    "type": "block",
+                    "form": "delimited",
+                    "delimiter": "--",
+                    "metadata": {
+                      "style": "quote",
+                      "attribution": [
+                        {
+                          "name": "raw",
+                          "type": "string",
+                          "value": "Cell Author",
+                          "substitutions": [
+                            "special_chars"
+                          ],
+                          "location": [
+                            {
+                              "line": 25,
+                              "col": 8
+                            },
+                            {
+                              "line": 25,
+                              "col": 18
+                            }
+                          ]
+                        }
+                      ],
+                      "citetitle": [
+                        {
+                          "name": "raw",
+                          "type": "string",
+                          "value": "Cell Citation",
+                          "substitutions": [
+                            "special_chars"
+                          ],
+                          "location": [
+                            {
+                              "line": 25,
+                              "col": 20
+                            },
+                            {
+                              "line": 25,
+                              "col": 32
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "blocks": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell ",
+                            "location": [
+                              {
+                                "line": 27,
+                                "col": 1
+                              },
+                              {
+                                "line": 27,
+                                "col": 5
+                              }
+                            ]
+                          },
+                          {
+                            "name": "span",
+                            "type": "inline",
+                            "variant": "strong",
+                            "form": "constrained",
+                            "inlines": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "quote",
+                                "location": [
+                                  {
+                                    "line": 27,
+                                    "col": 7
+                                  },
+                                  {
+                                    "line": 27,
+                                    "col": 11
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 27,
+                                "col": 6
+                              },
+                              {
+                                "line": 27,
+                                "col": 12
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".",
+                            "location": [
+                              {
+                                "line": 27,
+                                "col": 13
+                              },
+                              {
+                                "line": 27,
+                                "col": 13
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 27,
+                            "col": 1
+                          },
+                          {
+                            "line": 27,
+                            "col": 13
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 25,
+                        "col": 1
+                      },
+                      {
+                        "line": 28,
+                        "col": 2
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 23,
+            "col": 1
+          },
+          {
+            "line": 29,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 29,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "example",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "--",
+      "metadata": {
+        "style": "example"
+      },
+      "blocks": [
+        {
+          "name": "verse",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "____",
+          "metadata": {
+            "style": "verse"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Nested verse.",
+              "location": [
+                {
+                  "line": 35,
+                  "col": 1
+                },
+                {
+                  "line": 35,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 33,
+              "col": 1
+            },
+            {
+              "line": 37,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 31,
+          "col": 1
+        },
+        {
+          "line": 38,
+          "col": 2
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "--",
+      "metadata": {
+        "style": "quote"
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "End of quote.\n[pass]",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 1
+                },
+                {
+                  "line": 43,
+                  "col": 6
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 42,
+              "col": 1
+            },
+            {
+              "line": 43,
+              "col": 6
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 40,
+          "col": 1
+        },
+        {
+          "line": 44,
+          "col": 2
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Outside paragraph.",
+          "location": [
+            {
+              "line": 46,
+              "col": 1
+            },
+            {
+              "line": 46,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 46,
+          "col": 1
+        },
+        {
+          "line": 46,
+          "col": 18
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 46,
+      "col": 18
+    }
+  ]
+}

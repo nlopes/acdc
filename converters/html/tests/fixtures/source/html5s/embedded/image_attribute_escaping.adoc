@@ -1,0 +1,7 @@
+image::sample.svg[alt="A & B <C> \"quoted\"",title="Escaping"]
+
+image::sample.svg[alt="A &amp; B &#169; &#x41; &unknown;"]
+
+Inline image:sample.svg[alt="A &amp; B",title="A &amp; B"].
+
+Inline image:sample.svg[Alt,title="He said \"hi\" & <bye>"].

@@ -1,0 +1,122 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "video",
+      "type": "block",
+      "form": "macro",
+      "source": {
+        "type": "path",
+        "value": "one.mp4,two.mp4"
+      },
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 24
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "poster": "youtube"
+        }
+      },
+      "source": {
+        "type": "name",
+        "value": "one,,three"
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 26
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "poster": "vimeo"
+        }
+      },
+      "source": {
+        "type": "name",
+        "value": "12345"
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 19
+        }
+      ]
+    },
+    {
+      "name": "clip",
+      "type": "attribute",
+      "value": "local clip.mp4",
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "poster": "thumb.png"
+        }
+      },
+      "source": {
+        "type": "path",
+        "value": "local clip.mp4"
+      },
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 31
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 9,
+      "col": 31
+    }
+  ]
+}

@@ -4,10 +4,11 @@
 
 use std::{borrow::Cow, collections::HashMap, io::Write, rc::Rc};
 
-use acdc_converters_core::{
-    InlineTextTransform, TraversalContext, document_attribute_text, visitor::WritableVisitor,
+use acdc_converters_core::{InlineTextTransform, TraversalContext, document_attribute_text};
+use acdc_parser::{
+    Reference,
+    ast::{AuthorRef, ContentRef, DocumentRef, HeaderRef},
 };
-use acdc_parser::{Author, Document, InlineNode, Reference};
 
 use crate::{Error, ManpageVisitor, escape::escape_quoted};
 
@@ -17,10 +18,10 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const SEE_THE_AUTHOR_SECTION: &str = r#"[see the "AUTHOR(S)" section]"#;
 
 /// Format an author's full name for display.
-pub(crate) fn format_author_name(author: &Author) -> String {
-    match &author.middle_name {
-        Some(middle) => format!("{} {middle} {}", author.first_name, author.last_name),
-        None => format!("{} {}", author.first_name, author.last_name),
+pub(crate) fn format_author_name(author: AuthorRef<'_>) -> String {
+    match author.middle_name() {
+        Some(middle) => format!("{} {middle} {}", author.first_name(), author.last_name()),
+        None => format!("{} {}", author.first_name(), author.last_name()),
     }
 }
 
@@ -28,12 +29,12 @@ pub(crate) fn format_author_name(author: &Author) -> String {
 ///
 /// Returns all author names comma-separated if available, otherwise a
 /// reference to the AUTHOR(S) section.
-fn format_author_line(authors: &[Author]) -> String {
-    if authors.is_empty() {
+fn format_author_line<'doc>(authors: impl Iterator<Item = AuthorRef<'doc>>) -> String {
+    let mut authors = authors.peekable();
+    if authors.peek().is_none() {
         SEE_THE_AUTHOR_SECTION.to_string()
     } else {
         authors
-            .iter()
             .map(format_author_name)
             .collect::<Vec<_>>()
             .join(", ")
@@ -48,7 +49,8 @@ fn write_comment_line<W: Write + ?Sized>(
 ) -> std::io::Result<()> {
     // Labels are right-aligned to 11 characters (including the colon)
     // This matches asciidoctor's comment header alignment
-    writeln!(w, r#".\"{:>11} {value}"#, format!("{label}:"))
+    let separator = if value.is_empty() { "" } else { " " };
+    writeln!(w, r#".\"{:>11}{separator}{value}"#, format!("{label}:"))
 }
 
 /// Write URL and MTO macro definitions for link handling.
@@ -75,12 +77,12 @@ fn write_url_macros<W: Write + ?Sized>(w: &mut W, linkstyle: &str) -> std::io::R
 /// Hard line breaks are newlines, and numeric character references decode to
 /// characters because roff output carries no HTML entities. Passthroughs apply
 /// their own typography settings, independently of the surrounding block.
-pub(crate) fn extract_verbatim_text(nodes: &[InlineNode]) -> String {
+pub(crate) fn extract_verbatim_text(nodes: ContentRef<'_>) -> String {
     InlineTextTransform::default()
         .line_break("\n")
         .decode_char_refs(true)
-        .rendered_replacements(false)
-        .to_string(nodes)
+        .rendered()
+        .content_to_string(nodes)
 }
 
 /// Plain text for a roff line that cannot carry markup, such as `.SH` or `.TH`.
@@ -89,13 +91,15 @@ pub(crate) fn extract_verbatim_text(nodes: &[InlineNode]) -> String {
 /// cross-reference contributes its target's reference text, matching
 /// `asciidoctor`.
 pub(crate) fn extract_heading_text(
-    nodes: &[InlineNode],
+    nodes: Option<ContentRef<'_>>,
     references: &HashMap<&str, Reference<'_>>,
 ) -> String {
-    InlineTextTransform::default()
-        .decode_char_refs(true)
-        .references(references)
-        .to_string(nodes)
+    nodes.map_or_else(String::new, |nodes| {
+        InlineTextTransform::default()
+            .decode_char_refs(true)
+            .references(references.into())
+            .content_to_string(nodes)
+    })
 }
 
 impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
@@ -110,10 +114,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     pub(crate) fn render_document_start(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        doc: &'a Document<'a>,
+        doc: DocumentRef<'a>,
     ) -> Result<(), Error> {
-        if let Some(header) = &doc.header {
-            self.collect_index_terms_from_inlines(traversal, &header.title)?;
+        if let Some(title) = doc.header().and_then(HeaderRef::title) {
+            self.collect_index_terms_from_inlines(traversal, title)?;
         }
 
         // In embedded mode, skip the entire preamble (comment block, .TH, macros, settings)
@@ -123,34 +127,29 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         }
 
         // Ensure we have a header
-        if doc.header.is_none() {
+        if doc.header().is_none() {
             return Err(Error::MissingHeader);
         }
 
-        let mantitle = document_attribute_text((doc.attributes).get("mantitle"))
+        let mantitle = document_attribute_text((doc.attributes()).get("mantitle"))
             .ok_or_else(|| Error::InvalidManpageTitle("missing mantitle attribute".to_string()))?;
-        let manvolnum = document_attribute_text((doc.attributes).get("manvolnum")).unwrap_or("1");
+        let manvolnum = document_attribute_text((doc.attributes()).get("manvolnum")).unwrap_or("1");
 
-        let mansource = document_attribute_text((doc.attributes).get("mansource"))
-            .or_else(|| document_attribute_text((doc.attributes).get("man source")))
-            .or_else(|| document_attribute_text((doc.attributes).get("man-source")))
+        let mansource = document_attribute_text((doc.attributes()).get("mansource"))
+            .or_else(|| document_attribute_text((doc.attributes()).get("man source")))
+            .or_else(|| document_attribute_text((doc.attributes()).get("man-source")))
             .unwrap_or_default();
-        let manmanual = document_attribute_text((doc.attributes).get("manmanual"))
-            .or_else(|| document_attribute_text((doc.attributes).get("man manual")))
-            .or_else(|| document_attribute_text((doc.attributes).get("man-manual")))
+        let manmanual = document_attribute_text((doc.attributes()).get("manmanual"))
+            .or_else(|| document_attribute_text((doc.attributes()).get("man manual")))
+            .or_else(|| document_attribute_text((doc.attributes()).get("man-manual")))
             .unwrap_or_default();
-        let date = document_attribute_text((doc.attributes).get("revdate"))
-            .or_else(|| {
-                document_attribute_text(
-                    (self.processor.parser_options.document_attributes()).get("revdate"),
-                )
-            })
-            .map_or_else(
-                || chrono::Local::now().format("%Y-%m-%d").to_string(),
-                str::to_owned,
-            );
+        let date = if doc.attributes().contains("reproducible") {
+            None
+        } else {
+            document_attribute_text(doc.attributes().get("docdate"))
+        };
 
-        self.write_preamble_header(doc, mantitle, manvolnum, &date, mansource, manmanual)?;
+        self.write_preamble_header(doc, mantitle, manvolnum, date, mansource, manmanual)?;
 
         Ok(())
     }
@@ -158,10 +157,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     /// Write the full roff preamble: comment block, .TH, settings, and URL macros.
     fn write_preamble_header(
         &mut self,
-        doc: &'a Document<'a>,
+        doc: DocumentRef<'a>,
         mantitle: &str,
         manvolnum: &str,
-        date: &str,
+        date: Option<&str>,
         mansource: &str,
         manmanual: &str,
     ) -> Result<(), Error> {
@@ -169,19 +168,19 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let w = self.writer_mut();
         writeln!(w, r#"'\" t"#)?;
 
-        let title_for_comment = doc.header.as_ref().map_or_else(
+        let title_for_comment = doc.header().map_or_else(
             || mantitle.to_string(),
             |h| {
-                let full_title = extract_heading_text(&h.title, &references);
+                let full_title = extract_heading_text(h.title(), &references);
                 full_title
                     .rsplit_once('(')
                     .filter(|(_, vol)| vol.ends_with(')') && vol.len() <= 3)
                     .map_or(full_title.clone(), |(name, _)| name.to_string())
             },
         );
-        let author_line = doc.header.as_ref().map_or_else(
+        let author_line = doc.header().map_or_else(
             || SEE_THE_AUTHOR_SECTION.to_string(),
-            |h| format_author_line(&h.authors),
+            |h| format_author_line(h.authors()),
         );
         let manual_display = if manmanual.is_empty() {
             r"\ \&".to_string()
@@ -197,7 +196,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         write_comment_line(w, "Title", &title_for_comment)?;
         write_comment_line(w, "Author", &author_line)?;
         write_comment_line(w, "Generator", &format!("acdc {VERSION}"))?;
-        write_comment_line(w, "Date", date)?;
+        if let Some(date) = date {
+            write_comment_line(w, "Date", date)?;
+        }
         write_comment_line(w, "Manual", &manual_display)?;
         write_comment_line(w, "Source", &source_display)?;
         write_comment_line(w, "Language", "English")?;
@@ -221,7 +222,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             ".TH \"{}\" \"{}\" \"{}\" \"{}\" \"{}\"",
             escaped_title,
             escape_quoted(manvolnum),
-            escape_quoted(date),
+            escape_quoted(date.unwrap_or_default()),
             th_source,
             th_manual
         )?;
@@ -232,8 +233,8 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         writeln!(w, ".nh")?;
         writeln!(w, ".ad l")?;
 
-        let linkstyle =
-            document_attribute_text((doc.attributes).get("man-linkstyle")).unwrap_or("blue R < >");
+        let linkstyle = document_attribute_text((doc.attributes()).get("man-linkstyle"))
+            .unwrap_or("blue R < >");
         write_url_macros(w, linkstyle)?;
 
         Ok(())

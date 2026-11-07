@@ -5,8 +5,9 @@ use std::{
 };
 
 use acdc_parser::{
-    AttributeValue, Block, IncludeLoader, IncludeSource, IncludeSourceError,
-    IncludeSourceErrorKind, IncludeSourceTarget, Location, Options, ParseResult, SafeMode,
+    AttributeValue, IncludeLoader, IncludeSource, IncludeSourceError, IncludeSourceErrorKind,
+    IncludeSourceTarget, Location, Options, ParseResult, SafeMode,
+    ast::{BlockKind, BlockRef, LocationRef},
 };
 use nucleo_matcher::{
     Matcher, Utf32Str,
@@ -63,14 +64,11 @@ impl Document {
         }));
         let loader = include_loader(config.clone(), sources.clone(), cancelled.clone());
         let mut options = Options::builder()
+            .with_compatibility_mode(config.compatibility_mode())
             .with_safe_mode(SafeMode::Unsafe)
             .with_base_dir(path.parent().expect("absolute file has a parent"))
             .with_include_loader(loader)
             .with_max_total_include_bytes(MAX_ASSEMBLED_BYTES);
-        #[cfg(feature = "setext")]
-        {
-            options = options.with_setext();
-        }
         let timestamp = i64::try_from(timestamp)
             .ok()
             .and_then(|seconds| chrono::DateTime::from_timestamp(seconds, 0))
@@ -155,14 +153,14 @@ impl Document {
     pub(super) fn title(&self) -> String {
         self.parsed
             .document()
-            .header
-            .as_ref()
-            .map(|h| render::inline_text(&h.title, Format::Plain))
+            .title()
+            .map(|title| render::inline_text(title, Format::Plain))
             .unwrap_or_default()
     }
 
-    pub(super) fn source(&self, location: &Location) -> Value {
-        let start = self.parsed.source_location(location);
+    pub(super) fn source<'a>(&self, location: impl Into<LocationRef<'a>>) -> Value {
+        let location = Location::from(location.into());
+        let start = self.parsed.source_location(&location);
         let mut end_location = location.clone();
         end_location.start = location.end.clone();
         let end = self.parsed.source_location(&end_location);
@@ -186,7 +184,7 @@ impl Document {
 
     pub(super) fn entries(&self) -> Result<Vec<Entry<'_>>> {
         let mut entries = Vec::new();
-        for (index, block) in self.parsed.document().blocks.iter().enumerate() {
+        for (index, block) in self.parsed.document().blocks().enumerate() {
             walk(block, &index.to_string(), &[], 0, &mut entries)?;
         }
         Ok(entries)
@@ -202,13 +200,13 @@ impl Document {
 }
 
 pub(super) struct Entry<'a> {
-    block: &'a Block<'a>,
+    block: BlockRef<'a>,
     selector: String,
     heading_path: Vec<String>,
 }
 
 impl<'a> Entry<'a> {
-    pub(super) fn block(&self) -> &'a Block<'a> {
+    pub(super) fn block(&self) -> BlockRef<'a> {
         self.block
     }
 
@@ -217,31 +215,25 @@ impl<'a> Entry<'a> {
     }
 
     fn id(&self) -> Option<String> {
-        if let Block::Section(section) = self.block {
-            return Some(section.id().into_owned());
-        }
-        self.block
-            .metadata()
-            .and_then(|metadata| metadata.id.as_ref())
-            .map(|anchor| anchor.id.to_owned())
+        self.block.id().map(|id| id.as_str().to_owned())
     }
 
     pub(super) fn title(&self) -> String {
-        render::title(self.block)
+        self.block
+            .title()
             .map(|title| render::inline_text(title, Format::Plain))
             .unwrap_or_default()
     }
 
     pub(super) fn has_id(&self, id: &str) -> bool {
-        self.id().as_deref() == Some(id)
-            || self
-                .block
-                .metadata()
-                .is_some_and(|metadata| metadata.anchors.iter().any(|anchor| anchor.id == id))
+        self.block
+            .id()
+            .is_some_and(|primary| primary.as_str() == id)
+            || self.block.anchors().any(|anchor| anchor.id() == id)
     }
 
     pub(super) fn navigable(&self) -> bool {
-        matches!(self.block, Block::Section(_))
+        matches!(self.block.kind(), BlockKind::Section(_))
             || self.id().is_some()
             || !self.title().is_empty()
             || matches!(render::kind(self.block), "listing" | "literal" | "table")
@@ -249,7 +241,7 @@ impl<'a> Entry<'a> {
 }
 
 fn walk<'a>(
-    block: &'a Block<'a>,
+    block: BlockRef<'a>,
     position: &str,
     trail: &[String],
     depth: usize,
@@ -261,8 +253,13 @@ fn walk<'a>(
         ));
     }
     let mut trail = trail.to_vec();
-    let kind = if let Block::Section(section) = block {
-        trail.push(render::inline_text(&section.title, Format::Plain));
+    let kind = if let BlockKind::Section(section) = block.kind() {
+        trail.push(
+            section
+                .title()
+                .map(|title| render::inline_text(title, Format::Plain))
+                .unwrap_or_default(),
+        );
         "section"
     } else {
         "block"
@@ -295,7 +292,7 @@ pub(super) fn select<'a>(
 ) -> Vec<&'a Entry<'a>> {
     let available = entries
         .iter()
-        .filter(|entry| matches!(entry.block, Block::Section(_)) == section_only)
+        .filter(|entry| matches!(entry.block.kind(), BlockKind::Section(_)) == section_only)
         .collect::<Vec<_>>();
     let exact = available
         .iter()

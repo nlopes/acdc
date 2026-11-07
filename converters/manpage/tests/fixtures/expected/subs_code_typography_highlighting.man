@@ -34,10 +34,10 @@ code\-typography \- typography enabled in code
 \fBcode\-typography\fR
 .SH "DESCRIPTION"
 .EX
-C01 \(co \(rg \(tm .\|.\|. don\(cqt word\(emword \(-> \(<- \(rA \(lA
+C01 \(co \(rg \(tm \&.\|.\|. don\(cqt word\(emword \(-> \(<- \(rA \(lA
 .EE
 .EX
-C02 (C) (R) (TM) ... word\-\-word \-> <\- => <=
+C02 (C) (R) (TM) \&... word\-\-word \-> <\- => <=
 C03 \e*bold\e* \e_italic\e_ \e`code\e` \e#mark\e# \e^up\e^ \e~down\e~
 .EE
 .EX
@@ -100,7 +100,7 @@ Second callout.
 XML callout.
 .RE
 .EX
-C20 \fB\(co\fR(R)https://example.org/mixed[Next \(tm].\|.\|.
+C20 \fB\(co\fR(R)https://example.org/mixed[Next \(tm]\&.\|.\|.
 C21 \(em \fBmiddle\fR \(em
 .EE
 .EX

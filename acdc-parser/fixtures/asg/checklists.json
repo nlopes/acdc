@@ -1,0 +1,388 @@
+{
+  "blocks": [
+    {
+      "items": [
+        {
+          "blocks": [],
+          "location": [
+            {
+              "col": 1,
+              "line": 2
+            },
+            {
+              "col": 15,
+              "line": 2
+            }
+          ],
+          "marker": "*",
+          "name": "listItem",
+          "principal": [
+            {
+              "location": [
+                {
+                  "col": 3,
+                  "line": 2
+                },
+                {
+                  "col": 15,
+                  "line": 2
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Ordinary item"
+            }
+          ],
+          "type": "block"
+        },
+        {
+          "blocks": [
+            {
+              "items": [
+                {
+                  "blocks": [],
+                  "checked": true,
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 4
+                    },
+                    {
+                      "col": 18,
+                      "line": 4
+                    }
+                  ],
+                  "marker": "**",
+                  "name": "listItem",
+                  "principal": [
+                    {
+                      "location": [
+                        {
+                          "col": 8,
+                          "line": 4
+                        },
+                        {
+                          "col": 18,
+                          "line": 4
+                        }
+                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Nested done"
+                    }
+                  ],
+                  "type": "block"
+                }
+              ],
+              "location": [
+                {
+                  "col": 1,
+                  "line": 4
+                },
+                {
+                  "col": 18,
+                  "line": 4
+                }
+              ],
+              "marker": "**",
+              "name": "list",
+              "type": "block",
+              "variant": "unordered"
+            }
+          ],
+          "checked": false,
+          "location": [
+            {
+              "col": 1,
+              "line": 3
+            },
+            {
+              "col": 18,
+              "line": 4
+            }
+          ],
+          "marker": "*",
+          "name": "listItem",
+          "principal": [
+            {
+              "location": [
+                {
+                  "col": 7,
+                  "line": 3
+                },
+                {
+                  "col": 14,
+                  "line": 3
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Pending "
+            },
+            {
+              "form": "constrained",
+              "inlines": [
+                {
+                  "location": [
+                    {
+                      "col": 16,
+                      "line": 3
+                    },
+                    {
+                      "col": 19,
+                      "line": 3
+                    }
+                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "work"
+                }
+              ],
+              "location": [
+                {
+                  "col": 15,
+                  "line": 3
+                },
+                {
+                  "col": 20,
+                  "line": 3
+                }
+              ],
+              "name": "span",
+              "type": "inline",
+              "variant": "strong"
+            }
+          ],
+          "type": "block"
+        },
+        {
+          "blocks": [
+            {
+              "blocks": [
+                {
+                  "inlines": [
+                    {
+                      "location": [
+                        {
+                          "col": 1,
+                          "line": 8
+                        },
+                        {
+                          "col": 19,
+                          "line": 8
+                        }
+                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "Attached paragraph."
+                    }
+                  ],
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 8
+                    },
+                    {
+                      "col": 19,
+                      "line": 8
+                    }
+                  ],
+                  "name": "paragraph",
+                  "type": "block"
+                }
+              ],
+              "delimiter": "--",
+              "form": "delimited",
+              "location": [
+                {
+                  "col": 1,
+                  "line": 7
+                },
+                {
+                  "col": 2,
+                  "line": 9
+                }
+              ],
+              "name": "open",
+              "type": "block"
+            }
+          ],
+          "checked": true,
+          "location": [
+            {
+              "col": 1,
+              "line": 5
+            },
+            {
+              "col": 2,
+              "line": 9
+            }
+          ],
+          "marker": "*",
+          "name": "listItem",
+          "principal": [
+            {
+              "location": [
+                {
+                  "col": 7,
+                  "line": 5
+                },
+                {
+                  "col": 10,
+                  "line": 5
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Done"
+            }
+          ],
+          "type": "block"
+        },
+        {
+          "blocks": [],
+          "checked": true,
+          "location": [
+            {
+              "col": 1,
+              "line": 10
+            },
+            {
+              "col": 21,
+              "line": 10
+            }
+          ],
+          "marker": "*",
+          "name": "listItem",
+          "principal": [
+            {
+              "location": [
+                {
+                  "col": 7,
+                  "line": 10
+                },
+                {
+                  "col": 21,
+                  "line": 10
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Alternate check"
+            }
+          ],
+          "type": "block"
+        },
+        {
+          "blocks": [],
+          "checked": true,
+          "location": [
+            {
+              "col": 1,
+              "line": 11
+            },
+            {
+              "col": 21,
+              "line": 11
+            }
+          ],
+          "marker": "*",
+          "name": "listItem",
+          "principal": [
+            {
+              "location": [
+                {
+                  "col": 7,
+                  "line": 11
+                },
+                {
+                  "col": 21,
+                  "line": 11
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Uppercase check"
+            }
+          ],
+          "type": "block"
+        },
+        {
+          "blocks": [],
+          "location": [
+            {
+              "col": 1,
+              "line": 12
+            },
+            {
+              "col": 21,
+              "line": 12
+            }
+          ],
+          "marker": "*",
+          "name": "listItem",
+          "principal": [
+            {
+              "location": [
+                {
+                  "col": 3,
+                  "line": 12
+                },
+                {
+                  "col": 21,
+                  "line": 12
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "\\[x] Literal marker"
+            }
+          ],
+          "type": "block"
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 1
+        },
+        {
+          "col": 21,
+          "line": 12
+        }
+      ],
+      "marker": "*",
+      "metadata": {
+        "location": [
+          {
+            "col": 1,
+            "line": 1
+          },
+          {
+            "col": 15,
+            "line": 1
+          }
+        ],
+        "options": [
+          "interactive"
+        ]
+      },
+      "name": "list",
+      "type": "block",
+      "variant": "unordered"
+    }
+  ],
+  "location": [
+    {
+      "col": 1,
+      "line": 1
+    },
+    {
+      "col": 21,
+      "line": 12
+    }
+  ],
+  "name": "document",
+  "profile": "urn:acdc:asg:1",
+  "type": "block"
+}

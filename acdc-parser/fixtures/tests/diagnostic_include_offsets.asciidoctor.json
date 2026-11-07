@@ -1,0 +1,163 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Diagnostic include offsets",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 28
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 28
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Outer.",
+          "location": [
+            {
+              "line": 1,
+              "col": 1,
+              "file": [
+                "includes/diagnostic_outer_offsets.adoc"
+              ]
+            },
+            {
+              "line": 1,
+              "col": 6,
+              "file": [
+                "includes/diagnostic_outer_offsets.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1,
+          "file": [
+            "includes/diagnostic_outer_offsets.adoc"
+          ]
+        },
+        {
+          "line": 1,
+          "col": 6,
+          "file": [
+            "includes/diagnostic_outer_offsets.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "compat-mode",
+      "type": "attribute",
+      "value": "λ",
+      "location": [
+        {
+          "line": 3,
+          "col": 1,
+          "file": [
+            "includes/diagnostic_outer_offsets.adoc",
+            "diagnostic_warning_offsets.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 15,
+          "file": [
+            "includes/diagnostic_outer_offsets.adoc",
+            "diagnostic_warning_offsets.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included body.",
+          "location": [
+            {
+              "line": 5,
+              "col": 1,
+              "file": [
+                "includes/diagnostic_outer_offsets.adoc",
+                "diagnostic_warning_offsets.adoc"
+              ]
+            },
+            {
+              "line": 5,
+              "col": 14,
+              "file": [
+                "includes/diagnostic_outer_offsets.adoc",
+                "diagnostic_warning_offsets.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1,
+          "file": [
+            "includes/diagnostic_outer_offsets.adoc",
+            "diagnostic_warning_offsets.adoc"
+          ]
+        },
+        {
+          "line": 5,
+          "col": 14,
+          "file": [
+            "includes/diagnostic_outer_offsets.adoc",
+            "diagnostic_warning_offsets.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 5,
+      "col": 14,
+      "file": [
+        "includes/diagnostic_outer_offsets.adoc",
+        "diagnostic_warning_offsets.adoc"
+      ]
+    }
+  ]
+}

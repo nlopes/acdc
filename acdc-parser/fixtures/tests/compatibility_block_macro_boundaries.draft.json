@@ -1,0 +1,648 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Macro boundaries",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 18
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 18
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "image::diagram.png[] preserved λ",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "audio::sound.wav[] preserved λ",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 30
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "video::movie.mp4[] preserved λ",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 30
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "toc::[] preserved λ",
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 19
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "image::diagram.png[]suffix",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 26
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "audio::sound.wav[]suffix",
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 24
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 24
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "video::movie.mp4[]suffix",
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 24
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 24
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "toc::[]suffix",
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "image::diagram.png[Alt] ",
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "formatted",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 26
+                },
+                {
+                  "line": 19,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 19,
+              "col": 25
+            },
+            {
+              "line": 19,
+              "col": 35
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 35
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "image::diagram.png[Alt] ",
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "kept",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Kept once.",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 39
+                },
+                {
+                  "line": 21,
+                  "col": 48
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 21,
+              "col": 25
+            },
+            {
+              "line": 21,
+              "col": 49
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " followed by text.",
+          "location": [
+            {
+              "line": 21,
+              "col": 50
+            },
+            {
+              "line": 21,
+              "col": 67
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 21,
+          "col": 67
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Alt] *greedy* and footnote:literal[Not registered.",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 23,
+              "col": 20
+            },
+            {
+              "line": 23,
+              "col": 69
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "diagram.png"
+      },
+      "location": [
+        {
+          "line": 23,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 70
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Chosen title",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 26,
+              "col": 9
+            },
+            {
+              "line": 26,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "image::diagram.png[Alt,title=\"Discarded media title\"] preserved tail",
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 27,
+              "col": 68
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 27,
+          "col": 68
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Before.\nimage::diagram.png[] preserved on the next line.",
+          "location": [
+            {
+              "line": 29,
+              "col": 1
+            },
+            {
+              "line": 30,
+              "col": 48
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 29,
+          "col": 1
+        },
+        {
+          "line": 30,
+          "col": 48
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Alt",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 32,
+              "col": 20
+            },
+            {
+              "line": 32,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "diagram.png"
+      },
+      "location": [
+        {
+          "line": 32,
+          "col": 1
+        },
+        {
+          "line": 32,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "audio",
+      "type": "block",
+      "form": "macro",
+      "source": {
+        "type": "path",
+        "value": "sound.wav"
+      },
+      "location": [
+        {
+          "line": 34,
+          "col": 1
+        },
+        {
+          "line": 34,
+          "col": 18
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "type": "block",
+      "form": "macro",
+      "source": {
+        "type": "path",
+        "value": "movie.mp4"
+      },
+      "location": [
+        {
+          "line": 36,
+          "col": 1
+        },
+        {
+          "line": 36,
+          "col": 18
+        }
+      ]
+    },
+    {
+      "name": "toc",
+      "type": "block",
+      "location": [
+        {
+          "line": 38,
+          "col": 1
+        },
+        {
+          "line": 38,
+          "col": 8
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 38,
+      "col": 7
+    }
+  ]
+}

@@ -9,7 +9,7 @@ pub enum CaptionAlignment {
     /// Align with the left edge of the block.
     #[default]
     Left,
-    /// Centre over the block.
+    /// Center over the block.
     Center,
     /// Align with the right edge of the block.
     Right,
@@ -32,7 +32,7 @@ pub enum CaptionFontStyle {
 pub struct Caption {
     /// Text alignment within the block width.
     pub align: CaptionAlignment,
-    /// Text colour, or the body-text colour when omitted.
+    /// Text color, or the body-text color when omitted.
     pub font_color: Option<String>,
     /// Font size relative to the body size, in em.
     pub font_size_em: f64,

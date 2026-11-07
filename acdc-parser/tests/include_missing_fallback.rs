@@ -5,7 +5,11 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use acdc_parser::{Block, InlineNode, Options, ParseResult, parse_file};
+use acdc_parser::{
+    Options, ParseResult,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse_file,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -64,16 +68,20 @@ impl Drop for IncludeTree {
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<&str>, Box<dyn Error>> {
     result
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return Err(format!("expected paragraph, got {block:?}").into());
             };
-            let [InlineNode::PlainText(text)] = paragraph.content.as_slice() else {
+            let [InlineKind::Plain(text)] = &*paragraph
+                .content()
+                .inlines()
+                .map(InlineRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err(format!("expected plain paragraph text, got {paragraph:?}").into());
             };
-            Ok(text.content)
+            Ok(text.text())
         })
         .collect()
 }
@@ -124,11 +132,13 @@ fn missing_top_level_include_inserts_fallback_and_continues() -> TestResult {
         &tree.main,
         6,
     )?;
-    let Some(Block::Paragraph(fallback)) = result.document().blocks.get(1) else {
+    let Some(BlockKind::Paragraph(fallback)) =
+        result.document().blocks().nth(1).map(BlockRef::kind)
+    else {
         return Err("expected the fallback paragraph".into());
     };
-    assert_eq!(fallback.location.start.line, 6);
-    assert!(fallback.location.start.file.is_none());
+    assert_eq!(fallback.location().start().line(), 6);
+    assert!(fallback.location().start().include_chain().is_none());
     Ok(())
 }
 
@@ -167,18 +177,19 @@ fn missing_nested_include_is_attributed_to_its_including_source() -> TestResult 
         nested,
         3,
     )?;
-    let Some(Block::Paragraph(fallback)) = result.document().blocks.get(2) else {
+    let Some(BlockKind::Paragraph(fallback)) =
+        result.document().blocks().nth(2).map(BlockRef::kind)
+    else {
         return Err("expected the fallback paragraph".into());
     };
-    assert_eq!(fallback.location.start.line, 3);
+    assert_eq!(fallback.location().start().line(), 3);
     assert_eq!(
         fallback
-            .location
-            .start
-            .file
-            .as_ref()
-            .map(|chain| chain.as_slice()),
-        Some(["chapters/outer.adoc".to_string()].as_slice())
+            .location()
+            .start()
+            .include_chain()
+            .map(Iterator::collect::<Vec<_>>),
+        Some(vec!["chapters/outer.adoc"])
     );
     Ok(())
 }

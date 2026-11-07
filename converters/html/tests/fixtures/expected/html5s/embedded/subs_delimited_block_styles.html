@@ -1,0 +1,40 @@
+<section class="literal-block">
+<h6 class="block-title">Listing as literal</h6>
+<pre>*literal* {word} footnote:unselected[Not registered]</pre>
+</section>
+<figure class="listing-block">
+<figcaption>Literal as listing</figcaption>
+<pre>*listing* {word}</pre>
+</figure>
+<figure class="listing-block">
+<figcaption>Literal as source</figcaption>
+<pre class="highlight"><code class="language-rust" data-lang="rust">fn main() {} // <b class="conum">(1)</b></code></pre>
+</figure>
+<ol class="callout-list arabic">
+<li>Callout text.</li>
+</ol>
+<figure class="listing-block">
+<figcaption>Open as source</figcaption>
+<pre class="highlight"><code class="language-text" data-lang="text">*source* {word}</code></pre>
+</figure>
+<section class="literal-block">
+<h6 class="block-title">Open as literal</h6>
+<pre>*literal* {word}</pre>
+</section>
+<section class="literal-block">
+<h6 class="block-title">Formatted literal</h6>
+<pre><strong>bold</strong> expanded <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup></pre>
+</section>
+<figure class="listing-block">
+<figcaption>Formatted source</figcaption>
+<pre class="highlight"><code class="language-text" data-lang="text"><strong>bold</strong> expanded <sup class="footnote-ref" id="_footnoteref_2">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup></code></pre>
+</figure>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Selected literal note <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_2" role="doc-endnote">
+Selected source note <a class="footnote-backref" href="#_footnoteref_2" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

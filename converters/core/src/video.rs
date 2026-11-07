@@ -11,7 +11,10 @@
 
 use std::fmt::Write as _;
 
-use acdc_parser::Video;
+use acdc_parser::{
+    Video,
+    ast::{AttributeValueRef, VideoRef},
+};
 
 /// Errors that can occur while generating a video URL.
 #[derive(Debug, thiserror::Error)]
@@ -28,9 +31,9 @@ pub enum UrlError {
 
 /// Trait to generate a `URL` for a video, either for embedding or direct linking.
 ///
-/// This trait is implemented for `acdc_parser::Video` and provides methods to generate
-/// `URL`s for `YouTube` and `Vimeo` videos based on their metadata attributes and
-/// options.
+/// Implemented for `Video` and `VideoRef`. Provider controls and options select
+/// `YouTube`, `Vimeo`, or a complete local target; commas form a playlist only
+/// for `YouTube`.
 ///
 /// # Errors
 ///
@@ -60,23 +63,75 @@ impl TryUrl for Video<'_> {
     type Error = UrlError;
 
     fn try_url(&self, embed: bool) -> Result<String, Self::Error> {
-        let is_youtube = matches!(
-            self.metadata.attributes.get("youtube"),
-            Some(acdc_parser::AttributeValue::Bool(true))
-        );
-        let is_vimeo = matches!(
-            self.metadata.attributes.get("vimeo"),
-            Some(acdc_parser::AttributeValue::Bool(true))
-        );
+        VideoRef::from(self).try_url(embed)
+    }
+}
 
-        match ((is_youtube, is_vimeo), embed) {
-            ((true, false), true) => build_youtube_embed_url(self),
-            ((true, false), false) => build_youtube_watch_url(self),
-            ((false, true), true) => build_vimeo_embed_url(self),
-            ((false, true), false) => build_vimeo_watch_url(self),
-            _ => build_local_url(self), // Local video
+impl TryUrl for VideoRef<'_> {
+    type Error = UrlError;
+
+    fn try_url(&self, embed: bool) -> Result<String, Self::Error> {
+        if self.source().to_string().is_empty() {
+            return Err(UrlError::MissingSource);
+        }
+        match (
+            (*self)
+                .attributes()
+                .get("poster")
+                .and_then(AttributeValueRef::as_str),
+            embed,
+        ) {
+            (Some("youtube"), true) => build_youtube_embed_url(*self),
+            (Some("youtube"), false) => build_youtube_watch_url(*self),
+            (Some("vimeo"), true) => build_vimeo_embed_url(*self),
+            (Some("vimeo"), false) => build_vimeo_watch_url(*self),
+            _ => Ok(build_local_url(*self)),
         }
     }
+}
+
+struct YoutubeTarget {
+    id: String,
+    playlist: Option<(&'static str, String)>,
+}
+
+/// Resolve `YouTube`'s list and dynamic playlist shorthand before building a URL.
+fn youtube_target(video: VideoRef<'_>) -> Result<YoutubeTarget, UrlError> {
+    let source = video.source().to_string();
+    if source.is_empty() {
+        return Err(UrlError::MissingSource);
+    }
+    let (target, list) = source
+        .split_once('/')
+        .map_or((source.as_str(), None), |(target, list)| {
+            (target, Some(list))
+        });
+    let named_list = video
+        .attributes()
+        .get("list")
+        .and_then(AttributeValueRef::as_str);
+    if let Some(list) = list.or(named_list) {
+        return Ok(YoutubeTarget {
+            id: target.to_owned(),
+            playlist: Some(("list", list.to_owned())),
+        });
+    }
+    let (target, playlist) = target
+        .split_once(',')
+        .map_or((target, None), |(target, playlist)| {
+            (target, Some(playlist))
+        });
+    let named_playlist = video
+        .attributes()
+        .get("playlist")
+        .and_then(AttributeValueRef::as_str);
+    let playlist = playlist
+        .or(named_playlist)
+        .map(|playlist| ("playlist", format!("{target},{playlist}")));
+    Ok(YoutubeTarget {
+        id: target.to_owned(),
+        playlist,
+    })
 }
 
 /// Build a `YouTube` watch URL with parameters for a video.
@@ -87,24 +142,26 @@ impl TryUrl for Video<'_> {
 ///
 /// # Errors
 ///
-/// Returns an error if the video has no sources or if URL formatting fails.
-fn build_youtube_watch_url(video: &Video) -> Result<String, UrlError> {
-    let video_id = video
-        .sources
-        .first()
-        .ok_or(UrlError::MissingSource)?
-        .to_string();
+/// Returns an error if the video has no source or if URL formatting fails.
+fn build_youtube_watch_url(video: VideoRef<'_>) -> Result<String, UrlError> {
+    let YoutubeTarget {
+        id: video_id,
+        playlist,
+    } = youtube_target(video)?;
     let mut url = format!("https://www.youtube.com/watch?v={video_id}");
 
     // Add start parameter if present (using &t= for watch URLs)
-    if let Some(acdc_parser::AttributeValue::String(start)) = video.metadata.attributes.get("start")
-    {
+    if let Some(AttributeValueRef::Text(start)) = video.attributes().get("start") {
         write!(url, "&t={start}")?;
     }
 
     // Add end parameter if present
-    if let Some(acdc_parser::AttributeValue::String(end)) = video.metadata.attributes.get("end") {
+    if let Some(AttributeValueRef::Text(end)) = video.attributes().get("end") {
         write!(url, "&end={end}")?;
+    }
+
+    if let Some((name, value)) = playlist {
+        write!(url, "&{name}={value}")?;
     }
 
     Ok(url)
@@ -118,54 +175,69 @@ fn build_youtube_watch_url(video: &Video) -> Result<String, UrlError> {
 ///
 /// # Errors
 ///
-/// Returns an error if the video has no sources or if URL formatting fails.
-fn build_youtube_embed_url(video: &Video) -> Result<String, UrlError> {
-    let video_id = video
-        .sources
-        .first()
-        .ok_or(UrlError::MissingSource)?
-        .to_string();
-    let mut url = format!("https://www.youtube.com/embed/{video_id}?rel=0");
+/// Returns an error if the video has no source or if URL formatting fails.
+fn build_youtube_embed_url(video: VideoRef<'_>) -> Result<String, UrlError> {
+    let YoutubeTarget {
+        id: video_id,
+        playlist,
+    } = youtube_target(video)?;
+    let related = u8::from(video.options().contains("related"));
+    let mut url = format!("https://www.youtube.com/embed/{video_id}?rel={related}");
 
     // Add start parameter if present (using &start= for embed URLs)
-    if let Some(acdc_parser::AttributeValue::String(start)) = video.metadata.attributes.get("start")
-    {
+    if let Some(AttributeValueRef::Text(start)) = video.attributes().get("start") {
         write!(url, "&start={start}")?;
     }
 
     // Add end parameter if present
-    if let Some(acdc_parser::AttributeValue::String(end)) = video.metadata.attributes.get("end") {
+    if let Some(AttributeValueRef::Text(end)) = video.attributes().get("end") {
         write!(url, "&end={end}")?;
     }
 
     // Add theme parameter if present
-    if let Some(acdc_parser::AttributeValue::String(theme)) = video.metadata.attributes.get("theme")
-    {
+    if let Some(AttributeValueRef::Text(theme)) = video.attributes().get("theme") {
         write!(url, "&theme={theme}")?;
     }
 
     // Add autoplay parameter if present
-    if video.metadata.options.contains(&"autoplay") {
+    if video.options().contains("autoplay") {
         write!(url, "&autoplay=1")?;
     }
 
     // Add loop parameter if present (YouTube requires playlist for looping)
-    if video.metadata.options.contains(&"loop") {
-        write!(url, "&loop=1&playlist={video_id}")?;
+    if video.options().contains("loop") {
+        write!(url, "&loop=1")?;
+        if playlist.is_none() {
+            write!(url, "&playlist={video_id}")?;
+        }
     }
 
     // Add muted parameter if present
-    if video.metadata.options.contains(&"muted") {
+    if video.options().contains("muted") {
         write!(url, "&mute=1")?;
     }
 
     // Add controls parameter if nocontrols is present
-    if video.metadata.options.contains(&"nocontrols") {
+    if video.options().contains("nocontrols") {
         write!(url, "&controls=0")?;
     }
 
+    if let Some((name, value)) = playlist {
+        write!(url, "&{name}={value}")?;
+    }
+    if video.options().contains("nofullscreen") {
+        write!(url, "&fs=0")?;
+    }
+    if let Some(lang) = video
+        .attributes()
+        .get("lang")
+        .and_then(AttributeValueRef::as_str)
+    {
+        write!(url, "&hl={lang}")?;
+    }
+
     // Add modest branding if modest option is present
-    if video.metadata.options.contains(&"modest") {
+    if video.options().contains("modest") {
         write!(url, "&modestbranding=1")?;
     }
 
@@ -180,18 +252,21 @@ fn build_youtube_embed_url(video: &Video) -> Result<String, UrlError> {
 ///
 /// # Errors
 ///
-/// Returns an error if the video has no sources or if URL formatting fails.
-fn build_vimeo_watch_url(video: &Video) -> Result<String, UrlError> {
-    let video_id = video
-        .sources
-        .first()
-        .ok_or(UrlError::MissingSource)?
-        .to_string();
+/// Returns an error if the video has no source or if URL formatting fails.
+fn build_vimeo_watch_url(video: VideoRef<'_>) -> Result<String, UrlError> {
+    let video_id = video.source().to_string();
     let mut url = format!("https://vimeo.com/{video_id}");
+    if !video_id.contains('/')
+        && let Some(hash) = video
+            .attributes()
+            .get("hash")
+            .and_then(AttributeValueRef::as_str)
+    {
+        write!(url, "/{hash}")?;
+    }
 
     // Add start parameter if present
-    if let Some(acdc_parser::AttributeValue::String(start)) = video.metadata.attributes.get("start")
-    {
+    if let Some(AttributeValueRef::Text(start)) = video.attributes().get("start") {
         write!(url, "#t={start}")?;
     }
 
@@ -206,31 +281,46 @@ fn build_vimeo_watch_url(video: &Video) -> Result<String, UrlError> {
 ///
 /// # Errors
 ///
-/// Returns an error if the video has no sources or if URL formatting fails.
-fn build_vimeo_embed_url(video: &Video) -> Result<String, UrlError> {
-    let video_id = video
-        .sources
-        .first()
-        .ok_or(UrlError::MissingSource)?
-        .to_string();
+/// Returns an error if the video has no source or if URL formatting fails.
+fn build_vimeo_embed_url(video: VideoRef<'_>) -> Result<String, UrlError> {
+    let video_id = video.source().to_string();
+    let (video_id, hash) = video_id
+        .split_once('/')
+        .map_or((video_id.as_str(), None), |(id, hash)| (id, Some(hash)));
+    let named_hash = video
+        .attributes()
+        .get("hash")
+        .and_then(AttributeValueRef::as_str);
     let mut url = format!("https://player.vimeo.com/video/{video_id}");
     let mut first_param = true;
+    if let Some(hash) = hash.or(named_hash) {
+        write!(url, "?h={hash}")?;
+        first_param = false;
+    }
 
     // Add autoplay parameter if present
-    if video.metadata.options.contains(&"autoplay") {
+    if video.options().contains("autoplay") {
         write!(url, "{}autoplay=1", if first_param { "?" } else { "&" })?;
         first_param = false;
     }
 
     // Add loop parameter if present
-    if video.metadata.options.contains(&"loop") {
+    if video.options().contains("loop") {
         write!(url, "{}loop=1", if first_param { "?" } else { "&" })?;
         first_param = false;
     }
 
     // Add muted parameter if present
-    if video.metadata.options.contains(&"muted") {
+    if video.options().contains("muted") {
         write!(url, "{}muted=1", if first_param { "?" } else { "&" })?;
+    }
+
+    if let Some(start) = video
+        .attributes()
+        .get("start")
+        .and_then(AttributeValueRef::as_str)
+    {
+        write!(url, "#at={start}")?;
     }
 
     Ok(url)
@@ -239,34 +329,9 @@ fn build_vimeo_embed_url(video: &Video) -> Result<String, UrlError> {
 /// Build a local video URL with optional time parameters.
 ///
 /// Returns a URL like: `video.mp4#t={start},{end}`
-///
-/// # Errors
-///
-/// Returns an error if the video has no sources or if URL formatting fails.
-fn build_local_url(video: &Video) -> Result<String, UrlError> {
-    // Build the src attribute with optional start and end time
-    let mut src = video
-        .sources
-        .first()
-        .ok_or(UrlError::MissingSource)?
-        .to_string();
-    let start = video.metadata.attributes.get("start");
-    let end = video.metadata.attributes.get("end");
-
-    match (start, end) {
-        (
-            Some(acdc_parser::AttributeValue::String(s)),
-            Some(acdc_parser::AttributeValue::String(e)),
-        ) => {
-            write!(src, "#t={s},{e}")?;
-        }
-        (Some(acdc_parser::AttributeValue::String(s)), None) => {
-            write!(src, "#t={s}")?;
-        }
-        _ => {}
-    }
-
-    Ok(src)
+fn build_local_url(video: VideoRef<'_>) -> String {
+    let source = video.source().to_string();
+    crate::media::with_time_range_from_attributes(&source, video.attributes())
 }
 
 #[cfg(test)]
@@ -275,29 +340,24 @@ mod tests {
     use acdc_parser::{AttributeValue, BlockMetadata, ElementAttributes, Location, Source};
 
     fn create_video<'a>(
-        sources: Vec<&'a str>,
+        source: &'a str,
         attributes: ElementAttributes<'a>,
         options: Vec<&'a str>,
-    ) -> Video<'a> {
-        Video::new(
-            sources
-                .into_iter()
-                .map(|s| Source::Path(std::path::PathBuf::from(s)))
-                .collect(),
-            Location::default(),
-        )
-        .with_metadata(
-            BlockMetadata::new()
-                .with_attributes(attributes)
-                .with_options(options),
+    ) -> Result<Video<'a>, Box<dyn std::error::Error>> {
+        Ok(
+            Video::new(Source::Name(source), Location::default()).with_metadata(
+                BlockMetadata::new()
+                    .with_attributes(attributes)?
+                    .with_options(options),
+            )?,
         )
     }
 
     #[test]
-    fn test_youtube_watch_url_basic() -> Result<(), UrlError> {
+    fn test_youtube_watch_url_basic() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("youtube".into(), AttributeValue::Bool(true));
-        let video = create_video(vec!["rPQoq7ThGAU"], attrs, vec![]);
+        attrs.insert("poster".into(), "youtube".into());
+        let video = create_video("rPQoq7ThGAU", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "https://www.youtube.com/watch?v=rPQoq7ThGAU");
@@ -305,11 +365,11 @@ mod tests {
     }
 
     #[test]
-    fn test_youtube_watch_url_with_start() -> Result<(), UrlError> {
+    fn test_youtube_watch_url_with_start() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("youtube".into(), AttributeValue::Bool(true));
+        attrs.insert("poster".into(), "youtube".into());
         attrs.insert("start".into(), AttributeValue::String("60".into()));
-        let video = create_video(vec!["rPQoq7ThGAU"], attrs, vec![]);
+        let video = create_video("rPQoq7ThGAU", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "https://www.youtube.com/watch?v=rPQoq7ThGAU&t=60");
@@ -317,12 +377,12 @@ mod tests {
     }
 
     #[test]
-    fn test_youtube_watch_url_with_start_and_end() -> Result<(), UrlError> {
+    fn test_youtube_watch_url_with_start_and_end() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("youtube".into(), AttributeValue::Bool(true));
+        attrs.insert("poster".into(), "youtube".into());
         attrs.insert("start".into(), AttributeValue::String("60".into()));
         attrs.insert("end".into(), AttributeValue::String("120".into()));
-        let video = create_video(vec!["rPQoq7ThGAU"], attrs, vec![]);
+        let video = create_video("rPQoq7ThGAU", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(
@@ -333,10 +393,10 @@ mod tests {
     }
 
     #[test]
-    fn test_youtube_embed_url_basic() -> Result<(), UrlError> {
+    fn test_youtube_embed_url_basic() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("youtube".into(), AttributeValue::Bool(true));
-        let video = create_video(vec!["rPQoq7ThGAU"], attrs, vec![]);
+        attrs.insert("poster".into(), "youtube".into());
+        let video = create_video("rPQoq7ThGAU", attrs, vec![])?;
 
         let url = video.try_url(true)?;
         assert_eq!(url, "https://www.youtube.com/embed/rPQoq7ThGAU?rel=0");
@@ -344,17 +404,17 @@ mod tests {
     }
 
     #[test]
-    fn test_youtube_embed_url_with_all_params() -> Result<(), UrlError> {
+    fn test_youtube_embed_url_with_all_params() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("youtube".into(), AttributeValue::Bool(true));
+        attrs.insert("poster".into(), "youtube".into());
         attrs.insert("start".into(), AttributeValue::String("60".into()));
         attrs.insert("end".into(), AttributeValue::String("120".into()));
         attrs.insert("theme".into(), AttributeValue::String("light".into()));
         let video = create_video(
-            vec!["rPQoq7ThGAU"],
+            "rPQoq7ThGAU",
             attrs,
             vec!["autoplay", "loop", "muted", "nocontrols", "modest"],
-        );
+        )?;
 
         let url = video.try_url(true)?;
         assert_eq!(
@@ -365,10 +425,10 @@ mod tests {
     }
 
     #[test]
-    fn test_youtube_embed_url_with_autoplay_only() -> Result<(), UrlError> {
+    fn test_youtube_embed_url_with_autoplay_only() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("youtube".into(), AttributeValue::Bool(true));
-        let video = create_video(vec!["rPQoq7ThGAU"], attrs, vec!["autoplay"]);
+        attrs.insert("poster".into(), "youtube".into());
+        let video = create_video("rPQoq7ThGAU", attrs, vec!["autoplay"])?;
 
         let url = video.try_url(true)?;
         assert_eq!(
@@ -379,10 +439,10 @@ mod tests {
     }
 
     #[test]
-    fn test_youtube_embed_url_with_loop_only() -> Result<(), UrlError> {
+    fn test_youtube_embed_url_with_loop_only() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("youtube".into(), AttributeValue::Bool(true));
-        let video = create_video(vec!["rPQoq7ThGAU"], attrs, vec!["loop"]);
+        attrs.insert("poster".into(), "youtube".into());
+        let video = create_video("rPQoq7ThGAU", attrs, vec!["loop"])?;
 
         let url = video.try_url(true)?;
         assert_eq!(
@@ -393,10 +453,10 @@ mod tests {
     }
 
     #[test]
-    fn test_vimeo_watch_url_basic() -> Result<(), UrlError> {
+    fn test_vimeo_watch_url_basic() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("vimeo".into(), AttributeValue::Bool(true));
-        let video = create_video(vec!["67480300"], attrs, vec![]);
+        attrs.insert("poster".into(), "vimeo".into());
+        let video = create_video("67480300", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "https://vimeo.com/67480300");
@@ -404,11 +464,11 @@ mod tests {
     }
 
     #[test]
-    fn test_vimeo_watch_url_with_start() -> Result<(), UrlError> {
+    fn test_vimeo_watch_url_with_start() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("vimeo".into(), AttributeValue::Bool(true));
+        attrs.insert("poster".into(), "vimeo".into());
         attrs.insert("start".into(), AttributeValue::String("30".into()));
-        let video = create_video(vec!["67480300"], attrs, vec![]);
+        let video = create_video("67480300", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "https://vimeo.com/67480300#t=30");
@@ -416,10 +476,10 @@ mod tests {
     }
 
     #[test]
-    fn test_vimeo_embed_url_basic() -> Result<(), UrlError> {
+    fn test_vimeo_embed_url_basic() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("vimeo".into(), AttributeValue::Bool(true));
-        let video = create_video(vec!["67480300"], attrs, vec![]);
+        attrs.insert("poster".into(), "vimeo".into());
+        let video = create_video("67480300", attrs, vec![])?;
 
         let url = video.try_url(true)?;
         assert_eq!(url, "https://player.vimeo.com/video/67480300");
@@ -427,10 +487,10 @@ mod tests {
     }
 
     #[test]
-    fn test_vimeo_embed_url_with_all_options() -> Result<(), UrlError> {
+    fn test_vimeo_embed_url_with_all_options() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("vimeo".into(), AttributeValue::Bool(true));
-        let video = create_video(vec!["67480300"], attrs, vec!["autoplay", "loop", "muted"]);
+        attrs.insert("poster".into(), "vimeo".into());
+        let video = create_video("67480300", attrs, vec!["autoplay", "loop", "muted"])?;
 
         let url = video.try_url(true)?;
         assert_eq!(
@@ -441,10 +501,10 @@ mod tests {
     }
 
     #[test]
-    fn test_vimeo_embed_url_with_autoplay_only() -> Result<(), UrlError> {
+    fn test_vimeo_embed_url_with_autoplay_only() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("vimeo".into(), AttributeValue::Bool(true));
-        let video = create_video(vec!["67480300"], attrs, vec!["autoplay"]);
+        attrs.insert("poster".into(), "vimeo".into());
+        let video = create_video("67480300", attrs, vec!["autoplay"])?;
 
         let url = video.try_url(true)?;
         assert_eq!(url, "https://player.vimeo.com/video/67480300?autoplay=1");
@@ -452,10 +512,10 @@ mod tests {
     }
 
     #[test]
-    fn test_vimeo_embed_url_with_loop_only() -> Result<(), UrlError> {
+    fn test_vimeo_embed_url_with_loop_only() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("vimeo".into(), AttributeValue::Bool(true));
-        let video = create_video(vec!["67480300"], attrs, vec!["loop"]);
+        attrs.insert("poster".into(), "vimeo".into());
+        let video = create_video("67480300", attrs, vec!["loop"])?;
 
         let url = video.try_url(true)?;
         assert_eq!(url, "https://player.vimeo.com/video/67480300?loop=1");
@@ -463,8 +523,8 @@ mod tests {
     }
 
     #[test]
-    fn test_local_video_url_basic() -> Result<(), UrlError> {
-        let video = create_video(vec!["demo.mp4"], ElementAttributes::default(), vec![]);
+    fn test_local_video_url_basic() -> Result<(), Box<dyn std::error::Error>> {
+        let video = create_video("demo.mp4", ElementAttributes::default(), vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "demo.mp4");
@@ -472,10 +532,10 @@ mod tests {
     }
 
     #[test]
-    fn test_local_video_url_with_start() -> Result<(), UrlError> {
+    fn test_local_video_url_with_start() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("start".into(), AttributeValue::String("10".into()));
-        let video = create_video(vec!["demo.mp4"], attrs, vec![]);
+        let video = create_video("demo.mp4", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "demo.mp4#t=10");
@@ -483,11 +543,11 @@ mod tests {
     }
 
     #[test]
-    fn test_local_video_url_with_start_and_end() -> Result<(), UrlError> {
+    fn test_local_video_url_with_start_and_end() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
         attrs.insert("start".into(), AttributeValue::String("10".into()));
         attrs.insert("end".into(), AttributeValue::String("90".into()));
-        let video = create_video(vec!["demo.mp4"], attrs, vec![]);
+        let video = create_video("demo.mp4", attrs, vec![])?;
 
         let url = video.try_url(false)?;
         assert_eq!(url, "demo.mp4#t=10,90");
@@ -495,10 +555,11 @@ mod tests {
     }
 
     #[test]
-    fn test_local_video_url_embed_returns_same_as_watch() -> Result<(), UrlError> {
+    fn test_local_video_url_embed_returns_same_as_watch() -> Result<(), Box<dyn std::error::Error>>
+    {
         let mut attrs = ElementAttributes::default();
         attrs.insert("start".into(), AttributeValue::String("10".into()));
-        let video = create_video(vec!["demo.mp4"], attrs, vec![]);
+        let video = create_video("demo.mp4", attrs, vec![])?;
 
         let watch_url = video.try_url(false)?;
         let embed_url = video.try_url(true)?;
@@ -508,26 +569,30 @@ mod tests {
     }
 
     #[test]
-    fn test_both_youtube_and_vimeo_defaults_to_local() -> Result<(), UrlError> {
+    fn test_empty_sources_returns_error() -> Result<(), Box<dyn std::error::Error>> {
         let mut attrs = ElementAttributes::default();
-        attrs.insert("youtube".into(), AttributeValue::Bool(true));
-        attrs.insert("vimeo".into(), AttributeValue::Bool(true));
-        let video = create_video(vec!["demo.mp4"], attrs, vec![]);
-
-        let url = video.try_url(false)?;
-        assert_eq!(url, "demo.mp4");
-        Ok(())
-    }
-
-    #[test]
-    fn test_empty_sources_returns_error() {
-        let mut attrs = ElementAttributes::default();
-        attrs.insert("youtube".into(), AttributeValue::Bool(true));
-        let video = Video::new(vec![], Location::default())
-            .with_metadata(BlockMetadata::new().with_attributes(attrs));
+        attrs.insert("poster".into(), "youtube".into());
+        let video = Video::new(Source::Name(""), Location::default())
+            .with_metadata(BlockMetadata::new().with_attributes(attrs)?)?;
 
         // Should return an error instead of panicking
         let result = video.try_url(false);
-        assert!(result.is_err(), "Expected error for empty sources vector");
+        assert!(result.is_err(), "Expected error for empty video target");
+        Ok(())
+    }
+    #[test]
+    fn private_vimeo_hash_syntaxes_produce_the_same_links() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let mut attributes = ElementAttributes::default();
+        attributes.insert("poster".into(), "vimeo".into());
+        attributes.insert("start".into(), "5".into());
+        let shorthand = create_video("12345/secret", attributes.clone(), vec![])?;
+        attributes.insert("hash".into(), "secret".into());
+        let named = create_video("12345", attributes, vec![])?;
+        for embed in [false, true] {
+            assert_eq!(shorthand.try_url(embed)?, named.try_url(embed)?);
+        }
+        assert_eq!(named.try_url(false)?, "https://vimeo.com/12345/secret#t=5");
+        Ok(())
     }
 }

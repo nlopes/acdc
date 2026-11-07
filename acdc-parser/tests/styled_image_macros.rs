@@ -1,4 +1,8 @@
-use acdc_parser::{AttributeValue, Block, Caption, CaptionKind, InlineNode, Options, parse};
+use acdc_parser::{
+    CaptionKind, Options,
+    ast::{BlockKind, BlockRef, CaptionRef, InlineKind, InlineRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -16,29 +20,34 @@ fn verbatim_styles_keep_block_image_macros_literal() -> Result<(), Error> {
             "= T\n:listing-caption: Listing\n\n.Title\n[{attributes}]\nimage::sample.png[Alt]\n"
         );
         let parsed = parse(&source, &Options::default())?;
-        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+        let Some(BlockKind::Paragraph(paragraph)) =
+            parsed.document().blocks().next().map(BlockRef::kind)
+        else {
             return Err(format!("expected a paragraph for [{attributes}]").into());
         };
 
-        assert_eq!(paragraph.metadata.style, attributes.split(',').next());
+        assert_eq!(paragraph.style(), attributes.split(',').next());
         assert!(matches!(
-            paragraph.content.as_slice(),
-            [InlineNode::PlainText(plain)] if plain.content == "image::sample.png[Alt]"
+            &*paragraph.content().inlines().map(InlineRef::kind).collect::<Vec<_>>(),
+            [InlineKind::Plain(plain)] if plain.text() == "image::sample.png[Alt]"
         ));
 
-        match (paragraph.metadata.caption.as_ref(), caption_kind) {
+        match (
+            CaptionRef::resolve(paragraph.attributes(), parsed.document().attributes(), None),
+            caption_kind,
+        ) {
             (
-                Some(Caption::Numbered {
+                Some(CaptionRef::Numbered {
                     kind,
                     number: Some(number),
                     ..
                 }),
                 Some(expected_kind),
             ) => {
-                assert_eq!(*kind, expected_kind);
+                assert_eq!(kind, expected_kind);
                 assert_eq!(number.get(), 1);
             }
-            (None | Some(Caption::Unnumbered), None) => {}
+            (None | Some(CaptionRef::Unnumbered), None) => {}
             (actual, expected) => {
                 return Err(format!(
                     "unexpected caption for [{attributes}]: {actual:?}, expected {expected:?}"
@@ -56,17 +65,22 @@ fn non_verbatim_styles_still_produce_images() -> Result<(), Error> {
     for style in ["example", "quote", "custom"] {
         let source = format!("= T\n\n.Title\n[{style}]\nimage::sample.png[Alt]\n");
         let parsed = parse(&source, &Options::default())?;
-        let Some(Block::Image(image)) = parsed.document().blocks.first() else {
+        let Some(BlockKind::Image(image)) = parsed.document().blocks().next().map(BlockRef::kind)
+        else {
             return Err(format!("expected an image for [{style}]").into());
         };
 
-        assert_eq!(
-            image.metadata.attributes.get("alt"),
-            Some(&AttributeValue::String("Alt".into()))
+        assert!(
+            matches!(image.alt().map(|alt| alt.inlines().map(InlineRef::kind).collect::<Vec<_>>()).as_deref(), Some([InlineKind::Plain(text)]) if text.text() == "Alt")
+        );
+        assert!(
+            serde_json::to_value(parsed.document())?
+                .pointer("/blocks/0/metadata/attributes/alt")
+                .is_none()
         );
         assert!(matches!(
-            image.metadata.caption.as_ref(),
-            Some(Caption::Numbered {
+            CaptionRef::resolve(image.attributes(), parsed.document().attributes(), None),
+            Some(CaptionRef::Numbered {
                 kind: CaptionKind::Figure,
                 number: Some(number),
                 ..

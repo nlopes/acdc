@@ -5,7 +5,7 @@
 
 == Overview and philosophy
 
-`acdc` (AsciiDoc Tooling) is a spec-first (really, best effort) AsciiDoc parser and toolchain built in Rust.
+acdc is an AsciiDoc parser and toolchain built in Rust.
 The project aims to be a potential canonical implementation of the https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang[AsciiDoc Language specification] once it is formalized.
 
 The toolchain includes a parser library, converters for various output formats (HTML, manpage, Markdown, terminal), a linting support crate, a command-line interface, and a Language Server Protocol (LSP) implementation for editor integration.
@@ -24,10 +24,10 @@ Along the way, I'll be feeding implementation experience back to the spec proces
 
 I'm taking a simple, pragmatic approach:
 
-. When the spec has made a formal decision, that's what I implement - no questions asked
-. Where the spec is still undefined, I match what Asciidoctor does
-. I document any deviations (especially where following the spec means diverging from Asciidoctor)
-. I check correctness and compatibility first, and measure performance changes against an unchanged baseline
+. Keep existing documents working through the default Asciidoctor mode
+. Offer reviewed draft rules through the opt-in Draft mode
+. Document the supported rules and deliberate differences
+. Check correctness and compatibility first, and measure performance changes against an unchanged baseline
 
 I want familiar Asciidoctor behavior where it fits the parser's structured model.
 Documented differences and remaining specification work mean this is not a claim of complete conformance.
@@ -83,7 +83,7 @@ The preprocessed text gets transformed into an Abstract Syntax Tree (AST).
 
 ==== Main document grammar
 
-The primary PEG grammar lives in `document.rs` using the `peg::parser!` macro.
+The primary PEG grammar lives in `grammar/document/peg.rs` using the `peg::parser!` macro.
 It handles document structure (header, sections, blocks), block-level elements (paragraphs, lists, tables, delimited blocks), attributes and metadata, and all the nesting rules.
 
 ==== Inline preprocessing
@@ -99,111 +99,39 @@ I use a two-pass approach:
 . **Parsing pass**: Parse the resulting source into `InlineNode` elements and restore protected content
 
 Converters then render those nodes and escape text as required by their output format.
-The existing `pre-spec-subs` compatibility feature retains some legacy ordered behavior; this is not a claim of complete SDR-5 conformance.
+The selected compatibility mode and explicit substitution lists determine the order.
+Cargo features do not change parser language rules or AST types.
 
 ==== Parsing and conversion boundary
 
-The project follows SDR-5's decision to keep parsing independent of conversion.
-The parser must not generate HTML tags, PDF markup, or roff commands to determine an attribute value or evaluate a conditional.
-Explicit checks of intrinsic attributes such as `backend` remain valid; they are author-supplied conditions, rather than an effect of rendering attribute content.
+The parser decides what the content means; converters decide how to render it.
+That includes attribute expansion, inline formatting, typography, and the difference between literal and interpreted text.
+The parser keeps source locations through these steps, without generating HTML, Typst, or roff markup.
 
-Formatted document attributes retain AsciiDoc source text and private inline parsing profiles.
-For example, `:value: pass:q[*Bold*]` exposes `*Bold*` through text reads, JSON, conditions, and include paths, while a reference produces bold inline content through its quote profile.
-Text reads never expose `<strong>Bold</strong>` or backend-specific equivalents for this value.
-This deliberately differs from Asciidoctor, which converts such values during assignment.
-See https://docs.asciidoctor.org/asciidoc/latest/attributes/attribute-entry-substitutions/[Asciidoctor's attribute-entry documentation].
+For example, `:value: pass:q[*Bold*]` exposes `*Bold*` through attribute text reads.
+Using `{value}` produces bold inline content, which each converter can render in its own format.
+This differs from Asciidoctor, which can store converted markup in an attribute value.
 
-SDR-5 leaves the mapping of custom `pass:` substitution lists open for further research.
-Supporting common lists through parsing profiles is an acdc policy; it is not an exact rule prescribed by that design record.
-Common profiles support quotes (`q`), macros (`m`), replacements (`r`), post replacements (`p`), and `normal`, including long names and combinations.
-Attribute references selected by `a` freeze at definition time, before the retained profile runs at use; both `a,q` and `q,a` therefore parse the frozen source.
-Aliases preserve profiles and protect raw fragments.
-An explicit `a` list imports referenced profiles and protects its surrounding source; an explicit structural list applies its own rules to the complete expanded source.
-Unused definitions register no footnotes, index terms, or anchors.
-Anonymous footnotes register separately at each use; named footnotes retain the existing shared-ID policy.
+Substitution order matters.
+The parser keeps the values in effect at each declaration and interprets selected content once.
+An unused definition or a replaced title must not register a footnote, anchor, or index term.
+Unsupported settings preserve source and produce a located warning, rather than silently dropping content.
+The link:acdc-parser/README.adoc[parser README] describes the supported combinations and retained differences.
 
-Orders that require generated output to be escaped again, such as `q,c` and `m,c`, stay literal with a structured parser warning.
-Text-only lists combining `a` and `c` also stay literal with a warning when their references carry inline profiles; their effect on those profiles needs a separate design.
-Unknown substitution names stay literal with a warning.
-These restrictions apply to attribute-entry values; the existing inline passthrough and block-substitution behavior is separate.
-Profiles apply typography during conversion, including raw text, code, and backtick spans.
-Their escaped replacement patterns remain literal and do not undergo surrounding block replacements a second time.
-For example, `:value: pass:r[\(C)]` exposes `\(C)` through text reads and renders `(C)` at each use.
-Asciidoctor removes this escape during assignment, so ordinary prose and replacements-enabled code can later render `©`.
-This difference follows acdc's source-first policy under SDR-5; SDR-5 does not prescribe these custom-list semantics.
-Passthrough source arrows follow the profile order: `pass:c,r[->]` renders an arrow, whereas `pass:r,c[->]` and `pass:r[->]` retain the source characters.
-Ordinary blocks deliberately recognize source arrows whenever replacements are enabled, even without special-character escaping; Asciidoctor requires the escaped angle-bracket form.
-Both decisions are converter compatibility policies, not requirements of SDR-5.
+==== Attributes and their owners
 
-The implementation stores source spans and compact rule lists rather than converted markup or owned inline trees.
-Profiles are parsed when referenced in document content, so one parsed document can be converted to several formats.
-Earlier text-only attribute escaping and ordinary quotes-before-attributes ordering remain compatibility policies.
-For example, `:value: <x>` still exposes `&lt;x&gt;` through attribute text reads, and `:value: *Bold*` displays literal asterisks under normal substitutions.
-These policies match Asciidoctor but do not implement SDR-5's proposed late escaping and attribute-before-grammar semantics.
-Changing them would affect public value reads, conditions, include paths and document rendering, so they require a separate migration decision.
-Backend-neutral attribute expansion, source locations, and caller assignment policy remain necessary before includes and conditions can be processed.
+Similar attribute syntax does not mean every element has the same attributes.
+Formatting spans accept identity and roles; inline macros and blocks have their own controls and content fields.
+For example, an image's alt text and a link's label are content, while image dimensions and link targets are scalar values.
 
-==== Attribute parsing: blocks vs inlines
+Each value has one owner in the tree.
+Parsed titles, captions, reference labels, and credits do not also need mutable copies in a scalar map.
+An absent value stays distinct from a present empty value.
+Unknown scalar controls remain available where the element supports them.
 
-Formatting spans support a smaller attribute list than block elements.
-Inline macros have their own rules: links and cross-references can also have named attributes.
-
-The comparison below applies to formatting spans such as `[.role]*text*`, not to every inline node.
-
-Here's the comparison:
-
-[cols="1,2,2",options="header"]
-|===
-|Attribute |Formatting spans |Block elements
-
-|**Roles**
-|Multiple (space-separated) +
-`[.role1.role2]*text*` → `class="role1 role2"`
-|Multiple (vector) +
-`[.role1.role2]` → separate borrowed roles
-
-|**ID**
-|Single +
-`[#myid]*text*` → stored as `Option<&str>`
-|Single +
-`[#myid]` → stored as `Option<Anchor>`*
-
-|**Options**
-|❌ Not supported +
-`%` treated as literal character
-|✅ Multiple +
-`[%option1%option2]` → separate borrowed options
-
-|**Style**
-|❌ Not supported
-|✅ Single +
-`[style]` → `Option<&str>`
-
-|**Named attrs**
-|❌ Not supported
-|✅ Multiple +
-`[key=value,foo=bar]` → `ElementAttributes`
-
-|**Positional attrs**
-|❌ Not supported
-|✅ Multiple +
-`[pos1,pos2,pos3]` → read with `BlockMetadata::positional_attributes()`
-
-|**Anchors**
-|❌ Not supported
-|✅ Multiple +
-`[[anchor1]][[anchor2]]` → `Vec<Anchor>`
-|===
-
-**The percent character quirk**.
-In inline contexts, `%` is a literal character, not an option separator like it is in block contexts.
-This means `[.role%option]*text*` becomes `class="role%option"`, with the percent sign included in the role name.
-If you start with a percent like `[%option]*text*`, that entire thing becomes the role name: `class="%option"`.
-
-**Role storage**.
-Both contexts support multiple roles, but they store them differently.
-Inline elements join multiple roles into a single space-separated string (`"role1 role2"`), while block metadata keeps them as separate vector items.
-This is an implementation detail - the HTML output is the same either way.
+The library's typed reads provide a common way to inspect those values without hiding the element's type.
+Callers can match a specific block or inline kind, follow its children, and read its attributes without rendering or reparsing them.
+Native JSON is a separate projection of those values.
 
 ==== State tracking
 
@@ -297,7 +225,7 @@ acdc/
 ├── acdc-mcp/          # Model Context Protocol document navigation
 ├── acdc-parser/       # Parser library (PEG grammar, preprocessor, AST)
 └── converters/
-    ├── core/          # Shared converter infrastructure (Processable, Visitor traits)
+    ├── core/          # Shared converter helpers and callbacks
     ├── dev/           # Development utilities (unpublished)
     ├── html/          # HTML5 output (standard + html5s semantic variant)
     ├── manpage/       # Native roff/troff manpage output
@@ -407,28 +335,65 @@ Compile time and grammar size remain separate concerns.
 Today the LSP reparses the whole document on every change.
 Incremental parsing would cut latency on large files, but it requires grammar-level support that PEG doesn't give us for free - this is a longer-term research item.
 
+[#compatibility-mode-contract]
+== Compatibility modes
+
+I want acdc to work with the documents people already write, while leaving room to follow the draft spec as it develops.
+That balance has been spread across parser options and Cargo features.
+It's become harder to tell which rules apply to a document than it should be.
+
+`CompatibilityMode` brings the parser's language rules under one choice:
+
+* `Asciidoctor` is the default. I aim for maximum compatibility with Asciidoctor, with documented exceptions for bug fixes and deliberate changes that improve the user experience.
+* `Draft` is opt-in. It follows the draft rules we've reviewed and chosen to support, including rules that differ from Asciidoctor.
+
+The mode controls ordinary inline attribute ordering, named block-title quoting, block attributes and shorthand, block boundaries, and legacy syntax.
+For example, `[title="*Bold*"]` produces a bold title in Asciidoctor mode and literal asterisks in Draft mode.
+A single-quoted named title supports formatting in both modes.
+
+Both modes honor explicit block `subs=` settings, including in minimal builds.
+Draft supports these controls as an acdc extension.
+Asciidoctor mode recognizes legacy underlined headings; Draft uses ATX headings.
+Asciidoctor mode requires `experimental` for UI macros and honors supported
+`compat-mode` effects. Draft enables UI macros directly and warns about
+`compat-mode` without applying its legacy rules.
+The link:acdc-parser/README.adoc[parser README] describes what the mode supports today and how to select it.
+
+=== One choice for the whole parse
+
+The caller chooses the mode once.
+Included files, table cells, and nested content keep that choice.
+Both modes are available in every build, so applications can parse different documents with different modes in the same process.
+Parser Cargo features control capabilities such as built-in network access.
+The remaining converter substitution features are being removed separately.
+
+Safe mode, network access and resource limits stay separate.
+Choosing draft language rules shouldn't change which files a document can read.
+
+=== One tree, shared by both modes
+
+Both modes produce the same AST types.
+The parser interprets the source; converters render the resulting content for their output format.
+I want that boundary to be clear enough that converting a document never requires parsing its attributes again.
+
+The choices we've already made about the tree apply to both modes.
+Content has one owner, so a parsed title doesn't also need a second mutable copy in the metadata map.
+Image alt content, titles and tooltips keep their separate meanings, including the difference between a missing value and an explicitly empty one.
+They can retain inline structure without storing generated HTML or other output markup.
+
+Native JSON describes this tree.
+Exporting it to the draft ASG is a separate step, because the schema is still changing and doesn't cover everything acdc supports.
+I don't want those gaps to dictate the parser's data model.
+
 == Spec compliance and compatibility
 
-=== Following the spec
+I'm using Asciidoctor as the practical reference and the draft spec to guide where the parser goes next.
+Choosing `Draft` won't mean that acdc implements every proposal or passes every conformance test.
+I'll document the rules we support and the places where I deliberately choose different behavior.
 
-I'm following the AsciiDoc Language specification wherever it's been formalized.
-When there's a formal spec decision, that's what I implement - it's the primary source of truth.
-I reference the relevant Specification Document Requirement (SDRs) in the implementation, and I'm feeding implementation experience back to the spec process, which in all truth I haven't been great at doing with the frequency I want.
-
-The test suite includes spec compliance tests via the `tck` command.
-
-=== Asciidoctor compatibility
-
-Where the spec is undefined or ambiguous, I match Asciidoctor behavior to keep things familiar for users.
-I document any deviations in code comments and tests, and I'm tracking spec evolution to update the implementation when things get formalized.
-Building a compatibility matrix is future work.
-
-=== Testing
-
-The `tck` command produces ASG output for the AsciiDoc Language TCK harness.
-The selected TCK tests, parser JSON fixtures, converter fixtures, integration tests, and property tests cover different contracts.
-A passing fixture only proves agreement with its expected output; compatibility changes also need direct reference checks.
-See the repository and parser `AGENTS.md` files for feature coverage, fixture approval, and validation commands.
+Parser fixtures show how source becomes a tree, and converter fixtures show what that tree renders to.
+For a rule that differs between modes, I want the same AsciiDoc input with an expected tree for each mode, so the difference is easy to see.
+Direct comparisons with Asciidoctor check compatibility; the `tck` command connects acdc to the language project's conformance tests.
 
 == Contributing
 

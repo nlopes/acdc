@@ -1,0 +1,6 @@
+// tag::selected[]
+[verse,Included Author,Included Citation]
+--
+Included é *verse*
+// Included slash line
+// end::selected[]

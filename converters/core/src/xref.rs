@@ -1,33 +1,40 @@
 //! Automatic cross-reference display-text resolution.
 
-use std::{cell::Cell, rc::Rc};
+use std::{borrow::Cow, cell::Cell, rc::Rc};
 
 use acdc_parser::{
-    Caption, CrossReference, InlineNode, Reference, XrefCaptionLabel, XrefSignifier, XrefStyle,
+    ContentAttribute, InlineNode, XrefCaptionLabel, XrefSignifier, XrefStyle,
+    ast::{CaptionRef, ContentRef, CrossReferenceRef, InlineKind, ReferenceRef},
 };
 
 /// Display content for an automatic cross-reference.
 #[derive(Debug)]
-pub enum XrefDisplay<'r, 'a> {
+pub enum XrefDisplay<'r, Content> {
     /// The target's title, to render through the converter's inline pipeline.
     /// Backends that give a title a house style (manpage upper-cases a level-1
     /// section) apply it to this arm only.
     ///
     /// The scope marks the resolution as in progress: hold it while rendering
     /// the nodes so that a cross-reference inside them falls back to `[id]`.
-    Title(&'r [InlineNode<'a>], XrefScope<'r>),
+    Title(Content, XrefScope<'r>),
     /// The target's reference label, rendered through the converter's inline
     /// pipeline as written. Carries the same scope as [`XrefDisplay::Title`].
-    Label(&'r [InlineNode<'a>], XrefScope<'r>),
+    Label(Content, XrefScope<'r>),
     /// A caption label and number or custom prefix, without the target title.
     ShortCaption(String),
+    /// A parsed custom prefix, with its final unformatted period and space omitted.
+    /// Render it through [`with_caption_prefix`] while holding the scope.
+    ShortCustomCaption(Content, XrefScope<'r>),
+    /// A parsed custom prefix followed by the target title in quotation marks.
+    /// Render the prefix through [`with_caption_prefix`] while holding the scope.
+    FullCustomCaption(Content, Content, XrefScope<'r>),
     /// A caption prefix and the target title in quotation marks. A numbered
     /// section other than a chapter or appendix takes this form too, as in
     /// `Section 1.1, "Title"`.
-    FullCaption(String, &'r [InlineNode<'a>], XrefScope<'r>),
+    FullCaption(String, Content, XrefScope<'r>),
     /// A chapter or appendix title in emphasis, optionally preceded by its
     /// signifier and number, as in `Chapter 2, _Title_` for a full reference.
-    Emphasized(Option<String>, &'r [InlineNode<'a>], XrefScope<'r>),
+    Emphasized(Option<String>, Content, XrefScope<'r>),
     /// An inter-document target as written, such as `other.adoc#section`.
     External(String),
     /// The literal `[id]` fallback for a target that is in the catalog but has
@@ -73,8 +80,8 @@ impl XrefGuard {
 
 /// Marks a cross-reference resolution as in progress for as long as it lives.
 ///
-/// Obtained from [`resolve_xref`] together with the nodes to render, so the
-/// nodes cannot be rendered without the guard in place.
+/// Hold this scope while rendering the returned content to prevent nested
+/// resolution. Dropping it enables automatic resolution again.
 #[derive(Debug)]
 pub struct XrefScope<'g>(&'g XrefGuard);
 
@@ -84,43 +91,139 @@ impl Drop for XrefScope<'_> {
     }
 }
 
-/// The inline nodes a target's reference text is made of, if it has any.
-///
-/// The precedence is [`resolve_xref`]'s, without the distinctions a rendering
-/// backend needs: plain-text extraction treats a label and a title alike.
+/// The default reference label or title stored in the target catalog.
+/// [`resolve_reference`] also selects a document label captured at the occurrence.
 #[must_use]
-pub fn reference_text<'r, 'a>(reference: &'r Reference<'a>) -> Option<&'r [InlineNode<'a>]> {
-    match (&reference.xreflabel, &reference.title) {
-        (Some(label), _) => Some(label),
-        (None, Some(title)) => Some(title.as_ref()),
-        (None, None) => None,
-    }
+pub fn reference_text(reference: ReferenceRef<'_>) -> Option<ContentRef<'_>> {
+    reference.xreflabel().or_else(|| reference.title())
 }
 
 /// Resolve an empty cross-reference's display content.
+///
+/// Accepts typed handles and references to cross-reference owners. The result
+/// borrows the catalog or the occurrence's retained document label. Keep both
+/// alive while rendering the result; the guard has an independent lifetime.
 ///
 /// Explicit reference labels take precedence over caption styles and target
 /// titles. Numbered sections honor the style with their word and number, as
 /// in `Section 1.1`; an unnumbered one is referenced by its title under every
 /// style. Selecting a style emphasizes chapter and appendix titles even without
 /// a number. Empty custom captions fall back to the title. Other custom captions
-/// omit one trailing period and space in short and full references. Captioned
-/// targets honor the style; table, example, and listing references can override the
+/// omit one final unformatted period and space in short and full references.
+/// Formatted prefixes retain their prepared inline content. Captioned targets
+/// honor the style; table, example, and listing references can override the
 /// target label with the label recorded at the reference position. Unknown
 /// local and untitled targets fall back to `[id]`,
 /// matching Asciidoctor, and so does a reference that `guard` reports as nested
 /// inside another one's text. Inter-document targets are returned separately
 /// for backend-specific links, even if the local catalog contains the same ID.
 #[must_use]
-pub fn resolve_xref<'r, 'a>(
-    reference: Option<&'r Reference<'a>>,
-    xref: &CrossReference<'_>,
-    guard: &'r XrefGuard,
-) -> XrefDisplay<'r, 'a> {
-    let target = xref.target;
-    if !xref.target_is_local {
+pub fn resolve_reference<'doc, 'guard>(
+    reference: Option<ReferenceRef<'doc>>,
+    xref: impl Into<CrossReferenceRef<'doc>>,
+    guard: &'guard XrefGuard,
+) -> XrefDisplay<'guard, ContentRef<'doc>> {
+    let xref = xref.into();
+    resolve_content(
+        reference,
+        reference.and_then(ReferenceRef::title),
+        occurrence_label(reference, xref),
+        xref,
+        guard,
+    )
+}
+
+/// Resolve reference text as local content, regardless of the occurrence's locality.
+///
+/// Manpages use matching local labels even for interdocument syntax. This keeps
+/// their display policy separate from the parser's retained target classification.
+/// External `.adoc` paths use their stem as the catalog key and fallback text.
+/// Empty reference labels use the target title or the ID fallback.
+/// Select the catalog entry with [`local_reference_id`].
+/// Label precedence, styles, fallbacks, and recursion guards follow
+/// [`resolve_reference`]; the occurrence remains unchanged.
+#[must_use]
+pub fn resolve_local_reference<'doc, 'guard>(
+    reference: Option<ReferenceRef<'doc>>,
+    xref: impl Into<CrossReferenceRef<'doc>>,
+    guard: &'guard XrefGuard,
+) -> XrefDisplay<'guard, ContentRef<'doc>> {
+    let xref = xref.into();
+    let target = local_reference_id(xref);
+    resolve_local_content(
+        reference,
+        reference.and_then(ReferenceRef::title),
+        occurrence_label(reference, xref).filter(|label| !label.is_empty()),
+        &target,
+        xref,
+        guard,
+    )
+}
+
+pub(crate) fn reference_text_at<'doc>(
+    reference: ReferenceRef<'doc>,
+    xref: CrossReferenceRef<'doc>,
+) -> Option<ContentRef<'doc>> {
+    occurrence_label(Some(reference), xref).or_else(|| reference.title())
+}
+
+fn occurrence_label<'doc>(
+    reference: Option<ReferenceRef<'doc>>,
+    xref: CrossReferenceRef<'doc>,
+) -> Option<ContentRef<'doc>> {
+    if reference.is_some_and(ReferenceRef::is_document)
+        && let Some(label) = xref.document_reftext()
+    {
+        return (!label.is_empty()).then_some(label);
+    }
+    reference.and_then(ReferenceRef::xreflabel)
+}
+
+/// Catalog key for displaying a reference without an interdocument link.
+///
+/// External `.adoc` paths omit the source suffix and retain nonempty fragments.
+/// A trailing `#` does not contribute to the catalog key.
+/// Local IDs keep their spelling, including filename-like IDs. The occurrence's
+/// target and locality remain unchanged.
+#[must_use]
+pub fn local_reference_id(xref: CrossReferenceRef<'_>) -> Cow<'_, str> {
+    let target = xref.target();
+    if xref.target_is_local() {
+        return Cow::Borrowed(target);
+    }
+    let (path, fragment) = target
+        .split_once('#')
+        .map_or((target, None), |(path, fragment)| (path, Some(fragment)));
+    let stem = path.strip_suffix(".adoc").unwrap_or(path);
+    match fragment.filter(|fragment| !fragment.is_empty()) {
+        None => Cow::Borrowed(stem),
+        Some(_) if stem == path => Cow::Borrowed(target),
+        Some(fragment) => Cow::Owned(format!("{stem}#{fragment}")),
+    }
+}
+
+fn resolve_content<'doc, 'guard>(
+    reference: Option<ReferenceRef<'doc>>,
+    title: Option<ContentRef<'doc>>,
+    label: Option<ContentRef<'doc>>,
+    xref: CrossReferenceRef<'_>,
+    guard: &'guard XrefGuard,
+) -> XrefDisplay<'guard, ContentRef<'doc>> {
+    let target = xref.target();
+    if !xref.target_is_local() {
         return XrefDisplay::External(target.to_string());
     }
+    resolve_local_content(reference, title, label, target, xref, guard)
+}
+
+fn resolve_local_content<'doc, 'guard>(
+    reference: Option<ReferenceRef<'doc>>,
+    title: Option<ContentRef<'doc>>,
+    label: Option<ContentRef<'doc>>,
+    target: &str,
+    xref: CrossReferenceRef<'_>,
+    guard: &'guard XrefGuard,
+) -> XrefDisplay<'guard, ContentRef<'doc>> {
     let fallback = if target.is_empty() { "^top" } else { target };
     let Some(reference) = reference else {
         return XrefDisplay::Unresolved(format!("[{fallback}]"));
@@ -128,43 +231,54 @@ pub fn resolve_xref<'r, 'a>(
     if guard.is_resolving() {
         return XrefDisplay::Nested(format!("[{fallback}]"));
     }
-    if let Some(label) = &reference.xreflabel {
+    if let Some(label) = label {
         XrefDisplay::Label(label, guard.enter())
-    } else if let (Some(title), Some(name), Some(number)) = (
-        &reference.title,
-        reference.section_name(),
-        reference.section_number(),
-    ) && matches!(xref.xrefstyle, XrefStyle::Short | XrefStyle::Full)
+    } else if let (Some(title), Some(name), Some(number)) =
+        (title, reference.section_name(), reference.section_number())
+        && matches!(xref.xrefstyle(), XrefStyle::Short | XrefStyle::Full)
     {
         let prefix = section_prefix(name, number, xref.signifier());
-        if xref.xrefstyle == XrefStyle::Short {
+        if xref.xrefstyle() == XrefStyle::Short {
             XrefDisplay::ShortCaption(prefix)
         } else if matches!(name, "chapter" | "appendix") {
-            XrefDisplay::Emphasized(Some(prefix), title.as_ref(), guard.enter())
+            XrefDisplay::Emphasized(Some(prefix), title, guard.enter())
         } else {
-            XrefDisplay::FullCaption(prefix, title.as_ref(), guard.enter())
+            XrefDisplay::FullCaption(prefix, title, guard.enter())
         }
-    } else if let Some(title) = &reference.title
-        && xref.xrefstyle != XrefStyle::Default
+    } else if let Some(title) = title
+        && xref.xrefstyle() != XrefStyle::Default
         && matches!(reference.section_name(), Some("chapter" | "appendix"))
     {
-        XrefDisplay::Emphasized(None, title.as_ref(), guard.enter())
+        XrefDisplay::Emphasized(None, title, guard.enter())
+    } else if let (Some(title), Some(CaptionRef::CustomContent(prefix))) =
+        (title, reference.caption())
+    {
+        let empty = crate::InlineTextTransform::default()
+            .rendered()
+            .content_to_string(prefix)
+            .is_empty();
+        if !empty && xref.xrefstyle() == XrefStyle::Short {
+            XrefDisplay::ShortCustomCaption(prefix, guard.enter())
+        } else if !empty && xref.xrefstyle() == XrefStyle::Full {
+            XrefDisplay::FullCustomCaption(prefix, title, guard.enter())
+        } else {
+            XrefDisplay::Title(title, guard.enter())
+        }
     } else if let (Some(title), Some(prefix)) = (
-        &reference.title,
+        title,
         reference
-            .caption
-            .as_ref()
+            .caption()
             .and_then(|caption| caption_prefix(caption, xref)),
     ) {
-        if xref.xrefstyle == XrefStyle::Short {
+        if xref.xrefstyle() == XrefStyle::Short {
             XrefDisplay::ShortCaption(prefix)
-        } else if xref.xrefstyle == XrefStyle::Full {
-            XrefDisplay::FullCaption(prefix, title.as_ref(), guard.enter())
+        } else if xref.xrefstyle() == XrefStyle::Full {
+            XrefDisplay::FullCaption(prefix, title, guard.enter())
         } else {
-            XrefDisplay::Title(title.as_ref(), guard.enter())
+            XrefDisplay::Title(title, guard.enter())
         }
-    } else if let Some(title) = &reference.title {
-        XrefDisplay::Title(title.as_ref(), guard.enter())
+    } else if let Some(title) = title {
+        XrefDisplay::Title(title, guard.enter())
     } else {
         XrefDisplay::Fallback(format!("[{fallback}]"))
     }
@@ -193,19 +307,19 @@ fn section_prefix(name: &str, number: &str, signifier: XrefSignifier<'_>) -> Str
     }
 }
 
-fn caption_prefix(caption: &Caption<'_>, xref: &CrossReference<'_>) -> Option<String> {
+fn caption_prefix(caption: CaptionRef<'_>, xref: CrossReferenceRef<'_>) -> Option<String> {
     match caption {
-        Caption::Numbered {
+        CaptionRef::Numbered {
             label,
             number: Some(number),
             ..
         } => {
-            let label = if let XrefCaptionLabel::AtReference(label) = xref.caption_label {
+            let label = if let XrefCaptionLabel::AtReference(label) = xref.caption_label() {
                 label
-            } else if xref.caption_label == XrefCaptionLabel::NumberOnly {
+            } else if xref.caption_label() == XrefCaptionLabel::NumberOnly {
                 ""
             } else {
-                label.as_ref()
+                label
             };
             if label.is_empty() {
                 Some(number.to_string())
@@ -213,11 +327,59 @@ fn caption_prefix(caption: &Caption<'_>, xref: &CrossReference<'_>) -> Option<St
                 Some(format!("{label} {number}"))
             }
         }
-        Caption::Custom(prefix) => {
+        CaptionRef::Custom(prefix) => {
             (!prefix.is_empty()).then(|| prefix.strip_suffix(". ").unwrap_or(prefix).to_string())
         }
-        Caption::Numbered { .. } | Caption::Unnumbered | _ => None,
+        CaptionRef::CustomContent(_) | CaptionRef::Numbered { .. } | CaptionRef::Unnumbered | _ => {
+            None
+        }
     }
+}
+
+/// Render a custom reference prefix without one final unformatted period and space.
+///
+/// Formatting, raw substitutions, identity and source spans remain intact. The
+/// original content is unchanged; punctuation inside formatting remains visible.
+pub fn with_caption_prefix<R>(
+    content: ContentRef<'_>,
+    render: impl FnOnce(ContentRef<'_>) -> R,
+) -> R {
+    let Some((start, prefix)) = caption_suffix_start(content) else {
+        return render(content);
+    };
+    let mut nodes = ContentAttribute::from(content).into_inlines();
+    if prefix.is_empty() {
+        nodes.truncate(start);
+    } else {
+        nodes.truncate(start + 1);
+        if let Some(InlineNode::PlainText(node)) = nodes.last_mut() {
+            node.replace_text(prefix);
+        } else if let Some(InlineNode::RawText(node)) = nodes.last_mut() {
+            node.replace_text(prefix);
+        }
+    }
+    render(ContentRef::from(&ContentAttribute::new(nodes)))
+}
+
+fn caption_suffix_start(content: ContentRef<'_>) -> Option<(usize, &str)> {
+    let mut suffix = ". ";
+    for (index, node) in content.inlines().enumerate().rev() {
+        let text = if let InlineKind::Plain(text) = node.kind() {
+            text.text()
+        } else if let InlineKind::Raw(text) = node.kind()
+            && text.id().is_none()
+            && text.roles().is_empty()
+        {
+            text.text()
+        } else {
+            return None;
+        };
+        if let Some(prefix) = text.strip_suffix(suffix) {
+            return Some((index, prefix));
+        }
+        suffix = suffix.strip_suffix(text)?;
+    }
+    None
 }
 
 /// Map an inter-document cross-reference to a backend target and fallback text.
@@ -227,6 +389,26 @@ fn caption_prefix(caption: &Caption<'_>, xref: &CrossReference<'_>) -> Option<St
 /// fallback.
 #[must_use]
 pub fn interdocument_xref(target: &str, output_extension: &str) -> Option<(String, String)> {
+    map_interdocument_xref(target, |stem| format!("{stem}.{output_extension}"))
+}
+
+/// Map a source-document cross-reference using an exact output suffix.
+///
+/// The suffix includes any leading punctuation and may be empty. Existing
+/// non-source extensions stay unchanged. Fragments remain in the destination
+/// and are omitted from the fallback text.
+#[must_use]
+pub fn interdocument_xref_with_suffix(
+    target: &str,
+    output_suffix: &str,
+) -> Option<(String, String)> {
+    map_interdocument_xref(target, |stem| format!("{stem}{output_suffix}"))
+}
+
+fn map_interdocument_xref(
+    target: &str,
+    convert_stem: impl FnOnce(&str) -> String,
+) -> Option<(String, String)> {
     if !is_interdocument_target(target) {
         return None;
     }
@@ -236,10 +418,7 @@ pub fn interdocument_xref(target: &str, output_extension: &str) -> Option<(Strin
         None => (target, None),
     };
     let stem = source_document_stem(path, fragment.is_some());
-    let display = stem.map_or_else(
-        || path.to_string(),
-        |stem| format!("{stem}.{output_extension}"),
-    );
+    let display = stem.map_or_else(|| path.to_string(), convert_stem);
     let destination = fragment.map_or_else(
         || display.clone(),
         |fragment| format!("{display}#{fragment}"),
@@ -269,10 +448,27 @@ fn source_document_stem(path: &str, has_fragment: bool) -> Option<&str> {
 mod tests {
     use acdc_parser::{
         Block, CrossReference, Document, Error, InlineMacro, InlineNode, Location, Options,
-        ParseResult, SectionKind, XrefCaptionLabel, XrefSignifier, XrefStyle, parse,
+        ParseResult, SectionKind, XrefCaptionLabel, XrefSignifier, XrefStyle,
+        ast::{BlockKind, BlockRef, CrossReferenceRef, InlineKind, InlineRef},
+        parse,
     };
 
-    use super::{XrefDisplay, XrefGuard, interdocument_xref, resolve_xref};
+    use super::{
+        XrefDisplay, XrefGuard, interdocument_xref, interdocument_xref_with_suffix,
+        local_reference_id, resolve_local_reference, resolve_reference,
+    };
+
+    fn resolve_xref<'doc, 'guard>(
+        reference: Option<&'doc acdc_parser::Reference<'doc>>,
+        xref: impl Into<acdc_parser::ast::CrossReferenceRef<'doc>>,
+        guard: &'guard XrefGuard,
+    ) -> XrefDisplay<'guard, acdc_parser::ast::ContentRef<'doc>> {
+        resolve_reference(
+            reference.map(acdc_parser::ast::ReferenceRef::from),
+            xref,
+            guard,
+        )
+    }
 
     /// Parse a document whose catalog holds `labelled` (an explicit label),
     /// `titled` (a title), and `untitled` (neither).
@@ -293,7 +489,7 @@ mod tests {
 
     fn xref(target: &'static str, style: XrefStyle) -> CrossReference<'static> {
         let mut xref = CrossReference::new(target, Location::default());
-        xref.xrefstyle = style;
+        xref.set_xrefstyle(style);
         xref
     }
 
@@ -317,26 +513,22 @@ mod tests {
         xref
     }
 
-    fn cloned_document<'a>(document: &Document<'a>) -> Document<'a> {
-        let mut cloned = Document::default();
-        cloned.attributes = document.attributes.clone();
-        cloned.blocks = document.blocks.clone();
-        cloned.footnotes = document.footnotes.clone();
-        cloned.toc_entries = document.toc_entries.clone();
-        cloned.references = document.references.clone();
-        cloned.location = document.location.clone();
+    fn cloned_document<'a>(document: &'a Document<'a>) -> Document<'a> {
+        let mut cloned = Document::from(acdc_parser::ast::DocumentRef::from(document));
+        cloned.set_header(None);
         cloned
     }
 
-    fn paragraph_xrefs<'d, 'a>(blocks: &'d [Block<'a>]) -> Vec<&'d CrossReference<'a>> {
+    fn paragraph_xrefs<'a>(blocks: &[Block<'a>]) -> Vec<CrossReference<'a>> {
         let mut references = Vec::new();
         for block in blocks {
             if let Block::Section(section) = block {
-                references.extend(paragraph_xrefs(&section.content));
+                let children: Vec<_> = section.clone().take_blocks().collect();
+                references.extend(paragraph_xrefs(&children));
             } else if let Block::Paragraph(paragraph) = block {
-                references.extend(paragraph.content.iter().filter_map(|inline| {
+                references.extend(paragraph.clone().take_content().filter_map(|inline| {
                     if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
-                        Some(xref)
+                        Some(*xref)
                     } else {
                         None
                     }
@@ -347,11 +539,15 @@ mod tests {
     }
 
     fn short_prefixes(document: &Document<'_>) -> Vec<String> {
-        let mut xrefs = paragraph_xrefs(&document.blocks);
-        for footnote in &document.footnotes {
-            xrefs.extend(footnote.content.iter().filter_map(|inline| {
+        let mut snapshot = Document::from(acdc_parser::ast::DocumentRef::from(document));
+        let blocks: Vec<_> = snapshot.take_blocks().collect();
+        let footnotes: Vec<_> = snapshot.take_footnotes().collect();
+        let references: std::collections::HashMap<_, _> = snapshot.take_references().collect();
+        let mut xrefs = paragraph_xrefs(&blocks);
+        for mut footnote in footnotes {
+            xrefs.extend(footnote.take_content().into_iter().filter_map(|inline| {
                 if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
-                    Some(xref)
+                    Some(*xref)
                 } else {
                     None
                 }
@@ -362,9 +558,13 @@ mod tests {
             .map(|xref| {
                 let mut xref = xref.clone();
                 // Include references whose style was basic when parsed.
-                xref.xrefstyle = XrefStyle::Short;
+                xref.set_xrefstyle(XrefStyle::Short);
                 let guard = XrefGuard::default();
-                let display = resolve_xref(document.references.get(xref.target), &xref, &guard);
+                let display = resolve_xref(
+                    references.get(CrossReferenceRef::from(&xref).target()),
+                    &xref,
+                    &guard,
+                );
                 if let XrefDisplay::ShortCaption(prefix) = display {
                     prefix
                 } else {
@@ -375,17 +575,19 @@ mod tests {
     }
 
     #[test]
-    fn renumbered_signifiers_match_reparsed_source() -> Result<(), Error> {
+    fn renumbered_signifiers_match_reparsed_source() -> Result<(), Box<dyn std::error::Error>> {
         let parsed = parse(
             include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_renumber.adoc"),
             &Options::default(),
         )?;
+        let parsed_document = acdc_parser::Document::from(parsed.document());
         let expected = parse(
             include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_appendix.adoc"),
             &Options::default(),
         )?;
+        let expected_document = acdc_parser::Document::from(expected.document());
         assert_eq!(
-            short_prefixes(expected.document()),
+            short_prefixes(&expected_document),
             [
                 "Early Appendix A",
                 "Early Appendix A",
@@ -396,43 +598,52 @@ mod tests {
                 "Early Appendix A",
             ]
         );
-        let mut document = cloned_document(parsed.document());
-        for block in &mut document.blocks {
+        let mut document = cloned_document(&parsed_document);
+        let mut blocks: Vec<_> = document.take_blocks().collect();
+        for block in &mut blocks {
             if let Block::Section(section) = block
                 && section.id() == "target"
             {
-                section.kind = SectionKind::Appendix;
+                let mut metadata = section.clone_metadata();
+                metadata.style = SectionKind::Appendix.as_style();
+                section.set_metadata(metadata)?;
             }
         }
+        document.set_blocks(blocks);
         document.renumber_sections();
         assert_eq!(
             short_prefixes(&document),
-            short_prefixes(expected.document())
+            short_prefixes(&expected_document)
         );
         document.renumber_sections();
         assert_eq!(
             short_prefixes(&document),
-            short_prefixes(expected.document())
+            short_prefixes(&expected_document)
         );
 
-        for block in &mut document.blocks {
+        let mut blocks: Vec<_> = document.take_blocks().collect();
+        for block in &mut blocks {
             if let Block::Section(section) = block
                 && section.id() == "target"
             {
-                section.kind = SectionKind::Normal;
+                let mut metadata = section.clone_metadata();
+                metadata.style = SectionKind::Normal.as_style();
+                section.set_metadata(metadata)?;
             }
         }
+        document.set_blocks(blocks);
         document.renumber_sections();
-        assert_eq!(short_prefixes(&document), short_prefixes(parsed.document()));
+        assert_eq!(short_prefixes(&document), short_prefixes(&parsed_document));
         Ok(())
     }
 
     #[test]
-    fn signifier_overrides_survive_category_changes() -> Result<(), Error> {
+    fn signifier_overrides_survive_category_changes() -> Result<(), Box<dyn std::error::Error>> {
         let parsed = parse(
             include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_renumber.adoc"),
             &Options::default(),
         )?;
+        let parsed_document = acdc_parser::Document::from(parsed.document());
         for (signifier, expected) in [
             (XrefSignifier::Standard, "Appendix A"),
             (XrefSignifier::AtReference("Chapter"), "Chapter A"),
@@ -440,21 +651,29 @@ mod tests {
             (XrefSignifier::AtReference(""), " A"),
             (XrefSignifier::Omitted, "A"),
         ] {
-            let mut document = cloned_document(parsed.document());
-            for footnote in &mut document.footnotes {
-                for inline in &mut footnote.content {
+            let mut document = cloned_document(&parsed_document);
+            let mut footnotes: Vec<_> = document.take_footnotes().collect();
+            for footnote in &mut footnotes {
+                let mut content = footnote.take_content();
+                for inline in &mut content {
                     if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
                         xref.set_signifier(signifier);
                     }
                 }
+                footnote.replace_content(content);
             }
-            for block in &mut document.blocks {
+            let mut blocks: Vec<_> = document.take_blocks().collect();
+            for block in &mut blocks {
                 if let Block::Section(section) = block
                     && section.id() == "target"
                 {
-                    section.kind = SectionKind::Appendix;
+                    let mut metadata = section.clone_metadata();
+                    metadata.style = SectionKind::Appendix.as_style();
+                    section.set_metadata(metadata)?;
                 }
             }
+            document.set_footnotes(footnotes);
+            document.set_blocks(blocks);
             // Cloning must preserve explicit overrides, including the original word.
             let mut document = cloned_document(&document);
             document.renumber_sections();
@@ -478,7 +697,8 @@ mod tests {
         signifier: XrefSignifier<'static>,
     ) -> Result<(&'static str, String), Error> {
         let parsed = book()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
         Ok(
             match resolve_xref(
@@ -491,7 +711,9 @@ mod tests {
                 XrefDisplay::FullCaption(prefix, ..) => ("quoted", prefix),
                 XrefDisplay::Emphasized(prefix, ..) => ("emphasized", prefix.unwrap_or_default()),
                 // Reported as a value so the assertion shows what came back.
-                other @ (XrefDisplay::Label(..)
+                other @ (XrefDisplay::ShortCustomCaption(..)
+                | XrefDisplay::FullCustomCaption(..)
+                | XrefDisplay::Label(..)
                 | XrefDisplay::External(_)
                 | XrefDisplay::Fallback(_)
                 | XrefDisplay::Unresolved(_)
@@ -526,10 +748,11 @@ mod tests {
             ),
             &Options::default(),
         )?;
+        let parsed_references = std::collections::HashMap::from(parsed.document().references());
         let guard = XrefGuard::default();
         assert!(matches!(
             resolve_xref(
-                parsed.document().references.get("_preface"),
+                parsed_references.get("_preface"),
                 &xref("_preface", XrefStyle::Short),
                 &guard,
             ),
@@ -598,7 +821,8 @@ mod tests {
         // `[[labelled,A label]]` sits on an inline anchor, which has no title;
         // a section with both is covered by the html and terminal fixtures.
         let parsed = catalog()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
         assert!(matches!(
             resolve_xref(
@@ -614,7 +838,8 @@ mod tests {
     #[test]
     fn title_resolves_when_there_is_no_label() -> Result<(), Error> {
         let parsed = catalog()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
         assert!(matches!(
             resolve_xref(
@@ -630,7 +855,8 @@ mod tests {
     #[test]
     fn captioned_target_resolves_short_and_full_styles() -> Result<(), Error> {
         let parsed = catalog()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
 
         assert!(matches!(
@@ -649,10 +875,10 @@ mod tests {
             ),
             XrefDisplay::FullCaption(prefix, title, _scope)
                 if prefix == "Example 1"
-                    && matches!(title, [acdc_parser::InlineNode::PlainText(text)] if text.content == "A title")
+                    && matches!(title.inlines().map(acdc_parser::ast::InlineRef::kind).collect::<Vec<_>>().as_slice(), [acdc_parser::ast::InlineKind::Plain(text)] if text.text() == "A title")
         ));
         let mut number_only = xref("titled", XrefStyle::Short);
-        number_only.caption_label = XrefCaptionLabel::NumberOnly;
+        number_only.set_caption_label(XrefCaptionLabel::NumberOnly);
         assert!(matches!(
             resolve_xref(references.get("titled"), &number_only, &guard),
             XrefDisplay::ShortCaption(prefix) if prefix == "1"
@@ -666,11 +892,13 @@ mod tests {
             ":figure-caption: BeforeFigure\n:table-caption: BeforeTable\n:example-caption: BeforeExample\n:listing-caption: BeforeListing\n:xrefstyle: short\n\nForward: <<figure>>; <<table>>; <<example>>; <<listing>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n:example-caption: TargetExample\n:listing-caption: TargetListing\n\n[[figure]]\n.Figure title\nimage::figure.svg[]\n\n[[table]]\n.Table title\n|===\n|Cell\n|===\n\n[[example]]\n.Example title\n====\nBody.\n====\n\n[[listing]]\n.Listing title\n----\nbody\n----\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:example-caption: AfterExample\n:listing-caption: AfterListing\n\nBackward: <<figure>>; <<table>>; <<example>>; <<listing>>.\n",
             &Options::default(),
         )?;
-        let references = &parsed.document().references;
+        let parsed_document = acdc_parser::Document::from(parsed.document());
+        let mut parsed_document = parsed_document;
+        let references: std::collections::HashMap<_, _> =
+            parsed_document.take_references().collect();
+        let blocks: Vec<_> = parsed_document.take_blocks().collect();
         let guard = XrefGuard::default();
-        let prefixes = parsed
-            .document()
-            .blocks
+        let prefixes = blocks
             .iter()
             .filter_map(|block| {
                 let Block::Paragraph(paragraph) = block else {
@@ -678,14 +906,16 @@ mod tests {
                 };
                 Some(paragraph)
             })
-            .flat_map(|paragraph| paragraph.content.iter())
+            .flat_map(|paragraph| paragraph.clone().take_content())
             .filter_map(|inline| {
                 let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
                     return None;
                 };
-                let XrefDisplay::ShortCaption(prefix) =
-                    resolve_xref(references.get(xref.target), xref, &guard)
-                else {
+                let XrefDisplay::ShortCaption(prefix) = resolve_xref(
+                    references.get(CrossReferenceRef::from(xref.as_ref()).target()),
+                    xref.as_ref(),
+                    &guard,
+                ) else {
                     return None;
                 };
                 Some(prefix)
@@ -714,7 +944,8 @@ mod tests {
             ":figure-caption!:\n\n[[disabled]]\n.Disabled title\nimage::disabled.svg[]\n\n[[custom]]\n.Custom title\n[caption=\"Exhibit: \"]\nimage::custom.svg[]\n",
             &Options::default(),
         )?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
 
         assert!(matches!(
@@ -731,7 +962,8 @@ mod tests {
                 &xref("custom", XrefStyle::Short),
                 &guard
             ),
-            XrefDisplay::ShortCaption(prefix) if prefix == "Exhibit: "
+            XrefDisplay::ShortCustomCaption(prefix, _scope)
+                if crate::InlineTextTransform::default().content_to_string(prefix) == "Exhibit: "
         ));
         assert!(matches!(
             resolve_xref(
@@ -739,7 +971,8 @@ mod tests {
                 &xref("custom", XrefStyle::Full),
                 &guard
             ),
-            XrefDisplay::FullCaption(prefix, ..) if prefix == "Exhibit: "
+            XrefDisplay::FullCustomCaption(prefix, ..)
+                if crate::InlineTextTransform::default().content_to_string(prefix) == "Exhibit: "
         ));
         Ok(())
     }
@@ -747,7 +980,8 @@ mod tests {
     #[test]
     fn untitled_target_falls_back_to_its_id() -> Result<(), Error> {
         let parsed = catalog()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
         assert!(matches!(
             resolve_xref(
@@ -772,13 +1006,146 @@ mod tests {
     #[test]
     fn external_reference_ignores_a_matching_local_catalog_entry() -> Result<(), Error> {
         let parsed = catalog()?;
+        let parsed_references = std::collections::HashMap::from(parsed.document().references());
         let mut external = xref("titled", XrefStyle::Basic);
-        external.target_is_local = false;
+        external.set_target_is_local(false);
         let guard = XrefGuard::default();
         assert!(matches!(
-            resolve_xref(parsed.document().references.get("titled"), &external, &guard),
+            resolve_xref(parsed_references.get("titled"), &external, &guard),
             XrefDisplay::External(target) if target == "titled"
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn local_display_preserves_label_precedence_and_occurrence_locality()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = catalog()?;
+        let references = parsed.document().references();
+        for (target, expected) in [("labelled", "A label"), ("titled", "A title")] {
+            let mut external = xref(target, XrefStyle::Full);
+            external.set_target_is_local(false);
+            let guard = XrefGuard::default();
+            assert!(
+                matches!(resolve_reference(references.get(target), &external, &guard), XrefDisplay::External(value) if value == target)
+            );
+            let display = resolve_local_reference(references.get(target), &external, &guard);
+            let content = if let XrefDisplay::Label(content, _) = &display {
+                assert_eq!(target, "labelled");
+                *content
+            } else if let XrefDisplay::FullCaption(prefix, content, _) = &display {
+                assert_eq!(target, "titled");
+                assert_eq!(prefix, "Example 1");
+                *content
+            } else {
+                return Err(format!("expected local content: {display:?}").into());
+            };
+            assert_eq!(
+                crate::InlineTextTransform::default().content_to_string(content),
+                expected
+            );
+            assert!(guard.is_resolving());
+            assert!(
+                matches!(resolve_local_reference(references.get(target), &external, &guard), XrefDisplay::Nested(value) if value == format!("[{target}]"))
+            );
+            drop(display);
+            assert!(!guard.is_resolving());
+            assert!(!CrossReferenceRef::from(&external).target_is_local());
+            assert_eq!(
+                CrossReferenceRef::from(&external).xrefstyle(),
+                XrefStyle::Full
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn local_display_keeps_unresolved_and_top_fallbacks() {
+        let guard = XrefGuard::default();
+        for (target, expected) in [
+            ("", "[^top]"),
+            ("missing", "[missing]"),
+            ("other.adoc#part", "[other#part]"),
+        ] {
+            let mut external = xref(target, XrefStyle::Basic);
+            external.set_target_is_local(false);
+            assert!(
+                matches!(resolve_local_reference(None, &external, &guard), XrefDisplay::Unresolved(value) if value == expected)
+            );
+            assert!(!guard.is_resolving());
+        }
+    }
+
+    #[test]
+    fn local_catalog_keys_preserve_locality_and_non_source_extensions() {
+        for (target, expected) in [
+            ("guide.adoc", "guide"),
+            ("guide.adoc#part", "guide#part"),
+            ("guide.adoc#", "guide"),
+            ("guide.pdf#", "guide.pdf"),
+            ("dir/guide.adoc", "dir/guide"),
+            ("guide.pdf#part", "guide.pdf#part"),
+            ("guide.asciidoc", "guide.asciidoc"),
+            ("guide.adoc.bak", "guide.adoc.bak"),
+        ] {
+            for local in [false, true] {
+                let mut occurrence = xref(target, XrefStyle::Basic);
+                occurrence.set_target_is_local(local);
+                let read = CrossReferenceRef::from(&occurrence);
+                assert_eq!(
+                    local_reference_id(read),
+                    if local { target } else { expected }
+                );
+                assert_eq!(read.target(), target);
+                assert_eq!(read.target_is_local(), local);
+            }
+        }
+    }
+
+    #[test]
+    fn file_reference_display_uses_the_stem_catalog_entry() -> Result<(), Box<dyn std::error::Error>>
+    {
+        for mode in [
+            acdc_parser::CompatibilityMode::Asciidoctor,
+            acdc_parser::CompatibilityMode::Draft,
+        ] {
+            let parsed = parse(
+                "[#external.adoc,reftext=\"Stem label\"]\nTarget.\n\n[[external.adoc,Exact ID label]]\nOther target.\n\nxref:external.adoc[]\n",
+                &Options::builder().with_compatibility_mode(mode).build()?,
+            )?;
+            let references = parsed.document().references();
+            let Some(BlockKind::Paragraph(paragraph)) =
+                parsed.document().blocks().last().map(BlockRef::kind)
+            else {
+                return Err("expected reference paragraph".into());
+            };
+            let Some(InlineKind::CrossReference(occurrence)) =
+                paragraph.content().inlines().next().map(InlineRef::kind)
+            else {
+                return Err("expected cross-reference".into());
+            };
+            assert_eq!(occurrence.target(), "external.adoc");
+            assert!(!occurrence.target_is_local());
+            assert!(references.contains("external"));
+            assert!(references.contains("external.adoc"));
+            let key = local_reference_id(occurrence);
+            let reference = references.get(&key);
+            let guard = XrefGuard::default();
+            assert!(matches!(
+                resolve_reference(reference, occurrence, &guard),
+                XrefDisplay::External(target) if target == "external.adoc"
+            ));
+            let display = resolve_local_reference(reference, occurrence, &guard);
+            let XrefDisplay::Label(content, _) = display else {
+                return Err("expected the stem's reference label".into());
+            };
+            assert_eq!(
+                crate::InlineTextTransform::default().content_to_string(content),
+                "Stem label"
+            );
+            assert_eq!(occurrence.target(), "external.adoc");
+            assert!(!occurrence.target_is_local());
+        }
         Ok(())
     }
 
@@ -809,16 +1176,40 @@ mod tests {
     }
 
     #[test]
+    fn interdocument_suffix_is_literal_and_can_be_empty() {
+        for (suffix, file) in [
+            (".xhtml", "guide.xhtml"),
+            ("", "guide"),
+            ("html", "guidehtml"),
+        ] {
+            for target in ["guide.adoc#part", "guide.asciidoc#part", "guide#part"] {
+                assert_eq!(
+                    interdocument_xref_with_suffix(target, suffix),
+                    Some((format!("{file}#part"), file.to_string()))
+                );
+            }
+            assert_eq!(
+                interdocument_xref_with_suffix("guide.adoc", suffix),
+                Some((file.to_string(), file.to_string()))
+            );
+            assert_eq!(
+                interdocument_xref_with_suffix("guide.pdf#part", suffix),
+                Some(("guide.pdf#part".to_string(), "guide.pdf".to_string()))
+            );
+        }
+        assert_eq!(interdocument_xref_with_suffix("#part", ""), None);
+        assert_eq!(interdocument_xref_with_suffix("part", ""), None);
+    }
+
+    #[test]
     fn reference_inside_reference_text_is_nested() -> Result<(), Error> {
         let parsed = catalog()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
 
-        let display = resolve_xref(
-            references.get("titled"),
-            &xref("titled", XrefStyle::Basic),
-            &guard,
-        );
+        let occurrence = xref("titled", XrefStyle::Basic);
+        let display = resolve_xref(references.get("titled"), &occurrence, &guard);
         assert!(matches!(display, XrefDisplay::Title(..)));
         assert!(guard.is_resolving());
         // While the outer resolution is open, a nested one cannot recurse.
@@ -847,15 +1238,13 @@ mod tests {
     #[test]
     fn clones_of_a_guard_share_one_resolution() -> Result<(), Error> {
         let parsed = catalog()?;
-        let references = &parsed.document().references;
+        let parsed_references = std::collections::HashMap::from(parsed.document().references());
+        let references = &parsed_references;
         let guard = XrefGuard::default();
         let clone = guard.clone();
 
-        let display = resolve_xref(
-            references.get("titled"),
-            &xref("titled", XrefStyle::Basic),
-            &guard,
-        );
+        let occurrence = xref("titled", XrefStyle::Basic);
+        let display = resolve_xref(references.get("titled"), &occurrence, &guard);
         assert!(clone.is_resolving());
         drop(display);
         assert!(!clone.is_resolving());

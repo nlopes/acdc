@@ -1,0 +1,41 @@
+= Replacement attribute overrides
+:ordinary: ->
+:quot: ->
+:plus: =>
+:lt: <-
+:gt: <=
+
+Default: {ordinary} | {quot} | {plus} | {lt} | {gt}.
+
+[subs="attributes,specialchars,replacements"]
+Early: {ordinary} | {quot} | {plus} | {lt} | {gt}.
+
+[subs="specialchars,attributes,replacements"]
+Middle: {ordinary} | {quot} | {plus} | {lt} | {gt}.
+
+[subs="specialchars,replacements,attributes"]
+Late: {ordinary} | {quot} | {plus} | {lt} | {gt}.
+
+:ordinary: -&gt;
+:quot: -&gt;
+
+Encoded: {ordinary} | {quot}.
+
+:ordinary: pass:[->]
+:quot: pass:[->]
+
+Raw: {ordinary} | {quot}.
+
+:ordinary: pass:c,r[->]
+:quot: pass:c,r[->]
+
+Prepared: {ordinary} | {quot}.
+
+:ordinary: pass:q[*Label*]
+:quot: pass:q[*Label*]
+
+Formatted: {ordinary} | {quot}.
+
+:quot!:
+
+Unset: {quot}.

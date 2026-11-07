@@ -75,6 +75,7 @@
                   "name": "anchor",
                   "type": "inline",
                   "id": "ref01",
+                  "bibliography": true,
                   "location": [
                     {
                       "line": 6,
@@ -122,7 +123,41 @@
                   "name": "anchor",
                   "type": "inline",
                   "id": "ref02",
-                  "xreflabel": "Custom Label",
+                  "xreflabel": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Custom Label",
+                      "location": [
+                        {
+                          "line": 7,
+                          "col": 12
+                        },
+                        {
+                          "line": 7,
+                          "col": 23
+                        }
+                      ]
+                    }
+                  ],
+                  "bibliography": true,
+                  "bibliography_label": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Custom Label",
+                      "location": [
+                        {
+                          "line": 7,
+                          "col": 12
+                        },
+                        {
+                          "line": 7,
+                          "col": 23
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 7,
@@ -196,6 +231,7 @@
               "name": "xref",
               "type": "inline",
               "target": "ref01",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 9,
@@ -226,6 +262,7 @@
               "name": "xref",
               "type": "inline",
               "target": "ref02",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 9,

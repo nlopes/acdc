@@ -138,11 +138,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "P01 Title (C)",
+              "value": "P01 Title ",
               "location": [
                 {
                   "line": 14,
                   "col": 2
+                },
+                {
+                  "line": 14,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 12
                 },
                 {
                   "line": 14,
@@ -251,11 +266,101 @@
             {
               "name": "text",
               "type": "string",
-              "value": " expanded (C) (R) (TM).\n  P02 ",
+              "value": " expanded ",
               "location": [
                 {
                   "line": 16,
                   "col": 20
+                },
+                {
+                  "line": 16,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 29
+                },
+                {
+                  "line": 16,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 32
+                },
+                {
+                  "line": 16,
+                  "col": 32
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 33
+                },
+                {
+                  "line": 16,
+                  "col": 35
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 36
+                },
+                {
+                  "line": 16,
+                  "col": 36
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "™",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 37
+                },
+                {
+                  "line": 16,
+                  "col": 40
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".\n  P02 ",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 41
                 },
                 {
                   "line": 17,
@@ -371,11 +476,26 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Link (C)",
+                  "value": "Link ",
                   "location": [
                     {
                       "line": 19,
                       "col": 40
+                    },
+                    {
+                      "line": 19,
+                      "col": 44
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "©",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 45
                     },
                     {
                       "line": 19,
@@ -393,8 +513,7 @@
                   "line": 19,
                   "col": 48
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",
@@ -419,11 +538,41 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Paragraph note (R).",
+                  "value": "Paragraph note ",
                   "location": [
                     {
                       "line": 19,
                       "col": 69
+                    },
+                    {
+                      "line": 19,
+                      "col": 83
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 84
+                    },
+                    {
+                      "line": 19,
+                      "col": 86
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": ".",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 87
                     },
                     {
                       "line": 19,
@@ -476,11 +625,44 @@
             {
               "name": "text",
               "type": "string",
-              "value": " \\(R) ",
+              "value": " ",
               "location": [
                 {
                   "line": 20,
                   "col": 15
+                },
+                {
+                  "line": 20,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "(R)",
+              "substitutions": [
+                "special_chars"
+              ],
+              "location": [
+                {
+                  "line": 20,
+                  "col": 16
+                },
+                {
+                  "line": 20,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 20
                 },
                 {
                   "line": 20,
@@ -555,9 +737,12 @@
             "style": "verse",
             "attribution": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Writer",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 15,
@@ -565,16 +750,19 @@
                   },
                   {
                     "line": 15,
-                    "col": 14
+                    "col": 13
                   }
                 ]
               }
             ],
             "citetitle": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Work",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 15,
@@ -582,7 +770,7 @@
                   },
                   {
                     "line": 15,
-                    "col": 19
+                    "col": 18
                   }
                 ]
               }
@@ -608,9 +796,12 @@
             "style": "verse",
             "attribution": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Writer",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 23,
@@ -618,16 +809,19 @@
                   },
                   {
                     "line": 23,
-                    "col": 14
+                    "col": 13
                   }
                 ]
               }
             ],
             "citetitle": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Work",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 23,
@@ -635,7 +829,7 @@
                   },
                   {
                     "line": 23,
-                    "col": 19
+                    "col": 18
                   }
                 ]
               }
@@ -741,11 +935,101 @@
             {
               "name": "text",
               "type": "string",
-              "value": " expanded (C) (R) (TM).\n  D02 ",
+              "value": " expanded ",
               "location": [
                 {
                   "line": 25,
                   "col": 20
+                },
+                {
+                  "line": 25,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 29
+                },
+                {
+                  "line": 25,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 32
+                },
+                {
+                  "line": 25,
+                  "col": 32
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 33
+                },
+                {
+                  "line": 25,
+                  "col": 35
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 36
+                },
+                {
+                  "line": 25,
+                  "col": 36
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "™",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 37
+                },
+                {
+                  "line": 25,
+                  "col": 40
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".\n  D02 ",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 41
                 },
                 {
                   "line": 26,
@@ -861,11 +1145,26 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Link (C)",
+                  "value": "Link ",
                   "location": [
                     {
                       "line": 29,
                       "col": 40
+                    },
+                    {
+                      "line": 29,
+                      "col": 44
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "©",
+                  "location": [
+                    {
+                      "line": 29,
+                      "col": 45
                     },
                     {
                       "line": 29,
@@ -883,8 +1182,7 @@
                   "line": 29,
                   "col": 48
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",
@@ -909,11 +1207,41 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Delimited note (R).",
+                  "value": "Delimited note ",
                   "location": [
                     {
                       "line": 29,
                       "col": 69
+                    },
+                    {
+                      "line": 29,
+                      "col": 83
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 29,
+                      "col": 84
+                    },
+                    {
+                      "line": 29,
+                      "col": 86
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": ".",
+                  "location": [
+                    {
+                      "line": 29,
+                      "col": 87
                     },
                     {
                       "line": 29,
@@ -966,11 +1294,44 @@
             {
               "name": "text",
               "type": "string",
-              "value": " \\(R) ",
+              "value": " ",
               "location": [
                 {
                   "line": 30,
                   "col": 15
+                },
+                {
+                  "line": 30,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "(R)",
+              "substitutions": [
+                "special_chars"
+              ],
+              "location": [
+                {
+                  "line": 30,
+                  "col": 16
+                },
+                {
+                  "line": 30,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 30,
+                  "col": 20
                 },
                 {
                   "line": 30,
@@ -1045,11 +1406,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "D01 Title (C)",
+              "value": "D01 Title ",
               "location": [
                 {
                   "line": 22,
                   "col": 2
+                },
+                {
+                  "line": 22,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 12
                 },
                 {
                   "line": 22,
@@ -1086,6 +1462,7 @@
               {
                 "columns": [
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "paragraph",
@@ -1142,11 +1519,41 @@
                           {
                             "name": "text",
                             "type": "string",
-                            "value": " (C).\n  T02 second line.",
+                            "value": " ",
                             "location": [
                               {
                                 "line": 41,
                                 "col": 11
+                              },
+                              {
+                                "line": 41,
+                                "col": 11
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "©",
+                            "location": [
+                              {
+                                "line": 41,
+                                "col": 12
+                              },
+                              {
+                                "line": 41,
+                                "col": 14
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".\n  T02 second line.",
+                            "location": [
+                              {
+                                "line": 41,
+                                "col": 15
                               },
                               {
                                 "line": 42,
@@ -1229,11 +1636,41 @@
                           {
                             "name": "text",
                             "type": "string",
-                            "value": " (R).\n  T04 second line.\n\nT05 final line.",
+                            "value": " ",
                             "location": [
                               {
                                 "line": 46,
                                 "col": 17
+                              },
+                              {
+                                "line": 46,
+                                "col": 17
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "®",
+                            "location": [
+                              {
+                                "line": 46,
+                                "col": 18
+                              },
+                              {
+                                "line": 46,
+                                "col": 20
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".\n  T04 second line.\n\nT05 final line.",
+                            "location": [
+                              {
+                                "line": 46,
+                                "col": 21
                               },
                               {
                                 "line": 49,
@@ -1391,11 +1828,41 @@
                     {
                       "name": "text",
                       "type": "string",
-                      "value": " (TM).\n  L02 second line.",
+                      "value": " ",
                       "location": [
                         {
                           "line": 57,
                           "col": 15
+                        },
+                        {
+                          "line": 57,
+                          "col": 15
+                        }
+                      ]
+                    },
+                    {
+                      "name": "symbol",
+                      "type": "string",
+                      "value": "™",
+                      "location": [
+                        {
+                          "line": 57,
+                          "col": 16
+                        },
+                        {
+                          "line": 57,
+                          "col": 19
+                        }
+                      ]
+                    },
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": ".\n  L02 second line.",
+                      "location": [
+                        {
+                          "line": 57,
+                          "col": 20
                         },
                         {
                           "line": 58,
@@ -1466,11 +1933,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": "After (C). Reuse ",
+              "value": "After ",
               "location": [
                 {
                   "line": 65,
                   "col": 1
+                },
+                {
+                  "line": 65,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 65,
+                  "col": 7
+                },
+                {
+                  "line": 65,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ". Reuse ",
+              "location": [
+                {
+                  "line": 65,
+                  "col": 10
                 },
                 {
                   "line": 65,
@@ -1482,7 +1979,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "paragraph",
-              "inlines": [],
               "location": [
                 {
                   "line": 65,
@@ -1513,7 +2009,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "delimited",
-              "inlines": [],
               "location": [
                 {
                   "line": 65,
@@ -1544,6 +2039,7 @@
               "name": "xref",
               "type": "inline",
               "target": "paragraph-target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1591,6 +2087,7 @@
               "name": "xref",
               "type": "inline",
               "target": "delimited-target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",

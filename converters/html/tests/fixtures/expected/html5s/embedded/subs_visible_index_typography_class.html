@@ -39,8 +39,8 @@
 <span class="syntax-source syntax-rust"><span class="syntax-constant syntax-other syntax-rust">I14</span> <span class="syntax-keyword syntax-operator syntax-rust"><a id="_indexterm_15"></a>&amp;</span><span class="syntax-keyword syntax-operator syntax-rust">#</span><span class="syntax-constant syntax-numeric syntax-integer syntax-decimal syntax-rust">169</span><span class="syntax-punctuation syntax-terminator syntax-rust">;</span> Escaped After <a href="https://next.example/14">Next14</a></span>
 <span class="syntax-source syntax-rust"><span class="syntax-constant syntax-other syntax-rust">I15</span> <a id="_indexterm_16"></a>One ©<a id="_indexterm_17"></a>Two ® After <a href="https://next.example/15">Next15</a></span>
 <span class="syntax-source syntax-rust"><span class="syntax-constant syntax-other syntax-rust">I16</span> <a id="_indexterm_18"></a>Closing ® After <a href="https://next.example/16">Next16</a></span>
-<span class="syntax-source syntax-rust"><span class="syntax-constant syntax-other syntax-rust">I17</span> <a href="https://outer.example">Outer </a><a id="_indexterm_19"></a><a href="https://outer.example">Inner &#169;</a><a href="https://outer.example"> End</a><span class="syntax-meta syntax-group syntax-rust"><span class="syntax-punctuation syntax-section syntax-group syntax-begin syntax-rust"></span></span><span class="syntax-meta syntax-group syntax-rust"><span class="syntax-punctuation syntax-section syntax-group syntax-end syntax-rust"></span></span> After <a href="https://next.example/17">Next17</a></span>
-<span class="syntax-source syntax-rust"><span class="syntax-constant syntax-other syntax-rust">I18</span> <a id="_indexterm_20"></a>Linked <a href="https://inner.example">Inner &#174;</a> End<span class="syntax-meta syntax-group syntax-rust"><span class="syntax-punctuation syntax-section syntax-group syntax-begin syntax-rust"></span></span><span class="syntax-meta syntax-group syntax-rust"><span class="syntax-punctuation syntax-section syntax-group syntax-end syntax-rust"></span></span> After <a href="https://next.example/18">Next18</a></span></pre></td></tr></tbody></table></code></pre>
+<span class="syntax-source syntax-rust"><span class="syntax-constant syntax-other syntax-rust">I17</span> <a href="https://outer.example">Outer </a><a id="_indexterm_19"></a><a href="https://outer.example">Inner &#169;</a><a href="https://outer.example"> End</a> After <a href="https://next.example/17">Next17</a></span>
+<span class="syntax-source syntax-rust"><span class="syntax-constant syntax-other syntax-rust">I18</span> <a id="_indexterm_20"></a>Linked <a href="https://inner.example">Inner &#174;</a> End After <a href="https://next.example/18">Next18</a></span></pre></td></tr></tbody></table></code></pre>
 </div>
 <div class="listing-block">
 <pre class="highlight"><code class="language-rust" data-lang="rust"><span class="syntax-source syntax-rust"><span class="syntax-constant syntax-other syntax-rust">I19</span> <a id="_indexterm_21"></a>Late ® After <a href="https://next.example/19">Next19</a>
@@ -52,7 +52,7 @@
 <span class="syntax-constant syntax-other syntax-rust">I23</span> <span class="syntax-meta syntax-group syntax-rust"><span class="syntax-punctuation syntax-section syntax-group syntax-begin syntax-rust"><a id="_indexterm_25"></a>(</span>C</span><span class="syntax-meta syntax-group syntax-rust"><span class="syntax-punctuation syntax-section syntax-group syntax-end syntax-rust">)</span></span> Literal After <a href="https://next.example/23">Next23</a></span></code></pre>
 </div>
 <div class="listing-block">
-<pre class="highlight"><code class="language-rust" data-lang="rust"><span class="syntax-source syntax-rust"><span class="syntax-constant syntax-other syntax-rust">I24</span> indexterm2<span class="syntax-punctuation syntax-separator syntax-rust">:</span><span class="syntax-meta syntax-group syntax-rust"><span class="syntax-punctuation syntax-section syntax-group syntax-begin syntax-rust">[</span>Disabled <span class="syntax-invalid syntax-illegal syntax-rust">macro</span> ©<span class="syntax-punctuation syntax-section syntax-group syntax-end syntax-rust">]</span></span> After</span></code></pre>
+<pre class="highlight"><code class="language-rust" data-lang="rust"><span class="syntax-source syntax-rust"><span class="syntax-constant syntax-other syntax-rust">I24</span> indexterm2<span class="syntax-punctuation syntax-separator syntax-rust">:</span><span class="syntax-meta syntax-group syntax-rust"><span class="syntax-punctuation syntax-section syntax-group syntax-begin syntax-rust">[</span>Disabled <span class="syntax-invalid syntax-illegal syntax-rust">macro</span> &#169;<span class="syntax-punctuation syntax-section syntax-group syntax-end syntax-rust">]</span></span> After</span></code></pre>
 </div>
 <div class="listing-block">
 <pre class="highlight"><code class="language-rust" data-lang="rust"><span class="syntax-source syntax-rust"><span class="syntax-keyword syntax-operator syntax-rust"><a id="_indexterm_26"></a>-</span><span class="syntax-keyword syntax-operator syntax-rust">-</span>tail <span class="syntax-constant syntax-other syntax-rust">I25</span>
@@ -73,26 +73,26 @@
 <h2 id="_index">Index</h2>
 <h3 class="indexletter">@</h3>
 <dl class="indexterms">
-<dt>&#169; Decoded
- <a href="#_indexterm_13">Description</a></dt>
 <dt>&amp;#169; Escaped
  <a href="#_indexterm_15">Description</a></dt>
 <dt>&amp;#169; Literal
  <a href="#_indexterm_14">Description</a></dt>
+<dt>(C) (R) (TM) ... -&gt;
+ <a href="#_indexterm_9">Description</a></dt>
+<dt>(C) Escaped
+ <a href="#_indexterm_7">Description</a></dt>
 <dt>(C) Literal
  <a href="#_indexterm_8">Description</a>, <a href="#_indexterm_25">Description (2)</a></dt>
+<dt>(C) Still escaped
+ <a href="#_indexterm_22">Description</a></dt>
+<dt>--
+ <a href="#_indexterm_26">Description</a>, <a href="#_indexterm_27">Description (2)</a>, <a href="#_indexterm_28">Description (3)</a>, <a href="#_indexterm_29">Description (4)</a></dt>
+<dt>&#169; Decoded
+ <a href="#_indexterm_13">Description</a></dt>
 <dt>&#169; Own
  <a href="#_indexterm_6">Description</a></dt>
 <dt>&#169; Own enabled
  <a href="#_indexterm_24">Description</a></dt>
-<dt>--
- <a href="#_indexterm_26">Description</a>, <a href="#_indexterm_27">Description (2)</a>, <a href="#_indexterm_28">Description (3)</a>, <a href="#_indexterm_29">Description (4)</a></dt>
-<dt>(C) Escaped
- <a href="#_indexterm_7">Description</a></dt>
-<dt>(C) Still escaped
- <a href="#_indexterm_22">Description</a></dt>
-<dt>(C) (R) (TM) ... -&gt;
- <a href="#_indexterm_9">Description</a></dt>
 </dl>
 <h3 class="indexletter">C</h3>
 <dl class="indexterms">
@@ -100,10 +100,10 @@
  <a href="#_indexterm_30">Description</a></dt>
 <dt>Closing &#174;
  <a href="#_indexterm_2">Description</a>, <a href="#_indexterm_18">Description (2)</a></dt>
-<dt>Code &#169; &#174; &#8482;
- <a href="#_indexterm_3">Description</a></dt>
 <dt>Code &#169; tail
  <a href="#_indexterm_4">Description</a></dt>
+<dt>Code &#169; &#174; &#8482;
+ <a href="#_indexterm_3">Description</a></dt>
 </dl>
 <h3 class="indexletter">D</h3>
 <dl class="indexterms">

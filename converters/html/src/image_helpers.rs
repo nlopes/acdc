@@ -1,40 +1,42 @@
 //! Shared helper functions for image rendering (block and inline).
 
-use std::{io::Write, path::PathBuf};
+use std::io::Write;
 
-use acdc_parser::{BlockMetadata, Source};
+use acdc_parser::ast::{AttributeValueRef, AttributesRef};
 
-use crate::Error;
+use crate::{Error, constants::escape_ampersands, inlines::escape_attribute};
 
-/// Generate alt text from filename by removing extension and replacing separators.
-///
-/// This is used as a fallback when no explicit alt text is provided.
-/// Converts hyphens and underscores to spaces for better readability.
-///
-/// # Examples
-///
-/// - `sunset.jpg` → `"sunset"`
-/// - `my-image_file.png` → `"my image file"`
-#[must_use]
-pub(crate) fn alt_text_from_filename(source: &Source) -> String {
-    let mut filepath = PathBuf::from(source.get_filename().unwrap_or(""));
-    filepath.set_extension("");
-    filepath.to_str().unwrap_or("").replace(['-', '_'], " ")
-}
-
-/// Write width and height attributes if present in metadata.
-///
-/// Checks the metadata attributes for `width` and `height` keys and writes
-/// them as HTML attributes if found.
+/// Write width and height attributes when present.
 pub(crate) fn write_dimension_attributes<W: Write + ?Sized>(
     w: &mut W,
-    metadata: &BlockMetadata,
+    attributes: AttributesRef<'_>,
 ) -> Result<(), Error> {
-    if let Some(width) = metadata.attributes.get("width") {
-        write!(w, " width=\"{width}\"")?;
+    if let Some(width) = attributes.get("width").and_then(attribute_scalar) {
+        write!(w, " width=\"{}\"", escape_attribute(width))?;
     }
-    if let Some(height) = metadata.attributes.get("height") {
-        write!(w, " height=\"{height}\"")?;
+    if let Some(height) = attributes.get("height").and_then(attribute_scalar) {
+        write!(w, " height=\"{}\"", escape_attribute(height))?;
     }
     Ok(())
+}
+
+/// Escape authored image text without changing existing character references.
+pub(crate) fn escape_image_text(text: &str) -> String {
+    escape_ampersands(text)
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+pub(crate) fn attribute_scalar(value: AttributeValueRef<'_>) -> Option<&str> {
+    match value {
+        AttributeValueRef::Text(text) => Some(text),
+        AttributeValueRef::Bool(value) => Some(if value { "true" } else { "false" }),
+        AttributeValueRef::None => Some("null"),
+        AttributeValueRef::Content(_)
+        | AttributeValueRef::ContentList(_)
+        | AttributeValueRef::Tokens(_)
+        | AttributeValueRef::Substitutions(_)
+        | _ => None,
+    }
 }

@@ -8,7 +8,7 @@ use wasm_bindgen::prelude::*;
 
 use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
 use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
-use acdc_parser::AttributeValue;
+use acdc_parser::{AttributeValue, CompatibilityMode};
 
 /// Result of a single parse operation: highlighted source + rendered preview.
 pub struct ParseResult {
@@ -77,11 +77,29 @@ pub fn init() -> Result<(), JsValue> {
 ///
 /// Returns an error string if parsing or conversion fails.
 pub fn parse_and_render(input: &str) -> Result<ParseResult, String> {
-    parse_and_render_with_attributes(input, [("source-highlighter", AttributeValue::Bool(true))])
+    parse_and_render_with_mode(input, CompatibilityMode::default())
+}
+
+/// Render highlighted source and a preview using the selected parser compatibility mode.
+/// Include loading remains disabled.
+///
+/// # Errors
+///
+/// Returns an error string if parsing or conversion fails.
+pub fn parse_and_render_with_mode(
+    input: &str,
+    mode: CompatibilityMode,
+) -> Result<ParseResult, String> {
+    parse_and_render_with_attributes(
+        input,
+        mode,
+        [("source-highlighter", AttributeValue::Bool(true))],
+    )
 }
 
 fn parse_and_render_with_attributes<'a, N, V>(
     input: &str,
+    mode: CompatibilityMode,
     document_attributes: impl IntoIterator<Item = (N, V)>,
 ) -> Result<ParseResult, String>
 where
@@ -90,7 +108,9 @@ where
 {
     let processor = Processor::new_with_variant(
         Options::builder().embedded(true).build(),
-        acdc_parser::Options::builder().with_attributes(document_attributes),
+        acdc_parser::Options::builder()
+            .with_compatibility_mode(mode)
+            .with_attributes(document_attributes),
         HtmlVariant::Semantic,
     )
     .map_err(|e| e.to_string())?;
@@ -157,6 +177,97 @@ mod tests {
     use super::*;
 
     #[test]
+    fn source_fixtures_preserve_highlighting_and_preview_in_both_modes() -> Result<(), String> {
+        for (source, mode, highlight, preview) in [
+            (
+                include_str!("../fixtures/source_inlines.adoc"),
+                CompatibilityMode::Asciidoctor,
+                include_str!("../fixtures/source_inlines.asciidoctor.highlight.html"),
+                include_str!("../fixtures/source_inlines.asciidoctor.preview.html"),
+            ),
+            (
+                include_str!("../fixtures/source_inlines.adoc"),
+                CompatibilityMode::Draft,
+                include_str!("../fixtures/source_inlines.draft.highlight.html"),
+                include_str!("../fixtures/source_inlines.draft.preview.html"),
+            ),
+            (
+                include_str!("../fixtures/source_blocks.adoc"),
+                CompatibilityMode::Asciidoctor,
+                include_str!("../fixtures/source_blocks.asciidoctor.highlight.html"),
+                include_str!("../fixtures/source_blocks.asciidoctor.preview.html"),
+            ),
+            (
+                include_str!("../fixtures/source_blocks.adoc"),
+                CompatibilityMode::Draft,
+                include_str!("../fixtures/source_blocks.draft.highlight.html"),
+                include_str!("../fixtures/source_blocks.draft.preview.html"),
+            ),
+        ] {
+            let result = parse_and_render_with_mode(source, mode)?;
+            assert_eq!(result.highlight_html, highlight, "{mode:?} highlight");
+            assert_eq!(result.preview_html, preview, "{mode:?} preview");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn repeated_edits_keep_mode_source_math_and_warnings_independent() -> Result<(), String> {
+        let source = ":word: *Selected*\n\n== {word}\n\n:stem: latexmath\n\nstem:[x^2]\n\nπ 😀 image:diagram.svg[alt='_Diagram_',title='*Hover*'] <<cycle-missing>>\n";
+        let clean = "== Clean\n\nπ 😀 Plain.\n";
+        for _ in 0..2 {
+            for mode in [CompatibilityMode::Draft, CompatibilityMode::Asciidoctor] {
+                let before = parse_and_render_with_mode(source, mode)?;
+                assert!(before.has_stem);
+                assert!(before.highlight_html.contains("adoc-heading"));
+                assert!(before.highlight_html.contains("π 😀"));
+                assert!(before.preview_html.contains("alt=\"Diagram\""));
+                assert!(before.preview_html.contains("title=\"Hover\""));
+                assert!(before.warnings.iter().any(|warning| {
+                    warning.message.contains("cycle-missing")
+                        && warning.line == Some(9)
+                        && warning.column.is_some()
+                }));
+                let heading = if mode == CompatibilityMode::Draft {
+                    "<strong>Selected</strong>"
+                } else {
+                    "*Selected*"
+                };
+                assert!(before.preview_html.contains(&format!(">{heading}</h2>")));
+
+                let reset = parse_and_render_with_mode(clean, mode)?;
+                assert!(!reset.has_stem);
+                assert!(reset.warnings.is_empty());
+                assert!(reset.preview_html.contains(">Clean</h2>"));
+                assert!(!reset.preview_html.contains("Selected"));
+                assert!(!reset.highlight_html.contains("{word}"));
+
+                let after = parse_and_render_with_mode(source, mode)?;
+                assert_eq!(after.preview_html, before.preview_html);
+                assert_eq!(after.highlight_html, before.highlight_html);
+                assert_eq!(after.has_stem, before.has_stem);
+                let warnings = |result: &ParseResult| {
+                    result
+                        .warnings
+                        .iter()
+                        .map(|warning| {
+                            (
+                                warning.message.clone(),
+                                warning.advice.clone(),
+                                warning.file.clone(),
+                                warning.line,
+                                warning.column,
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                };
+                assert_eq!(warnings(&after), warnings(&before));
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
     fn warnings_keep_nested_source_files_and_unicode_positions()
     -> Result<(), Box<dyn std::error::Error>> {
         let input = "= Entry\n\ninclude::chapters/outer.adoc[]\n\nπ 😀 <<entry-missing>>\n";
@@ -207,11 +318,12 @@ mod tests {
         )?;
         let location = parsed
             .document()
-            .blocks
-            .first()
+            .blocks()
+            .next()
             .ok_or("missing block")?
             .location();
-        let unresolved = acdc_parser::SourceLocation::at_location(None, location.clone());
+        let unresolved =
+            acdc_parser::SourceLocation::at_location(None, acdc_parser::Location::from(location));
         let warning = EditorWarning::new(
             "Converter warning".to_string(),
             None,
@@ -281,6 +393,7 @@ mod tests {
 
         let result = parse_and_render_with_attributes(
             "depth={max-include-depth}",
+            CompatibilityMode::default(),
             attributes.into_inputs(),
         )?;
         assert!(result.preview_html.contains("depth=064"));
@@ -293,6 +406,50 @@ mod tests {
         )?;
         assert!(result.preview_html.contains("Semantic preview."));
         assert!(result.preview_html.contains("backend=html5s"));
+        Ok(())
+    }
+    #[test]
+    fn compatibility_mode_keeps_preview_highlighting_and_diagnostics_together() -> Result<(), String>
+    {
+        let source = ":word: *Selected*\n:compatibility-mode: draft\n\n== {word}\n\n[cols=\"a\"]\n|===\n|\n== {word} Cell\n|===\n\ninclude::missing.adoc[]\n";
+        let default = parse_and_render(source)?;
+        let explicit = parse_and_render_with_mode(source, CompatibilityMode::Asciidoctor)?;
+        assert_eq!(default.preview_html, explicit.preview_html);
+        assert_eq!(default.highlight_html, explicit.highlight_html);
+        for (mode, expected, unexpected) in [
+            (
+                CompatibilityMode::Asciidoctor,
+                "*Selected*",
+                "<strong>Selected</strong>",
+            ),
+            (
+                CompatibilityMode::Draft,
+                "<strong>Selected</strong>",
+                "*Selected*",
+            ),
+        ] {
+            let result = parse_and_render_with_mode(source, mode)?;
+            assert!(
+                result.preview_html.contains(&format!(">{expected}</h2>")),
+                "{}",
+                result.preview_html
+            );
+            assert!(
+                result
+                    .preview_html
+                    .contains(&format!(">{expected} Cell</h2>")),
+                "{}",
+                result.preview_html
+            );
+            assert!(!result.preview_html.contains(unexpected));
+            assert!(result.highlight_html.contains("adoc-heading"));
+            assert!(
+                result
+                    .warnings
+                    .iter()
+                    .any(|warning| warning.message.contains("include"))
+            );
+        }
         Ok(())
     }
 }

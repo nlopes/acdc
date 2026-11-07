@@ -1,0 +1,56 @@
+= Custom caption content
+:prefix: *Expanded*
+:listing-caption: Listing
+
+[#custom-example]
+.Formatted caption
+[caption='*Prefix* <tag>: ',subs=none]
+====
+*Literal body*.
+====
+
+.Expanded caption
+[caption='{prefix} <tag>: ']
+====
+Body.
+====
+
+.Literal caption
+[caption="*Literal* -- <tag>: "]
+====
+Body.
+====
+
+.Empty caption
+[caption='']
+====
+Body.
+====
+
+[#numbered-example]
+.Numbered example
+====
+Body.
+====
+
+.Custom image
+[caption='*Picture*: ']
+image::photo.png[Photo]
+
+.Macro caption
+[caption='footnote:discarded[Discarded caption]']
+image::photo.png[Photo,caption='*Literal*: ']
+
+.Custom table
+[caption='*Data*: ']
+|===
+|One |Two
+|===
+
+.Custom listing
+[caption='*Code*: ']
+----
+code
+----
+
+See <<custom-example>> and <<numbered-example>>.

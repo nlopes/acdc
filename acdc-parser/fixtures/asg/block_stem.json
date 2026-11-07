@@ -1,0 +1,372 @@
+{
+  "attributes": {
+    "formula": "*x*",
+    "stem": "latexmath"
+  },
+  "blocks": [
+    {
+      "delimiter": "++++",
+      "form": "delimited",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "x^2 + {formula}"
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 5
+        },
+        {
+          "col": 4,
+          "line": 8
+        }
+      ],
+      "metadata": {
+        "location": [
+          {
+            "col": 1,
+            "line": 5
+          },
+          {
+            "col": 7,
+            "line": 5
+          }
+        ]
+      },
+      "name": "stem",
+      "notation": "latexmath",
+      "type": "block"
+    },
+    {
+      "delimiter": "++++",
+      "form": "delimited",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "sum_(i=1)^n i < n & z"
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 10
+        },
+        {
+          "col": 4,
+          "line": 13
+        }
+      ],
+      "metadata": {
+        "location": [
+          {
+            "col": 1,
+            "line": 10
+          },
+          {
+            "col": 12,
+            "line": 10
+          }
+        ]
+      },
+      "name": "stem",
+      "notation": "asciimath",
+      "type": "block"
+    },
+    {
+      "delimiter": "++++",
+      "form": "delimited",
+      "inlines": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "*x*^2"
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 15
+        },
+        {
+          "col": 4,
+          "line": 18
+        }
+      ],
+      "metadata": {
+        "location": [
+          {
+            "col": 1,
+            "line": 15
+          },
+          {
+            "col": 28,
+            "line": 15
+          }
+        ]
+      },
+      "name": "stem",
+      "notation": "latexmath",
+      "type": "block"
+    },
+    {
+      "delimiter": "++++",
+      "form": "delimited",
+      "inlines": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "x < y & z"
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 20
+        },
+        {
+          "col": 4,
+          "line": 23
+        }
+      ],
+      "metadata": {
+        "location": [
+          {
+            "col": 1,
+            "line": 20
+          },
+          {
+            "col": 17,
+            "line": 20
+          }
+        ]
+      },
+      "name": "stem",
+      "notation": "latexmath",
+      "type": "block"
+    },
+    {
+      "delimiter": "++++",
+      "form": "delimited",
+      "inlines": [],
+      "location": [
+        {
+          "col": 1,
+          "line": 25
+        },
+        {
+          "col": 4,
+          "line": 27
+        }
+      ],
+      "metadata": {
+        "location": [
+          {
+            "col": 1,
+            "line": 25
+          },
+          {
+            "col": 7,
+            "line": 25
+          }
+        ]
+      },
+      "name": "stem",
+      "notation": "latexmath",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 30
+            },
+            {
+              "col": 13,
+              "line": 30
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Ordinary E=mc"
+        },
+        {
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 15,
+                  "line": 30
+                },
+                {
+                  "col": 15,
+                  "line": 30
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "2"
+            }
+          ],
+          "location": [
+            {
+              "col": 14,
+              "line": 30
+            },
+            {
+              "col": 16,
+              "line": 30
+            }
+          ],
+          "name": "span",
+          "type": "inline",
+          "variant": "superscript"
+        },
+        {
+          "location": [
+            {
+              "col": 17,
+              "line": 30
+            },
+            {
+              "col": 27,
+              "line": 30
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": " paragraph."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 29
+        },
+        {
+          "col": 27,
+          "line": 30
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "style": "stem"
+        },
+        "location": [
+          {
+            "col": 1,
+            "line": 29
+          },
+          {
+            "col": 7,
+            "line": 29
+          }
+        ]
+      },
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "blocks": [
+        {
+          "delimiter": "++++",
+          "form": "delimited",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "x+y"
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 33
+            },
+            {
+              "col": 4,
+              "line": 36
+            }
+          ],
+          "metadata": {
+            "location": [
+              {
+                "col": 1,
+                "line": 33
+              },
+              {
+                "col": 12,
+                "line": 33
+              }
+            ]
+          },
+          "name": "stem",
+          "notation": "asciimath",
+          "type": "block"
+        }
+      ],
+      "delimiter": "--",
+      "form": "delimited",
+      "location": [
+        {
+          "col": 1,
+          "line": 32
+        },
+        {
+          "col": 2,
+          "line": 37
+        }
+      ],
+      "name": "open",
+      "type": "block"
+    }
+  ],
+  "header": {
+    "location": [
+      {
+        "col": 1,
+        "line": 1
+      },
+      {
+        "col": 13,
+        "line": 3
+      }
+    ],
+    "title": [
+      {
+        "location": [
+          {
+            "col": 3,
+            "line": 1
+          },
+          {
+            "col": 19,
+            "line": 1
+          }
+        ],
+        "name": "text",
+        "type": "string",
+        "value": "Block mathematics"
+      }
+    ]
+  },
+  "location": [
+    {
+      "col": 1,
+      "line": 1
+    },
+    {
+      "col": 2,
+      "line": 37
+    }
+  ],
+  "name": "document",
+  "profile": "urn:acdc:asg:1",
+  "type": "block"
+}

@@ -1,0 +1,34 @@
+= Styled structural forms
+
+[literal]
+* First item
+* Second item
+
+[listing]
+. First item
+. Second item
+
+[verse]
+term:: Description
+
+[source,text]
+image::sample.png[Sample,title="Tooltip"]
+
+[literal]
+audio::sample.ogg[]
+
+[listing]
+video::sample.mp4[]
+
+[source,text]
+NOTE: Important text
+
+[source,text]
+----
+* Delimited content stays verbatim
+----
+
+[discrete]
+== Discrete leaf
+
+After the heading.

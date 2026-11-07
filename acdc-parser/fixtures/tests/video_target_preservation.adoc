@@ -1,0 +1,9 @@
+video::one.mp4,two.mp4[]
+
+video::one,,three[youtube]
+
+video::12345[vimeo]
+
+:clip: local clip.mp4
+
+video::{clip}[poster=thumb.png]

@@ -1,5 +1,6 @@
 = index-parentheses(1)
 :doctype: manpage
+:docdate: 2026-10-03
 :revdate: 2026-10-03
 :acdc-index:
 :symbol: (R)

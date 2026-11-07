@@ -1,0 +1,5 @@
+Excluded.
+// tag::selected[]
+  α left--right; *left -- right*.
+// end::selected[]
+Excluded.

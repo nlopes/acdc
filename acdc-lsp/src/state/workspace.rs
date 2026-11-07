@@ -13,16 +13,23 @@ use tower_lsp_server::ls_types::{Diagnostic, Uri};
 
 use crate::{
     capabilities::{
-        definition, diagnostics,
+        definition, diagnostics, media,
         workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
     },
-    config::{AnalysisBackend, AnalysisConfiguration, ParserProfiles},
-    convert::{file_path_to_uri, location_to_range, source_uri},
+    config::{AnalysisBackend, AnalysisConfiguration, ParserProfiles, ServerOptions},
+    convert::{file_path_to_uri, location_to_utf16_range, source_uri},
     limits::{MAX_INDEXABLE_FILE_BYTES, read_bounded},
     state::{DocumentState, document::ParsedText},
 };
 
 mod includes;
+
+fn source_coordinates(location: &Location) -> ((u32, u32), (u32, u32)) {
+    (
+        (location.start.line, location.start.column),
+        (location.end.line, location.end.column),
+    )
+}
 
 /// Workspace-level state management
 pub(crate) struct Workspace {
@@ -37,7 +44,7 @@ pub(crate) struct Workspace {
     include_dependencies: DashMap<Uri, HashSet<PathBuf>>,
     /// Resource-scoped analysis configuration.
     analysis_configuration: RwLock<AnalysisConfiguration>,
-    /// Prebuilt parser options for every supported analysis backend.
+    /// Prebuilt parser options for each backend and compatibility mode.
     parser_profiles: ParserProfiles,
 }
 
@@ -62,12 +69,12 @@ impl Workspace {
     }
 
     /// Set the initialization fallback and initial workspace roots.
-    pub(crate) fn initialize_analysis(&self, backend: AnalysisBackend, roots: Vec<Uri>) {
+    pub(crate) fn initialize_analysis(&self, settings: ServerOptions, roots: Vec<Uri>) {
         let mut configuration = self
             .analysis_configuration
             .write()
             .unwrap_or_else(PoisonError::into_inner);
-        *configuration = AnalysisConfiguration::new(backend, roots);
+        *configuration = AnalysisConfiguration::new(settings, roots);
     }
 
     /// Return a snapshot of the current analysis configuration.
@@ -89,7 +96,7 @@ impl Workspace {
     }
 
     /// Apply configuration and refresh diagnostics against the final indexes.
-    /// Reparse open documents only when their effective backend changes.
+    /// Reparse open documents only when their effective settings change.
     pub(crate) fn apply_analysis_configuration(
         &self,
         configuration: &AnalysisConfiguration,
@@ -106,7 +113,7 @@ impl Workspace {
             .documents
             .iter()
             .filter(|entry| {
-                previous.backend_for(entry.key()) != configuration.backend_for(entry.key())
+                previous.settings_for(entry.key()) != configuration.settings_for(entry.key())
             })
             .map(|entry| {
                 (
@@ -136,7 +143,7 @@ impl Workspace {
         for uri in indexed_documents {
             if !configuration.contains(&uri) {
                 self.symbol_index.remove(&uri);
-            } else if previous.backend_for(&uri) != configuration.backend_for(&uri) {
+            } else if previous.settings_for(&uri) != configuration.settings_for(&uri) {
                 self.reindex_file_from_disk(&uri);
             }
         }
@@ -149,7 +156,7 @@ impl Workspace {
         }
         self.scan_roots(&added_roots);
 
-        // Unchanged documents can refer to anchors that the new backend hides
+        // Unchanged documents can refer to anchors that the new settings hide
         // or exposes. Check every open document without reparsing its source.
         let uris: Vec<_> = self
             .documents
@@ -168,16 +175,20 @@ impl Workspace {
         }
     }
 
-    fn backend_for(&self, uri: &Uri) -> AnalysisBackend {
+    fn settings_for(&self, uri: &Uri) -> ServerOptions {
         self.analysis_configuration
             .read()
             .unwrap_or_else(PoisonError::into_inner)
-            .backend_for(uri)
+            .settings_for(uri)
+    }
+
+    fn backend_for(&self, uri: &Uri) -> AnalysisBackend {
+        self.settings_for(uri).backend
     }
 
     /// Return resource-scoped parser options with include loading disabled.
     pub(crate) fn parser_options_for(&self, uri: &Uri) -> &Options<'static> {
-        self.parser_profiles.get(self.backend_for(uri))
+        self.parser_profiles.get(self.settings_for(uri))
     }
 
     /// Update document state and return files whose diagnostics must be published.
@@ -224,12 +235,14 @@ impl Workspace {
 
         let state = Self::parse_and_index(text, version, options);
 
-        // Insert new anchors into the global index
-        for (id, loc) in &state.anchors {
-            self.anchor_index
-                .entry(id.clone())
-                .or_default()
-                .push((uri.clone(), loc.clone()));
+        // Keep all declarations; the per-document lookup selects one per ID.
+        if let Some(ast) = state.ast() {
+            for id in crate::capabilities::identity::occurrences(ast.document()) {
+                self.anchor_index
+                    .entry(id.id.to_owned())
+                    .or_default()
+                    .push((uri.clone(), ast.source_location(&id.location)));
+            }
         }
 
         affected.extend(state.diagnostic_uris(&uri));
@@ -252,11 +265,56 @@ impl Workspace {
         affected
     }
 
+    fn push_diagnostic(
+        &self,
+        state: &mut DocumentState,
+        document_uri: &Uri,
+        source: Option<SourceLocation>,
+        message: diagnostics::DiagnosticMessage,
+    ) {
+        let (uri, range) = if let Some(mut source) = source {
+            // A span across files can only mark its start in one document.
+            let point = source.location.start.file != source.location.end.file;
+            if point {
+                source.location.end = source.location.start.clone();
+                source.location.end.column = source.location.end.column.saturating_sub(1);
+            }
+            let Some(uri) = source_uri(document_uri, &source) else {
+                return;
+            };
+            let range = if &uri == document_uri {
+                location_to_utf16_range(state.text(), &source.location)
+            } else {
+                self.lsp_location(&uri, &source.location)
+                    .map(|location| location.range)
+            };
+            let Some(range) = range else {
+                return;
+            };
+            (uri, range)
+        } else {
+            (
+                document_uri.clone(),
+                tower_lsp_server::ls_types::Range::default(),
+            )
+        };
+        let diagnostic = message.into_diagnostic(range);
+        if &uri == document_uri {
+            state.diagnostics.push(diagnostic);
+        } else {
+            state
+                .included_diagnostics
+                .entry(uri)
+                .or_default()
+                .push(diagnostic);
+        }
+    }
+
     fn compute_diagnostics(&self, uri: &Uri, state: &mut DocumentState) {
         state.diagnostics.clear();
         state.included_diagnostics.clear();
         for (source, diagnostic) in state.parse_diagnostics.clone() {
-            state.push_diagnostic(uri, source, diagnostic);
+            self.push_diagnostic(state, uri, source, diagnostic);
         }
         // Compute diagnostics with workspace context for cross-file xref validation
         let cross_file_resolver = |source_uri: &Uri, parsed: &crate::state::XrefTarget| -> bool {
@@ -294,7 +352,7 @@ impl Workspace {
                 |parsed: &crate::state::XrefTarget| cross_file_resolver(&source_uri, parsed);
             for diagnostic in diagnostics::compute_warnings(
                 &state.anchors,
-                &[(target.clone(), source.location.clone())],
+                std::slice::from_ref(target),
                 Some(&resolver),
             ) {
                 source_diagnostics.push((source.clone(), diagnostic));
@@ -307,7 +365,7 @@ impl Workspace {
                 && let Some(directory) = path.parent()
             {
                 for diagnostic in diagnostics::compute_link_diagnostics(
-                    &[(media.clone(), source.location.clone())],
+                    std::slice::from_ref(media),
                     &[],
                     directory,
                     None,
@@ -323,12 +381,23 @@ impl Workspace {
             && let Some(doc_path) = uri.to_file_path()
             && let Some(doc_dir) = doc_path.parent()
         {
-            let link_diags =
-                diagnostics::compute_link_diagnostics(&[], &state.includes, doc_dir, None);
-            state.diagnostics.extend(link_diags);
+            for (target, location) in &state.includes {
+                for diagnostic in diagnostics::compute_link_diagnostics(
+                    &[],
+                    std::slice::from_ref(target),
+                    doc_dir,
+                    None,
+                ) {
+                    source_diagnostics.push((
+                        SourceLocation::at_location(None, location.clone()),
+                        diagnostic,
+                    ));
+                }
+            }
         }
 
-        let conditional_diags = diagnostics::compute_conditional_diagnostics(&state.conditionals);
+        let conditional_diags =
+            diagnostics::compute_conditional_diagnostics(&state.conditionals, state.text());
         state.diagnostics.extend(conditional_diags);
 
         // Compute section level diagnostics (skipped heading levels)
@@ -340,7 +409,7 @@ impl Workspace {
             );
         }
         for (source, diagnostic) in source_diagnostics {
-            state.push_diagnostic(uri, Some(source), diagnostic);
+            self.push_diagnostic(state, uri, Some(source), diagnostic);
         }
     }
 
@@ -362,6 +431,32 @@ impl Workspace {
         let path = includes::file_path(uri)?;
         let text = read_bounded(&path)?;
         Some(read(&text))
+    }
+
+    /// Convert a resolved physical-file location using editor text or bounded disk text.
+    /// Spans need known text in one source file.
+    pub(crate) fn lsp_location(
+        &self,
+        uri: &Uri,
+        location: &Location,
+    ) -> Option<tower_lsp_server::ls_types::Location> {
+        if location.start.file != location.end.file {
+            return None;
+        }
+        // File-only link targets carry a start position but no end position.
+        let range = if location.start.line == 1
+            && location.start.column == 1
+            && location.end.line == 0
+            && location.end.column == 0
+        {
+            tower_lsp_server::ls_types::Range::default()
+        } else {
+            self.with_document_text(uri, |text| location_to_utf16_range(text, location))??
+        };
+        Some(tower_lsp_server::ls_types::Location {
+            uri: uri.clone(),
+            range,
+        })
     }
 
     /// Remove a document and return files whose diagnostics must be published again.
@@ -414,7 +509,7 @@ impl Workspace {
                 };
                 if !result.iter().any(|(existing_uri, location)| {
                     existing_uri == &uri
-                        && location_to_range(location) == location_to_range(&source.location)
+                        && source_coordinates(location) == source_coordinates(&source.location)
                 }) {
                     result.push((uri, source.location.clone()));
                 }
@@ -449,8 +544,7 @@ impl Workspace {
         let path = uri.to_file_path()?;
         tracing::info!(?path, anchor_id, "reading file from disk for anchor lookup");
         let text = read_bounded(path.as_ref())?;
-        let backend = self.backend_for(uri);
-        let parsed = parse(&text, self.parser_profiles.get(backend)).ok()?;
+        let parsed = parse(&text, self.parser_options_for(uri)).ok()?;
         let anchors = definition::collect_anchors(parsed.document());
         let result = anchors.get(anchor_id).cloned();
         tracing::info!(
@@ -498,7 +592,7 @@ impl Workspace {
                 continue;
             }
             if let Some(text) = read_bounded(&path)
-                && let Ok(parsed) = parse(&text, self.parser_profiles.get(self.backend_for(&uri)))
+                && let Ok(parsed) = parse(&text, self.parser_options_for(&uri))
             {
                 let symbols = extract_workspace_symbols(parsed.document());
                 self.symbol_index.insert(uri, symbols);
@@ -553,7 +647,7 @@ impl Workspace {
                 .entry((
                     uri.clone(),
                     symbol.name.clone(),
-                    location_to_range(&symbol.location),
+                    source_coordinates(&symbol.location),
                 ))
                 .or_default();
             if kinds.contains(&symbol.kind) {
@@ -604,12 +698,10 @@ impl Workspace {
         if let Some(path) = includes::file_path(uri)
             && self.analysis_configuration().contains(uri)
             && let Some(text) = read_bounded(path.as_ref())
+            && let Ok(parsed) = parse(&text, self.parser_options_for(uri))
         {
-            let backend = self.backend_for(uri);
-            if let Ok(parsed) = parse(&text, self.parser_profiles.get(backend)) {
-                let symbols = extract_workspace_symbols(parsed.document());
-                self.symbol_index.insert(uri.clone(), symbols);
-            }
+            let symbols = extract_workspace_symbols(parsed.document());
+            self.symbol_index.insert(uri.clone(), symbols);
         }
     }
 
@@ -641,32 +733,15 @@ impl Workspace {
         }
     }
 
-    /// Line-1 informational diagnostic explaining why AST-backed features
-    /// are disabled for oversized open documents.
-    fn oversized_document_diagnostic(bytes: usize) -> tower_lsp_server::ls_types::Diagnostic {
-        use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, Position, Range};
-
-        let bytes_u64 = u64::try_from(bytes).unwrap_or(u64::MAX);
-        let mib = bytes_u64 / (1024 * 1024);
+    fn oversized_document_message(bytes: usize) -> diagnostics::DiagnosticMessage {
+        let mib = u64::try_from(bytes).unwrap_or(u64::MAX) / (1024 * 1024);
         let limit_mib = MAX_INDEXABLE_FILE_BYTES / (1024 * 1024);
-        Diagnostic {
-            range: Range {
-                start: Position {
-                    line: 0,
-                    character: 0,
-                },
-                end: Position {
-                    line: 0,
-                    character: 0,
-                },
-            },
-            severity: Some(DiagnosticSeverity::INFORMATION),
-            source: Some("acdc".to_string()),
-            message: format!(
+        diagnostics::DiagnosticMessage::new(
+            format!(
                 "Document is {mib} MiB (above the acdc-lsp indexing limit of {limit_mib} MiB); navigation and workspace features are disabled for this file."
             ),
-            ..Default::default()
-        }
+            tower_lsp_server::ls_types::DiagnosticSeverity::INFORMATION,
+        )
     }
 
     /// Parse document and extract all navigation data
@@ -679,7 +754,7 @@ impl Workspace {
         let mut xrefs: Vec<(String, SourceLocation)> = Vec::new();
         let mut media_sources = Vec::new();
         let mut parse_diagnostics = Vec::new();
-        let mut ast_attributes: Option<acdc_parser::DocumentAttributes<'static>> = None;
+        let mut conditionals = None;
 
         // Skip parsing oversized open documents: the parser arena pre-sizes
         // to input length, so a 1 GB file would balloon RSS. Raw-text scans
@@ -690,7 +765,7 @@ impl Workspace {
                 limit = MAX_INDEXABLE_FILE_BYTES,
                 "document exceeds LSP indexing size limit; skipping parse"
             );
-            parse_diagnostics.push((None, Self::oversized_document_diagnostic(text.len())));
+            parse_diagnostics.push((None, Self::oversized_document_message(text.len())));
             ParsedText::from_source(text.into_boxed_str())
         } else {
             match parse(&text, options) {
@@ -705,13 +780,16 @@ impl Workspace {
                             .into_iter()
                             .map(|(id, location)| (id, parse_result.source_location(&location)))
                             .collect();
-                        media_sources = definition::collect_media_sources(doc)
+                        media_sources = media::collect_media_sources(doc)
                             .into_iter()
                             .map(|(source, location)| {
                                 (source, parse_result.source_location(&location))
                             })
                             .collect();
-                        ast_attributes = Some(doc.attributes.to_static());
+                        conditionals = Some(crate::state::document::evaluated_conditionals(
+                            &text,
+                            &parse_result,
+                        ));
                     }
                     // Drain warnings into LSP diagnostics before handing the
                     // (warning-free) `ParseResult` to `ParsedText`, which will
@@ -719,7 +797,7 @@ impl Workspace {
                     for warning in parse_result.take_warnings() {
                         parse_diagnostics.push((
                             warning.source_location().cloned(),
-                            diagnostics::warning_to_diagnostic(&warning),
+                            diagnostics::warning_message(&warning),
                         ));
                     }
                     ParsedText::from_parsed(text.clone().into_boxed_str(), parse_result)
@@ -727,7 +805,7 @@ impl Workspace {
                 Err(error) => {
                     parse_diagnostics.push((
                         error.source_location().cloned(),
-                        diagnostics::error_to_diagnostic(&error),
+                        diagnostics::error_message(&error),
                     ));
                     ParsedText::from_source(text.into_boxed_str())
                 }
@@ -738,11 +816,12 @@ impl Workspace {
         let definitions = crate::state::document::extract_attribute_defs(raw_text);
         let references = crate::state::document::extract_attribute_refs(raw_text);
         let raw_includes = crate::state::document::extract_includes(raw_text);
-        let raw_conditionals = if let Some(attrs) = &ast_attributes {
-            crate::state::document::extract_conditionals(raw_text, attrs)
-        } else {
-            crate::state::document::extract_conditionals(raw_text, options.document_attributes())
-        };
+        let raw_conditionals = conditionals.unwrap_or_else(|| {
+            crate::state::document::extract_conditionals(
+                raw_text,
+                options.document_attributes().into(),
+            )
+        });
 
         DocumentState {
             parsed,
@@ -943,7 +1022,7 @@ mod tests {
         let ast = document.ast().ok_or("document should parse")?;
         assert_eq!(
             ast.document()
-                .attributes
+                .attributes()
                 .get("backend")
                 .and_then(|value| value.text()),
             Some("html5")
@@ -965,7 +1044,13 @@ mod tests {
     #[test]
     fn configured_pdf_backend_activates_reported_or_conditional() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
-        workspace.initialize_analysis(AnalysisBackend::Pdf, Vec::new());
+        workspace.initialize_analysis(
+            crate::config::ServerOptions {
+                backend: AnalysisBackend::Pdf,
+                ..Default::default()
+            },
+            Vec::new(),
+        );
         let uri = "file:///backend-pdf.adoc".parse::<Uri>()?;
         let content = "= Document\nifdef::backend-pdf,backend-docbook5[]\n:title-page:\nendif::backend-pdf,backend-docbook5[]\n\nifdef::backend-pdf,backend-docbook5[]\n[[pdf-or-docbook]]\n== PDF or DocBook\nendif::backend-pdf,backend-docbook5[]\n";
 
@@ -977,12 +1062,12 @@ mod tests {
         let ast = document.ast().ok_or("document should parse")?;
         assert_eq!(
             ast.document()
-                .attributes
+                .attributes()
                 .get("backend")
                 .and_then(|value| value.text()),
             Some("pdf")
         );
-        assert!(ast.document().attributes.contains_key("title-page"));
+        assert!(ast.document().attributes().contains("title-page"));
         drop(ast);
         assert!(document.anchors.contains_key("pdf-or-docbook"));
         assert!(
@@ -1010,15 +1095,27 @@ mod tests {
         let pdf_root = "file:///workspace/pdf".parse::<Uri>()?;
         let html_uri = "file:///workspace/html/index.adoc".parse::<Uri>()?;
         let pdf_uri = "file:///workspace/pdf/index.adoc".parse::<Uri>()?;
-        let mut configuration = AnalysisConfiguration::new(AnalysisBackend::Html5, Vec::new());
+        let mut configuration = AnalysisConfiguration::new(
+            crate::config::ServerOptions {
+                backend: AnalysisBackend::Html5,
+                ..Default::default()
+            },
+            Vec::new(),
+        );
         configuration.replace_roots(vec![
             RootConfiguration {
                 uri: html_root.clone(),
-                backend: Some(AnalysisBackend::Html5),
+                settings: crate::config::WorkspaceSettings {
+                    backend: Some(AnalysisBackend::Html5),
+                    ..Default::default()
+                },
             },
             RootConfiguration {
                 uri: pdf_root.clone(),
-                backend: Some(AnalysisBackend::Pdf),
+                settings: crate::config::WorkspaceSettings {
+                    backend: Some(AnalysisBackend::Pdf),
+                    ..Default::default()
+                },
             },
         ]);
         workspace.apply_analysis_configuration(&configuration);
@@ -1029,11 +1126,17 @@ mod tests {
         configuration.replace_roots(vec![
             RootConfiguration {
                 uri: html_root,
-                backend: Some(AnalysisBackend::Markdown),
+                settings: crate::config::WorkspaceSettings {
+                    backend: Some(AnalysisBackend::Markdown),
+                    ..Default::default()
+                },
             },
             RootConfiguration {
                 uri: pdf_root,
-                backend: Some(AnalysisBackend::Pdf),
+                settings: crate::config::WorkspaceSettings {
+                    backend: Some(AnalysisBackend::Pdf),
+                    ..Default::default()
+                },
             },
         ]);
         let result = workspace.apply_analysis_configuration(&configuration);
@@ -1053,10 +1156,19 @@ mod tests {
         let workspace = Workspace::new();
         let root = "file:///workspace/pdf".parse::<Uri>()?;
         let uri = "file:///workspace/pdf/index.adoc".parse::<Uri>()?;
-        let mut configuration = AnalysisConfiguration::new(AnalysisBackend::Html5, Vec::new());
+        let mut configuration = AnalysisConfiguration::new(
+            crate::config::ServerOptions {
+                backend: AnalysisBackend::Html5,
+                ..Default::default()
+            },
+            Vec::new(),
+        );
         configuration.replace_roots(vec![RootConfiguration {
             uri: root,
-            backend: Some(AnalysisBackend::Pdf),
+            settings: crate::config::WorkspaceSettings {
+                backend: Some(AnalysisBackend::Pdf),
+                ..Default::default()
+            },
         }]);
         workspace.apply_analysis_configuration(&configuration);
         workspace.update_document(
@@ -1113,7 +1225,13 @@ mod tests {
         )?;
         let root = Uri::from_file_path(&directory).ok_or("temporary path should become a URI")?;
         let workspace = Workspace::new();
-        workspace.initialize_analysis(AnalysisBackend::Html5, vec![root]);
+        workspace.initialize_analysis(
+            crate::config::ServerOptions {
+                backend: AnalysisBackend::Html5,
+                ..Default::default()
+            },
+            vec![root],
+        );
         workspace.scan_workspace_files();
         assert!(
             workspace
@@ -1123,7 +1241,10 @@ mod tests {
         );
 
         let mut configuration = workspace.analysis_configuration();
-        configuration.set_unscoped(Some(AnalysisBackend::Pdf));
+        configuration.set_unscoped(crate::config::WorkspaceSettings {
+            backend: Some(AnalysisBackend::Pdf),
+            ..Default::default()
+        });
         let result = workspace.apply_analysis_configuration(&configuration);
 
         assert!(result.changed);
@@ -1188,7 +1309,13 @@ mod tests {
 
         let workspace = Workspace::new();
         let root_url = Uri::from_file_path(&tmp).ok_or("bad path")?;
-        workspace.initialize_analysis(AnalysisBackend::Html5, vec![root_url]);
+        workspace.initialize_analysis(
+            crate::config::ServerOptions {
+                backend: AnalysisBackend::Html5,
+                ..Default::default()
+            },
+            vec![root_url],
+        );
 
         // Scan workspace — should populate symbol_index
         workspace.scan_workspace_files();
@@ -1442,11 +1569,18 @@ mod tests {
     #[test]
     fn oversized_open_document_is_gated() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
+        workspace.initialize_analysis(
+            crate::config::ServerOptions {
+                backend: AnalysisBackend::Pdf,
+                ..Default::default()
+            },
+            Vec::new(),
+        );
         let uri = "file:///huge.adoc".parse::<Uri>()?;
 
         let size = usize::try_from(MAX_INDEXABLE_FILE_BYTES).unwrap_or(usize::MAX) + 1;
         let mut content = String::with_capacity(size);
-        content.push_str("= Huge document\n\n");
+        content.push_str("= Huge document\n\nifdef::backend-pdf[]\nPDF.\nendif::[]\n\nifdef::backend-html5[]\nHTML.\nendif::[]\n\n");
         content.push_str(&"a".repeat(size - content.len()));
 
         workspace.update_document(uri.clone(), content, 1);
@@ -1458,9 +1592,29 @@ mod tests {
                 .any(|d| d.message.contains("indexing limit")),
             "expected an 'indexing limit' informational diagnostic"
         );
+        assert!(doc.ast().is_none());
+        assert_eq!(
+            doc.conditionals
+                .iter()
+                .map(|condition| condition.is_active)
+                .collect::<Vec<_>>(),
+            [true, false]
+        );
         assert!(doc.anchors.is_empty());
         assert_eq!(doc.xrefs, []);
         assert_eq!(doc.media_sources, []);
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod diagnostic_ranges;
+
+#[cfg(test)]
+mod annotation_ranges;
+
+#[cfg(test)]
+mod selection_highlighting;
+
+#[cfg(test)]
+mod source_edits;

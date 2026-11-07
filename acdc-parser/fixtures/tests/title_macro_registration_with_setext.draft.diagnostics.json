@@ -1,0 +1,40 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 186,
+      "absolute_start": 156,
+      "file": "title_macro_registration_with_setext.adoc",
+      "location": [
+        {
+          "col": 1,
+          "line": 5
+        },
+        {
+          "col": 31,
+          "line": 5
+        }
+      ]
+    },
+    "message": "unterminated listing block (opened by `-------------------------------`)"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 186,
+        "absolute_start": 156,
+        "file": "title_macro_registration_with_setext.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 5
+          },
+          {
+            "col": 31,
+            "line": 5
+          }
+        ]
+      },
+      "message": "unterminated listing block (opened by `-------------------------------`)"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+= Attached paragraph boundaries
+
+* Parent
+Term:: Definition.
++
+Attached paragraph.
+* Sibling

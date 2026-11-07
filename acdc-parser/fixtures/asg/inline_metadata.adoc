@@ -1,0 +1,15 @@
+= Inline metadata
+
+[#target]
+== Destination
+
+[#strong.one.two]*Strong image:nested.png[alt="",title=""]* and
+[.emphasis]_Emphasis_ and [.code]`Code` and [.review]#Generic span# and #Mark#.
+
+link:https://example.org[Label,id=link,role="one two",opts="nofollow noopener",title='_Tip_',window=_blank,custom=""]
+
+https://example.org[URL,id=url,role=external,title=""]
+
+mailto:person@example.org[Mail,Subject,Body,id=mail,role=contact,custom=keep]
+
+xref:target[Destination,id=use,role="one two",opts=custom,custom=keep]

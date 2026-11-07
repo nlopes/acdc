@@ -1,7 +1,7 @@
 //! Table blocks and cell content.
 
 use crate::{
-    AttributeName, AttributeValue, Block, ColumnStyle, ColumnWidth, DelimitedBlock,
+    AttributeName, AttributeValue, Block, ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock,
     DelimitedBlockType, DocumentAttribute, DocumentAttributeAssignment, Error, HorizontalAlignment,
     InlineNode, Location, Paragraph, Table, TableColumn, TablePresentation, TableRow, Verbatim,
     VerticalAlignment, Warning, WarningKind,
@@ -11,9 +11,8 @@ use crate::{
         helpers::BlockParsingMetadata, inline_processing::adjust_and_log_parse_error,
         state::BlockContext,
     },
-    model::strip_quotes,
 };
-use std::rc::Rc;
+use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
 /// The matched closing delimiter, or an unterminated table.
 /// An unterminated table ends at end of input and produces a warning.
@@ -45,12 +44,92 @@ fn table_limit_error(
     location: Location,
     resource: &str,
     requested: impl std::fmt::Display,
-    limit: usize,
+    limit: impl std::fmt::Display,
 ) -> Error {
     Error::Parse(
         Box::new(state.create_error_source_location(location)),
         format!("table {resource} request of {requested} exceeds the maximum of {limit}"),
     )
+}
+
+/// Read a complete `[multiplier*][halign][.valign][width][style]` record.
+/// Invalid records contribute no columns, matching Asciidoctor.
+/// Numeric widths outside the supported u32 range return the authored value.
+fn parse_column_spec(input: &str) -> Result<Option<(usize, ColumnFormat)>, &str> {
+    let (multiplier, input) = if let Some((count, rest)) = input.split_once('*') {
+        if count.is_empty() || !count.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Ok(None);
+        }
+        (count.parse().unwrap_or(MAX_TABLE_COLUMNS + 1), rest)
+    } else {
+        (1, input)
+    };
+    let alignment_end = input.len() - input.trim_start_matches(['<', '^', '>', '.']).len();
+    let (alignment, mut rest) = input.split_at(alignment_end);
+    let (horizontal, vertical) = match alignment.as_bytes() {
+        [] => (None, None),
+        [h @ (b'<' | b'^' | b'>')] | [h @ (b'<' | b'^' | b'>'), b'.'] => (Some(*h), None),
+        [b'.', v @ (b'<' | b'^' | b'>')] => (None, Some(*v)),
+        [h @ (b'<' | b'^' | b'>'), b'.', v @ (b'<' | b'^' | b'>')] => (Some(*h), Some(*v)),
+        _ => return Ok(None),
+    };
+    let mut format = ColumnFormat {
+        halign: match horizontal {
+            Some(b'^') => HorizontalAlignment::Center,
+            Some(b'>') => HorizontalAlignment::Right,
+            _ => HorizontalAlignment::Left,
+        },
+        valign: match vertical {
+            Some(b'^') => VerticalAlignment::Middle,
+            Some(b'>') => VerticalAlignment::Bottom,
+            _ => VerticalAlignment::Top,
+        },
+        ..ColumnFormat::default()
+    };
+    let mut width_error = None;
+    if let Some(tail) = rest.strip_prefix('~') {
+        format.width = ColumnWidth::Auto;
+        rest = tail;
+    } else {
+        let width_end = rest.bytes().take_while(u8::is_ascii_digit).count();
+        let (width, tail) = rest.split_at(width_end);
+        let percentage = tail.starts_with('%') && !width.is_empty();
+        rest = if percentage {
+            tail.strip_prefix('%').unwrap_or(tail)
+        } else {
+            tail
+        };
+        if !width.is_empty() {
+            match width.parse() {
+                Ok(width) => {
+                    format.width = if percentage {
+                        ColumnWidth::Percentage(width)
+                    } else {
+                        ColumnWidth::Proportional(width)
+                    };
+                }
+                Err(_) => width_error = Some(width),
+            }
+        }
+    }
+    format.style = match rest.as_bytes() {
+        [] => ColumnStyle::Default,
+        [style] if style.is_ascii_lowercase() => match style {
+            b'a' => ColumnStyle::AsciiDoc,
+            b'e' => ColumnStyle::Emphasis,
+            b'h' => ColumnStyle::Header,
+            b'l' => ColumnStyle::Literal,
+            b'm' => ColumnStyle::Monospace,
+            b's' => ColumnStyle::Strong,
+            _ => ColumnStyle::Default,
+        },
+        _ => return Ok(None),
+    };
+    if let Some(width) = width_error {
+        Err(width)
+    } else {
+        Ok(Some((multiplier, format)))
+    }
 }
 
 /// Parse a table block with the selected separator and source ranges.
@@ -75,8 +154,10 @@ pub(super) fn parse_table_block_impl<'input>(
 
     let mut metadata = block_metadata.metadata.clone();
     metadata.move_positional_attributes_to_attributes();
-    let presentation =
-        TablePresentation::from_attributes(&metadata, |name| (state.document_attributes).get(name));
+    let presentation_defaults = TablePresentation::from_attribute_values(
+        |_| None,
+        |name| state.document_attributes.get(name),
+    );
     let location = state.create_block_location(start, end, offset);
     let table_location = state.create_block_location(table_start, end, offset);
     let open_delimiter_location = state.create_location(
@@ -136,139 +217,56 @@ pub(super) fn parse_table_block_impl<'input>(
     let (ncols, column_formats) = if let Some(AttributeValue::String(cols)) =
         block_metadata.metadata.attributes.get("cols")
     {
-        // Parse cols attribute
-        // Full syntax: [multiplier*][halign][valign][width][style]
-        // Examples: "3*", "^.>2a", "2*>.^1m", "<,^,>", "15%,30%,55%"
+        let cols = if cols.contains(' ') {
+            Cow::Owned(cols.replace(' ', ""))
+        } else {
+            Cow::Borrowed(cols.as_ref())
+        };
         let mut specs = Vec::new();
-
-        for part in cols.split(',') {
-            let s = strip_quotes(part.trim());
-
-            // Check for "N*" notation (e.g., "3*" means 3 columns with same spec)
-            let (multiplier, spec_str) = if let Some(pos) = s.find('*') {
-                let mult_str = &s[..pos];
-                let mult = mult_str.parse::<usize>().unwrap_or_else(|_| {
-                    if !mult_str.is_empty() && mult_str.bytes().all(|b| b.is_ascii_digit()) {
-                        MAX_TABLE_COLUMNS + 1
-                    } else {
-                        1
-                    }
-                });
-                (mult, &s[pos + 1..])
-            } else {
-                (1, s)
-            };
-
-            let mut halign = HorizontalAlignment::default();
-            let mut valign = VerticalAlignment::default();
-            let mut width = ColumnWidth::default();
-            let mut style = ColumnStyle::default();
-
-            // Parse style (last character if it's a letter: a, d, e, h, l, m, s)
-            let spec_str = if let Some(last_char) = spec_str.chars().last() {
-                match last_char {
-                    'a' => {
-                        style = ColumnStyle::AsciiDoc;
-                        &spec_str[..spec_str.len() - 1]
-                    }
-                    'd' => {
-                        style = ColumnStyle::Default;
-                        &spec_str[..spec_str.len() - 1]
-                    }
-                    'e' => {
-                        style = ColumnStyle::Emphasis;
-                        &spec_str[..spec_str.len() - 1]
-                    }
-                    'h' => {
-                        style = ColumnStyle::Header;
-                        &spec_str[..spec_str.len() - 1]
-                    }
-                    'l' => {
-                        style = ColumnStyle::Literal;
-                        &spec_str[..spec_str.len() - 1]
-                    }
-                    'm' => {
-                        style = ColumnStyle::Monospace;
-                        &spec_str[..spec_str.len() - 1]
-                    }
-                    's' => {
-                        style = ColumnStyle::Strong;
-                        &spec_str[..spec_str.len() - 1]
-                    }
-                    _ => spec_str,
-                }
-            } else {
-                spec_str
-            };
-
-            // Parse vertical alignment markers: .<, .^, .>
-            if spec_str.contains(".<") {
-                valign = VerticalAlignment::Top;
-            } else if spec_str.contains(".^") {
-                valign = VerticalAlignment::Middle;
-            } else if spec_str.contains(".>") {
-                valign = VerticalAlignment::Bottom;
-            }
-
-            // Parse horizontal alignment markers: <, ^, > (not preceded by .)
-            for (i, c) in spec_str.char_indices() {
-                let prev_char = if i > 0 {
-                    spec_str.chars().nth(i - 1)
-                } else {
-                    None
-                };
-                if prev_char == Some('.') {
-                    continue; // This is a vertical alignment marker
-                }
-                match c {
-                    '<' => halign = HorizontalAlignment::Left,
-                    '^' => halign = HorizontalAlignment::Center,
-                    '>' => halign = HorizontalAlignment::Right,
-                    _ => {}
-                }
-            }
-
-            // Parse width: integer (proportional), percentage, or ~ (auto)
-            // The ~ (tilde) for auto-width was added in Asciidoctor 1.5.7
-            // See: https://github.com/asciidoctor/asciidoctor/issues/1844
-            // Remove alignment markers to find the width
-            let width_str: String = spec_str
-                .chars()
-                .filter(|c| !matches!(c, '<' | '^' | '>' | '.'))
-                .collect();
-            if !width_str.is_empty() {
-                if width_str == "~" {
-                    width = ColumnWidth::Auto;
-                } else if width_str.ends_with('%') {
-                    if let Ok(pct) = width_str.trim_end_matches('%').parse::<u32>() {
-                        width = ColumnWidth::Percentage(pct);
-                    }
-                } else if let Ok(prop) = width_str.parse::<u32>() {
-                    width = ColumnWidth::Proportional(prop);
-                }
-            }
-
-            // Add the spec for each column in the multiplier (including defaults)
-            let spec = crate::ColumnFormat {
-                halign,
-                valign,
-                width,
-                style,
-            };
-            let column_count = specs.len().saturating_add(multiplier);
-            if column_count > MAX_TABLE_COLUMNS {
+        let count_only = !cols.is_empty()
+            && cols.bytes().all(|byte| byte.is_ascii_digit())
+            && (cols.len() == 1 || !cols.starts_with('0'));
+        if count_only {
+            let count = cols.parse::<usize>().unwrap_or(MAX_TABLE_COLUMNS + 1);
+            if count > MAX_TABLE_COLUMNS {
                 return Err(table_limit_error(
                     state,
                     table_location.clone(),
                     "column count",
-                    column_count.to_string(),
+                    count,
                     MAX_TABLE_COLUMNS,
                 ));
             }
-            specs.extend(std::iter::repeat_n(spec, multiplier));
+            specs.resize(count, ColumnFormat::default());
+        } else {
+            for input in cols.split(if cols.contains(',') { ',' } else { ';' }) {
+                let Some((multiplier, spec)) = parse_column_spec(input).map_err(|width| {
+                    table_limit_error(
+                        state,
+                        table_location.clone(),
+                        "column width",
+                        width,
+                        u32::MAX,
+                    )
+                })?
+                else {
+                    continue;
+                };
+                let column_count = specs.len().saturating_add(multiplier);
+                if column_count > MAX_TABLE_COLUMNS {
+                    return Err(table_limit_error(
+                        state,
+                        table_location.clone(),
+                        "column count",
+                        column_count,
+                        MAX_TABLE_COLUMNS,
+                    ));
+                }
+                specs.extend(std::iter::repeat_n(spec, multiplier));
+            }
         }
 
-        (Some(specs.len()), specs)
+        ((!specs.is_empty()).then_some(specs.len()), specs)
     } else {
         (None, Vec::new())
     };
@@ -458,7 +456,7 @@ pub(super) fn parse_table_block_impl<'input>(
         .with_header(header)
         .with_footer(footer)
         .with_columns(column_formats)
-        .with_presentation(presentation);
+        .with_presentation(&metadata, presentation_defaults);
 
     Ok(Block::DelimitedBlock(DelimitedBlock {
         source_text: None,
@@ -470,6 +468,21 @@ pub(super) fn parse_table_block_impl<'input>(
         open_delimiter_location: Some(open_delimiter_location),
         close_delimiter_location,
     }))
+}
+
+pub(super) fn finalize_footnotes(blocks: &mut [Block<'_>]) {
+    crate::grammar::location_walk::try_walk_table_cells_mut(blocks, &mut |cell| {
+        if let Some(definitions) = &mut cell.footnotes {
+            for definition in definitions {
+                super::references::finalize_footnote_text(
+                    &mut definition.registration_substitutions,
+                    &mut definition.content,
+                );
+            }
+        }
+        Ok(true)
+    })
+    .unwrap_or_else(|never: std::convert::Infallible| match never {});
 }
 
 fn parse_table_cell<'a>(
@@ -506,16 +519,21 @@ fn parse_table_cell<'a>(
     // Markdown blockquotes are only parsed when cell has AsciiDoc style ('a' prefix).
     // This matches asciidoctor behavior where `> text` is only a blockquote in 'a' style cells.
     let mut initial_attributes = Vec::new();
+    let mut footnotes = None;
     let blocks = if spec.style == Some(ColumnStyle::AsciiDoc) {
         // An AsciiDoc-style cell is a nested document. It inherits the outer
         // attributes, but its local attributes, section catalog, hard-break
         // state, and pending callout references do not escape into sibling cells or the
         // outer document.
+        let next_number = state.footnote_tracker.borrow().next_number();
+        let nested_tracker = Rc::new(RefCell::new(state.footnote_tracker.borrow_mut().nested()));
+        let outer_tracker = std::mem::replace(&mut state.footnote_tracker, nested_tracker);
         let outer_attributes = Rc::clone(&state.document_attributes);
         let outer_parent_attributes = state
             .nested_parent_attributes
             .replace(Rc::clone(&state.document_attributes));
         let outer_hardbreaks = state.hardbreaks;
+        let outer_reftext = state.body_reftext_source;
         let outer_context = std::mem::replace(&mut state.block_context, BlockContext::Document);
         let outer_toc_len = state.toc_entries.len();
         let outer_pending_callouts = std::mem::take(&mut state.pending_callouts);
@@ -531,9 +549,18 @@ fn parse_table_cell<'a>(
             &mut initial_attributes,
         );
 
+        if result.is_err() {
+            state.footnote_tracker.borrow_mut().discard_definitions();
+            outer_tracker.borrow_mut().set_next_number(next_number);
+        }
+        footnotes = Some(std::mem::take(
+            &mut state.footnote_tracker.borrow_mut().footnotes,
+        ));
+        state.footnote_tracker = outer_tracker;
         state.document_attributes = outer_attributes;
         state.nested_parent_attributes = outer_parent_attributes;
         state.hardbreaks = outer_hardbreaks;
+        state.body_reftext_source = outer_reftext;
         state.block_context = outer_context;
         state.toc_entries.truncate(outer_toc_len);
         state.pending_callouts = outer_pending_callouts;
@@ -560,6 +587,7 @@ fn parse_table_cell<'a>(
         spec.style,
     );
     column.initial_attributes = initial_attributes;
+    column.footnotes = footnotes;
     Ok(column)
 }
 

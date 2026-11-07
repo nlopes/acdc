@@ -390,11 +390,26 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Table Nested in Definition List",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Table Nested in Definition List",
+                  "location": [
+                    {
+                      "line": 10,
+                      "col": 1
+                    },
+                    {
+                      "line": 10,
+                      "col": 31
+                    }
+                  ]
+                }
+              ],
+              "delimiter": ":::",
               "location": [
                 {
                   "line": 10,
@@ -402,13 +417,11 @@
                 },
                 {
                   "line": 10,
-                  "col": 31
+                  "col": 34
                 }
               ]
             }
           ],
-          "delimiter": ":::",
-          "description": [],
           "location": [
             {
               "line": 10,
@@ -416,7 +429,7 @@
             },
             {
               "line": 10,
-              "col": 35
+              "col": 34
             }
           ]
         }
@@ -428,7 +441,7 @@
         },
         {
           "line": 10,
-          "col": 35
+          "col": 34
         }
       ]
     },

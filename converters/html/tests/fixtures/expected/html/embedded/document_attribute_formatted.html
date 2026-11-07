@@ -27,7 +27,7 @@
 <p>Macros: <a href="https://example.org">Site</a> / <a id="_indexterm_0"></a>Term / <sup class="footnote" id="_footnote_n">[<a id="_footnoteref_4" class="footnote" href="#_footnotedef_4" title="View footnote.">4</a>]</sup> / <sup class="footnoteref">[<a class="footnote" href="#_footnotedef_4" title="View footnote.">4</a>]</sup>.</p>
 </div>
 <div class="paragraph">
-<p>Empty: ** / **. Escaped: <strong>{name}</strong>.</p>
+<p>Empty: ** / <strong></strong>. Escaped: <strong>{name}</strong>.</p>
 </div>
 <div class="paragraph">
 <p>Order: pass:q,c[*Escaped*] / pass:m,c[https://example.org[Escaped site]]. Partial: prefix pass:q[*Literal*].</p>
@@ -39,12 +39,21 @@
 </colgroup>
 <tbody>
 <tr>
-<td class="tableblock halign-left valign-top"><div class="paragraph">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="paragraph">
 <p>Cell: <strong>Early</strong> / <strong>Bold</strong> / <strong>Early</strong> / <sup class="footnote">[<a id="_footnoteref_5" class="footnote" href="#_footnotedef_5" title="View footnote.">5</a>]</sup>.</p>
 </div>
+<div class="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_5">
+<a href="#_footnoteref_5">5</a>. Anonymous body.</div>
+</div>
+</div>
 </td>
-<td class="tableblock halign-left valign-top"><div class="paragraph">
+<td class="tableblock halign-left valign-top"><div class="content">
+<div class="paragraph">
 <p>Other: Late / <strong>Body</strong>.</p>
+</div>
 </div>
 </td>
 </tr>
@@ -75,8 +84,6 @@
 <a href="#_footnoteref_3">3</a>. Anonymous body.</div>
 <div class="footnote" id="_footnotedef_4">
 <a href="#_footnoteref_4">4</a>. Named body.</div>
-<div class="footnote" id="_footnotedef_5">
-<a href="#_footnoteref_5">5</a>. Anonymous body.</div>
 <div class="footnote" id="_footnotedef_6">
 <a href="#_footnoteref_6">6</a>. Anonymous body.</div>
 </div>

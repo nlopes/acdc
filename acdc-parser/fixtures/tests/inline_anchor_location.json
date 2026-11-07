@@ -172,7 +172,23 @@
               "name": "anchor",
               "type": "inline",
               "id": "second-anchor",
-              "xreflabel": "Custom Label",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Custom Label",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 40
+                    },
+                    {
+                      "line": 9,
+                      "col": 51
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 9,

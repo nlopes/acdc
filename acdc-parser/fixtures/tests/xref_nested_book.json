@@ -58,6 +58,8 @@
           "name": "xref",
           "type": "inline",
           "target": "chapter",
+          "target_is_local": true,
+          "xrefstyle": "full",
           "location": [
             {
               "line": 5,
@@ -113,6 +115,7 @@
           {
             "columns": [
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "doctype",
@@ -156,12 +159,12 @@
                           "id": "chapter",
                           "location": [
                             {
-                              "line": 1,
-                              "col": 17
+                              "line": 12,
+                              "col": 1
                             },
                             {
-                              "line": 2,
-                              "col": 3
+                              "line": 12,
+                              "col": 12
                             }
                           ]
                         }
@@ -191,6 +194,8 @@
                             "name": "xref",
                             "type": "inline",
                             "target": "chapter",
+                            "target_is_local": true,
+                            "xrefstyle": "full",
                             "location": [
                               {
                                 "line": 15,

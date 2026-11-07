@@ -1,4 +1,8 @@
-use acdc_parser::{Block, Options, parse};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, BlockRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -59,13 +63,17 @@ fn standalone_callouts_validate_source_markers_and_render_ordinals() -> Result<(
     for marker in ["0", "2", "01", "999999999999999999999999999999999999"] {
         let source = format!("<{marker}> First.\n<.> Second.\n");
         let parsed = parse(&source, &Options::default())?;
-        let [Block::CalloutList(list)] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::CalloutList(list)] = &*parsed
+            .document()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err(format!("expected a callout list for {source:?}").into());
         };
         assert_eq!(
-            list.items
-                .iter()
-                .map(|item| item.callout.number)
+            list.items()
+                .map(|item| item.callout().number())
                 .collect::<Vec<_>>(),
             [1, 2]
         );
@@ -116,7 +124,7 @@ fn standalone_callouts_register_parent_notes_before_nested_notes() -> Result<(),
             "{marker} Parent footnote:[Parent.].\n<1> Child footnote:[Child.].\n<2> Last footnote:[Last.].\n"
         );
         let parsed = parse(&source, &Options::default())?;
-        let notes = &parsed.document().footnotes;
+        let notes = parsed.document().footnotes().collect::<Vec<_>>();
         assert_eq!(notes.len(), 3, "{source}");
         for (note, expected) in notes.iter().zip([
             "footnote:[Parent.]",
@@ -124,7 +132,7 @@ fn standalone_callouts_register_parent_notes_before_nested_notes() -> Result<(),
             "footnote:[Last.]",
         ]) {
             assert_eq!(
-                source.get(note.location.absolute_start..=note.location.absolute_end),
+                source.get(note.location().absolute_start()..=note.location().absolute_end()),
                 Some(expected),
                 "{source}"
             );
@@ -138,10 +146,14 @@ fn standalone_callout_probes_do_not_register_paragraph_notes_twice() -> Result<(
     let source = "Prose.\n<1> Literal marker footnote:[Only note.].\n";
     let parsed = parse(source, &Options::default())?;
     assert!(matches!(
-        parsed.document().blocks.as_slice(),
-        [Block::Paragraph(_)]
+        &*parsed
+            .document()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>(),
+        [BlockKind::Paragraph(_)]
     ));
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }

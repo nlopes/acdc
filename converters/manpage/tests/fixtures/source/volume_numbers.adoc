@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: Library Manual
 :mansource: MyLib 2.0
+:docdate: 2025-06-01
 :revdate: 2025-06-01
 
 == Name

@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -78,8 +79,8 @@
 ]
 #v(1em)
 
-#text("Default text: ")#text("[arrow left]")#text(".")
+#text("Default text: ")#text("[")#text("arrow left")#text("]")#text(".")
 
-#text("Custom text: ")#text("[Love]")#text(".")
+#text("Custom text: ")#text("[")#text("Love")#text("]")#text(".")
 
-#text("PDF ignores icon sizing and titles in text mode: ")#text("[heart]")#text(".")
+#text("PDF ignores icon sizing and titles in text mode: ")#text("[")#text("heart")#text("]")#text(".")

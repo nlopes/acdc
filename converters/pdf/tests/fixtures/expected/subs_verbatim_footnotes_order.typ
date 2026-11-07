@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -181,7 +182,7 @@
     }
   }
   let links = (
-    ((7, 10, body => [#counter(footnote).update(3)#footnote[#strong[#text("Bold")]#text(" and ©.")]]), ),
+    ((7, 10, body => [#counter(footnote).update(3)#footnote[#strong[#text("Bold")]#text(" and ")#text("©")#text(".")]]), ),
     ((5, 8, body => [#counter(footnote).update(4)#footnote[#text("Term note.")]]), ),
   )
   let code-links(line) = {

@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Description-list previews retain all terms in a shared group, with separate
+  marker highlighting and one highlighted definition.
+
+- Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+
 ### Added
+
+- Choose Asciidoctor or Draft compatibility in the live editor. Changing the
+  selection updates highlighting, diagnostics, and the preview together. Rust
+  callers can select the same mode with `parse_and_render_with_mode`; the
+  existing API keeps its Asciidoctor default and disabled include loading.
+
+- Keep source highlighting available around resolved typography.
 
 - A note in the editor pane explains that embedded HTML can run code or
   change the page. Use content you trust.
@@ -17,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   must supply its new `file` field. Use `None` for unnamed input.
 
 ### Fixed
+
+- Restore clean strict Clippy builds for the WASM editor.
+
+- Legacy underlined headings are recognized and highlighted in builds without
+  the `setext` feature, following the default Asciidoctor mode.
 
 - Highlighting skips included-file ranges and ranges that cross source files.
   These ranges no longer apply styles to unrelated entry text. Entry-file

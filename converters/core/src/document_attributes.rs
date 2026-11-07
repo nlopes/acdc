@@ -1,10 +1,13 @@
 use std::borrow::Cow;
 
 use acdc_parser::{
-    Block, DocumentAttribute, DocumentAttributeAssignment, DocumentAttributeValue,
-    DocumentAttributes,
+    DocumentAttributeAssignment, DocumentAttributeValue,
+    ast::{
+        BlockKind, BlockRef, DocumentAttributeRef, DocumentAttributesRef, DocumentRef,
+        FootnoteDefinitionRef, StructuralRef, TableCellRef,
+    },
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 type Overlay<'doc> = FxHashMap<&'doc str, &'doc DocumentAttributeAssignment<'doc>>;
 
@@ -14,20 +17,23 @@ type Overlay<'doc> = FxHashMap<&'doc str, &'doc DocumentAttributeAssignment<'doc
 ///
 /// ```
 /// use std::convert::Infallible;
-/// use acdc_converters_core::{TraversalContext, visitor::Visitor};
-/// use acdc_parser::{Options, Paragraph, parse};
+/// use acdc_converters_core::{TraversalContext, visitor::{BlockVisitor, DocumentVisitor}};
+/// use acdc_parser::{Options, ast::{BlockKind, BlockRef}, parse};
 ///
 /// #[derive(Default)]
 /// struct Directories<'doc>(Vec<&'doc str>);
 ///
-/// impl<'doc> Visitor<'doc> for Directories<'doc> {
+/// impl<'doc> BlockVisitor<'doc> for Directories<'doc> {
 ///     type Error = Infallible;
 ///
-///     fn visit_paragraph(
+///     fn visit_block(
 ///         &mut self,
 ///         context: &mut TraversalContext<'doc>,
-///         _: &Paragraph<'_>,
+///         block: BlockRef<'doc>,
 ///     ) -> Result<(), Self::Error> {
+///         if !matches!(block.kind(), BlockKind::Paragraph(_)) {
+///             return Ok(());
+///         }
 ///         if let Some(directory) = context.get("imagesdir").and_then(|value| value.as_str()) {
 ///             self.0.push(directory);
 ///         }
@@ -35,12 +41,14 @@ type Overlay<'doc> = FxHashMap<&'doc str, &'doc DocumentAttributeAssignment<'doc
 ///     }
 /// }
 ///
+/// impl<'doc> DocumentVisitor<'doc> for Directories<'doc> {}
+///
 /// let parsed = parse(
 ///     "= Title\n:imagesdir: first\n\nOne.\n\n:imagesdir: second\n\nTwo.\n",
 ///     &Options::default(),
 /// )?;
 /// let document = parsed.document();
-/// let mut context = TraversalContext::new(&document.attributes);
+/// let mut context = TraversalContext::new(document.attributes());
 /// let mut directories = Directories::default();
 /// directories.visit_document(&mut context, document)?;
 /// assert_eq!(directories.0, ["first", "second"]);
@@ -48,63 +56,101 @@ type Overlay<'doc> = FxHashMap<&'doc str, &'doc DocumentAttributeAssignment<'doc
 /// ```
 #[derive(Debug)]
 pub struct TraversalContext<'doc> {
-    header: &'doc DocumentAttributes<'doc>,
+    header: DocumentAttributesRef<'doc>,
     overlay: Overlay<'doc>,
     scopes: Vec<Overlay<'doc>>,
+    footnotes: FxHashMap<u32, (FootnoteDefinitionRef<'doc>, Cow<'doc, str>)>,
 }
 
 impl<'doc> TraversalContext<'doc> {
-    /// Visit blocks in source order, applying attribute events before their callbacks.
+    /// Provide registered footnote bodies and output labels during a document pass.
+    /// Restores the previous registrations on return, including an error return.
+    /// Custom document visitors must use this around their traversal. Prepared
+    /// documents must have unique registered numbers; use
+    /// [`acdc_parser::Document::rebuild_footnotes`] after structural edits.
+    pub fn with_document<R>(
+        &mut self,
+        document: DocumentRef<'doc>,
+        operation: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let previous = std::mem::take(&mut self.footnotes);
+        let mut labels = FxHashSet::default();
+        for note in document.footnotes() {
+            let label = note
+                .id()
+                .map_or_else(|| Cow::Owned(note.number().to_string()), Cow::Borrowed);
+            labels.insert(label.to_lowercase());
+            self.footnotes.insert(note.number(), (note, label));
+        }
+        for node in document.descendants() {
+            if let StructuralRef::TableCell(cell) = node {
+                for note in cell.footnotes() {
+                    let mut label = format!("acdc-cell-footnote-{}", note.number());
+                    while !labels.insert(label.to_lowercase()) {
+                        label.push('_');
+                    }
+                    self.footnotes
+                        .insert(note.number(), (note, Cow::Owned(label)));
+                }
+            }
+        }
+        let result = operation(self);
+        self.footnotes = previous;
+        result
+    }
+
+    /// Borrow the owning catalog's definition by its document-wide number.
+    /// Available during [`crate::visitor::DocumentVisitor::visit_document`].
+    #[must_use]
+    pub fn footnote_definition(&self, number: u32) -> Option<FootnoteDefinitionRef<'doc>> {
+        self.footnotes
+            .get(&number)
+            .map(|(definition, _)| *definition)
+    }
+
+    /// Output label for a registered note. Root labels retain their name or number.
+    /// Cell labels are qualified and avoid every registered root label.
+    #[must_use]
+    pub fn footnote_label(&self, number: u32) -> Option<&str> {
+        self.footnotes.get(&number).map(|(_, label)| label.as_ref())
+    }
+
+    /// Visit blocks in source order through [`Self::visit_block`].
     ///
     /// # Errors
     ///
     /// Returns the first visitor error.
-    pub fn visit_blocks<V: crate::visitor::Visitor<'doc> + ?Sized>(
+    pub fn visit_blocks<V, B>(
         &mut self,
         visitor: &mut V,
-        blocks: &'doc [Block<'doc>],
-    ) -> Result<(), V::Error> {
+        blocks: impl IntoIterator<Item = B>,
+    ) -> Result<(), V::Error>
+    where
+        V: crate::visitor::BlockVisitor<'doc> + ?Sized,
+        B: Into<BlockRef<'doc>>,
+    {
         for block in blocks {
             self.visit_block(visitor, block)?;
         }
         Ok(())
     }
 
-    /// Dispatch a block, applying an attribute event before its attribute callback.
+    /// Dispatch a block, applying an attribute event after the before hook.
     ///
     /// # Errors
     ///
-    /// Returns errors from the visitor.
-    pub fn visit_block<V: crate::visitor::Visitor<'doc> + ?Sized>(
-        &mut self,
-        visitor: &mut V,
-        block: &'doc Block<'doc>,
-    ) -> Result<(), V::Error> {
-        use acdc_parser::Block;
+    /// Returns the first callback error.
+    pub fn visit_block<V, B>(&mut self, visitor: &mut V, block: B) -> Result<(), V::Error>
+    where
+        V: crate::visitor::BlockVisitor<'doc> + ?Sized,
+        B: Into<BlockRef<'doc>>,
+    {
+        let block = block.into();
         visitor.before_block(self, block)?;
-        match block {
-            Block::DocumentAttribute(event) => {
-                self.apply(event);
-                visitor.visit_document_attribute(self, event)
-            }
-            Block::Section(value) => visitor.visit_section(self, value),
-            Block::Paragraph(value) => visitor.visit_paragraph(self, value),
-            Block::DelimitedBlock(value) => visitor.visit_delimited_block(self, value),
-            Block::OrderedList(value) => visitor.visit_ordered_list(self, value),
-            Block::UnorderedList(value) => visitor.visit_unordered_list(self, value),
-            Block::DescriptionList(value) => visitor.visit_description_list(self, value),
-            Block::CalloutList(value) => visitor.visit_callout_list(self, value),
-            Block::Admonition(value) => visitor.visit_admonition(self, value),
-            Block::Image(value) => visitor.visit_image(self, value),
-            Block::Video(value) => visitor.visit_video(self, value),
-            Block::Audio(value) => visitor.visit_audio(self, value),
-            Block::ThematicBreak(value) => visitor.visit_thematic_break(self, value),
-            Block::PageBreak(value) => visitor.visit_page_break(self, value),
-            Block::TableOfContents(value) => visitor.visit_table_of_contents(self, value),
-            Block::DiscreteHeader(value) => visitor.visit_discrete_header(self, value),
-            Block::Comment(_) => Ok(()),
-            _ => visitor.visit_unhandled_block(self, block),
+        if let BlockKind::DocumentAttribute(event) = block.kind() {
+            self.apply(event);
         }
+        visitor.visit_block(self, block)
     }
 
     /// Run a nested document traversal and restore the parent attributes on return.
@@ -120,9 +166,10 @@ impl<'doc> TraversalContext<'doc> {
     /// Initialize an `AsciiDoc` cell's attributes and restore the parent on return.
     pub fn with_table_cell<R>(
         &mut self,
-        column: &'doc acdc_parser::TableColumn<'doc>,
+        column: impl Into<TableCellRef<'doc>>,
         operation: impl FnOnce(&mut Self) -> R,
     ) -> R {
+        let column = column.into();
         self.with_scope(|context| {
             for (name, assignment) in column.initial_attributes() {
                 context.overlay.insert(name, assignment);
@@ -133,16 +180,19 @@ impl<'doc> TraversalContext<'doc> {
 
     /// Start at the end of the document header.
     #[must_use]
-    pub fn new(header: &'doc DocumentAttributes<'doc>) -> Self {
+    pub fn new(header: impl Into<DocumentAttributesRef<'doc>>) -> Self {
         Self {
-            header,
+            header: header.into(),
             overlay: Overlay::default(),
             scopes: Vec::new(),
+            footnotes: FxHashMap::default(),
         }
     }
 
-    fn apply(&mut self, event: &'doc DocumentAttribute<'doc>) {
-        self.overlay.insert(event.name.as_ref(), event.assignment());
+    /// Apply an accepted body assignment at the current traversal position.
+    pub fn apply(&mut self, event: impl Into<DocumentAttributeRef<'doc>>) {
+        let event = event.into();
+        self.overlay.insert(event.name(), event.assignment());
     }
 
     fn enter_scope(&mut self) {
@@ -155,9 +205,9 @@ impl<'doc> TraversalContext<'doc> {
         }
     }
 
-    /// Borrow the immutable header attributes, independent of traversal position.
+    /// The immutable header snapshot, independent of traversal position.
     #[must_use]
-    pub const fn header(&self) -> &'doc DocumentAttributes<'doc> {
+    pub const fn header(&self) -> DocumentAttributesRef<'doc> {
         self.header
     }
 
@@ -211,12 +261,56 @@ impl<'doc> TraversalContext<'doc> {
 mod tests {
     use std::{convert::Infallible, fmt, ptr::eq};
 
-    use acdc_parser::{Options, parse};
+    use acdc_parser::{
+        Block, DocumentAttributes, Options,
+        ast::{BlockRef, DocumentRef},
+        parse,
+    };
 
     use super::*;
-    use crate::{document_attribute_text, visitor::Visitor};
+    use crate::{document_attribute_text, visitor::BlockVisitor};
 
     type Error = Box<dyn std::error::Error>;
+
+    #[test]
+    fn cell_footnote_labels_avoid_root_collisions_and_restore_after_errors() -> Result<(), Error> {
+        let parsed = parse(
+            "footnote:acdc-cell-footnote-2[Outer.]\n\n[cols=a,options=noheader]\n|===\n|footnote:same[Cell.]\n|===\n",
+            &Options::default(),
+        )?;
+        let document = parsed.document();
+        let mut context = TraversalContext::new(document.attributes());
+        let result = context.with_document(document, |context| {
+            assert_eq!(context.footnote_label(1), Some("acdc-cell-footnote-2"));
+            assert_eq!(context.footnote_label(2), Some("acdc-cell-footnote-2_"));
+            assert_eq!(
+                context
+                    .footnote_definition(2)
+                    .and_then(FootnoteDefinitionRef::id),
+                Some("same")
+            );
+            Err::<(), _>("visitor failed")
+        });
+        assert_eq!(result, Err("visitor failed"));
+        assert!(context.footnote_definition(2).is_none());
+        Ok(())
+    }
+
+    #[test]
+    fn literal_document_text_is_borrowed_without_dequoting() -> Result<(), Error> {
+        for text in ["", "plain", "'π'", "\"π\"", "''", "\"α\"tail", "head'"] {
+            let attributes = Options::builder()
+                .with_attribute("label", text)
+                .build()?
+                .into_document_attributes();
+            let value = attributes.get("label").ok_or("label")?;
+            let actual = document_attribute_text(Some(value)).ok_or("text")?;
+            assert_eq!(actual, text);
+            assert!(eq(actual, value.as_str().ok_or("stored text")?));
+        }
+        assert!(document_attribute_text(None).is_none());
+        Ok(())
+    }
 
     #[test]
     fn attribute_reads_preserve_values_spelling_and_borrowing() -> Result<(), Error> {
@@ -227,7 +321,7 @@ mod tests {
             "= Header\n:present:\n:name: \"quoted\"\n:removed!:\n\nBody.\n",
             &options,
         )?;
-        let header = &parsed.document().attributes;
+        let header = parsed.document().attributes();
         let context = TraversalContext::new(header);
         let depth = context.get("max-include-depth").ok_or("missing depth")?;
         assert_eq!(depth.as_integer(), Some(3));
@@ -244,7 +338,10 @@ mod tests {
                 .is_some_and(DocumentAttributeValue::is_presence)
         );
         assert_eq!(document_attribute_text(context.get("present")), Some(""));
-        assert_eq!(document_attribute_text(context.get("name")), Some("quoted"));
+        assert_eq!(
+            document_attribute_text(context.get("name")),
+            Some("\"quoted\"")
+        );
         assert_eq!(document_attribute_text(Some(depth)), None);
         assert!(context.is_explicit("removed"));
         assert!(!context.contains_key("removed"));
@@ -309,17 +406,20 @@ mod tests {
         values: Vec<Option<String>>,
     }
 
-    impl<'doc> Visitor<'doc> for Observer {
+    impl<'doc> BlockVisitor<'doc> for Observer {
         type Error = Infallible;
 
-        fn visit_document_attribute(
+        fn visit_block(
             &mut self,
             context: &mut TraversalContext<'doc>,
-            event: &'doc DocumentAttribute<'doc>,
+            block: BlockRef<'doc>,
         ) -> Result<(), Self::Error> {
+            let BlockKind::DocumentAttribute(event) = block.kind() else {
+                return Ok(());
+            };
             assert!(
                 context
-                    .attribute_assignment(&event.name)
+                    .attribute_assignment(event.name())
                     .is_some_and(|applied| eq(applied, event.assignment()))
             );
             self.values.push(
@@ -338,10 +438,10 @@ mod tests {
             "= Header\n:name: header\n\nBody.\n\n:name: first\n:name: second\n:name!:\n:name: false\n",
             &Options::default(),
         )?;
-        let document = parsed.document();
-        let mut context = TraversalContext::new(&document.attributes);
+        let document = &acdc_parser::Document::from(parsed.document());
+        let mut context = TraversalContext::new(DocumentRef::from(document).attributes());
         let mut observer = Observer::default();
-        context.visit_blocks(&mut observer, &document.blocks)?;
+        context.visit_blocks(&mut observer, DocumentRef::from(document).blocks())?;
         assert_eq!(
             observer.values,
             [
@@ -367,13 +467,19 @@ mod tests {
             "= Header\n:name: header\n\nBody.\n\n:name: parent\n",
             &Options::default(),
         )?;
+        let parent_document = acdc_parser::Document::from(parent.document());
         let child = parse("Body.\n\n:name: child\n", &Options::default())?;
-        let mut context = TraversalContext::new(&parent.document().attributes);
+        let child_blocks: Vec<_> = child
+            .document()
+            .blocks()
+            .map(acdc_parser::Block::from)
+            .collect();
+        let mut context = TraversalContext::new(DocumentRef::from(&parent_document).attributes());
         let mut observer = Observer::default();
-        context.visit_blocks(&mut observer, &parent.document().blocks)?;
+        context.visit_blocks(&mut observer, DocumentRef::from(&parent_document).blocks())?;
         for fail in [false, true] {
             let result = context.with_scope(|context| {
-                let Ok(()) = context.visit_blocks(&mut observer, &child.document().blocks);
+                let Ok(()) = context.visit_blocks(&mut observer, &child_blocks);
                 assert!(context.is_nested_document());
                 assert_eq!(context.substitute_attributes("{name}"), "child");
                 if fail {
@@ -395,24 +501,24 @@ mod tests {
             "= T\n:doctype: book\n:toc: left\n\n[cols=a]\n|===\n|\nCell.\n|===\n",
             &Options::default(),
         )?;
-        let Block::DelimitedBlock(block) = parsed
-            .document()
-            .blocks
-            .first()
-            .ok_or("missing table block")?
-        else {
+        let parsed_document = acdc_parser::Document::from(parsed.document());
+        let blocks: Vec<_> = DocumentRef::from(&parsed_document)
+            .blocks()
+            .map(Block::from)
+            .collect();
+        let Block::DelimitedBlock(block) = blocks.first().ok_or("missing table block")? else {
             return Err("missing table block".into());
         };
-        let acdc_parser::DelimitedBlockType::DelimitedTable(table) = &block.inner else {
+        let BlockKind::Table(table) = BlockRef::from(block).kind() else {
             return Err("missing table".into());
         };
-        let mut context = TraversalContext::new(&parsed.document().attributes);
+        let mut context = TraversalContext::new(DocumentRef::from(&parsed_document).attributes());
         for fail in [false, true] {
             let result = context.with_table_cell(
                 table
-                    .rows
-                    .first()
-                    .and_then(|row| row.columns.first())
+                    .rows()
+                    .next()
+                    .and_then(|row| row.cells().next())
                     .ok_or("missing table cell")?,
                 |context| {
                     assert_eq!(

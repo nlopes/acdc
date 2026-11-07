@@ -1,0 +1,13 @@
+Escaped \image:photo.png[<tag> & value] and \link:https://example.org[<tag> & value].
+
+Escaped \*<tag> & value* and \(C) and \=>.
+
+image:photo.png[alt='Keep \(C)',title='Tip \(C) \=>']
+
+link:https://example.org[Label,title='Tip \(C) \=>']
+
+Unicode café (C) (TM) (R) ... and word--word, a -> b, a => b.
+
+----
+Literal (C) \=> <tag> & raw
+----

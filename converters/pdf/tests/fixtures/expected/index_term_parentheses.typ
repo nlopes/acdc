@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -73,7 +74,7 @@
 #set page(numbering: "i")
 #set page(numbering: "1")
 #counter(page).update(1)
-#raw("OUTPUT <- INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ binint(SIV[31:0]) + ctr) mod 2")#super[#raw("32")]#raw(", 32,")
+#raw("OUTPUT ← INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ binint(SIV[31:0]) + ctr) mod 2")#super[#raw("32")]#raw(", 32,")
 
 #raw("OUTPUT <- INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ bin((int(SIV[31:0]) + ctr) mod 2^32^, 32)),")
 

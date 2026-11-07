@@ -1103,6 +1103,7 @@ impl LintOverrideSelector {
 /// Options for a lint run.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct LintOptions {
+    compatibility_mode: acdc_parser::CompatibilityMode,
     overrides: Vec<LintOverride>,
     safe_mode: acdc_parser::SafeMode,
     max_total_include_bytes: Option<usize>,
@@ -1116,6 +1117,13 @@ impl LintOptions {
             overrides,
             ..Self::default()
         }
+    }
+
+    /// Choose parsing rules. Defaults to Asciidoctor compatibility.
+    #[must_use]
+    pub fn with_compatibility_mode(mut self, mode: acdc_parser::CompatibilityMode) -> Self {
+        self.compatibility_mode = mode;
+        self
     }
 
     /// Set the safe mode used to parse the source.
@@ -1138,7 +1146,9 @@ impl LintOptions {
     }
 
     fn parser_options(&self) -> Result<acdc_parser::Options<'static>, acdc_parser::Error> {
-        let mut builder = acdc_parser::Options::builder().with_safe_mode(self.safe_mode);
+        let mut builder = acdc_parser::Options::builder()
+            .with_safe_mode(self.safe_mode)
+            .with_compatibility_mode(self.compatibility_mode);
         if let Some(bytes) = self.max_total_include_bytes {
             builder = builder.with_max_total_include_bytes(bytes);
         }
@@ -1379,6 +1389,40 @@ impl Lintable for str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn compatibility_mode_applies_to_file_and_string_linting()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("legacy.adoc");
+        let source = "Legacy\n------\n\nBody.\n";
+        fs::write(&path, source)?;
+        for mode in [
+            acdc_parser::CompatibilityMode::Asciidoctor,
+            acdc_parser::CompatibilityMode::Draft,
+        ] {
+            let options = LintOptions::default().with_compatibility_mode(mode);
+            assert_eq!(options.parser_options()?.compatibility_mode, mode);
+            assert_eq!(
+                options.parser_options()?.safe_mode,
+                acdc_parser::SafeMode::Secure
+            );
+            for report in [source.lint(&options)?, path.as_path().lint(&options)?] {
+                assert_eq!(
+                    report
+                        .diagnostics()
+                        .iter()
+                        .any(|diagnostic| diagnostic.lint() == LintId::UnterminatedDelimitedBlock),
+                    mode == acdc_parser::CompatibilityMode::Draft
+                );
+            }
+        }
+        assert_eq!(
+            LintOptions::default().parser_options()?.compatibility_mode,
+            acdc_parser::CompatibilityMode::Asciidoctor
+        );
+        Ok(())
+    }
 
     #[test]
     fn include_budget_applies_to_file_and_string_linting() -> Result<(), Box<dyn std::error::Error>>

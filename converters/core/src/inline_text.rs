@@ -7,23 +7,24 @@
 
 use std::{
     borrow::Cow,
-    collections::HashMap,
     fmt::{self, Write},
 };
 
-use acdc_parser::{InlineMacro, InlineNode, Reference, Substitution};
+use acdc_parser::{
+    InlineNode, Substitution,
+    ast::{ContentRef, CrossReferenceRef, InlineKind, InlineRef, ReferencesRef},
+};
 
 use crate::{
     decode_numeric_char_refs,
-    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements},
-    xref::reference_text,
+    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
+    xref::reference_text_at,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Typography {
+enum TextProjection {
     Source,
-    Passthroughs,
-    All,
+    Rendered,
 }
 
 /// Plain-text extraction policy for inline nodes.
@@ -31,9 +32,9 @@ enum Typography {
 pub struct InlineTextTransform<'t, 'd> {
     line_break: &'t str,
     decode_char_refs: bool,
-    typography: Typography,
+    projection: TextProjection,
     text_boundaries: TextBoundaries,
-    references: Option<&'t HashMap<&'d str, Reference<'d>>>,
+    references: Option<ReferencesRef<'d>>,
     /// Set while extracting a target's reference text, so a cross-reference
     /// inside it falls back to `[id]` instead of recursing. See
     /// [`crate::xref::XrefGuard`], which does the same for rendered output.
@@ -45,7 +46,7 @@ impl Default for InlineTextTransform<'_, '_> {
         Self {
             line_break: " ",
             decode_char_refs: false,
-            typography: Typography::Source,
+            projection: TextProjection::Source,
             text_boundaries: TextBoundaries::BOTH,
             references: None,
             resolving_xref: false,
@@ -61,7 +62,7 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
         self
     }
 
-    /// Decode numeric character references (`&#39;`) in raw text.
+    /// Decode parsed character references and numeric references in raw text.
     ///
     /// Non-HTML backends want the character; HTML keeps the reference.
     /// Explicitly escaped references remain literal.
@@ -71,20 +72,14 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
         self
     }
 
-    /// Apply typography when extracting rendered text.
+    /// Apply the remaining substitutions carried by Raw fragments.
     ///
-    /// Raw fragments use their own profiles. `ordinary_text` also enables
-    /// replacements in ordinary text. The default retains semantic source text.
+    /// Resolved plain and verbatim text stay unchanged. The default keeps Raw
+    /// source text without applying its remaining substitutions.
     #[must_use]
-    pub fn rendered_replacements(mut self, ordinary_text: bool) -> Self {
-        self.text_boundaries = self
-            .text_boundaries
-            .with_ordinary_replacements(ordinary_text);
-        self.typography = if ordinary_text {
-            Typography::All
-        } else {
-            Typography::Passthroughs
-        };
+    pub fn rendered(mut self) -> Self {
+        self.text_boundaries = self.text_boundaries.with_ordinary_replacements(false);
+        self.projection = TextProjection::Rendered;
         self
     }
 
@@ -104,7 +99,7 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
     /// Without a catalog such a reference contributes its target id, which is
     /// all an inter-document reference has.
     #[must_use]
-    pub fn references(mut self, references: &'t HashMap<&'d str, Reference<'d>>) -> Self {
+    pub fn references(mut self, references: ReferencesRef<'d>) -> Self {
         self.references = Some(references);
         self
     }
@@ -123,108 +118,144 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
     ///
     /// Returns any error produced by the underlying writer.
     pub fn write<W: Write + ?Sized>(self, w: &mut W, inlines: &[InlineNode<'_>]) -> fmt::Result {
-        for (index, node) in inlines.iter().enumerate() {
+        self.write_inlines(w, inlines.iter().map(InlineRef::from))
+    }
+
+    /// Write plain text from typed content using this extraction policy.
+    ///
+    /// # Errors
+    ///
+    /// Returns any error produced by the underlying writer.
+    pub fn write_content<W: Write + ?Sized>(
+        self,
+        w: &mut W,
+        content: ContentRef<'_>,
+    ) -> fmt::Result {
+        self.write_inlines(w, content.inlines())
+    }
+
+    /// Write plain text from a typed inline iterator using this extraction policy.
+    ///
+    /// For an isolated fragment, supply its surrounding context with
+    /// [`Self::text_boundaries`].
+    ///
+    /// # Errors
+    ///
+    /// Returns any error produced by the underlying writer.
+    pub fn write_inlines<'doc, W: Write + ?Sized>(
+        self,
+        w: &mut W,
+        inlines: impl DoubleEndedIterator<Item = InlineRef<'doc>> + ExactSizeIterator + Clone,
+    ) -> fmt::Result {
+        let siblings = inlines.clone();
+        for (index, node) in inlines.enumerate() {
             let context = Self {
-                text_boundaries: self.text_boundaries.for_inline(inlines, index),
+                text_boundaries: self.text_boundaries.for_inline_refs(
+                    Some(node),
+                    siblings.clone().take(index).rev(),
+                    siblings.clone().skip(index + 1),
+                ),
                 ..self
             };
-            context.write_inline_node(w, node)?;
+            context.write_inline(w, node)?;
         }
         Ok(())
     }
 
-    fn write_inline_node<W: Write + ?Sized>(self, w: &mut W, node: &InlineNode<'_>) -> fmt::Result {
-        #[expect(
-            clippy::match_same_arms,
-            reason = "plain-text extraction intentionally ignores unknown non-exhaustive inline nodes"
-        )]
-        match node {
-            InlineNode::PlainText(text) => self.write_text(w, text.content),
-            InlineNode::RawText(text) => {
-                let content = if self.typography == Typography::Source {
-                    Cow::Borrowed(text.content)
+    fn write_inline<W: Write + ?Sized>(self, w: &mut W, node: InlineRef<'_>) -> fmt::Result {
+        match node.kind() {
+            InlineKind::Plain(text) => w.write_str(text.text()),
+            InlineKind::CharacterReference(reference) => {
+                if self.decode_char_refs {
+                    w.write_str(&crate::character_reference_text(reference.kind()))
                 } else {
-                    apply_passthrough_replacements(
-                        text.content,
-                        &text.subs,
+                    write!(w, "{}", reference.kind())
+                }
+            }
+            InlineKind::Raw(text) => {
+                let content = if self.projection == TextProjection::Source {
+                    Cow::Borrowed(text.text())
+                } else {
+                    apply_passthrough_replacements_iter(
+                        text.text(),
+                        text.substitutions(),
                         &Replacements::unicode(),
                         self.text_boundaries,
                     )
                 };
-                if self.decode_char_refs && text.subs.last() != Some(&Substitution::SpecialChars) {
+                if self.decode_char_refs
+                    && text.substitutions().last() != Some(Substitution::SpecialChars)
+                {
                     w.write_str(&decode_numeric_char_refs(&content))
                 } else {
                     w.write_str(&content)
                 }
             }
-            InlineNode::VerbatimText(text) => self.write_text(w, text.content),
-            InlineNode::BoldText(bold) => self.write(w, &bold.content),
-            InlineNode::ItalicText(italic) => self.write(w, &italic.content),
-            InlineNode::MonospaceText(mono) => self.write(w, &mono.content),
-            InlineNode::HighlightText(highlight) => self.write(w, &highlight.content),
-            InlineNode::SubscriptText(sub) => self.write(w, &sub.content),
-            InlineNode::SuperscriptText(sup) => self.write(w, &sup.content),
-            InlineNode::CurvedQuotationText(quote) => self.write(w, &quote.content),
-            InlineNode::CurvedApostropheText(apos) => self.write(w, &apos.content),
-            InlineNode::StandaloneCurvedApostrophe(_) => w.write_char('\u{2019}'),
-            InlineNode::LineBreak(_) => w.write_str(self.line_break),
-            InlineNode::InlineAnchor(_) => Ok(()),
-            InlineNode::Macro(macro_node) => self.write_inline_macro(w, macro_node),
-            InlineNode::CalloutRef(callout) => write!(w, "<{}>", callout.number),
-            _ => Ok(()),
-        }
-    }
-
-    fn write_text<W: Write + ?Sized>(self, w: &mut W, text: &str) -> fmt::Result {
-        if self.typography == Typography::All {
-            w.write_str(&Replacements::unicode().transform_verbatim(text, self.text_boundaries))
-        } else {
-            w.write_str(text)
-        }
-    }
-
-    fn write_inline_macro<W: Write + ?Sized>(
-        self,
-        w: &mut W,
-        macro_node: &InlineMacro<'_>,
-    ) -> fmt::Result {
-        match macro_node {
-            InlineMacro::Link(link) => self.write_link_text(w, &link.text, &link.target),
-            InlineMacro::Url(url) => self.write_link_text(w, &url.text, &url.target),
-            InlineMacro::Mailto(mailto) => self.write_link_text(w, &mailto.text, &mailto.target),
-            InlineMacro::Autolink(autolink) => write!(w, "{}", autolink.url),
-            InlineMacro::CrossReference(xref) => self.write_xref_text(w, xref),
-            InlineMacro::IndexTerm(index_term) if index_term.is_visible() => {
-                self.write(w, index_term.term())
+            InlineKind::Verbatim(text) => w.write_str(text.text()),
+            InlineKind::Bold(span) => self.write_content(w, span.content()),
+            InlineKind::Italic(span) => self.write_content(w, span.content()),
+            InlineKind::Monospace(span) => self.write_content(w, span.content()),
+            InlineKind::Highlight(span) => self.write_content(w, span.content()),
+            InlineKind::Subscript(span) => self.write_content(w, span.content()),
+            InlineKind::Superscript(span) => self.write_content(w, span.content()),
+            InlineKind::CurvedQuotation(span) => {
+                w.write_char('“')?;
+                self.write_content(w, span.content())?;
+                w.write_char('”')
             }
-            InlineMacro::Pass(pass) => w.write_str(pass.text.unwrap_or_default()),
-            InlineMacro::Keyboard(keyboard) => write!(w, "{}", keyboard.keys.join("+")),
-            InlineMacro::Button(button) => w.write_str(button.label),
-            InlineMacro::Menu(menu) => {
-                w.write_str(menu.target)?;
-                for item in &menu.items {
-                    write!(w, " > {item}")?;
+            InlineKind::CurvedApostrophe(span) => {
+                w.write_char('‘')?;
+                self.write_content(w, span.content())?;
+                w.write_char('’')
+            }
+            InlineKind::Symbol(symbol) => w.write_str(symbol.text()),
+            InlineKind::StandaloneCurvedApostrophe(_) => w.write_char('\u{2019}'),
+            InlineKind::LineBreak(_) => w.write_str(self.line_break),
+            InlineKind::Callout(callout) => write!(w, "<{}>", callout.number()),
+            InlineKind::Link(link) => self.write_link_text(w, link.text(), &link.target()),
+            InlineKind::Url(url) => self.write_link_text(w, url.text(), &url.target()),
+            InlineKind::Mailto(mailto) => self.write_link_text(w, mailto.text(), &mailto.target()),
+            InlineKind::Autolink(autolink) => write!(w, "{}", autolink.target()),
+            InlineKind::CrossReference(xref) => self.write_xref_text(w, xref),
+            InlineKind::IndexTerm(term) if term.is_visible() => self.write_content(w, term.term()),
+            InlineKind::Pass(pass) => w.write_str(pass.text().unwrap_or_default()),
+            InlineKind::Keyboard(keyboard) => {
+                for (index, key) in keyboard.keys().enumerate() {
+                    if index > 0 {
+                        w.write_char('+')?;
+                    }
+                    self.write_content(w, key)?;
                 }
                 Ok(())
             }
-            // These carry no prose, but they do carry an identifier or a marker
-            // that a heading or caption would otherwise lose. Asciidoctor
-            // brackets them, as acdc does when it renders them inline.
-            InlineMacro::Image(image) => {
+            InlineKind::Button(button) => self.write_content(w, button.label()),
+            InlineKind::Menu(menu) => {
+                self.write_content(w, menu.target())?;
+                for item in menu.items() {
+                    w.write_str(" > ")?;
+                    self.write_content(w, item)?;
+                }
+                Ok(())
+            }
+            InlineKind::Image(image) => {
                 w.write_char('[')?;
-                if image.title.is_empty() {
-                    write!(w, "{}", image.source)?;
+                if let Some(alt) = image.alt() {
+                    self.write_content(w, alt)?;
                 } else {
-                    self.write(w, &image.title)?;
+                    write!(w, "{}", image.source())?;
                 }
                 w.write_char(']')
             }
-            InlineMacro::Icon(icon) => {
-                write!(w, "[{}]", crate::icon::alt(&icon.target, &icon.attributes))
+            InlineKind::Icon(icon) => {
+                write!(
+                    w,
+                    "[{}]",
+                    crate::icon::alt_from_content(icon.target(), icon.alt())
+                )
             }
-            InlineMacro::Footnote(footnote) => write!(w, "[{}]", footnote.number),
-            InlineMacro::Stem(stem) => w.write_str(stem.content),
-            InlineMacro::IndexTerm(_) | _ => Ok(()),
+            InlineKind::Footnote(footnote) => write!(w, "[{}]", footnote.number()),
+            InlineKind::Stem(stem) => w.write_str(stem.text()),
+            InlineKind::Anchor(_) | InlineKind::IndexTerm(_) | _ => Ok(()),
         }
     }
 
@@ -233,24 +264,27 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
     fn write_xref_text<W: Write + ?Sized>(
         self,
         w: &mut W,
-        xref: &acdc_parser::CrossReference<'_>,
+        xref: CrossReferenceRef<'_>,
     ) -> fmt::Result {
-        if !xref.text.is_empty() {
-            return self.write(w, &xref.text);
+        if !xref.text().is_empty() {
+            return self.write_content(w, xref.text());
         }
-        let target = xref.target;
+        let target = xref.target();
         let Some(references) = self.references else {
             return write!(w, "{target}");
         };
         if self.resolving_xref {
             return write!(w, "[{target}]");
         }
-        match references.get(target).and_then(reference_text) {
+        match references
+            .get(target)
+            .and_then(|reference| reference_text_at(reference, xref))
+        {
             Some(nodes) => Self {
                 resolving_xref: true,
                 ..self
             }
-            .write(w, nodes),
+            .write_content(w, nodes),
             None => write!(w, "[{}]", stylized_id(target)),
         }
     }
@@ -258,14 +292,23 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
     fn write_link_text<W: Write + ?Sized>(
         self,
         w: &mut W,
-        text: &[InlineNode<'_>],
+        text: ContentRef<'_>,
         target: &impl fmt::Display,
     ) -> fmt::Result {
         if text.is_empty() {
             write!(w, "{target}")
         } else {
-            self.write(w, text)
+            self.write_content(w, text)
         }
+    }
+
+    /// Extract plain text from typed content using this extraction policy.
+    #[must_use]
+    pub fn content_to_string(self, content: ContentRef<'_>) -> String {
+        let mut text = String::new();
+        // Writing into a `String` is infallible.
+        let _ = self.write_content(&mut text, content);
+        text
     }
 
     /// Extract plain text from `inlines` as a `String`.
@@ -310,6 +353,110 @@ mod tests {
     use acdc_parser::{Block, InlineNode, LineBreak, Location, Options, Plain, parse};
 
     #[test]
+    fn curved_quotes_remain_text_under_every_projection_policy()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for mode in [
+            acdc_parser::CompatibilityMode::Asciidoctor,
+            acdc_parser::CompatibilityMode::Draft,
+        ] {
+            for (source, expected) in [
+                (
+                    r#""`double`" and '`single`' and `'."#,
+                    "“double” and ‘single’ and ’.",
+                ),
+                (
+                    r#"[#quoted.role]"`*nested*`" and [#single]'`_text_`'."#,
+                    "“nested” and ‘text’.",
+                ),
+                (
+                    "[subs=none]\n\"`literal`\" and '`literal`'.",
+                    r#""`literal`" and '`literal`'."#,
+                ),
+            ] {
+                let parsed = parse(
+                    source,
+                    &Options::builder().with_compatibility_mode(mode).build()?,
+                )?;
+                let parsed_blocks: Vec<_> = parsed
+                    .document()
+                    .blocks()
+                    .map(acdc_parser::Block::from)
+                    .collect();
+                let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
+                    return Err("expected one paragraph".into());
+                };
+                let content: Vec<_> = paragraph.clone().take_content().collect();
+                let transform = super::InlineTextTransform::default();
+                for policy in [transform, transform.rendered()] {
+                    assert_eq!(policy.to_string(&content), expected, "{mode:?}: {source}");
+                    assert_eq!(
+                        {
+                            let block = parsed.document().blocks().next().ok_or("paragraph")?;
+                            let acdc_parser::ast::BlockKind::Paragraph(paragraph) = block.kind()
+                            else {
+                                return Err("expected paragraph".into());
+                            };
+                            policy.content_to_string(paragraph.content())
+                        },
+                        expected
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn typed_content_preserves_source_and_rendered_text() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let parsed = parse(
+            "A *bold* image:bird.png[alt='Bird',title='Tooltip'] indexterm2:[--] end.",
+            &Options::default(),
+        )?;
+        let paragraph = parsed.document().blocks().next().ok_or("paragraph")?;
+        let acdc_parser::ast::BlockKind::Paragraph(paragraph) = paragraph.kind() else {
+            return Err("expected paragraph".into());
+        };
+        let content = paragraph.content();
+        let transform = super::InlineTextTransform::default();
+        assert_eq!(
+            transform.content_to_string(content),
+            "A bold [Bird]\u{2009}—\u{2009}end."
+        );
+        assert_eq!(
+            transform.rendered().content_to_string(content),
+            "A bold [Bird]\u{2009}—\u{2009}end.",
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn typed_content_stops_at_the_first_writer_error() -> Result<(), Box<dyn std::error::Error>> {
+        struct RejectText {
+            calls: usize,
+        }
+        impl std::fmt::Write for RejectText {
+            fn write_str(&mut self, _: &str) -> std::fmt::Result {
+                self.calls += 1;
+                Err(std::fmt::Error)
+            }
+        }
+        let parsed = parse("First *nested* last.", &Options::default())?;
+        let paragraph = parsed.document().blocks().next().ok_or("paragraph")?;
+        let acdc_parser::ast::BlockKind::Paragraph(paragraph) = paragraph.kind() else {
+            return Err("expected paragraph".into());
+        };
+        let mut writer = RejectText { calls: 0 };
+        assert!(
+            super::InlineTextTransform::default()
+                .write_content(&mut writer, paragraph.content())
+                .is_err()
+        );
+        assert_eq!(writer.calls, 1);
+        Ok(())
+    }
+
+    #[test]
     fn isolated_index_labels_retain_their_enclosing_text_boundaries()
     -> Result<(), Box<dyn std::error::Error>> {
         for (source, expected) in [
@@ -320,22 +467,22 @@ mod tests {
             ("prefixindexterm2:[(C)]tail", "prefix©tail"),
         ] {
             let parsed = parse(source, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let parsed_blocks: Vec<_> = parsed
+                .document()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
+            let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
-            let transform = super::InlineTextTransform::default().rendered_replacements(true);
-            assert_eq!(
-                transform.to_string(&paragraph.content),
-                expected,
-                "{source}"
-            );
+            let content: Vec<_> = paragraph.clone().take_content().collect();
+            let transform = super::InlineTextTransform::default().rendered();
+            assert_eq!(transform.to_string(&content), expected, "{source}");
             let mut fragments = String::new();
-            for (index, node) in paragraph.content.iter().enumerate() {
+            for (index, node) in content.iter().enumerate() {
                 fragments.push_str(
                     &transform
-                        .text_boundaries(
-                            super::TextBoundaries::BOTH.for_inline(&paragraph.content, index),
-                        )
+                        .text_boundaries(super::TextBoundaries::BOTH.for_inline(&content, index))
                         .to_string(std::slice::from_ref(node)),
                 );
             }
@@ -345,7 +492,7 @@ mod tests {
     }
 
     #[test]
-    fn index_dash_context_preserves_source_and_neighboring_words()
+    fn index_dash_context_preserves_resolved_text_and_neighboring_words()
     -> Result<(), Box<dyn std::error::Error>> {
         for prefix in ["word", "é", "字", "word_"] {
             for suffix in ["word", "é", "字", "_tail"] {
@@ -358,22 +505,26 @@ mod tests {
                     for label in ["--", "--end", "begin--"] {
                         let input = format!("{prefix}{gap}indexterm2:[{label}]{gap}{suffix}");
                         let parsed = parse(&input, &Options::default())?;
-                        let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice()
-                        else {
+                        let parsed_blocks: Vec<_> = parsed
+                            .document()
+                            .blocks()
+                            .map(acdc_parser::Block::from)
+                            .collect();
+                        let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                             return Err("expected one paragraph".into());
                         };
+                        let content: Vec<_> = paragraph.clone().take_content().collect();
                         let transform = super::InlineTextTransform::default();
-                        let source = transform.to_string(&paragraph.content);
-                        assert_eq!(source, format!("{prefix}{label}{suffix}"), "{input}");
-                        let expected = source.replace("--", "—\u{200b}");
+                        let source = transform.to_string(&content);
+                        let expected =
+                            format!("{prefix}{label}{suffix}").replace("--", "—\u{200b}");
+                        assert_eq!(source, expected, "{input}");
                         assert_eq!(
-                            transform
-                                .rendered_replacements(true)
-                                .to_string(&paragraph.content),
+                            transform.rendered().to_string(&content),
                             expected,
                             "{input}"
                         );
-                        assert_eq!(transform.to_string(&paragraph.content), source, "{input}");
+                        assert_eq!(transform.to_string(&content), source, "{input}");
                     }
                 }
             }
@@ -399,13 +550,19 @@ mod tests {
             ("wordindexterm2:[--]**bold**", "word--bold"),
         ] {
             let parsed = parse(input, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let parsed_blocks: Vec<_> = parsed
+                .document()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
+            let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
+            let content: Vec<_> = paragraph.clone().take_content().collect();
             assert_eq!(
                 super::InlineTextTransform::default()
-                    .rendered_replacements(true)
-                    .to_string(&paragraph.content),
+                    .rendered()
+                    .to_string(&content),
                 expected,
                 "{input}"
             );
@@ -451,20 +608,32 @@ mod tests {
             ("prefixpass:[ ]indexterm2:[--] tail", "prefix -- tail"),
             ("prefix indexterm2:[--]pass:[ ]tail", "prefix -- tail"),
             ("prefixpass:[-]indexterm2:[-]tail", "prefix--tail"),
-            ("prefix indexterm2:[pass:r[--]] tail", "prefix -- tail"),
-            ("prefixindexterm2:[pass:r[--]]tail", "prefix—\u{200b}tail"),
+            (
+                "prefix indexterm2:[pass:r[--]] tail",
+                "prefix \u{2009}—\u{2009} tail",
+            ),
+            (
+                "prefixindexterm2:[pass:r[--]]tail",
+                "prefix\u{2009}—\u{2009}tail",
+            ),
         ] {
             let parsed = parse(input, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let parsed_blocks: Vec<_> = parsed
+                .document()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
+            let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
-            let source = super::InlineTextTransform::default().to_string(&paragraph.content);
+            let content: Vec<_> = paragraph.clone().take_content().collect();
+            let source = super::InlineTextTransform::default().to_string(&content);
             let rendered = super::InlineTextTransform::default()
-                .rendered_replacements(true)
-                .to_string(&paragraph.content);
+                .rendered()
+                .to_string(&content);
             assert_eq!(rendered, expected, "{input}");
             assert_eq!(
-                super::InlineTextTransform::default().to_string(&paragraph.content),
+                super::InlineTextTransform::default().to_string(&content),
                 source
             );
         }
@@ -472,7 +641,7 @@ mod tests {
     }
 
     #[test]
-    fn fragmented_replacement_context_matches_unsplit_text() {
+    fn resolved_text_fragments_keep_literal_text_at_every_split() {
         for input in [
             "a -- b",
             "a--b",
@@ -489,15 +658,12 @@ mod tests {
             "a --\n--\n-- b",
             "-- -- -- -- -- -- -- -- -- -- --",
         ] {
-            let whole = [plain(input)];
-            let expected = super::InlineTextTransform::default()
-                .rendered_replacements(true)
-                .to_string(&whole);
+            let expected = input;
             for split in input.char_indices().map(|(index, _)| index).skip(1) {
                 let fragments = [plain(&input[..split]), plain(&input[split..])];
                 assert_eq!(
                     super::InlineTextTransform::default()
-                        .rendered_replacements(true)
+                        .rendered()
                         .to_string(&fragments),
                     expected,
                     "{input:?} at {split}"
@@ -510,7 +676,7 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(
                 super::InlineTextTransform::default()
-                    .rendered_replacements(true)
+                    .rendered()
                     .to_string(&fragments),
                 expected,
                 "{input:?} split by character"
@@ -536,24 +702,36 @@ mod tests {
     }
 
     #[test]
-    fn index_replacement_context_respects_disabled_ordinary_text()
+    fn index_replacement_context_cannot_disable_resolved_symbols()
     -> Result<(), Box<dyn std::error::Error>> {
         for (input, expected) in [
-            ("prefix indexterm2:[--] tail", "prefix -- tail"),
-            ("prefix-indexterm2:[-]tail", "prefix--tail"),
-            ("Saindexterm2:[m]'s", "Sam's"),
-            ("prefixindexterm2:[pass:r[--]]tail", "prefix—\u{200b}tail"),
-            ("prefix indexterm2:[pass:r[--]] tail", "prefix -- tail"),
+            ("prefix indexterm2:[--] tail", "prefix\u{2009}—\u{2009}tail"),
+            ("prefix-indexterm2:[-]tail", "prefix—\u{200b}tail"),
+            ("Saindexterm2:[m]'s", "Sam’s"),
+            (
+                "prefixindexterm2:[pass:r[--]]tail",
+                "prefix\u{2009}—\u{2009}tail",
+            ),
+            (
+                "prefix indexterm2:[pass:r[--]] tail",
+                "prefix \u{2009}—\u{2009} tail",
+            ),
             ("prefix-indexterm2:[pass:r[-]]tail", "prefix--tail"),
         ] {
             let parsed = parse(input, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let parsed_blocks: Vec<_> = parsed
+                .document()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
+            let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
+            let content: Vec<_> = paragraph.clone().take_content().collect();
             assert_eq!(
                 super::InlineTextTransform::default()
-                    .rendered_replacements(false)
-                    .to_string(&paragraph.content),
+                    .rendered()
+                    .to_string(&content),
                 expected,
                 "{input}"
             );
@@ -562,48 +740,45 @@ mod tests {
     }
 
     #[test]
-    fn rendered_code_typography_preserves_unrelated_escapes() {
+    fn resolved_code_text_keeps_literal_tokens_and_escapes() {
         let nodes = [plain(r"(C) \(R) \*literal\* \->")];
         let source = super::InlineTextTransform::default();
         assert_eq!(source.to_string(&nodes), r"(C) \(R) \*literal\* \->");
         assert_eq!(
-            source.rendered_replacements(true).to_string(&nodes),
-            r"© (R) \*literal\* ->"
+            source.rendered().to_string(&nodes),
+            r"(C) \(R) \*literal\* \->"
         );
     }
 
     #[test]
-    fn deferred_typography_preserves_semantic_source_and_own_escapes()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn resolved_typography_preserves_literal_escapes() -> Result<(), Box<dyn std::error::Error>> {
         for source in [
             r"pass:r[(C) \(R) \*literal\* \->]",
             ":value: pass:r[(C) \\(R) \\*literal\\* \\->]\n\n{value}",
         ] {
             let parsed = parse(source, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let parsed_blocks: Vec<_> = parsed
+                .document()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
+            let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
+            let content: Vec<_> = paragraph.clone().take_content().collect();
             let transform = super::InlineTextTransform::default();
+            assert_eq!(transform.to_string(&content), r"© (R) \*literal\* \->");
             assert_eq!(
-                transform.to_string(&paragraph.content),
-                r"(C) \(R) \*literal\* \->"
-            );
-            assert_eq!(
-                transform
-                    .rendered_replacements(false)
-                    .to_string(&paragraph.content),
+                transform.rendered().to_string(&content),
                 r"© (R) \*literal\* \->"
             );
-            assert_eq!(
-                transform.to_string(&paragraph.content),
-                r"(C) \(R) \*literal\* \->"
-            );
+            assert_eq!(transform.to_string(&content), r"© (R) \*literal\* \->");
         }
         Ok(())
     }
 
     #[test]
-    fn passthrough_arrows_change_rendered_text_without_changing_source()
+    fn passthrough_source_arrows_expose_the_resolved_parser_meaning()
     -> Result<(), Box<dyn std::error::Error>> {
         for (profile, expected) in [
             ("c,r", "→ ⇒ ← ⇐"),
@@ -613,25 +788,29 @@ mod tests {
         ] {
             let source = format!("pass:{profile}[-> => <- <=]");
             let parsed = parse(&source, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let parsed_blocks: Vec<_> = parsed
+                .document()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
+            let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
+            let content: Vec<_> = paragraph.clone().take_content().collect();
             let transform = super::InlineTextTransform::default();
-            assert_eq!(transform.to_string(&paragraph.content), "-> => <- <=");
+            assert_eq!(transform.to_string(&content), expected);
             assert_eq!(
-                transform
-                    .rendered_replacements(false)
-                    .to_string(&paragraph.content),
+                transform.rendered().to_string(&content),
                 expected,
                 "{profile}",
             );
-            assert_eq!(transform.to_string(&paragraph.content), "-> => <- <=");
+            assert_eq!(transform.to_string(&content), expected);
         }
         Ok(())
     }
 
     #[test]
-    fn encoded_passthrough_arrows_reach_rendering_as_complete_tokens()
+    fn encoded_passthrough_arrows_are_resolved_before_rendering()
     -> Result<(), Box<dyn std::error::Error>> {
         for (content, arrow) in [
             ("-&gt;", "→"),
@@ -650,40 +829,20 @@ mod tests {
         ] {
             let source = format!("α pass:r[{content}] ω");
             let parsed = parse(&source, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let parsed_blocks: Vec<_> = parsed
+                .document()
+                .blocks()
+                .map(acdc_parser::Block::from)
+                .collect();
+            let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
             };
-            let raw = paragraph
-                .content
-                .iter()
-                .find_map(|node| {
-                    if let InlineNode::RawText(raw) = node {
-                        Some(raw)
-                    } else {
-                        None
-                    }
-                })
-                .ok_or("expected raw arrow content")?;
-            assert_eq!(raw.content, content);
-            assert_eq!(
-                parsed
-                    .source()
-                    .get(raw.location.absolute_start..=raw.location.absolute_end),
-                Some(content),
-            );
+            let content: Vec<_> = paragraph.clone().take_content().collect();
             let transform = super::InlineTextTransform::default();
-            assert_eq!(
-                transform.to_string(&paragraph.content),
-                format!("α {content} ω")
-            );
-            let rendered = transform
-                .rendered_replacements(false)
-                .to_string(&paragraph.content);
+            assert_eq!(transform.to_string(&content), format!("α {arrow} ω"));
+            let rendered = transform.rendered().to_string(&content);
             assert_eq!(rendered, format!("α {arrow} ω"));
-            assert_eq!(
-                transform.to_string(&paragraph.content),
-                format!("α {content} ω")
-            );
+            assert_eq!(transform.to_string(&content), format!("α {arrow} ω"));
         }
         Ok(())
     }
@@ -692,13 +851,19 @@ mod tests {
     fn deferred_typography_does_not_reapply_surrounding_replacements()
     -> Result<(), Box<dyn std::error::Error>> {
         let parsed = parse(r"pass:r[\(C)] (R) pass:[(TM)]", &Options::default())?;
-        let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+        let parsed_blocks: Vec<_> = parsed
+            .document()
+            .blocks()
+            .map(acdc_parser::Block::from)
+            .collect();
+        let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
             return Err("expected one paragraph".into());
         };
+        let content: Vec<_> = paragraph.clone().take_content().collect();
         assert_eq!(
             super::InlineTextTransform::default()
-                .rendered_replacements(true)
-                .to_string(&paragraph.content),
+                .rendered()
+                .to_string(&content),
             "(C) ® (TM)"
         );
         Ok(())
@@ -707,20 +872,14 @@ mod tests {
     use super::{InlineTextTransform, inlines_to_string};
 
     fn plain(content: &str) -> InlineNode<'_> {
-        InlineNode::PlainText(Plain {
-            content,
-            location: Location::default(),
-            escaped: false,
-        })
+        InlineNode::PlainText(Plain::new(content, Location::default()))
     }
 
     #[test]
     fn inlines_to_string_collapses_line_break_to_space() {
         let inlines = vec![
             plain("first"),
-            InlineNode::LineBreak(LineBreak {
-                location: Location::default(),
-            }),
+            InlineNode::LineBreak(LineBreak::new(Location::default())),
             plain("second"),
         ];
 
@@ -731,9 +890,7 @@ mod tests {
     fn transform_uses_requested_line_break() {
         let inlines = vec![
             plain("first"),
-            InlineNode::LineBreak(LineBreak {
-                location: Location::default(),
-            }),
+            InlineNode::LineBreak(LineBreak::new(Location::default())),
             plain("second"),
         ];
 
@@ -759,12 +916,14 @@ mod tests {
     }
 
     /// The inline nodes of the document's first body paragraph.
-    fn body_inlines<'a>(doc: &'a acdc_parser::Document<'a>) -> &'a [InlineNode<'a>] {
-        doc.blocks
-            .iter()
+    fn body_inlines<'a>(doc: &'a acdc_parser::Document<'a>) -> Vec<InlineNode<'a>> {
+        acdc_parser::ast::DocumentRef::from(doc)
+            .blocks()
             .find_map(|block| {
-                if let acdc_parser::Block::Paragraph(paragraph) = block {
-                    Some(paragraph.content.as_slice())
+                if let acdc_parser::Block::Paragraph(mut paragraph) =
+                    acdc_parser::Block::from(block)
+                {
+                    Some(paragraph.take_content().collect())
                 } else {
                     None
                 }
@@ -776,19 +935,19 @@ mod tests {
     fn a_cross_reference_without_a_catalog_reads_as_its_target() -> Result<(), acdc_parser::Error> {
         // All an inter-document reference has is its target.
         let parsed = document("See <<titled>>.")?;
-        let doc = parsed.document();
-        assert_eq!(inlines_to_string(body_inlines(doc)), "See titled.");
+        let doc = &acdc_parser::Document::from(parsed.document());
+        assert_eq!(inlines_to_string(&body_inlines(doc)), "See titled.");
         Ok(())
     }
 
     #[test]
     fn a_cross_reference_reads_as_its_target_reference_text() -> Result<(), acdc_parser::Error> {
         let parsed = document("See <<titled>>, <<labelled>>, <<untitled>>, and <<missing>>.")?;
-        let doc = parsed.document();
+        let doc = &acdc_parser::Document::from(parsed.document());
         assert_eq!(
             InlineTextTransform::default()
-                .references(&doc.references)
-                .to_string(body_inlines(doc)),
+                .references(acdc_parser::ast::DocumentRef::from(doc).references())
+                .to_string(&body_inlines(doc)),
             "See A title, A label, [untitled], and [missing]."
         );
         Ok(())
@@ -800,12 +959,12 @@ mod tests {
             "Named: <<Custom Label>>. Explicit: <<Custom Label,Chosen text>>. Title: <<Actual Title>>. ID: <<id>>.\n\n[#id,reftext=\"Custom Label\"]\n== Actual Title\n",
             &acdc_parser::Options::default(),
         )?;
-        let doc = parsed.document();
+        let doc = &acdc_parser::Document::from(parsed.document());
 
         assert_eq!(
             InlineTextTransform::default()
-                .references(&doc.references)
-                .to_string(body_inlines(doc)),
+                .references(acdc_parser::ast::DocumentRef::from(doc).references())
+                .to_string(&body_inlines(doc)),
             "Named: Custom Label. Explicit: Chosen text. Title: [Actual Title]. ID: Custom Label."
         );
         Ok(())
@@ -814,11 +973,11 @@ mod tests {
     #[test]
     fn a_cross_reference_inside_reference_text_reads_as_its_id() -> Result<(), acdc_parser::Error> {
         let parsed = document("See <<recursive>>.")?;
-        let doc = parsed.document();
+        let doc = &acdc_parser::Document::from(parsed.document());
         assert_eq!(
             InlineTextTransform::default()
-                .references(&doc.references)
-                .to_string(body_inlines(doc)),
+                .references(acdc_parser::ast::DocumentRef::from(doc).references())
+                .to_string(&body_inlines(doc)),
             "See See [recursive] again."
         );
         Ok(())
@@ -827,9 +986,9 @@ mod tests {
     #[test]
     fn a_link_reads_as_its_text_then_its_target() -> Result<(), acdc_parser::Error> {
         let parsed = document("See https://example.com[the site] and https://bare.example[].")?;
-        let doc = parsed.document();
+        let doc = &acdc_parser::Document::from(parsed.document());
         assert_eq!(
-            inlines_to_string(body_inlines(doc)),
+            inlines_to_string(&body_inlines(doc)),
             "See the site and https://bare.example."
         );
         Ok(())
@@ -838,9 +997,9 @@ mod tests {
     #[test]
     fn a_menu_reads_as_its_target_then_its_items() -> Result<(), acdc_parser::Error> {
         let parsed = document("Choose menu:File[Open > Recent].")?;
-        let doc = parsed.document();
+        let doc = &acdc_parser::Document::from(parsed.document());
         assert_eq!(
-            inlines_to_string(body_inlines(doc)),
+            inlines_to_string(&body_inlines(doc)),
             "Choose File > Open > Recent."
         );
         Ok(())
@@ -849,13 +1008,13 @@ mod tests {
     #[test]
     fn character_references_decode_only_when_asked() -> Result<(), acdc_parser::Error> {
         let parsed = document("It{apos}s here.")?;
-        let doc = parsed.document();
+        let doc = &acdc_parser::Document::from(parsed.document());
         let inlines = body_inlines(doc);
-        assert_eq!(inlines_to_string(inlines), "It&#39;s here.");
+        assert_eq!(inlines_to_string(&inlines), "It&#39;s here.");
         assert_eq!(
             InlineTextTransform::default()
                 .decode_char_refs(true)
-                .to_string(inlines),
+                .to_string(&inlines),
             "It's here."
         );
         Ok(())
@@ -868,5 +1027,47 @@ mod tests {
         assert_eq!(super::stylized_id("other.adoc#part"), "other#part");
         assert_eq!(super::stylized_id("dir/other.adoc#part"), "dir/other#part");
         assert_eq!(super::stylized_id("no-extension#part"), "no-extension#part");
+    }
+}
+
+#[cfg(test)]
+mod character_reference_tests {
+    use super::InlineTextTransform;
+    use acdc_parser::{CharacterReference, CharacterReferenceKind, InlineNode, Location};
+
+    #[test]
+    fn character_references_keep_source_identity_and_decode_for_text() -> Result<(), &'static str> {
+        for (kind, spelling, text) in [
+            (CharacterReferenceKind::Named("amp"), "&amp;", "&"),
+            (
+                CharacterReferenceKind::Named("NotEqualTilde"),
+                "&NotEqualTilde;",
+                "≂̸",
+            ),
+            (
+                CharacterReferenceKind::Named("unknown"),
+                "&unknown;",
+                "&unknown;",
+            ),
+            (CharacterReferenceKind::Numeric(65), "&#65;", "A"),
+            (CharacterReferenceKind::Numeric(0x1f600), "&#128512;", "😀"),
+            (
+                CharacterReferenceKind::Numeric(0xd800),
+                "&#55296;",
+                "&#55296;",
+            ),
+        ] {
+            let nodes = [InlineNode::CharacterReference(
+                CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
+            )];
+            assert_eq!(InlineTextTransform::default().to_string(&nodes), spelling);
+            assert_eq!(
+                InlineTextTransform::default()
+                    .decode_char_refs(true)
+                    .to_string(&nodes),
+                text
+            );
+        }
+        Ok(())
     }
 }

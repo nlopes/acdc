@@ -1,0 +1,190 @@
+= caption-families(1)
+:doctype: manpage
+:docdate: 2026-11-04
+:revdate: 2026-11-04
+:manmanual: Caption tests
+:mansource: acdc
+:figure-caption: Figure
+:table-caption: Table
+:listing-caption: Listing
+:example-caption: Example
+
+== NAME
+
+caption-families - caption content and numbering
+
+== DESCRIPTION
+
+image::missing-caption-image.png[Caption alternative]
+
+[[image-default]]
+.image default
+image::missing-caption-image.png[Caption alternative]
+
+[caption='*Figure π* _prefix_ link:https://example.org/image?a=1&b=2[Link] & <tag> #[x] \\ ']
+.image custom
+image::missing-caption-image.png[Caption alternative]
+
+[caption="*Literal* & <tag> #[x] "]
+.image literal
+image::missing-caption-image.png[Caption alternative]
+
+[caption=""]
+.image empty
+image::missing-caption-image.png[Caption alternative]
+
+:!figure-caption:
+
+.image disabled
+image::missing-caption-image.png[Caption alternative]
+
+:figure-caption: Figure
+
+[[image-after]]
+.image after
+image::missing-caption-image.png[Caption alternative]
+
+[cols="1,1"]
+|===
+|A |B
+|===
+
+[[table-default]]
+.table default
+[cols="1,1"]
+|===
+|A |B
+|===
+
+[caption='*Table π* _prefix_ link:https://example.org/table?a=1&b=2[Link] & <tag> #[x] \\ ']
+.table custom
+[cols="1,1"]
+|===
+|A |B
+|===
+
+[caption="*Literal* & <tag> #[x] "]
+.table literal
+[cols="1,1"]
+|===
+|A |B
+|===
+
+[caption=""]
+.table empty
+[cols="1,1"]
+|===
+|A |B
+|===
+
+:!table-caption:
+
+.table disabled
+[cols="1,1"]
+|===
+|A |B
+|===
+
+:table-caption: Table
+
+[[table-after]]
+.table after
+[cols="1,1"]
+|===
+|A |B
+|===
+
+[source,rust]
+----
+let value = 1;
+----
+
+[[listing-default]]
+.listing default
+[source,rust]
+----
+let value = 1;
+----
+
+[caption='*Listing π* _prefix_ link:https://example.org/listing?a=1&b=2[Link] & <tag> #[x] \\ ']
+.listing custom
+[source,rust]
+----
+let value = 1;
+----
+
+[caption="*Literal* & <tag> #[x] "]
+.listing literal
+[source,rust]
+----
+let value = 1;
+----
+
+[caption=""]
+.listing empty
+[source,rust]
+----
+let value = 1;
+----
+
+:!listing-caption:
+
+.listing disabled
+[source,rust]
+----
+let value = 1;
+----
+
+:listing-caption: Listing
+
+[[listing-after]]
+.listing after
+[source,rust]
+----
+let value = 1;
+----
+
+====
+Example body.
+====
+
+[[example-default]]
+.example default
+====
+Example body.
+====
+
+[caption='*Example π* _prefix_ link:https://example.org/example?a=1&b=2[Link] & <tag> #[x] \\ ']
+.example custom
+====
+Example body.
+====
+
+[caption="*Literal* & <tag> #[x] "]
+.example literal
+====
+Example body.
+====
+
+[caption=""]
+.example empty
+====
+Example body.
+====
+
+:!example-caption:
+
+.example disabled
+====
+Example body.
+====
+
+:example-caption: Example
+
+[[example-after]]
+.example after
+====
+Example body.
+====
+
+References: xref:image-default[xrefstyle=full] / xref:image-after[xrefstyle=short], xref:table-default[xrefstyle=full] / xref:table-after[xrefstyle=short], xref:listing-default[xrefstyle=full] / xref:listing-after[xrefstyle=short], xref:example-default[xrefstyle=full] / xref:example-after[xrefstyle=short].

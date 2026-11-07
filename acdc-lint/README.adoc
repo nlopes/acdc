@@ -4,6 +4,11 @@ Lint command support for `acdc`.
 
 This crate owns the initial lint registry, lint groups, lint-level model, lint execution, and report types used by `acdc lint`.
 
+Use `LintOptions::with_compatibility_mode(acdc_parser::CompatibilityMode::Draft)`
+to lint with the supported draft rules. Asciidoctor compatibility is the default.
+The same choice applies to file and string inputs. Include access still follows
+the independently selected safe mode.
+
 == Programmatic use
 
 Bring `Lintable` into scope and call `lint` on a filesystem path or an in-memory string:
@@ -87,5 +92,5 @@ Available groups are:
 
 == Features
 
-`pre-spec-subs` is default-on and forwarded to `acdc-parser`.
-`setext` and `network` are available for parser compatibility with the rest of the workspace.
+`network` enables the parser's HTTP client. There are no default Cargo features.
+Language behavior follows the selected compatibility mode in every build.

@@ -1,0 +1,23 @@
+= subs-media-content(1)
+:doctype: manpage
+:docdate: 2026-10-22
+:revdate: 2026-10-22
+:manmanual: Media content tests
+:mansource: acdc
+:experimental:
+:label: *Expanded*
+
+== NAME
+
+subs-media-content - media content rendering
+
+== DESCRIPTION
+
+[subs=macros]
+image:photo.png[*Literal*,title="_Literal_"] icon:heart[alt="*Literal*"] btn:[*Literal*]
+
+[subs="attributes,quotes,macros"]
+image:photo.png[alt={label}]
+
+[subs="macros,attributes"]
+image:photo.png[alt={label}]

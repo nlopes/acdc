@@ -4,12 +4,15 @@
 //! nested selection ranges that expand through the AST hierarchy:
 //! inline leaf → inline formatting → block → section → document.
 
-use acdc_parser::{Block, DelimitedBlockType, InlineNode};
+use acdc_parser::ast::{
+    BlockKind, ContentRef, ContentRole, InlineKind, LocationRef, StructuralRef,
+};
 use tower_lsp_server::ls_types::{Position, Range, SelectionRange};
 
 use crate::{
     convert::{
-        is_primary_location, location_to_range, offset_in_location, position_to_offset, to_lsp_u32,
+        LineIndex, byte_range_to_utf16_range, is_primary_location, normalize_position,
+        position_in_location, position_to_scalar_position,
     },
     state::DocumentState,
 };
@@ -25,43 +28,36 @@ pub(crate) fn compute_selection_ranges(
     positions: &[Position],
 ) -> Vec<SelectionRange> {
     let Some(ast) = doc.ast() else {
-        return positions.iter().map(|p| fallback_range(*p)).collect();
+        return positions
+            .iter()
+            .map(|p| fallback_range(normalize_position(doc.text(), *p).unwrap_or(*p)))
+            .collect();
     };
     let ast = ast.document();
 
-    let doc_range = document_range(doc.text());
+    let Some(doc_range) = byte_range_to_utf16_range(doc.text(), 0..doc.text().len()) else {
+        return positions
+            .iter()
+            .map(|p| fallback_range(normalize_position(doc.text(), *p).unwrap_or(*p)))
+            .collect();
+    };
+    let source = LineIndex::new(doc.text());
 
     positions
         .iter()
         .map(|&pos| {
-            let Some(offset) = position_to_offset(doc.text(), pos) else {
+            let Some(position) = position_to_scalar_position(doc.text(), pos) else {
                 return fallback_range(pos);
             };
 
             let mut ranges = vec![doc_range];
-            collect_block_ranges(&ast.blocks, offset, &mut ranges);
+            for block in ast.blocks() {
+                collect_structural_ranges(block.into(), &position, &source, &mut ranges);
+            }
 
             build_selection_range_chain(&ranges).unwrap_or_else(|| fallback_range(pos))
         })
         .collect()
-}
-
-/// Compute the range covering the entire document text.
-fn document_range(text: &str) -> Range {
-    let lines: Vec<&str> = text.lines().collect();
-    let last_line = lines.len().saturating_sub(1);
-    let last_char = lines.last().map_or(0, |l| l.chars().count());
-
-    Range {
-        start: Position {
-            line: 0,
-            character: 0,
-        },
-        end: Position {
-            line: to_lsp_u32(last_line),
-            character: to_lsp_u32(last_char),
-        },
-    }
 }
 
 /// Build a `SelectionRange` chain from outermost-to-innermost ranges.
@@ -90,189 +86,114 @@ fn fallback_range(pos: Position) -> SelectionRange {
     }
 }
 
-/// Recursively collect ranges from blocks containing the offset.
-fn collect_block_ranges(blocks: &[Block], offset: usize, ranges: &mut Vec<Range>) {
-    for block in blocks {
-        collect_block_range(block, offset, ranges);
+fn push_range(
+    location: LocationRef<'_>,
+    position: &acdc_parser::Position,
+    source: &LineIndex<'_>,
+    ranges: &mut Vec<Range>,
+) {
+    if position_in_location(position, location)
+        && let Some(range) = source.range(location)
+        && ranges
+            .last()
+            .is_none_or(|parent| parent.start <= range.start && range.end <= parent.end)
+    {
+        ranges.push(range);
     }
 }
 
-#[allow(clippy::too_many_lines)]
-fn collect_block_range(block: &Block, offset: usize, ranges: &mut Vec<Range>) {
-    // A foreign or mixed-source container can contain primary-input children.
-    if is_primary_location(block.location()) && !offset_in_location(offset, block.location()) {
-        return;
-    }
-    match block {
-        Block::Section(section) => {
-            if offset_in_location(offset, &section.location) {
-                ranges.push(location_to_range(&section.location));
-            }
-            collect_block_ranges(&section.content, offset, ranges);
-        }
-        Block::Paragraph(para) => {
-            if offset_in_location(offset, &para.location) {
-                ranges.push(location_to_range(&para.location));
-            }
-            collect_inline_ranges(&para.content, offset, ranges);
-        }
-        Block::DelimitedBlock(delimited) => {
-            if offset_in_location(offset, &delimited.location) {
-                ranges.push(location_to_range(&delimited.location));
-            }
-            collect_delimited_ranges(&delimited.inner, offset, ranges);
-        }
-        Block::UnorderedList(list) => {
-            if offset_in_location(offset, &list.location) {
-                ranges.push(location_to_range(&list.location));
-            }
-            for item in &list.items {
-                if offset_in_location(offset, &item.location) {
-                    ranges.push(location_to_range(&item.location));
-                }
-                collect_inline_ranges(&item.principal, offset, ranges);
-                collect_block_ranges(&item.blocks, offset, ranges);
-            }
-        }
-        Block::OrderedList(list) => {
-            if offset_in_location(offset, &list.location) {
-                ranges.push(location_to_range(&list.location));
-            }
-            for item in &list.items {
-                if offset_in_location(offset, &item.location) {
-                    ranges.push(location_to_range(&item.location));
-                }
-                collect_inline_ranges(&item.principal, offset, ranges);
-                collect_block_ranges(&item.blocks, offset, ranges);
-            }
-        }
-        Block::DescriptionList(list) => {
-            if offset_in_location(offset, &list.location) {
-                ranges.push(location_to_range(&list.location));
-            }
-            for item in &list.items {
-                if offset_in_location(offset, &item.location) {
-                    ranges.push(location_to_range(&item.location));
-                }
-                collect_inline_ranges(&item.principal_text, offset, ranges);
-                collect_block_ranges(&item.description, offset, ranges);
-            }
-        }
-        Block::CalloutList(list) => {
-            if offset_in_location(offset, &list.location) {
-                ranges.push(location_to_range(&list.location));
-            }
-            for item in &list.items {
-                if offset_in_location(offset, &item.location) {
-                    ranges.push(location_to_range(&item.location));
-                }
-                collect_inline_ranges(&item.principal, offset, ranges);
-                collect_block_ranges(&item.blocks, offset, ranges);
-            }
-        }
-        Block::Admonition(adm) => {
-            if offset_in_location(offset, &adm.location) {
-                ranges.push(location_to_range(&adm.location));
-            }
-            collect_block_ranges(&adm.blocks, offset, ranges);
-        }
-        Block::DiscreteHeader(h) => {
-            if offset_in_location(offset, &h.location) {
-                ranges.push(location_to_range(&h.location));
-            }
-        }
-        Block::DocumentAttribute(a) => {
-            if offset_in_location(offset, &a.location) {
-                ranges.push(location_to_range(&a.location));
-            }
-        }
-        Block::Image(i) => {
-            if offset_in_location(offset, &i.location) {
-                ranges.push(location_to_range(&i.location));
-            }
-        }
-        Block::TableOfContents(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_delimited_ranges(inner: &DelimitedBlockType, offset: usize, ranges: &mut Vec<Range>) {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            collect_block_ranges(blocks, offset, ranges);
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedPass(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines)
-        | DelimitedBlockType::DelimitedComment(inlines) => {
-            collect_inline_ranges(inlines, offset, ranges);
-        }
-        DelimitedBlockType::DelimitedTable(table) => {
-            // TableRow/TableColumn don't have Location fields, so we
-            // recurse directly into cell content blocks.
-            for row in table
-                .header
-                .iter()
-                .chain(table.rows.iter())
-                .chain(table.footer.iter())
+fn collect_structural_ranges(
+    node: StructuralRef<'_>,
+    position: &acdc_parser::Position,
+    source: &LineIndex<'_>,
+    ranges: &mut Vec<Range>,
+) {
+    let location = match node {
+        StructuralRef::Block(block) => {
+            // A foreign or mixed-source container can contain primary-input children.
+            if is_primary_location(block.location())
+                && !position_in_location(position, block.location())
             {
-                for col in &row.columns {
-                    collect_block_ranges(&col.content, offset, ranges);
-                }
+                return;
+            }
+            match block.kind() {
+                BlockKind::Section(_)
+                | BlockKind::Paragraph(_)
+                | BlockKind::Example(_)
+                | BlockKind::Open(_)
+                | BlockKind::Sidebar(_)
+                | BlockKind::Quote(_)
+                | BlockKind::Listing(_)
+                | BlockKind::Literal(_)
+                | BlockKind::Passthrough(_)
+                | BlockKind::Verse(_)
+                | BlockKind::DelimitedComment(_)
+                | BlockKind::Table(_)
+                | BlockKind::Stem(_)
+                | BlockKind::UnorderedList(_)
+                | BlockKind::OrderedList(_)
+                | BlockKind::DescriptionList(_)
+                | BlockKind::CalloutList(_)
+                | BlockKind::Admonition(_)
+                | BlockKind::DiscreteHeader(_)
+                | BlockKind::DocumentAttribute(_)
+                | BlockKind::Image(_) => Some(block.location()),
+                BlockKind::TableOfContents(_)
+                | BlockKind::ThematicBreak(_)
+                | BlockKind::PageBreak(_)
+                | BlockKind::Audio(_)
+                | BlockKind::Video(_)
+                | BlockKind::Comment(_)
+                | _ => return,
             }
         }
-        DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => {}
+        StructuralRef::ListItem(item) => Some(item.location()),
+        StructuralRef::DescriptionListItem(item) => Some(item.location()),
+        StructuralRef::DescriptionListTerm(term) => Some(term.location()),
+        StructuralRef::DescriptionListDefinition(definition) => Some(definition.location()),
+        StructuralRef::CalloutListItem(item) => Some(item.location()),
+        StructuralRef::TableRow(_) | StructuralRef::TableCell(_) => None,
+        StructuralRef::Document(_) | StructuralRef::Header(_) | _ => return,
+    };
+    if let Some(location) = location {
+        push_range(location, position, source, ranges);
+    }
+    for field in node.content_fields() {
+        if matches!(field.role(), ContentRole::Body | ContentRole::ListPrincipal) {
+            collect_inline_ranges(field.content(), position, source, ranges);
+        }
+    }
+    for child in node.children() {
+        collect_structural_ranges(child, position, source, ranges);
     }
 }
 
-fn collect_inline_ranges(inlines: &[InlineNode], offset: usize, ranges: &mut Vec<Range>) {
-    for inline in inlines {
-        let loc = inline.location();
-        if is_primary_location(loc) && !offset_in_location(offset, loc) {
+fn collect_inline_ranges(
+    content: ContentRef<'_>,
+    position: &acdc_parser::Position,
+    source: &LineIndex<'_>,
+    ranges: &mut Vec<Range>,
+) {
+    for inline in content.inlines() {
+        let location = inline.location();
+        if is_primary_location(location) && !position_in_location(position, location) {
             continue;
         }
-
-        if offset_in_location(offset, loc) {
-            ranges.push(location_to_range(loc));
-        }
-
-        // Recurse into container inlines
-        match inline {
-            InlineNode::BoldText(b) => collect_inline_ranges(&b.content, offset, ranges),
-            InlineNode::ItalicText(i) => collect_inline_ranges(&i.content, offset, ranges),
-            InlineNode::MonospaceText(m) => collect_inline_ranges(&m.content, offset, ranges),
-            InlineNode::HighlightText(h) => collect_inline_ranges(&h.content, offset, ranges),
-            InlineNode::SubscriptText(s) => collect_inline_ranges(&s.content, offset, ranges),
-            InlineNode::SuperscriptText(s) => collect_inline_ranges(&s.content, offset, ranges),
-            InlineNode::CurvedQuotationText(q) => {
-                collect_inline_ranges(&q.content, offset, ranges);
+        push_range(location, position, source, ranges);
+        if matches!(
+            inline.kind(),
+            InlineKind::Bold(_)
+                | InlineKind::Italic(_)
+                | InlineKind::Monospace(_)
+                | InlineKind::Highlight(_)
+                | InlineKind::Subscript(_)
+                | InlineKind::Superscript(_)
+                | InlineKind::CurvedQuotation(_)
+                | InlineKind::CurvedApostrophe(_)
+        ) {
+            for field in inline.content_fields() {
+                collect_inline_ranges(field.content(), position, source, ranges);
             }
-            InlineNode::CurvedApostropheText(a) => {
-                collect_inline_ranges(&a.content, offset, ranges);
-            }
-            // Leaf inlines: no children to recurse into
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
-            // non_exhaustive
-            | _ => {}
         }
     }
 }
@@ -379,7 +300,7 @@ mod tests {
 
     #[test]
     fn test_no_ast_fallback() {
-        let doc = DocumentState::new_failure(String::new(), 1, vec![]);
+        let doc = DocumentState::new_failure(String::new(), 1);
         let positions = vec![Position {
             line: 0,
             character: 0,

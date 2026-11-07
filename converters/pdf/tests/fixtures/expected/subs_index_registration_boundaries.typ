@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -82,7 +83,7 @@
 
 #text("Before ((Joined)) and ")#metadata(none)<__indexterm-3>#text(" and ")#metadata(none)<__indexterm-4>#text(" after.")
 
-#text("Before ")#metadata(none)<__indexterm-5>#text("Start >> Target End")#text(" and ")#metadata(none)<__indexterm-6>#text(" after.")
+#text("Before ")#metadata(none)<__indexterm-5>#text("Start ")#text("&gt;")#text("&gt;")#text(" Target End")#text(" and ")#metadata(none)<__indexterm-6>#text(" after.")
 
 #text("Before ")#metadata(none)<__indexterm-7>#text("Outer ((Inner))")#text(" and ")#metadata(none)<__indexterm-8>#text("function(x)")#text(" and ")#metadata(none)<__indexterm-9>#text("Term")#text(") after.")
 
@@ -94,7 +95,7 @@
     [#metadata(none)<__indexterm-16>#metadata(none)<__indexterm-17>#metadata(none)<__indexterm-18>],
   )
   show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
-  raw(block: true, "Start )) End and Named ] End\n((Joined))  \nStart >> Target End \nOuter ((Inner)) function(x) Term)")
+  raw(block: true, "Start )) End and Named ] End\n((Joined))  \nStart &gt;&gt; Target End \nOuter ((Inner)) function(x) Term)")
 }
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

@@ -6,6 +6,7 @@ mod recognition;
 use recognition::{constrained_passthrough_end, constrained_passthrough_start};
 
 pub(crate) use peg::inline_preprocessing;
+pub(super) use recognition::has_stem_substitution_list;
 
 use bumpalo::Bump;
 use std::{
@@ -18,7 +19,12 @@ use std::{
 
 use crate::{
     DocumentAttributes, Error, Location, Pass, PassthroughKind, Position, SourceLocation,
-    Substitution, Warning, grammar::LineMap, model::substitution::parse_substitution,
+    Substitution, Warning, WarningKind,
+    grammar::{
+        LineMap,
+        utf8_utils::{RoundDirection, step_char},
+    },
+    model::substitution::parse_passthrough_substitutions,
 };
 
 /// Parser state for the inline preprocessor.
@@ -39,7 +45,7 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     pub(crate) line_map: Rc<LineMap>,
     /// Full document input (for `LineMap` position lookups).
     pub(crate) full_input: &'a str,
-    /// Arena for interning synthesised passthrough strings produced during
+    /// Arena for interning synthesized passthrough strings produced during
     /// preprocessing (character-replacement expansions, escape-stripped text).
     pub(crate) arena: &'a Bump,
     pub(crate) source_map: RefCell<SourceMap>,
@@ -66,7 +72,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
     /// * `input` - The substring to parse
     /// * `line_map` - Pre-computed line map for the full document
     /// * `full_input` - The full document input (for position lookups)
-    /// * `arena` - Arena for interning synthesised strings
+    /// * `arena` - Arena for interning synthesized strings
     /// * `macros_enabled` - Whether macro substitutions are active
     /// * `attributes_enabled` - Whether attribute substitutions are active
     pub(crate) fn new(
@@ -103,6 +109,60 @@ impl<'a> InlinePreprocessorParserState<'a> {
         arena: &'a Bump,
     ) -> Self {
         Self::new(input, line_map, full_input, arena, true, true)
+    }
+
+    fn recover_stem_substitutions(&self, source: &'a str, start: Position) -> String {
+        let location = self.calculate_location(start, source, 0);
+        self.add_warning(Warning::new(
+            WarningKind::ContentRecovery {
+                message: "Inline STEM substitution lists are not supported. Source is preserved."
+                    .into(),
+            },
+            Some(self.source_location_for(location.absolute_start, location.absolute_end)),
+        ));
+        let placeholder = format!("���{}���", self.pass_found_count.get());
+        self.source_map.borrow_mut().add_replacement(
+            location.absolute_start,
+            location.absolute_end,
+            placeholder.len(),
+            ProcessedKind::Passthrough,
+        );
+        self.passthroughs.borrow_mut().push(Pass {
+            attribute_fragments: Box::default(),
+            text: Some(source),
+            substitutions: vec![Substitution::SpecialChars],
+            location,
+            kind: PassthroughKind::Triple,
+        });
+        self.pass_found_count.set(self.pass_found_count.get() + 1);
+        placeholder
+    }
+
+    fn preprocess_keyboard(
+        &self,
+        source: &'a str,
+        document_attributes: &DocumentAttributes<'a>,
+    ) -> Result<String, &'static str> {
+        let body = source
+            .get(5..source.len() - 1)
+            .ok_or("invalid keyboard source")?;
+        let end = self.get_offset() + source.len();
+        self.advance_by(5);
+        // Scope extraction to this body so literal plus keys cannot open a
+        // passthrough across adjacent keyboard macros. Attributes still expand.
+        let saved_input = self.input.replace(body);
+        let saved_start = self.substring_start_offset.replace(self.get_offset());
+        let result = if body.is_empty() {
+            Ok(String::new())
+        } else {
+            inline_preprocessing::content(body, document_attributes, self)
+        };
+        self.input.replace(saved_input);
+        self.substring_start_offset.set(saved_start);
+        self.current_offset.set(end);
+        result
+            .map(|body| format!("kbd:[{body}]"))
+            .map_err(|_| "could not preprocess keyboard content")
     }
 
     fn preprocess_stem(
@@ -159,14 +219,17 @@ impl<'a> InlinePreprocessorParserState<'a> {
         }
     }
 
-    /// Build a `SourceLocation` pointing at `[start_offset, end_offset)`
-    /// within the full document input. Uses the shared `LineMap` for
-    /// line/column resolution.
+    /// Build an inclusive diagnostic span from a half-open source range.
     pub(crate) fn source_location_for(
         &self,
         start_offset: usize,
         end_offset: usize,
     ) -> SourceLocation {
+        let end_offset = if start_offset < end_offset {
+            step_char(self.full_input, end_offset, RoundDirection::Backward)
+        } else {
+            start_offset
+        };
         let start = self
             .line_map
             .offset_to_position(start_offset, self.full_input);
@@ -189,21 +252,50 @@ impl<'a> InlinePreprocessorParserState<'a> {
         take(&mut *self.warnings.borrow_mut())
     }
 
-    /// Extract the subs-spec string, content, and parsed substitutions from
-    /// a matched `pass:SUBS[CONTENT]` string.
-    fn parse_pass_macro_parts(full: &str) -> (&str, &str, Vec<Substitution>) {
+    fn extract_pass_macro(&self, full: &'a str, start: Position) -> String {
         let subs_end = full[5..].find('[').unwrap_or(0);
         let subs_str = &full[5..5 + subs_end];
         let content = &full[5 + subs_end + 1..full.len() - 1];
-        let substitutions = if subs_str.is_empty() {
-            Vec::new()
-        } else {
-            subs_str
-                .split(',')
-                .filter_map(|s| parse_substitution(s.trim()))
-                .collect()
-        };
-        (subs_str, content, substitutions)
+        let location = self.calculate_location(start, full, 0);
+        let (content, substitutions, kind) =
+            match parse_passthrough_substitutions(subs_str, "inline passthrough") {
+                Ok(substitutions) => (content, substitutions, PassthroughKind::Macro),
+                Err(message) => {
+                    self.add_warning(Warning::new(
+                        WarningKind::ContentRecovery {
+                            message: message.into(),
+                        },
+                        Some(
+                            self.source_location_for(
+                                location.absolute_start,
+                                location.absolute_end,
+                            ),
+                        ),
+                    ));
+                    // Protect the complete source, including bracket escapes and nested macros.
+                    (
+                        full,
+                        vec![Substitution::SpecialChars],
+                        PassthroughKind::Triple,
+                    )
+                }
+            };
+        let placeholder = format!("���{}���", self.pass_found_count.get());
+        self.source_map.borrow_mut().add_replacement(
+            location.absolute_start,
+            location.absolute_end,
+            placeholder.len(),
+            ProcessedKind::Passthrough,
+        );
+        self.passthroughs.borrow_mut().push(Pass {
+            attribute_fragments: Box::default(),
+            text: Some(content),
+            substitutions,
+            location,
+            kind,
+        });
+        self.pass_found_count.set(self.pass_found_count.get() + 1);
+        placeholder
     }
 
     fn expand_escaped_passthrough(
@@ -354,10 +446,10 @@ impl<'a> InlinePreprocessorParserState<'a> {
             return format!("{{{attribute_name}}}");
         }
 
-        // Character-replacement attributes must bypass the second inline parse;
-        // otherwise values such as `+` and `*` become AsciiDoc syntax.
+        // Built-in replacement values bypass inline parsing so `+` and `*` stay literal.
+        // Explicit overrides follow the ordinary attribute substitution order.
         // https://docs.asciidoctor.org/asciidoc/latest/attributes/character-replacement-ref/
-        let is_character_reference = matches!(
+        let is_builtin_replacement = matches!(
             attribute_name,
             "lt" | "gt"
                 | "amp"
@@ -377,13 +469,13 @@ impl<'a> InlinePreprocessorParserState<'a> {
                 | "two-semicolons"
                 | "apos"
                 | "quot"
-        );
+        ) && !document_attributes.is_explicit(attribute_name);
 
         let Some(resolved) = document_attributes.get(attribute_name) else {
             return format!("{{{attribute_name}}}");
         };
 
-        if (is_character_reference || !resolved.inline_fragments().is_empty())
+        if (is_builtin_replacement || !resolved.inline_fragments().is_empty())
             && let Some(value) = resolved.as_str()
         {
             let absolute_start = location.absolute_start;
@@ -411,15 +503,19 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
         let mut value = String::new();
         let _ = resolved.write_text(&mut value);
+        let raw = resolved.passthrough_ranges();
+        let kind = if document_attributes.is_document_value(attribute_name) {
+            ProcessedKind::DocumentAttribute(raw.into())
+        } else if raw.is_empty() {
+            ProcessedKind::Attribute
+        } else {
+            ProcessedKind::RawAttribute(raw.into())
+        };
         self.source_map.borrow_mut().add_replacement(
             location.absolute_start,
             location.absolute_end,
             value.len(),
-            if resolved.passthrough_ranges().is_empty() {
-                ProcessedKind::Attribute
-            } else {
-                ProcessedKind::RawAttribute(resolved.passthrough_ranges().into())
-            },
+            kind,
         );
         value
     }
@@ -473,19 +569,33 @@ pub(crate) struct Replacement {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct SourceMap {
     pub replacements: Vec<Replacement>,
+    origin: Option<Box<SourceMapOrigin>>,
+}
+
+#[derive(Debug, Clone)]
+struct SourceMapOrigin {
+    map: SourceMap,
+    offset: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ProcessedKind {
     Attribute,
+    // Declaration values have a character-escaping stage before body expansion.
+    DocumentAttribute(Box<[Range<usize>]>),
     RawAttribute(Box<[Range<usize>]>),
     Escape,
+    /// Removed leading whitespace maps to the first retained byte.
+    Indentation,
     Passthrough,
 }
 
 impl ProcessedKind {
     pub(crate) const fn is_attribute(&self) -> bool {
-        matches!(self, Self::Attribute | Self::RawAttribute(_))
+        matches!(
+            self,
+            Self::Attribute | Self::DocumentAttribute(_) | Self::RawAttribute(_)
+        )
     }
 }
 
@@ -506,6 +616,12 @@ fn to_unsigned(value: i32, context: &str) -> Result<usize, Error> {
 }
 
 impl SourceMap {
+    /// Map through an earlier transformation after applying this map.
+    pub(crate) fn with_origin(mut self, map: Self, offset: usize) -> Self {
+        self.origin = Some(Box::new(SourceMapOrigin { map, offset }));
+        self
+    }
+
     /// Record a substitution.
     /// - `absolute_start`: where in the original text the replaced span begins
     /// - `absolute_end`: where in the original text the replaced span ends
@@ -528,6 +644,27 @@ impl SourceMap {
     /// Map a position in the processed text back to the original source.
     pub(crate) fn map_position(&self, pos: usize) -> Result<usize, Error> {
         self.map_position_with_bias(pos, false)
+    }
+
+    /// Map a token start past empty attributes, retaining nonempty reference spans.
+    pub(crate) fn map_token_position(&self, pos: usize) -> Result<usize, Error> {
+        let mut mapped = self.map_local_position(pos, false)?;
+        for replacement in &self.replacements {
+            if replacement.absolute_start > mapped {
+                break;
+            }
+            if replacement.absolute_start == mapped
+                && replacement.byte_len == 0
+                && replacement.kind.is_attribute()
+            {
+                mapped = replacement.absolute_end;
+            }
+        }
+        if let Some(origin) = &self.origin {
+            origin.map.map_token_position(mapped + origin.offset)
+        } else {
+            Ok(mapped)
+        }
     }
 
     /// Map an inclusive end position in the processed text back to the original source.
@@ -584,6 +721,24 @@ impl SourceMap {
         ranges
     }
 
+    pub(crate) fn document_attribute_ranges(&self, original_start: usize) -> Vec<Range<usize>> {
+        let mut original_cursor = original_start;
+        let mut processed_cursor = 0;
+        let mut ranges = Vec::new();
+        for replacement in &self.replacements {
+            if replacement.absolute_start < original_cursor {
+                continue;
+            }
+            processed_cursor += replacement.absolute_start - original_cursor;
+            if matches!(replacement.kind, ProcessedKind::DocumentAttribute(_)) {
+                ranges.push(processed_cursor..processed_cursor + replacement.byte_len);
+            }
+            processed_cursor += replacement.byte_len;
+            original_cursor = replacement.absolute_end;
+        }
+        ranges
+    }
+
     pub(crate) fn raw_attribute_ranges(&self, original_start: usize) -> Vec<Range<usize>> {
         let mut original_cursor = original_start;
         let mut processed_cursor = 0;
@@ -593,7 +748,9 @@ impl SourceMap {
                 continue;
             }
             processed_cursor += replacement.absolute_start - original_cursor;
-            if let ProcessedKind::RawAttribute(raw) = &replacement.kind {
+            if let ProcessedKind::RawAttribute(raw) | ProcessedKind::DocumentAttribute(raw) =
+                &replacement.kind
+            {
                 ranges.extend(
                     raw.iter()
                         .map(|range| range.start + processed_cursor..range.end + processed_cursor),
@@ -606,6 +763,17 @@ impl SourceMap {
     }
 
     fn map_position_with_bias(&self, pos: usize, end_bias: bool) -> Result<usize, Error> {
+        let mapped = self.map_local_position(pos, end_bias)?;
+        if let Some(origin) = &self.origin {
+            origin
+                .map
+                .map_position_with_bias(mapped + origin.offset, end_bias)
+        } else {
+            Ok(mapped)
+        }
+    }
+
+    fn map_local_position(&self, pos: usize, end_bias: bool) -> Result<usize, Error> {
         let signed_pos = to_signed(pos, "pos")?;
 
         // The adjustment is the total number of bytes removed or added during preprocessing.
@@ -619,7 +787,10 @@ impl SourceMap {
             let rep_processed_end = rep_processed_start + replacement_length;
 
             // Position is before this replacement - done adjusting
-            if signed_pos < rep_processed_start || (signed_pos == rep_processed_start && !end_bias)
+            if signed_pos < rep_processed_start
+                || (signed_pos == rep_processed_start
+                    && !end_bias
+                    && rep.kind != ProcessedKind::Indentation)
             {
                 break;
             }
@@ -630,11 +801,13 @@ impl SourceMap {
                     return Ok(rep.absolute_end.saturating_sub(1));
                 }
                 return match rep.kind {
-                    ProcessedKind::Attribute | ProcessedKind::RawAttribute(_) => {
+                    ProcessedKind::Attribute
+                    | ProcessedKind::DocumentAttribute(_)
+                    | ProcessedKind::RawAttribute(_) => {
                         // All inserted characters map to the left-most original position
                         Ok(rep.absolute_start)
                     }
-                    ProcessedKind::Escape => Ok(rep.absolute_start),
+                    ProcessedKind::Escape | ProcessedKind::Indentation => Ok(rep.absolute_start),
                     ProcessedKind::Passthrough => {
                         let mapped_pos = signed_pos - adjustment;
                         if mapped_pos >= rep_end {

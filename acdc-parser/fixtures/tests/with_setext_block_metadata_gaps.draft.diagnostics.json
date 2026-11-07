@@ -1,0 +1,40 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 15,
+      "absolute_start": 11,
+      "file": "with_setext_block_metadata_gaps.adoc",
+      "location": [
+        {
+          "col": 1,
+          "line": 4
+        },
+        {
+          "col": 5,
+          "line": 4
+        }
+      ]
+    },
+    "message": "unterminated listing block (opened by `-----`)"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 15,
+        "absolute_start": 11,
+        "file": "with_setext_block_metadata_gaps.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 4
+          },
+          {
+            "col": 5,
+            "line": 4
+          }
+        ]
+      },
+      "message": "unterminated listing block (opened by `-----`)"
+    }
+  ]
+}

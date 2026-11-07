@@ -7,11 +7,26 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Term",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Term",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 1
+                    },
+                    {
+                      "line": 1,
+                      "col": 4
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 1,
@@ -19,96 +34,107 @@
                 },
                 {
                   "line": 1,
-                  "col": 4
+                  "col": 6
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "strong",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "One sentence.",
-                  "location": [
-                    {
-                      "line": 1,
-                      "col": 9
-                    },
-                    {
-                      "line": 1,
-                      "col": 21
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 1,
-                  "col": 8
-                },
-                {
-                  "line": 1,
-                  "col": 22
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "\n",
-              "location": [
-                {
-                  "line": 1,
-                  "col": 23
-                },
-                {
-                  "line": 1,
-                  "col": 23
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "emphasis",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Another sentence.",
-                  "location": [
-                    {
-                      "line": 2,
-                      "col": 2
-                    },
-                    {
-                      "line": 2,
-                      "col": 18
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 2,
-                  "col": 1
-                },
-                {
-                  "line": 2,
-                  "col": 19
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "span",
+                "type": "inline",
+                "variant": "strong",
+                "form": "constrained",
+                "inlines": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "One sentence.",
+                    "location": [
+                      {
+                        "line": 1,
+                        "col": 9
+                      },
+                      {
+                        "line": 1,
+                        "col": 21
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 1,
+                    "col": 8
+                  },
+                  {
+                    "line": 1,
+                    "col": 22
+                  }
+                ]
+              },
+              {
+                "name": "text",
+                "type": "string",
+                "value": "\n",
+                "location": [
+                  {
+                    "line": 1,
+                    "col": 23
+                  },
+                  {
+                    "line": 1,
+                    "col": 23
+                  }
+                ]
+              },
+              {
+                "name": "span",
+                "type": "inline",
+                "variant": "emphasis",
+                "form": "constrained",
+                "inlines": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Another sentence.",
+                    "location": [
+                      {
+                        "line": 2,
+                        "col": 2
+                      },
+                      {
+                        "line": 2,
+                        "col": 18
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 2,
+                    "col": 1
+                  },
+                  {
+                    "line": 2,
+                    "col": 19
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 1,
+                "col": 8
+              },
+              {
+                "line": 2,
+                "col": 19
+              }
+            ]
+          },
           "location": [
             {
               "line": 1,
@@ -116,7 +142,7 @@
             },
             {
               "line": 2,
-              "col": 20
+              "col": 19
             }
           ]
         }
@@ -128,7 +154,7 @@
         },
         {
           "line": 2,
-          "col": 20
+          "col": 19
         }
       ]
     }

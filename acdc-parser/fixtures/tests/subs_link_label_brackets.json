@@ -67,6 +67,9 @@
               "name": "raw",
               "type": "string",
               "value": "]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 5,
@@ -103,8 +106,7 @@
               "line": 5,
               "col": 45
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -156,6 +158,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 7,
@@ -204,8 +209,7 @@
               "line": 7,
               "col": 49
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -236,6 +240,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 9,
@@ -266,6 +273,9 @@
               "name": "raw",
               "type": "string",
               "value": "]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 9,
@@ -302,8 +312,7 @@
               "line": 9,
               "col": 51
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -334,6 +343,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 11,
@@ -364,6 +376,9 @@
               "name": "raw",
               "type": "string",
               "value": "]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 11,
@@ -400,8 +415,7 @@
               "line": 11,
               "col": 51
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -447,6 +461,9 @@
               "name": "raw",
               "type": "string",
               "value": "]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 14,
@@ -483,8 +500,7 @@
               "line": 14,
               "col": 36
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "metadata": {
@@ -597,6 +613,9 @@
               "name": "raw",
               "type": "string",
               "value": "]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 21,
@@ -633,8 +652,7 @@
               "line": 21,
               "col": 48
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -679,6 +697,9 @@
               "name": "raw",
               "type": "string",
               "value": "]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 22,
@@ -715,8 +736,7 @@
               "line": 22,
               "col": 49
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",

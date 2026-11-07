@@ -1,0 +1,22 @@
+= Cross-reference contexts
+:sectnums:
+
+[#target]
+== Target
+
+include::includes/inline_xref_metadata.adoc[]
+
+[cols="a"]
+|===
+|xref:target[Cell,id=cell-xref,role="one two",opts="a,b",xrefstyle=short,custom=kept]
+
+xref:other.adoc#section[External,id=cell-external,window=reading]
+|===
+
+:xrefstyle: full
+
+xref:target[]
+
+:xrefstyle: short
+
+xref:target[xrefstyle=basic]

@@ -1,0 +1,41 @@
+{
+  "recovery": null,
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 157,
+        "absolute_start": 130,
+        "file": "compatibility_legacy_controls.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 5
+          },
+          {
+            "col": 28,
+            "line": 5
+          }
+        ]
+      },
+      "message": "`compat-mode` has no effect in Draft mode; the attribute is preserved"
+    },
+    {
+      "location": {
+        "absolute_end": 409,
+        "absolute_start": 397,
+        "file": "compatibility_legacy_controls.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 13
+          },
+          {
+            "col": 13,
+            "line": 13
+          }
+        ]
+      },
+      "message": "`compat-mode` has no effect in Draft mode; the attribute is preserved"
+    }
+  ]
+}

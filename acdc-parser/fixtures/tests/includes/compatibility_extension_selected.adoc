@@ -1,0 +1,13 @@
+Excluded.
+// tag::selected[]
+## Included heading
+
+~~~~
+Included π paragraph with footnote:[One note].
+
+~~~~~~
+Nested included paragraph.
+~~~~~~
+~~~~
+// end::selected[]
+Excluded tail.

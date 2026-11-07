@@ -1,0 +1,113 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Reindented diagnostic offsets",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 31
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 31
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "compat-mode",
+      "type": "attribute",
+      "value": "λ",
+      "location": [
+        {
+          "line": 2,
+          "col": 5,
+          "file": [
+            "includes/diagnostic_indented_offsets.adoc"
+          ]
+        },
+        {
+          "line": 2,
+          "col": 19,
+          "file": [
+            "includes/diagnostic_indented_offsets.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included body.",
+          "location": [
+            {
+              "line": 4,
+              "col": 5,
+              "file": [
+                "includes/diagnostic_indented_offsets.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 18,
+              "file": [
+                "includes/diagnostic_indented_offsets.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 5,
+          "file": [
+            "includes/diagnostic_indented_offsets.adoc"
+          ]
+        },
+        {
+          "line": 4,
+          "col": 18,
+          "file": [
+            "includes/diagnostic_indented_offsets.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 4,
+      "col": 18,
+      "file": [
+        "includes/diagnostic_indented_offsets.adoc"
+      ]
+    }
+  ]
+}

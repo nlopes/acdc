@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -84,34 +85,34 @@
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#blocktitle[#text("P01 Title ©")]
-#verse[#text("P01 ")#strong[#text("Bold")]#text(" ")#emph[#text("italic")]#text(" expanded © ® ™.\n  P02 ")#strong[#text("indented\n    formatting")]#text(" and ")#raw("code")#text(".\nP03 ")#link("https://example.org/paragraph")[#text("Link ©")]#text(" ")#counter(footnote).update(0)#footnote[#text("Paragraph note ®.")]<id-666f6f746e6f74653a706172616772617068>#text("\nP04 ")#text("(C)")#text(" (R) ")#metadata(none)<id-7061726167726170682d746172676574>#metadata(none)<__indexterm-1>#text("Paragraph term")#text(".")]
+#blocktitle[#text("P01 Title ")#text("©")]
+#verse[#text("P01 ")#strong[#text("Bold")]#text(" ")#emph[#text("italic")]#text(" expanded ")#text("©")#text(" ")#text("®")#text(" ")#text("™")#text(".\n  P02 ")#strong[#text("indented\n    formatting")]#text(" and ")#raw("code")#text(".\nP03 ")#link("https://example.org/paragraph")[#text("Link ")#text("©")]#text(" ")#counter(footnote).update(0)#footnote[#text("Paragraph note ")#text("®")#text(".")]<id-666f6f746e6f74653a706172616772617068>#text("\nP04 ")#text("(C)")#text(" ")#text("(R)")#text(" ")#metadata(none)<id-7061726167726170682d746172676574>#metadata(none)<__indexterm-1>#text("Paragraph term")#text(".")]
 
 #attribution[#text("Writer")#text(", ")#text("Work")]
 
-#blocktitle[#text("D01 Title ©")]
-#verse[#text("D01 ")#strong[#text("Bold")]#text(" ")#emph[#text("italic")]#text(" expanded © ® ™.\n  D02 ")#strong[#text("indented\n    formatting")]#text(" and ")#raw("code")#text(".\n\nD03 ")#link("https://example.org/delimited")[#text("Link ©")]#text(" ")#counter(footnote).update(1)#footnote[#text("Delimited note ®.")]<id-666f6f746e6f74653a64656c696d69746564>#text("\nD04 ")#text("(C)")#text(" (R) ")#metadata(none)<id-64656c696d697465642d746172676574>#metadata(none)<__indexterm-2>#text("Delimited term")#text(".\n  D05 repeated  spaces.\n.D06 leading period.\n'D07 leading apostrophe.")]
+#blocktitle[#text("D01 Title ")#text("©")]
+#verse[#text("D01 ")#strong[#text("Bold")]#text(" ")#emph[#text("italic")]#text(" expanded ")#text("©")#text(" ")#text("®")#text(" ")#text("™")#text(".\n  D02 ")#strong[#text("indented\n    formatting")]#text(" and ")#raw("code")#text(".\n\nD03 ")#link("https://example.org/delimited")[#text("Link ")#text("©")]#text(" ")#counter(footnote).update(1)#footnote[#text("Delimited note ")#text("®")#text(".")]<id-666f6f746e6f74653a64656c696d69746564>#text("\nD04 ")#text("(C)")#text(" ")#text("(R)")#text(" ")#metadata(none)<id-64656c696d697465642d746172676574>#metadata(none)<__indexterm-2>#text("Delimited term")#text(".\n  D05 repeated  spaces.\n.D06 leading period.\n'D07 leading apostrophe.")]
 
 #attribution[#text("Writer")#text(", ")#text("Work")]
 
 #block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 1. ")#text("T01 Table")]
 ]
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#verse[#text("T01 ")#strong[#text("Cell")]#text(" ©.\n  T02 second line.")]
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#verse[#text("T01 ")#strong[#text("Cell")]#text(" ")#text("©")#text(".\n  T02 second line.")]
 
-#verse[#text("T03 ")#strong[#text("Cell block")]#text(" ®.\n  T04 second line.\n\nT05 final line.")]
+#verse[#text("T03 ")#strong[#text("Cell block")]#text(" ")#text("®")#text(".\n  T04 second line.\n\nT05 final line.")]
 
 ])
 
   - #block(width: 100%)[#text("Attached verse")
 
-#verse[#text("L01 ")#strong[#text("Attached")]#text(" ™.\n  L02 second line.")]
+#verse[#text("L01 ")#strong[#text("Attached")]#text(" ")#text("™")#text(".\n  L02 second line.")]
 
   ]
 
 #verse[]
 
-#text("After ©. Reuse ")#footnote(<id-666f6f746e6f74653a706172616772617068>)#text(" and ")#footnote(<id-666f6f746e6f74653a64656c696d69746564>)#text(". See ")#context link(query(<id-7061726167726170682d746172676574>).first().location())[#text("Paragraph")]#text(" and ")#context link(query(<id-64656c696d697465642d746172676574>).first().location())[#text("Delimited")]#text(".")
+#text("After ")#text("©")#text(". Reuse ")#footnote(<id-666f6f746e6f74653a706172616772617068>)#text(" and ")#footnote(<id-666f6f746e6f74653a64656c696d69746564>)#text(". See ")#context link(query(<id-7061726167726170682d746172676574>).first().location())[#text("Paragraph")]#text(" and ")#context link(query(<id-64656c696d697465642d746172676574>).first().location())[#text("Delimited")]#text(".")
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 

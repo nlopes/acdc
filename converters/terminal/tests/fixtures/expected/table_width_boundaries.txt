@@ -1,0 +1,26 @@
+[1m[4mTable width controls[0m
+  Table 1. Repeated widths with automatic space
+╭───┬───┬─────────────────╮
+│ A ┆ B ┆ Automatic space │
+│   ┆   ┆                 │
+╰───┴───┴─────────────────╯
+  Table 2. Mixed numeric and percentage weights
+╭───┬───╮
+│ A ┆ B │
+│   ┆   │
+╰───┴───╯
+  Table 3. All zero numeric widths
+╭───┬───╮
+│ A ┆ B │
+│   ┆   │
+╰───┴───╯
+  Table 4. Zero beside automatic width
+╭───┬─────────────────╮
+│ A ┆ Automatic space │
+│   ┆                 │
+╰───┴─────────────────╯
+  Table 5. Maximum repeated widths
+╭───┬───┬─────────────────╮
+│ A ┆ B ┆ Automatic space │
+│   ┆   ┆                 │
+╰───┴───┴─────────────────╯

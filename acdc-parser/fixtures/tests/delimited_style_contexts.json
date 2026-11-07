@@ -1,0 +1,279 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Delimited style contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 26
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 26
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "unordered",
+      "marker": "*",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "List item",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 3
+                },
+                {
+                  "line": 3,
+                  "col": 11
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "name": "literal",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "----",
+              "metadata": {
+                "style": "literal"
+              },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Continued *verbatim*",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 1
+                    },
+                    {
+                      "line": 7,
+                      "col": 20
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 5,
+                  "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 4
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "listing",
+                    "type": "block",
+                    "form": "delimited",
+                    "delimiter": "....",
+                    "metadata": {
+                      "attributes": {
+                        "language": "text"
+                      },
+                      "style": "source"
+                    },
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Cell *verbatim*",
+                        "location": [
+                          {
+                            "line": 15,
+                            "col": 1
+                          },
+                          {
+                            "line": 15,
+                            "col": 15
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 13,
+                        "col": 1
+                      },
+                      {
+                        "line": 16,
+                        "col": 4
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 11,
+            "col": 1
+          },
+          {
+            "line": 17,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "....",
+      "metadata": {
+        "attributes": {
+          "language": "text"
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included *verbatim* {missing}",
+          "location": [
+            {
+              "line": 4,
+              "col": 1,
+              "file": [
+                "includes/delimited_style_content.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 29,
+              "file": [
+                "includes/delimited_style_content.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 1,
+          "file": [
+            "includes/delimited_style_content.adoc"
+          ]
+        },
+        {
+          "line": 5,
+          "col": 4,
+          "file": [
+            "includes/delimited_style_content.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 5,
+      "col": 4,
+      "file": [
+        "includes/delimited_style_content.adoc"
+      ]
+    }
+  ]
+}

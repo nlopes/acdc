@@ -1589,3 +1589,22 @@ body.resizing .preview-pane {
     #preview .white-background { background: #2a2a2a; }
     #preview .yellow-background { background: #606000; }
 }
+
+.editor-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.editor-toolbar label {
+    font-size: 12px;
+    font-weight: normal;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.editor-toolbar select {
+    font: inherit;
+    margin-left: 0.25rem;
+}

@@ -1,0 +1,591 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "admonition",
+      "type": "block",
+      "variant": "note",
+      "form": "paragraph",
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A paragraph note.",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 7
+                },
+                {
+                  "line": 1,
+                  "col": 23
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 7
+            },
+            {
+              "line": 1,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "admonition",
+      "type": "block",
+      "variant": "note",
+      "form": "paragraph",
+      "metadata": {
+        "style": "NOTE"
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A styled note.",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 1
+                },
+                {
+                  "line": 4,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "admonition",
+      "type": "block",
+      "variant": "important",
+      "form": "indented",
+      "metadata": {
+        "style": "IMPORTANT"
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "    An indented note.",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "admonition",
+      "type": "block",
+      "variant": "tip",
+      "form": "delimited",
+      "delimiter": "======",
+      "metadata": {
+        "roles": [
+          "alert"
+        ],
+        "id": {
+          "id": "gate",
+          "location": [
+            {
+              "line": 10,
+              "col": 6
+            },
+            {
+              "line": 10,
+              "col": 9
+            }
+          ]
+        }
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Keep the gate closed",
+          "location": [
+            {
+              "line": 9,
+              "col": 2
+            },
+            {
+              "line": 9,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A ",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 1
+                },
+                {
+                  "line": 12,
+                  "col": 2
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "delimited",
+                  "location": [
+                    {
+                      "line": 12,
+                      "col": 4
+                    },
+                    {
+                      "line": 12,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 12,
+                  "col": 3
+                },
+                {
+                  "line": 12,
+                  "col": 13
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " tip.",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 14
+                },
+                {
+                  "line": 12,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 6
+        }
+      ]
+    },
+    {
+      "name": "admonition",
+      "type": "block",
+      "variant": "caution",
+      "form": "delimited",
+      "delimiter": "--",
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "An open-block caution.",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 1
+                },
+                {
+                  "line": 17,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 2
+        }
+      ]
+    },
+    {
+      "name": "admonition",
+      "type": "block",
+      "variant": "warning",
+      "form": "delimited",
+      "delimiter": "========",
+      "blocks": [
+        {
+          "name": "admonition",
+          "type": "block",
+          "variant": "note",
+          "form": "paragraph",
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "A nested note.",
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 7
+                    },
+                    {
+                      "line": 22,
+                      "col": 20
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 22,
+                  "col": 7
+                },
+                {
+                  "line": 22,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 8
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "admonition",
+                    "type": "block",
+                    "variant": "note",
+                    "form": "paragraph",
+                    "blocks": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "A table-cell note.",
+                            "location": [
+                              {
+                                "line": 27,
+                                "col": 8
+                              },
+                              {
+                                "line": 27,
+                                "col": 25
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 27,
+                            "col": 8
+                          },
+                          {
+                            "line": 27,
+                            "col": 25
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 27,
+                        "col": 2
+                      },
+                      {
+                        "line": 27,
+                        "col": 25
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 26,
+            "col": 1
+          },
+          {
+            "line": 28,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "admonition",
+      "type": "block",
+      "variant": "note",
+      "form": "paragraph",
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "An included note.",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 11,
+                  "file": [
+                    "includes/admonition_source_forms.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 27,
+                  "file": [
+                    "includes/admonition_source_forms.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 11,
+              "file": [
+                "includes/admonition_source_forms.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 27,
+              "file": [
+                "includes/admonition_source_forms.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 5,
+          "file": [
+            "includes/admonition_source_forms.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 27,
+          "file": [
+            "includes/admonition_source_forms.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 27,
+      "file": [
+        "includes/admonition_source_forms.adoc"
+      ]
+    }
+  ]
+}

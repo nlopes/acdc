@@ -1,0 +1,306 @@
+//! Playback links preserve provider precedence, scalar values, and owned results.
+
+use acdc_converters_core::{
+    media::{with_time_range, with_time_range_from_attributes},
+    video::{TryUrl, UrlError},
+};
+use acdc_parser::{
+    AttributeValue, Audio, BlockMetadata, ElementAttributes, Location, Source, Video,
+    ast::{AudioRef, VideoRef},
+};
+
+fn video<'a>(
+    target: &'a str,
+    values: &[(&'a str, &'a str)],
+    options: Vec<&'a str>,
+) -> Result<Video<'a>, Box<dyn std::error::Error>> {
+    let mut attributes = ElementAttributes::default();
+    for &(key, value) in values {
+        attributes.set(key.into(), value.into());
+    }
+    Ok(
+        Video::new(Source::Name(target), Location::default()).with_metadata(
+            BlockMetadata::new()
+                .with_attributes(attributes)?
+                .with_options(options),
+        )?,
+    )
+}
+
+fn assert_urls(
+    video: &Video<'_>,
+    watch: &str,
+    embed: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    assert_eq!(video.try_url(false)?, watch);
+    assert_eq!(video.try_url(true)?, embed);
+    let typed = VideoRef::from(video);
+    assert_eq!(typed.try_url(false)?, watch);
+    assert_eq!(typed.try_url(true)?, embed);
+    Ok(())
+}
+
+#[test]
+fn youtube_playlists_keep_shorthand_and_named_precedence() -> Result<(), Box<dyn std::error::Error>>
+{
+    for (target, controls, watch, embed) in [
+        (
+            "one,two,three",
+            vec![("playlist", "ignored")],
+            "https://www.youtube.com/watch?v=one&playlist=one,two,three",
+            "https://www.youtube.com/embed/one?rel=0&loop=1&playlist=one,two,three",
+        ),
+        (
+            "one,two,three/list",
+            vec![("list", "ignored")],
+            "https://www.youtube.com/watch?v=one,two,three&list=list",
+            "https://www.youtube.com/embed/one,two,three?rel=0&loop=1&list=list",
+        ),
+        (
+            "one,two",
+            vec![("list", "named"), ("playlist", "ignored")],
+            "https://www.youtube.com/watch?v=one,two&list=named",
+            "https://www.youtube.com/embed/one,two?rel=0&loop=1&list=named",
+        ),
+        (
+            "one",
+            vec![("playlist", "two,three")],
+            "https://www.youtube.com/watch?v=one&playlist=one,two,three",
+            "https://www.youtube.com/embed/one?rel=0&loop=1&playlist=one,two,three",
+        ),
+        (
+            "one",
+            vec![("playlist", "")],
+            "https://www.youtube.com/watch?v=one&playlist=one,",
+            "https://www.youtube.com/embed/one?rel=0&loop=1&playlist=one,",
+        ),
+    ] {
+        let mut controls = controls;
+        controls.push(("poster", "youtube"));
+        assert_urls(&video(target, &controls, vec!["loop"])?, watch, embed)?;
+    }
+    Ok(())
+}
+
+#[test]
+fn youtube_controls_keep_literal_time_and_language_values() -> Result<(), Box<dyn std::error::Error>>
+{
+    let video = video(
+        "one",
+        &[
+            ("poster", "youtube"),
+            ("start", "\"5\""),
+            ("end", ""),
+            ("theme", "\"dark\""),
+            ("lang", "\"en\""),
+        ],
+        vec![
+            "related",
+            "autoplay",
+            "loop",
+            "muted",
+            "nocontrols",
+            "nofullscreen",
+            "modest",
+        ],
+    )?;
+    assert_urls(
+        &video,
+        "https://www.youtube.com/watch?v=one&t=\"5\"&end=",
+        "https://www.youtube.com/embed/one?rel=1&start=\"5\"&end=&theme=\"dark\"&autoplay=1&loop=1&playlist=one&mute=1&controls=0&fs=0&hl=\"en\"&modestbranding=1",
+    )
+}
+
+#[test]
+fn vimeo_hashes_and_times_keep_watch_and_embed_policies() -> Result<(), Box<dyn std::error::Error>>
+{
+    for (target, hash) in [("123/secret", "ignored"), ("123", "secret")] {
+        assert_urls(
+            &video(
+                target,
+                &[("poster", "vimeo"), ("hash", hash), ("start", "\"5\"")],
+                vec!["autoplay", "loop", "muted"],
+            )?,
+            "https://vimeo.com/123/secret#t=\"5\"",
+            "https://player.vimeo.com/video/123?h=secret&autoplay=1&loop=1&muted=1#at=\"5\"",
+        )?;
+    }
+    assert_urls(
+        &video(
+            "123",
+            &[("poster", "vimeo"), ("hash", ""), ("start", "")],
+            vec![],
+        )?,
+        "https://vimeo.com/123/#t=",
+        "https://player.vimeo.com/video/123?h=#at=",
+    )
+}
+
+#[test]
+fn ranges_keep_absent_empty_nontext_and_quoted_values() -> Result<(), Box<dyn std::error::Error>> {
+    for (start, end, expected) in [
+        (None, None, "clip,audio.ogg?x=1#part"),
+        (Some(""), None, "clip,audio.ogg?x=1#part#t="),
+        (None, Some(""), "clip,audio.ogg?x=1#part#t=,"),
+        (Some(""), Some(""), "clip,audio.ogg?x=1#part#t=,"),
+        (
+            Some("\"5\""),
+            Some("'9'"),
+            "clip,audio.ogg?x=1#part#t=\"5\",'9'",
+        ),
+    ] {
+        let mut audio = Audio::new(Source::Name("clip,audio.ogg?x=1#part"), Location::default());
+        let mut metadata = audio.take_metadata();
+        metadata
+            .attributes
+            .insert("start".into(), AttributeValue::Bool(true));
+        metadata
+            .attributes
+            .insert("end".into(), AttributeValue::None);
+        audio.set_metadata(metadata)?;
+        for (key, value) in [("start", start), ("end", end)] {
+            if let Some(value) = value {
+                let mut metadata = audio.take_metadata();
+                metadata.attributes.set(key.into(), value.into());
+                audio.set_metadata(metadata)?;
+            }
+        }
+        assert_eq!(
+            with_time_range(
+                &AudioRef::from(&audio).source().to_string(),
+                &audio.clone_metadata().attributes
+            ),
+            expected
+        );
+        assert_eq!(
+            with_time_range_from_attributes(
+                &AudioRef::from(&audio).source().to_string(),
+                AudioRef::from(&audio).attributes()
+            ),
+            expected
+        );
+        let mut video = video("clip,audio.ogg?x=1#part", &[], vec![])?;
+        let mut metadata = video.take_metadata();
+        metadata.attributes = audio.take_metadata().attributes;
+        video.set_metadata(metadata)?;
+        assert_eq!(video.try_url(false)?, expected);
+        assert_eq!(video.try_url(true)?, expected);
+        assert_eq!(VideoRef::from(&video).try_url(false)?, expected);
+        assert_eq!(VideoRef::from(&video).try_url(true)?, expected);
+    }
+    Ok(())
+}
+
+#[test]
+fn playback_results_outlive_temporary_targets_and_edited_controls()
+-> Result<(), Box<dyn std::error::Error>> {
+    let (before, after) = {
+        let target = String::from("one,two,three");
+        let start = String::from("5");
+        let mut video = video(&target, &[("poster", "youtube"), ("start", &start)], vec![])?;
+        let before = VideoRef::from(&video).try_url(true)?;
+        assert_eq!(video.try_url(true)?, before);
+        let mut metadata = video.take_metadata();
+        metadata
+            .attributes
+            .set("start".into(), String::from("9").into());
+        metadata.options.push("muted");
+        video.set_metadata(metadata)?;
+        let after = VideoRef::from(&video).try_url(true)?;
+        assert_eq!(video.try_url(true)?, after);
+        (before, after)
+    };
+    assert_eq!(
+        before,
+        "https://www.youtube.com/embed/one?rel=0&start=5&playlist=one,two,three"
+    );
+    assert_eq!(
+        after,
+        "https://www.youtube.com/embed/one?rel=0&start=9&mute=1&playlist=one,two,three"
+    );
+    Ok(())
+}
+
+#[test]
+fn empty_targets_fail_before_provider_specific_controls() -> Result<(), Box<dyn std::error::Error>>
+{
+    for poster in ["", "youtube", "vimeo"] {
+        let video = video("", &[("poster", poster)], vec![])?;
+        for embed in [false, true] {
+            assert!(matches!(video.try_url(embed), Err(UrlError::MissingSource)));
+            assert!(matches!(
+                VideoRef::from(&video).try_url(embed),
+                Err(UrlError::MissingSource)
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn range_results_outlive_temporary_attribute_values() -> Result<(), Box<dyn std::error::Error>> {
+    let range = {
+        let source = String::from("track.ogg");
+        let start = String::from("\"5\"");
+        let mut audio = Audio::new(Source::Name(&source), Location::default());
+        let mut metadata = audio.take_metadata();
+        metadata
+            .attributes
+            .set("start".into(), start.as_str().into());
+        audio.set_metadata(metadata)?;
+        let audio = AudioRef::from(&audio);
+        with_time_range_from_attributes(&audio.source().to_string(), audio.attributes())
+    };
+    assert_eq!(range, "track.ogg#t=\"5\"");
+    Ok(())
+}
+
+#[test]
+fn nontext_controls_keep_a_complete_local_target() -> Result<(), Box<dyn std::error::Error>> {
+    for value in [
+        AttributeValue::None,
+        AttributeValue::Bool(false),
+        AttributeValue::Bool(true),
+    ] {
+        let mut video = video("one,two,three", &[], vec!["loop", "related"])?;
+        for key in ["poster", "start", "end"] {
+            let mut metadata = video.take_metadata();
+            metadata.attributes.set(key.into(), value.clone());
+            video.set_metadata(metadata)?;
+        }
+        assert_urls(&video, "one,two,three", "one,two,three")?;
+    }
+    Ok(())
+}
+
+#[test]
+fn quoted_provider_names_are_local_poster_values() -> Result<(), Box<dyn std::error::Error>> {
+    for provider in ["'youtube'", "\"vimeo\"", "''"] {
+        assert_urls(
+            &video("clip.mp4", &[("poster", provider)], vec![])?,
+            "clip.mp4",
+            "clip.mp4",
+        )?;
+    }
+    Ok(())
+}
+
+#[test]
+fn named_playlist_and_hash_values_preserve_literal_quotes() -> Result<(), Box<dyn std::error::Error>>
+{
+    assert_urls(
+        &video("one", &[("poster", "youtube"), ("list", "'π'")], vec![])?,
+        "https://www.youtube.com/watch?v=one&list='π'",
+        "https://www.youtube.com/embed/one?rel=0&list='π'",
+    )?;
+    assert_urls(
+        &video("one", &[("poster", "youtube"), ("playlist", "''")], vec![])?,
+        "https://www.youtube.com/watch?v=one&playlist=one,''",
+        "https://www.youtube.com/embed/one?rel=0&playlist=one,''",
+    )?;
+    assert_urls(
+        &video("123", &[("poster", "vimeo"), ("hash", "'π'")], vec![])?,
+        "https://vimeo.com/123/'π'",
+        "https://player.vimeo.com/video/123?h='π'",
+    )
+}

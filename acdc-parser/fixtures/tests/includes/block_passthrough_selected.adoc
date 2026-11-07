@@ -1,0 +1,6 @@
+Not selected.
+    [subs=normal]
+    ++++
+    café *Included* {word} (C) footnote:included[Included note.]
+    ++++
+Not selected either.

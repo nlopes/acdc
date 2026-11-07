@@ -1,0 +1,40 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 379,
+      "absolute_start": 369,
+      "file": "compatibility_block_passthrough_content.adoc",
+      "location": [
+        {
+          "col": 8,
+          "line": 19
+        },
+        {
+          "col": 18,
+          "line": 19
+        }
+      ]
+    },
+    "message": "Unsupported block substitution 'typo' in subs=. The entry is preserved, but its effect is ignored."
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 379,
+        "absolute_start": 369,
+        "file": "compatibility_block_passthrough_content.adoc",
+        "location": [
+          {
+            "col": 8,
+            "line": 19
+          },
+          {
+            "col": 18,
+            "line": 19
+          }
+        ]
+      },
+      "message": "Unsupported block substitution 'typo' in subs=. The entry is preserved, but its effect is ignored."
+    }
+  ]
+}

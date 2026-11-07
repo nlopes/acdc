@@ -43,6 +43,8 @@ impl Warning {
             WarningKind::ConflictingFootnote { .. } => "conflicting-footnote",
             WarningKind::LegacyFloatDiscreteHeading => "legacy-float-discrete-heading",
             WarningKind::DeprecatedToc2Attribute => "deprecated-toc2-attribute",
+            WarningKind::UnsupportedCompatMode => "unsupported-compat-mode",
+            WarningKind::UnsupportedCounter { .. } => "unsupported-counter",
             WarningKind::InvalidDocumentAttribute { .. } => "invalid-document-attribute",
             WarningKind::ContentRecovery { .. } => "content-recovery",
             WarningKind::Other(_) => "other",
@@ -118,10 +120,15 @@ impl Warning {
             WarningKind::DeprecatedToc2Attribute => {
                 Some("Use `:toc: left` in the document or `-a toc=left` on the command line.")
             }
+            WarningKind::UnsupportedCompatMode => Some(
+                "Remove `compat-mode`, or select CompatibilityMode::Asciidoctor through the parser API for supported legacy behavior.",
+            ),
             WarningKind::InvalidDocumentAttribute { .. } => {
                 Some("Use a value in the attribute's documented domain")
             }
-            WarningKind::ContentRecovery { .. } | WarningKind::Other(_) => None,
+            WarningKind::ContentRecovery { .. }
+            | WarningKind::UnsupportedCounter { .. }
+            | WarningKind::Other(_) => None,
         }
     }
 }
@@ -144,10 +151,10 @@ impl fmt::Display for Warning {
     }
 }
 
-/// Categorised non-fatal conditions.
+/// Categorized non-fatal conditions.
 ///
 /// `Other` is an escape hatch for ad-hoc messages the parser has not yet
-/// been taught to categorise. New variants should be added as callers need
+/// been taught to categorize. New variants should be added as callers need
 /// to assert on them programmatically (e.g. LSP mapping `kind` to LSP
 /// diagnostic codes, or tests matching on specific conditions without
 /// resorting to string comparison).
@@ -298,6 +305,10 @@ pub enum WarningKind {
     #[error("`toc2` is deprecated; use `:toc: left` instead")]
     DeprecatedToc2Attribute,
 
+    /// Draft preserves `compat-mode` without applying its legacy language effects.
+    #[error("`compat-mode` has no effect in Draft mode; the attribute is preserved")]
+    UnsupportedCompatMode,
+
     /// A document attribute value did not match its documented domain.
     /// The previous effective value remains active.
     #[error("invalid document attribute `{name}` value `{value}`: expected {expected}")]
@@ -310,6 +321,13 @@ pub enum WarningKind {
         expected: &'static str,
     },
 
+    /// An unsupported counter reference was omitted from the output.
+    #[error("Counters ({reference}) are not supported and will be removed from output")]
+    UnsupportedCounter {
+        /// Counter kind and name, such as `{counter:items}`.
+        reference: String,
+    },
+
     /// Requested source content or substitutions were omitted, replaced, or recovered.
     ///
     /// Rendering can continue, but consumers that require complete source content
@@ -320,7 +338,7 @@ pub enum WarningKind {
         message: Cow<'static, str>,
     },
 
-    /// Ad-hoc message not yet categorised into a typed variant.
+    /// Ad-hoc message not yet categorized into a typed variant.
     #[error("{0}")]
     Other(Cow<'static, str>),
 }

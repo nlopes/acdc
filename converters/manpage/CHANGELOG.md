@@ -7,7 +7,106 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- AsciiDoc table cells now include their local footnote text. Notes from
+  sibling and nested cells stay separate from the outer NOTES section.
+
+- References to the document top and header ID use body `reftext` values in
+  source order. Empty and unset values select the title; explicit link text stays intact.
+
+- Description lists retain all terms in a shared group and emit its definition
+  once in standard, horizontal, Q&A, ordered, and unordered styles.
+
+- Short and full cross-references retain formatting in parsed custom `caption=`
+  prefixes. Only a final unformatted period and space are removed; punctuation
+  inside a styled span remains visible.
+
+- File references such as `xref:guide.adoc[]` use the local `guide` reference
+  label when one exists. Missing or empty labels fall back to `[guide]`, matching
+  Asciidoctor. Explicit labels and local filename-like IDs keep their meaning.
+  A trailing `#`, as in `xref:guide.adoc#[]`, does not change the lookup or label.
+
+- Manpage dates use `docdate`, matching Asciidoctor's date source. Caller
+  overrides and empty or unset values are honored. `revdate` no longer selects
+  the printed date; use `docdate` to pin it. Default dates honor
+  `SOURCE_DATE_EPOCH` and source file
+  timestamps, and `reproducible` suppresses the date. Unlike Asciidoctor, a
+  caller unset (`-a docdate!`) suppresses the date instead of restoring its
+  default.
+
+- A literal `NAME` heading no longer triggers a convention warning when
+  `manname-title` is custom or empty. Clean documents now pass
+  `--fail-on-warnings` under those settings; section text is preserved.
+
+- Mixed numeric and automatic table columns now preserve the authored numeric
+  proportions, including `cols="2*3,~"`. Large supported widths no longer overflow;
+  explicit zero widths use the renderer's one-en minimum.
+
+- Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
+
+- Render attributed plus passthroughs without leaking their ID and role prefixes into the text.
+
+- Audio/video fallback labels use characters from resolved references and keep escaped references literal. Index collation uses displayed text.
+
+- Parsed named and numeric character references render as character values when known, including multi-codepoint names. Unlike Asciidoctor manpages, known named references such as `&copy;` become their displayed characters.
+
+- Constructed character-reference nodes render as characters in prose and code. Known named references are decoded, unlike Asciidoctor manpage output, which leaves most named references as text.
+
+- Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+
+- Manpage name and purpose attributes retain literal quote characters instead of removing them during header processing.
+
+- Document attribute values keep literal quotes in text labels and media paths. Literal quotes in cross-reference labels and style names now follow Asciidoctor.
+
+- Image and icon links and video poster names retain literal quote characters. Quoted role names no longer enable an unrelated built-in text style.
+
+- Inline image alternatives preserve literal trailing dashes in fallback text.
+
+### Changed
+
+- Block `subs=` settings now work in every build. Literal content, escaped
+  punctuation, and titles use the parser-selected text without a second
+  typography pass. Footnotes and generated index labels also retain disabled
+  or escaped typography.
+
+- Plain-text headings retain curved quotation marks around their content.
+
+- Enabled typography resolves consistently in verbatim-only profiles. Generated
+  em-dash padding is omitted at the end of a code block.
+
+- Render parsed copyright and trademark signs, ellipses, and word-internal
+  apostrophes while keeping escaped tokens literal. Parsed em dashes retain
+  manpage spacing in listing and literal blocks.
+
+- Direct users of `ManpageVisitor` must use the shared `DocumentVisitor`,
+  `BlockVisitor`, and `InlineVisitor` callbacks. Portable roff output, caption
+  numbering, table layouts, and diagnostic locations remain unchanged.
+
+- The manpage visitor supports typed inline callbacks. Font scopes, typography,
+  local reference labels, and portable roff output remain unchanged.
+
 ### Fixed
+
+- Generated indexes sort and combine entries by their resolved labels. Catalog
+  typography uses each label's own boundaries and registration-time substitutions.
+
+- Paragraph-style sidebars use the backend's sidebar layout. `[pass]` paragraphs
+  use the same raw-content path as delimited passthrough blocks.
+
+- Visible image/icon alternatives, UI labels, and custom `caption=` values retain
+  supported formatting, including links in figure, table, listing, and example
+  captions. Empty or disabled prefixes do not advance their numbered sequence.
+  Literal quote attributions and citation titles retain
+  their dashes; single-quoted values still apply normal substitutions.
+- Static video links preserve complete local targets and provider playlists.
+
+- Caller-built empty titles retain their captions and numbering, matching
+  `title=""` in AsciiDoc source.
+
+- Images honor named and empty alt text and retain literal quotes. Tooltips
+  no longer become image descriptions.
+  Named titles on audio, video, and other titled blocks retain formatting.
+- Static audio links retain end-only playback ranges, and YouTube links retain
+  list and dynamic-playlist attributes.
 
 - `pass:c,r[->]` renders an arrow in prose and code, matching Asciidoctor.
   Reversed lists and escaped arrows retain literal text. Passthrough profiles
@@ -107,7 +206,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plain `pass:[...]` document attribute values expand without their wrapper in
   prose and code with attributes enabled. Literal references stay literal,
   matching Asciidoctor.
-- Listing and literal blocks honour enabled quote and attribute substitutions,
+- Listing and literal blocks honor enabled quote and attribute substitutions,
   including bold and italic text, without requiring macros. Markup introduced
   after quote substitution stays literal, matching Asciidoctor.
 - Empty superscript and subscript text no longer displays `^()` or `_()` after
@@ -397,11 +496,13 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 - Non-paragraph content in table cells (lists, code blocks, admonitions) is no longer
   silently dropped
 - Explicit `mailto:` macros now capture trailing punctuation in the `.MTO` macro's third
-  argument (matching autolink behaviour)
+  argument (matching autolink behavior)
 - **Inline markup in `link:` text** — the `.URL` macro's display-text argument now
   reflects parsed inline markup inside the link's bracket expression.
 
 ### Changed
+
+- Support the parser’s revised inline-image API without changing rendered output.
 
 - **Breaking:** configure conversion with the parser options builder, then use
   the converter's validated parser options for parsing. Invalid attribute values
@@ -409,7 +510,7 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 - **Breaking:** direct visitor callbacks now receive the current traversal
   context, including source-ordered and nested-cell attributes.
 - Refactored grid-building logic to use shared utilities from `acdc-converters-core`.
-- Skip NOTES and AUTHOR(S) sections in embedded mode to match asciidoctor behaviour
+- Skip NOTES and AUTHOR(S) sections in embedded mode to match asciidoctor behavior
 - **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of
   string attributes. ([#357])
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])

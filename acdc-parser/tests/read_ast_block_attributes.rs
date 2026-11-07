@@ -1,0 +1,318 @@
+use acdc_parser::{
+    Caption, CompatibilityMode, ContentAttribute, Location, Options, Paragraph, SafeMode,
+    Substitution, SubstitutionOp, SubstitutionSpec,
+    ast::{
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, HeaderRef, InlineKind,
+        SubstitutionEntryRef, SubstitutionSpecKind, SubstitutionSpecRef,
+    },
+    parse, parse_file,
+};
+
+type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn header_metadata_and_document_assignments_stay_distinct() -> Result<(), Error> {
+    let parsed = parse(
+        "= Document\n:reftext: document value\n\nBody.",
+        &Options::default(),
+    )?;
+    let mut header = acdc_parser::Header::new(acdc_parser::Title::default(), Location::default());
+    let mut metadata = header.take_metadata();
+    metadata.reftext = Some(ContentAttribute::default());
+    metadata.attribution = Some(ContentAttribute::default());
+    metadata.citetitle = Some(ContentAttribute::default());
+    metadata.caption = Some(Caption::CustomContent(ContentAttribute::default()));
+    metadata.substitutions = Some(SubstitutionSpec::Modifiers(Vec::new()));
+    header.set_metadata(metadata)?;
+    let attributes = HeaderRef::from(&header).attributes();
+    inventory(attributes);
+    for name in ["reftext", "attribution", "citetitle", "caption"] {
+        let Some(AttributeValueRef::Content(content)) = attributes.get(name) else {
+            return Err("header content".into());
+        };
+        assert!(content.is_empty());
+    }
+    assert!(attributes.contains("subs"));
+    assert_eq!(
+        parsed
+            .document()
+            .attributes()
+            .get("reftext")
+            .and_then(acdc_parser::DocumentAttributeValue::text),
+        Some("document value")
+    );
+    Ok(())
+}
+
+fn inventory(attributes: AttributesRef<'_>) {
+    let entries = attributes.iter().collect::<Vec<_>>();
+    for (name, value) in &entries {
+        assert_eq!(attributes.get(name), Some(*value));
+        assert!(attributes.contains(name));
+        assert_eq!(entries.iter().filter(|(key, _)| key == name).count(), 1);
+    }
+    assert_eq!(attributes.is_empty(), entries.is_empty());
+    assert_eq!(attributes.get("roles"), attributes.get("role"));
+    assert_eq!(attributes.get("options"), attributes.get("opts"));
+    assert!(!attributes.contains("missing"));
+}
+
+#[rstest::rstest]
+fn quote_content_reads_preserve_formatting_and_present_empty_values(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(
+        "[quote,attribution='*Ada*',citetitle='_Book_']\n____\nText.\n____\n\n[verse,attribution='',citetitle='']\n____\nText.\n____",
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let mut blocks = parsed.document().blocks();
+    let BlockKind::Quote(quote) = blocks.next().ok_or("quote")?.kind() else {
+        return Err("quote".into());
+    };
+    assert_eq!(
+        quote.attributes().get("attribution"),
+        quote.attribution().map(AttributeValueRef::Content)
+    );
+    assert_eq!(
+        quote.attributes().get("citetitle"),
+        quote.citetitle().map(AttributeValueRef::Content)
+    );
+    let Some(AttributeValueRef::Content(author)) = quote.attributes().get("attribution") else {
+        return Err("author".into());
+    };
+    assert!(matches!(
+        author.inlines().next().ok_or("author text")?.kind(),
+        InlineKind::Bold(_)
+    ));
+    let Some(AttributeValueRef::Content(citation)) = quote.attributes().get("citetitle") else {
+        return Err("citation".into());
+    };
+    assert!(matches!(
+        citation.inlines().next().ok_or("citation text")?.kind(),
+        InlineKind::Italic(_)
+    ));
+    let BlockKind::Verse(verse) = blocks.next().ok_or("verse")?.kind() else {
+        return Err("verse".into());
+    };
+    for name in ["attribution", "citetitle"] {
+        let Some(AttributeValueRef::Content(content)) = verse.attributes().get(name) else {
+            return Err("present empty content".into());
+        };
+        assert!(content.is_empty());
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case("", SubstitutionSpecKind::Explicit, vec![])]
+#[case("none", SubstitutionSpecKind::Explicit, vec![])]
+#[case("q,quotes,+macros,-callouts,quotes+,,unknown,q", SubstitutionSpecKind::Source, vec!["q", "quotes", "+macros", "-callouts", "quotes+", "", "unknown", "q"])]
+fn parsed_substitution_reads_keep_authored_entries(
+    #[case] value: &str,
+    #[case] kind: SubstitutionSpecKind,
+    #[case] expected: Vec<&str>,
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let source = format!("[subs=\"{value}\"]\nText.");
+    let parsed = parse(
+        &source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let attrs = parsed
+        .document()
+        .blocks()
+        .next()
+        .ok_or("paragraph")?
+        .attributes()
+        .ok_or("attributes")?;
+    inventory(attrs);
+    let Some(AttributeValueRef::Substitutions(spec)) = attrs.get("subs") else {
+        return Err("subs".into());
+    };
+    assert_eq!(spec.kind(), kind);
+    assert_eq!(spec.is_empty(), expected.is_empty());
+    assert_eq!(
+        spec.entries().collect::<Vec<_>>(),
+        expected
+            .into_iter()
+            .map(SubstitutionEntryRef::Source)
+            .collect::<Vec<_>>()
+    );
+    Ok(())
+}
+
+#[test]
+fn typed_substitution_specs_keep_empty_forms_and_order() {
+    let entry = String::from("unknown");
+    let pointer = entry.as_ptr();
+    let source = SubstitutionSpec::Source(vec![entry]);
+    assert!(
+        matches!(SubstitutionSpecRef::from(&source).entries().next(),
+        Some(SubstitutionEntryRef::Source(text)) if text == "unknown" && text.as_ptr() == pointer)
+    );
+    let specifications = [
+        SubstitutionSpec::Source(Vec::new()),
+        SubstitutionSpec::Explicit(Vec::new()),
+        SubstitutionSpec::Modifiers(Vec::new()),
+    ];
+    for (owner, kind) in specifications.iter().zip([
+        SubstitutionSpecKind::Source,
+        SubstitutionSpecKind::Explicit,
+        SubstitutionSpecKind::Modifiers,
+    ]) {
+        let spec = SubstitutionSpecRef::from(owner);
+        assert!(spec.is_empty());
+        assert_eq!(spec.kind(), kind);
+    }
+    let explicit = SubstitutionSpec::Explicit(vec![
+        Substitution::Quotes,
+        Substitution::Normal,
+        Substitution::Quotes,
+    ]);
+    assert_eq!(
+        SubstitutionSpecRef::from(&explicit)
+            .entries()
+            .collect::<Vec<_>>(),
+        [
+            SubstitutionEntryRef::Substitution(Substitution::Quotes),
+            SubstitutionEntryRef::Substitution(Substitution::Normal),
+            SubstitutionEntryRef::Substitution(Substitution::Quotes)
+        ]
+    );
+    let operations = vec![
+        SubstitutionOp::Append(Substitution::Quotes),
+        SubstitutionOp::Remove(Substitution::Macros),
+        SubstitutionOp::Prepend(Substitution::Quotes),
+    ];
+    let modifiers = SubstitutionSpec::Modifiers(operations.clone());
+    let entries = {
+        let copy = SubstitutionSpecRef::from(&modifiers);
+        copy.entries()
+    };
+    assert_eq!(
+        entries.collect::<Vec<_>>(),
+        operations
+            .into_iter()
+            .map(SubstitutionEntryRef::Modifier)
+            .collect::<Vec<_>>()
+    );
+}
+
+#[rstest::rstest]
+fn content_locations_survive_includes_and_nested_cells(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let directory = tempfile::tempdir()?;
+    let main = directory.path().join("main.adoc");
+    let include = directory.path().join("quoted.adoc");
+    std::fs::write(
+        &main,
+        "include::quoted.adoc[]\n\n[cols=a]\n|===\n|[reftext='*Référence*']\nCell.\n|===\n",
+    )?;
+    std::fs::write(&include, "[quote,attribution='*Éva*']\n____\nText.\n____\n")?;
+    let parsed = parse_file(
+        &main,
+        &Options::builder()
+            .with_compatibility_mode(mode)
+            .with_safe_mode(SafeMode::Unsafe)
+            .build()?,
+    )?;
+    let mut blocks = parsed.document().blocks();
+    let attrs = blocks
+        .next()
+        .ok_or("quote")?
+        .attributes()
+        .ok_or("attributes")?;
+    let Some(AttributeValueRef::Content(author)) = attrs.get("attribution") else {
+        return Err("author".into());
+    };
+    let author = author.inlines().next().ok_or("author span")?;
+    assert!(matches!(author.kind(), InlineKind::Bold(_)));
+    assert_eq!(
+        parsed.resolve_location(author.location()).file,
+        Some(include)
+    );
+    let BlockKind::Table(table) = blocks.next().ok_or("table")?.kind() else {
+        return Err("table".into());
+    };
+    let cell = table
+        .rows()
+        .next()
+        .ok_or("row")?
+        .cells()
+        .next()
+        .ok_or("cell")?;
+    let attrs = cell
+        .blocks()
+        .next()
+        .ok_or("cell paragraph")?
+        .attributes()
+        .ok_or("cell attributes")?;
+    let Some(AttributeValueRef::Content(label)) = attrs.get("reftext") else {
+        return Err("reference text".into());
+    };
+    let label = label.inlines().next().ok_or("reference span")?;
+    assert!(matches!(label.kind(), InlineKind::Bold(_)));
+    assert_eq!(parsed.resolve_location(label.location()).file, Some(main));
+    Ok(())
+}
+
+#[test]
+fn blocks_without_element_attributes_stay_distinct_from_empty_attributes() -> Result<(), Error> {
+    let parsed = parse(
+        "Before.\n\n// Comment\n\n:setting: value\n\nText.\n",
+        &Options::default(),
+    )?;
+    let mut blocks = parsed.document().blocks();
+    assert!(
+        blocks
+            .next()
+            .ok_or("initial paragraph")?
+            .attributes()
+            .is_some()
+    );
+    for _ in 0..2 {
+        assert!(
+            blocks
+                .next()
+                .ok_or("comment or assignment")?
+                .attributes()
+                .is_none()
+        );
+    }
+    assert!(
+        blocks
+            .next()
+            .ok_or("paragraph")?
+            .attributes()
+            .ok_or("attributes")?
+            .is_empty()
+    );
+    Ok(())
+}
+
+#[test]
+fn block_attributes_borrow_the_current_owner_beyond_temporary_handles() -> Result<(), Error> {
+    let mut owner = Paragraph::new(Vec::new(), Location::default());
+    let mut metadata = owner.take_metadata();
+    metadata.attributes.set("indent".into(), "2".into());
+    owner.set_metadata(metadata)?;
+    let block = acdc_parser::Block::Paragraph(owner);
+    let attributes = { BlockRef::from(&block).attributes().ok_or("attributes")? };
+    assert_eq!(attributes.get("indent"), Some(AttributeValueRef::Text("2")));
+    let acdc_parser::Block::Paragraph(mut owner) = block else {
+        return Err("paragraph".into());
+    };
+    let mut metadata = owner.take_metadata();
+    metadata.attributes.set("indent".into(), "4".into());
+    owner.set_metadata(metadata)?;
+    let block = acdc_parser::Block::Paragraph(owner);
+    assert_eq!(
+        BlockRef::from(&block)
+            .attributes()
+            .ok_or("attributes")?
+            .get("indent"),
+        Some(AttributeValueRef::Text("4"))
+    );
+    Ok(())
+}

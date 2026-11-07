@@ -1,24 +1,24 @@
 use std::io::Write;
 
-use acdc_converters_core::{
-    TraversalContext,
-    visitor::{Visitor, WritableVisitor},
+use acdc_converters_core::TraversalContext;
+use acdc_parser::{
+    AdmonitionVariant,
+    ast::{AdmonitionRef, AttributeValueRef, BlockKind},
 };
-use acdc_parser::{Admonition, AdmonitionVariant};
 
-use crate::{Error, HtmlVariant, HtmlVisitor, build_class, write_id};
+use crate::{Error, HtmlVariant, HtmlVisitor, build_class, write_element_id};
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_admonition(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        admon: &'a Admonition<'a>,
+        admon: AdmonitionRef<'a>,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
 
         // Get the appropriate caption attribute for this admonition type
         // Note: Parser sets defaults, so these attributes are guaranteed to exist
-        let caption_attr = match admon.variant {
+        let caption_attr = match admon.variant() {
             AdmonitionVariant::Note => "note-caption",
             AdmonitionVariant::Tip => "tip-caption",
             AdmonitionVariant::Important => "important-caption",
@@ -31,72 +31,50 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             .and_then(|value| value.text())
             .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?
             .to_string();
-        let font_icons = acdc_converters_core::icon::IconMode::from_attributes(traversal)
-            == acdc_converters_core::icon::IconMode::Font;
+        let plain_caption = admon.caption_content().map_or_else(
+            || caption.clone(),
+            |content| {
+                acdc_converters_core::InlineTextTransform::default()
+                    .decode_char_refs(true)
+                    .rendered()
+                    .content_to_string(content)
+            },
+        );
+        let caption = match admon.caption_content() {
+            Some(content) => self.content_html(traversal, content)?,
+            None => crate::inlines::escape_attribute(&caption),
+        };
+        let icon = self.admonition_icon(traversal, admon, &plain_caption);
 
         if processor.variant() == HtmlVariant::Semantic {
-            return visit_admonition_semantic(traversal, self, admon, &caption, font_icons);
+            return visit_admonition_semantic(traversal, self, admon, &caption, icon.as_deref());
         }
 
         let class = build_class(
-            &format!("admonitionblock {}", admon.variant),
-            &admon.metadata.roles,
+            &format!("admonitionblock {}", admon.variant()),
+            admon.roles().iter(),
         );
         write!(self.writer, "<div")?;
-        write_id(&mut self.writer, &admon.metadata)?;
+        write_element_id(&mut self.writer, admon.id())?;
         writeln!(self.writer, " class=\"{class}\">")?;
         writeln!(self.writer, "<table>")?;
         writeln!(self.writer, "<tr>")?;
         writeln!(self.writer, "<td class=\"icon\">")?;
 
-        // Output icon based on `:icons:` document attribute
-        // - Font mode (`icons=font`): Use Font Awesome <i> element
-        // - Default: Use text label in <div class="title">
-        if font_icons {
-            let fa_icon = match admon.variant {
-                AdmonitionVariant::Note => "fa-circle-info",
-                AdmonitionVariant::Tip => "fa-lightbulb",
-                AdmonitionVariant::Important => "fa-circle-exclamation",
-                AdmonitionVariant::Warning => "fa-triangle-exclamation",
-                AdmonitionVariant::Caution => "fa-fire",
-            };
-            writeln!(
-                self.writer,
-                "<i class=\"fa-solid {fa_icon}\" title=\"{caption}\"></i>",
-            )?;
+        if let Some(icon) = icon {
+            writeln!(self.writer, "{icon}")?;
         } else {
             writeln!(self.writer, "<div class=\"title\">{caption}</div>")?;
         }
         writeln!(self.writer, "</td>")?;
         writeln!(self.writer, "<td class=\"content\">")?;
-        if !admon.title.is_empty() {
+        if admon.title().is_some() {
             write!(self.writer, "<div class=\"title\">")?;
-            self.visit_title(traversal, &admon.title)?;
+            self.visit_title(traversal, admon.title())?;
             writeln!(self.writer, "</div>")?;
         }
 
-        // Handle paragraph rendering based on block count
-        // Single paragraph: wrap in <div class="paragraph"><p>...</p></div>
-        // Multiple blocks: render each with normal wrapper
-        match admon.blocks.as_slice() {
-            [acdc_parser::Block::Paragraph(para)] => {
-                writeln!(self.writer, "<div class=\"paragraph\">")?;
-                write!(self.writer, "<p>")?;
-                self.visit_inline_nodes(traversal, &para.content)?;
-                writeln!(self.writer, "</p>")?;
-                writeln!(self.writer, "</div>")?;
-            }
-            [block] => {
-                // Single non-paragraph block: use normal rendering
-                traversal.visit_block(self, block)?;
-            }
-            blocks => {
-                // Multiple blocks: use normal rendering for all
-                for block in blocks {
-                    traversal.visit_block(self, block)?;
-                }
-            }
-        }
+        render_admonition_body(traversal, self, admon, false)?;
 
         writeln!(self.writer, "</td>")?;
         writeln!(self.writer, "</tr>")?;
@@ -110,13 +88,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 fn visit_admonition_semantic<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
-    admon: &'a Admonition<'a>,
+    admon: AdmonitionRef<'a>,
     caption: &str,
-    font_icons: bool,
+    icon: Option<&str>,
 ) -> Result<(), Error> {
     // Note/Tip use <aside> with role="note"/"doc-tip"
     // Warning/Important/Caution use <section> with role="doc-notice"
-    let (tag, role) = match admon.variant {
+    let (tag, role) = match admon.variant() {
         AdmonitionVariant::Note => ("aside", "note"),
         AdmonitionVariant::Tip => ("aside", "doc-tip"),
         AdmonitionVariant::Warning | AdmonitionVariant::Important | AdmonitionVariant::Caution => {
@@ -126,37 +104,24 @@ fn visit_admonition_semantic<'a, W: Write>(
 
     let mut writer = visitor.writer_mut();
     // Build class: "admonition-block {variant}" + roles
-    let base_class = format!("admonition-block {}", admon.variant);
-    let class = crate::build_class(&base_class, &admon.metadata.roles);
+    let base_class = format!("admonition-block {}", admon.variant());
+    let class = crate::build_class(&base_class, admon.roles().iter());
     write!(writer, "<{tag} class=\"{class}\"")?;
-    // Propagate id
-    if let Some(id) = &admon.metadata.id {
-        write!(writer, " id=\"{}\"", id.id)?;
-    } else if let Some(anchor) = admon.metadata.anchors.first() {
-        write!(writer, " id=\"{}\"", anchor.id)?;
+    if let Some(id) = admon.id() {
+        crate::write_element_id(writer, Some(id))?;
     }
     writeln!(writer, " role=\"{role}\">")?;
 
-    if font_icons {
-        let fa_icon = match admon.variant {
-            AdmonitionVariant::Note => "fa-circle-info",
-            AdmonitionVariant::Tip => "fa-lightbulb",
-            AdmonitionVariant::Important => "fa-circle-exclamation",
-            AdmonitionVariant::Warning => "fa-triangle-exclamation",
-            AdmonitionVariant::Caution => "fa-fire",
-        };
-        writeln!(
-            writer,
-            "<h6 class=\"block-title label-only\"><i class=\"fa-solid {fa_icon}\" title=\"{caption}\"></i></h6>"
-        )?;
-        if !admon.title.is_empty() {
+    if let Some(icon) = icon {
+        writeln!(writer, "<h6 class=\"block-title label-only\">{icon}</h6>")?;
+        if admon.title().is_some() {
             write!(writer, "<h6 class=\"block-title\">")?;
             let _ = writer;
-            visitor.visit_title(traversal, &admon.title)?;
+            visitor.visit_title(traversal, admon.title())?;
             writer = visitor.writer_mut();
             writeln!(writer, "</h6>")?;
         }
-    } else if admon.title.is_empty() {
+    } else if admon.title().is_none() {
         // Label-only: no trailing space after colon
         writeln!(
             writer,
@@ -169,33 +134,91 @@ fn visit_admonition_semantic<'a, W: Write>(
             "<h6 class=\"block-title\"><span class=\"title-label\">{caption}: </span>"
         )?;
         let _ = writer;
-        visitor.visit_title(traversal, &admon.title)?;
+        visitor.visit_title(traversal, admon.title())?;
         writer = visitor.writer_mut();
         writeln!(writer, "</h6>")?;
     }
     let _ = writer;
 
-    // Render content blocks
-    match admon.blocks.as_slice() {
-        [acdc_parser::Block::Paragraph(para)] => {
-            let writer = visitor.writer_mut();
-            write!(writer, "<p>")?;
-            let _ = writer;
-            visitor.visit_inline_nodes(traversal, &para.content)?;
-            let writer = visitor.writer_mut();
-            writeln!(writer, "</p>")?;
-        }
-        [block] => {
-            traversal.visit_block(visitor, block)?;
-        }
-        blocks => {
-            for block in blocks {
-                traversal.visit_block(visitor, block)?;
-            }
-        }
-    }
+    render_admonition_body(traversal, visitor, admon, true)?;
 
     let writer = visitor.writer_mut();
     writeln!(writer, "</{tag}>")?;
     Ok(())
+}
+
+fn render_admonition_body<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
+    admon: AdmonitionRef<'a>,
+    semantic: bool,
+) -> Result<(), Error> {
+    let mut blocks = admon.blocks().peekable();
+    let Some(first) = blocks.next() else {
+        return Ok(());
+    };
+    if let BlockKind::Paragraph(paragraph) = first.kind()
+        && blocks.peek().is_none()
+    {
+        if admon.simple_paragraph().is_some() && !semantic {
+            visitor.visit_content(traversal, paragraph.content())?;
+            writeln!(visitor.writer_mut())?;
+            return Ok(());
+        }
+        if !semantic {
+            writeln!(visitor.writer_mut(), "<div class=\"paragraph\">")?;
+        }
+        write!(visitor.writer_mut(), "<p>")?;
+        visitor.visit_content(traversal, paragraph.content())?;
+        writeln!(visitor.writer_mut(), "</p>")?;
+        if !semantic {
+            writeln!(visitor.writer_mut(), "</div>")?;
+        }
+        Ok(())
+    } else {
+        traversal.visit_blocks(visitor, std::iter::once(first).chain(blocks))
+    }
+}
+
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
+    fn admonition_icon(
+        &mut self,
+        traversal: &TraversalContext<'a>,
+        admon: AdmonitionRef<'_>,
+        caption: &str,
+    ) -> Option<String> {
+        use acdc_converters_core::icon::{IconMode, image_source};
+        let caption = crate::inlines::escape_attribute(caption);
+        let custom = admon
+            .attributes()
+            .get("icon")
+            .and_then(AttributeValueRef::as_str);
+        match IconMode::from_attributes(traversal) {
+            IconMode::Text => None,
+            IconMode::Font if custom.is_none() => {
+                let glyph = match admon.variant() {
+                    AdmonitionVariant::Note => "fa-circle-info",
+                    AdmonitionVariant::Tip => "fa-lightbulb",
+                    AdmonitionVariant::Important => "fa-circle-exclamation",
+                    AdmonitionVariant::Warning => "fa-triangle-exclamation",
+                    AdmonitionVariant::Caution => "fa-fire",
+                };
+                Some(format!(
+                    "<i class=\"fa-solid {glyph}\" title=\"{caption}\"></i>"
+                ))
+            }
+            IconMode::Font | IconMode::Image | _ => {
+                let name = admon.variant().to_string();
+                let target = custom.map_or_else(
+                    || image_source(traversal, &acdc_parser::Source::Name(&name)),
+                    |value| acdc_converters_core::icon::custom_image_source(traversal, value),
+                );
+                let source = self.image_uri(&target, traversal);
+                Some(format!(
+                    "<img src=\"{}\" alt=\"{caption}\">",
+                    crate::inlines::escape_attribute(&source)
+                ))
+            }
+        }
+    }
 }

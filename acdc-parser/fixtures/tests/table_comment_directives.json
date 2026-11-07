@@ -395,6 +395,7 @@
               {
                 "columns": [
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "comment",
@@ -615,6 +616,7 @@
                     "style": "literal"
                   },
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "paragraph",
@@ -802,6 +804,7 @@
               {
                 "columns": [
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "table",
@@ -1475,6 +1478,7 @@
               {
                 "columns": [
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "comment",
@@ -1760,7 +1764,7 @@
                 ]
               },
               {
-                "line": 2,
+                "line": 1,
                 "col": 4,
                 "file": [
                   "table_comment_close.asciidoc"

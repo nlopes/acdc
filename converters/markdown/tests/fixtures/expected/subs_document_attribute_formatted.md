@@ -14,12 +14,12 @@ prepared-code - formatted attributes in code
 ## DESCRIPTION
 
 ```
-Formatting: Bold / Early / Early (C) / Site
+Formatting: Bold / Early / Early © / Site
 Literal references: {bold} / {bold}
 ```
 
 ```
-Escaped: Bold / Early / Early (C) / Site
+Escaped: Bold / Early / Early © / Site
 ```
 
 <a id="_indexterm_0"></a>```

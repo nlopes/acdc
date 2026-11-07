@@ -37,125 +37,151 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "CPU",
-              "location": [
+              "content": [
                 {
-                  "line": 3,
-                  "col": 1
-                },
-                {
-                  "line": 3,
-                  "col": 3
-                }
-              ]
-            }
-          ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "A mouse",
-              "location": [
-                {
-                  "line": 3,
-                  "col": 7
-                },
-                {
-                  "line": 3,
-                  "col": 13
-                }
-              ]
-            }
-          ],
-          "description": [
-            {
-              "name": "list",
-              "type": "block",
-              "variant": "unordered",
-              "marker": "-",
-              "items": [
-                {
-                  "name": "listItem",
-                  "type": "block",
-                  "marker": "-",
-                  "principal": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "list item 1",
-                      "location": [
-                        {
-                          "line": 5,
-                          "col": 3
-                        },
-                        {
-                          "line": 5,
-                          "col": 13
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "CPU",
                   "location": [
                     {
-                      "line": 5,
+                      "line": 3,
                       "col": 1
                     },
                     {
-                      "line": 5,
-                      "col": 13
-                    }
-                  ]
-                },
-                {
-                  "name": "listItem",
-                  "type": "block",
-                  "marker": "-",
-                  "principal": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "list item 2",
-                      "location": [
-                        {
-                          "line": 6,
-                          "col": 3
-                        },
-                        {
-                          "line": 6,
-                          "col": 13
-                        }
-                      ]
-                    }
-                  ],
-                  "location": [
-                    {
-                      "line": 6,
-                      "col": 1
-                    },
-                    {
-                      "line": 6,
-                      "col": 13
+                      "line": 3,
+                      "col": 3
                     }
                   ]
                 }
               ],
+              "delimiter": "::",
               "location": [
                 {
-                  "line": 5,
+                  "line": 3,
                   "col": 1
                 },
                 {
-                  "line": 6,
-                  "col": 13
+                  "line": 3,
+                  "col": 5
                 }
               ]
             }
           ],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "A mouse",
+                "location": [
+                  {
+                    "line": 3,
+                    "col": 7
+                  },
+                  {
+                    "line": 3,
+                    "col": 13
+                  }
+                ]
+              }
+            ],
+            "blocks": [
+              {
+                "name": "list",
+                "type": "block",
+                "variant": "unordered",
+                "marker": "-",
+                "items": [
+                  {
+                    "name": "listItem",
+                    "type": "block",
+                    "marker": "-",
+                    "principal": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "list item 1",
+                        "location": [
+                          {
+                            "line": 5,
+                            "col": 3
+                          },
+                          {
+                            "line": 5,
+                            "col": 13
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 5,
+                        "col": 1
+                      },
+                      {
+                        "line": 5,
+                        "col": 13
+                      }
+                    ]
+                  },
+                  {
+                    "name": "listItem",
+                    "type": "block",
+                    "marker": "-",
+                    "principal": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "list item 2",
+                        "location": [
+                          {
+                            "line": 6,
+                            "col": 3
+                          },
+                          {
+                            "line": 6,
+                            "col": 13
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 6,
+                        "col": 1
+                      },
+                      {
+                        "line": 6,
+                        "col": 13
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 5,
+                    "col": 1
+                  },
+                  {
+                    "line": 6,
+                    "col": 13
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 3,
+                "col": 7
+              },
+              {
+                "line": 6,
+                "col": 13
+              }
+            ]
+          },
           "location": [
             {
               "line": 3,
@@ -168,11 +194,26 @@
           ]
         },
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "MEM",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "MEM",
+                  "location": [
+                    {
+                      "line": 8,
+                      "col": 1
+                    },
+                    {
+                      "line": 8,
+                      "col": 3
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 8,
@@ -180,30 +221,41 @@
                 },
                 {
                   "line": 8,
-                  "col": 3
+                  "col": 5
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "some memory",
-              "location": [
-                {
-                  "line": 8,
-                  "col": 7
-                },
-                {
-                  "line": 8,
-                  "col": 17
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "some memory",
+                "location": [
+                  {
+                    "line": 8,
+                    "col": 7
+                  },
+                  {
+                    "line": 8,
+                    "col": 17
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 8,
+                "col": 7
+              },
+              {
+                "line": 8,
+                "col": 17
+              }
+            ]
+          },
           "location": [
             {
               "line": 8,
@@ -211,7 +263,7 @@
             },
             {
               "line": 8,
-              "col": 18
+              "col": 17
             }
           ]
         }
@@ -223,7 +275,7 @@
         },
         {
           "line": 8,
-          "col": 18
+          "col": 17
         }
       ]
     }

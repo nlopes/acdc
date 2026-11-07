@@ -1,10 +1,90 @@
 //! Attribute-list scanning shared by grammars and preprocessing.
 
+mod shorthand;
+mod source;
+
+#[cfg(test)]
+mod tests;
+
+pub(super) use shorthand::{ShorthandKind, block_shorthand};
+use source::decode_attribute_escapes;
+pub(super) use source::expand_attribute_list;
+
 use crate::{
-    DocumentAttributes,
-    model::{Substitution, substitute},
+    CompatibilityMode, DocumentAttributes, Error, grammar::inline_preprocessor::SourceMap,
 };
-use std::ops::Range;
+use std::{borrow::Cow, ops::Range, rc::Rc};
+
+pub(super) fn resolve_block_anchor_reftext<'a>(
+    source: &'a str,
+    attributes: &DocumentAttributes<'_>,
+    mode: CompatibilityMode,
+) -> Option<(Cow<'a, str>, SourceMap)> {
+    if source.is_empty() {
+        return None;
+    }
+    let expanded = expand_attribute_list(source, attributes, mode);
+    if mode == CompatibilityMode::Asciidoctor {
+        return Some((expanded.text, expanded.source_map));
+    }
+    let mut escaped = false;
+    for character in expanded.text.chars() {
+        if character == ']' && !escaped {
+            return None;
+        }
+        escaped = character == '\\' && !escaped;
+    }
+    if escaped {
+        return None;
+    }
+    if expanded.text.contains('\\') {
+        let (text, source_map) = decode_attribute_escapes(&expanded.text, ']', mode, true);
+        Some((
+            Cow::Owned(text),
+            source_map.with_origin(expanded.source_map, 0),
+        ))
+    } else {
+        Some((expanded.text, expanded.source_map))
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum BlockAttributeMode {
+    Block,
+    Macro,
+}
+
+// Asciidoctor checks the authored block line before expansion. Draft also
+// rejects outer whitespace introduced by an attribute reference.
+pub(super) fn block_attribute_list_allowed(
+    source: &str,
+    attributes: &DocumentAttributes<'_>,
+    mode: CompatibilityMode,
+    context: BlockAttributeMode,
+) -> bool {
+    match mode {
+        CompatibilityMode::Asciidoctor => {
+            matches!(context, BlockAttributeMode::Macro) || !source.starts_with([' ', '\t'])
+        }
+        CompatibilityMode::Draft => {
+            if source.starts_with([' ', '\t']) || source.ends_with([' ', '\t']) {
+                return false;
+            }
+            let expanded = expand_attribute_list(source, attributes, mode);
+            !expanded.text.starts_with([' ', '\t']) && !expanded.text.ends_with([' ', '\t'])
+        }
+    }
+}
+
+pub(crate) fn block_attribute_line<'a>(
+    line: &'a str,
+    attributes: &DocumentAttributes<'_>,
+    mode: CompatibilityMode,
+) -> Option<&'a str> {
+    let source = line.strip_prefix('[')?.strip_suffix(']')?;
+    block_attribute_list_allowed(source, attributes, mode, BlockAttributeMode::Block)
+        .then_some(source)
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum AttributeQuote {
@@ -13,7 +93,17 @@ pub(super) enum AttributeQuote {
     Double,
 }
 
-/// One slot of an attribute list, as Asciidoctor's `AttributeList` reads it.
+/// Expanded and dequoted content, captured before selecting the displayed value.
+#[derive(Clone, Debug)]
+pub(super) struct ResolvedContentAttribute<'a> {
+    pub(super) text: &'a str,
+    pub(super) quote: AttributeQuote,
+    pub(super) source_map: SourceMap,
+    pub(super) source_range: Range<usize>,
+    pub(super) attributes: Rc<DocumentAttributes<'a>>,
+}
+
+/// One slot of a confined attribute list, with byte offsets into its source.
 /// Also used by cross-references and links when their text holds attributes.
 #[derive(Debug)]
 pub(super) struct ScannedAttribute {
@@ -22,6 +112,90 @@ pub(super) struct ScannedAttribute {
     pub(super) quote: AttributeQuote,
     pub(super) value_start: usize,
     pub(super) value_end: usize,
+    value_map: SourceMap,
+}
+
+impl ScannedAttribute {
+    pub(super) fn resolve_content<'a>(
+        &self,
+        text: &'a str,
+        list_map: &SourceMap,
+        offset: usize,
+        attributes: Rc<DocumentAttributes<'a>>,
+    ) -> Result<ResolvedContentAttribute<'a>, Error> {
+        let range = self.source_range(list_map, 0..text.len())?;
+        Ok(ResolvedContentAttribute {
+            text,
+            quote: self.quote,
+            source_map: self.value_map.clone().with_origin(
+                list_map.clone().with_origin(SourceMap::default(), offset),
+                self.value_start,
+            ),
+            source_range: range.start + offset..range.end + offset,
+            attributes,
+        })
+    }
+
+    pub(super) fn resolve_content_range<'a>(
+        &self,
+        text: &'a str,
+        range: Range<usize>,
+        list_map: &SourceMap,
+        offset: usize,
+        attributes: Rc<DocumentAttributes<'a>>,
+    ) -> Result<ResolvedContentAttribute<'a>, Error> {
+        let (_, escapes) = decode_attribute_escapes(
+            &self.value[range.clone()],
+            ']',
+            CompatibilityMode::Draft,
+            true,
+        );
+        let source_range = self.source_range(list_map, range.clone())?;
+        Ok(ResolvedContentAttribute {
+            text,
+            quote: self.quote,
+            source_map: escapes.with_origin(
+                self.value_map.clone().with_origin(
+                    list_map.clone().with_origin(SourceMap::default(), offset),
+                    self.value_start,
+                ),
+                range.start,
+            ),
+            source_range: source_range.start + offset..source_range.end + offset,
+            attributes,
+        })
+    }
+
+    pub(super) fn canonical_name(&self) -> Option<&str> {
+        self.name
+            .as_deref()
+            .map(crate::model::canonical_attribute_name)
+    }
+
+    pub(super) fn is_ignored(&self, mode: CompatibilityMode) -> bool {
+        mode == CompatibilityMode::Asciidoctor
+            && self.name.is_some()
+            && self.quote == AttributeQuote::Unquoted
+            && self.value == "None"
+    }
+
+    /// Map a decoded value range back through quote escapes and list expansion.
+    pub(super) fn source_range(
+        &self,
+        list_map: &SourceMap,
+        range: Range<usize>,
+    ) -> Result<Range<usize>, Error> {
+        let start =
+            list_map.map_position(self.value_start + self.value_map.map_position(range.start)?)?;
+        let end = if range.is_empty() {
+            start
+        } else {
+            list_map.map_end_position(
+                self.value_start + self.value_map.map_end_position(range.end - 1)?,
+            )? + 1
+        };
+        Ok(start..end)
+    }
 }
 
 fn is_attribute_name_start(character: char) -> bool {
@@ -60,14 +234,19 @@ fn closing_quote(
     quote: char,
     start: usize,
     protected: &[Range<usize>],
+    mode: CompatibilityMode,
 ) -> Option<usize> {
-    // AttributeList treats a quote after any backslash run as escaped.
+    // Asciidoctor escapes a quote after any backslash run; Draft uses parity.
     let mut escaped = false;
     for (index, character) in value.char_indices().skip(1) {
         if character == quote && !escaped && !inside_attribute_content(start + index, protected) {
-            return Some(index);
+            let after = &value[index + character.len_utf8()..];
+            return (mode == CompatibilityMode::Asciidoctor
+                || after.is_empty()
+                || after.starts_with([',', ' ', '\t']))
+            .then_some(index);
         }
-        escaped = character == '\\';
+        escaped = character == '\\' && (mode == CompatibilityMode::Asciidoctor || !escaped);
     }
     None
 }
@@ -92,9 +271,32 @@ fn attribute_list_comma(source: &str, start: usize, protected: &[Range<usize>]) 
     })
 }
 
+// SDR-2 governs block lists. Inline macros keep their own boundaries in both modes.
 pub(super) fn scan_attribute_list(
     source: &str,
     protected: &[Range<usize>],
+) -> Vec<ScannedAttribute> {
+    scan_attributes(source, protected, CompatibilityMode::Asciidoctor, false)
+}
+
+pub(super) fn scan_block_attribute_list(
+    source: &str,
+    mode: CompatibilityMode,
+    context: BlockAttributeMode,
+) -> Vec<ScannedAttribute> {
+    scan_attributes(
+        source,
+        &[],
+        mode,
+        mode == CompatibilityMode::Draft && matches!(context, BlockAttributeMode::Block),
+    )
+}
+
+fn scan_attributes(
+    source: &str,
+    protected: &[Range<usize>],
+    mode: CompatibilityMode,
+    anchor_shorthand: bool,
 ) -> Vec<ScannedAttribute> {
     let mut attributes = Vec::new();
     let mut cursor = 0;
@@ -116,11 +318,13 @@ pub(super) fn scan_attribute_list(
 
         if let Some(quote @ ('\'' | '"')) = first {
             let quoted = &source[value_start..];
-            if let Some(close) = closing_quote(quoted, quote, value_start, protected) {
+            if let Some(close) = closing_quote(quoted, quote, value_start, protected, mode) {
                 let after_close = value_start + close + quote.len_utf8();
+                let (value, value_map) =
+                    decode_attribute_escapes(&quoted[quote.len_utf8()..close], quote, mode, true);
                 attributes.push(ScannedAttribute {
                     name: named.map(|(name, _)| name.to_string()),
-                    value: unescape_attribute_quote(&quoted[quote.len_utf8()..close], quote),
+                    value,
                     quote: if quote == '\'' {
                         AttributeQuote::Single
                     } else {
@@ -128,6 +332,7 @@ pub(super) fn scan_attribute_list(
                     },
                     value_start: value_start + quote.len_utf8(),
                     value_end: value_start + close,
+                    value_map,
                 });
 
                 let trailing = &source[after_close..];
@@ -145,6 +350,7 @@ pub(super) fn scan_attribute_list(
                             quote: AttributeQuote::Unquoted,
                             value_start: cursor,
                             value_end: cursor,
+                            value_map: SourceMap::default(),
                         });
                         break;
                     }
@@ -155,8 +361,14 @@ pub(super) fn scan_attribute_list(
 
         // Links parse nested macros after selecting the label, so their commas
         // must stay inside that positional value until the child parser runs.
-        let comma = attribute_list_comma(&source[value_start..], value_start, protected)
-            .map(|index| value_start + index);
+        let tail = if anchor_shorthand && attributes.is_empty() && named.is_none() {
+            shorthand::anchor_end(&source[value_start..])
+                .map_or(value_start, |end| value_start + end + 1)
+        } else {
+            value_start
+        };
+        let comma =
+            attribute_list_comma(&source[tail..], tail, protected).map(|index| tail + index);
         let end = comma.unwrap_or(source.len());
         let trimmed = source[value_start..end].trim_end();
 
@@ -166,6 +378,7 @@ pub(super) fn scan_attribute_list(
             quote: AttributeQuote::Unquoted,
             value_start,
             value_end: value_start + trimmed.len(),
+            value_map: SourceMap::default(),
         });
 
         let Some(comma) = comma else {
@@ -179,6 +392,7 @@ pub(super) fn scan_attribute_list(
                 quote: AttributeQuote::Unquoted,
                 value_start: cursor,
                 value_end: cursor,
+                value_map: SourceMap::default(),
             });
             break;
         }
@@ -187,39 +401,83 @@ pub(super) fn scan_attribute_list(
     attributes
 }
 
-// Preprocessing needs only the style to preserve comments in verbatim
-// paragraphs. Share attribute tokenization with the full metadata parser.
-pub(crate) fn verbatim_paragraph_style(
+pub(crate) fn style_overrides_block_form(mode: CompatibilityMode, style: Option<&str>) -> bool {
+    mode == CompatibilityMode::Asciidoctor
+        && matches!(style, Some("source" | "listing" | "literal" | "verse"))
+}
+
+// Preprocessing uses the selected style without parsing block content.
+// The caller has already checked the block attribute-line boundary.
+pub(crate) fn block_attribute_style(
     source: &str,
     attributes: &DocumentAttributes<'_>,
-) -> Option<bool> {
-    let source = source.strip_prefix('[')?.strip_suffix(']')?;
-    if source.starts_with('[') {
+    mode: CompatibilityMode,
+) -> Option<String> {
+    if source.starts_with('[')
+        && (mode == CompatibilityMode::Asciidoctor || source.starts_with("[["))
+    {
         return None;
     }
-    let substituted = substitute(source, &[Substitution::Attributes], attributes);
-    let mut style = None;
-    for (slot, attribute) in scan_attribute_list(&substituted, &[])
-        .into_iter()
-        .enumerate()
+    let substituted = expand_attribute_list(source, attributes, mode);
+    let attributes = scan_block_attribute_list(&substituted.text, mode, BlockAttributeMode::Block);
+    block_list_style(&attributes, mode).map(str::to_owned)
+}
+
+pub(super) fn block_attribute_entries(
+    attributes: &[ScannedAttribute],
+    mode: CompatibilityMode,
+    context: BlockAttributeMode,
+) -> impl Iterator<Item = (usize, &ScannedAttribute)> {
+    let mut entries = attributes.iter().enumerate();
+    // Asciidoctor applies first-slot shorthand after the list's named entries.
+    let first = if mode == CompatibilityMode::Asciidoctor
+        && matches!(context, BlockAttributeMode::Block)
+        && attributes
+            .first()
+            .is_some_and(|attribute| attribute.name.is_none())
     {
-        let value = attribute.value.as_str();
-        let name = match attribute.name.as_deref() {
-            Some("style") if attribute.quote != AttributeQuote::Unquoted || value != "None" => {
-                value
-            }
-            None if slot == 0 && !value.is_empty() => {
-                if value.chars().any(char::is_whitespace) {
-                    value
-                } else {
-                    value.split(['#', '.', '%']).next().unwrap_or_default()
+        entries.next()
+    } else {
+        None
+    };
+    entries.chain(first)
+}
+
+pub(super) fn block_list_style(
+    attributes: &[ScannedAttribute],
+    mode: CompatibilityMode,
+) -> Option<&str> {
+    let mut style = None;
+    for (slot, attribute) in block_attribute_entries(attributes, mode, BlockAttributeMode::Block) {
+        if attribute.is_ignored(mode) {
+            continue;
+        }
+        match attribute.name.as_deref() {
+            Some("style") => style = Some(attribute.value.as_str()),
+            None if slot == 0 => {
+                if let Some(positional) = block_positional_style(attribute, mode) {
+                    style = Some(positional);
                 }
             }
-            _ => continue,
-        };
-        if !name.is_empty() || attribute.name.is_some() {
-            style = Some(matches!(name, "source" | "listing" | "literal" | "verse"));
+            _ => {}
         }
     }
     style
+}
+
+pub(super) fn block_positional_style(
+    attribute: &ScannedAttribute,
+    mode: CompatibilityMode,
+) -> Option<&str> {
+    if attribute.name.is_some() || attribute.is_ignored(mode) {
+        return None;
+    }
+    block_shorthand(&attribute.value, attribute.quote, mode)
+        .into_iter()
+        .find(|part| part.kind == ShorthandKind::Style)
+        .map(|part| &attribute.value[part.range])
+}
+
+pub(super) fn decode_anchor_shorthand_reftext(value: &str) -> String {
+    decode_attribute_escapes(value, ']', CompatibilityMode::Draft, true).0
 }

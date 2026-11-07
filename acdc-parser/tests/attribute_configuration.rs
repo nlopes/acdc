@@ -1,4 +1,4 @@
-use acdc_parser::{AttributeValue, DocumentAttributeValue, Options, parse};
+use acdc_parser::{AttributeValue, DocumentAttributeValue, DocumentAttributes, Options, parse};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -77,7 +77,7 @@ fn reopening_options_preserves_defaults_overrides_and_parse_settings() -> Result
     assert_eq!(options.safe_mode, acdc_parser::SafeMode::Safe);
     assert!(options.strict);
     let parsed = parse(":name: document\n:locked: document\n\nContent.\n", &options)?;
-    let attributes = &parsed.document().attributes;
+    let attributes = parsed.document().attributes();
     assert_eq!(
         attributes
             .get("name")
@@ -136,7 +136,7 @@ fn replacing_inputs_discards_invalid_values() -> Result<(), Error> {
     assert_eq!(
         parsed
             .document()
-            .attributes
+            .attributes()
             .get("name")
             .and_then(|value| value.text()),
         Some("caller")
@@ -176,7 +176,7 @@ fn defaults_have_the_same_precedence_in_either_builder_order() -> Result<(), Err
         assert_eq!(
             parsed
                 .document()
-                .attributes
+                .attributes()
                 .get("name")
                 .and_then(|value| value.text()),
             Some("caller")
@@ -184,7 +184,7 @@ fn defaults_have_the_same_precedence_in_either_builder_order() -> Result<(), Err
         assert_eq!(
             parsed
                 .document()
-                .attributes
+                .attributes()
                 .get("other")
                 .and_then(|value| value.text()),
             Some("document")
@@ -192,7 +192,7 @@ fn defaults_have_the_same_precedence_in_either_builder_order() -> Result<(), Err
         assert_eq!(
             parsed
                 .document()
-                .attributes
+                .attributes()
                 .get("backend")
                 .and_then(|value| value.text()),
             Some("pdf")
@@ -232,7 +232,9 @@ fn rebuilding_inputs_keeps_values_but_not_previous_assignment_policy() -> Result
         ":name: document\n:figure-caption!:\n\nContent.\n",
         &Options::default(),
     )?;
-    let inputs = parsed.document().attributes.to_static().into_inputs();
+    let inputs = DocumentAttributes::from(parsed.document().attributes())
+        .into_static()
+        .into_inputs();
     let options = Options::with_attributes(inputs)?;
     let reparsed = parse(
         ":name: replacement\n:figure-caption: Replacement\n\nContent.\n",
@@ -241,26 +243,28 @@ fn rebuilding_inputs_keeps_values_but_not_previous_assignment_policy() -> Result
     assert_eq!(
         reparsed
             .document()
-            .attributes
+            .attributes()
             .get("name")
             .and_then(|value| value.text()),
         Some("document")
     );
-    assert_eq!(reparsed.document().attributes.get("figure-caption"), None);
+    assert_eq!(reparsed.document().attributes().get("figure-caption"), None);
     Ok(())
 }
 
 #[test]
 fn reusing_a_snapshot_does_not_turn_universal_defaults_into_overrides() -> Result<(), Error> {
     let parsed = parse("", &Options::default())?;
-    let inputs = parsed.document().attributes.to_static().into_inputs();
+    let inputs = DocumentAttributes::from(parsed.document().attributes())
+        .into_static()
+        .into_inputs();
     let options = Options::with_attributes(inputs)?;
     assert!(!options.document_attributes().is_explicit("figure-caption"));
     let parsed = parse(":figure-caption: Custom\n\nContent.\n", &options)?;
     assert_eq!(
         parsed
             .document()
-            .attributes
+            .attributes()
             .get("figure-caption")
             .and_then(|value| value.text()),
         Some("Custom")
@@ -295,7 +299,7 @@ fn document_empty_expansion_stays_distinct_from_presence() -> Result<(), Error> 
         "= T\n:present:\n:expanded: {empty-source}\n\nContent.\n",
         &options,
     )?;
-    let attributes = &parsed.document().attributes;
+    let attributes = parsed.document().attributes();
     assert!(
         attributes
             .get("present")

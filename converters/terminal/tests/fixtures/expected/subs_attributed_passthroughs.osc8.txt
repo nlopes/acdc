@@ -1,0 +1,9 @@
+[1m[4mAttributed passthroughs[0m
+P01 <b>*protected*</b>.
+P02 <em>raw</em>.
+P03 [4m*protected*[24m.
+P04 [.red]<i>macro</i>.
+P05 [.red]protected.
+P06 x[.red]word. xwordy.
+P07 [38;5;12m[4m[raw][24m[39m.
+P08 <b>protected</b>.

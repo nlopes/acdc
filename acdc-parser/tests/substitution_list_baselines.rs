@@ -1,11 +1,17 @@
-use acdc_parser::{Options, parse};
+use acdc_parser::{
+    Options,
+    ast::{
+        AttributeValueRef, BlockKind, BlockRef, SubstitutionEntryRef, SubstitutionSpecKind,
+        SubstitutionSpecRef,
+    },
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn parsed_substitution_entries_preserve_source_spelling() -> Result<(), Error> {
-    use acdc_parser::{Block, NORMAL, SubstitutionSpec, VERBATIM};
+    use acdc_parser::{NORMAL, VERBATIM};
 
     for (value, expected) in [
         ("verbatim,-macros", vec!["verbatim", "-macros"]),
@@ -30,39 +36,53 @@ fn parsed_substitution_entries_preserve_source_spelling() -> Result<(), Error> {
     ] {
         let source = format!(":chosen: verbatim,-macros\n\n[subs=\"{value}\"]\nContent.\n");
         let parsed = parse(&source, &Options::default())?;
-        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+        let Some(BlockKind::Paragraph(paragraph)) =
+            parsed.document().blocks().next().map(BlockRef::kind)
+        else {
             return Err("expected a paragraph".into());
         };
-        let spec = paragraph
-            .metadata
-            .substitutions
-            .as_ref()
-            .ok_or("missing substitutions")?;
-        let SubstitutionSpec::Source(entries) = spec else {
+        let Some(AttributeValueRef::Substitutions(spec)) = paragraph.attributes().get("subs")
+        else {
+            return Err("missing substitutions".into());
+        };
+        let SubstitutionSpecKind::Source = spec.kind() else {
             return Err("expected authored substitution entries".into());
         };
-        assert_eq!(entries, &expected, "{value}");
+        let entries = spec
+            .entries()
+            .map(|entry| {
+                if let SubstitutionEntryRef::Source(text) = entry {
+                    Ok(text)
+                } else {
+                    Err("expected authored entry")
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        assert_eq!(entries, expected, "{value}");
         assert_eq!(
-            serde_json::to_value(spec)?,
-            serde_json::to_value(&expected)?,
+            serde_json::to_value(parsed.document())?
+                .pointer("/blocks/0/metadata/substitutions")
+                .ok_or("missing native substitution list")?,
+            &serde_json::to_value(&expected)?,
             "{value}"
         );
         for baseline in [NORMAL, VERBATIM, &[]] {
             let _ = spec.resolve(baseline);
         }
         assert_eq!(
-            serde_json::to_value(spec)?,
-            serde_json::to_value(&expected)?,
+            serde_json::to_value(parsed.document())?
+                .pointer("/blocks/0/metadata/substitutions")
+                .ok_or("missing native substitution list")?,
+            &serde_json::to_value(&expected)?,
             "{value}"
         );
     }
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn empty_substitution_specs_remain_distinct_from_block_defaults() -> Result<(), Error> {
-    use acdc_parser::{Block, NORMAL, SubstitutionSpec, VERBATIM};
+    use acdc_parser::{NORMAL, VERBATIM};
 
     for metadata in [
         "",
@@ -81,22 +101,28 @@ fn empty_substitution_specs_remain_distinct_from_block_defaults() -> Result<(), 
                  {metadata}{newline}Content.{newline}"
             );
             let parsed = parse(&source, &Options::default())?;
-            let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+            let Some(BlockKind::Paragraph(paragraph)) =
+                parsed.document().blocks().next().map(BlockRef::kind)
+            else {
                 return Err("expected a paragraph".into());
             };
-            let json = serde_json::to_value(&paragraph.metadata)?;
+            let json = serde_json::to_value(parsed.document())?;
             if metadata.is_empty() {
-                assert!(paragraph.metadata.substitutions.is_none());
-                assert!(json.get("substitutions").is_none());
+                assert!(paragraph.attributes().get("subs").is_none());
+                assert!(json.pointer("/blocks/0/metadata/substitutions").is_none());
             } else {
-                let spec = paragraph
-                    .metadata
-                    .substitutions
-                    .as_ref()
-                    .ok_or("missing explicit empty substitutions")?;
-                assert_eq!(spec, &SubstitutionSpec::Explicit(Vec::new()), "{source}");
+                let Some(AttributeValueRef::Substitutions(spec)) =
+                    paragraph.attributes().get("subs")
+                else {
+                    return Err("missing explicit empty substitutions".into());
+                };
                 assert_eq!(
-                    json.get("substitutions"),
+                    spec,
+                    SubstitutionSpecRef::from(&acdc_parser::SubstitutionSpec::Explicit(Vec::new())),
+                    "{source}"
+                );
+                assert_eq!(
+                    json.pointer("/blocks/0/metadata/substitutions"),
                     Some(&serde_json::json!([])),
                     "{source}"
                 );
@@ -109,7 +135,6 @@ fn empty_substitution_specs_remain_distinct_from_block_defaults() -> Result<(), 
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn typed_substitution_constructors_keep_their_existing_contract() -> Result<(), Error> {
     use acdc_parser::{NORMAL, Substitution, SubstitutionOp, SubstitutionSpec, VERBATIM};
@@ -150,13 +175,9 @@ fn plain_first_substitution_lists_do_not_register_disabled_macros() -> Result<()
                  {{value}} anchor:direct[]footnote:[Direct note.]{newline}"
             );
             let parsed = parse(&source, &Options::default())?;
-            let expected = if cfg!(feature = "pre-spec-subs") {
-                0
-            } else {
-                2
-            };
-            assert_eq!(parsed.document().footnotes.len(), expected, "{source}");
-            assert_eq!(parsed.document().references.len(), expected, "{source}");
+            let expected = 0;
+            assert_eq!(parsed.document().footnotes().count(), expected, "{source}");
+            assert_eq!(parsed.document().references().len(), expected, "{source}");
         }
     }
     Ok(())
@@ -177,19 +198,11 @@ fn mixed_substitution_lists_keep_enabled_macro_order() -> Result<(), Error> {
              {{value}} anchor:direct[]footnote:[Direct note.]\n"
         );
         let parsed = parse(&source, &Options::default())?;
-        let expected = if cfg!(feature = "pre-spec-subs") {
-            expected
-        } else {
-            2
-        };
-        assert_eq!(parsed.document().footnotes.len(), expected, "{subs}");
-        assert_eq!(parsed.document().references.len(), expected, "{subs}");
-        assert!(
-            parsed.document().references.contains_key("direct"),
-            "{subs}"
-        );
+        assert_eq!(parsed.document().footnotes().count(), expected, "{subs}");
+        assert_eq!(parsed.document().references().len(), expected, "{subs}");
+        assert!(parsed.document().references().contains("direct"), "{subs}");
         assert_eq!(
-            parsed.document().references.contains_key("from-value"),
+            parsed.document().references().contains("from-value"),
             expected == 2,
             "{subs}"
         );

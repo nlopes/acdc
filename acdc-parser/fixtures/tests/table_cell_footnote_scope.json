@@ -1,0 +1,596 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Scope",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 7
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 7
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "same",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Outer.",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 15
+                },
+                {
+                  "line": 3,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        },
+        "options": [
+          "noheader"
+        ]
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "[same]",
+                        "location": [
+                          {
+                            "line": 8,
+                            "col": 1
+                          },
+                          {
+                            "line": 8,
+                            "col": 15
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": " ",
+                        "location": [
+                          {
+                            "line": 8,
+                            "col": 16
+                          },
+                          {
+                            "line": 8,
+                            "col": 16
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "[later]",
+                        "location": [
+                          {
+                            "line": 8,
+                            "col": 17
+                          },
+                          {
+                            "line": 8,
+                            "col": 32
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": " ",
+                        "location": [
+                          {
+                            "line": 8,
+                            "col": 33
+                          },
+                          {
+                            "line": 8,
+                            "col": 33
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "[empty]",
+                        "location": [
+                          {
+                            "line": 8,
+                            "col": 34
+                          },
+                          {
+                            "line": 8,
+                            "col": 49
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 8,
+                        "col": 1
+                      },
+                      {
+                        "line": 8,
+                        "col": 49
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "é ",
+                        "location": [
+                          {
+                            "line": 2,
+                            "col": 3,
+                            "file": [
+                              "includes/table_cell_footnotes.adoc"
+                            ]
+                          },
+                          {
+                            "line": 2,
+                            "col": 4,
+                            "file": [
+                              "includes/table_cell_footnotes.adoc"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "footnote",
+                        "type": "inline",
+                        "id": "included",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Included.",
+                            "location": [
+                              {
+                                "line": 2,
+                                "col": 23,
+                                "file": [
+                                  "includes/table_cell_footnotes.adoc"
+                                ]
+                              },
+                              {
+                                "line": 2,
+                                "col": 31,
+                                "file": [
+                                  "includes/table_cell_footnotes.adoc"
+                                ]
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 2,
+                            "col": 5,
+                            "file": [
+                              "includes/table_cell_footnotes.adoc"
+                            ]
+                          },
+                          {
+                            "line": 2,
+                            "col": 32,
+                            "file": [
+                              "includes/table_cell_footnotes.adoc"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "\n",
+                        "location": [
+                          {
+                            "line": 2,
+                            "col": 33,
+                            "file": [
+                              "includes/table_cell_footnotes.adoc"
+                            ]
+                          },
+                          {
+                            "line": 2,
+                            "col": 33,
+                            "file": [
+                              "includes/table_cell_footnotes.adoc"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "name": "footnote",
+                        "type": "inline",
+                        "id": "included",
+                        "location": [
+                          {
+                            "line": 3,
+                            "col": 3,
+                            "file": [
+                              "includes/table_cell_footnotes.adoc"
+                            ]
+                          },
+                          {
+                            "line": 3,
+                            "col": 21,
+                            "file": [
+                              "includes/table_cell_footnotes.adoc"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 2,
+                        "col": 3,
+                        "file": [
+                          "includes/table_cell_footnotes.adoc"
+                        ]
+                      },
+                      {
+                        "line": 3,
+                        "col": 21,
+                        "file": [
+                          "includes/table_cell_footnotes.adoc"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "footnote",
+                        "type": "inline",
+                        "id": "later",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Later.",
+                            "location": [
+                              {
+                                "line": 12,
+                                "col": 16
+                              },
+                              {
+                                "line": 12,
+                                "col": 21
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 1
+                          },
+                          {
+                            "line": 12,
+                            "col": 22
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": " ",
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 23
+                          },
+                          {
+                            "line": 12,
+                            "col": 23
+                          }
+                        ]
+                      },
+                      {
+                        "name": "footnote",
+                        "type": "inline",
+                        "id": "later",
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 24
+                          },
+                          {
+                            "line": 12,
+                            "col": 39
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 12,
+                        "col": 1
+                      },
+                      {
+                        "line": 12,
+                        "col": 39
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          },
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "[included]",
+                        "location": [
+                          {
+                            "line": 15,
+                            "col": 1
+                          },
+                          {
+                            "line": 15,
+                            "col": 19
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": " ",
+                        "location": [
+                          {
+                            "line": 15,
+                            "col": 20
+                          },
+                          {
+                            "line": 15,
+                            "col": 20
+                          }
+                        ]
+                      },
+                      {
+                        "name": "footnote",
+                        "type": "inline",
+                        "id": "same",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Sibling.",
+                            "location": [
+                              {
+                                "line": 15,
+                                "col": 35
+                              },
+                              {
+                                "line": 15,
+                                "col": 42
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 15,
+                            "col": 21
+                          },
+                          {
+                            "line": 15,
+                            "col": 43
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 15,
+                        "col": 1
+                      },
+                      {
+                        "line": 15,
+                        "col": 43
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 6,
+            "col": 1
+          },
+          {
+            "line": 16,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "[included]",
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 18,
+              "col": 20
+            },
+            {
+              "line": 18,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "same",
+          "location": [
+            {
+              "line": 18,
+              "col": 21
+            },
+            {
+              "line": 18,
+              "col": 35
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 35
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 18,
+      "col": 35
+    }
+  ]
+}

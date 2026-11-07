@@ -168,6 +168,7 @@
           "name": "xref",
           "type": "inline",
           "target": "document-header",
+          "target_is_local": true,
           "location": [
             {
               "line": 5,

@@ -59,7 +59,23 @@
         "anchors": [
           {
             "id": "paragraph",
-            "xreflabel": "Original paragraph",
+            "xreflabel": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Original paragraph",
+                "location": [
+                  {
+                    "line": 5,
+                    "col": 13
+                  },
+                  {
+                    "line": 5,
+                    "col": 30
+                  }
+                ]
+              }
+            ],
             "location": [
               {
                 "line": 5,
@@ -140,6 +156,7 @@
               {
                 "columns": [
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "section",
@@ -168,11 +185,11 @@
                               "id": "inner",
                               "location": [
                                 {
-                                  "line": 1,
+                                  "line": 14,
                                   "col": 1
                                 },
                                 {
-                                  "line": 1,
+                                  "line": 14,
                                   "col": 10
                                 }
                               ]
@@ -250,12 +267,12 @@
                               "id": "outer",
                               "location": [
                                 {
-                                  "line": 2,
-                                  "col": 5
+                                  "line": 19,
+                                  "col": 1
                                 },
                                 {
-                                  "line": 3,
-                                  "col": 3
+                                  "line": 19,
+                                  "col": 10
                                 }
                               ]
                             }
@@ -332,12 +349,12 @@
                               "id": "paragraph",
                               "location": [
                                 {
-                                  "line": 5,
-                                  "col": 13
+                                  "line": 24,
+                                  "col": 1
                                 },
                                 {
-                                  "line": 5,
-                                  "col": 26
+                                  "line": 24,
+                                  "col": 14
                                 }
                               ]
                             }
@@ -412,15 +429,31 @@
                           "anchors": [
                             {
                               "id": "labelled",
-                              "xreflabel": "Chosen label",
+                              "xreflabel": [
+                                {
+                                  "name": "text",
+                                  "type": "string",
+                                  "value": "Chosen label",
+                                  "location": [
+                                    {
+                                      "line": 29,
+                                      "col": 12
+                                    },
+                                    {
+                                      "line": 29,
+                                      "col": 23
+                                    }
+                                  ]
+                                }
+                              ],
                               "location": [
                                 {
-                                  "line": 8,
-                                  "col": 6
+                                  "line": 29,
+                                  "col": 1
                                 },
                                 {
-                                  "line": 11,
-                                  "col": 11
+                                  "line": 29,
+                                  "col": 26
                                 }
                               ]
                             }
@@ -577,6 +610,8 @@
               "name": "xref",
               "type": "inline",
               "target": "outer",
+              "target_is_local": true,
+              "xrefstyle": "full",
               "location": [
                 {
                   "line": 38,
@@ -638,6 +673,8 @@
               "name": "xref",
               "type": "inline",
               "target": "inner",
+              "target_is_local": true,
+              "xrefstyle": "full",
               "location": [
                 {
                   "line": 40,
@@ -699,6 +736,8 @@
               "name": "xref",
               "type": "inline",
               "target": "paragraph",
+              "target_is_local": true,
+              "xrefstyle": "full",
               "location": [
                 {
                   "line": 42,
@@ -760,6 +799,8 @@
               "name": "xref",
               "type": "inline",
               "target": "labelled",
+              "target_is_local": true,
+              "xrefstyle": "full",
               "location": [
                 {
                   "line": 44,

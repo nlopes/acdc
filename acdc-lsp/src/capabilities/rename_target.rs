@@ -1,13 +1,35 @@
-//! Find editable target text inside anchor and cross-reference syntax.
+//! Find editable target text inside anchors, cross-references, and includes.
 
 use acdc_parser::Location;
-use tower_lsp_server::ls_types::{Position, Range};
+use tower_lsp_server::ls_types::Range;
 
-use crate::{convert::to_lsp_u32, state::XrefTarget};
+use crate::{
+    convert::{byte_range_to_utf16_range, location_to_utf16_range, position_to_offset, to_lsp_u32},
+    state::XrefTarget,
+};
+
+pub(super) fn include_range(text: &str, location: &Location, target: &str) -> Option<Range> {
+    let range = location_to_utf16_range(text, location)?;
+    let start = position_to_offset(text, range.start)?;
+    let end = position_to_offset(text, range.end)?;
+    (text.get(start..end)? == target
+        && text.get(..start)?.ends_with("include::")
+        && text.get(end..)?.starts_with('['))
+    .then_some(range)
+}
 
 pub(super) fn anchor_range(text: &str, location: &Location, id: &str) -> Option<Range> {
+    if !id.is_empty() && location.start.file == location.end.file {
+        let range = location_to_utf16_range(text, location)?;
+        let start = position_to_offset(text, range.start)?;
+        let end = position_to_offset(text, range.end)?;
+        if text.get(start..end)? == id {
+            return Some(range);
+        }
+    }
     let (target, range) = target_range(text, location, &["[[[", "[["], &[',', ']'])
-        .or_else(|| target_range(text, location, &["[#"], &[',', ']', '.', '%']))?;
+        .or_else(|| target_range(text, location, &["[#"], &[',', ']', '.', '%']))
+        .or_else(|| target_range(text, location, &["anchor:"], &['[']))?;
     (target == id).then_some(range)
 }
 
@@ -57,17 +79,8 @@ fn target_range(
     {
         return None;
     }
-    Some((
-        target.to_string(),
-        Range::new(
-            Position::new(
-                line_number,
-                to_lsp_u32(line.get(..start)?.encode_utf16().count()),
-            ),
-            Position::new(
-                line_number,
-                to_lsp_u32(line.get(..end)?.encode_utf16().count()),
-            ),
-        ),
-    ))
+    let mut range = byte_range_to_utf16_range(line, start..end)?;
+    range.start.line = line_number;
+    range.end.line = line_number;
+    Some((target.to_string(), range))
 }

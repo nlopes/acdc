@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+
+### Fixed
+
+- Recognize `[[id]]` anchors as command IDs, alongside `[#id]` and `id=`. An explicit `id=` still takes precedence over aliases. Generated section IDs do not identify commands.
+
 ### Changed
 
 - Library callers now import command-discovery errors as
@@ -24,8 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Scripts retain their literal text after includes and conditionals; enable
   textual document-attribute expansion with `subs=attributes` or `subs=+attributes`.
   Expansion uses attributes at the command's source position and preserves
-  callouts. Missing enabled attributes fail before execution. Builds without
-  `pre-spec-subs` reject explicit `subs` settings. The `interpreter` attribute
+  callouts. Missing enabled attributes fail before execution. The `interpreter` attribute
   overrides the source language.
 - Select commands with their dependencies and inspect execution outcomes.
   A failed prerequisite blocks its dependents; callers can stop all commands at

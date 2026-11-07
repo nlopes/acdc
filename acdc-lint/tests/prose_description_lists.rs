@@ -2,17 +2,31 @@ use acdc_lint::{
     Error, LintGroup, LintId, LintLevel, LintOptions, LintOverride, LintSelector, Lintable,
 };
 
+use acdc_parser::CompatibilityMode;
+
 const MULTIPLE: &str = "multiple sentences on one source line";
 const WRAPPED: &str = "sentence spans multiple source lines";
 
 fn assert_diagnostics(source: &str, expected: &[(&str, u32)]) -> Result<(), Error> {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        assert_diagnostics_for_mode(source, expected, mode)?;
+    }
+    Ok(())
+}
+
+fn assert_diagnostics_for_mode(
+    source: &str,
+    expected: &[(&str, u32)],
+    mode: CompatibilityMode,
+) -> Result<(), Error> {
     let options = LintOptions::new(vec![
         LintOverride::new(LintLevel::Allow, LintSelector::Group(LintGroup::All)),
         LintOverride::new(
             LintLevel::Deny,
             LintSelector::Lint(LintId::OneSentencePerLine),
         ),
-    ]);
+    ])
+    .with_compatibility_mode(mode);
     let report = source.lint(&options)?;
     let actual = report
         .diagnostics()

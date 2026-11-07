@@ -2,8 +2,8 @@
 //!
 //! With highlighting enabled, writes canonical `.html` expectations.
 //! Without highlighting, writes only the required `.no-highlighting.html`
-//! alternatives. Substitution-dependent fixtures are omitted when substitutions
-//! are disabled. Optional arguments select source fixture stems.
+//! alternatives. Substitution fixtures follow the same highlighting rules.
+//! Optional arguments select source fixture stems.
 //!
 //! Run from the workspace root.
 
@@ -39,9 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     .file_stem()
                     .and_then(|stem| stem.to_str())
                     .ok_or("invalid HTML fixture stem")?;
-                if fixture_support::skip_fixture(stem)
-                    || (!names.is_empty() && !names.iter().any(|name| name == stem))
-                {
+                if !names.is_empty() && !names.iter().any(|name| name == stem) {
                     continue;
                 }
                 let parsed = parse_file(
@@ -63,11 +61,14 @@ fn main() -> Result<(), Box<dyn Error>> {
                     options,
                     ParserOptions::builder()
                         .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                        .with_attributes(doc.attributes.clone().into_inputs()),
+                        .with_attributes(
+                            acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+                        ),
                     variant,
                 )?;
                 let render_options = RenderOptions {
                     embedded: mode == "embedded",
+                    source_dir: path.parent().map(Path::to_path_buf),
                     ..RenderOptions::default()
                 };
                 let mut output = Vec::new();

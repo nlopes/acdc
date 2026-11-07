@@ -20,21 +20,25 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration,
     TraversalContext, Warning, document_attribute_text,
-    icon::{IconMode, image_source as icon_image_source},
+    icon::{
+        IconMode, custom_image_source as admonition_icon_source, image_source as icon_image_source,
+    },
     media::resolve_target,
     toc::Config as TocConfig,
-    visitor::Visitor,
+    visitor::{BlockVisitor, DocumentVisitor},
     xref::XrefGuard,
 };
 use acdc_parser::{
-    Admonition, Author, Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType,
-    Document, DocumentAttributes, IndexTerm, IndexTermRelationship, InlineMacro, InlineNode,
-    Location, Options as ParserOptions, Reference, SafeMode, Source, SourceLocation,
+    CaptionKind, DocumentAttributes, Location, Options as ParserOptions, Reference, SafeMode,
+    SourceLocation,
+    ast::{
+        AdmonitionRef, AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef,
+        ContentRole, DocumentAttributesRef, DocumentRef, IndexTermRef, IndexTermRelationshipRef,
+        InlineKind, LocationRef, ParagraphRef,
+    },
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -332,8 +336,6 @@ pub struct Processor<'a> {
     /// Fallback counter for table captions the parser did not number.
     pub(crate) table_counter: Rc<Cell<u32>>,
     pdf_options: PdfOptions,
-    #[cfg(feature = "pre-spec-subs")]
-    pub(crate) current_subs: Rc<Cell<SubsFlags>>,
 }
 
 impl Processor<'_> {
@@ -347,7 +349,7 @@ impl Processor<'_> {
     #[cfg(test)]
     fn convert_to_typst_source(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<String, Error> {
         let loaded = self.load_theme(diagnostics)?;
@@ -380,7 +382,7 @@ impl Processor<'_> {
 
     pub(crate) fn render_document(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         source_file: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<RenderedPdf, Error> {
@@ -426,18 +428,15 @@ impl Processor<'_> {
         // Public PDF names use AsciiDoc IDs, not the encoded labels used by Typst.
         // The renderer omits catalog entries whose labels were not actually emitted.
         // Caller-built document titles may have an ID without a reference catalog entry.
-        let header_id = doc.header.as_ref().and_then(|header| {
-            header
-                .metadata
-                .id
-                .as_ref()
-                .or_else(|| header.metadata.anchors.last())
-                .map(|anchor| anchor.id)
-        });
-        let mut ids = doc
-            .references
-            .keys()
-            .copied()
+        let document = doc;
+        let header_id = document
+            .header()
+            .and_then(acdc_parser::ast::HeaderRef::primary_anchor)
+            .map(acdc_parser::ast::AnchorRef::id);
+        let mut ids = document
+            .references()
+            .iter()
+            .map(|(id, _)| id)
             .chain(header_id)
             .collect::<Vec<_>>();
         ids.sort_unstable();
@@ -454,7 +453,7 @@ impl Processor<'_> {
                 named_destinations,
             },
         )
-        .map_err(|error| error::with_source_labels(error, &doc.references, source_file))?;
+        .map_err(|error| error::with_source_labels(error, document.references(), source_file))?;
         if let Some(start) = page_numbering.conditional_arabic_start() {
             // Typst exports PDF labels only for fixed numbering patterns. A body-relative
             // transition uses a numbering function, so add its equivalent label ranges here.
@@ -464,7 +463,7 @@ impl Processor<'_> {
         for warning in rendered.warnings {
             diagnostics.warn(format!(
                 "Typst warning: {}",
-                error::source_labels(&warning, &doc.references, source_file)
+                error::source_labels(&warning, document.references(), source_file)
             ));
         }
 
@@ -481,7 +480,7 @@ impl Processor<'_> {
 
     fn emit_typst_source(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         assets: &ImageMap,
         preparation: &PdfPreparation,
         config: TypstSourceConfig<'_>,
@@ -490,8 +489,8 @@ impl Processor<'_> {
         let mut processor = Processor::new(self.options.clone(), ParserOptions::builder())?
             .with_pdf_options(self.pdf_options.clone());
         processor.parser_options =
-            ParserOptions::default().with_document_attributes(doc.attributes.clone());
-        processor.references = Rc::new(doc.references.clone());
+            ParserOptions::default().with_document_attributes(doc.attributes().into());
+        processor.references = Rc::new(doc.references().into());
         // The parser numbers every caption it resolved. These counters only number a title it
         // could not — one on a caller-built block, or added after parsing — so they start past
         // every assigned ordinal instead of colliding with one. Assigning rather than raising
@@ -508,15 +507,9 @@ impl Processor<'_> {
         processor
             .table_counter
             .set(doc.highest_caption_number(CaptionKind::Table));
-        let mut traversal = TraversalContext::new(&doc.attributes);
-        let mut visitor = PdfVisitor::new(
-            processor,
-            assets,
-            config,
-            doc.toc_entries.clone(),
-            diagnostics.reborrow(),
-        )
-        .with_populated_index_sections(preparation.populated_index_sections.clone());
+        let mut traversal = TraversalContext::new(doc.attributes());
+        let mut visitor = PdfVisitor::new(processor, assets, config, doc, diagnostics.reborrow())
+            .with_populated_index_sections(preparation.populated_index_sections.clone());
         heading_index::visit_terms(doc, |traversal, term| {
             visitor.register_heading_index_term(traversal, term)
         })?;
@@ -527,10 +520,10 @@ impl Processor<'_> {
         if preparation.has_autofit_blocks {
             write_autofit_helper(&mut visitor.writer, config.theme);
         }
-        if preparation.admonition_image_icon_count > 0 {
+        if preparation.needs_admonition_label_helper {
             write_admonition_image_helper(&mut visitor.writer, config.theme);
         }
-        visitor.visit_document(&mut traversal, doc)?;
+        DocumentVisitor::visit_document(&mut visitor, &mut traversal, doc)?;
         let mut source = visitor.writer.into_string();
         source.truncate(source.trim_end_matches('\n').len());
         source.push('\n');
@@ -580,8 +573,8 @@ impl Processor<'_> {
         }
     }
 
-    fn page_numbering_plan(&self, doc: &Document<'_>, theme: &Theme) -> PageNumberingPlan {
-        let has_title_page = doc.header.is_some()
+    fn page_numbering_plan(&self, doc: DocumentRef<'_>, theme: &Theme) -> PageNumberingPlan {
+        let has_title_page = doc.header().is_some()
             && (self
                 .parser_options
                 .document_attributes()
@@ -592,7 +585,7 @@ impl Processor<'_> {
                     Some(value) if value.as_str() == Some("book")
                 )
                 || self.options.doctype() == acdc_converters_core::Doctype::Book);
-        let toc = TocConfig::from_attributes(
+        let toc = TocConfig::resolve(
             None,
             &TraversalContext::new(self.parser_options.document_attributes()),
         );
@@ -601,7 +594,7 @@ impl Processor<'_> {
         } else {
             toc.placement()
         };
-        let has_automatic_toc = !doc.toc_entries.is_empty()
+        let has_automatic_toc = doc.toc_entries().next().is_some()
             && matches!(placement, "auto" | "left" | "right" | "top" | "bottom");
         PageNumberingPlan::new(
             theme.page_numbering_start_at,
@@ -612,7 +605,7 @@ impl Processor<'_> {
 
     fn emit_options(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         logo: Option<String>,
         font_dirs: &[PathBuf],
         theme: &LoadedTheme,
@@ -642,14 +635,14 @@ impl Processor<'_> {
 
     fn page_size(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         theme: &LoadedTheme,
         diagnostics: &mut Diagnostics<'_>,
     ) -> PageSize {
         if let Some(page) = self.pdf_options.page {
             return page;
         }
-        let Some(value) = document_attribute_text((doc.attributes).get("pdf-page-size")) else {
+        let Some(value) = document_attribute_text(doc.attributes().get("pdf-page-size")) else {
             return theme.page.unwrap_or(PageSize::A4);
         };
         if let Some(page) = parse_page_size(value) {
@@ -665,14 +658,14 @@ impl Processor<'_> {
 
     fn page_margin(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         theme: &LoadedTheme,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Option<PageMargins> {
         if let Some(margin) = self.pdf_options.page_margin {
             return Some(margin);
         }
-        let Some(value) = document_attribute_text((doc.attributes).get("pdf-page-margin")) else {
+        let Some(value) = document_attribute_text(doc.attributes().get("pdf-page-margin")) else {
             return theme.margin;
         };
         if value.trim().is_empty() {
@@ -691,7 +684,7 @@ impl Processor<'_> {
 
     fn page_setup(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         theme: &LoadedTheme,
         diagnostics: &mut Diagnostics<'_>,
     ) -> PageSetup {
@@ -716,14 +709,14 @@ impl Processor<'_> {
 
     fn page_layout(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         theme: &LoadedTheme,
         diagnostics: &mut Diagnostics<'_>,
     ) -> PageLayout {
         if let Some(layout) = self.pdf_options.page_layout {
             return layout;
         }
-        let Some(value) = document_attribute_text((doc.attributes).get("pdf-page-layout")) else {
+        let Some(value) = document_attribute_text(doc.attributes().get("pdf-page-layout")) else {
             return theme.layout.unwrap_or(PageLayout::Portrait);
         };
         match value.to_ascii_lowercase().as_str() {
@@ -741,7 +734,7 @@ impl Processor<'_> {
 
     fn resolve_images(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         preparation: &PdfPreparation,
         source_file: Option<&Path>,
         spool_dir: &Path,
@@ -753,7 +746,7 @@ impl Processor<'_> {
         let base_dir = base_dir_for_source(source_file);
         let source_policy = image_source_policy(
             self.options.safe_mode(),
-            doc.attributes.get("allow-uri-read").is_some(),
+            doc.attributes().contains("allow-uri-read"),
         );
         let config = ResolveConfig::new(base_dir, spool_dir).with_source_policy(source_policy);
         let config = if let Some(count) = self.pdf_options.remote_image_concurrency {
@@ -1196,15 +1189,16 @@ fn base_dir_for_source(source_file: Option<&Path>) -> PathBuf {
         )
 }
 
-fn document_metadata(doc: &Document<'_>) -> DocumentMetadata {
+fn document_metadata(doc: DocumentRef<'_>) -> DocumentMetadata {
     let title = doc
-        .header
-        .as_ref()
+        .header()
         .and_then(|header| {
             let transform = InlineTextTransform::default().decode_char_refs(true);
-            let mut title = transform.to_string(header.title.as_ref());
-            if let Some(subtitle) = &header.subtitle {
-                let subtitle = transform.to_string(subtitle.as_ref());
+            let mut title = header
+                .title()
+                .map_or_else(String::new, |title| transform.content_to_string(title));
+            if let Some(subtitle) = header.subtitle() {
+                let subtitle = transform.content_to_string(subtitle);
                 if !subtitle.is_empty() {
                     title.push_str(": ");
                     title.push_str(&subtitle);
@@ -1213,18 +1207,18 @@ fn document_metadata(doc: &Document<'_>) -> DocumentMetadata {
             (!title.is_empty()).then_some(title)
         })
         .or_else(|| {
-            document_attribute_text((doc.attributes).get("untitled-label")).map(str::to_owned)
+            document_attribute_text(doc.attributes().get("untitled-label")).map(str::to_owned)
         });
     let mut authors = doc
-        .header
-        .iter()
-        .flat_map(|header| &header.authors)
+        .header()
+        .into_iter()
+        .flat_map(acdc_parser::ast::HeaderRef::authors)
         .map(author_name)
         .collect::<Vec<_>>();
     if authors.is_empty()
         && let Some(author) = ["authors", "author"]
             .into_iter()
-            .find_map(|name| document_attribute_text((doc.attributes).get(name)))
+            .find_map(|name| document_attribute_text(doc.attributes().get(name)))
     {
         authors.push(author.to_owned());
     }
@@ -1232,13 +1226,13 @@ fn document_metadata(doc: &Document<'_>) -> DocumentMetadata {
     DocumentMetadata {
         title,
         authors,
-        description: metadata_attribute(&doc.attributes, "subject"),
-        keywords: metadata_attribute(&doc.attributes, "keywords"),
+        description: metadata_attribute(doc.attributes(), "subject"),
+        keywords: metadata_attribute(doc.attributes(), "keywords"),
     }
 }
 
-fn document_locale(doc: &Document<'_>, diagnostics: &mut Diagnostics<'_>) -> DocumentLocale {
-    let Some(value) = document_attribute_text((doc.attributes).get("lang")) else {
+fn document_locale(doc: DocumentRef<'_>, diagnostics: &mut Diagnostics<'_>) -> DocumentLocale {
+    let Some(value) = document_attribute_text(doc.attributes().get("lang")) else {
         return DocumentLocale::default();
     };
     if value.is_empty() {
@@ -1263,15 +1257,15 @@ fn parse_document_locale(value: &str) -> Result<DocumentLocale, TypstError> {
     DocumentLocale::try_from_codes(language, region)
 }
 
-fn metadata_attribute(attributes: &DocumentAttributes<'_>, name: &str) -> Option<String> {
-    document_attribute_text((attributes).get(name)).map(str::to_owned)
+fn metadata_attribute(attributes: DocumentAttributesRef<'_>, name: &str) -> Option<String> {
+    document_attribute_text(attributes.get(name)).map(str::to_owned)
 }
 
-fn author_name(author: &Author<'_>) -> String {
+fn author_name(author: acdc_parser::ast::AuthorRef<'_>) -> String {
     [
-        Some(author.first_name),
-        author.middle_name,
-        Some(author.last_name),
+        Some(author.first_name()),
+        author.middle_name(),
+        Some(author.last_name()),
     ]
     .into_iter()
     .flatten()
@@ -1280,25 +1274,29 @@ fn author_name(author: &Author<'_>) -> String {
     .join(" ")
 }
 
-fn collect_pdf_preparation(doc: &Document<'_>) -> PdfPreparation {
+fn collect_pdf_preparation(doc: DocumentRef<'_>) -> PdfPreparation {
     let mut preparation = PdfPreparation::default();
     let Ok(()) = heading_index::visit_terms(doc, |_, _| {
         preparation.has_index_terms = true;
         Ok::<(), std::convert::Infallible>(())
     });
-    let mut traversal = TraversalContext::new(&doc.attributes);
-    if let Some(header) = &doc.header {
-        collect_inline_preparation(header.title.as_ref(), &traversal, &mut preparation);
-        if let Some(subtitle) = &header.subtitle {
-            collect_inline_preparation(subtitle.as_ref(), &traversal, &mut preparation);
+    let document = doc;
+    let mut traversal = TraversalContext::new(document.attributes());
+    if let Some(header) = document.header() {
+        for content in header.title().into_iter().chain(header.subtitle()) {
+            collect_inline_preparation(content, &traversal, &mut preparation);
         }
     }
     let mut visitor = PreparationVisitor { preparation };
-    let Ok(()) = traversal.visit_blocks(&mut visitor, &doc.blocks);
+    let Ok(()) = traversal.visit_blocks(&mut visitor, document.blocks());
     visitor.preparation
 }
 
 #[derive(Default)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "Independent document features select emitted helpers"
+)]
 struct PdfPreparation {
     image_urls: BTreeSet<String>,
     ordinary_image_locations: HashMap<String, Location>,
@@ -1307,7 +1305,7 @@ struct PdfPreparation {
     has_index_terms: bool,
     has_unbreakable_blocks: bool,
     has_autofit_blocks: bool,
-    admonition_image_icon_count: usize,
+    needs_admonition_label_helper: bool,
     populated_index_sections: HashSet<String>,
 }
 
@@ -1322,58 +1320,34 @@ struct UnsupportedFontIcon {
     location: Location,
 }
 
-pub(crate) fn admonition_icon_source(attributes: &TraversalContext<'_>, target: &str) -> String {
-    let target = if Path::new(target.split(['?', '#']).next().unwrap_or(target))
-        .extension()
-        .is_some()
-    {
-        Cow::Borrowed(target)
-    } else {
-        let extension = document_attribute_text((attributes).get("icontype"))
-            .or_else(|| {
-                document_attribute_text((attributes).get("icons"))
-                    .filter(|value| !value.is_empty() && *value != "image" && *value != "font")
-            })
-            .unwrap_or("png");
-        Cow::Owned(format!("{target}.{}", extension.trim_start_matches('.')))
-    };
-    if target.starts_with('/') || target.contains("://") {
-        return target.into_owned();
-    }
-    let directory = document_attribute_text((attributes).get("iconsdir")).map_or_else(
-        || {
-            document_attribute_text((attributes).get("imagesdir")).map_or_else(
-                || "./images/icons".to_string(),
-                |imagesdir| format!("{}/icons", imagesdir.trim_end_matches(['/', '\\'])),
-            )
-        },
-        |iconsdir| iconsdir.trim_end_matches(['/', '\\']).to_string(),
-    );
-    if directory.is_empty() {
-        target.into_owned()
-    } else {
-        format!("{directory}/{target}")
-    }
-}
-
 impl PdfPreparation {
-    fn insert_image(&mut self, source: String, location: &Location) {
+    fn insert_image(&mut self, source: String, location: LocationRef<'_>) {
         self.image_urls.insert(source.clone());
         self.ordinary_image_locations
             .entry(source)
-            .or_insert_with(|| location.clone());
+            .or_insert_with(|| Location::from(location));
     }
 
-    fn insert_image_icon(&mut self, source: String, target: &Source<'_>, location: &Location) {
+    fn insert_image_icon(
+        &mut self,
+        source: String,
+        target: acdc_parser::ast::SourceRef<'_>,
+        location: LocationRef<'_>,
+    ) {
         self.insert_named_image_icon(source, target.to_string(), location);
     }
 
-    fn insert_named_image_icon(&mut self, source: String, target: String, location: &Location) {
+    fn insert_named_image_icon(
+        &mut self,
+        source: String,
+        target: String,
+        location: LocationRef<'_>,
+    ) {
         self.image_urls.insert(source.clone());
         self.image_icons.push(ImageIconReference {
             source,
             target,
-            location: location.clone(),
+            location: location.into(),
         });
     }
 }
@@ -1382,305 +1356,416 @@ struct PreparationVisitor {
     preparation: PdfPreparation,
 }
 
-impl<'doc> Visitor<'doc> for PreparationVisitor {
+impl PreparationVisitor {
+    fn collect_description_list<'doc>(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        list: acdc_parser::ast::DescriptionListRef<'doc>,
+    ) -> Result<(), std::convert::Infallible> {
+        for item in list.items() {
+            for term in item.terms() {
+                collect_inline_preparation(term.content(), traversal, &mut self.preparation);
+            }
+            if let Some(definition) = item.definition() {
+                if let Some(principal) = definition.principal() {
+                    collect_inline_preparation(principal, traversal, &mut self.preparation);
+                }
+                traversal.visit_blocks(self, definition.blocks())?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<'doc> BlockVisitor<'doc> for PreparationVisitor {
     type Error = std::convert::Infallible;
 
     fn before_block(
         &mut self,
         traversal: &mut TraversalContext<'doc>,
-        block: &'doc Block<'doc>,
+        block: BlockRef<'doc>,
     ) -> Result<(), Self::Error> {
         let preparation = &mut self.preparation;
-        match block {
-            Block::Paragraph(paragraph) => {
+        match block.kind() {
+            BlockKind::Paragraph(paragraph) => {
                 preparation.has_unbreakable_blocks |= is_unbreakable_paragraph(paragraph);
-                preparation.has_autofit_blocks |= is_autofit_paragraph(paragraph, traversal);
-                collect_metadata_preparation(&paragraph.metadata, traversal, preparation);
+                preparation.has_autofit_blocks |=
+                    matches!(paragraph.style(), Some("listing" | "literal" | "source"))
+                        && has_autofit_option(paragraph.options().iter(), traversal);
+                collect_metadata_preparation(paragraph.attributes(), traversal, preparation);
             }
-            Block::DelimitedBlock(block) => {
-                preparation.has_unbreakable_blocks |= is_unbreakable_delimited_block(block);
-                preparation.has_autofit_blocks |= is_autofit_delimited_block(block, traversal);
-                collect_inline_preparation(&block.title, traversal, preparation);
-                collect_metadata_preparation(&block.metadata, traversal, preparation);
-                if let DelimitedBlockType::DelimitedListing(nodes)
-                | DelimitedBlockType::DelimitedLiteral(nodes) = &block.inner
-                {
-                    acdc_converters_core::index::visit_index_terms(nodes, &mut |term, _| {
-                        collect_index_term_preparation(term, traversal, preparation);
-                        Ok::<(), Self::Error>(())
-                    })?;
-                }
+            BlockKind::DescriptionList(_) | BlockKind::CalloutList(_) => {
+                collect_optional_preparation(block.title(), traversal, preparation);
             }
-            Block::DescriptionList(list) => {
-                collect_inline_preparation(&list.title, traversal, preparation);
-            }
-            Block::CalloutList(list) => {
-                collect_inline_preparation(&list.title, traversal, preparation);
-            }
-            Block::Admonition(admonition) => {
+            BlockKind::Admonition(admonition) => {
                 collect_admonition_preparation(admonition, traversal, preparation);
             }
-            Block::Image(image) => {
-                collect_inline_preparation(&image.title, traversal, preparation);
+            BlockKind::Image(image) => {
+                collect_optional_preparation(image.title(), traversal, preparation);
+                collect_optional_preparation(image.alt(), traversal, preparation);
                 preparation.insert_image(
-                    resolve_target(&image.source.to_string(), traversal),
-                    &image.location,
+                    resolve_target(&image.source().to_string(), traversal),
+                    image.location(),
                 );
             }
-            Block::Audio(audio) => collect_inline_preparation(&audio.title, traversal, preparation),
-            Block::Video(video) => {
-                collect_inline_preparation(&video.title, traversal, preparation);
-                if let Some(poster) = video
-                    .metadata
-                    .attributes
-                    .get_string("poster")
-                    .filter(|poster| !poster.is_empty())
+            BlockKind::Audio(audio) => {
+                collect_optional_preparation(audio.title(), traversal, preparation);
+            }
+            BlockKind::Video(video) => {
+                collect_optional_preparation(video.title(), traversal, preparation);
+                if let Some(AttributeValueRef::Text(poster)) = video.attributes().get("poster")
+                    && !poster.is_empty()
+                    && !matches!(poster, "youtube" | "vimeo")
                 {
-                    preparation.insert_image(resolve_target(&poster, traversal), &video.location);
+                    preparation.insert_image(resolve_target(poster, traversal), video.location());
                 }
             }
-            Block::Section(_)
-            | Block::OrderedList(_)
-            | Block::UnorderedList(_)
-            | Block::DiscreteHeader(_)
-            | Block::DocumentAttribute(_)
-            | Block::TableOfContents(_)
-            | Block::ThematicBreak(_)
-            | Block::PageBreak(_)
-            | Block::Comment(_)
+            BlockKind::Example(_)
+            | BlockKind::Open(_)
+            | BlockKind::Quote(_)
+            | BlockKind::Sidebar(_)
+            | BlockKind::Table(_)
+            | BlockKind::Listing(_)
+            | BlockKind::Literal(_)
+            | BlockKind::DelimitedComment(_)
+            | BlockKind::Passthrough(_)
+            | BlockKind::Verse(_)
+            | BlockKind::Stem(_) => {
+                preparation.has_unbreakable_blocks |= is_unbreakable_delimited_block(block);
+                if let Some(attributes) = block.attributes() {
+                    preparation.has_autofit_blocks |=
+                        if let BlockKind::Listing(listing) = block.kind() {
+                            has_autofit_option(listing.options().iter(), traversal)
+                        } else if let BlockKind::Literal(literal) = block.kind() {
+                            has_autofit_option(literal.options().iter(), traversal)
+                        } else {
+                            false
+                        };
+                    collect_optional_preparation(block.title(), traversal, preparation);
+                    collect_metadata_preparation(attributes, traversal, preparation);
+                }
+                let content = if let BlockKind::Listing(listing) = block.kind() {
+                    Some(listing.content())
+                } else if let BlockKind::Literal(literal) = block.kind() {
+                    Some(literal.content())
+                } else {
+                    None
+                };
+                if let Some(content) = content {
+                    acdc_converters_core::index::visit_index_inlines(
+                        content.inlines(),
+                        &mut |term, _| {
+                            collect_index_term_preparation(term, traversal, preparation);
+                            Ok::<(), Self::Error>(())
+                        },
+                    )?;
+                }
+            }
+            BlockKind::TableOfContents(_)
+            | BlockKind::DiscreteHeader(_)
+            | BlockKind::DocumentAttribute(_)
+            | BlockKind::ThematicBreak(_)
+            | BlockKind::PageBreak(_)
+            | BlockKind::UnorderedList(_)
+            | BlockKind::OrderedList(_)
+            | BlockKind::Section(_)
+            | BlockKind::Comment(_)
             | _ => {}
         }
         Ok(())
     }
 
-    fn visit_section(
+    fn visit_block(
         &mut self,
         traversal: &mut TraversalContext<'doc>,
-        section: &'doc acdc_parser::Section<'doc>,
+        block: BlockRef<'doc>,
     ) -> Result<(), Self::Error> {
-        self.visit_inline_nodes(traversal, &section.title)?;
-        if section.kind == acdc_parser::SectionKind::Index {
-            if self.preparation.has_index_terms {
-                self.preparation
-                    .populated_index_sections
-                    .insert(section.id().into_owned());
+        match block.kind() {
+            BlockKind::Section(section) => {
+                collect_optional_preparation(section.title(), traversal, &mut self.preparation);
+                if section.kind() == acdc_parser::SectionKind::Index {
+                    if self.preparation.has_index_terms {
+                        self.preparation
+                            .populated_index_sections
+                            .insert(section.resolve_id().into_owned());
+                    }
+                } else {
+                    traversal.visit_blocks(self, section.blocks())?;
+                }
             }
-            return Ok(());
+            BlockKind::Paragraph(paragraph) => {
+                collect_optional_preparation(paragraph.title(), traversal, &mut self.preparation);
+                collect_inline_preparation(paragraph.content(), traversal, &mut self.preparation);
+            }
+            BlockKind::Example(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::Open(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::Quote(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::Sidebar(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::Admonition(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::Table(table) => {
+                for row in table
+                    .header()
+                    .into_iter()
+                    .chain(table.rows())
+                    .chain(table.footer())
+                {
+                    let mut columns = table.columns();
+                    for cell in row.cells() {
+                        let column_style = columns.next().map_or(
+                            acdc_parser::ColumnStyle::Default,
+                            acdc_parser::ast::ColumnFormatRef::style,
+                        );
+                        let style = cell.style().unwrap_or(column_style);
+                        if style == acdc_parser::ColumnStyle::AsciiDoc {
+                            traversal.with_table_cell(cell, |context| {
+                                context.visit_blocks(self, cell.blocks())
+                            })?;
+                        } else {
+                            traversal.visit_blocks(self, cell.blocks())?;
+                        }
+                    }
+                }
+            }
+            BlockKind::OrderedList(list) => {
+                collect_optional_preparation(list.title(), traversal, &mut self.preparation);
+                for item in list.items() {
+                    collect_inline_preparation(item.principal(), traversal, &mut self.preparation);
+                    traversal.visit_blocks(self, item.blocks())?;
+                }
+            }
+            BlockKind::UnorderedList(list) => {
+                collect_optional_preparation(list.title(), traversal, &mut self.preparation);
+                for item in list.items() {
+                    collect_inline_preparation(item.principal(), traversal, &mut self.preparation);
+                    traversal.visit_blocks(self, item.blocks())?;
+                }
+            }
+            BlockKind::DescriptionList(list) => {
+                self.collect_description_list(traversal, list)?;
+            }
+            BlockKind::CalloutList(list) => {
+                for item in list.items() {
+                    collect_inline_preparation(item.principal(), traversal, &mut self.preparation);
+                    traversal.visit_blocks(self, item.blocks())?;
+                }
+            }
+            BlockKind::DiscreteHeader(header) => {
+                collect_optional_preparation(header.title(), traversal, &mut self.preparation);
+            }
+            BlockKind::TableOfContents(_)
+            | BlockKind::DocumentAttribute(_)
+            | BlockKind::ThematicBreak(_)
+            | BlockKind::PageBreak(_)
+            | BlockKind::Image(_)
+            | BlockKind::Audio(_)
+            | BlockKind::Video(_)
+            | BlockKind::Comment(_)
+            | BlockKind::DelimitedComment(_)
+            | BlockKind::Listing(_)
+            | BlockKind::Literal(_)
+            | BlockKind::Passthrough(_)
+            | BlockKind::Verse(_)
+            | BlockKind::Stem(_)
+            | _ => {}
         }
-        traversal.visit_blocks(self, &section.content)
-    }
-
-    fn visit_inline_nodes(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        nodes: &[InlineNode<'_>],
-    ) -> Result<(), Self::Error> {
-        collect_inline_preparation(nodes, traversal, &mut self.preparation);
         Ok(())
     }
 }
 
-fn collect_admonition_preparation<'a>(
-    admonition: &'a Admonition<'a>,
+fn collect_admonition_preparation(
+    admonition: AdmonitionRef<'_>,
     attributes: &TraversalContext<'_>,
     preparation: &mut PdfPreparation,
 ) {
-    preparation.has_unbreakable_blocks |= admonition.metadata.options.contains(&"unbreakable");
+    preparation.has_unbreakable_blocks |= admonition.options().contains("unbreakable");
+    preparation.needs_admonition_label_helper |= admonition.caption_content().is_some();
     if IconMode::from_attributes(attributes) != IconMode::Text
-        && let Some(icon) = admonition
-            .metadata
-            .attributes
-            .get_string("icon")
-            .filter(|icon| !icon.is_empty())
+        && let Some(AttributeValueRef::Text(icon)) = admonition.attributes().get("icon")
+        && !icon.is_empty()
     {
-        preparation.admonition_image_icon_count += 1;
+        preparation.needs_admonition_label_helper = true;
         preparation.insert_named_image_icon(
-            admonition_icon_source(attributes, &icon),
-            icon.into_owned(),
+            admonition_icon_source(attributes, icon),
+            icon.to_owned(),
             admonition
-                .metadata
-                .location
-                .as_ref()
-                .unwrap_or(&admonition.location),
+                .attributes()
+                .location()
+                .unwrap_or_else(|| admonition.location()),
         );
     }
-    collect_inline_preparation(admonition.title.as_ref(), attributes, preparation);
+    collect_optional_preparation(admonition.title(), attributes, preparation);
 }
 
-fn is_unbreakable_paragraph(paragraph: &acdc_parser::Paragraph<'_>) -> bool {
-    paragraph.metadata.options.contains(&"unbreakable")
+fn is_unbreakable_paragraph(paragraph: ParagraphRef<'_>) -> bool {
+    paragraph.options().contains("unbreakable")
         && matches!(
-            paragraph.metadata.style,
+            paragraph.style(),
             Some("example" | "listing" | "literal" | "quote" | "sidebar" | "source" | "verse")
         )
 }
 
-fn is_unbreakable_delimited_block<'a>(block: &'a DelimitedBlock<'a>) -> bool {
-    block.metadata.options.contains(&"unbreakable")
+fn is_unbreakable_delimited_block(block: BlockRef<'_>) -> bool {
+    matches!(block.attributes().and_then(|attributes| attributes.get("opts")), Some(AttributeValueRef::Tokens(options)) if options.contains("unbreakable"))
         && matches!(
-            block.inner,
-            DelimitedBlockType::DelimitedExample(_)
-                | DelimitedBlockType::DelimitedListing(_)
-                | DelimitedBlockType::DelimitedLiteral(_)
-                | DelimitedBlockType::DelimitedOpen(_)
-                | DelimitedBlockType::DelimitedQuote(_)
-                | DelimitedBlockType::DelimitedSidebar(_)
-                | DelimitedBlockType::DelimitedStem(_)
-                | DelimitedBlockType::DelimitedTable(_)
-                | DelimitedBlockType::DelimitedVerse(_)
+            block.kind(),
+            BlockKind::Example(_)
+                | BlockKind::Listing(_)
+                | BlockKind::Literal(_)
+                | BlockKind::Open(_)
+                | BlockKind::Quote(_)
+                | BlockKind::Sidebar(_)
+                | BlockKind::Stem(_)
+                | BlockKind::Table(_)
+                | BlockKind::Verse(_)
         )
 }
 
-fn is_page_breakable_table<'a>(block: &'a DelimitedBlock<'a>) -> bool {
-    !block.metadata.options.contains(&"unbreakable")
-        && matches!(block.inner, DelimitedBlockType::DelimitedTable(_))
+fn is_page_breakable_table(block: BlockRef<'_>) -> bool {
+    matches!(block.kind(), BlockKind::Table(table) if !table.options().contains("unbreakable"))
 }
 
-fn is_autofit_paragraph(
-    paragraph: &acdc_parser::Paragraph<'_>,
+fn has_autofit_option<'a>(
+    mut options: impl Iterator<Item = &'a str>,
     attributes: &TraversalContext<'_>,
 ) -> bool {
-    matches!(
-        paragraph.metadata.style,
-        Some("listing" | "literal" | "source")
-    ) && has_autofit_option(&paragraph.metadata, attributes)
-}
-
-fn is_autofit_delimited_block<'a>(
-    block: &'a DelimitedBlock<'a>,
-    attributes: &TraversalContext<'_>,
-) -> bool {
-    matches!(
-        block.inner,
-        DelimitedBlockType::DelimitedListing(_) | DelimitedBlockType::DelimitedLiteral(_)
-    ) && has_autofit_option(&block.metadata, attributes)
-}
-
-fn has_autofit_option(metadata: &BlockMetadata<'_>, attributes: &TraversalContext<'_>) -> bool {
-    metadata.options.contains(&"autofit") || attributes.get("autofit-option").is_some()
+    options.any(|option| option == "autofit") || attributes.get("autofit-option").is_some()
 }
 
 fn collect_metadata_preparation(
-    metadata: &BlockMetadata<'_>,
+    metadata: AttributesRef<'_>,
     attributes: &TraversalContext<'_>,
     preparation: &mut PdfPreparation,
 ) {
-    if let Some(attribution) = &metadata.attribution {
-        collect_inline_preparation(attribution, attributes, preparation);
+    for name in ["caption", "attribution", "citetitle"] {
+        if let Some(AttributeValueRef::Content(content)) = metadata.get(name) {
+            collect_inline_preparation(content, attributes, preparation);
+        }
     }
-    if let Some(citetitle) = &metadata.citetitle {
-        collect_inline_preparation(citetitle, attributes, preparation);
+}
+
+fn collect_optional_preparation(
+    content: Option<ContentRef<'_>>,
+    attributes: &TraversalContext<'_>,
+    preparation: &mut PdfPreparation,
+) {
+    if let Some(content) = content {
+        collect_inline_preparation(content, attributes, preparation);
     }
 }
 
 fn collect_inline_preparation(
-    nodes: &[InlineNode<'_>],
+    content: ContentRef<'_>,
     attributes: &TraversalContext<'_>,
     preparation: &mut PdfPreparation,
 ) {
-    for node in nodes {
-        match node {
-            InlineNode::BoldText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::ItalicText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::MonospaceText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::HighlightText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::SubscriptText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::SuperscriptText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::CurvedQuotationText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::CurvedApostropheText(text) => {
-                collect_inline_preparation(&text.content, attributes, preparation);
-            }
-            InlineNode::Macro(InlineMacro::Image(image)) => {
-                preparation.insert_image(
-                    resolve_target(&image.source.to_string(), attributes),
-                    &image.location,
-                );
-            }
-            InlineNode::Macro(InlineMacro::Icon(icon)) => {
-                match IconMode::from_attributes(attributes) {
-                    IconMode::Image => preparation.insert_image_icon(
-                        icon_image_source(attributes, &icon.target),
-                        &icon.target,
-                        &icon.location,
-                    ),
-                    IconMode::Font => {
-                        let icon_name = icon.target.to_string();
-                        if builtin_icon_glyph(&icon_name).is_none() {
-                            preparation
-                                .unsupported_font_icons
-                                .push(UnsupportedFontIcon {
-                                    name: icon_name,
-                                    location: icon.location.clone(),
-                                });
-                        }
-                    }
-                    IconMode::Text | _ => {}
+    for node in content.inlines() {
+        // Prepare display attributes before macro bodies to retain warning order.
+        for field in node.content_fields().filter(|field| {
+            matches!(
+                field.role(),
+                ContentRole::Alt
+                    | ContentRole::Tooltip
+                    | ContentRole::ButtonLabel
+                    | ContentRole::KeyboardKey
+                    | ContentRole::MenuTarget
+                    | ContentRole::MenuItem
+            )
+        }) {
+            collect_inline_preparation(field.content(), attributes, preparation);
+        }
+        match node.kind() {
+            InlineKind::Image(image) => preparation.insert_image(
+                resolve_target(&image.source().to_string(), attributes),
+                image.location(),
+            ),
+            InlineKind::Icon(icon) => match IconMode::from_attributes(attributes) {
+                IconMode::Image => {
+                    let source = if let Some(AttributeValueRef::Text(value)) =
+                        icon.attributes().get("icon")
+                    {
+                        acdc_converters_core::icon::custom_image_source(attributes, value)
+                    } else {
+                        icon_image_source(attributes, icon.target())
+                    };
+                    preparation.insert_image_icon(source, icon.target(), icon.location());
                 }
-            }
-            InlineNode::Macro(InlineMacro::Footnote(footnote)) => {
-                collect_inline_preparation(&footnote.content, attributes, preparation);
-            }
-            InlineNode::Macro(InlineMacro::Url(url)) => {
-                collect_inline_preparation(&url.text, attributes, preparation);
-            }
-            InlineNode::Macro(InlineMacro::Link(link)) => {
-                collect_inline_preparation(&link.text, attributes, preparation);
-            }
-            InlineNode::Macro(InlineMacro::Mailto(mailto)) => {
-                collect_inline_preparation(&mailto.text, attributes, preparation);
-            }
-            InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-                collect_inline_preparation(&xref.text, attributes, preparation);
-            }
-            InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
-                collect_index_term_preparation(term, attributes, preparation);
-            }
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
+                IconMode::Font => {
+                    let icon_name = icon.target().to_string();
+                    if builtin_icon_glyph(&icon_name).is_none() {
+                        preparation
+                            .unsupported_font_icons
+                            .push(UnsupportedFontIcon {
+                                name: icon_name,
+                                location: icon.location().into(),
+                            });
+                    }
+                }
+                IconMode::Text | _ => {}
+            },
+            InlineKind::IndexTerm(_) => preparation.has_index_terms = true,
+            InlineKind::Plain(_)
+            | InlineKind::Raw(_)
+            | InlineKind::Verbatim(_)
+            | InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::CharacterReference(_)
+            | InlineKind::Symbol(_)
+            | InlineKind::LineBreak(_)
+            | InlineKind::Anchor(_)
+            | InlineKind::Callout(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Button(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Url(_)
+            | InlineKind::Link(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::CrossReference(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Stem(_)
             | _ => {}
+        }
+        for field in node.content_fields().filter(|field| {
+            matches!(
+                field.role(),
+                ContentRole::Span
+                    | ContentRole::LinkText
+                    | ContentRole::Footnote
+                    | ContentRole::IndexPrimary
+                    | ContentRole::IndexSecondary
+                    | ContentRole::IndexTertiary
+                    | ContentRole::IndexSee
+                    | ContentRole::IndexSeeAlso
+            )
+        }) {
+            collect_inline_preparation(field.content(), attributes, preparation);
         }
     }
 }
 
 fn collect_index_term_preparation(
-    term: &IndexTerm<'_>,
+    term: IndexTermRef<'_>,
     attributes: &TraversalContext<'_>,
     preparation: &mut PdfPreparation,
 ) {
     preparation.has_index_terms = true;
     collect_inline_preparation(term.term(), attributes, preparation);
-    if let Some(secondary) = term.secondary() {
-        collect_inline_preparation(secondary, attributes, preparation);
-    }
-    if let Some(tertiary) = term.tertiary() {
-        collect_inline_preparation(tertiary, attributes, preparation);
-    }
-    match term.relationship.as_ref() {
-        Some(IndexTermRelationship::See { target }) => {
+    collect_optional_preparation(term.secondary(), attributes, preparation);
+    collect_optional_preparation(term.tertiary(), attributes, preparation);
+    match term.relationship() {
+        Some(IndexTermRelationshipRef::See { target }) => {
             collect_inline_preparation(target, attributes, preparation);
         }
-        Some(IndexTermRelationship::SeeAlso { targets }) => {
-            for target in targets {
+        Some(IndexTermRelationshipRef::SeeAlso { targets }) => {
+            for target in targets.iter() {
                 collect_inline_preparation(target, attributes, preparation);
             }
         }
@@ -1712,18 +1797,21 @@ fn encode_footnote_label(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use acdc_converters_core::{Converter, Warning, WarningSource};
-    use acdc_parser::{DelimitedBlock, Image, Location, Paragraph, Plain, Title, parse};
+    use acdc_parser::{
+        Block, DelimitedBlock, DelimitedBlockType, Image, InlineNode, Location, Paragraph, Plain,
+        Source, Title, parse,
+    };
     use std::{error::Error as StdError, io::Error as IoError};
     use tempfile::{NamedTempFile, tempdir};
 
     use super::*;
+    use acdc_parser::Document;
 
     fn title(content: &'static str) -> Title<'static> {
-        Title::new(vec![InlineNode::PlainText(Plain {
+        Title::new(vec![InlineNode::PlainText(Plain::new(
             content,
-            location: Location::default(),
-            escaped: false,
-        })])
+            Location::default(),
+        ))])
     }
 
     fn render_warnings(input: &str) -> Result<Vec<Warning>, Box<dyn StdError>> {
@@ -1739,7 +1827,10 @@ mod tests {
                 .build(),
             ParserOptions::builder()
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document().attributes())
+                        .into_inputs(),
+                ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -1804,8 +1895,9 @@ mod tests {
         let parsed = parse(input, &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -1822,8 +1914,9 @@ mod tests {
         let parsed = parse(input, &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             plain: true,
@@ -1907,8 +2000,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -1935,8 +2029,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             theme: Some(theme.path().to_path_buf()),
@@ -1966,8 +2061,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             theme: Some(theme.path().to_path_buf()),
@@ -2000,8 +2096,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             theme: Some(theme.path().to_path_buf()),
@@ -2031,8 +2128,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2057,8 +2155,9 @@ mod tests {
         let parsed = parse(forced_break, &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2084,8 +2183,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2121,8 +2221,10 @@ mod tests {
             let parsed = parse(&input, &ParserOptions::default())?;
             let processor = Processor::new(
                 Options::default(),
-                ParserOptions::builder()
-                    .with_attributes(parsed.document().attributes.clone().into_inputs()),
+                ParserOptions::builder().with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document().attributes())
+                        .into_inputs(),
+                ),
             )?;
             let source = WarningSource::new("pdf");
             let mut warnings = Vec::new();
@@ -2148,8 +2250,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2197,8 +2300,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2232,8 +2336,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2261,8 +2366,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             page: Some(PageSize::A5),
@@ -2300,10 +2406,12 @@ mod tests {
             &ParserOptions::default(),
         )?;
 
-        let render = |document: &Document<'_>| -> Result<String, Box<dyn StdError>> {
+        let render = |document: DocumentRef<'_>| -> Result<String, Box<dyn StdError>> {
             let processor = Processor::new(
                 Options::default(),
-                ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+                ParserOptions::builder().with_attributes(
+                    acdc_parser::DocumentAttributes::from(document.attributes()).into_inputs(),
+                ),
             )?;
             let source = WarningSource::new("pdf");
             let mut warnings = Vec::new();
@@ -2345,10 +2453,12 @@ mod tests {
             &ParserOptions::default(),
         )?;
 
-        let render = |document: &Document<'_>| -> Result<String, Box<dyn StdError>> {
+        let render = |document: DocumentRef<'_>| -> Result<String, Box<dyn StdError>> {
             let processor = Processor::new(
                 Options::default(),
-                ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+                ParserOptions::builder().with_attributes(
+                    acdc_parser::DocumentAttributes::from(document.attributes()).into_inputs(),
+                ),
             )?;
             let source = WarningSource::new("pdf");
             let mut warnings = Vec::new();
@@ -2400,8 +2510,9 @@ mod tests {
         let parsed = parse(&input, &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2432,8 +2543,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let mut theme = Theme::default();
         theme.typography.code_size_em = 0.9;
@@ -2554,15 +2666,11 @@ mod tests {
     #[test]
     fn unhandled_parser_block_warning_is_structured() -> Result<(), Box<dyn StdError>> {
         let parsed = parse("text", &ParserOptions::default())?;
-        let block = parsed
-            .document()
-            .blocks
-            .first()
-            .ok_or_else(|| IoError::other("missing parsed block"))?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let assets = ImageMap::new();
         let theme = Theme::default();
@@ -2575,7 +2683,6 @@ mod tests {
         let mut warnings = Vec::new();
         {
             let diagnostics = Diagnostics::new(&source, &mut warnings);
-            let mut traversal = TraversalContext::new(&parsed.document().attributes);
             let mut visitor = PdfVisitor::new(
                 processor,
                 &assets,
@@ -2584,10 +2691,10 @@ mod tests {
                     &emit_options,
                     PageNumberingPlan::new(theme.page_numbering_start_at, false, false),
                 ),
-                Vec::new(),
+                parsed.document(),
                 diagnostics,
             );
-            visitor.visit_unhandled_block(&mut traversal, block)?;
+            visitor.warn_unsupported_parser_variant("block", None);
         }
 
         assert_eq!(warnings.len(), 1);
@@ -2646,8 +2753,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2675,8 +2783,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2740,8 +2849,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2775,8 +2885,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2799,8 +2910,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let mut theme = Theme::default();
         theme.index.columns = 3;
@@ -2861,8 +2973,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2901,8 +3014,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2970,8 +3084,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -2980,14 +3095,16 @@ mod tests {
         let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         for (target, kind) in [
-            ("media/clips/demo%20clip.mp4", "video"),
-            ("media/clips/demo%20clip.webm", "video"),
+            (
+                "media/clips/demo%20clip.mp4,clips/demo%20clip.webm",
+                "video",
+            ),
             ("https://media.example.test/demo%20clip.mp4", "video"),
             (
-                "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10&end=20",
                 "YouTube video",
             ),
-            ("https://vimeo.com/76979871", "Vimeo video"),
+            ("https://vimeo.com/76979871#t=10", "Vimeo video"),
         ] {
             assert!(
                 typst.contains(&format!(
@@ -2996,8 +3113,6 @@ mod tests {
                 "missing {target} in generated Typst",
             );
         }
-        assert!(!typst.contains("#t="));
-        assert!(!typst.contains("&t=10"));
         assert!(typst.contains("#imagecaption[#text(\"Local formats\")]"));
         assert_eq!(warnings.len(), 1);
         assert_eq!(
@@ -3013,10 +3128,9 @@ mod tests {
             external_link_targets(&pdf),
             [
                 "https://media.example.test/demo%20clip.mp4".to_string(),
-                "https://vimeo.com/76979871".to_string(),
-                "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string(),
-                "media/clips/demo%20clip.mp4".to_string(),
-                "media/clips/demo%20clip.webm".to_string(),
+                "https://vimeo.com/76979871#t=10".to_string(),
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10&end=20".to_string(),
+                "media/clips/demo%20clip.mp4,clips/demo%20clip.webm".to_string(),
             ]
         );
         Ok(())
@@ -3044,7 +3158,10 @@ mod tests {
                 .build(),
             ParserOptions::builder()
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document().attributes())
+                        .into_inputs(),
+                ),
         )?
         .with_pdf_options(PdfOptions {
             emit_typst: Some(typst_path.clone()),
@@ -3188,28 +3305,35 @@ mod tests {
             "[example]\n====\nContent.\n====\n",
             &ParserOptions::default(),
         )?;
-        let Some(Block::DelimitedBlock(mut title_added)) =
-            parsed.document().blocks.first().cloned()
-        else {
+        let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+        let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
+        let Some(Block::DelimitedBlock(mut title_added)) = parsed_blocks.first().cloned() else {
             return Err(IoError::other("expected a delimited example").into());
         };
-        title_added.title = title("Added later");
+        title_added.set_title(title("Added later"));
 
         let mut document = Document::default();
-        document.attributes = parsed.document().attributes.clone();
-        document.blocks = vec![
+        document.set_attributes(acdc_parser::DocumentAttributes::from(
+            parsed.document().attributes(),
+        ));
+        document.set_blocks(vec![
             Block::DelimitedBlock(caller_built),
             Block::DelimitedBlock(title_added),
-        ];
+        ]);
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(
+                    acdc_parser::ast::DocumentRef::from(&document).attributes(),
+                )
+                .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document(&document, None, &mut diagnostics)?;
+        let rendered = processor.render_document((&document).into(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
@@ -3232,25 +3356,34 @@ mod tests {
         )
         .with_title(title("Built listing"));
         let mut styled_paragraph = Paragraph::new(Vec::new(), Location::default());
-        styled_paragraph.title = title("Built source paragraph");
-        styled_paragraph.metadata.style = Some("source");
+        styled_paragraph.set_title(title("Built source paragraph"));
+        let mut metadata = styled_paragraph.take_metadata();
+        metadata.style = Some("source");
+        styled_paragraph.set_metadata(metadata)?;
 
         let mut document = Document::default();
-        document.attributes = ParserOptions::with_attributes([("listing-caption", "Listing")])?
-            .into_document_attributes();
-        document.blocks = vec![
+        document.set_attributes(
+            ParserOptions::with_attributes([("listing-caption", "Listing")])?
+                .into_document_attributes(),
+        );
+        document.set_blocks(vec![
             Block::DelimitedBlock(listing),
             Block::Paragraph(styled_paragraph),
-        ];
+        ]);
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(
+                    acdc_parser::ast::DocumentRef::from(&document).attributes(),
+                )
+                .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document(&document, None, &mut diagnostics)?;
+        let rendered = processor.render_document((&document).into(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
@@ -3267,28 +3400,37 @@ mod tests {
             ".Parsed table\n|===\n|Cell\n|===\n",
             &ParserOptions::default(),
         )?;
-        let Some(Block::DelimitedBlock(parsed_table)) = parsed.document().blocks.first() else {
+        let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+        let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
+        let Some(Block::DelimitedBlock(parsed_table)) = parsed_blocks.first() else {
             return Err(IoError::other("expected a delimited table").into());
         };
         let caller_built =
-            DelimitedBlock::new(parsed_table.inner.clone(), "|===", Location::default())
+            DelimitedBlock::new(parsed_table.clone_body(), "|===", Location::default())
                 .with_title(title("Caller-built table"));
 
         let mut document = Document::default();
-        document.attributes = parsed.document().attributes.clone();
-        document.blocks = vec![
+        document.set_attributes(acdc_parser::DocumentAttributes::from(
+            parsed.document().attributes(),
+        ));
+        document.set_blocks(vec![
             Block::DelimitedBlock(parsed_table.clone()),
             Block::DelimitedBlock(caller_built),
-        ];
+        ]);
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(
+                    acdc_parser::ast::DocumentRef::from(&document).attributes(),
+                )
+                .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document(&document, None, &mut diagnostics)?;
+        let rendered = processor.render_document((&document).into(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
@@ -3305,24 +3447,33 @@ mod tests {
             ".Parsed figure\nimage::missing-one.svg[First]\n",
             &ParserOptions::default(),
         )?;
+        let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+        let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
         let caller_built = Image::new(Source::Name("missing-two.svg"), Location::default())
             .with_title(title("Caller-built figure"));
-        let Some(parsed_figure) = parsed.document().blocks.first().cloned() else {
+        let Some(parsed_figure) = parsed_blocks.first().cloned() else {
             return Err(IoError::other("expected a block image").into());
         };
 
         let mut document = Document::default();
-        document.attributes = parsed.document().attributes.clone();
-        document.blocks = vec![parsed_figure, Block::Image(caller_built)];
+        document.set_attributes(acdc_parser::DocumentAttributes::from(
+            parsed.document().attributes(),
+        ));
+        document.set_blocks(vec![parsed_figure, Block::Image(caller_built)]);
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(
+                    acdc_parser::ast::DocumentRef::from(&document).attributes(),
+                )
+                .into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document(&document, None, &mut diagnostics)?;
+        let rendered = processor.render_document((&document).into(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
@@ -3340,8 +3491,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3377,8 +3529,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3418,8 +3571,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3475,8 +3629,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3544,8 +3699,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3591,8 +3747,9 @@ mod tests {
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3652,8 +3809,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             title: Some("Explicit Header".to_owned()),
@@ -3725,8 +3883,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3768,17 +3927,17 @@ mod tests {
         assert_eq!(
             parsed
                 .document()
-                .footnotes
-                .iter()
-                .map(|footnote| footnote.number)
+                .footnotes()
+                .map(acdc_parser::ast::FootnoteDefinitionRef::number)
                 .collect::<Vec<_>>(),
             [1, 2]
         );
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3847,17 +4006,17 @@ mod tests {
         assert_eq!(
             parsed
                 .document()
-                .footnotes
-                .iter()
-                .map(|footnote| footnote.id)
+                .footnotes()
+                .map(acdc_parser::ast::FootnoteDefinitionRef::id)
                 .collect::<Vec<_>>(),
             [None, Some("single"), Some("multiple")]
         );
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3891,9 +4050,8 @@ mod tests {
         assert_eq!(
             parsed
                 .document()
-                .footnotes
-                .iter()
-                .map(|footnote| (footnote.id, footnote.number))
+                .footnotes()
+                .map(|footnote| (footnote.id(), footnote.number()))
                 .collect::<Vec<_>>(),
             [
                 (Some("title"), 1),
@@ -3905,8 +4063,9 @@ mod tests {
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -3989,8 +4148,9 @@ mod tests {
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             theme: Some(theme_file.path().to_path_buf()),
@@ -4014,8 +4174,9 @@ mod tests {
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4036,8 +4197,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4081,8 +4243,9 @@ mod tests {
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4123,8 +4286,9 @@ mod tests {
         let parsed = parse(input, &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4179,8 +4343,10 @@ mod tests {
         let fallback = parse("stem:[x]\n", &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(fallback.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(fallback.document().attributes())
+                    .into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             strict_assets: true,
@@ -4202,8 +4368,10 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(missing.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(missing.document().attributes())
+                    .into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             strict_assets: true,
@@ -4303,6 +4471,53 @@ mod tests {
         Ok(())
     }
 
+    #[rstest::rstest]
+    fn preparation_retains_nested_asset_locations(
+        #[values(
+            acdc_parser::CompatibilityMode::Asciidoctor,
+            acdc_parser::CompatibilityMode::Draft
+        )]
+        mode: acdc_parser::CompatibilityMode,
+    ) -> Result<(), Box<dyn StdError>> {
+        let source = "= Assets\n:imagesdir: outer\n:icons: svg\n\n[NOTE,icon=missing.svg]\n====\nNote.\n====\n\n[cols=\"a,a\"]\n|===\na|\nCell.\n\n:imagesdir: inner\n\nimage:cell.svg[]\n\na|\nimage:sibling.svg[]\n|===\n\nimage:tail.svg[]\n";
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        let preparation = collect_pdf_preparation(parsed.document());
+        assert_eq!(
+            preparation.image_urls.into_iter().collect::<Vec<_>>(),
+            [
+                "outer/cell.svg",
+                "outer/icons/missing.svg",
+                "outer/sibling.svg",
+                "outer/tail.svg"
+            ]
+        );
+        assert!(preparation.needs_admonition_label_helper);
+        let icon = preparation.image_icons.first().ok_or("missing icon")?;
+        assert_eq!(icon.location.start.line, 5);
+        assert_eq!(icon.location.start.column, 1);
+        assert!(icon.location.absolute_end < source.find("====").ok_or("delimiter")?);
+        for (target, authored) in [
+            ("outer/cell.svg", "image:cell.svg"),
+            ("outer/sibling.svg", "image:sibling.svg"),
+            ("outer/tail.svg", "image:tail.svg"),
+        ] {
+            let location = preparation
+                .ordinary_image_locations
+                .get(target)
+                .ok_or("image location")?;
+            assert_eq!(
+                location.absolute_start,
+                source.find(authored).ok_or("source target")?
+            );
+        }
+        Ok(())
+    }
+
     #[test]
     fn canonical_body_attributes_apply_in_source_order() -> Result<(), Box<dyn StdError>> {
         let parsed = parse(
@@ -4324,8 +4539,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4343,8 +4559,9 @@ mod tests {
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?
         .with_pdf_options(PdfOptions {
             logo: Some(PathBuf::from("missing-pdf-logo.png")),
@@ -4385,7 +4602,10 @@ mod tests {
                 .build(),
             ParserOptions::builder()
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document().attributes())
+                        .into_inputs(),
+                ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4420,8 +4640,9 @@ mod tests {
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
@@ -4432,6 +4653,108 @@ mod tests {
             processor.render_document(parsed.document(), Some(&source_file), &mut diagnostics);
         std::fs::set_permissions(&fonts, std::fs::Permissions::from_mode(0o755))?;
         assert!(result?.pdf.starts_with(b"%PDF-"));
+        Ok(())
+    }
+    #[test]
+    fn constructed_character_references_render_as_typst_text() -> Result<(), Box<dyn StdError>> {
+        use acdc_parser::{
+            Block, Bold, CharacterReference, CharacterReferenceKind, Document, Form, InlineNode,
+            Location, Paragraph,
+        };
+        let mut content = Vec::new();
+        for kind in [
+            CharacterReferenceKind::Numeric(169),
+            CharacterReferenceKind::Named("amp"),
+            CharacterReferenceKind::Named("unknown"),
+        ] {
+            content.push(InlineNode::CharacterReference(
+                CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
+            ));
+        }
+        let bold = InlineNode::BoldText(Bold::new(
+            content.clone(),
+            Form::Constrained,
+            Location::default(),
+        ));
+        content.push(bold);
+        let mut doc = Document::default();
+        doc.push_block(Block::Paragraph(Paragraph::new(
+            content,
+            Location::default(),
+        )));
+        let processor = Processor::new(Options::default(), ParserOptions::builder())?;
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let typst = processor.convert_to_typst_source(
+            (&doc).into(),
+            &mut Diagnostics::new(&source, &mut warnings),
+        )?;
+        for text in ["©", "&", "&unknown;"] {
+            assert!(
+                typst.matches(&format!("#text({text:?})")).count() >= 2,
+                "{typst}"
+            );
+        }
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod footnote_repair_tests {
+    use acdc_converters_core::{Converter, WarningSource};
+    use acdc_parser::{
+        Block, CompatibilityMode, Document, Footnote, InlineMacro, InlineNode, Location, Paragraph,
+        ast::DocumentRef, parse,
+    };
+
+    use super::{
+        Diagnostics, ImageMap, Options, ParserOptions, Processor, RenderConfig, render_pdf,
+    };
+
+    #[test]
+    fn repaired_anonymous_references_reuse_one_native_pdf_footnote()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+            let parsed = parse(
+                "footnote:[Retained *body*.]",
+                &ParserOptions::builder()
+                    .with_compatibility_mode(mode)
+                    .build()?,
+            )?;
+            let mut document = Document::from(parsed.document());
+            document.set_blocks([Block::Paragraph(Paragraph::new(
+                (0..2)
+                    .map(|_| {
+                        InlineNode::Macro(InlineMacro::Footnote(Footnote::reference(
+                            None,
+                            1,
+                            Location::default(),
+                        )))
+                    })
+                    .collect(),
+                Location::default(),
+            ))]);
+            document.rebuild_footnotes()?;
+            let processor = Processor::new(Options::default(), ParserOptions::builder())?;
+            let source = WarningSource::new("pdf");
+            let mut warnings = Vec::new();
+            let typst = processor.convert_to_typst_source(
+                DocumentRef::from(&document),
+                &mut Diagnostics::new(&source, &mut warnings),
+            )?;
+            assert_eq!(typst.matches("<acdc-anonymous-footnote-1>").count(), 2);
+            assert_eq!(
+                typst
+                    .matches("#footnote(<acdc-anonymous-footnote-1>)")
+                    .count(),
+                1
+            );
+            assert_eq!(typst.matches("Retained").count(), 1);
+            let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+            assert!(rendered.pdf.starts_with(b"%PDF-"));
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
         Ok(())
     }
 }

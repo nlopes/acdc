@@ -1,0 +1,1 @@
+π (C) -> -- and {asterisk}bold{asterisk}; pass:r[(R) -> --]; image:bird.png[alt="(C) -> --",title="(C) -> --"]; link:https://example.org[Label (TM)]; footnote:n[Note (C).] footnote:n[] --

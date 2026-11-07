@@ -17,38 +17,38 @@ index-parentheses - complete index labels
 
 S01 <a id="_indexterm_0"></a>Term (R) after.
 
-S02 <a id="_indexterm_1"></a>Term (R) after.
+S02 <a id="_indexterm_1"></a>Term ® after.
 
-S03 <a id="_indexterm_2"></a>Term (R) after.
+S03 <a id="_indexterm_2"></a>Term ® after.
 
 <a id="_indexterm_3"></a>```
 S04 Code (R) after Next04
 ```
 
 <a id="_indexterm_4"></a><a id="_indexterm_5"></a><a id="_indexterm_6"></a>```
-S05 Code (R) after Next05
+S05 Code ® after Next05
 S06 fn((x)) tail after Next06
-S07 Code (R)) after Next07
+S07 Code ®) after Next07
 ```
 
 <a id="_indexterm_7"></a><a id="_indexterm_8"></a><a id="_indexterm_9"></a>```
-S08 Late (R) after Next08
-S09 \(R) Escaped after Next09
+S08 Late ® after Next08
+S09 (R) Escaped after Next09
 S10 (R) Literal after Next10
 ```
 
 <a id="_indexterm_10"></a>```
-S11 Attribute (R) after Next11
+S11 Attribute ® after Next11
 ```
 
 <a id="_indexterm_11"></a><a id="_indexterm_12"></a><a id="_indexterm_13"></a>```
-S12 Late attribute (R) after Next12
+S12 Late attribute ® after Next12
 S13 Late close ) after Next13
 S14 Late open (literal after Next14
 ```
 
 ```
-S15 ((Disabled macro (R))) after.
+S15 ((Disabled macro ®)) after.
 ```
 
 S16 [^1] after.
@@ -58,8 +58,8 @@ S16 [^1] after.
 
 ### @
 
-- (R) Literal — [Description](#_indexterm_9)
 - (R) Escaped — [Description](#_indexterm_8)
+- (R) Literal — [Description](#_indexterm_9)
 
 ### A
 
@@ -67,11 +67,12 @@ S16 [^1] after.
 
 ### C
 
-- Code (R) — [Description](#_indexterm_3), [Description (2)](#_indexterm_4), [Description (3)](#_indexterm_6)
+- Code (R) — [Description](#_indexterm_3)
+- Code ® — [Description](#_indexterm_4), [Description (2)](#_indexterm_6)
 
 ### F
 
-- Footnote (R) — [Description](#_indexterm_14)
+- Footnote ® — [Description](#_indexterm_14)
 - fn((x)) tail — [Description](#_indexterm_5)
 
 ### L
@@ -83,6 +84,7 @@ S16 [^1] after.
 
 ### T
 
-- Term (R) — [Description](#_indexterm_0), [Description (2)](#_indexterm_1), [Description (3)](#_indexterm_2)
+- Term (R) — [Description](#_indexterm_0), [Description (2)](#_indexterm_1)
+- Term ® — [Description](#_indexterm_2)
 
-[^1]: A <a id="_indexterm_14"></a>Footnote (R) term.
+[^1]: A <a id="_indexterm_14"></a>Footnote ® term.

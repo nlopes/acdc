@@ -95,7 +95,7 @@ dialogue \- substitution parity
 .br
  \(em alpha
 .sp
-alpha \(em
+alpha \(em \&
 .sp
 \fBInternal boundaries\fR
 .br
@@ -121,6 +121,6 @@ lead \-\-\fBBold\fR
 .sp
  \(em \fBBold\fR
 .sp
-\fBBold\fR \(em
+\fBBold\fR \(em \&
 .sp
 \fI\-\- italic\fR \f(CR\-\- monospace\fR \fB\-\- role\fR

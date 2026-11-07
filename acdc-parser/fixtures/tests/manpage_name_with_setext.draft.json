@@ -1,0 +1,118 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "tool(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 9
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 17
+      }
+    ]
+  },
+  "attributes": {
+    "backend": "manpage",
+    "docname": "manpage_name_with_setext",
+    "doctype": "manpage",
+    "manname": "manpage_name_with_setext",
+    "mantitle": "tool",
+    "manvolnum": "1",
+    "outfilesuffix": ".1"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "COMMAND NAME",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 12
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "------------",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\ntool - performs useful work\n\nDESCRIPTION\n-----------\n\nUses {manname}.",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 15
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 13,
+      "col": 15
+    }
+  ]
+}

@@ -1,19 +1,21 @@
 //! Link attributes and cross-reference labels.
 
 use crate::{
-    CrossReference, ElementAttributes, InlineNode,
+    ContentAttribute, CrossReference, InlineMetadata, InlineNode,
     grammar::{
         ParserState,
+        attributes::{AttributeQuote, ScannedAttribute},
         helpers::BlockParsingMetadata,
         inline_preprocessor::{ProcessedKind, SourceMap},
-        inline_processing::process_inlines_no_autolinks,
         inlines::{
+            attributes::insert_named_metadata,
             index_terms::IndexTermSegment,
-            text::{RestoredRange, registration_source, restored_label_offset},
+            text::{
+                RestoredRange, parse_bracket_label, registration_source, restored_label_offset,
+            },
         },
-        state::InlineRules,
     },
-    model::XrefSourceSyntax,
+    model::{MacroAttributes, XrefSourceSyntax},
 };
 use std::{borrow::Cow, ops::Range};
 
@@ -45,7 +47,7 @@ fn file_xref_fragment(target: &str) -> Option<&str> {
     (!fragment.is_empty() && !path.starts_with("//") && !has_scheme).then_some(fragment)
 }
 
-/// The parts of `xref:target[...]` that decide what the link shows.
+/// The label and controls in `xref:target[...]`.
 pub(super) struct XrefMacroText<'s> {
     /// The link text, empty for an automatic reference.
     pub(super) text: Cow<'s, str>,
@@ -53,12 +55,9 @@ pub(super) struct XrefMacroText<'s> {
     pub(super) offset: usize,
     /// Maps unescaped label positions back to the original label.
     pub(super) source_map: SourceMap,
-    /// Whether `text` is the whole bracket content as written.
-    pub(super) as_written: bool,
     /// A `xrefstyle=` for this reference alone, overriding the document's.
     pub(super) xrefstyle: Option<String>,
-    /// A `role=` for the link.
-    pub(super) role: Option<String>,
+    attributes: Vec<ScannedAttribute>,
 }
 
 /// Read `xref:target[...]`'s brackets the way Asciidoctor does.
@@ -66,10 +65,10 @@ pub(super) struct XrefMacroText<'s> {
 /// Brackets holding an `=` are an attribute list: the first positional
 /// attribute is the link text, `xrefstyle=` overrides the document's style
 /// for this reference, so `xref:fig[xrefstyle=short]` prints `Figure 1`, and
-/// `role=` is kept for the link. Any other brackets, and all brackets in
+/// named controls are retained. Any other brackets, and all brackets in
 /// compat mode, are the link text as written, commas included.
 ///
-/// Other named attributes are read and set aside rather than shown, so
+/// Named attributes do not supply display text, so
 /// `xref:fig[id=x]` still has automatic text, as in Asciidoctor.
 pub(super) fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_> {
     if compat_mode || !raw.contains('=') {
@@ -77,18 +76,16 @@ pub(super) fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_>
             text: Cow::Borrowed(raw),
             offset: 0,
             source_map: SourceMap::default(),
-            as_written: true,
             xrefstyle: None,
-            role: None,
+            attributes: Vec::new(),
         };
     }
     let mut parsed = XrefMacroText {
         text: Cow::Borrowed(""),
         offset: 0,
         source_map: SourceMap::default(),
-        as_written: false,
         xrefstyle: None,
-        role: None,
+        attributes: Vec::new(),
     };
     for (index, attribute) in crate::grammar::attributes::scan_attribute_list(raw, &[])
         .into_iter()
@@ -97,7 +94,7 @@ pub(super) fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_>
         match attribute.name.as_deref() {
             Some("xrefstyle") => parsed.xrefstyle = Some(attribute.value),
             // A repeated attribute takes its last value, as in Asciidoctor.
-            Some("role") => parsed.role = Some(attribute.value),
+            Some(_) => parsed.attributes.push(attribute),
             // Positional attributes are numbered by their place in the list,
             // so text after a named attribute is not the link text:
             // `xref:fig[xrefstyle=short,Words]` is still automatic.
@@ -127,10 +124,40 @@ pub(super) fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_>
                 };
                 parsed.offset = attribute.value_start;
             }
-            Some(_) | None => {}
+            None => {}
         }
     }
     parsed
+}
+
+impl XrefMacroText<'_> {
+    pub(super) fn take_metadata<'a>(
+        &mut self,
+        state: &ParserState<'a>,
+        offset: usize,
+    ) -> (InlineMetadata<'a>, MacroAttributes<'a>) {
+        let mut metadata = InlineMetadata::default();
+        let mut attributes = MacroAttributes::default();
+        for attribute in std::mem::take(&mut self.attributes) {
+            let Some(name) = attribute.name else {
+                continue;
+            };
+            let name = match name.as_str() {
+                "roles" => Cow::Borrowed("role"),
+                "opts" => Cow::Borrowed("options"),
+                _ => Cow::Owned(name),
+            };
+            insert_named_metadata(
+                state,
+                &mut metadata,
+                &mut attributes,
+                name,
+                attribute.value,
+                offset + attribute.value_start..offset + attribute.value_end,
+            );
+        }
+        (metadata, attributes)
+    }
 }
 
 #[derive(Debug)]
@@ -165,7 +192,9 @@ impl LinkContent<'_> {
 #[derive(Default)]
 pub(super) struct ProcessedLinkContent<'a> {
     pub(super) text: Vec<InlineNode<'a>>,
-    pub(super) attributes: ElementAttributes<'a>,
+    pub(super) tooltip: Option<ContentAttribute<'a>>,
+    pub(super) metadata: InlineMetadata<'a>,
+    pub(super) macro_attributes: MacroAttributes<'a>,
     pub(super) subject: Option<&'a str>,
     pub(super) body: Option<&'a str>,
 }
@@ -174,7 +203,6 @@ pub(super) fn process_link_content<'a>(
     state: &mut ParserState<'a>,
     metadata: &BlockParsingMetadata<'_>,
     start: usize,
-    end: usize,
     content: &LinkContent<'a>,
     mailto: bool,
 ) -> Result<ProcessedLinkContent<'a>, crate::Error> {
@@ -194,11 +222,15 @@ pub(super) fn process_link_content<'a>(
     let protected = content.registered_protected_ranges(&restored);
     let mut text = content.raw;
     let mut offset = 0;
-    let mut quote = None;
+    let mut quote = AttributeQuote::Unquoted;
     let mut result = ProcessedLinkContent::default();
+    let mut tooltip = None;
     // Mailto uses commas to introduce subject/body slots. Other links use '=';
     // without that trigger (or in compat mode), quotes and commas are label text.
-    if !state.document_attributes.contains_key("compat-mode")
+    if !state
+        .options
+        .compatibility_mode
+        .legacy_controls_enabled(&state.document_attributes)
         && raw.contains(if mailto { ',' } else { '=' })
     {
         text = "";
@@ -211,6 +243,12 @@ pub(super) fn process_link_content<'a>(
                 .next_back()
                 .filter(|character| matches!(character, '\'' | '"'));
             if let Some(name) = attribute.name {
+                if name == "title" {
+                    let from = restored_label_offset(attribute.value_start, &restored, false);
+                    let to = restored_label_offset(attribute.value_end, &restored, false);
+                    tooltip = Some((from, to, attribute.quote));
+                    continue;
+                }
                 let name = match name.as_str() {
                     "roles" => Cow::Borrowed("role"),
                     "opts" => Cow::Borrowed("options"),
@@ -228,9 +266,18 @@ pub(super) fn process_link_content<'a>(
                         |quote| crate::grammar::attributes::unescape_attribute_quote(value, quote),
                     )
                 };
-                result.attributes.set(name, value.into());
+                let from = start + restored_label_offset(attribute.value_start, &restored, false);
+                let to = start + restored_label_offset(attribute.value_end, &restored, false);
+                insert_named_metadata(
+                    state,
+                    &mut result.metadata,
+                    &mut result.macro_attributes,
+                    name,
+                    value,
+                    from..to,
+                );
             } else if index == 0 {
-                quote = attribute_quote;
+                quote = attribute.quote;
                 offset = restored_label_offset(attribute.value_start, &restored, false);
                 let end = restored_label_offset(attribute.value_end, &restored, false);
                 text = &content.raw[offset..end];
@@ -246,33 +293,21 @@ pub(super) fn process_link_content<'a>(
     }
     if let Some(label) = text.strip_suffix('^') {
         text = label;
-        result.attributes.insert("window".into(), "_blank".into());
+        result
+            .macro_attributes
+            .attributes
+            .insert("window".into(), "_blank".into());
     }
-    if text.is_empty() {
-        return Ok(result);
+    if !text.is_empty() {
+        result.text = parse_bracket_label(state, metadata, text, start + offset, quote, None)?;
     }
-
-    // Keep source slices intact until the label parser consumes each escape.
-    // Reset the quote mode for nested links, then restore the enclosing mode on errors too.
-    let rules = state.inline_ctx.rules;
-    state.inline_ctx.rules.insert(InlineRules::BRACKET_LABEL);
-    state
-        .inline_ctx
-        .rules
-        .set(InlineRules::DOUBLE_QUOTED_LINK, quote == Some('"'));
-    state
-        .inline_ctx
-        .rules
-        .set(InlineRules::SINGLE_QUOTED_LINK, quote == Some('\''));
-    let parsed = process_inlines_no_autolinks(
-        state,
-        metadata,
-        start + offset,
-        end,
-        state.inline_ctx.offset,
-        text,
-    );
-    state.inline_ctx.rules = rules;
-    result.text = parsed?;
+    if let Some((from, to, quote)) = tooltip {
+        result.tooltip = Some(super::attributes::parse_content(
+            state,
+            &content.raw[from..to],
+            start + from,
+            quote,
+        )?);
+    }
     Ok(result)
 }

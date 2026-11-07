@@ -1,0 +1,167 @@
+use crate::{ContentAttribute, InlineNode, Title};
+
+use super::InlineRef;
+
+/// Inline content, which may be empty.
+///
+/// Optional content uses `Option<ContentRef>`: `None` is absent, while an empty
+/// `Some` remains present.
+///
+/// Serde serialization produces acdc's native inline array. Use `asg::inlines`
+/// for checked ASG export.
+///
+/// Content cannot outlive its owner:
+///
+/// ```compile_fail,E0597
+/// use acdc_parser::{Options, parse, ast::BlockKind};
+///
+/// let content = {
+///     let parsed = parse("A paragraph.", &Options::default()).unwrap();
+///     let BlockKind::Paragraph(paragraph) = parsed.document().blocks().next().unwrap().kind()
+///         else { panic!("expected paragraph") };
+///     paragraph.content()
+/// };
+/// println!("{}", content.is_empty());
+/// ```
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ContentRef<'doc> {
+    pub(super) nodes: &'doc [InlineNode<'doc>],
+}
+
+impl<'doc> ContentRef<'doc> {
+    pub(super) fn new(nodes: &'doc [InlineNode<'doc>]) -> Self {
+        Self { nodes }
+    }
+
+    #[cfg(feature = "asg")]
+    pub(crate) fn as_inlines(self) -> &'doc [InlineNode<'doc>] {
+        self.nodes
+    }
+
+    /// Read direct inline children in content order.
+    pub fn inlines(
+        self,
+    ) -> impl DoubleEndedIterator<Item = InlineRef<'doc>> + ExactSizeIterator + Clone + Send + Sync + 'doc
+    {
+        self.nodes.iter().map(InlineRef::from)
+    }
+
+    /// Whether this content contains no inline nodes.
+    #[must_use]
+    pub fn is_empty(self) -> bool {
+        self.nodes.is_empty()
+    }
+}
+
+impl<'doc> From<&'doc ContentAttribute<'doc>> for ContentRef<'doc> {
+    fn from(content: &'doc ContentAttribute<'doc>) -> Self {
+        Self::new(content.as_inlines())
+    }
+}
+
+impl crate::ParseInlineResult {
+    /// Read parsed inline content through the typed AST API without copying it.
+    ///
+    /// The content cannot outlive its parse result:
+    ///
+    /// ```compile_fail,E0597
+    /// use acdc_parser::{Options, parse_inline};
+    ///
+    /// let content = {
+    ///     let parsed = parse_inline("*Bold* text", &Options::default()).unwrap();
+    ///     parsed.content()
+    /// };
+    /// println!("{}", content.inlines().count());
+    /// ```
+    #[must_use]
+    pub fn content(&self) -> ContentRef<'_> {
+        ContentRef::new(self.inlines())
+    }
+}
+
+/// An ordered collection of separate inline-content values.
+#[derive(Clone, Copy, Debug)]
+pub struct ContentListRef<'doc> {
+    source: ContentList<'doc>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum ContentList<'doc> {
+    Values(&'doc [Vec<InlineNode<'doc>>]),
+    IndexTerms(&'doc crate::IndexTerm<'doc>),
+}
+
+impl PartialEq for ContentListRef<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.iter().eq(other.iter())
+    }
+}
+
+impl<'doc> ContentListRef<'doc> {
+    pub(super) fn new(items: &'doc [Vec<InlineNode<'doc>>]) -> Self {
+        Self {
+            source: ContentList::Values(items),
+        }
+    }
+
+    pub(super) fn index_terms(node: &'doc crate::IndexTerm<'doc>) -> Self {
+        Self {
+            source: ContentList::IndexTerms(node),
+        }
+    }
+
+    /// Read each content value in order, including empty values.
+    pub fn iter(self) -> impl Iterator<Item = ContentRef<'doc>> + Send + Sync + 'doc {
+        let (levels, values) = match self.source {
+            ContentList::Values(values) => ([None, None, None], values),
+            ContentList::IndexTerms(node) => (
+                [Some(node.term()), node.secondary(), node.tertiary()],
+                &[][..],
+            ),
+        };
+        levels
+            .into_iter()
+            .flatten()
+            .map(ContentRef::new)
+            .chain(values.iter().map(|nodes| ContentRef::new(nodes)))
+    }
+
+    /// Whether there are no content values, rather than one empty value.
+    #[must_use]
+    pub fn is_empty(self) -> bool {
+        self.iter().next().is_none()
+    }
+}
+
+impl Title<'_> {
+    /// The title content; `None` if no title was supplied.
+    #[must_use]
+    pub fn content(&self) -> Option<ContentRef<'_>> {
+        self.is_present()
+            .then(|| ContentRef::new(self.as_inlines()))
+    }
+}
+
+/// Copy selected inline content without reparsing or registering it.
+impl<'doc> From<ContentRef<'doc>> for ContentAttribute<'doc> {
+    fn from(content: ContentRef<'doc>) -> Self {
+        Self::new(content.nodes.to_vec())
+    }
+}
+
+/// Copy selected content as a present title, including empty content.
+/// Use `Title::default()` for an absent title.
+impl<'doc> From<ContentRef<'doc>> for Title<'doc> {
+    fn from(content: ContentRef<'doc>) -> Self {
+        Self::new(content.nodes.to_vec())
+    }
+}
+
+impl serde::Serialize for ContentRef<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serde::Serialize::serialize(self.nodes, serializer)
+    }
+}

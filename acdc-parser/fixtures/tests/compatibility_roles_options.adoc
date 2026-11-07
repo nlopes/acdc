@@ -1,0 +1,13 @@
+[role=first,role=second,opts="one,two",opts="two,three"]
+Repeated named attributes.
+
+[.first.first.second%one%one%two]
+Repeated shorthand attributes.
+
+[role=first,opts=one]
+[role=second,opts="one,two"]
+[role=first,opts=two]
+Stacked attribute lists.
+
+[role=first,opts=one]
+image::https://example.org/photo.svg[Photo,role=second,role=first,opts="two,one"]

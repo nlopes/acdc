@@ -78,7 +78,7 @@ P21 prefix\-\-\fBbold\fR
 .sp
 P22 prefix\-\-tail
 .sp
-P23 prefix\(emtail
+P23 prefix \(em tail
 .sp
 P24 prefix\-\-tail
 .sp
@@ -88,11 +88,11 @@ P25 prefix\-\- \c
 .sp
 \fBStandalone control\fR
 .br
- \(em
+ \(em \&
 .sp
 \fBHidden standalone control\fR
 .br
- \(em
+ \(em \&
 .sp
 P26 prefix\(emtail
 .sp
@@ -130,13 +130,13 @@ P42 prefix \-\- tail
 .sp
 P43 prefix \-\- tail
 .sp
-P44 prefix \-\- tail
+P44 prefix  \(em  tail
 .sp
 P45 prefix \(em \fBBold\fR
 .sp
 P46 prefix\-\fB\-\fRtail
 .sp
-P47 prefix \(em \-\- \(em tail
+P47 prefix \-\- \(em \-\- tail
 .sp
 P48 prefix \(em  \(em tail
 .sp
@@ -154,8 +154,6 @@ P50 Sam\(cqs \c
 .br
 \-
 .br
- \(em
-.br
 \-\-
 .br
 \-\-\-
@@ -166,7 +164,7 @@ P50 Sam\(cqs \c
 .br
 \e\(aq
 .br
-\-\-
+ \(em \&
 .br
 .RE
 .SS "B"

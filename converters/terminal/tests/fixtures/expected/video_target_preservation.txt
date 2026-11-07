@@ -1,0 +1,5 @@
+[38;5;12m[Video: one.mp4,two.mp4][39m[2m (one.mp4,two.mp4)[0m
+[38;5;12m[Video: one,,three][39m[2m (https://www.youtube.com/watch?v=one&playlist=one,,three)[0m
+[38;5;12m[Video: 12345][39m[2m (https://vimeo.com/12345)[0m
+[38;5;12m[Video: local clip.mp4][39m[2m (local%20clip.mp4)[0m
+[Poster: thumb.png]

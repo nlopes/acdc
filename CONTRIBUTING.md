@@ -23,6 +23,9 @@ Thank you for your interest in contributing! This guide covers the essentials. F
 
 ## Documentation
 
+Use American English in documentation, comments, and diagnostics. Preserve the
+spelling of identifiers, test data, and quoted external text.
+
 - [README.adoc](README.adoc) - Project overview, building, testing, and development workflow
 - [ARCHITECTURE.adoc](ARCHITECTURE.adoc) - Design decisions and architecture
 - [acdc-cli/README.adoc](acdc-cli/README.adoc) - CLI usage and feature flags

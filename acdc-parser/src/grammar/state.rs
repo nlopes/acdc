@@ -13,10 +13,14 @@ use bitflags::bitflags;
 use bumpalo::Bump;
 
 use crate::{
-    CalloutRef, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote, Location,
-    Options, Pass, SourceLocation, TocEntry, Warning, WarningKind, XrefCaptionLabel, XrefSignifier,
+    CalloutRef, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote,
+    FootnoteDefinition, Location, Options, Pass, SourceLocation, TocEntry, Warning, WarningKind,
+    XrefCaptionLabel, XrefSignifier,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
-    grammar::LineMap,
+    grammar::{
+        LineMap,
+        document::lists::{DescriptionListScope, OrdinaryListScope},
+    },
     model::{
         DocumentAttributeStatus, LeveloffsetRange, REFSIG_ATTRIBUTES, SourceRange,
         substitution::SubstitutionPlan,
@@ -29,6 +33,7 @@ struct XrefCaptionLabelSnapshot<'a> {
     listing: XrefCaptionLabel<'a>,
     table: XrefCaptionLabel<'a>,
     signifiers: &'a [XrefSignifier<'a>; REFSIG_ATTRIBUTES.len()],
+    document_reftext: Option<usize>,
 }
 
 #[derive(Debug, Default)]
@@ -41,7 +46,16 @@ struct XrefCaptionLabelSnapshots<'a> {
 
 #[derive(Debug)]
 pub(crate) struct ParserState<'a> {
+    pub(super) attribute_sources: Rc<RefCell<Vec<super::attributes::ResolvedContentAttribute<'a>>>>,
+    // Natural lookup matches expanded markup, which cannot be recovered from display nodes.
+    // These inputs stay in parser state until the reference catalog is complete.
+    pub(super) reference_text_sources:
+        Rc<RefCell<Vec<super::reference_text::ReferenceTextSource<'a>>>>,
+    // Nested inline labels must retain the authored passthrough syntax.
+    pub(super) reference_text_context: Option<Rc<super::reference_text::ReferenceTextContext<'a>>>,
     pub(crate) document_attributes: Rc<DocumentAttributes<'a>>,
+    pub(super) header_reftext_source: Option<usize>,
+    pub(super) body_reftext_source: Option<usize>,
     /// Attributes inherited by the current nested document. Asciidoctor-style
     /// table cells may read these values, but attribute entries in the cell
     /// cannot replace or unset them.
@@ -93,6 +107,9 @@ pub(crate) struct ParserState<'a> {
     /// Base offset of the input containing the active callout list.
     /// Reparsed delimited-block content must not terminate that list.
     pub(crate) callout_list_offset: Option<usize>,
+    // Description-list children must leave sibling markers for these parents.
+    pub(crate) ordinary_list_scope: Option<OrdinaryListScope<'a>>,
+    pub(crate) description_list_scope: Option<DescriptionListScope<'a>>,
     /// Verbatim callout references collected since the previous callout list.
     pub(crate) pending_callouts: Vec<CalloutRef>,
     /// The current file being parsed (`None` for inline/string parsing). Used as the
@@ -115,14 +132,11 @@ pub(crate) struct ParserState<'a> {
     pub(crate) source_ranges: Vec<SourceRange>,
     /// Full include names used by document-level cross-reference resolution.
     pub(crate) included_files: HashSet<String>,
-    /// Warnings collected during PEG parsing. Shared across the top-level state and any
-    /// `for_inline_parsing` sub-states via `Rc`, so warnings raised during nested inline
-    /// parses (author lines, revision lines, substituted inline content) reach the
-    /// top-level `ParseResult` alongside everything else. The outer `parse_input` /
-    /// `parse_inline` keeps a clone of this `Rc` and recovers the final `Vec<Warning>`
-    /// after the self-cell builder closure drops the `ParserState`. Deduplicated on
-    /// insertion because PEG backtracking can re-fire the same warning multiple times.
+    /// Inline owners share this buffer, map their newly collected diagnostics,
+    /// then reinsert them in their parent's coordinates.
     pub(crate) warnings: Rc<RefCell<Vec<Warning>>>,
+    // Earlier warnings may use a different substring's coordinates.
+    pub(crate) warnings_start: usize,
     /// When true, inline parsing uses a reduced rule set that only matches formatting
     /// markup (bold, italic, monospace, highlight, superscript, subscript, curved quotes)
     /// and plain text. Used by `parse_text_for_quotes` to apply "quotes" substitution
@@ -131,6 +145,8 @@ pub(crate) struct ParserState<'a> {
     /// Profiled attribute placeholders available to this inline grammar. Consume
     /// them in source order so their notes precede later literal references.
     pub(crate) attribute_passthroughs: Rc<[Pass<'a>]>,
+    // Resolved references cannot contribute syntax to a later stage.
+    pub(crate) resolved_reference_ranges: Vec<Range<usize>>,
     /// When parsing content extracted from a constrained formatting rule, holds
     /// the delimiter byte of the outer formatting (e.g., `b'_'` for italic).
     /// Used to correctly fail boundary checks when the outer delimiter is a
@@ -142,11 +158,13 @@ pub(crate) struct ParserState<'a> {
     /// constant within a single `inlines()` call, allowing rules to be
     /// argument-free and thus cacheable by the PEG packrat memoizer.
     pub(crate) inline_ctx: InlineContext,
-    /// Memoised `@`-lookahead covering `[.., scanned_up_to)` with the first
+    /// Memoized `@`-lookahead covering `[.., scanned_up_to)` with the first
     /// `@` in that range, if any. Without the `scanned_up_to` field, a cached
     /// "no `@`" result at offset X is indistinguishable from "`@` is at X"
     /// and can trigger the expensive email rule the cache was meant to avoid.
     pub(crate) next_at_sign_cache: Cell<Option<AtLookahead>>,
+    /// Target positions that share an absent or incomplete link label.
+    pub(crate) failed_link_target_range: Cell<Option<(usize, usize)>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -201,6 +219,8 @@ bitflags! {
         const NAMED_INDEX_LABEL = 1 << 9;
         /// Keep empty verse lines inside the same inline content.
         const PRESERVE_BLANK_LINES = 1 << 10;
+        /// Treat the outer text edges as boundaries for replacement characters.
+        const ISOLATED_TEXT = 1 << 11;
     }
 }
 
@@ -232,9 +252,10 @@ struct NamedFootnote<'a> {
 #[derive(Debug, Clone)]
 pub(crate) struct FootnoteTracker<'a> {
     /// All registered footnotes in the order they were encountered.
-    pub(crate) footnotes: Vec<Footnote<'a>>,
-    /// The last assigned footnote number (starts at 1)
-    last_footnote_position: u32,
+    pub(crate) footnotes: Vec<FootnoteDefinition<'a>>,
+    next_number: u32,
+    // Ordinary documents need no shared counter allocation.
+    shared_next_number: Option<Rc<Cell<u32>>>,
     named_footnotes: HashMap<&'a str, NamedFootnote<'a>>,
     /// Footnote numbers whose stored entry has already had its location/content
     /// finalized to document-absolute coordinates (see [`Self::finalize`]). The first
@@ -247,10 +268,41 @@ impl<'a> FootnoteTracker<'a> {
     pub(crate) fn new() -> Self {
         Self {
             footnotes: Vec::new(),
-            last_footnote_position: 1,
+            next_number: 1,
+            shared_next_number: None,
             named_footnotes: HashMap::new(),
             location_finalized: HashSet::new(),
         }
+    }
+
+    pub(super) fn next_number(&self) -> u32 {
+        self.shared_next_number
+            .as_ref()
+            .map_or(self.next_number, |counter| counter.get())
+    }
+
+    pub(super) fn set_next_number(&mut self, number: u32) {
+        if let Some(counter) = &self.shared_next_number {
+            counter.set(number);
+        } else {
+            self.next_number = number;
+        }
+    }
+
+    pub(super) fn nested(&mut self) -> Self {
+        let counter = self
+            .shared_next_number
+            .get_or_insert_with(|| Rc::new(Cell::new(self.next_number)));
+        Self {
+            shared_next_number: Some(Rc::clone(counter)),
+            ..Self::new()
+        }
+    }
+
+    pub(super) fn discard_definitions(&mut self) {
+        self.footnotes.clear();
+        self.named_footnotes.clear();
+        self.location_finalized.clear();
     }
 
     /// Update the first definition after its locations become document-absolute.
@@ -267,12 +319,15 @@ impl<'a> FootnoteTracker<'a> {
             }
         });
         if self.location_finalized.insert(footnote.number)
-            && let Some(index) = footnote.number.checked_sub(1)
-            && let Some(entry) = self.footnotes.get_mut(index as usize)
+            && let Ok(index) = self
+                .footnotes
+                .binary_search_by_key(&footnote.number, |entry| entry.number)
+            && let Some(entry) = self.footnotes.get_mut(index)
         {
             entry.location = footnote.location.clone();
-            entry.content.clone_from(&footnote.content);
-            entry.definition_source = None;
+            if let Some(content) = &footnote.content {
+                entry.content.clone_from(content);
+            }
         }
         conflict
     }
@@ -282,30 +337,39 @@ impl<'a> FootnoteTracker<'a> {
     }
 
     /// Assign a number, reusing named definitions. Return false for an undefined reference.
-    #[tracing::instrument(skip_all, fields(node_count = footnote.content.len(), named = footnote.id.is_some()))]
+    #[tracing::instrument(skip_all, fields(node_count = footnote.content.as_ref().map_or(0, Vec::len), named = footnote.id.is_some()))]
     pub(crate) fn push(&mut self, footnote: &mut Footnote<'a>) -> bool {
         if let Some(id) = footnote.id
             && let Some(existing) = self.named_footnotes.get(id)
         {
             footnote.number = existing.number;
-            footnote.content.clear();
+            footnote.content = None;
             return true;
         }
-        if footnote.content.is_empty() {
+        let Some(content) = &footnote.content else {
+            return false;
+        };
+        if content.is_empty() {
             return false;
         }
-        footnote.number = self.last_footnote_position;
+        footnote.number = self.next_number();
         if let Some(id) = footnote.id {
             self.named_footnotes.insert(
                 id,
                 NamedFootnote {
-                    number: self.last_footnote_position,
+                    number: footnote.number,
                     definition: None,
                 },
             );
         }
-        self.footnotes.push(footnote.clone());
-        self.last_footnote_position += 1;
+        self.footnotes.push(FootnoteDefinition {
+            registration_substitutions: footnote.registration_substitutions,
+            id: footnote.id,
+            content: content.clone(),
+            number: footnote.number,
+            location: footnote.location.clone(),
+        });
+        self.set_next_number(footnote.number + 1);
         true
     }
 }
@@ -391,7 +455,7 @@ impl<'a> ParserState<'a> {
         let label = |name| match self.document_attributes.get(name) {
             Some(resolved) => match resolved.as_str() {
                 Some(value) => {
-                    let value = self.intern_str(crate::strip_quotes(value));
+                    let value = self.intern_str(value);
                     if value.is_empty() {
                         XrefCaptionLabel::NumberOnly
                     } else {
@@ -417,7 +481,7 @@ impl<'a> ParserState<'a> {
             DocumentAttributeStatus::Set(value) => {
                 let mut word = String::new();
                 let _ = value.write_text(&mut word);
-                XrefSignifier::AtReference(self.intern_str(crate::strip_quotes(&word)))
+                XrefSignifier::AtReference(self.intern_str(&word))
             }
             DocumentAttributeStatus::Unset => XrefSignifier::Omitted,
             DocumentAttributeStatus::Absent => XrefSignifier::Standard,
@@ -429,9 +493,18 @@ impl<'a> ParserState<'a> {
             listing: label("listing-caption"),
             table: label("table-caption"),
             signifiers,
+            document_reftext: self.body_reftext_source,
         });
         snapshots.last = Some((Rc::downgrade(&self.document_attributes), snapshot));
         snapshot
+    }
+
+    pub(super) fn xref_document_reftext(&self, snapshot: NonZeroUsize) -> Option<usize> {
+        self.xref_caption_label_snapshots
+            .borrow()
+            .entries
+            .get(snapshot.get() - 1)
+            .and_then(|labels| labels.document_reftext)
     }
 
     pub(crate) fn xref_signifiers(
@@ -479,6 +552,7 @@ impl<'a> ParserState<'a> {
         let AttributeDeclaration { name, value } = declaration;
         let key = Cow::Borrowed(*name);
         let set = !matches!(value, RawAttributeValue::Unset);
+        let previous_attributes = (key == "reftext").then(|| Rc::clone(&self.document_attributes));
         let (value, profile_warning) = value.resolve_with_warning(&self.document_attributes);
         let force_locked = self
             .nested_parent_attributes
@@ -517,6 +591,15 @@ impl<'a> ParserState<'a> {
                 return None;
             }
         };
+        if let Some(attributes) = previous_attributes {
+            let source =
+                super::reference_text::capture_document_attribute(self, &location, attributes);
+            if in_header {
+                self.header_reftext_source = Some(source);
+            } else {
+                self.body_reftext_source = Some(source);
+            }
+        }
         if key == "toc2" && set {
             self.add_warning(Warning::new(
                 WarningKind::DeprecatedToc2Attribute,
@@ -526,14 +609,30 @@ impl<'a> ParserState<'a> {
         // A locked or invalid assignment must not warn about a value that was ignored.
         if let Some(message) = profile_warning {
             self.add_warning(Warning::new(
-                WarningKind::Other(message.into()),
+                WarningKind::ContentRecovery {
+                    message: message.into(),
+                },
                 Some(self.create_error_source_location(location.clone())),
             ));
+        }
+        if key == "compat-mode" && set {
+            self.warn_unsupported_compat_mode(Some(location.clone()));
         }
         if updates_hardbreaks {
             self.hardbreaks = set;
         }
         Some(DocumentAttribute::accepted(key, applied, location))
+    }
+
+    pub(crate) fn warn_unsupported_compat_mode(&self, location: Option<Location>) {
+        if self.options.compatibility_mode == crate::CompatibilityMode::Draft
+            && self.document_attributes.contains_key("compat-mode")
+        {
+            self.add_warning(Warning::new(
+                WarningKind::UnsupportedCompatMode,
+                location.map(|location| self.create_error_source_location(location)),
+            ));
+        }
     }
 
     /// Initialize hard-break state from attributes supplied by the parser API.
@@ -553,13 +652,19 @@ impl<'a> ParserState<'a> {
     #[cfg(test)]
     pub(crate) fn new_for_test(input: &'a str) -> Self {
         let arena: &'a Bump = Box::leak(Box::new(Bump::new()));
-        Self::new(input, arena)
+        Self::new(input, arena, Rc::new(Options::default()))
     }
 
-    pub(crate) fn new(input: &'a str, arena: &'a Bump) -> Self {
-        Self {
-            options: Rc::new(Options::default()),
-            document_attributes: Rc::new(DocumentAttributes::default()),
+    pub(crate) fn new(input: &'a str, arena: &'a Bump, options: Rc<Options<'a>>) -> Self {
+        let substitutions = SubstitutionPlan::for_mode(options.compatibility_mode);
+        let mut state = Self {
+            attribute_sources: Rc::default(),
+            reference_text_sources: Rc::default(),
+            reference_text_context: None,
+            header_reftext_source: None,
+            body_reftext_source: None,
+            document_attributes: Rc::new(options.document_attributes.clone()),
+            options,
             nested_parent_attributes: None,
             hardbreaks: false,
             empty_attribute_offsets: Vec::new(),
@@ -574,19 +679,29 @@ impl<'a> ParserState<'a> {
             toc_entries: Vec::new(),
             block_context: BlockContext::Document,
             callout_list_offset: None,
+            ordinary_list_scope: None,
+            description_list_scope: None,
             pending_callouts: Vec::new(),
             current_file: None,
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             warnings: Rc::new(RefCell::new(Vec::new())),
+            warnings_start: 0,
             quotes_only: false,
             attribute_passthroughs: Rc::default(),
+            resolved_reference_ranges: Vec::new(),
             outer_constrained_delimiter: None,
             scope: ParserScope::Document,
-            inline_ctx: InlineContext::default(),
+            inline_ctx: InlineContext {
+                substitutions,
+                ..InlineContext::default()
+            },
             next_at_sign_cache: Cell::new(None),
-        }
+            failed_link_target_range: Cell::new(None),
+        };
+        state.initialize_hardbreaks();
+        state
     }
 
     /// Minimal constructor for quotes-only parsing where document attributes aren't needed.
@@ -600,6 +715,11 @@ impl<'a> ParserState<'a> {
         });
         Self {
             options: Rc::new(EMPTY_OPTIONS.clone()),
+            attribute_sources: Rc::default(),
+            reference_text_sources: Rc::default(),
+            reference_text_context: None,
+            header_reftext_source: None,
+            body_reftext_source: None,
             document_attributes: Rc::new(DocumentAttributes::empty()),
             nested_parent_attributes: None,
             hardbreaks: false,
@@ -615,14 +735,18 @@ impl<'a> ParserState<'a> {
             toc_entries: Vec::new(),
             block_context: BlockContext::Document,
             callout_list_offset: None,
+            ordinary_list_scope: None,
+            description_list_scope: None,
             pending_callouts: Vec::new(),
             current_file: None,
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             warnings: Rc::new(RefCell::new(Vec::new())),
+            warnings_start: 0,
             quotes_only: true,
             attribute_passthroughs: Rc::default(),
+            resolved_reference_ranges: Vec::new(),
             outer_constrained_delimiter: None,
             scope: ParserScope::Document,
             inline_ctx: InlineContext {
@@ -630,6 +754,7 @@ impl<'a> ParserState<'a> {
                 ..InlineContext::default()
             },
             next_at_sign_cache: Cell::new(None),
+            failed_link_target_range: Cell::new(None),
         }
     }
 
@@ -642,6 +767,11 @@ impl<'a> ParserState<'a> {
     ) -> Self {
         Self {
             options: parent.options.clone(),
+            attribute_sources: Rc::clone(&parent.attribute_sources),
+            reference_text_sources: Rc::clone(&parent.reference_text_sources),
+            reference_text_context: parent.reference_text_context.clone(),
+            header_reftext_source: parent.header_reftext_source,
+            body_reftext_source: parent.body_reftext_source,
             document_attributes: Rc::clone(&parent.document_attributes),
             nested_parent_attributes: parent.nested_parent_attributes.clone(),
             hardbreaks: parent.hardbreaks,
@@ -649,7 +779,11 @@ impl<'a> ParserState<'a> {
             attribute_value_ranges: Vec::new(),
             late_attribute_sources: Vec::new(),
             last_url_boundary: None,
-            line_map: Rc::new(LineMap::new(input)),
+            line_map: if std::ptr::eq(input, parent.input) {
+                Rc::clone(&parent.line_map)
+            } else {
+                Rc::new(LineMap::new(input))
+            },
             input,
             arena: parent.arena,
             footnote_tracker: Rc::clone(&parent.footnote_tracker),
@@ -657,6 +791,8 @@ impl<'a> ParserState<'a> {
             toc_entries: Vec::new(),
             block_context: BlockContext::Document,
             callout_list_offset: None,
+            ordinary_list_scope: None,
+            description_list_scope: None,
             pending_callouts: Vec::new(),
             // Inherit the file so inline sub-parse nodes are stamped with the correct
             // origin file by `create_location` (cheap `Arc` clone).
@@ -664,34 +800,33 @@ impl<'a> ParserState<'a> {
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
-            // Share the parent's warnings vec so anything raised during a
-            // nested inline sub-parse reaches the top-level `ParseResult`
-            // without a separate drain step.
+            // Each inline owner maps only the diagnostics appended in its scope.
             warnings: Rc::clone(&parent.warnings),
+            warnings_start: parent.warnings.borrow().len(),
             quotes_only: parent.quotes_only,
             attribute_passthroughs: Rc::clone(&parent.attribute_passthroughs),
+            resolved_reference_ranges: (input.as_ptr() as usize)
+                .checked_sub(parent.input.as_ptr() as usize)
+                .filter(|start| {
+                    *start <= parent.input.len() && input.len() <= parent.input.len() - *start
+                })
+                .map_or_else(Vec::new, |start| {
+                    parent
+                        .resolved_reference_ranges
+                        .iter()
+                        .filter_map(|range| {
+                            let left = range.start.max(start);
+                            let right = range.end.min(start + input.len());
+                            (left < right)
+                                .then_some(left.saturating_sub(start)..right.saturating_sub(start))
+                        })
+                        .collect()
+                }),
             outer_constrained_delimiter: parent.outer_constrained_delimiter,
             scope: ParserScope::Inline,
             inline_ctx,
             next_at_sign_cache: Cell::new(None),
-        }
-    }
-
-    /// Warn about unexpected trailing content after a block macro's attribute list.
-    pub(crate) fn warn_trailing_macro_content(
-        &mut self,
-        macro_name: &str,
-        trailing: &str,
-        end: usize,
-        offset: usize,
-    ) {
-        if !trailing.trim().is_empty() {
-            let start_abs = end + offset;
-            let location = self.create_location(start_abs, start_abs + trailing.len());
-            self.add_generic_warning_at(
-                format!("unexpected content after {macro_name} macro: '{trailing}'"),
-                location,
-            );
+            failed_link_target_range: Cell::new(None),
         }
     }
 
@@ -723,9 +858,19 @@ impl<'a> ParserState<'a> {
             && warnings
                 .iter()
                 .any(|previous| matches!(previous.kind, WarningKind::DeprecatedToc2Attribute));
-        if !repeated_toc2 && !warnings.contains(&warning) {
+        if !repeated_toc2
+            && !warnings
+                .iter()
+                .skip(self.warnings_start)
+                .any(|previous| previous == &warning)
+        {
             warnings.push(warning);
         }
+    }
+
+    /// Remove this inline parse's diagnostics before mapping them into its parent.
+    pub(crate) fn take_inline_warnings(&self) -> Vec<Warning> {
+        self.warnings.borrow_mut().split_off(self.warnings_start)
     }
 
     /// Collect a warning raised by the inline preprocessor, first resolving its
@@ -749,48 +894,47 @@ impl<'a> ParserState<'a> {
         }
     }
 
-    /// Create a `SourceLocation` for an error/warning, resolving the correct
-    /// file and original line/column numbers for included content.
-    pub(crate) fn create_error_source_location(&self, location: Location) -> SourceLocation {
-        if let Some(range) =
+    /// Map a diagnostic's endpoints to their original source coordinates.
+    pub(crate) fn create_error_source_location(&self, mut location: Location) -> SourceLocation {
+        let Some(start_range) =
             SourceRange::find_containing(&self.source_ranges, location.absolute_start)
-        {
-            let file = range.file.clone();
-            let adjusted_start_line =
-                self.line_map
-                    .source_line(range, self.input, location.absolute_start);
-            let adjusted_end_line = self.line_map.source_line(
-                range,
-                self.input,
-                location.absolute_end.min(self.input.len()),
-            );
-            SourceLocation {
-                file,
-                location: Location {
-                    absolute_start: location.absolute_start,
-                    absolute_end: location.absolute_end,
-                    // The authoritative file for a diagnostic lives on the enclosing
-                    // `SourceLocation`; these positions don't carry it.
-                    start: crate::Position::new(
-                        adjusted_start_line,
-                        super::source_remap::shift_column(
-                            location.start.column,
-                            range.column_shift,
-                        ),
-                    ),
-                    end: crate::Position::new(
-                        adjusted_end_line,
-                        super::source_remap::shift_column(location.end.column, range.column_shift),
-                    ),
-                },
-            }
-        } else {
-            SourceLocation {
-                // Cold path: deep-copy the `Arc<PathBuf>` into the public `Option<PathBuf>`
-                // (one clone per diagnostic). See `current_file` for why the API isn't widened.
+        else {
+            return SourceLocation {
                 file: self.current_file.as_deref().cloned(),
                 location,
-            }
+            };
+        };
+        let end_probe = location
+            .absolute_end
+            .min(self.input.len().saturating_sub(1))
+            .max(location.absolute_start);
+        let end_range =
+            SourceRange::find_containing(&self.source_ranges, end_probe).unwrap_or(start_range);
+        let start = (
+            start_range.source_offset(location.absolute_start),
+            self.line_map
+                .source_line(start_range, self.input, location.absolute_start),
+            start_range,
+        );
+        let end = (
+            end_range.source_offset(location.absolute_end),
+            self.line_map.source_line(
+                end_range,
+                self.input,
+                location.absolute_end.min(self.input.len()),
+            ),
+            end_range,
+        );
+        super::source_remap::remap_endpoints(&mut location, start, end);
+        if start_range.file_chain != end_range.file_chain {
+            location.start.file = (!start_range.file_chain.is_empty())
+                .then(|| Arc::new(start_range.file_chain.clone()));
+            location.end.file =
+                (!end_range.file_chain.is_empty()).then(|| Arc::new(end_range.file_chain.clone()));
+        }
+        SourceLocation {
+            file: start_range.file.clone(),
+            location,
         }
     }
 
@@ -869,9 +1013,55 @@ mod tests {
     use super::*;
 
     #[test]
+    fn nested_inline_states_share_options_and_isolate_attribute_changes() -> Result<(), crate::Error>
+    {
+        let arena = Bump::new();
+        for mode in [
+            crate::CompatibilityMode::Draft,
+            crate::CompatibilityMode::Asciidoctor,
+        ] {
+            let options = Rc::new(
+                Options::builder()
+                    .with_compatibility_mode(mode)
+                    .with_attribute("hardbreaks", true)
+                    .build()?,
+            );
+            let parent = ParserState::new("", &arena, Rc::clone(&options));
+            let mut child = ParserState::for_inline_parsing("", &parent, parent.inline_ctx);
+            assert!(Rc::ptr_eq(&parent.options, &options));
+            assert!(Rc::ptr_eq(&child.options, &parent.options));
+            assert!(Rc::ptr_eq(
+                &child.document_attributes,
+                &parent.document_attributes
+            ));
+            assert_eq!(child.options.compatibility_mode, mode);
+            assert!(child.hardbreaks);
+            assert!(
+                child
+                    .apply_document_attribute(
+                        &AttributeDeclaration {
+                            name: "local",
+                            value: RawAttributeValue::Text(Cow::Borrowed("child")),
+                        },
+                        false,
+                        child.create_location(0, 0),
+                    )
+                    .is_some()
+            );
+            assert_eq!(child.document_attributes.text("local"), Some("child"));
+            assert!(!parent.document_attributes.contains_key("local"));
+            assert!(!options.document_attributes.contains_key("local"));
+            let grandchild = ParserState::for_inline_parsing("", &child, child.inline_ctx);
+            assert!(Rc::ptr_eq(&grandchild.options, &options));
+            assert_eq!(grandchild.document_attributes.text("local"), Some("child"));
+        }
+        Ok(())
+    }
+
+    #[test]
     fn xref_snapshots_share_unchanged_attributes() {
         let arena = Bump::new();
-        let parent = ParserState::new("", &arena);
+        let parent = ParserState::new("", &arena, Rc::new(Options::default()));
         let snapshot = parent.capture_xref_caption_labels();
         let child = ParserState::for_inline_parsing("", &parent, parent.inline_ctx);
 
@@ -891,7 +1081,7 @@ mod tests {
     #[test]
     fn xref_snapshots_survive_attribute_mutations_and_scope_restoration() {
         let arena = Bump::new();
-        let mut state = ParserState::new("", &arena);
+        let mut state = ParserState::new("", &arena, Rc::new(Options::default()));
         let initial = state.capture_xref_caption_labels();
         assert_eq!(Rc::strong_count(&state.document_attributes), 1);
 
@@ -1077,5 +1267,53 @@ mod tests {
             assert_eq!(warning.location.start.column, expected);
         }
         Ok(())
+    }
+    #[rstest::rstest]
+    #[case(Some("a.adoc"), vec!["a.adoc".to_owned()])]
+    #[case(None, Vec::new())]
+    #[case(Some("main.adoc"), Vec::new())]
+    fn diagnostic_endpoints_keep_distinct_source_contexts(
+        #[case] file: Option<&str>,
+        #[case] chain: Vec<String>,
+    ) {
+        let input = "one\ntwo\n";
+        let mut state = ParserState::new_for_test(input);
+        state.source_ranges = vec![
+            SourceRange {
+                start_offset: 0,
+                end_offset: 4,
+                file: file.map(PathBuf::from),
+                file_chain: chain,
+                start_line: 4,
+                source_start_offset: 100,
+                column_shift: 0,
+            },
+            SourceRange {
+                start_offset: 4,
+                end_offset: 8,
+                file: Some(PathBuf::from("b.adoc")),
+                file_chain: vec!["b.adoc".to_owned()],
+                start_line: 2,
+                source_start_offset: 0,
+                column_shift: 0,
+            },
+        ];
+        let source = state.create_error_source_location(state.create_location(0, 6));
+        assert_eq!(source.file, file.map(PathBuf::from));
+        assert_eq!(
+            (source.location.start.line, source.location.start.column),
+            (4, 1)
+        );
+        assert_eq!(
+            (source.location.end.line, source.location.end.column),
+            (2, 3)
+        );
+        assert_eq!(source.location.absolute_start, 100);
+        assert_eq!(source.location.absolute_end, 100);
+        assert_eq!(source.location.byte_len(), None);
+        assert_eq!(
+            source.location.end.file.as_deref().map(Vec::as_slice),
+            Some(["b.adoc".to_owned()].as_slice())
+        );
     }
 }

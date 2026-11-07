@@ -1,0 +1,12 @@
+= Footnote occurrence presence
+
+A named note footnote:shared[A *formatted* body.] and its reference footnote:shared[].
+
+A repeated definition footnote:shared[A *formatted* body.] keeps the first body.
+
+An anonymous note footnote:[Anonymous body.] remains a definition.
+
+[cols=a]
+|===
+|A cell reference footnote:shared[] and definition footnote:cell[Cell body.].
+|===

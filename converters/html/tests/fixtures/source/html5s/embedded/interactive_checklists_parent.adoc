@@ -1,0 +1,5 @@
+[%interactive]
+* [x] Parent
+** [x] Child
+** [ ] Child empty
+* [ ] Parent empty

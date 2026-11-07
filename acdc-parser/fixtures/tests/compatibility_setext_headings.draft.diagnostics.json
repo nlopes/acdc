@@ -1,0 +1,58 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 24,
+      "absolute_start": 13,
+      "file": "compatibility_setext_headings.adoc",
+      "location": [
+        {
+          "col": 1,
+          "line": 2
+        },
+        {
+          "col": 12,
+          "line": 2
+        }
+      ]
+    },
+    "message": "unterminated example block (opened by `============`)"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 24,
+        "absolute_start": 13,
+        "file": "compatibility_setext_headings.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 2
+          },
+          {
+            "col": 12,
+            "line": 2
+          }
+        ]
+      },
+      "message": "unterminated example block (opened by `============`)"
+    },
+    {
+      "location": {
+        "absolute_end": 59,
+        "absolute_start": 49,
+        "file": "compatibility_setext_headings.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 6
+          },
+          {
+            "col": 11,
+            "line": 6
+          }
+        ]
+      },
+      "message": "unterminated listing block (opened by `-----------`)"
+    }
+  ]
+}

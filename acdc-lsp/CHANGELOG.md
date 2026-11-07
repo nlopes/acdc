@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Description-list navigation keeps each term's own destination. Semantic tokens
+  and body displays visit the shared definition once, with their existing term policy.
+
+- Conditional highlighting now follows body attribute assignments and unsets,
+  including selected nested includes. Inactive parent conditions and the configured
+  backend use the same decisions as document parsing.
+
+- Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+
+- Image navigation retains literal quote characters in `imagesdir`, matching generated output.
+
 ### Added
+
+- Set `compatibilityMode` to `asciidoctor` (the default) or `draft` in initialization
+  options or resource-scoped workspace settings. Changing the mode refreshes analysis
+  and workspace symbols; previews use the same mode, including unsaved includes.
+  Backend selection and include access limits remain independent.
+
+- Keep source selection and inline scanning available around resolved typography.
+
+- Document outlines and workspace search retain formatted titles, media
+  alternatives, anchor aliases, and source locations across includes. Outlines
+  keep their existing hierarchy and empty-title fallbacks.
 
 - Preview code actions render the current unsaved buffer as PDF, HTML5, or
   semantic HTML according to its configured backend, then open it with the
@@ -17,7 +39,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with `window/showDocument` support; the `preview` and `preview-pdf` features
   are enabled by default.
 
+### Performance
+
+- Conditional highlighting uses less temporary memory on documents with many
+  attributes. Attribute suggestions retain included header values, empty values,
+  and backend-specific defaults.
+
 ### Fixed
+
+- IDs without recorded source coordinates no longer produce navigation targets
+  at line zero. Generated section IDs still navigate to their heading.
+
+- Semantic highlighting marks section IDs supplied through `[#id]` or `[[id]]` as definitions. Generated section IDs remain unmarked.
+
+- Document symbols show resolved typography in block titles, including em dashes.
+
+- Clickable `mailto:` links use a single scheme prefix, so editors open the
+  intended email address.
+
+- Navigation, references, and rename now recognize retained named block IDs and
+  inline IDs, including images and formatting spans in titles, tables, and includes.
+  Hover retains formatted section names, header attribute values, and cross-file
+  targets, including unsaved documents. Inlay hints retain registered section
+  labels, and reference-count lenses keep their existing heading and body coverage.
+  Section warnings and folding ranges retain their source locations, ordering, and
+  include boundaries. Formatting and on-type edits preserve verbatim source,
+  original line endings, and selected include boundaries. Media diagnostics retain
+  source-order directory changes and unsets, nested cell scopes, and content-field
+  coverage.
+  Rename changes only source-validated literal spellings, preserves quoting and
+  surrounding markup, and updates duplicate declarations together. Generated or
+  expanded IDs remain navigable but cannot be renamed through guessed ranges.
+  An ID on an xref macro takes precedence over that macro's target at the cursor.
+
+- Definition, hover, references, and rename now find cross-references in titles,
+  captions, image alt text and tooltips, quote credits, footnotes, UI labels,
+  description terms, callouts, and table cells. Nested references select the
+  innermost target. Rename declines the operation if a retained reference has
+  no safely editable literal target, instead of leaving a broken reference.
+  File rename also finds these references in closed files under the configured backend.
+
+- Editor requests with columns past a line's end now use the end of that line,
+  as required by LSP. Returned edit ranges use those normalized UTF-16 positions.
+  Batches of full document updates now use the last snapshot; ranged fragments
+  cannot replace the complete document when full synchronization is enabled.
+
+- Formatting, completion, signature help, and block wrapping now use UTF-16
+  cursor positions after emoji and reject invalid selections. Formatting emits
+  valid, non-overlapping edits at the end of a file, and inserted line breaks
+  follow the file's LF or CRLF style. Wrapping preserves the selected source.
+  Renaming a file updates Unicode include paths without leaving stray characters.
+  Unfinished listing blocks keep their whitespace; pressing Enter after the
+  opening delimiter can insert its matching closer.
+
+- Expand selection now follows the original source after includes and uses
+  correct UTF-16 positions after emoji, through CRLF endings, and at end of file.
+  Highlighting validates source spans and avoids duplicate tokens in nested
+  inactive conditionals. Attribute unsetting highlights the name without `!`.
+  Folding omits ranges that do not fit the original source.
+
+- Hover, reference-count code lenses, inlay hints, and document links now align
+  correctly after emoji and in CRLF files. Navigation finds targets correctly
+  after preprocessing. Hovering immediately after an attribute's closing brace
+  no longer selects it.
+
+- Diagnostics, document and workspace symbols, and include call hierarchy now
+  use UTF-16 positions from the original source, including unsaved buffers and
+  selected or reindented includes. Missing source text no longer produces guessed
+  ranges. Include ranges also remain accurate in CRLF files and Unicode paths.
+
+- References and go-to-definition now use UTF-16 character positions after emoji
+  and other non-BMP characters. Included targets use their original source text,
+  including selected and reindented includes and unsaved editor buffers.
+  The server explicitly advertises UTF-16; unavailable source text no longer
+  produces a guessed navigation range.
+
+- Media navigation preserves complete video targets and discovers images nested
+  in alternative content, tooltips, and UI labels.
 
 - Closing a document no longer restores symbols from a removed workspace folder.
   Moving a closed file outside active folders also removes its workspace symbols.

@@ -1,0 +1,58 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 580,
+      "absolute_start": 556,
+      "file": "document_attribute_formatted.adoc",
+      "location": [
+        {
+          "col": 1,
+          "line": 19
+        },
+        {
+          "col": 25,
+          "line": 19
+        }
+      ]
+    },
+    "message": "attribute-value escaping after formatting or macros requires backend markup; value retained literally"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 580,
+        "absolute_start": 556,
+        "file": "document_attribute_formatted.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 19
+          },
+          {
+            "col": 25,
+            "line": 19
+          }
+        ]
+      },
+      "message": "attribute-value escaping after formatting or macros requires backend markup; value retained literally"
+    },
+    {
+      "location": {
+        "absolute_end": 630,
+        "absolute_start": 582,
+        "file": "document_attribute_formatted.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 20
+          },
+          {
+            "col": 49,
+            "line": 20
+          }
+        ]
+      },
+      "message": "attribute-value escaping after formatting or macros requires backend markup; value retained literally"
+    }
+  ]
+}

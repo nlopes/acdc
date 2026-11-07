@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: Attribute tests
 :mansource: acdc
+:docdate: 2026-10-01
 :revdate: 2026-10-01
 :blank:
 :slash: \

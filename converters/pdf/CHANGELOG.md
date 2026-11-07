@@ -7,7 +7,140 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Footnotes with the same name in separate AsciiDoc table cells now have
+  distinct PDF destinations. Repeated references link to their owning note.
+  Unlike Asciidoctor PDF, repeated names across cell boundaries do not collapse
+  onto the outer definition.
+
+- References to the document top and header ID use body `reftext` values in
+  source order. Empty and unset values select the title; explicit link text stays intact.
+
+- Description lists use the parser's shared term groups and preserve authored
+  empty definitions. Ordered and unordered styles retain every term, unlike
+  Asciidoctor PDF 2.3.15, which omits additional terms in these styles.
+
+- Documented that raw HTML tags and their link attributes stay literal in PDF.
+  Use AsciiDoc formatting or `pass:q[...]` for styled text. Asciidoctor PDF
+  instead interprets supported inline HTML tags.
+
+- Short and full cross-references retain formatting in parsed custom `caption=`
+  prefixes. Only a final unformatted period and space are removed; punctuation
+  inside a styled span remains visible.
+
+- Repeated anonymous footnotes in edited document trees reuse their original PDF note and destination after `Document::rebuild_footnotes()`.
+
+- After an edited document rebuilds its reference and TOC catalogs, TOC links
+  reach each heading even if another block owns the same ID. Cross-references
+  retain the first target.
+
+- Caller-built references distinguish absent and explicitly empty titles when
+  selecting heading destinations. An empty reference title matches a present,
+  empty TOC title; it does not match an absent TOC title.
+
+- Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
+
+- Render attributed plus passthroughs without leaking their ID and role prefixes into the text. Apply the supported inline roles and retain link destinations.
+
+- Reference characters in source-code link labels now use their display text, including labels taken from referenced headings. Literal escaped references remain unchanged.
+
+- Inline code and passthrough text display resolved references while escaped references stay literal. Image fallback text and index collation use displayed characters. In passthrough blocks, Asciidoctor PDF instead prints the substituted reference spellings.
+
+- Character references follow parser-selected substitutions. Literal numeric-reference text remains literal when replacements are disabled. Known named references such as `&copy;` render as characters; Asciidoctor PDF reports these names as unsupported.
+
+- Constructed character-reference nodes render as text in PDF output, including named references with more than one Unicode character.
+
+- Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+
+- Document attribute values keep literal quotes in text labels and media paths. Literal quotes in cross-reference labels and style names now follow Asciidoctor.
+
+- Image and icon links, dimensions, poster names and icon overrides retain literal quote characters. Asset preparation uses the same names as rendering; quoted role names no longer select a built-in style.
+
+- Hyperlink IDs with literal quotes now retain their named PDF destinations, including links in code blocks.
+
+- Missing block images use the same resolved alternative text as embedded images. Replacement characters now appear in this fallback; Asciidoctor PDF keeps block alternatives literal.
+
+### Changed
+
+- Source arrows now use the parser’s resolved value consistently in inline
+  code and text. Escaped arrows and replacement-only passthroughs remain literal.
+
+- Render parsed copyright and trademark signs, ellipses, word-internal
+  apostrophes, and em dashes while keeping escaped tokens literal. Backtick content now applies
+  enabled typography, matching Asciidoctor PDF.
+
+- Table-of-contents rendering avoids another full copy of heading content while
+  preserving numbering, source locations, and duplicate-heading destinations.
+- Automatic cross-references retain parsed label and title content, including
+  empty labels, formatting, source spans, and nested-reference fallbacks.
+- PDF metadata, page settings, heading index terms, and diagnostic source labels
+  retain their parsed values during conversion.
+- Nested blocks, grouped description terms, and AsciiDoc table cells retain
+  their order, local settings, and source locations during PDF conversion.
+- Video posters retain the video title, layout controls, links, and source
+  locations when creating their printable image.
+- Paragraphs, captions, source blocks, lists, media, and page breaks retain their
+  formatting, substitution settings, and source-located warnings during conversion.
+- Simple admonitions retain a single title and anchor, along with their paragraph
+  substitution settings.
+- Typed table controls retain column sizing, alignment, merged-cell geometry,
+  literal cell text, and source-located zero-width warnings in PDF output.
+
+- Caller-built tables retain the border and stripe defaults active at their
+  position, including nested AsciiDoc cell scopes, when using typed attributes.
+
+- Inline formatting, links, footnotes, and index entries preserve their PDF text and
+  destinations when read through the typed parser API.
+
+- PDF asset diagnostics retain metadata source spans and include provenance for
+  custom admonition icons.
+
+- Video poster images copy compatible metadata without treating a video's
+  opaque `alt` attribute as image alternative content. Invalid constructed
+  metadata now returns an error instead of creating hidden duplicate values.
+
 ### Fixed
+
+- Italic text in custom captions stays italic when the caption theme already uses italic text, matching Asciidoctor PDF.
+
+- Block `subs=` settings work in every build. Literal text and escaped
+  punctuation retain the parser-selected values. Code anchors and links use
+  those values directly, including after tabs and typography symbols.
+
+- PDF document titles retain curved quotation marks in document metadata.
+
+- Generated indexes sort and combine entries by their resolved labels. Catalog
+  typography uses each label's own boundaries and registration-time substitutions.
+
+- Prose keeps the same spacing when attributes or passthroughs split adjacent
+  text fragments. Verse and `pre-wrap` retain authored whitespace.
+
+- Paragraph-style sidebars use the backend's sidebar layout. `[pass]` paragraphs
+  use the same raw-content path as delimited passthrough blocks.
+
+- Headings with a single character after formatted text retain their public link
+  destinations, matching Asciidoctor PDF.
+
+- Inline icons honor `icon=` overrides and retain `link=` destinations in text,
+  font, and image modes.
+
+- Visible image/icon alternatives, UI labels, and custom `caption=` values retain
+  supported formatting. Literal quote attributions and citation titles retain
+  their dashes; single-quoted values still apply normal substitutions.
+- Static video links preserve complete local targets and provider playlists.
+  Unlike Asciidoctor PDF, YouTube playlist shorthand produces a watch URL with
+  an explicit playlist parameter.
+
+- Caller-built empty titles retain their captions and numbering, matching
+  `title=""` in AsciiDoc source.
+
+- Images honor named and empty alt text and retain literal quotes. Inline
+  tooltips no longer become PDF descriptions. Named titles on audio, video, paragraphs, lists, tables, and
+  delimited blocks retain formatting, matching Asciidoctor PDF.
+
+- Block images accept `title=` captions in the macro or a preceding attribute
+  list. Macro titles override preceding titles, retain inline formatting, and
+  supply cross-reference text, matching Asciidoctor. Inline-image `title=`
+  tooltips are unchanged.
 
 - Invalid or non-fitting `pdf-page-margin` overrides use the theme's page
   margins when they fit the page. The same fallback applies to non-fitting
@@ -29,7 +162,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   theme. The CLI accepts this when `--emit-theme-config` is supplied.
 
 - Load supported Asciidoctor PDF 2.3.15 themes with `--theme-format asciidoctor`
-  or `PdfOptions::theme_format = ThemeFormat::Asciidoctor`. Colours, type sizes,
+  or `PdfOptions::theme_format = ThemeFormat::Asciidoctor`. Colors, type sizes,
   captions, tables, book page breaks, and page geometry are converted during
   loading. Unsupported settings produce structured converter warnings. Native
   themes remain the default, and exact layout parity is not promised.
@@ -43,6 +176,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Local images, asset policy, and warning order keep their existing behavior.
 
 ### Changed
+
+- Email subjects and message bodies retain their encoded link destinations.
+
+- Support the parser’s revised inline-image API without changing rendered output.
 
 - **Breaking for library callers:** exhaustive `PdfOptions` literals must include
   `theme_format: ThemeFormat::Acdc` and `emit_theme_config: None`.
@@ -182,7 +319,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   prose and code with attributes enabled, matching Asciidoctor PDF. Literal
   references stay literal; numeric character references in raw code values
   render as their characters.
-- Listing and literal blocks honour enabled quote and attribute substitutions,
+- Listing and literal blocks honor enabled quote and attribute substitutions,
   including bold, italic, nested formatting, and empty formatted anchor targets.
   Quote markup introduced after quote substitution stays literal, matching
   Asciidoctor PDF. Formatting survives code wrapping and syntax highlighting.

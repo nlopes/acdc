@@ -7,7 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- AsciiDoc table cells now include their local footnote text. Notes from
+  sibling and nested cells stay separate from outer document notes.
+
+- References to the document top and header ID use body `reftext` values in
+  source order. Empty and unset values select the title; explicit link text stays intact.
+
+- Description lists retain every shared term and render their definition once
+  in all supported list styles.
+
+- Short and full cross-references retain formatting in parsed custom `caption=`
+  prefixes. Only a final unformatted period and space are removed; punctuation
+  inside a styled span remains visible.
+
+- Mixed numeric and automatic table columns now preserve the authored numeric
+  proportions, including `cols="2*3,~"`. Large supported widths no longer overflow,
+  and all-zero numeric widths divide space equally.
+
+- Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
+
+- Render attributed plus passthroughs without leaking their ID and role prefixes into the text.
+
+- Audio/video labels, captions, and index labels use displayed characters for resolved references while escaped references stay literal.
+
+- Parsed named and numeric character references render as character values when known; escaped references remain literal text.
+
+- Constructed character-reference nodes render in plain and formatted text. Unknown names and invalid numeric values remain visible as references.
+
+- Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+
+- Document attribute values keep literal quotes in text labels and media paths. Literal quotes in cross-reference labels and style names now follow Asciidoctor.
+
+- Image and icon links retain literal quote characters in both plain-text and OSC 8 output. Image and table controls use their parsed values without removing quotes.
+
+- Image alternatives retain the parser-selected text in fallback output.
+
 ### Fixed
+
+- Quote and verse credits now preserve resolved typography and explicit passthrough settings consistently with other output formats.
+
+- Block `subs=` settings work in every build. Literal and escaped text,
+  titles, and code use the parser-selected content without extra typography.
+- Buttons selected by Draft mode render without requiring the Asciidoctor
+  `experimental` attribute, including inside formatting and links.
+
+- Plain-text headings retain curved quotation marks around their content.
+
+### Breaking changes
+
+- Render parsed copyright and trademark signs, ellipses, word-internal
+  apostrophes, and em dashes while keeping escaped tokens literal. Dash pairs
+  and adjacent spaces now resolve consistently across index labels, including
+  highlighted code. Protected passthroughs keep their own spacing and
+  substitution settings. This retains acdc's parsed-text context policy, which
+  can differ from Asciidoctor's default macro order.
+
+- Direct users of `TerminalVisitor` must use the shared `DocumentVisitor`,
+  `BlockVisitor`, and `InlineVisitor` callbacks. Terminal output, table layouts,
+  caption numbering, and diagnostic locations remain unchanged.
+
+- `render_listing_to_ansi` now takes typed content and element attributes. Source
+  language aliases and line decoration retain their existing behavior.
+
+### Changed
+
+- The terminal visitor supports typed inline callbacks. ANSI styling, OSC 8
+  links, typography, and visible inline fallbacks remain unchanged.
+
+- Source blocks and HTML terminal previews retain nested formatting, highlight
+  roles, callout guards, and per-fragment substitutions through typed reads.
+
+### Fixed
+
+- Generated indexes sort and combine entries by their resolved labels. Catalog
+  typography uses each label's own boundaries and registration-time substitutions.
+
+- Paragraph-style sidebars use the backend's sidebar layout. `[pass]` paragraphs
+  use the same raw-content path as delimited passthrough blocks.
+
+- Visible image/icon alternatives, UI labels, and custom `caption=` values retain
+  supported formatting, including links in figure, table, listing, and example
+  captions. Empty or disabled prefixes do not advance their numbered sequence.
+  Literal quote attributions and citation titles retain
+  their dashes; single-quoted values still apply normal substitutions.
+- Static video links preserve complete local targets and provider playlists.
+
+- Caller-built empty titles retain their captions and numbering, matching
+  `title=""` in AsciiDoc source.
+
+- Images honor named and empty alt text and retain literal quotes. Tooltips
+  no longer become image descriptions.
+  Named titles on audio, video, and other titled blocks retain formatting.
+- Audio links retain end-only playback ranges, and YouTube links retain list and
+  dynamic-playlist attributes.
 
 - On Unix, terminal conversion starts faster without an attached terminal.
   It uses an 80-column fallback when the terminal width is unavailable.
@@ -56,9 +148,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Plain `pass:[...]` document attribute values expand without their wrapper in
   prose and code with attributes enabled. Literal references stay literal,
   matching Asciidoctor's attribute behavior.
-- Listing and literal blocks honour enabled quote and attribute substitutions,
+- Listing and literal blocks honor enabled quote and attribute substitutions,
   including bold and italic text, without requiring macros. Explicit quote
-  formatting takes precedence over syntax colours; line numbers and callouts
+  formatting takes precedence over syntax colors; line numbers and callouts
   remain available.
 - Attribute values consisting of a single backslash remain literal and no longer
   consume the following line. Tabs and extra spaces after the attribute name
@@ -173,6 +265,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Asciicast parsing accepts typed inline iterators as well as owner slices,
+  preserving character-reference decoding and idle-gap overrides.
+
 - Document headers, tables of contents, book chapters, hidden section titles,
   and non-final index sections now preserve their configured labels, numbering,
   hierarchy, content, and reference text in terminal output.
@@ -226,7 +321,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Terminal replay frame capture (`replay::capture` / `capture_windowed`) turns
   recorded ANSI into ordered, deduplicated `CellGrid` frames for animated replay
   renderers; `capture_windowed` is a fast path for append-only recordings. Each
-  captured cell keeps its palette index alongside the resolved colour, so a
+  captured cell keeps its palette index alongside the resolved color, so a
   player can re-resolve it against a recording's own palette.
 - The `asciicast` module parses asciicast v2/v3 (`.cast`) recordings into a
   `Recording` of replay frames (via `asciicast-rs`). Recorded commands and input
@@ -251,9 +346,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rather than resolving again, so a title that references itself terminates.
   `asciidoctor` falls back at the same point, except where it reuses a target's
   cached converted title, which can carry one already-resolved level.
-- An inline span that sets a colour (monospace, highlight, a cross-reference)
-  restores the colour of the span around it when it ends, instead of resetting
-  the terminal. Bold, italic and background colour survive a nested span, so
+- An inline span that sets a color (monospace, highlight, a cross-reference)
+  restores the color of the span around it when it ends, instead of resetting
+  the terminal. Bold, italic and background color survive a nested span, so
   `*bold before <<id>> bold after*` stays bold throughout.
 - A section heading and a block caption keep the text of what their title holds.
   A link contributes its link text, and a cross-reference contributes its
@@ -322,7 +417,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   boundaries, matching asciidoctor behavior.
 - `extract_plain_text` now preserves text content from formatted inline nodes (bold,
   italic, monospace, etc.) in literal paragraphs
-- ANSI SGR state tracking now prunes cancelled codes (e.g. bold-off removes bold) instead
+- ANSI SGR state tracking now prunes canceled codes (e.g. bold-off removes bold) instead
   of accumulating indefinitely
 - `extract_title_text` now preserves inline content from `VerbatimText`, `RawText`,
   `StandaloneCurvedApostrophe`, `LineBreak`, `CalloutRef`, and all `Macro` variants in
@@ -330,9 +425,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test fixture now marked as OSC8 so it is skipped in CI environments
   without OSC8 support.
 - **Inline markup in `link:` text** — bold, italic, monospace, etc. inside `link:url[...]`
-  are now honoured in the OSC8 display text.
+  are now honored in the OSC8 display text.
 
 ### Changed
+
+- Email subjects and message bodies retain their encoded link destinations.
+
+- Support the parser’s revised inline-image API without changing rendered output.
 
 - **Breaking:** configure conversion with the parser options builder, then use
   the converter's validated parser options for parsing. Invalid attribute values

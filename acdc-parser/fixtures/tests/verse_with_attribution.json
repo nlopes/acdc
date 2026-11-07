@@ -11,9 +11,12 @@
         "style": "verse",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Carl Sandburg",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 1,
@@ -21,16 +24,19 @@
               },
               {
                 "line": 1,
-                "col": 22
+                "col": 21
               }
             ]
           }
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Fog",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 1,
@@ -38,7 +44,7 @@
               },
               {
                 "line": 1,
-                "col": 27
+                "col": 26
               }
             ]
           }

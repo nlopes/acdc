@@ -1,0 +1,9 @@
+= Code links
+:relfileprefix: manual/
+:relfilesuffix: .xhtml
+:source-highlighter: syntect
+
+[source,rust,subs=+macros]
+----
+xref:guide.adoc#part[Read] xref:guide.adoc#part[] tail
+----

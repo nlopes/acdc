@@ -1,0 +1,18 @@
+= Image locations
+:media: alt='Expanded π *label*'
+
+[{media}]
+image::expanded.png[]
+
+['π *Positional* label']
+image::positional.png[]
+
+include::includes/compatibility_image_selected.adoc[tag=selected,indent=0]
+
+[cols="a"]
+|===
+|[alt='Cell π *label*']
+image::cell.png[]
+|===
+
+include::includes/compatibility_image_direct.adoc[]

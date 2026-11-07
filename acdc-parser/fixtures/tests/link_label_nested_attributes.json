@@ -88,6 +88,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -182,10 +187,7 @@
               "line": 6,
               "col": 62
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -207,6 +209,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -231,6 +238,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -284,10 +292,7 @@
               "line": 8,
               "col": 66
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -309,6 +314,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -317,19 +327,24 @@
             {
               "name": "image",
               "type": "inline",
-              "title": [
+              "metadata": {
+                "attributes": {
+                  "width": "20"
+                }
+              },
+              "alt": [
                 {
                   "name": "text",
                   "type": "string",
                   "value": "Label",
                   "location": [
                     {
-                      "line": 1,
-                      "col": 1
+                      "line": 10,
+                      "col": 60
                     },
                     {
-                      "line": 1,
-                      "col": 49
+                      "line": 10,
+                      "col": 64
                     }
                   ]
                 }
@@ -359,10 +374,7 @@
               "line": 10,
               "col": 86
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -384,6 +396,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -461,10 +478,7 @@
               "line": 12,
               "col": 87
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -501,7 +515,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "note",
-          "inlines": [],
           "location": [
             {
               "line": 14,

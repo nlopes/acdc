@@ -1,0 +1,7 @@
+// omitted
+// tag::keep[]
+    :keys: π+Alt
+    :items: Save > Close
+
+    kbd:[{keys}] and menu:File[{items}].
+// end::keep[]

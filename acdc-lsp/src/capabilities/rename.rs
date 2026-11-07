@@ -2,10 +2,11 @@
 
 use std::collections::HashMap;
 
+use acdc_parser::ast::IdOrigin;
 use tower_lsp_server::ls_types::{Position, PrepareRenameResponse, TextEdit, Uri, WorkspaceEdit};
 
 use crate::{
-    convert::{position_to_offset, source_uri},
+    convert::{position_to_scalar_position, source_uri},
     state::{DocumentState, Workspace, XrefTarget},
 };
 
@@ -19,12 +20,12 @@ pub(crate) fn prepare_rename(
     doc: &DocumentState,
     position: Position,
 ) -> Option<PrepareRenameResponse> {
-    let offset = position_to_offset(doc.text(), position)?;
+    let source_position = position_to_scalar_position(doc.text(), position)?;
     let ast_guard = doc.ast()?;
     let ast = ast_guard.document();
 
     // Check if cursor is on an xref
-    if let Some((target, xref_loc)) = super::hover::find_xref_at_offset(ast, offset)
+    if let Some((target, xref_loc)) = super::hover::find_xref_at_position(ast, &source_position)
         && let Some(target_id) = XrefTarget::parse(&target).anchor
         && let Some(range) = xref_anchor_range(doc.text(), &xref_loc, &target_id)
     {
@@ -35,12 +36,13 @@ pub(crate) fn prepare_rename(
     }
 
     // Check if cursor is on an anchor
-    if let Some((anchor_id, anchor_loc)) = super::hover::find_anchor_at_offset(ast, offset, doc)
-        && let Some(range) = anchor_range(doc.text(), &anchor_loc, &anchor_id)
+    if let Some(anchor) = super::hover::find_anchor_at_position(ast, &source_position)
+        && anchor.origin == IdOrigin::Explicit
+        && let Some(range) = anchor_range(doc.text(), &anchor.location, anchor.id)
     {
         return Some(PrepareRenameResponse::RangeWithPlaceholder {
             range,
-            placeholder: anchor_id,
+            placeholder: anchor.id.to_owned(),
         });
     }
 
@@ -50,7 +52,8 @@ pub(crate) fn prepare_rename(
 /// Compute the workspace edit for renaming an anchor/xref.
 ///
 /// Edit literal anchor IDs and references in their original files.
-/// Return `None` when no declaration has an editable ID.
+/// Return `None` if a declaration or retained reference has no safe literal edit,
+/// or if no declaration is available.
 #[must_use]
 pub(crate) fn compute_rename(
     doc: &DocumentState,
@@ -59,18 +62,20 @@ pub(crate) fn compute_rename(
     position: Position,
     new_name: &str,
 ) -> Option<WorkspaceEdit> {
-    let offset = position_to_offset(doc.text(), position)?;
+    let source_position = position_to_scalar_position(doc.text(), position)?;
     let ast_guard = doc.ast()?;
     let ast = ast_guard.document();
 
     // Find the target ID (from either xref or anchor)
-    let target_id = if let Some((id, _)) = super::hover::find_xref_at_offset(ast, offset) {
-        // If it's a cross-file xref, extract just the anchor part
-        let parsed = XrefTarget::parse(&id);
-        parsed.anchor.unwrap_or(id)
-    } else {
-        super::hover::find_anchor_at_offset(ast, offset, doc).map(|(id, _)| id)?
-    };
+    let target_id =
+        if let Some((id, _)) = super::hover::find_xref_at_position(ast, &source_position) {
+            let parsed = XrefTarget::parse(&id);
+            parsed.anchor.unwrap_or(id)
+        } else {
+            super::hover::find_anchor_at_position(ast, &source_position)?
+                .id
+                .to_owned()
+        };
     drop(ast_guard);
 
     let mut changes: HashMap<Uri, Vec<TextEdit>> = HashMap::new();
@@ -86,7 +91,7 @@ pub(crate) fn compute_rename(
                 })
                 .flatten()
         };
-        let Some(range) = range else { continue };
+        let range = range?;
         changes.entry(anchor_uri).or_default().push(TextEdit {
             range,
             new_text: new_name.to_string(),
@@ -99,28 +104,39 @@ pub(crate) fn compute_rename(
         return None;
     }
 
+    let mut all_references_editable = true;
     workspace.for_each_document(|doc_uri, doc_state| {
         for (target, xref_loc) in &doc_state.xrefs {
             let parsed = XrefTarget::parse(target);
             let anchor = parsed.anchor.as_deref().unwrap_or(target.as_str());
-            if anchor == target_id
-                && let Some(source_uri) = source_uri(doc_uri, xref_loc)
-            {
-                let Some(range) = workspace
-                    .with_document_text(&source_uri, |text| {
+            if anchor != target_id {
+                continue;
+            }
+            let edit = source_uri(doc_uri, xref_loc).and_then(|uri| {
+                let range = workspace
+                    .with_document_text(&uri, |text| {
                         xref_anchor_range(text, &xref_loc.location, &target_id)
                     })
-                    .flatten()
-                else {
-                    continue;
-                };
-                changes.entry(source_uri).or_default().push(TextEdit {
-                    range,
-                    new_text: new_name.to_string(),
-                });
+                    .flatten()?;
+                Some((
+                    uri,
+                    TextEdit {
+                        range,
+                        new_text: new_name.to_owned(),
+                    },
+                ))
+            });
+            if let Some((uri, edit)) = edit {
+                changes.entry(uri).or_default().push(edit);
+            } else {
+                all_references_editable = false;
             }
         }
     });
+    // A partial rename would leave retained references pointing at the old ID.
+    if !all_references_editable {
+        return None;
+    }
 
     for edits in changes.values_mut() {
         edits.sort_by_key(|edit| (edit.range.start, edit.range.end));

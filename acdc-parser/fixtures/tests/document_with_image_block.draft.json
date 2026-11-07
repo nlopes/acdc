@@ -1,0 +1,126 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "400",
+          "width": "300"
+        }
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A ",
+          "location": [
+            {
+              "line": 1,
+              "col": 2
+            },
+            {
+              "line": 1,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "beautiful",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 5
+                },
+                {
+                  "line": 1,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 4
+            },
+            {
+              "line": 1,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " sunset",
+          "location": [
+            {
+              "line": 1,
+              "col": 15
+            },
+            {
+              "line": 1,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Sunset",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 2,
+              "col": 23
+            },
+            {
+              "line": 2,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "sunset.jpg"
+      },
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 50
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 50
+    }
+  ]
+}

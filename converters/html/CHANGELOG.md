@@ -7,6 +7,224 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- AsciiDoc table cells now render their own footnotes. Repeated names in
+  separate cells have distinct link targets in both HTML variants. Semantic
+  footnote lists retain document-wide numbers, including gaps between notes.
+  Cell containers use the `.footnotes` CSS class; the outer standard HTML
+  container keeps `#footnotes`.
+
+- References to the document top and header ID use body `reftext` values in
+  source order. Empty and unset values select the title; explicit link text stays intact.
+
+- Description lists render every term with one shared definition. Absent
+  definitions omit the definition wrapper; authored empty principals stay present.
+  Horizontal lists put shared terms in one cell.
+
+- Short and full cross-references retain formatting in parsed custom `caption=`
+  prefixes. Only a final unformatted period and space are removed; punctuation
+  inside a styled span remains visible.
+
+- Automatic reference copies keep inline IDs and index occurrences on their
+  original content, so copied captions, titles, and labels do not repeat them.
+
+- Images and audio with quote characters in local filenames now render in both
+  variants. Double quotes in their source attributes are escaped safely.
+
+- Explicit replacement-attribute values now resolve arrow typography using the
+  same substitution order as ordinary attributes in both variants.
+
+- Explicit links to URNs, custom schemes, and paths with colons now render
+  as hyperlinks in both variants instead of literal macro text.
+
+- References to an explicit document ID now honor the header's document
+  `reftext`, matching document-top links and Asciidoctor in both HTML variants.
+  Empty or unset values fall back to the title; explicit link text still wins.
+
+- Thematic breaks honor named `id` and `reftext` attributes and select the last
+  stacked ID. Automatic labels keep inherited text, formatting, and title
+  fallbacks. Both variants retain acdc's HTML targets on horizontal rules;
+  Asciidoctor omits those IDs.
+
+- Blocks with stacked IDs now use the last authored ID for their HTML wrapper
+  and automatic cross-reference labels, matching Asciidoctor in both variants.
+  Earlier bracket anchors do not create extra link targets.
+
+- Lists marked `[%interactive]` render enabled checkbox inputs in both HTML
+  variants, matching Asciidoctor. Nested lists need their own option. Ordinary
+  items and default static checklists keep their existing output; uppercase `X`
+  remains an acdc extension for checked items.
+
+- Local file cross-references honor `relfileprefix` and the exact `relfilesuffix`
+  value, including an empty suffix. Automatic labels use the resulting file path.
+  Local anchors stay unchanged. Absolute and scheme-relative URIs keep their
+  existing suffix conversion and are never prefixed, unlike Asciidoctor 2.0.26.
+
+- Standalone HTML honors `eqnums`: empty or `AMS` selects AMS equation numbering,
+  and `all` selects numbering for all displayed equations. `none` and unset keep
+  automatic numbering off. Both variants emit the matching MathJax 4 setting and
+  allow it under the generated Content Security Policy.
+
+- Both HTML variants honor `noheader`, `nofooter`, and `nofootnotes`, including
+  empty assignments. Unset attributes restore normal output. Header suppression
+  includes its automatic TOC; embedded TOCs, inline footnote markers, and document
+  metadata remain available, matching Asciidoctor.
+
+- Tables with mixed numeric and automatic column widths now match Asciidoctor
+  proportions, including repeated specifications such as `cols="2*3,~"`. Explicit
+  zero widths stay distinct from automatic columns, all-zero widths divide space
+  equally, and maximum supported widths no longer cause arithmetic overflow.
+
+- Standard HTML wraps AsciiDoc table-cell blocks in `.content`, matching
+  Asciidoctor and the bundled table CSS.
+- Inline STEM preserves authored spacing before punctuation and adjacent content.
+
+- `toc::[role="custom"]` and preceding role attributes now set the TOC container
+  class, matching Asciidoctor. An authored `toc2` role stays intact in embedded
+  output; the default sidebar class still becomes `toc` there. An explicit
+  `role=""` clears the configured class. Asciidoctor mode also clears preceding
+  roles; Draft retains earlier roles under its additive attribute rules.
+
+- **Breaking:** library callers use converter-core’s document, block, and inline
+  visitor traits with typed AST handles. The old owner visitor implementation
+  is removed; HTML output and diagnostics are unchanged.
+
+- Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
+
+- Rust callers must now pass `parsed.document()` to `uses_stem`. Math detection still includes header, body, and nested table-cell settings.
+
+- Render attributed plus passthroughs without leaking their ID and role prefixes into the text. Apply the supported inline roles and retain link destinations.
+
+- Document titles and subtitles keep escaped references literal in the HTML head. Literal markup cannot close the title element or introduce head elements.
+
+- Reference characters in source-code link labels now use their display text, including labels taken from referenced headings. Literal escaped references remain unchanged.
+
+- Index occurrence labels and admonition image alternatives use the displayed characters of resolved references.
+
+- Character references follow parser-selected substitutions. Literal ampersands are escaped, and numeric references use equivalent decimal spelling.
+
+- Constructed character-reference nodes render as HTML references without double escaping.
+
+- Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+
+- Authors and email labels retain authored quotes with safe HTML escaping. Quoted document `leveloffset` values no longer shift headings or included sections.
+
+- Document attribute values keep literal quotes in text labels and media paths. Literal quotes in cross-reference labels and style names now follow Asciidoctor.
+
+- Audio and video controls retain literal quote characters. Quoted provider names no longer select YouTube or Vimeo, matching Asciidoctor.
+
+- Inline icon alternatives preserve literal trailing dashes, matching Asciidoctor.
+
+- Inline image alternatives preserve literal trailing dashes in normal images, embedded images, and SVG fallbacks.
+
+### Changed
+
+- `pass:r,c[(C)]` now displays © instead of escaped HTML entity text;
+  this differs from Asciidoctor. Render parsed copyright and trademark signs, ellipses, word-internal
+  apostrophes, and em dashes while keeping escaped tokens literal.
+
+- Automatic cross-reference titles and labels retain their formatting, caption
+  styles, and nested-reference fallbacks.
+- Per-document HTML configuration retains reference aliases, assigned heading
+  numbers, and attribute defaults and unsets when copied from typed handles.
+
+- Nested sections, lists, compound blocks, admonitions, and table cells preserve
+  their HTML and attribute scopes. Companion stylesheets retain their existing
+  paths and contents.
+- Fallback caption numbering for caller-built or newly titled blocks starts
+  after existing assigned numbers, including those in nested blocks and cells,
+  through typed document reads.
+- Native terminal previews and replays retain source formatting, line decoration,
+  size overrides, playback controls, and scalar diagnostics through typed reads.
+- Highlighted and indented source blocks retain formatted labels, callouts,
+  source locations, escaped text, and per-fragment substitution settings in
+  both HTML variants.
+
+- Source blocks retain titled and untitled presentation, pass-block substitutions,
+  math notation and escaping, and verse formatting in both HTML variants.
+  Footnote output preserves the stored definitions and their order.
+
+- Paragraphs and compound blocks retain formatted and empty titles, quote and
+  verse attribution, collapsible controls, captions, IDs, and role order through
+  typed parser reads in both HTML variants.
+
+- Caller-built section and discrete headings retain title-derived ID fallbacks
+  through typed parser reads, including empty and formatted titles.
+
+- Section headings and lists retain numbering, IDs, formatting, nested list styles,
+  checkboxes, and callouts through typed parser reads in both HTML variants.
+
+- Tables and admonitions retain captions, cell formatting, authored scalar controls,
+  and nested document scopes through typed parser reads in both HTML variants.
+
+- Tables of contents retain local depth overrides, book-part nesting, and appendix
+  numbering through typed parser reads in both HTML variants.
+
+- Document headers and block image/audio/video rendering preserve formatted titles,
+  empty captions, authored controls, and duplicate roles through typed parser reads.
+
+- Index generation retains section discovery through nested blocks, list
+  attachments, and AsciiDoc table cells.
+
+- Highlighted source blocks retain index occurrence order and anchor positions
+  across formatted text, links, and footnotes.
+
+- Library-built tables retain local border and row-stripe overrides and document
+  defaults when their presentation has not been resolved.
+
+- Tables retain proportional, percentage, and automatic column widths in both
+  HTML variants.
+
+- Caption rendering retains authored rich and empty prefixes, source-order label
+  changes, delimiter-specific categories, and fallback numbering for library-built
+  blocks in both HTML variants.
+
+- Listing and literal blocks retain source numbering, highlighted lines, linked
+  labels, passthrough typography, custom indentation, callout guards, and `nowrap`
+  in both HTML variants. Indentation preserves mixed text profiles, blank lines,
+  formatting boundaries, and include locations. Highlighting keeps visible index
+  labels in their original word context and leaves callout markers in the right
+  positions after Unicode text.
+
+- Source paragraphs retain explicit and default language labels, including
+  unknown and empty languages, with or without syntax highlighting.
+
+- Inline rendering accepts typed parser content, including temporary fragments,
+  with unchanged HTML formatting, link handling, and diagnostics.
+
+- Formatting spans retain exact role text, empty-role wrappers, and deprecated
+  role warnings in both HTML variants.
+
+- Audio and video retain playback ranges, provider playlists, private hashes,
+  and media URI controls.
+
+- Image and icon alternatives retain filename fallbacks, explicit empty values,
+  escaped plain-text attributes, and formatted SVG fallback content.
+
+- Automatic cross-references retain their reference labels, caption styles,
+  signifiers, and fallback text.
+
+- Dashes and apostrophes retain their surrounding word context across anchors
+  and index labels, including visible index terms and nested formatting.
+
+- Email subjects and bodies keep their URI encoding. Image icons keep `iconsdir`
+  and `icontype` selection, including settings changed in the document body.
+
+- Link IDs, classes, window controls, and image/icon link options keep their
+  existing behavior. Tooltips retain escaped plain text and present empty values.
+
+- Automatic links and footnote markers retain their labels, targets, and TOC
+  behavior in both HTML variants.
+
+- Text escaping, typography, passthroughs, callout markers, and inline math retain
+  their existing HTML output.
+
+- HTML documents retain the same MathJax and icon stylesheet selection, including
+  attribute changes inside lists and AsciiDoc table cells.
+- Document titles, author metadata, custom stylesheets, and font settings retain
+  their existing HTML output and warnings.
+- Document language, body IDs and roles, TOC wrappers, and footer revisions keep
+  their existing behavior in standalone and embedded HTML.
+
 ### Documentation
 
 - Explain that safe modes do not sanitize HTML output, matching Asciidoctor.
@@ -14,6 +232,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in a page.
 
 ### Fixed
+
+- Admonition image alternatives now preserve the same resolved caption text as the visible caption.
+
+- Image alternative text and tooltips retain curved quotation marks.
+
+- Honor block `subs=` settings in every build, including HTML escaping for
+  paragraphs, listings, and STEM blocks. Disabling `pre-spec-subs` no longer
+  changes HTML output. Syntax highlighting remains a separate capability.
+
+- Preserve literal quotes in link IDs, roles, and window targets, image link
+  targets and alignment, and other decoded HTML controls. Quotes inside quoted
+  AsciiDoc values stay in the output, matching Asciidoctor. Empty controls keep
+  their existing fallback behavior. Table widths also escape literal quotes
+  inside the HTML style attribute. Callout comment guards and index occurrence
+  labels also retain literal quotes. Indentation controls containing literal
+  quotes now warn and keep the original indentation, like other invalid values.
+
+- Escape document and block IDs, roles, and table-of-contents classes and links
+  in both HTML variants. Quotes and markup stay inside their attribute values.
+  Roles containing character references now behave consistently with Asciidoctor
+  across blocks, inline elements, and media.
+
+- Escape quotes and markup in inline anchor IDs, hyperlink IDs and roles,
+  footnote IDs, and cross-reference destinations in both HTML variants. Authored
+  attribute values can no longer create extra HTML elements or attributes.
+
+- Bibliography entries now render explicitly empty labels as `[]` in both HTML
+  variants instead of literal anchor syntax. Whitespace-only labels and citations
+  follow Asciidoctor's leading-space rules. acdc keeps the closing bracket that
+  Asciidoctor omits for a zero-character label.
+
+- Plain text, tooltips, and highlighted code keep the parser's resolved
+  typography and escapes. Highlighted and plain XML code preserve comment
+  delimiters around callouts with `subs=+replacements`. Callout comment guards
+  remain literal when replacements follow macros. These guards differ from
+  Asciidoctor. Empty attributes expanded after replacements no longer trigger
+  another dash replacement, matching Asciidoctor.
+
+- Generated indexes sort and combine entries by their resolved labels. Catalog
+  typography uses each label's own boundaries and registration-time substitutions.
+
+- Escaped inline formatting in caller-built trees retains HTML character
+  escaping. The AsciiDoc escape flag no longer lets `<`, `>` or bare `&` bypass
+  encoding.
+- `pass:c[]` nodes retained by standalone inline parsing use their own escaping
+  setting and keep replacement syntax literal, regardless of surrounding settings.
+
+- Passthrough blocks and `[pass]` paragraphs now render explicit `subs=` settings
+  in the requested order, including footnotes and anchors. With `subs=normal`,
+  formatting introduced by a later attribute expansion stays literal, matching
+  Asciidoctor. This also works without default features.
+
+- Custom captions keep formatting and escape literal angle brackets even when
+  the block body uses `subs=none`. Both HTML variants apply the same caption
+  rules to images, tables, listings, and examples. Numbered caption labels
+  escape literal text, matching Asciidoctor, while explicit passthroughs in
+  custom captions remain active. Literal prefixes stay escaped text where
+  Asciidoctor can emit their characters as HTML.
+
+- Paragraph-style sidebars use the backend's sidebar layout. `[pass]` paragraphs
+  use the same raw-content path as delimited passthrough blocks.
+- Simple admonitions omit the extra paragraph wrapper in standard HTML,
+  matching Asciidoctor. Delimited admonitions keep their block structure.
+
+- Links, URLs, mailto links, and external cross-references honor `opts=nofollow`
+  and `opts=noopener` alongside `window=`. `_blank` windows add `noopener`;
+  local cross-references retain their existing behavior. acdc keeps `nofollow`
+  with named windows even when `noopener` is absent, unlike Asciidoctor.
+  The existing `target=` alias and empty-window fallback remain supported.
+
+- The HTML converter and live editor build for browser WASM again. File-URL
+  image embedding reports a warning on platforms without local file paths.
+
+- Explicitly empty quote attributions keep their attribution mark, and empty
+  citations keep their `<cite></cite>` element. Absent values stay omitted.
+
+- Formatted alternative content remains rich in visible image/icon fallbacks and
+  custom captions. HTML `alt` and tooltip attributes contain escaped plain text;
+  unlike Asciidoctor, they never contain generated formatting tags or unescaped
+  quotation marks. Link, URL, and mailto `title=` tooltips are retained.
+- Image-mode icons honor `height`, `icon=`, and `data-uri`. Icons honor `float`
+  and link options in text, font, and image modes. Admonitions honor `caption=`
+  and image icons. UI labels retain formatting; menu separators work without
+  Font Awesome.
+- Local video targets retain commas; only provider playlists interpret them.
+
+- Caller-built empty titles retain their captions and numbering, matching
+  `title=""` in AsciiDoc source.
+
+- Block and inline SVG images support `opts=inline`, `opts=interactive`,
+  `fallback`, and `format=svg`. `data-uri` embeds local images; remote embedding
+  also requires the `network` feature and caller-supplied `allow-uri-read`.
+  Secure mode disables embedding. Safe and Server modes confine file reads to
+  the source directory. Unlike Asciidoctor, escaping paths are rejected instead
+  of rewritten, and image reads have a 20 MiB limit and 10-second HTTP timeout.
+- Media attributes are escaped in HTML. Inline images retain roles, floats,
+  explicit empty alt text, and dimensions when the alt slot is empty.
+- Audio and video accept formatted `title=` values and end-only playback ranges.
+  Video alignment, floats, named posters, YouTube lists, playlists, language,
+  related videos, and fullscreen controls now match Asciidoctor. Vimeo supports
+  start positions and private-video hashes; `asset-uri-scheme` controls iframe URLs.
+- Named block titles retain formatting on paragraphs, lists, tables, and delimited
+  blocks. Repeated image attributes use their last value.
+
+- Block images accept `title=` captions in the macro or a preceding attribute
+  list. Macro titles override preceding titles, retain inline formatting, and
+  supply cross-reference text, matching Asciidoctor. Inline-image `title=`
+  tooltips are unchanged.
 
 - HTML math output escapes `<`, `>` and `&` so formulas display those characters,
   matching Asciidoctor. With `pre-spec-subs`, `[stem,subs=none]` still preserves
@@ -119,7 +445,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   literal references in prose and code with attributes enabled,
   matching Asciidoctor. Surrounding ordinary text remains escaped.
   Complete raw tags and character references also survive syntax highlighting.
-- Listing and literal blocks honour the requested order of quote and attribute
+- Listing and literal blocks honor the requested order of quote and attribute
   substitutions when macros are disabled, matching Asciidoctor. Highlighted
   source blocks also retain explicitly enabled formatting and its text.
 - Attribute values consisting of a single backslash remain literal and no longer
@@ -390,7 +716,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   class. A blank body cell, empty or containing only `{empty}`, renders as an empty `<td>`
   rather than wrapping an empty `<p class="tableblock">`.
 - Fixture coverage for `[subs="-specialchars"]` and `[subs="-replacements"]`,
-  pinning asciidoctor-parity behaviour (raw `<`, `>`, `&` preserved when
+  pinning asciidoctor-parity behavior (raw `<`, `>`, `&` preserved when
   specialchars are disabled; literal `--`, `(C)`, `->` preserved when
   replacements are disabled). The underlying gating was already in place.
 - Terminal previews (feature-gated `terminal`). Set `:acdc-terminal:` to
@@ -775,6 +1101,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Support the parser’s revised inline-image API without changing rendered output.
+
 - Library conversion now defaults to Secure: document-info files are not read
   and terminal blocks render as listings. Select a lower mode explicitly for
   trusted documents. The CLI retains its Unsafe default.
@@ -807,7 +1135,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   markup (bold, italic, etc.) to plain text using `inlines_to_string()`, while the `<h1>`
   retains full HTML formatting.
 - html5s semantic admonitions now render Font Awesome icons when `:icons: font` is
-  set, matching the standard variant's behaviour.
+  set, matching the standard variant's behavior.
 - html5s semantic footnote references now render as `[<a>N</a>]` (brackets outside the
   link) instead of `<a>[N]</a>`, matching the standard variant's pattern.
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])

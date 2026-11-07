@@ -25,6 +25,9 @@
           "name": "raw",
           "type": "string",
           "value": "&#169;",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 1,
@@ -71,6 +74,9 @@
           "name": "raw",
           "type": "string",
           "value": "&#169;",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 3,
@@ -194,6 +200,9 @@
           "name": "raw",
           "type": "string",
           "value": "+plain",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 9,
@@ -212,7 +221,7 @@
           "location": [
             {
               "line": 9,
-              "col": 31
+              "col": 32
             },
             {
               "line": 9,
@@ -255,6 +264,9 @@
           "name": "raw",
           "type": "string",
           "value": "++plain",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 11,
@@ -273,7 +285,7 @@
           "location": [
             {
               "line": 11,
-              "col": 32
+              "col": 33
             },
             {
               "line": 11,
@@ -395,6 +407,9 @@
           "name": "raw",
           "type": "string",
           "value": "+*bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 15,
@@ -413,7 +428,7 @@
           "location": [
             {
               "line": 15,
-              "col": 37
+              "col": 38
             },
             {
               "line": 15,
@@ -456,6 +471,9 @@
           "name": "raw",
           "type": "string",
           "value": "+",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -504,6 +522,9 @@
           "name": "raw",
           "type": "string",
           "value": "+",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -629,6 +650,9 @@
           "name": "raw",
           "type": "string",
           "value": "+<mark>*bold*</mark>",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 21,
@@ -647,7 +671,7 @@
           "location": [
             {
               "line": 21,
-              "col": 46
+              "col": 47
             },
             {
               "line": 21,
@@ -690,6 +714,9 @@
           "name": "raw",
           "type": "string",
           "value": "+",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 23,
@@ -708,7 +735,7 @@
           "location": [
             {
               "line": 23,
-              "col": 27
+              "col": 28
             },
             {
               "line": 23,
@@ -768,6 +795,9 @@
           "name": "raw",
           "type": "string",
           "value": "+",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 23,
@@ -798,11 +828,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Escaped single numeric: +&#169;+",
+          "value": "Escaped single numeric: +",
           "location": [
             {
               "line": 25,
               "col": 1
+            },
+            {
+              "line": 25,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "charref",
+          "type": "string",
+          "value": "&#169;",
+          "location": [
+            {
+              "line": 25,
+              "col": 27
+            },
+            {
+              "line": 25,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "+",
+          "location": [
+            {
+              "line": 25,
+              "col": 33
             },
             {
               "line": 25,
@@ -845,6 +905,9 @@
           "name": "raw",
           "type": "string",
           "value": "+&#169;",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 27,
@@ -863,7 +926,7 @@
           "location": [
             {
               "line": 27,
-              "col": 34
+              "col": 35
             },
             {
               "line": 27,
@@ -906,6 +969,9 @@
           "name": "raw",
           "type": "string",
           "value": "+",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 29,
@@ -918,13 +984,28 @@
           ]
         },
         {
-          "name": "text",
+          "name": "charref",
           "type": "string",
-          "value": "&#169;+++",
+          "value": "&#169;",
           "location": [
             {
               "line": 29,
-              "col": 28
+              "col": 29
+            },
+            {
+              "line": 29,
+              "col": 34
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "+++",
+          "location": [
+            {
+              "line": 29,
+              "col": 35
             },
             {
               "line": 29,

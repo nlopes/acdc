@@ -71,6 +71,16 @@ With an opted-in catalog, highlighted code links point to the indexed code line.
 
 Generates complete, standalone HTML documents with embedded CSS. No external dependencies needed - the output file contains everything required for display.
 
+Set `:noheader:`, `:nofooter:`, or `:nofootnotes:` to omit that part of the output
+in either HTML variant. Empty values enable these controls; an unset such as
+`:nofooter!:` restores normal output. `noheader` also omits a TOC placed in the
+standalone header. Embedded output keeps its TOC and honors `nofootnotes`.
+
+These controls preserve document metadata, source content, and inline footnote
+markers. Header and footer docinfo are separate and remain in standalone output.
+Body assignments to `nofooter` and `nofootnotes` take effect when the document
+ends; a body `noheader` assignment does not remove a header already rendered.
+
 === Asciidoctor-Compatible Styling
 
 Uses the same CSS as Asciidoctor for familiar, professional-looking output. The embedded stylesheet provides:
@@ -97,12 +107,52 @@ Supports all major AsciiDoc constructs:
 - **Index terms**: Visible `((term))` and concealed `\(((term,secondary,tertiary)))` with catalog generation
 
 Styled `[abstract]` and `[example]` paragraphs use the same visible block
-presentation as their delimited forms. Block IDs, first anchors, roles, titles,
+presentation as their delimited forms. Block IDs, selected anchors, roles, titles,
 captions, and inline formatting remain available in both the standard and
 semantic backends, so cross-references can reach the rendered wrappers.
 
+Thematic breaks accept `[[divider,Label]]` and
+`[id=divider,reftext='Label']`. The last ID wins; earlier declarations do not
+create link targets. An ID without a label keeps preceding reference text.
+The selected ID is emitted on `<hr>` in both HTML variants. This preserves an
+acdc extension: Asciidoctor omits the horizontal rule's ID.
+
+Document `reftext` in the header supplies automatic labels for both the explicit
+document ID and `xref:#[]`. Empty or unset values use the document title, and
+explicit link text takes precedence. Both HTML variants use the parser's header
+snapshot; later body assignments do not change these labels. The semantic
+variant resolves document-top labels where asciidoctor-html5s 0.5.1 emits `[]`.
+
 Delimited quote blocks display their lead-in titles above the quoted content,
 including inside AsciiDoc table cells and attached list blocks.
+
+=== Interactive checklists
+
+Add `[%interactive]` to a checklist to render enabled HTML checkbox inputs.
+The option applies only to that list. A nested list needs its own option.
+An `interactive` role or document attribute does not enable checkbox inputs.
+Ordinary list items stay unchanged.
+
+Without the option, standard HTML uses static symbols and semantic HTML uses
+disabled checkbox inputs. With the option, both variants record the initial
+state in `data-item-complete`, matching Asciidoctor. acdc also accepts uppercase
+`X` as a checked marker; Asciidoctor leaves that marker in the item text.
+
+=== Cross-reference file paths
+
+Set `:relfileprefix: manual/` to prepend `manual/` to local file cross-references.
+The prefix also appears in automatic link labels. It does not affect local
+anchors, including references to anchors in included source files.
+
+`relfilesuffix` replaces source extensions such as `.adoc` with its exact value.
+For example, `:relfilesuffix: .xhtml` produces `guide.xhtml`, while an empty
+`:relfilesuffix:` produces `guide`. No dot is added. An unset value uses the
+normal output extension. These settings follow source-order body assignments.
+
+Absolute and scheme-relative URIs retain the existing source-extension conversion
+but never receive `relfileprefix`. Asciidoctor 2.0.26 can prepend the prefix to
+those URIs. `force-local-file-xrefs` has no effect on this mapping in either
+converter. References to included source files can still resolve to local anchors.
 
 === Section Numbering
 
@@ -540,13 +590,13 @@ Most output is class-based and fully overridable by the seams above. A few eleme
 |===
 | Inline-styled | How to override
 
-| Syntax-highlighted code colours | Inline is the default; set `:highlight-css: class` to emit overridable `syntax-*` classes (plus a `<style>` block) instead.
-| A recording's own colours | The cell palette, plus a replay container's background/foreground when the cast recorded a theme; use `!important`.
+| Syntax-highlighted code colors | Inline is the default; set `:highlight-css: class` to emit overridable `syntax-*` classes (plus a `<style>` block) instead.
+| A recording's own colors | The cell palette, plus a replay container's background/foreground when the cast recorded a theme; use `!important`.
 | Table column and table widths | Per-table values (matches Asciidoctor); use `!important`.
 | Page break; image `align`/`float` (semantic backend) | Match Asciidoctor's output; use `!important`.
 |===
 
-The static preview container's colours are *not* inline: they come from `.terminal-view--light` / `.terminal-view--dark`, so override those classes directly. A replay with no recorded theme (raw ANSI, or a theme-less cast) uses those same classes; only a cast that carried its own theme paints the container colours inline.
+The static preview container's colors are *not* inline: they come from `.terminal-view--light` / `.terminal-view--dark`, so override those classes directly. A replay with no recorded theme (raw ANSI, or a theme-less cast) uses those same classes; only a cast that carried its own theme paints the container colors inline.
 
 For example, to recolour terminal cells:
 
@@ -555,7 +605,7 @@ For example, to recolour terminal cells:
 .terminal-view__screen span { color: #eaeaea !important; }
 ....
 
-NOTE: With `:!stylesheet:` (all CSS suppressed) the static preview shows no colours, consistent with opting out of styling entirely.
+NOTE: With `:!stylesheet:` (all CSS suppressed) the static preview shows no colors, consistent with opting out of styling entirely.
 
 === Content Security Policy
 
@@ -570,7 +620,7 @@ Set `:csp:` to have acdc emit a self-contained `<meta http-equiv="Content-Securi
 acdc convert -a csp document.adoc
 ....
 
-The emitted policy locks scripts to acdc's own inline scripts by hash (no `'unsafe-inline'` for `script-src`), plus the MathJax CDN when `:stem:` is set; keeps `style-src 'unsafe-inline'` (acdc emits inline styles, including recording-coloured terminal cells, that cannot be hashed); and stays permissive on images, media, and video embeds so document content keeps loading.
+The emitted policy locks scripts to acdc's own inline scripts by hash (no `'unsafe-inline'` for `script-src`), plus the MathJax CDN when `:stem:` is set; keeps `style-src 'unsafe-inline'` (acdc emits inline styles, including recording-colored terminal cells, that cannot be hashed); and stays permissive on images, media, and video embeds so document content keeps loading.
 
 Keep in mind a CSP only *restricts* — it does not enable. A page with no CSP already runs anywhere, and a `<meta>` CSP cannot loosen a policy your host sends as a response header (the browser enforces the intersection). So `:csp:` is for shipping a hardened, self-contained page, not for "making it work" somewhere. Two consequences: `frame-ancestors` is omitted (it is ignored in a `<meta>` CSP — set it as a header), and an inline `<script>` you inject via <<Docinfo files>> will not run under `:csp:` unless you add its own hash. Embedded output has no `<head>`, so `:csp:` is standalone-only.
 
@@ -694,6 +744,15 @@ For details on the icon macro syntax, see the https://docs.asciidoctor.org/ascii
 === Mathematical formulas (STEM)
 
 Render mathematical formulas using MathJax 4. Enable it by setting the `:stem:` document attribute.
+
+In the document header, set `:eqnums:` or `:eqnums: AMS` to select AMS equation
+numbering, or `:eqnums: all` to select numbering for every displayed equation.
+An absent, unset, or `none` value keeps automatic numbering off. Other values
+also leave it off. Body assignments do not change this header setting.
+Both HTML variants emit the corresponding
+https://docs.mathjax.org/en/stable/input/tex/eqnumbers.html[MathJax 4 configuration].
+Formula source remains unchanged. Embedded output does not emit loader or
+configuration scripts; its host controls MathJax settings.
 
 [source,asciidoc]
 ....

@@ -89,8 +89,7 @@
               "line": 6,
               "col": 46
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -172,8 +171,7 @@
               "line": 8,
               "col": 32
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "raw",
@@ -224,8 +222,7 @@
               "line": 8,
               "col": 64
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -262,7 +259,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "target",
-          "xreflabel": "Target",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Target",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 22
+                },
+                {
+                  "line": 10,
+                  "col": 27
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 10,
@@ -324,6 +337,7 @@
           "name": "xref",
           "type": "inline",
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -371,6 +385,7 @@
           "name": "xref",
           "type": "inline",
           "target": "target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "raw",
@@ -527,7 +542,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "note",
-          "inlines": [],
           "location": [
             {
               "line": 16,
@@ -843,6 +857,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 22,
@@ -864,8 +881,7 @@
               "line": 22,
               "col": 43
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -896,6 +912,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 24,
@@ -917,8 +936,7 @@
               "line": 24,
               "col": 43
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -970,8 +988,7 @@
               "line": 26,
               "col": 46
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -1023,6 +1040,9 @@
           "name": "raw",
           "type": "string",
           "value": "]",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 28,
@@ -1103,6 +1123,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded term",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 30,
@@ -1177,8 +1200,7 @@
               "line": 32,
               "col": 37
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "raw",
@@ -1229,8 +1251,7 @@
               "line": 33,
               "col": 30
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -1266,11 +1287,26 @@
         {
           "name": "text",
           "type": "string",
-          "value": "  ",
+          "value": " ",
           "location": [
             {
               "line": 35,
               "col": 8
+            },
+            {
+              "line": 35,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 35,
+              "col": 17
             },
             {
               "line": 35,
@@ -1325,8 +1361,7 @@
               "line": 35,
               "col": 61
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [

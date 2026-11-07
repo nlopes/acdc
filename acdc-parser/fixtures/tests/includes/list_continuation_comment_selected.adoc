@@ -1,0 +1,6 @@
+Excluded.
+// tag::selected[]
+// Leading include comment.
+Included *body* with footnote:[Included note].
+// end::selected[]
+Excluded tail.

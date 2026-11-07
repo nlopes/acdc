@@ -25,7 +25,7 @@ impl Workspace {
     }
 
     pub(super) fn index_with_includes(&self, uri: Uri, text: String, version: i32) -> Vec<Uri> {
-        let mut options = self.parser_profiles.get(self.backend_for(&uri)).clone();
+        let mut options = self.parser_options_for(&uri).clone();
         self.include_dependencies.remove(&uri);
         if u64::try_from(text.len()).unwrap_or(u64::MAX) > MAX_INDEXABLE_FILE_BYTES {
             return self.index_document_with_options(uri, text, version, &options);
@@ -101,6 +101,7 @@ impl Workspace {
             IncludeLoader::custom(move |target: &IncludeSourceTarget| provider.open(target))
         });
         Ok(crate::preview::PreviewInput {
+            compatibility_mode: self.settings_for(&uri).compatibility_mode,
             format,
             source_uri: uri,
             text,

@@ -85,9 +85,9 @@ S16 [1] after.
 .SH "INDEX"
 .SS "@"
 .RS 4
-(R) Literal
-.br
 (R) Escaped
+.br
+(R) Literal
 .br
 .RE
 .SS "A"
@@ -97,6 +97,8 @@ Attribute (R)
 .RE
 .SS "C"
 .RS 4
+Code (R)
+.br
 Code \(rg
 .br
 .RE

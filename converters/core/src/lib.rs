@@ -4,7 +4,7 @@
 //! (HTML, terminal, manpage, etc.):
 //!
 //! - [`Converter`] - trait that all converters implement
-//! - [`Visitor`](visitor::Visitor) - visitor pattern for AST traversal
+//! - [`visitor`] - document, block, and inline callbacks
 //! - [`Options`] - configuration for conversion
 //!
 //! # Example
@@ -38,9 +38,8 @@ use std::{
 };
 
 use acdc_parser::{
-    AttributeValue, DelimitedBlockType, Document, DocumentAttributeValue, DocumentAttributes,
-    Error, Options as ParserOptions, OptionsBuilder as ParserOptionsBuilder, SafeMode,
-    strip_quotes,
+    AttributeValue, DelimitedBlockType, DocumentAttributeValue, DocumentAttributes, Error,
+    Options as ParserOptions, OptionsBuilder as ParserOptionsBuilder, SafeMode, ast::DocumentRef,
 };
 
 mod backend;
@@ -69,17 +68,14 @@ pub use document_attributes::TraversalContext;
 pub use inline_text::{InlineTextTransform, inlines_to_string};
 pub use warning::{Diagnostics, Warning, WarningSource};
 
-/// Return text without surrounding quotes, or empty text for presence.
+/// Return stored text, or empty text for presence.
 /// Integer values return none.
 #[must_use]
 pub fn document_attribute_text<'a>(
     value: Option<&'a DocumentAttributeValue<'_>>,
 ) -> Option<&'a str> {
     let value = value?;
-    value
-        .as_str()
-        .map(strip_quotes)
-        .or_else(|| value.is_presence().then_some(""))
+    value.as_str().or_else(|| value.is_presence().then_some(""))
 }
 
 /// Whether a delimited block shows its title as a visible caption.
@@ -100,6 +96,35 @@ pub fn document_attribute_text<'a>(
 #[must_use]
 pub fn shows_block_title(inner: &DelimitedBlockType<'_>) -> bool {
     !matches!(inner, DelimitedBlockType::DelimitedPass(_))
+}
+
+/// Unicode text for a parsed character reference.
+///
+/// Known HTML names use the entity dictionary. Unknown names and invalid numeric
+/// characters retain their reference spelling.
+#[must_use]
+pub fn character_reference_text(
+    reference: acdc_parser::CharacterReferenceKind<'_>,
+) -> Cow<'static, str> {
+    match reference {
+        acdc_parser::CharacterReferenceKind::Named(name) => {
+            if let Ok(index) = html_escape::NAMED_ENTITIES
+                .binary_search_by(|(candidate, _)| candidate.cmp(&name.as_bytes()))
+                && let Some((_, text)) = html_escape::NAMED_ENTITIES.get(index)
+            {
+                return Cow::Borrowed(text);
+            }
+        }
+        acdc_parser::CharacterReferenceKind::Numeric(value) => {
+            if let Some(character) = char::from_u32(value)
+                .filter(|ch| !matches!(ch, '\0'..='\u{8}' | '\u{b}' | '\u{e}'..='\u{1f}'))
+            {
+                return Cow::Owned(character.to_string());
+            }
+        }
+        _ => {}
+    }
+    Cow::Owned(reference.to_string())
 }
 
 /// Decode HTML numeric character references (`&#NNN;` and `&#xHH;`) to Unicode characters.
@@ -540,7 +565,7 @@ pub trait Converter<'a>: Sized {
     /// Create a converter from application-supplied attribute values.
     ///
     /// Stored attributes borrow with lifetime `'a`; each conversion accepts a
-    /// borrowed `Document<'_>` of any lifetime, independent of `'a`.
+    /// `DocumentRef<'_>` of any lifetime, independent of `'a`.
     ///
     /// # Errors
     ///
@@ -579,7 +604,7 @@ pub trait Converter<'a>: Sized {
     fn derive_output_path(
         &self,
         input: &Path,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
     ) -> Result<Option<PathBuf>, Self::Error>;
 
     /// Convert the document and produce all output for one conversion.
@@ -604,7 +629,7 @@ pub trait Converter<'a>: Sized {
     /// Returns an error if conversion or writing fails.
     fn write_to<W: std::io::Write>(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         writer: W,
         source_file: Option<&Path>,
         output_path: Option<&Path>,
@@ -639,7 +664,7 @@ pub trait Converter<'a>: Sized {
     /// Returns an error if conversion or writing fails.
     fn convert_to_stdout(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         source_file: Option<&Path>,
     ) -> Result<ConversionResult, Self::Error> {
         let stdout = std::io::stdout();
@@ -665,7 +690,7 @@ pub trait Converter<'a>: Sized {
     /// Returns an error if file creation, conversion, or writing fails.
     fn convert_to_file(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         source_file: Option<&Path>,
         output_path: &Path,
     ) -> Result<ConversionResult, Self::Error> {
@@ -724,7 +749,7 @@ pub trait Converter<'a>: Sized {
     /// Returns an error if conversion or writing fails.
     fn convert(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         source_file: Option<&Path>,
     ) -> Result<ConversionResult, Self::Error> {
         match self.options().output_destination() {

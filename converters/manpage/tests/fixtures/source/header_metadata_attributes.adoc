@@ -19,6 +19,7 @@ Alice Smith <alice@example.org>
 v{release}, 2026-10-04: Reviewed by {captured-author}
 :captured-revision: {revnumber}
 :doctype: manpage
+:docdate: 2026-10-04
 :manname: header-metadata-attributes
 :manpurpose: check interleaved header attributes
 

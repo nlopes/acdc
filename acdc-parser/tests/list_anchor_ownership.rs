@@ -1,4 +1,8 @@
-use acdc_parser::{Block, Options, parse};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, BlockRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -7,19 +11,20 @@ fn standalone_anchor_interrupts_description_principal_text() -> Result<(), Error
     for gap in ["\n", "\n\n"] {
         let source = format!("Term:: Description.{gap}[[target,Target label]]\nFollowing.");
         let parsed = parse(&source, &Options::default())?;
-        let [Block::DescriptionList(_), Block::Paragraph(paragraph)] =
-            parsed.document().blocks.as_slice()
+        let [
+            BlockKind::DescriptionList(_),
+            BlockKind::Paragraph(paragraph),
+        ] = &*parsed
+            .document()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
         else {
             return Err(format!("expected separate list and paragraph for {source:?}").into());
         };
-        assert_eq!(paragraph.metadata.anchors.len(), 1);
+        assert_eq!(paragraph.anchors().count(), 1);
         assert_eq!(
-            paragraph
-                .metadata
-                .anchors
-                .first()
-                .ok_or("missing anchor")?
-                .id,
+            paragraph.anchors().next().ok_or("missing anchor")?.id(),
             "target"
         );
     }
@@ -30,13 +35,17 @@ fn standalone_anchor_interrupts_description_principal_text() -> Result<(), Error
 fn standalone_anchor_interrupts_an_ordinary_paragraph() -> Result<(), Error> {
     let source = "Before.\n[[target]]\nAfter.";
     let parsed = parse(source, &Options::default())?;
-    let [Block::Paragraph(before), Block::Paragraph(after)] = parsed.document().blocks.as_slice()
+    let [BlockKind::Paragraph(before), BlockKind::Paragraph(after)] = &*parsed
+        .document()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
     else {
         return Err("expected two paragraphs".into());
     };
-    assert_eq!(before.metadata.anchors, []);
+    assert!(before.anchors().next().is_none());
     assert_eq!(
-        after.metadata.anchors.first().ok_or("missing anchor")?.id,
+        after.anchors().next().ok_or("missing anchor")?.id(),
         "target"
     );
     Ok(())
@@ -49,38 +58,52 @@ fn description_list_metadata_belongs_to_the_following_list() -> Result<(), Error
             for marker in ["*", "."] {
                 let source = format!("Term:: Description.{gap}{metadata}\n{marker} Nested.");
                 let parsed = parse(&source, &Options::default())?;
-                let [Block::DescriptionList(list)] = parsed.document().blocks.as_slice() else {
+                let [BlockKind::DescriptionList(list)] = &*parsed
+                    .document()
+                    .blocks()
+                    .map(BlockRef::kind)
+                    .collect::<Vec<_>>()
+                else {
                     return Err(format!("expected one description list for {source:?}").into());
                 };
-                let [item] = list.items.as_slice() else {
+                let [item] = &*list.items().collect::<Vec<_>>() else {
                     return Err("expected one description item".into());
                 };
-                let [nested] = item.description.as_slice() else {
+                let [nested] = &*item
+                    .definition()
+                    .ok_or("definition")?
+                    .blocks()
+                    .map(BlockRef::kind)
+                    .collect::<Vec<_>>()
+                else {
                     return Err("expected one nested list".into());
                 };
-                let metadata = if let Block::UnorderedList(list) = nested {
-                    &list.metadata
-                } else if let Block::OrderedList(list) = nested {
-                    &list.metadata
+                let anchors = if let BlockKind::UnorderedList(list) = nested {
+                    list.anchors().collect::<Vec<_>>()
+                } else if let BlockKind::OrderedList(list) = nested {
+                    list.anchors().collect::<Vec<_>>()
                 } else {
                     return Err("expected an ordered or unordered list".into());
                 };
-                assert_eq!(metadata.anchors.len(), 1);
-                assert_eq!(
-                    metadata.anchors.first().ok_or("missing anchor")?.id,
-                    "target"
-                );
+                assert_eq!(anchors.len(), 1);
+                assert_eq!(anchors.first().ok_or("missing anchor")?.id(), "target");
             }
             let source = format!("First:: Description.{gap}{metadata}\nNext:: Description.");
             let parsed = parse(&source, &Options::default())?;
-            let [Block::DescriptionList(first), Block::DescriptionList(next)] =
-                parsed.document().blocks.as_slice()
+            let [
+                BlockKind::DescriptionList(first),
+                BlockKind::DescriptionList(next),
+            ] = &*parsed
+                .document()
+                .blocks()
+                .map(BlockRef::kind)
+                .collect::<Vec<_>>()
             else {
                 return Err(format!("expected separate description lists for {source:?}").into());
             };
-            assert_eq!(first.metadata.anchors, []);
+            assert!(first.anchors().next().is_none());
             assert_eq!(
-                next.metadata.anchors.first().ok_or("missing anchor")?.id,
+                next.anchors().next().ok_or("missing anchor")?.id(),
                 "target"
             );
         }
@@ -101,7 +124,7 @@ fn inline_and_verbatim_anchor_lines_do_not_split_blocks() -> Result<(), Error> {
         "[literal]\nBefore.\n[[target]]\nAfter.",
     ] {
         let parsed = parse(source, &Options::default())?;
-        assert_eq!(parsed.document().blocks.len(), 1, "{source}");
+        assert_eq!(parsed.document().blocks().count(), 1, "{source}");
     }
     Ok(())
 }

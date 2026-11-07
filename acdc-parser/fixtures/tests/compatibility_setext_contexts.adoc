@@ -1,0 +1,26 @@
+= Setext contexts
+
+include::includes/compatibility_setext_selected.adoc[tag=selected]
+
+[cols="a"]
+|===
+|Cell heading
+------------
+
+Cell body.
+|===
+
+[example]
+====
+Nested heading
+--------------
+
+Nested body.
+====
+
+:compat-mode:
+
+Still mode owned
+----------------
+
+End.

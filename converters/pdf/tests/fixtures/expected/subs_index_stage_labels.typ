@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -78,9 +79,9 @@
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("Late ")#metadata(none)<__indexterm-1>#text("Copyright © A — B …")#text(".")]
+#text(size: 1.25em)[#text("Late ")#metadata(none)<__indexterm-1>#text("Copyright ")#text("©")#text(" A")#text(" — ")#text("B ")#text("…")#text(".")]
 
-#text("Early ")#metadata(none)<__indexterm-2>#text("Copyright © A — B …")#text(".")
+#text("Early ")#metadata(none)<__indexterm-2>#text("Copyright ")#text("©")#text(" A")#text(" — ")#text("B ")#text("…")#text(".")
 
 #{
   let index-anchors = (
@@ -155,7 +156,7 @@
 #text(weight: "bold")[#text("C")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("Copyright (C) A -- B ...")#_acdc_index_pages((<__indexterm-1>,<__indexterm-3>,), "term")]
-#par(hanging-indent: 1em)[#text("Copyright © A — B …")#_acdc_index_pages((<__indexterm-2>,), "term")]
+#par(hanging-indent: 1em)[#text("Copyright ")#text("©")#text(" A")#text(" — ")#text("B ")#text("…")#_acdc_index_pages((<__indexterm-2>,), "term")]
 #par(hanging-indent: 1em)[#text("Cross xref:target[Target]")#_acdc_index_pages((<__indexterm-7>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("E")]

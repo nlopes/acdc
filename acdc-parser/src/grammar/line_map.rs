@@ -141,7 +141,7 @@ impl LineMap {
         // `is_ascii()` scan (which itself is O(line_length)) plus the
         // `chars().count()` fallback scan — together the dominant hot spot
         // in large-document parses, accounting for ~24% of parser self-time
-        // before this optimisation.
+        // before this optimization.
         let chars_in_line = if self.line_is_ascii.get(line_idx).copied().unwrap_or(false) {
             adjusted_offset - line_start_byte
         } else {

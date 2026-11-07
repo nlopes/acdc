@@ -1,0 +1,28 @@
+[[guide,Anchor label]]
+= Main: Subtitle
+:word: Header
+:reftext: {word} label
+
+Before <<guide>>; xref:#[]; <<guide,Explicit>>.
+
+:word: Body
+:reftext: *{word}* label
+:word: Later
+
+After <<guide>>; xref:#[]; <<guide,Explicit>>.
+
+--
+:reftext: Nested label
+
+Inside <<guide>>; xref:#[].
+--
+
+Outside <<guide>>; xref:#[].
+
+:reftext:
+
+Empty <<guide>>; xref:#[].
+
+:reftext!:
+
+Unset <<guide>>; xref:#[].

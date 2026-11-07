@@ -1,0 +1,25 @@
+[subs=none]
+<em>raw paragraph</em> & *literal* footnote:[Unregistered.]
+
+[subs=specialcharacters]
+<em>escaped paragraph</em> & *literal*
+
+[listing,subs=none]
+----
+<em>raw listing</em> & literal
+----
+
+[listing,subs=specialcharacters]
+----
+<em>escaped listing</em> & literal
+----
+
+[stem,subs=none]
+++++
+alpha < beta & raw
+++++
+
+[stem,subs=specialcharacters]
+++++
+alpha < beta & escaped
+++++

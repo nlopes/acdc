@@ -65,7 +65,7 @@ P16 «\fBBold\fR» «\fIItalic\fR» «\f(CRCode\fR» «\fBMark\fR».
 .sp
 P17 =*Bold* =_Italic_ =`Code` =#Mark#.
 .sp
-P18 &amp;*Bold* &#42;_Italic_ &#x2a;`Code` &gt;#Mark#.
+P18 &*Bold* *_Italic_ *`Code` >#Mark#.
 .sp
 P19 :\fBBold\fR ;\fIItalic\fR }\f(CRCode\fR _\fBMark\fR\&.
 .sp

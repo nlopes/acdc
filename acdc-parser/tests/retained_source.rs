@@ -4,22 +4,25 @@ use std::{
 };
 
 use acdc_parser::{
-    Block, DelimitedBlock, DelimitedBlockType, Options, Paragraph, ParseResult, SafeMode,
-    WarningKind, parse, parse_file,
+    Options, Paragraph, ParseResult, SafeMode, WarningKind,
+    ast::{
+        AttributeValueRef, BlockKind, BlockRef, ListItemRef, ListingRef, TableCellRef, TableRowRef,
+    },
+    parse, parse_file,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
 
-fn listing(parsed: &ParseResult) -> Result<&DelimitedBlock<'_>, Box<dyn Error>> {
+fn listing(parsed: &ParseResult) -> Result<ListingRef<'_>, Box<dyn Error>> {
     parsed
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .find_map(|block| {
-            let Block::DelimitedBlock(block) = block else {
-                return None;
-            };
-            matches!(block.inner, DelimitedBlockType::DelimitedListing(_)).then_some(block)
+            if let BlockKind::Listing(listing) = block.kind() {
+                Some(listing)
+            } else {
+                None
+            }
         })
         .ok_or_else(|| "expected listing".into())
 }
@@ -58,10 +61,9 @@ fn retained_source_paragraph_is_literal(#[case] substitutions: &str) -> TestResu
     let parsed = parse(&input, &Options::default())?;
     let paragraph = parsed
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .find_map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return None;
             };
             Some(paragraph)
@@ -72,69 +74,25 @@ fn retained_source_paragraph_is_literal(#[case] substitutions: &str) -> TestResu
 }
 
 #[test]
-fn retained_text_does_not_change_serialization_or_equality() -> TestResult {
-    let parsed = parse(
-        "[source,bash]\n----\necho hi <1>\n----\n\n[source,bash]\necho hi",
-        &Options::default(),
-    )?;
-    let original = listing(&parsed)?;
-    let mut synthetic = DelimitedBlock::new(
-        original.inner.clone(),
-        original.delimiter,
-        original.location.clone(),
-    )
-    .with_metadata(original.metadata.clone())
-    .with_title(original.title.clone());
-    synthetic
-        .open_delimiter_location
-        .clone_from(&original.open_delimiter_location);
-    synthetic
-        .close_delimiter_location
-        .clone_from(&original.close_delimiter_location);
-    assert!(synthetic.source_text().is_none());
-    assert_eq!(original, &synthetic);
-    assert_eq!(
-        serde_json::to_value(original)?,
-        serde_json::to_value(synthetic)?
-    );
-
-    let Some(Block::Paragraph(original)) = parsed.document().blocks.last() else {
-        return Err("expected final source paragraph".into());
-    };
-    let synthetic = Paragraph::new(original.content.clone(), original.location.clone())
-        .with_metadata(original.metadata.clone())
-        .with_title(original.title.clone());
-    assert!(synthetic.source_text().is_none());
-    assert_eq!(original, &synthetic);
-    assert_eq!(
-        serde_json::to_value(original)?,
-        serde_json::to_value(synthetic)?
-    );
-    Ok(())
-}
-
-#[test]
 fn retained_table_cell_source_uses_its_nested_input() -> TestResult {
     let parsed = parse(
         "[cols=a]\n|===\n|[source,bash]\n----\ncat <<'EOF'\n<1>\nEOF\n----\n|===",
         &Options::default(),
     )?;
-    let Some(Block::DelimitedBlock(outer)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Table(table)) = parsed.document().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected table".into());
     };
-    let DelimitedBlockType::DelimitedTable(table) = &outer.inner else {
-        return Err("expected table content".into());
-    };
     let inner = table
-        .rows
-        .iter()
-        .flat_map(|row| &row.columns)
-        .flat_map(|cell| &cell.content)
+        .rows()
+        .flat_map(TableRowRef::cells)
+        .flat_map(TableCellRef::blocks)
         .find_map(|block| {
-            let Block::DelimitedBlock(inner) = block else {
-                return None;
-            };
-            Some(inner)
+            if let BlockKind::Listing(inner) = block.kind() {
+                Some(inner)
+            } else {
+                None
+            }
         })
         .ok_or("expected nested listing")?;
     assert_eq!(inner.source_text(), Some("cat <<'EOF'\n<1>\nEOF\n"));
@@ -156,18 +114,20 @@ fn retained_include_body_contains_transformed_content() -> TestResult {
 #[test]
 fn retained_comment_in_list_continuation_includes_final_newline() -> TestResult {
     let parsed = parse("* item\n+\n////\ncomment body\n////\n", &Options::default())?;
-    let Some(Block::UnorderedList(list)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::UnorderedList(list)) =
+        parsed.document().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected list".into());
     };
     let comment = list
-        .items
-        .iter()
-        .flat_map(|item| &item.blocks)
+        .items()
+        .flat_map(ListItemRef::blocks)
         .find_map(|block| {
-            let Block::DelimitedBlock(block) = block else {
-                return None;
-            };
-            matches!(block.inner, DelimitedBlockType::DelimitedComment(_)).then_some(block)
+            if let BlockKind::DelimitedComment(comment) = block.kind() {
+                Some(comment)
+            } else {
+                None
+            }
         })
         .ok_or("expected attached comment")?;
     assert_eq!(comment.source_text(), Some("comment body\n"));
@@ -186,25 +146,28 @@ fn source_location_resolves_nested_selected_content() -> TestResult {
     )?;
     let selected = parsed
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .find_map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return None;
             };
             (paragraph.source_text() == Some("Selected.")).then_some(paragraph)
         })
         .ok_or("expected selected paragraph")?;
-    let source = parsed.source_location(&selected.location);
+    let source = parsed.resolve_location(selected.location());
     assert_eq!(
         source.file,
         Some(directory.join("include_tag_diagnostics_target.adoc"))
     );
     assert_eq!(source.location.start.line, 2);
-    let Some(Block::Paragraph(first)) = parsed.document().blocks.first() else {
+    let Some(BlockKind::Paragraph(first)) = parsed.document().blocks().next().map(BlockRef::kind)
+    else {
         return Err("expected primary paragraph".into());
     };
-    assert_eq!(parsed.source_location(&first.location).file, Some(primary));
+    assert_eq!(
+        parsed.resolve_location(first.location()).file,
+        Some(primary)
+    );
     Ok(())
 }
 
@@ -378,22 +341,21 @@ fn block_substitutions_use_the_supplied_baseline(
         .unwrap_or_default();
     let input = format!("[source,sh{attribute}]\n----\n{{shell}} --version\n----\n");
     let parsed = parse(&input, &Options::default())?;
-    let metadata = &listing(&parsed)?.metadata;
+    let substitutions = match listing(&parsed)?.attributes().get("subs") {
+        Some(AttributeValueRef::Substitutions(spec)) => spec.resolve(acdc_parser::VERBATIM),
+        _ => acdc_parser::VERBATIM.to_vec(),
+    };
     assert_eq!(
-        metadata.uses_substitution(
-            &acdc_parser::Substitution::Attributes,
-            acdc_parser::VERBATIM
-        ),
-        cfg!(feature = "pre-spec-subs") && attributes_enabled,
+        substitutions.contains(&acdc_parser::Substitution::Attributes),
+        attributes_enabled
     );
     Ok(())
 }
 
-#[cfg(not(feature = "pre-spec-subs"))]
 #[test]
-fn ignored_substitutions_remain_source_recovery_after_warning_routing() -> TestResult {
+fn unsupported_substitutions_remain_source_recovery_after_warning_routing() -> TestResult {
     let mut parsed = parse(
-        "[source,sh,subs=attributes]\n----\n{shell} --version\n----\n",
+        "[source,sh,subs=unknown]\n----\n{shell} --version\n----\n",
         &Options::default(),
     )?;
     let warnings = parsed.take_warnings();
@@ -404,7 +366,7 @@ fn ignored_substitutions_remain_source_recovery_after_warning_routing() -> TestR
     );
     let recovery = parsed
         .source_recovery()
-        .ok_or("lost ignored substitutions")?;
+        .ok_or("lost unsupported substitutions")?;
     assert_eq!(
         recovery
             .source_location()
@@ -413,6 +375,31 @@ fn ignored_substitutions_remain_source_recovery_after_warning_routing() -> TestR
             .start
             .line,
         1
+    );
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case(acdc_parser::CompatibilityMode::Asciidoctor)]
+#[case(acdc_parser::CompatibilityMode::Draft)]
+fn typed_paragraph_retains_literal_body(
+    #[case] mode: acdc_parser::CompatibilityMode,
+) -> TestResult {
+    let body = "printf '%s' '{value} *bold* \\<1>'";
+    let input = format!(":value: replaced\n\n[source,bash,subs=normal]\n{body}");
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    let parsed = parse(&input, &options)?;
+    let Some(block) = parsed.document().blocks().next() else {
+        return Err("expected source paragraph".into());
+    };
+    let acdc_parser::ast::BlockKind::Paragraph(paragraph) = block.kind() else {
+        return Err("expected source paragraph".into());
+    };
+    assert_eq!(paragraph.source_text(), Some(body));
+    let constructed = Paragraph::new(Vec::new(), acdc_parser::Location::default());
+    assert_eq!(
+        acdc_parser::ast::ParagraphRef::from(&constructed).source_text(),
+        None
     );
     Ok(())
 }

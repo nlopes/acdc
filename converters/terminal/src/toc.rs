@@ -3,10 +3,12 @@ use std::io::Write;
 use acdc_converters_core::{
     Converter, TraversalContext,
     section::book_chapter_signifier,
-    toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
-    visitor::{Visitor, WritableVisitor},
+    toc::{Config as TocConfig, NumberingConfig, entry_level, has_parts, number_prefixes},
 };
-use acdc_parser::{SectionKind, TableOfContents, TocEntry};
+use acdc_parser::{
+    SectionKind,
+    ast::{TableOfContentsRef, TocEntryRef},
+};
 
 use crate::TerminalVisitor;
 
@@ -21,7 +23,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_toc_entries(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        entries: &[TocEntry],
+        entries: &[TocEntryRef<'_>],
         config: &TocRenderConfig<'_>,
         current_level: u8,
         base_index: usize,
@@ -35,21 +37,23 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let first_real_part = if parts_at_current_level {
             entries
                 .iter()
-                .position(|entry| entry.level == 0 && entry.kind == SectionKind::Normal)
+                .position(|entry| entry.level() == 0 && entry.kind() == SectionKind::Normal)
         } else {
             None
         };
-        let current_entries: Vec<(usize, &TocEntry)> = entries
+        let current_entries: Vec<(usize, TocEntryRef<'_>)> = entries
             .iter()
             .enumerate()
             .filter(|(index, entry)| {
-                let level = effective_level(entry, config.has_real_parts);
+                let level = entry_level(**entry, config.has_real_parts);
                 if level == current_level {
-                    first_real_part.is_none_or(|part| *index < part || entry.level != current_level)
+                    first_real_part
+                        .is_none_or(|part| *index < part || entry.level() != current_level)
                 } else {
-                    parts_at_current_level && entry.level == 0 && level == 0
+                    parts_at_current_level && entry.level() == 0 && level == 0
                 }
             })
+            .map(|(index, entry)| (index, *entry))
             .collect();
 
         for (position, (entry_index, entry)) in current_entries.iter().enumerate() {
@@ -57,21 +61,23 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             if let Some(Some(number)) = config.section_numbers.get(base_index + entry_index) {
                 write!(self.writer, "{number}")?;
             }
-            self.visit_inline_nodes(traversal, &entry.title)?;
+            if let Some(title) = entry.title() {
+                self.write_content(traversal, title)?;
+            }
             writeln!(self.writer)?;
 
             let start = entry_index + 1;
             let end = current_entries
                 .get(position + 1)
                 .map_or(entries.len(), |next| next.0);
-            let child_level = if entry.level == 0 && entry.kind.is_special() {
+            let child_level = if entry.level() == 0 && entry.kind().is_special() {
                 2
             } else {
-                effective_level(entry, config.has_real_parts) + 1
+                entry_level(*entry, config.has_real_parts) + 1
             };
             if let Some(children) = entries.get(start..end)
                 && child_level <= config.max_level
-                && children.iter().any(|child| child.level == child_level)
+                && children.iter().any(|child| child.level() == child_level)
             {
                 self.render_toc_entries(
                     traversal,
@@ -90,7 +96,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     pub(crate) fn render_toc(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        toc_macro: Option<&TableOfContents>,
+        toc_macro: Option<TableOfContentsRef<'_>>,
         placement: &str,
     ) -> Result<(), crate::Error> {
         use crossterm::{
@@ -99,7 +105,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         };
 
         let processor = self.processor;
-        let config = TocConfig::from_attributes(
+        let config = TocConfig::resolve(
             toc_macro,
             &TraversalContext::new(processor.document_attributes()),
         );
@@ -110,7 +116,11 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             ),
             other => config.placement() == other,
         };
-        if !should_render || processor.toc_entries.is_empty() {
+        let Some(document) = processor.document else {
+            return Ok(());
+        };
+        let entries: Vec<_> = document.toc_entries().collect();
+        if !should_render || entries.is_empty() {
             return Ok(());
         }
 
@@ -125,12 +135,11 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             .and_then(|value| value.text());
         let chapter_signifier = book_chapter_signifier(traversal, Some("Chapter"));
         let numbering_config = NumberingConfig::new(traversal, part_signifier, chapter_signifier);
-        let numbers = section_numbers(&processor.toc_entries, &numbering_config);
-        let real_parts = has_real_parts(&processor.toc_entries);
-        let first_level = processor
-            .toc_entries
+        let numbers = number_prefixes(entries.iter().copied(), &numbering_config);
+        let real_parts = has_parts(entries.iter().copied());
+        let first_level = entries
             .first()
-            .map_or(1, |entry| effective_level(entry, real_parts));
+            .map_or(1, |entry| entry_level(*entry, real_parts));
         let parts_at_current_level = first_level > 0 && real_parts;
         let start_level = if parts_at_current_level {
             1
@@ -144,7 +153,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         };
         self.render_toc_entries(
             traversal,
-            &processor.toc_entries,
+            &entries,
             &render_config,
             start_level,
             0,

@@ -1,0 +1,728 @@
+{
+  "attributes": {},
+  "blocks": [
+    {
+      "caption": {
+        "kind": "unnumbered"
+      },
+      "delimiter": "----",
+      "form": "delimited",
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 4
+            },
+            {
+              "col": 6,
+              "line": 4
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "first "
+        },
+        {
+          "form": "auto",
+          "location": [
+            {
+              "col": 7,
+              "line": 4
+            },
+            {
+              "col": 9,
+              "line": 4
+            }
+          ],
+          "name": "callout",
+          "number": 1,
+          "type": "inline"
+        },
+        {
+          "location": [
+            {
+              "col": 10,
+              "line": 4
+            },
+            {
+              "col": 7,
+              "line": 5
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "\nsecond "
+        },
+        {
+          "form": "auto",
+          "location": [
+            {
+              "col": 8,
+              "line": 5
+            },
+            {
+              "col": 10,
+              "line": 5
+            }
+          ],
+          "name": "callout",
+          "number": 2,
+          "type": "inline"
+        },
+        {
+          "location": [
+            {
+              "col": 11,
+              "line": 5
+            },
+            {
+              "col": 7,
+              "line": 6
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "\nrepeat "
+        },
+        {
+          "form": "explicit",
+          "location": [
+            {
+              "col": 8,
+              "line": 6
+            },
+            {
+              "col": 10,
+              "line": 6
+            }
+          ],
+          "name": "callout",
+          "number": 1,
+          "type": "inline"
+        },
+        {
+          "location": [
+            {
+              "col": 11,
+              "line": 6
+            },
+            {
+              "col": 10,
+              "line": 7
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "\nunmatched "
+        },
+        {
+          "form": "explicit",
+          "location": [
+            {
+              "col": 11,
+              "line": 7
+            },
+            {
+              "col": 13,
+              "line": 7
+            }
+          ],
+          "name": "callout",
+          "number": 9,
+          "type": "inline"
+        },
+        {
+          "location": [
+            {
+              "col": 14,
+              "line": 7
+            },
+            {
+              "col": 12,
+              "line": 8
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "\nescaped <1>"
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 3
+        },
+        {
+          "col": 4,
+          "line": 9
+        }
+      ],
+      "name": "listing",
+      "type": "block"
+    },
+    {
+      "items": [
+        {
+          "blocks": [],
+          "callout_location": [
+            {
+              "col": 1,
+              "line": 10
+            },
+            {
+              "col": 21,
+              "line": 10
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 10
+            },
+            {
+              "col": 21,
+              "line": 10
+            }
+          ],
+          "marker": "<.>",
+          "name": "listItem",
+          "number": 1,
+          "principal": [
+            {
+              "location": [
+                {
+                  "col": 5,
+                  "line": 10
+                },
+                {
+                  "col": 21,
+                  "line": 10
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "First explanation"
+            }
+          ],
+          "type": "block"
+        },
+        {
+          "blocks": [],
+          "callout_location": [
+            {
+              "col": 1,
+              "line": 11
+            },
+            {
+              "col": 22,
+              "line": 11
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 11
+            },
+            {
+              "col": 22,
+              "line": 11
+            }
+          ],
+          "marker": "<.>",
+          "name": "listItem",
+          "number": 2,
+          "principal": [
+            {
+              "location": [
+                {
+                  "col": 5,
+                  "line": 11
+                },
+                {
+                  "col": 22,
+                  "line": 11
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Second explanation"
+            }
+          ],
+          "type": "block"
+        },
+        {
+          "blocks": [],
+          "callout_location": [
+            {
+              "col": 1,
+              "line": 12
+            },
+            {
+              "col": 18,
+              "line": 12
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 12
+            },
+            {
+              "col": 18,
+              "line": 12
+            }
+          ],
+          "marker": "<.>",
+          "name": "listItem",
+          "number": 3,
+          "principal": [
+            {
+              "location": [
+                {
+                  "col": 5,
+                  "line": 12
+                },
+                {
+                  "col": 18,
+                  "line": 12
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Missing marker"
+            }
+          ],
+          "type": "block"
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 10
+        },
+        {
+          "col": 18,
+          "line": 12
+        }
+      ],
+      "marker": "<.>",
+      "name": "list",
+      "type": "block",
+      "variant": "callout"
+    },
+    {
+      "blocks": [
+        {
+          "delimiter": "....",
+          "form": "delimited",
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 1,
+                  "line": 16
+                },
+                {
+                  "col": 7,
+                  "line": 16
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "nested "
+            },
+            {
+              "form": "explicit",
+              "location": [
+                {
+                  "col": 8,
+                  "line": 16
+                },
+                {
+                  "col": 10,
+                  "line": 16
+                }
+              ],
+              "name": "callout",
+              "number": 1,
+              "type": "inline"
+            },
+            {
+              "location": [
+                {
+                  "col": 11,
+                  "line": 16
+                },
+                {
+                  "col": 11,
+                  "line": 16
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": " "
+            },
+            {
+              "form": "explicit",
+              "location": [
+                {
+                  "col": 12,
+                  "line": 16
+                },
+                {
+                  "col": 14,
+                  "line": 16
+                }
+              ],
+              "name": "callout",
+              "number": 1,
+              "type": "inline"
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 15
+            },
+            {
+              "col": 4,
+              "line": 17
+            }
+          ],
+          "name": "literal",
+          "type": "block"
+        },
+        {
+          "items": [
+            {
+              "blocks": [],
+              "callout_location": [
+                {
+                  "col": 1,
+                  "line": 18
+                },
+                {
+                  "col": 24,
+                  "line": 18
+                }
+              ],
+              "location": [
+                {
+                  "col": 1,
+                  "line": 18
+                },
+                {
+                  "col": 24,
+                  "line": 18
+                }
+              ],
+              "marker": "<1>",
+              "name": "listItem",
+              "number": 1,
+              "principal": [
+                {
+                  "location": [
+                    {
+                      "col": 5,
+                      "line": 18
+                    },
+                    {
+                      "col": 24,
+                      "line": 18
+                    }
+                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Repeated explanation"
+                }
+              ],
+              "type": "block"
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 18
+            },
+            {
+              "col": 24,
+              "line": 18
+            }
+          ],
+          "marker": "<1>",
+          "name": "list",
+          "type": "block",
+          "variant": "callout"
+        }
+      ],
+      "delimiter": "--",
+      "form": "delimited",
+      "location": [
+        {
+          "col": 1,
+          "line": 14
+        },
+        {
+          "col": 2,
+          "line": 19
+        }
+      ],
+      "name": "open",
+      "type": "block"
+    },
+    {
+      "caption": {
+        "counter": "table",
+        "kind": "numbered",
+        "label": "Table"
+      },
+      "columns": [
+        {
+          "halign": "left",
+          "style": "asciidoc",
+          "valign": "top",
+          "width": {
+            "kind": "proportional",
+            "value": 1
+          }
+        }
+      ],
+      "delimited_location": [
+        {
+          "col": 1,
+          "line": 22
+        },
+        {
+          "col": 4,
+          "line": 28
+        }
+      ],
+      "delimiter": "|===",
+      "form": "delimited",
+      "location": [
+        {
+          "col": 1,
+          "line": 21
+        },
+        {
+          "col": 4,
+          "line": 28
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        },
+        "location": [
+          {
+            "col": 1,
+            "line": 21
+          },
+          {
+            "col": 11,
+            "line": 21
+          }
+        ]
+      },
+      "name": "table",
+      "presentation": {
+        "frame": "all",
+        "grid": "all",
+        "stripes": "none"
+      },
+      "rows": [
+        {
+          "cells": [
+            {
+              "blocks": [
+                {
+                  "caption": {
+                    "kind": "unnumbered"
+                  },
+                  "delimiter": "----",
+                  "form": "delimited",
+                  "inlines": [
+                    {
+                      "location": [
+                        {
+                          "col": 1,
+                          "line": 25
+                        },
+                        {
+                          "col": 5,
+                          "line": 25
+                        }
+                      ],
+                      "name": "text",
+                      "type": "string",
+                      "value": "cell "
+                    },
+                    {
+                      "form": "explicit",
+                      "location": [
+                        {
+                          "col": 6,
+                          "line": 25
+                        },
+                        {
+                          "col": 8,
+                          "line": 25
+                        }
+                      ],
+                      "name": "callout",
+                      "number": 1,
+                      "type": "inline"
+                    }
+                  ],
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 24
+                    },
+                    {
+                      "col": 4,
+                      "line": 26
+                    }
+                  ],
+                  "name": "listing",
+                  "type": "block"
+                },
+                {
+                  "items": [
+                    {
+                      "blocks": [],
+                      "callout_location": [
+                        {
+                          "col": 1,
+                          "line": 27
+                        },
+                        {
+                          "col": 20,
+                          "line": 27
+                        }
+                      ],
+                      "location": [
+                        {
+                          "col": 1,
+                          "line": 27
+                        },
+                        {
+                          "col": 20,
+                          "line": 27
+                        }
+                      ],
+                      "marker": "<1>",
+                      "name": "listItem",
+                      "number": 1,
+                      "principal": [
+                        {
+                          "location": [
+                            {
+                              "col": 5,
+                              "line": 27
+                            },
+                            {
+                              "col": 20,
+                              "line": 27
+                            }
+                          ],
+                          "name": "text",
+                          "type": "string",
+                          "value": "Cell explanation"
+                        }
+                      ],
+                      "type": "block"
+                    }
+                  ],
+                  "location": [
+                    {
+                      "col": 1,
+                      "line": 27
+                    },
+                    {
+                      "col": 20,
+                      "line": 27
+                    }
+                  ],
+                  "marker": "<1>",
+                  "name": "list",
+                  "type": "block",
+                  "variant": "callout"
+                }
+              ],
+              "footnotes": [],
+              "initial_attributes": [
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": "article"
+                  },
+                  "attribute": "doctype"
+                },
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": ""
+                  },
+                  "attribute": "notitle"
+                },
+                {
+                  "assignment": {
+                    "kind": "set",
+                    "value": ""
+                  },
+                  "attribute": "doctype-article"
+                }
+              ],
+              "style": "asciidoc"
+            }
+          ]
+        }
+      ],
+      "type": "block"
+    }
+  ],
+  "header": {
+    "location": [
+      {
+        "col": 1,
+        "line": 1
+      },
+      {
+        "col": 19,
+        "line": 1
+      }
+    ],
+    "title": [
+      {
+        "location": [
+          {
+            "col": 3,
+            "line": 1
+          },
+          {
+            "col": 19,
+            "line": 1
+          }
+        ],
+        "name": "text",
+        "type": "string",
+        "value": "Callout semantics"
+      }
+    ]
+  },
+  "location": [
+    {
+      "col": 1,
+      "line": 1
+    },
+    {
+      "col": 4,
+      "line": 28
+    }
+  ],
+  "name": "document",
+  "profile": "urn:acdc:asg:1",
+  "type": "block"
+}

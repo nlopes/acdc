@@ -110,11 +110,11 @@ use std::{
 
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, Options, TraversalContext, WarningSource,
-    section::has_index_section, visitor::Visitor, xref::XrefGuard,
+    section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
 };
 use acdc_parser::{
-    BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, Options as ParserOptions,
-    Reference, TocEntry,
+    CaptionKind, Options as ParserOptions, Reference,
+    ast::{AttributesRef, CaptionRef, DocumentAttributesRef, DocumentRef},
 };
 
 mod error;
@@ -204,7 +204,7 @@ pub struct Processor<'a> {
     pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     pub(crate) xref_guard: XrefGuard,
-    pub(crate) toc_entries: Vec<TocEntry<'a>>,
+    pub(crate) document: Option<DocumentRef<'a>>,
     pub(crate) example_counter: Rc<Cell<u32>>,
     pub(crate) figure_counter: Rc<Cell<u32>>,
     pub(crate) listing_counter: Rc<Cell<u32>>,
@@ -257,18 +257,16 @@ impl Processor<'_> {
 
     pub(crate) fn caption_prefix(
         &self,
-        metadata: &BlockMetadata<'_>,
+        attributes: AttributesRef<'_>,
         fallback: Option<CaptionKind>,
     ) -> Option<String> {
-        let resolved = match (&metadata.caption, fallback) {
-            (Some(caption), _) => caption.clone(),
-            (None, Some(kind)) => {
-                Caption::resolve_owned(metadata, self.parser_options.document_attributes(), kind)
-            }
-            (None, None) => return None,
-        };
+        let resolved = CaptionRef::resolve(
+            attributes,
+            self.parser_options.document_attributes().into(),
+            fallback,
+        )?;
         match resolved {
-            Caption::Numbered {
+            CaptionRef::Numbered {
                 label,
                 number,
                 kind,
@@ -277,8 +275,8 @@ impl Processor<'_> {
                     .map_or_else(|| self.next_caption_number(kind), std::num::NonZeroU32::get);
                 Some(format!("{label} {number}. "))
             }
-            Caption::Custom(prefix) => Some(prefix.into_owned()),
-            Caption::Unnumbered | _ => None,
+            CaptionRef::Custom(prefix) => Some(prefix.to_owned()),
+            CaptionRef::CustomContent(_) | CaptionRef::Unnumbered | _ => None,
         }
     }
 
@@ -311,7 +309,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             parser_options,
             references: Rc::new(HashMap::new()),
             xref_guard: XrefGuard::default(),
-            toc_entries: Vec::new(),
+            document: None,
             example_counter: Rc::new(Cell::new(0)),
             figure_counter: Rc::new(Cell::new(0)),
             listing_counter: Rc::new(Cell::new(0)),
@@ -336,7 +334,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn derive_output_path(
         &self,
         input: &Path,
-        _doc: &Document<'_>,
+        _doc: DocumentRef<'_>,
     ) -> Result<Option<PathBuf>, Error> {
         let md_path = input.with_extension("md");
         // Avoid overwriting the input file
@@ -348,7 +346,7 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         writer: W,
         _source_file: Option<&Path>,
         _output_path: Option<&Path>,
@@ -358,10 +356,10 @@ impl<'a> Converter<'a> for Processor<'a> {
         let processor = Processor {
             options: self.options.clone(),
             parser_options: ParserOptions::default()
-                .with_document_attributes(doc.attributes.clone()),
-            references: Rc::new(doc.references.clone()),
+                .with_document_attributes(doc.attributes().into()),
+            references: Rc::new(doc.references().into()),
             xref_guard: XrefGuard::default(),
-            toc_entries: doc.toc_entries.clone(),
+            document: Some(doc),
             example_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Example))),
             figure_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Figure))),
             listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
@@ -369,12 +367,12 @@ impl<'a> Converter<'a> for Processor<'a> {
             index_term_counter: Rc::new(Cell::new(0)),
             index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
-            generate_index: index_generation_enabled(&doc.attributes)
-                && has_index_section(&doc.blocks),
+            generate_index: index_generation_enabled(doc.attributes())
+                && contains_index_section(doc.blocks()),
             warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             variant: self.variant,
         };
-        let mut traversal = TraversalContext::new(&doc.attributes);
+        let mut traversal = TraversalContext::new(doc.attributes());
         let mut visitor = MarkdownVisitor::new(writer, &processor, diagnostics.reborrow());
         visitor.visit_document(&mut traversal, doc)
     }
@@ -388,7 +386,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     }
 }
 
-fn index_generation_enabled(attributes: &DocumentAttributes<'_>) -> bool {
+fn index_generation_enabled(attributes: DocumentAttributesRef<'_>) -> bool {
     attributes.get("acdc-index").is_some()
 }
 
@@ -434,8 +432,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = processor.warning_source();
         let mut warnings = Vec::new();
@@ -469,8 +468,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = processor.warning_source();
         let mut warnings = Vec::new();

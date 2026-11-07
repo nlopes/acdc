@@ -28,6 +28,10 @@ impl OutputStyle {
 /// Lint `AsciiDoc` documents
 #[derive(ClapArgs, Debug)]
 pub struct Args {
+    /// Language rules: asciidoctor or draft
+    #[arg(long, value_name = "MODE", default_value_t = acdc_parser::CompatibilityMode::default())]
+    pub compatibility_mode: acdc_parser::CompatibilityMode,
+
     /// Safe mode to use while parsing the document
     #[arg(short = 'S', long, default_value = "unsafe")]
     pub safe_mode: acdc_parser::SafeMode,
@@ -94,6 +98,7 @@ pub struct Args {
 pub fn run(args: &Args, matches: &ArgMatches) -> miette::Result<()> {
     let options = LintOptions::new(ordered_overrides(matches)?)
         .with_safe_mode(args.safe_mode)
+        .with_compatibility_mode(args.compatibility_mode)
         .with_max_total_include_bytes(args.max_total_include_bytes);
 
     if args.stdin {

@@ -26,7 +26,7 @@ term
 
 
 
-term >> literal
+term \>\> literal
 
 
 
@@ -62,6 +62,6 @@ Before  tail"))) after.
 
 Before  tail"\] after.
 
-term >> and 
+term \>\> and 
 
 Text after the index terms.

@@ -1,0 +1,2682 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Table column controls",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 23
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 23
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "'1a','2a'"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 6,
+                                "col": 3
+                              },
+                              {
+                                "line": 6,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 6,
+                            "col": 2
+                          },
+                          {
+                            "line": 6,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 6,
+                        "col": 2
+                      },
+                      {
+                        "line": 6,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 6,
+                                "col": 13
+                              },
+                              {
+                                "line": 6,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 6,
+                            "col": 12
+                          },
+                          {
+                            "line": 6,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 6,
+                        "col": 12
+                      },
+                      {
+                        "line": 6,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "location": [
+          {
+            "line": 5,
+            "col": 1
+          },
+          {
+            "line": 7,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Literal quote characters",
+          "location": [
+            {
+              "line": 3,
+              "col": 2
+            },
+            {
+              "line": 3,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "'1a',2a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 12,
+                                "col": 3
+                              },
+                              {
+                                "line": 12,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 2
+                          },
+                          {
+                            "line": 12,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 12,
+                        "col": 2
+                      },
+                      {
+                        "line": 12,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          },
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 12,
+                                "col": 13
+                              },
+                              {
+                                "line": 12,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 12
+                          },
+                          {
+                            "line": 12,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 12,
+                        "col": 12
+                      },
+                      {
+                        "line": 12,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "width": {
+              "proportional": 2
+            },
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 11,
+            "col": 1
+          },
+          {
+            "line": 13,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Invalid beside valid",
+          "location": [
+            {
+              "line": 9,
+              "col": 2
+            },
+            {
+              "line": 9,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "junk^a,1"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 18,
+                                "col": 3
+                              },
+                              {
+                                "line": 18,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 18,
+                            "col": 2
+                          },
+                          {
+                            "line": 18,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 18,
+                        "col": 2
+                      },
+                      {
+                        "line": 18,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 18,
+                                "col": 13
+                              },
+                              {
+                                "line": 18,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 18,
+                            "col": 12
+                          },
+                          {
+                            "line": 18,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 18,
+                        "col": 12
+                      },
+                      {
+                        "line": 18,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "location": [
+          {
+            "line": 17,
+            "col": 1
+          },
+          {
+            "line": 19,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "No partial alignment",
+          "location": [
+            {
+              "line": 15,
+              "col": 2
+            },
+            {
+              "line": 15,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "2**a,1"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 24,
+                                "col": 3
+                              },
+                              {
+                                "line": 24,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 24,
+                            "col": 2
+                          },
+                          {
+                            "line": 24,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 24,
+                        "col": 2
+                      },
+                      {
+                        "line": 24,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 24,
+                                "col": 13
+                              },
+                              {
+                                "line": 24,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 24,
+                            "col": 12
+                          },
+                          {
+                            "line": 24,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 24,
+                        "col": 12
+                      },
+                      {
+                        "line": 24,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "location": [
+          {
+            "line": 23,
+            "col": 1
+          },
+          {
+            "line": 25,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "No partial multiplier",
+          "location": [
+            {
+              "line": 21,
+              "col": 2
+            },
+            {
+              "line": 21,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "2*<.>3a,~m"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 30,
+                                "col": 3
+                              },
+                              {
+                                "line": 30,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 30,
+                            "col": 2
+                          },
+                          {
+                            "line": 30,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 30,
+                        "col": 2
+                      },
+                      {
+                        "line": 30,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              },
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 30,
+                                "col": 13
+                              },
+                              {
+                                "line": 30,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 30,
+                            "col": 12
+                          },
+                          {
+                            "line": 30,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 30,
+                        "col": 12
+                      },
+                      {
+                        "line": 30,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              },
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 3",
+                            "location": [
+                              {
+                                "line": 30,
+                                "col": 23
+                              },
+                              {
+                                "line": 30,
+                                "col": 28
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 30,
+                            "col": 22
+                          },
+                          {
+                            "line": 30,
+                            "col": 29
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 30,
+                        "col": 22
+                      },
+                      {
+                        "line": 30,
+                        "col": 29
+                      }
+                    ]
+                  }
+                ],
+                "style": "monospace"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "valign": "bottom",
+            "width": {
+              "proportional": 3
+            },
+            "style": "asciidoc"
+          },
+          {
+            "valign": "bottom",
+            "width": {
+              "proportional": 3
+            },
+            "style": "asciidoc"
+          },
+          {
+            "width": "auto",
+            "style": "monospace"
+          }
+        ],
+        "location": [
+          {
+            "line": 29,
+            "col": 1
+          },
+          {
+            "line": 31,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Full repeated specification",
+          "location": [
+            {
+              "line": 27,
+              "col": 2
+            },
+            {
+              "line": 27,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 31,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": ">.,.^"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 36,
+                                "col": 3
+                              },
+                              {
+                                "line": 36,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 36,
+                            "col": 2
+                          },
+                          {
+                            "line": 36,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 36,
+                        "col": 2
+                      },
+                      {
+                        "line": 36,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 36,
+                                "col": 13
+                              },
+                              {
+                                "line": 36,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 36,
+                            "col": 12
+                          },
+                          {
+                            "line": 36,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 36,
+                        "col": 12
+                      },
+                      {
+                        "line": 36,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "halign": "right"
+          },
+          {
+            "valign": "middle"
+          }
+        ],
+        "location": [
+          {
+            "line": 35,
+            "col": 1
+          },
+          {
+            "line": 37,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alignment defaults",
+          "location": [
+            {
+              "line": 33,
+              "col": 2
+            },
+            {
+              "line": 33,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 33,
+          "col": 1
+        },
+        {
+          "line": 37,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "2"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 42,
+                                "col": 3
+                              },
+                              {
+                                "line": 42,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 42,
+                            "col": 2
+                          },
+                          {
+                            "line": 42,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 42,
+                        "col": 2
+                      },
+                      {
+                        "line": 42,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 42,
+                                "col": 13
+                              },
+                              {
+                                "line": 42,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 42,
+                            "col": 12
+                          },
+                          {
+                            "line": 42,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 42,
+                        "col": 12
+                      },
+                      {
+                        "line": 42,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "location": [
+          {
+            "line": 41,
+            "col": 1
+          },
+          {
+            "line": 43,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Count shorthand",
+          "location": [
+            {
+              "line": 39,
+              "col": 2
+            },
+            {
+              "line": 39,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 39,
+          "col": 1
+        },
+        {
+          "line": 43,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "1;2"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 48,
+                                "col": 3
+                              },
+                              {
+                                "line": 48,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 48,
+                            "col": 2
+                          },
+                          {
+                            "line": 48,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 48,
+                        "col": 2
+                      },
+                      {
+                        "line": 48,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 48,
+                                "col": 13
+                              },
+                              {
+                                "line": 48,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 48,
+                            "col": 12
+                          },
+                          {
+                            "line": 48,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 48,
+                        "col": 12
+                      },
+                      {
+                        "line": 48,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {},
+          {
+            "width": {
+              "proportional": 2
+            }
+          }
+        ],
+        "location": [
+          {
+            "line": 47,
+            "col": 1
+          },
+          {
+            "line": 49,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Semicolon records",
+          "location": [
+            {
+              "line": 45,
+              "col": 2
+            },
+            {
+              "line": 45,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 45,
+          "col": 1
+        },
+        {
+          "line": 49,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "1 a, 2 a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 54,
+                                "col": 3
+                              },
+                              {
+                                "line": 54,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 54,
+                            "col": 2
+                          },
+                          {
+                            "line": 54,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 54,
+                        "col": 2
+                      },
+                      {
+                        "line": 54,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              },
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 54,
+                                "col": 13
+                              },
+                              {
+                                "line": 54,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 54,
+                            "col": 12
+                          },
+                          {
+                            "line": 54,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 54,
+                        "col": 12
+                      },
+                      {
+                        "line": 54,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          },
+          {
+            "width": {
+              "proportional": 2
+            },
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 53,
+            "col": 1
+          },
+          {
+            "line": 55,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Embedded spaces",
+          "location": [
+            {
+              "line": 51,
+              "col": 2
+            },
+            {
+              "line": 51,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 51,
+          "col": 1
+        },
+        {
+          "line": 55,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": ","
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 60,
+                                "col": 3
+                              },
+                              {
+                                "line": 60,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 60,
+                            "col": 2
+                          },
+                          {
+                            "line": 60,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 60,
+                        "col": 2
+                      },
+                      {
+                        "line": 60,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 60,
+                                "col": 13
+                              },
+                              {
+                                "line": 60,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 60,
+                            "col": 12
+                          },
+                          {
+                            "line": 60,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 60,
+                        "col": 12
+                      },
+                      {
+                        "line": 60,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "location": [
+          {
+            "line": 59,
+            "col": 1
+          },
+          {
+            "line": 61,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Empty records",
+          "location": [
+            {
+              "line": 57,
+              "col": 2
+            },
+            {
+              "line": 57,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 57,
+          "col": 1
+        },
+        {
+          "line": 61,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "1z,2"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 66,
+                                "col": 3
+                              },
+                              {
+                                "line": 66,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 66,
+                            "col": 2
+                          },
+                          {
+                            "line": 66,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 66,
+                        "col": 2
+                      },
+                      {
+                        "line": 66,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 66,
+                                "col": 13
+                              },
+                              {
+                                "line": 66,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 66,
+                            "col": 12
+                          },
+                          {
+                            "line": 66,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 66,
+                        "col": 12
+                      },
+                      {
+                        "line": 66,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {},
+          {
+            "width": {
+              "proportional": 2
+            }
+          }
+        ],
+        "location": [
+          {
+            "line": 65,
+            "col": 1
+          },
+          {
+            "line": 67,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Unknown style",
+          "location": [
+            {
+              "line": 63,
+              "col": 2
+            },
+            {
+              "line": 63,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 63,
+          "col": 1
+        },
+        {
+          "line": 67,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "0*a,1"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 72,
+                                "col": 3
+                              },
+                              {
+                                "line": 72,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 72,
+                            "col": 2
+                          },
+                          {
+                            "line": 72,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 72,
+                        "col": 2
+                      },
+                      {
+                        "line": 72,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 72,
+                                "col": 13
+                              },
+                              {
+                                "line": 72,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 72,
+                            "col": 12
+                          },
+                          {
+                            "line": 72,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 72,
+                        "col": 12
+                      },
+                      {
+                        "line": 72,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "location": [
+          {
+            "line": 71,
+            "col": 1
+          },
+          {
+            "line": 73,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Zero repetition",
+          "location": [
+            {
+              "line": 69,
+              "col": 2
+            },
+            {
+              "line": 69,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 69,
+          "col": 1
+        },
+        {
+          "line": 73,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "25%,75%"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 78,
+                                "col": 3
+                              },
+                              {
+                                "line": 78,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 78,
+                            "col": 2
+                          },
+                          {
+                            "line": 78,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 78,
+                        "col": 2
+                      },
+                      {
+                        "line": 78,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 78,
+                                "col": 13
+                              },
+                              {
+                                "line": 78,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 78,
+                            "col": 12
+                          },
+                          {
+                            "line": 78,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 78,
+                        "col": 12
+                      },
+                      {
+                        "line": 78,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "width": {
+              "percentage": 25
+            }
+          },
+          {
+            "width": {
+              "percentage": 75
+            }
+          }
+        ],
+        "location": [
+          {
+            "line": 77,
+            "col": 1
+          },
+          {
+            "line": 79,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Percentage widths",
+          "location": [
+            {
+              "line": 75,
+              "col": 2
+            },
+            {
+              "line": 75,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 75,
+          "col": 1
+        },
+        {
+          "line": 79,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "é^a,1"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 1",
+                            "location": [
+                              {
+                                "line": 84,
+                                "col": 3
+                              },
+                              {
+                                "line": 84,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 84,
+                            "col": 2
+                          },
+                          {
+                            "line": 84,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 84,
+                        "col": 2
+                      },
+                      {
+                        "line": 84,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell 2",
+                            "location": [
+                              {
+                                "line": 84,
+                                "col": 13
+                              },
+                              {
+                                "line": 84,
+                                "col": 18
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 84,
+                            "col": 12
+                          },
+                          {
+                            "line": 84,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 84,
+                        "col": 12
+                      },
+                      {
+                        "line": 84,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "location": [
+          {
+            "line": 83,
+            "col": 1
+          },
+          {
+            "line": 85,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Unicode junk",
+          "location": [
+            {
+              "line": 81,
+              "col": 2
+            },
+            {
+              "line": 81,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 81,
+          "col": 1
+        },
+        {
+          "line": 85,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "1a,2a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "First",
+                            "location": [
+                              {
+                                "line": 90,
+                                "col": 3
+                              },
+                              {
+                                "line": 90,
+                                "col": 7
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 90,
+                            "col": 2
+                          },
+                          {
+                            "line": 90,
+                            "col": 8
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 90,
+                        "col": 2
+                      },
+                      {
+                        "line": 90,
+                        "col": 8
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              },
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "span",
+                        "type": "inline",
+                        "variant": "strong",
+                        "form": "constrained",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Second",
+                            "location": [
+                              {
+                                "line": 90,
+                                "col": 12
+                              },
+                              {
+                                "line": 90,
+                                "col": 17
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 90,
+                            "col": 11
+                          },
+                          {
+                            "line": 90,
+                            "col": 18
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 90,
+                        "col": 11
+                      },
+                      {
+                        "line": 90,
+                        "col": 18
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          },
+          {
+            "width": {
+              "proportional": 2
+            },
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 89,
+            "col": 1
+          },
+          {
+            "line": 91,
+            "col": 4
+          }
+        ]
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Syntactic outer quotes",
+          "location": [
+            {
+              "line": 87,
+              "col": 2
+            },
+            {
+              "line": 87,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 87,
+          "col": 1
+        },
+        {
+          "line": 91,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 91,
+      "col": 4
+    }
+  ]
+}

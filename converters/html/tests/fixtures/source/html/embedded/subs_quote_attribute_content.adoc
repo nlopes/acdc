@@ -1,0 +1,53 @@
+:other: Before
+:word: \{other}
+
+[quote,attribution='{word}',citetitle='{word}']
+:other: After
+____
+Declaration-time values.
+____
+
+[quote,'*Ada*','_Notes_',subs=none]
+____
+*Literal body*.
+____
+
+[verse,attribution='*Ada*',citetitle='_Notes_',subs=none]
+____
+*Literal verse*.
+____
+
+[quote,attribution="Ada -- Lovelace",citetitle="Book -- Title"]
+____
+Literal content.
+____
+
+[quote]
+____
+Absent attribution and citation.
+____
+
+[quote,attribution="",citetitle=Book]
+____
+Empty author with a citation.
+____
+
+[quote,citetitle=""]
+____
+Empty citation.
+____
+
+[quote,attribution='',citetitle='']
+____
+Both empty.
+____
+
+[verse,attribution="",citetitle=""]
+____
+Verse both empty.
+____
+
+[quote,,""]
+____
+Empty positional citation.
+____

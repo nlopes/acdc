@@ -1,0 +1,749 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Catalog contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 18
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {
+    "term": "Early (C)"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "café ",
+          "location": [
+            {
+              "line": 2,
+              "col": 5,
+              "file": [
+                "includes/index_catalog_selected.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 9,
+              "file": [
+                "includes/index_catalog_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Included ",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 22,
+                  "file": [
+                    "includes/index_catalog_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 2,
+                  "col": 30,
+                  "file": [
+                    "includes/index_catalog_selected.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 31,
+                  "file": [
+                    "includes/index_catalog_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 2,
+                  "col": 33,
+                  "file": [
+                    "includes/index_catalog_selected.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " Early ",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 34,
+                  "file": [
+                    "includes/index_catalog_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 2,
+                  "col": 40,
+                  "file": [
+                    "includes/index_catalog_selected.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 35,
+                  "file": [
+                    "includes/index_catalog_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 2,
+                  "col": 40,
+                  "file": [
+                    "includes/index_catalog_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Included ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 22,
+                      "file": [
+                        "includes/index_catalog_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 2,
+                      "col": 30,
+                      "file": [
+                        "includes/index_catalog_selected.adoc"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "©",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 31,
+                      "file": [
+                        "includes/index_catalog_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 2,
+                      "col": 33,
+                      "file": [
+                        "includes/index_catalog_selected.adoc"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": " Early ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 34,
+                      "file": [
+                        "includes/index_catalog_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 2,
+                      "col": 40,
+                      "file": [
+                        "includes/index_catalog_selected.adoc"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "©",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 35,
+                      "file": [
+                        "includes/index_catalog_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 2,
+                      "col": 40,
+                      "file": [
+                        "includes/index_catalog_selected.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 2,
+                "col": 10,
+                "file": [
+                  "includes/index_catalog_selected.adoc"
+                ]
+              },
+              {
+                "line": 2,
+                "col": 41,
+                "file": [
+                  "includes/index_catalog_selected.adoc"
+                ]
+              }
+            ]
+          },
+          "visible": true,
+          "location": [
+            {
+              "line": 2,
+              "col": 10,
+              "file": [
+                "includes/index_catalog_selected.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 41,
+              "file": [
+                "includes/index_catalog_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 2,
+              "col": 42,
+              "file": [
+                "includes/index_catalog_selected.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 42,
+              "file": [
+                "includes/index_catalog_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 5,
+          "file": [
+            "includes/index_catalog_selected.adoc"
+          ]
+        },
+        {
+          "line": 2,
+          "col": 42,
+          "file": [
+            "includes/index_catalog_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "footnote",
+              "type": "inline",
+              "id": "included",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Included note.",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 35,
+                      "file": [
+                        "includes/index_catalog_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 4,
+                      "col": 48,
+                      "file": [
+                        "includes/index_catalog_selected.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 4,
+                  "col": 17,
+                  "file": [
+                    "includes/index_catalog_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 4,
+                  "col": 49,
+                  "file": [
+                    "includes/index_catalog_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "footnote:included[Included note.]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 17,
+                      "file": [
+                        "includes/index_catalog_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 4,
+                      "col": 49,
+                      "file": [
+                        "includes/index_catalog_selected.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 4,
+                "col": 5,
+                "file": [
+                  "includes/index_catalog_selected.adoc"
+                ]
+              },
+              {
+                "line": 4,
+                "col": 50,
+                "file": [
+                  "includes/index_catalog_selected.adoc"
+                ]
+              }
+            ]
+          },
+          "visible": true,
+          "location": [
+            {
+              "line": 4,
+              "col": 5,
+              "file": [
+                "includes/index_catalog_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 50,
+              "file": [
+                "includes/index_catalog_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 5,
+          "file": [
+            "includes/index_catalog_selected.adoc"
+          ]
+        },
+        {
+          "line": 4,
+          "col": 50,
+          "file": [
+            "includes/index_catalog_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "term",
+      "type": "attribute",
+      "value": "Later (R)",
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 16
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "indexterm",
+                        "type": "inline",
+                        "term": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell Later ",
+                            "location": [
+                              {
+                                "line": 11,
+                                "col": 13
+                              },
+                              {
+                                "line": 11,
+                                "col": 23
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "®",
+                            "location": [
+                              {
+                                "line": 11,
+                                "col": 18
+                              },
+                              {
+                                "line": 11,
+                                "col": 23
+                              }
+                            ]
+                          }
+                        ],
+                        "catalog": {
+                          "kind": {
+                            "Flow": [
+                              {
+                                "name": "raw",
+                                "type": "string",
+                                "value": "Cell Later ",
+                                "substitutions": [
+                                  "special_chars"
+                                ],
+                                "location": [
+                                  {
+                                    "line": 11,
+                                    "col": 13
+                                  },
+                                  {
+                                    "line": 11,
+                                    "col": 23
+                                  }
+                                ]
+                              },
+                              {
+                                "name": "symbol",
+                                "type": "string",
+                                "value": "®",
+                                "location": [
+                                  {
+                                    "line": 11,
+                                    "col": 18
+                                  },
+                                  {
+                                    "line": 11,
+                                    "col": 23
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          "location": [
+                            {
+                              "line": 11,
+                              "col": 1
+                            },
+                            {
+                              "line": 11,
+                              "col": 24
+                            }
+                          ]
+                        },
+                        "visible": true,
+                        "location": [
+                          {
+                            "line": 11,
+                            "col": 1
+                          },
+                          {
+                            "line": 11,
+                            "col": 24
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 11,
+                        "col": 1
+                      },
+                      {
+                        "line": 11,
+                        "col": 24
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "indexterm",
+                        "type": "inline",
+                        "term": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Frozen Later ",
+                            "location": [
+                              {
+                                "line": 14,
+                                "col": 13
+                              },
+                              {
+                                "line": 14,
+                                "col": 25
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "®",
+                            "location": [
+                              {
+                                "line": 14,
+                                "col": 20
+                              },
+                              {
+                                "line": 14,
+                                "col": 25
+                              }
+                            ]
+                          }
+                        ],
+                        "catalog": {
+                          "kind": {
+                            "Flow": [
+                              {
+                                "name": "raw",
+                                "type": "string",
+                                "value": "Frozen {term}",
+                                "substitutions": [
+                                  "special_chars"
+                                ],
+                                "location": [
+                                  {
+                                    "line": 14,
+                                    "col": 13
+                                  },
+                                  {
+                                    "line": 14,
+                                    "col": 25
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          "location": [
+                            {
+                              "line": 14,
+                              "col": 1
+                            },
+                            {
+                              "line": 14,
+                              "col": 26
+                            }
+                          ]
+                        },
+                        "visible": true,
+                        "location": [
+                          {
+                            "line": 14,
+                            "col": 1
+                          },
+                          {
+                            "line": 14,
+                            "col": 26
+                          }
+                        ]
+                      }
+                    ],
+                    "metadata": {
+                      "substitutions": [
+                        "macros",
+                        "attributes",
+                        "replacements"
+                      ]
+                    },
+                    "location": [
+                      {
+                        "line": 13,
+                        "col": 1
+                      },
+                      {
+                        "line": 14,
+                        "col": 26
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 9,
+            "col": 1
+          },
+          {
+            "line": 15,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 15,
+      "col": 4
+    }
+  ]
+}

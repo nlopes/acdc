@@ -1,0 +1,13 @@
+= Ordered dash replacements
+:join: --
+:letter: s
+:empty:
+
+[subs="specialchars,replacements,attributes"]
+left{join}right; {letter}--right; left--{letter}; left{empty}--right; left--{empty}right; left -- {letter}.
+
+[subs="specialchars,attributes,replacements"]
+left{join}right; {letter}--right; left--{letter}; left{empty}--right; left--{empty}right; left -- {letter}.
+
+[subs="specialchars,replacements,attributes,replacements"]
+left{join}right; {letter}--right; left--{letter}; left -- {letter}.

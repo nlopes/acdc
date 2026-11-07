@@ -15,6 +15,9 @@ printf 'Hello\n'
 ----
 ....
 
+A command ID can also use `[#hello]` or a preceding `[[hello]]` anchor.
+If a block has several IDs, an explicit `id=` takes precedence over its aliases.
+
 Parse it, build a command graph, and run its execution plan:
 
 [source,rust]

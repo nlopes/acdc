@@ -1,9 +1,7 @@
 use std::io::Write;
 
-use acdc_converters_core::{
-    TraversalContext, media::resolve_target, video::TryUrl, visitor::WritableVisitor,
-};
-use acdc_parser::{AttributeValue, Video};
+use acdc_converters_core::{TraversalContext, media::resolve_target, video::TryUrl};
+use acdc_parser::ast::{AttributeValueRef, VideoRef};
 
 use crate::{Error, TerminalVisitor, inlines};
 
@@ -11,9 +9,9 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     pub(crate) fn render_video(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        video: &Video,
+        video: VideoRef<'_>,
     ) -> Result<(), Error> {
-        if video.sources.is_empty() {
+        if video.source().to_string().is_empty() {
             if self.processor.mark_fallback("video-missing-source") {
                 self.diagnostics.warn_with_advice(
                     "video has no source and cannot be represented in terminal output",
@@ -23,34 +21,25 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        let title = if video.title.is_empty() {
+        let title = if let Some(title) = video.title() {
+            acdc_converters_core::InlineTextTransform::default()
+                .decode_char_refs(true)
+                .content_to_string(title)
+        } else {
             video
-                .sources
-                .first()
-                .and_then(acdc_parser::Source::get_filename)
+                .source()
+                .file_name()
                 .map_or("video", |name| name)
                 .to_string()
-        } else {
-            acdc_converters_core::inlines_to_string(&video.title)
         };
         let processor = self.processor;
-        for (index, source) in video.sources.iter().enumerate() {
-            let mut single_source = video.clone();
-            single_source.sources = vec![source.clone()];
-            let target = resolve_target(&single_source.try_url(false)?, traversal);
-            let label = if video.sources.len() == 1 {
-                format!("[Video: {title}]")
-            } else {
-                format!(
-                    "[Video source {}/{}: {title}]",
-                    index + 1,
-                    video.sources.len()
-                )
-            };
-            inlines::maybe_render_osc8_link(&target, &label, self.writer_mut(), processor)?;
-            writeln!(self.writer_mut())?;
-        }
-        if let Some(AttributeValue::String(poster)) = video.metadata.attributes.get("poster") {
+        let target = resolve_target(&video.try_url(false)?, traversal);
+        let label = format!("[Video: {title}]");
+        inlines::maybe_render_osc8_link(&target, &label, self.writer_mut(), processor)?;
+        writeln!(self.writer_mut())?;
+        if let Some(AttributeValueRef::Text(poster)) = video.attributes().get("poster")
+            && !matches!(poster, "youtube" | "vimeo")
+        {
             writeln!(self.writer_mut(), "[Poster: {poster}]")?;
         }
         Ok(())

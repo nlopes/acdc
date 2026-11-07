@@ -219,9 +219,75 @@
               ]
             },
             {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 5
+                },
+                {
+                  "line": 20,
+                  "col": 18
+                }
+              ]
+            },
+            {
               "name": "raw",
               "type": "string",
-              "value": "(C) (R) (TM)",
+              "value": " ",
+              "substitutions": [
+                "special_chars"
+              ],
+              "location": [
+                {
+                  "line": 20,
+                  "col": 5
+                },
+                {
+                  "line": 20,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 5
+                },
+                {
+                  "line": 20,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " ",
+              "substitutions": [
+                "special_chars"
+              ],
+              "location": [
+                {
+                  "line": 20,
+                  "col": 5
+                },
+                {
+                  "line": 20,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "™",
               "location": [
                 {
                   "line": 20,
@@ -280,9 +346,75 @@
               ]
             },
             {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 5
+                },
+                {
+                  "line": 22,
+                  "col": 23
+                }
+              ]
+            },
+            {
               "name": "raw",
               "type": "string",
-              "value": "(C) (R) (TM)",
+              "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 22,
+                  "col": 5
+                },
+                {
+                  "line": 22,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 5
+                },
+                {
+                  "line": 22,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 22,
+                  "col": 5
+                },
+                {
+                  "line": 22,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "™",
               "location": [
                 {
                   "line": 22,
@@ -343,7 +475,157 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "\\(C) \\(R) \\(TM) \\... word\\--word",
+              "value": "(C)",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 5
+                },
+                {
+                  "line": 24,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 24,
+                  "col": 5
+                },
+                {
+                  "line": 24,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "(R)",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 5
+                },
+                {
+                  "line": 24,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 24,
+                  "col": 5
+                },
+                {
+                  "line": 24,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "(TM)",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 5
+                },
+                {
+                  "line": 24,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 24,
+                  "col": 5
+                },
+                {
+                  "line": 24,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "...",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 5
+                },
+                {
+                  "line": 24,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " word",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 24,
+                  "col": 5
+                },
+                {
+                  "line": 24,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "--",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 5
+                },
+                {
+                  "line": 24,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
+              "substitutions": [
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 24,
@@ -389,11 +671,101 @@
             {
               "name": "text",
               "type": "string",
-              "value": "P04 (C) (R) (TM).",
+              "value": "P04 ",
               "location": [
                 {
                   "line": 26,
                   "col": 1
+                },
+                {
+                  "line": 26,
+                  "col": 4
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 5
+                },
+                {
+                  "line": 26,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 5
+                },
+                {
+                  "line": 26,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 5
+                },
+                {
+                  "line": 26,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 5
+                },
+                {
+                  "line": 26,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "™",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 5
+                },
+                {
+                  "line": 26,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 20
                 },
                 {
                   "line": 26,
@@ -433,13 +805,196 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "symbol",
               "type": "string",
-              "value": "(C) (R) (TM) ... don't word--word",
+              "value": "©",
               "location": [
                 {
                   "line": 28,
                   "col": 12
+                },
+                {
+                  "line": 28,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 28,
+                  "col": 15
+                },
+                {
+                  "line": 28,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 16
+                },
+                {
+                  "line": 28,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 28,
+                  "col": 19
+                },
+                {
+                  "line": 28,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "™",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 20
+                },
+                {
+                  "line": 28,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 28,
+                  "col": 24
+                },
+                {
+                  "line": 28,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "…",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 25
+                },
+                {
+                  "line": 28,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " don",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 28,
+                  "col": 28
+                },
+                {
+                  "line": 28,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "’",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 32
+                },
+                {
+                  "line": 28,
+                  "col": 32
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "t word",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 28,
+                  "col": 33
+                },
+                {
+                  "line": 28,
+                  "col": 38
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "—​",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 39
+                },
+                {
+                  "line": 28,
+                  "col": 40
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 28,
+                  "col": 41
                 },
                 {
                   "line": 28,
@@ -558,6 +1113,9 @@
               "name": "raw",
               "type": "string",
               "value": "\\*literal\\* \\_literal\\_ \\`literal\\` \\#literal\\#",
+              "substitutions": [
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 32,
@@ -618,11 +1176,161 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "\\(C) \\(R) \\(TM) \\... word\\--word",
+              "value": "(C)",
               "location": [
                 {
                   "line": 34,
                   "col": 12
+                },
+                {
+                  "line": 34,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 34,
+                  "col": 16
+                },
+                {
+                  "line": 34,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "(R)",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 17
+                },
+                {
+                  "line": 34,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 34,
+                  "col": 21
+                },
+                {
+                  "line": 34,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "(TM)",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 22
+                },
+                {
+                  "line": 34,
+                  "col": 26
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 34,
+                  "col": 27
+                },
+                {
+                  "line": 34,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "...",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 28
+                },
+                {
+                  "line": 34,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " word",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 34,
+                  "col": 32
+                },
+                {
+                  "line": 34,
+                  "col": 36
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "--",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 37
+                },
+                {
+                  "line": 34,
+                  "col": 39
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 34,
+                  "col": 40
                 },
                 {
                   "line": 34,
@@ -683,9 +1391,9 @@
               "form": "constrained",
               "inlines": [
                 {
-                  "name": "raw",
+                  "name": "symbol",
                   "type": "string",
-                  "value": "(C)",
+                  "value": "©",
                   "location": [
                     {
                       "line": 36,
@@ -713,6 +1421,9 @@
               "name": "raw",
               "type": "string",
               "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 36,
@@ -733,11 +1444,47 @@
                 {
                   "name": "raw",
                   "type": "string",
-                  "value": "word--word",
+                  "value": "word",
+                  "substitutions": [
+                    "replacements"
+                  ],
                   "location": [
                     {
                       "line": 36,
                       "col": 21
+                    },
+                    {
+                      "line": 36,
+                      "col": 24
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "—​",
+                  "location": [
+                    {
+                      "line": 36,
+                      "col": 25
+                    },
+                    {
+                      "line": 36,
+                      "col": 26
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "word",
+                  "substitutions": [
+                    "replacements"
+                  ],
+                  "location": [
+                    {
+                      "line": 36,
+                      "col": 27
                     },
                     {
                       "line": 36,
@@ -806,11 +1553,49 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "<tag> (C) &",
+              "value": "<tag> ",
+              "substitutions": [
+                "special_chars",
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 38,
                   "col": 14
+                },
+                {
+                  "line": 38,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 38,
+                  "col": 20
+                },
+                {
+                  "line": 38,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " &",
+              "substitutions": [
+                "special_chars",
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 38,
+                  "col": 23
                 },
                 {
                   "line": 38,
@@ -865,13 +1650,31 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "symbol",
               "type": "string",
-              "value": "(C) <tag> &",
+              "value": "©",
               "location": [
                 {
                   "line": 40,
                   "col": 14
+                },
+                {
+                  "line": 40,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " <tag> &",
+              "substitutions": [
+                "special_chars"
+              ],
+              "location": [
+                {
+                  "line": 40,
+                  "col": 17
                 },
                 {
                   "line": 40,
@@ -928,11 +1731,62 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "word -- word --",
+              "value": "word",
+              "substitutions": [
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 42,
                   "col": 12
+                },
+                {
+                  "line": 42,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": " — ",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 16
+                },
+                {
+                  "line": 42,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "word",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 42,
+                  "col": 20
+                },
+                {
+                  "line": 42,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": " — ",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 24
                 },
                 {
                   "line": 42,
@@ -990,6 +1844,9 @@
               "name": "raw",
               "type": "string",
               "value": "--word",
+              "substitutions": [
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 44,
@@ -1020,6 +1877,9 @@
               "name": "raw",
               "type": "string",
               "value": "word--",
+              "substitutions": [
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 44,
@@ -1112,9 +1972,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "symbol",
               "type": "string",
-              "value": "(C)",
+              "value": "©",
               "location": [
                 {
                   "line": 46,
@@ -1130,6 +1990,9 @@
               "name": "raw",
               "type": "string",
               "value": "]",
+              "substitutions": [
+                "replacements"
+              ],
               "location": [
                 {
                   "line": 46,
@@ -1194,9 +2057,75 @@
               "form": "constrained",
               "inlines": [
                 {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "©",
+                  "location": [
+                    {
+                      "line": 48,
+                      "col": 6
+                    },
+                    {
+                      "line": 48,
+                      "col": 19
+                    }
+                  ]
+                },
+                {
                   "name": "raw",
                   "type": "string",
-                  "value": "(C) (R) (TM)",
+                  "value": " ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 48,
+                      "col": 6
+                    },
+                    {
+                      "line": 48,
+                      "col": 19
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 48,
+                      "col": 6
+                    },
+                    {
+                      "line": 48,
+                      "col": 19
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": " ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 48,
+                      "col": 6
+                    },
+                    {
+                      "line": 48,
+                      "col": 19
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "™",
                   "location": [
                     {
                       "line": 48,
@@ -1275,7 +2204,157 @@
                 {
                   "name": "raw",
                   "type": "string",
-                  "value": "\\(C) \\(R) \\(TM) \\... word\\--word",
+                  "value": "(C)",
+                  "location": [
+                    {
+                      "line": 50,
+                      "col": 6
+                    },
+                    {
+                      "line": 50,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": " ",
+                  "substitutions": [
+                    "replacements"
+                  ],
+                  "location": [
+                    {
+                      "line": 50,
+                      "col": 6
+                    },
+                    {
+                      "line": 50,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "(R)",
+                  "location": [
+                    {
+                      "line": 50,
+                      "col": 6
+                    },
+                    {
+                      "line": 50,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": " ",
+                  "substitutions": [
+                    "replacements"
+                  ],
+                  "location": [
+                    {
+                      "line": 50,
+                      "col": 6
+                    },
+                    {
+                      "line": 50,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "(TM)",
+                  "location": [
+                    {
+                      "line": 50,
+                      "col": 6
+                    },
+                    {
+                      "line": 50,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": " ",
+                  "substitutions": [
+                    "replacements"
+                  ],
+                  "location": [
+                    {
+                      "line": 50,
+                      "col": 6
+                    },
+                    {
+                      "line": 50,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "...",
+                  "location": [
+                    {
+                      "line": 50,
+                      "col": 6
+                    },
+                    {
+                      "line": 50,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": " word",
+                  "substitutions": [
+                    "replacements"
+                  ],
+                  "location": [
+                    {
+                      "line": 50,
+                      "col": 6
+                    },
+                    {
+                      "line": 50,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "--",
+                  "location": [
+                    {
+                      "line": 50,
+                      "col": 6
+                    },
+                    {
+                      "line": 50,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "word",
+                  "substitutions": [
+                    "replacements"
+                  ],
                   "location": [
                     {
                       "line": 50,
@@ -1352,9 +2431,69 @@
               "form": "constrained",
               "inlines": [
                 {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "©",
+                  "location": [
+                    {
+                      "line": 52,
+                      "col": 6
+                    },
+                    {
+                      "line": 52,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
                   "name": "text",
                   "type": "string",
-                  "value": "(C) (R) (TM)",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 52,
+                      "col": 6
+                    },
+                    {
+                      "line": 52,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 52,
+                      "col": 6
+                    },
+                    {
+                      "line": 52,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " ",
+                  "location": [
+                    {
+                      "line": 52,
+                      "col": 6
+                    },
+                    {
+                      "line": 52,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "™",
                   "location": [
                     {
                       "line": 52,
@@ -1425,9 +2564,75 @@
               ]
             },
             {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 54,
+                  "col": 5
+                },
+                {
+                  "line": 54,
+                  "col": 11
+                }
+              ]
+            },
+            {
               "name": "raw",
               "type": "string",
-              "value": "(C) (R) (TM)",
+              "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 54,
+                  "col": 5
+                },
+                {
+                  "line": 54,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 54,
+                  "col": 5
+                },
+                {
+                  "line": 54,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "raw",
+              "type": "string",
+              "value": " ",
+              "substitutions": [
+                "replacements"
+              ],
+              "location": [
+                {
+                  "line": 54,
+                  "col": 5
+                },
+                {
+                  "line": 54,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "™",
               "location": [
                 {
                   "line": 54,
@@ -1493,9 +2698,75 @@
                   ]
                 },
                 {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "©",
+                  "location": [
+                    {
+                      "line": 56,
+                      "col": 7
+                    },
+                    {
+                      "line": 56,
+                      "col": 25
+                    }
+                  ]
+                },
+                {
                   "name": "raw",
                   "type": "string",
-                  "value": "(C) (R) (TM)",
+                  "value": " ",
+                  "substitutions": [
+                    "replacements"
+                  ],
+                  "location": [
+                    {
+                      "line": 56,
+                      "col": 7
+                    },
+                    {
+                      "line": 56,
+                      "col": 25
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 56,
+                      "col": 7
+                    },
+                    {
+                      "line": 56,
+                      "col": 25
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": " ",
+                  "substitutions": [
+                    "replacements"
+                  ],
+                  "location": [
+                    {
+                      "line": 56,
+                      "col": 7
+                    },
+                    {
+                      "line": 56,
+                      "col": 25
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "™",
                   "location": [
                     {
                       "line": 56,
@@ -1579,9 +2850,75 @@
                             ]
                           },
                           {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "©",
+                            "location": [
+                              {
+                                "line": 59,
+                                "col": 6
+                              },
+                              {
+                                "line": 59,
+                                "col": 24
+                              }
+                            ]
+                          },
+                          {
                             "name": "raw",
                             "type": "string",
-                            "value": "(C) (R) (TM)",
+                            "value": " ",
+                            "substitutions": [
+                              "replacements"
+                            ],
+                            "location": [
+                              {
+                                "line": 59,
+                                "col": 6
+                              },
+                              {
+                                "line": 59,
+                                "col": 24
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "®",
+                            "location": [
+                              {
+                                "line": 59,
+                                "col": 6
+                              },
+                              {
+                                "line": 59,
+                                "col": 24
+                              }
+                            ]
+                          },
+                          {
+                            "name": "raw",
+                            "type": "string",
+                            "value": " ",
+                            "substitutions": [
+                              "replacements"
+                            ],
+                            "location": [
+                              {
+                                "line": 59,
+                                "col": 6
+                              },
+                              {
+                                "line": 59,
+                                "col": 24
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "™",
                             "location": [
                               {
                                 "line": 59,

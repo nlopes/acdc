@@ -4,13 +4,11 @@
 
 use std::io::{BufWriter, Write};
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::effective_subs_flags;
-use acdc_converters_core::{
-    InlineTextTransform, TraversalContext, inlines_to_string,
-    visitor::{Visitor, WritableVisitor},
+use acdc_converters_core::{InlineTextTransform, TraversalContext};
+use acdc_parser::{
+    CaptionKind,
+    ast::{AttributeValueRef, AttributesRef, ContentRef, ParagraphRef},
 };
-use acdc_parser::{BlockMetadata, CaptionKind, InlineNode, Paragraph};
 use crossterm::{
     QueueableCommand,
     style::{Attribute, PrintStyledContent, SetAttribute, Stylize},
@@ -23,43 +21,25 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     pub(crate) fn render_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
-        #[cfg(feature = "pre-spec-subs")]
-        {
-            // Resolve `[subs="…"]` once per paragraph so inline rendering knows
-            // whether to apply typography. Verse/literal/listing/source styles
-            // are verbatim contexts; everything else uses the NORMAL baseline.
-            // Snapshot/restore via the processor's shared cell so nested renders
-            // (and sub-visitors that clone the processor) don't leak state.
-            let is_verbatim = matches!(
-                para.metadata.style,
-                Some("verse" | "literal" | "listing" | "source")
-            );
-            let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-                para.metadata.substitutions.as_ref(),
-                is_verbatim,
-            ));
-
-            let result = self.render_paragraph_inner(traversal, para);
-
-            self.processor.current_subs.set(previous_subs);
-            result
-        }
-        #[cfg(not(feature = "pre-spec-subs"))]
-        self.render_paragraph_inner(traversal, para)
-    }
-
-    fn render_paragraph_inner(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
-    ) -> Result<(), Error> {
-        if let Some(style) = para.metadata.style {
+        if let Some(style) = para.style() {
             match style {
                 "quote" => return self.render_quote_paragraph(traversal, para),
                 "verse" => return self.render_verse_paragraph(traversal, para),
                 "example" => return self.render_example_paragraph(traversal, para),
+                "sidebar" => {
+                    return self.render_sidebar_content(
+                        traversal,
+                        para.title(),
+                        |visitor, traversal| visitor.write_content(traversal, para.content()),
+                    );
+                }
+                "pass" => {
+                    self.write_content(traversal, para.content())?;
+                    writeln!(self.writer_mut())?;
+                    return Ok(());
+                }
                 "abstract" => return self.render_abstract_paragraph(traversal, para),
                 "literal" | "listing" | "source" => {
                     return self.render_literal_paragraph(traversal, para);
@@ -71,9 +51,9 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         // Regular paragraph rendering
         self.render_captioned_title_with_wrapper(
             traversal,
-            &para.title,
-            &para.metadata,
-            CaptionKind::for_style(para.metadata.style),
+            para.title(),
+            para.attributes(),
+            CaptionKind::for_style(para.style()),
             "",
             "",
         )?;
@@ -87,10 +67,10 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_quote_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
         // Render title if present
-        self.render_title_with_wrapper(traversal, &para.title, "", "\n")?;
+        self.render_title_with_wrapper(traversal, para.title(), "", "\n")?;
 
         // Render content to temporary buffer for processing
         let buffer = Vec::new();
@@ -98,7 +78,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let mut temp_visitor =
             TerminalVisitor::new(inner, self.processor, self.diagnostics.reborrow());
 
-        temp_visitor.visit_inline_nodes(traversal, &para.content)?;
+        temp_visitor.write_content(traversal, para.content())?;
 
         let buffer = temp_visitor
             .into_writer()
@@ -111,7 +91,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         writeln!(w)?;
 
         // Render attribution if present
-        self.render_attribution(&para.metadata)?;
+        self.render_attribution(para.attributes())?;
 
         // Add final newline
         let w = self.writer_mut();
@@ -124,7 +104,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_verse_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
         let w = self.writer_mut();
 
@@ -133,15 +113,15 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
         writeln!(w)?;
 
-        self.render_title_with_wrapper(traversal, &para.title, "", "\n\n")?;
+        self.render_title_with_wrapper(traversal, para.title(), "", "\n\n")?;
 
         // Render verse content
-        self.visit_inline_nodes(traversal, &para.content)?;
+        self.write_content(traversal, para.content())?;
         let w = self.writer_mut();
         writeln!(w)?;
 
         // Render attribution if present
-        self.render_attribution(&para.metadata)?;
+        self.render_attribution(para.attributes())?;
 
         // End marker with three dots
         let w = self.writer_mut();
@@ -155,12 +135,12 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_example_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
         self.render_captioned_title_with_wrapper(
             traversal,
-            &para.title,
-            &para.metadata,
+            para.title(),
+            para.attributes(),
             Some(CaptionKind::Example),
             "",
             "\n",
@@ -174,9 +154,9 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_abstract_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
-        self.render_title_with_wrapper(traversal, &para.title, "", "\n")?;
+        self.render_title_with_wrapper(traversal, para.title(), "", "\n")?;
         self.writer_mut()
             .queue(PrintStyledContent("ABSTRACT ".magenta().bold()))?;
         self.writer_mut().queue(SetAttribute(Attribute::Italic))?;
@@ -189,28 +169,27 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_literal_paragraph(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
         self.render_captioned_title_with_wrapper(
             traversal,
-            &para.title,
-            &para.metadata,
-            CaptionKind::for_style(para.metadata.style),
+            para.title(),
+            para.attributes(),
+            CaptionKind::for_style(para.style()),
             "\n",
             "\n",
         )?;
 
-        acdc_converters_core::index::visit_index_terms(&para.content, &mut |term, _| {
-            crate::inlines::register_index_term(term, self.processor, traversal)
-        })?;
+        acdc_converters_core::index::visit_index_inlines(
+            para.content().inlines(),
+            &mut |term, _| crate::inlines::register_index_term(term, self.processor, traversal),
+        )?;
 
         let separator = "─"
             .repeat(20)
             .with(self.processor.appearance.colors.label_listing);
-        let content = extract_plain_text(
-            &para.content,
-            crate::delimited::code_text_transform(self.processor),
-        );
+        let content =
+            extract_plain_content(para.content(), crate::delimited::code_text_transform());
         let w = self.writer_mut();
         writeln!(w, "{separator}")?;
         write!(w, "{content}")?;
@@ -224,14 +203,14 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_paragraph_content(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        para: &Paragraph,
+        para: ParagraphRef<'_>,
     ) -> Result<(), Error> {
-        let roles = &para.metadata.roles;
-        let strong = roles.iter().any(|role| matches!(*role, "lead" | "big"));
-        let dim = roles.contains(&"small");
-        let italic = roles.contains(&"subtitle");
-        let underline = roles.contains(&"underline");
-        let crossed_out = roles.contains(&"line-through");
+        let roles = para.roles();
+        let strong = roles.iter().any(|role| matches!(role, "lead" | "big"));
+        let dim = roles.iter().any(|role| role == "small");
+        let italic = roles.iter().any(|role| role == "subtitle");
+        let underline = roles.iter().any(|role| role == "underline");
+        let crossed_out = roles.iter().any(|role| role == "line-through");
         if strong {
             self.writer_mut().queue(SetAttribute(Attribute::Bold))?;
         }
@@ -249,7 +228,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             self.writer_mut()
                 .queue(SetAttribute(Attribute::CrossedOut))?;
         }
-        self.visit_inline_nodes(traversal, &para.content)?;
+        self.write_content(traversal, para.content())?;
         if crossed_out {
             self.writer_mut()
                 .queue(SetAttribute(Attribute::NotCrossedOut))?;
@@ -268,9 +247,19 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         Ok(())
     }
 
-    pub(crate) fn render_attribution(&mut self, metadata: &BlockMetadata<'_>) -> Result<(), Error> {
-        let attribution = metadata.attribution.as_ref().map(|a| inlines_to_string(a));
-        let citation = metadata.citetitle.as_ref().map(|c| inlines_to_string(c));
+    pub(crate) fn render_attribution(
+        &mut self,
+        attributes: AttributesRef<'_>,
+    ) -> Result<(), Error> {
+        let transform = InlineTextTransform::default()
+            .rendered()
+            .decode_char_refs(true);
+        let content = |name| match attributes.get(name) {
+            Some(AttributeValueRef::Content(content)) => Some(transform.content_to_string(content)),
+            _ => None,
+        };
+        let attribution = content("attribution");
+        let citation = content("citetitle");
 
         if attribution.is_some() || citation.is_some() {
             let w = self.writer_mut();
@@ -300,7 +289,21 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     }
 }
 
-fn extract_plain_text(inlines: &[InlineNode], transform: InlineTextTransform<'_, '_>) -> String {
+fn extract_plain_content(
+    inlines: ContentRef<'_>,
+    transform: InlineTextTransform<'_, '_>,
+) -> String {
+    transform
+        .line_break("\n")
+        .decode_char_refs(true)
+        .content_to_string(inlines)
+}
+
+#[cfg(test)]
+fn extract_plain_text(
+    inlines: &[acdc_parser::InlineNode<'_>],
+    transform: InlineTextTransform<'_, '_>,
+) -> String {
     transform
         .line_break("\n")
         .decode_char_refs(true)
@@ -310,34 +313,18 @@ fn extract_plain_text(inlines: &[InlineNode], transform: InlineTextTransform<'_,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::{Bold, Form, Italic, LineBreak, Location, Plain};
+    use acdc_parser::{Bold, Form, InlineNode, Italic, LineBreak, Location, Plain};
 
     fn plain(s: &str) -> InlineNode<'_> {
-        InlineNode::PlainText(Plain {
-            content: s,
-            location: Location::default(),
-            escaped: false,
-        })
+        InlineNode::PlainText(Plain::new(s, Location::default()))
     }
 
     fn bold(nodes: Vec<InlineNode>) -> InlineNode {
-        InlineNode::BoldText(Bold {
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            content: nodes,
-            location: Location::default(),
-        })
+        InlineNode::BoldText(Bold::new(nodes, Form::Constrained, Location::default()))
     }
 
     fn italic(nodes: Vec<InlineNode>) -> InlineNode {
-        InlineNode::ItalicText(Italic {
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            content: nodes,
-            location: Location::default(),
-        })
+        InlineNode::ItalicText(Italic::new(nodes, Form::Constrained, Location::default()))
     }
 
     #[test]
@@ -371,9 +358,7 @@ mod tests {
     fn extract_line_break_as_newline() {
         let inlines = [
             plain("first"),
-            InlineNode::LineBreak(LineBreak {
-                location: Location::default(),
-            }),
+            InlineNode::LineBreak(LineBreak::new(Location::default())),
             plain("second"),
         ];
         assert_eq!(

@@ -643,11 +643,26 @@
           ],
           "items": [
             {
-              "term": [
+              "terms": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Term",
+                  "content": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Term",
+                      "location": [
+                        {
+                          "line": 31,
+                          "col": 1
+                        },
+                        {
+                          "line": 31,
+                          "col": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "delimiter": "::",
                   "location": [
                     {
                       "line": 31,
@@ -655,30 +670,41 @@
                     },
                     {
                       "line": 31,
-                      "col": 4
+                      "col": 6
                     }
                   ]
                 }
               ],
-              "delimiter": "::",
-              "principal_text": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Description.",
-                  "location": [
-                    {
-                      "line": 31,
-                      "col": 8
-                    },
-                    {
-                      "line": 31,
-                      "col": 19
-                    }
-                  ]
-                }
-              ],
-              "description": [],
+              "definition": {
+                "principal": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Description.",
+                    "location": [
+                      {
+                        "line": 31,
+                        "col": 8
+                      },
+                      {
+                        "line": 31,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ],
+                "blocks": [],
+                "location": [
+                  {
+                    "line": 31,
+                    "col": 8
+                  },
+                  {
+                    "line": 31,
+                    "col": 19
+                  }
+                ]
+              },
               "location": [
                 {
                   "line": 31,
@@ -686,7 +712,7 @@
                 },
                 {
                   "line": 31,
-                  "col": 20
+                  "col": 19
                 }
               ]
             }
@@ -698,7 +724,7 @@
             },
             {
               "line": 31,
-              "col": 20
+              "col": 19
             }
           ]
         },
@@ -719,6 +745,7 @@
               {
                 "columns": [
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "paragraph",
@@ -795,12 +822,12 @@
                               "id": "cell-target",
                               "location": [
                                 {
-                                  "line": 3,
-                                  "col": 7
+                                  "line": 36,
+                                  "col": 1
                                 },
                                 {
-                                  "line": 3,
-                                  "col": 21
+                                  "line": 36,
+                                  "col": 15
                                 }
                               ]
                             }
@@ -825,6 +852,7 @@
               {
                 "columns": [
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "paragraph",
@@ -846,10 +874,9 @@
                             ]
                           },
                           {
-                            "name": "footnote",
-                            "type": "inline",
-                            "id": "cell",
-                            "inlines": [],
+                            "name": "text",
+                            "type": "string",
+                            "value": "[cell]",
                             "location": [
                               {
                                 "line": 39,
@@ -1164,12 +1191,12 @@
               "id": "discrete-target",
               "location": [
                 {
-                  "line": 0,
-                  "col": 0
+                  "line": 50,
+                  "col": 3
                 },
                 {
-                  "line": 0,
-                  "col": 0
+                  "line": 50,
+                  "col": 23
                 }
               ]
             }
@@ -1245,6 +1272,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "cell-target",
+                  "target_is_local": true,
                   "location": [
                     {
                       "line": 53,
@@ -1275,7 +1303,6 @@
                   "name": "footnote",
                   "type": "inline",
                   "id": "source",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 53,

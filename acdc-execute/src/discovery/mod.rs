@@ -4,10 +4,17 @@ mod error;
 
 pub use error::DiscoveryError;
 
-use acdc_converters_core::{InlineTextTransform, TraversalContext, visitor::Visitor};
+use acdc_converters_core::{
+    InlineTextTransform, TraversalContext,
+    visitor::{BlockVisitor, DocumentVisitor},
+};
 use acdc_parser::{
-    AttributeValue, Block, BlockMetadata, DelimitedBlockType, InlineNode, ParseResult, Section,
-    SourceLocation, Substitution, VERBATIM, substitute_attributes,
+    ColumnStyle, ParseResult, SourceLocation, Substitution, VERBATIM,
+    ast::{
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ColumnFormatRef, ContentRef,
+        StructuralRef, TableRef,
+    },
+    substitute_attributes,
 };
 
 use crate::command::{CommandBlock, CommandGraph, CommandGraphBuilder, CommandId};
@@ -18,7 +25,7 @@ impl TryFrom<&ParseResult> for CommandGraph {
     fn try_from(parsed: &ParseResult) -> Result<Self, Self::Error> {
         validate_source(parsed)?;
         let document = parsed.document();
-        let mut traversal = TraversalContext::new(&document.attributes);
+        let mut traversal = TraversalContext::new(document.attributes());
         let mut collector = CommandCollector {
             parsed,
             builder: CommandGraphBuilder::new(),
@@ -42,103 +49,137 @@ fn validate_source(parsed: &ParseResult) -> Result<(), DiscoveryError> {
 struct CommandCollector<'doc> {
     parsed: &'doc ParseResult,
     builder: CommandGraphBuilder,
-    section_title: Option<&'doc [InlineNode<'doc>]>,
+    section_title: Option<ContentRef<'doc>>,
 }
 
-impl<'doc> Visitor<'doc> for CommandCollector<'doc> {
+impl<'doc> DocumentVisitor<'doc> for CommandCollector<'doc> {}
+
+impl<'doc> BlockVisitor<'doc> for CommandCollector<'doc> {
     type Error = DiscoveryError;
 
     fn before_block(
         &mut self,
         traversal: &mut TraversalContext<'doc>,
-        block: &'doc Block<'doc>,
+        block: BlockRef<'doc>,
     ) -> Result<(), Self::Error> {
-        if let Some(metadata) = block.metadata()
-            && metadata.roles.contains(&"command")
+        if let Some(attributes) = block.attributes()
+            && matches!(attributes.get("role"), Some(AttributeValueRef::Tokens(roles)) if roles.contains("command"))
         {
             let (mut command, dependencies) = parse_command_block(
                 block,
-                metadata,
-                self.parsed.source_location(block.location()),
+                attributes,
+                self.parsed.resolve_location(block.location()),
                 traversal,
             )?;
             command.metadata.section_title = self.section_title.map(|title| {
                 InlineTextTransform::default()
                     .decode_char_refs(true)
-                    .references(&self.parsed.document().references)
-                    .to_string(title)
+                    .references(self.parsed.document().references())
+                    .content_to_string(title)
             });
             self.builder.add(command, dependencies);
         }
         Ok(())
     }
 
-    fn visit_section(
+    fn visit_block(
         &mut self,
         traversal: &mut TraversalContext<'doc>,
-        section: &'doc Section<'doc>,
+        block: BlockRef<'doc>,
     ) -> Result<(), Self::Error> {
-        let parent = self.section_title.replace(&section.title);
-        let result = traversal.visit_blocks(self, &section.content);
-        self.section_title = parent;
-        result
+        if let BlockKind::Section(section) = block.kind() {
+            let parent = std::mem::replace(&mut self.section_title, section.title());
+            let result = traversal.visit_blocks(self, section.blocks());
+            self.section_title = parent;
+            result
+        } else if let BlockKind::Table(table) = block.kind() {
+            self.visit_table(traversal, table)
+        } else {
+            self.visit_children(traversal, StructuralRef::Block(block))
+        }
+    }
+}
+
+impl<'doc> CommandCollector<'doc> {
+    fn visit_children(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        node: StructuralRef<'doc>,
+    ) -> Result<(), DiscoveryError> {
+        for child in node.children() {
+            if let StructuralRef::Block(block) = child {
+                traversal.visit_block(self, block)?;
+            } else {
+                self.visit_children(traversal, child)?;
+            }
+        }
+        Ok(())
     }
 
-    fn visit_inline_nodes(
+    fn visit_table(
         &mut self,
-        _traversal: &mut TraversalContext<'doc>,
-        _nodes: &[InlineNode<'_>],
-    ) -> Result<(), Self::Error> {
+        traversal: &mut TraversalContext<'doc>,
+        table: TableRef<'doc>,
+    ) -> Result<(), DiscoveryError> {
+        for row in table
+            .header()
+            .into_iter()
+            .chain(table.rows())
+            .chain(table.footer())
+        {
+            let mut formats = table.columns();
+            for cell in row.cells() {
+                let default_style = formats
+                    .next()
+                    .map_or(ColumnStyle::Default, ColumnFormatRef::style);
+                if cell.style().unwrap_or(default_style) == ColumnStyle::AsciiDoc {
+                    traversal.with_table_cell(cell, |context| {
+                        context.visit_blocks(self, cell.blocks())
+                    })?;
+                } else {
+                    traversal.visit_blocks(self, cell.blocks())?;
+                }
+            }
+        }
         Ok(())
     }
 }
 
 fn parse_command_block(
-    block: &Block<'_>,
-    metadata: &BlockMetadata<'_>,
+    block: BlockRef<'_>,
+    attributes: AttributesRef<'_>,
     location: SourceLocation,
     traversal: &TraversalContext<'_>,
 ) -> Result<(CommandBlock, Vec<CommandId>), DiscoveryError> {
-    let anchor = metadata
-        .id
-        .as_ref()
+    let anchor = block
+        .primary_anchor()
         .ok_or_else(|| DiscoveryError::MissingId {
             location: Box::new(location.clone()),
         })?;
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "Only script block variants are accepted"
-    )]
-    let source_text = match block {
-        Block::DelimitedBlock(block)
-            if matches!(block.inner, DelimitedBlockType::DelimitedListing(_)) =>
-        {
-            block.source_text()
-        }
-        Block::Paragraph(paragraph) if matches!(metadata.style, Some("source" | "listing")) => {
-            paragraph.source_text()
-        }
-        _ => {
-            return Err(DiscoveryError::NotAScript {
-                id: anchor.id.to_owned(),
-                location: Box::new(location),
-            });
-        }
+    let command_id = anchor.id();
+    let source_text = if let BlockKind::Listing(listing) = block.kind() {
+        listing.source_text()
+    } else if let BlockKind::Paragraph(paragraph) = block.kind()
+        && matches!(paragraph.style(), Some("source" | "listing"))
+    {
+        paragraph.source_text()
+    } else {
+        return Err(DiscoveryError::NotAScript {
+            id: command_id.to_owned(),
+            location: Box::new(location),
+        });
     }
     .ok_or_else(|| DiscoveryError::MissingSource {
-        id: anchor.id.to_owned(),
+        id: command_id.to_owned(),
         location: Box::new(location.clone()),
     })?;
-
     let invalid_id = |source| DiscoveryError::InvalidId {
-        command: anchor.id.to_owned(),
+        command: command_id.to_owned(),
         source,
         location: Box::new(location.clone()),
     };
-    let id = anchor.id.parse().map_err(invalid_id)?;
-    let dependencies = metadata
-        .attributes
-        .get_string("deps")
+    let id = command_id.parse().map_err(invalid_id)?;
+    let dependencies = text_attribute(attributes, "deps")
         .map(|dependencies| {
             dependencies
                 .split(',')
@@ -151,16 +192,19 @@ fn parse_command_block(
         .transpose()?
         .unwrap_or_default();
     let interpreter =
-        source_interpreter(metadata).map_err(|()| DiscoveryError::InvalidInterpreter {
-            id: anchor.id.to_owned(),
+        source_interpreter(attributes).map_err(|()| DiscoveryError::InvalidInterpreter {
+            id: command_id.to_owned(),
             location: Box::new(location.clone()),
         })?;
-    let description = metadata
-        .attributes
-        .get_string("description")
-        .map(std::borrow::Cow::into_owned);
-    let script = if metadata.uses_substitution(&Substitution::Attributes, VERBATIM) {
-        prepare_script(source_text, traversal, anchor.id, &location)?
+    let description = text_attribute(attributes, "description").map(str::to_owned);
+    let expands_attributes =
+        if let Some(AttributeValueRef::Substitutions(spec)) = attributes.get("subs") {
+            spec.resolve(VERBATIM).contains(&Substitution::Attributes)
+        } else {
+            VERBATIM.contains(&Substitution::Attributes)
+        };
+    let script = if expands_attributes {
+        prepare_script(source_text, traversal, command_id, &location)?
     } else {
         source_text.to_owned()
     };
@@ -194,14 +238,21 @@ fn prepare_script(
     Ok(script.into_owned())
 }
 
-fn source_interpreter(metadata: &BlockMetadata<'_>) -> Result<Option<String>, ()> {
-    let interpreter = match metadata.attributes.get("interpreter") {
-        Some(AttributeValue::String(value)) => Some(value.to_string()),
+fn text_attribute<'doc>(attributes: AttributesRef<'doc>, name: &str) -> Option<&'doc str> {
+    if let Some(AttributeValueRef::Text(value)) = attributes.get(name) {
+        Some(value)
+    } else {
+        None
+    }
+}
+
+fn source_interpreter(attributes: AttributesRef<'_>) -> Result<Option<String>, ()> {
+    let interpreter = match attributes.get("interpreter") {
+        Some(AttributeValueRef::Text(value)) => Some(value.to_owned()),
         Some(_) => return Err(()),
-        None if metadata.style == Some("source") => metadata
-            .attributes
-            .get_string("language")
-            .map(std::borrow::Cow::into_owned),
+        None if text_attribute(attributes, "style") == Some("source") => {
+            text_attribute(attributes, "language").map(str::to_owned)
+        }
         None => None,
     };
     if interpreter
@@ -742,24 +793,16 @@ mod tests {
     }
 
     #[test]
-    fn substitution_follows_the_parser_feature_even_when_features_are_unified() {
-        let mut parsed = parse(
+    fn substitution_is_independent_of_optional_capabilities() {
+        let parsed = parse(
             ":value: expanded\n\n[.command,id=run,subs=attributes]\n----\nprintf '{value}'\n----\n",
         );
-        let unsupported = parsed.source_recovery().is_some();
-        parsed.take_warnings();
-        let result = CommandGraph::try_from(&parsed);
-        if unsupported {
-            assert!(matches!(
-                result,
-                Err(DiscoveryError::RecoveredSource { .. })
-            ));
-        } else {
-            assert_eq!(find(&result.unwrap(), "run").script, "printf 'expanded'\n");
-        }
+        assert!(parsed.source_recovery().is_none());
+        assert_eq!(parsed.warnings(), []);
+        let graph = CommandGraph::try_from(&parsed).unwrap();
+        assert_eq!(find(&graph, "run").script, "printf 'expanded'\n");
     }
 
-    #[cfg(feature = "pre-spec-subs")]
     mod attribute_substitution {
         use super::*;
 
@@ -1110,9 +1153,17 @@ mod tests {
             acdc_parser::AttributeValue::Bool(true),
             acdc_parser::AttributeValue::String("bad\0name".into()),
         ] {
-            let mut metadata = acdc_parser::BlockMetadata::default();
-            metadata.attributes.insert("interpreter".into(), value);
-            assert!(super::source_interpreter(&metadata).is_err());
+            let mut attributes = acdc_parser::ElementAttributes::default();
+            attributes.insert("interpreter".into(), value);
+            let metadata = acdc_parser::BlockMetadata::default()
+                .with_attributes(attributes)
+                .unwrap();
+            let paragraph =
+                acdc_parser::Paragraph::new(Vec::new(), acdc_parser::Location::default())
+                    .with_metadata(metadata)
+                    .unwrap();
+            let attributes = acdc_parser::ast::ParagraphRef::from(&paragraph).attributes();
+            assert!(super::source_interpreter(attributes).is_err());
         }
     }
 

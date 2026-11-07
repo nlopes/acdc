@@ -1,0 +1,32 @@
+= Positional Slots
+:entries: name=expanded,,last
+
+[custom,old,tail]
+[custom,name=value,,last]
+Named entries leave earlier positions intact.
+
+[custom,old,tail]
+[custom,"",""]
+Empty positions have mode-specific effects.
+
+[custom,old,tail]
+[custom,{entries}]
+Expanded entries retain their physical positions.
+
+[quote,Ada,Book]
+[quote,,]
+____
+Draft keeps the earlier attribution and citation.
+____
+
+[custom,old,tail]
+audio::audio.ogg[custom,name=value,,last]
+
+include::includes/compatibility_positional_slots.adoc[]
+
+[cols=a]
+|===
+|[custom,old,tail]
+[custom,name=value,,last]
+Nested positional slots.
+|===

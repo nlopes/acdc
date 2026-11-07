@@ -126,4 +126,4 @@ C02 literal body (R).
 .br
 C03 ordinary body (C).
 .sp
-Following prose \(co.
+Following prose \(co\&.

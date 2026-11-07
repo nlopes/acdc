@@ -1,0 +1,28 @@
+= Content attribute preservation
+:label: Before
+
+// The title keeps the attribute value from its declaration.
+[title="{label}"]
+:label: After
+The body sees {label}.
+
+// Only the selected title registers a footnote, and it registers once.
+.Discarded footnote:[Unused dot title.]
+[title="Discarded footnote:[Unused named title.]"]
+image::sample.svg[Alt,title="Selected footnote:[Selected caption.]"]
+
+Body footnote:[Body note.]
+
+// Inline alt text and tooltips remain separate, with other metadata intact.
+Inline image:sample.svg[Alt,title="Tooltip",role=thumb,width=32].
+
+// An empty title is present; an absent title is not.
+image::sample.svg[Alt,title=""]
+
+image::sample.svg[Alt]
+
+// Quote metadata retains both raw text and parsed formatting.
+[quote,attribution='*Ada*',citetitle='A _book_']
+____
+Words.
+____

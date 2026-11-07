@@ -1,0 +1,257 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Before café 😀.",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "break",
+      "type": "block",
+      "variant": "page",
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 3
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "After the first break.",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 22
+        }
+      ]
+    },
+    {
+      "name": "break",
+      "type": "block",
+      "variant": "page",
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Inline <<< stays text.",
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 22
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "<<< after stays text.",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "<<<",
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "literal"
+      },
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "break",
+      "type": "block",
+      "variant": "page",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Last page",
+          "location": [
+            {
+              "line": 14,
+              "col": 2
+            },
+            {
+              "line": 14,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "print"
+        ],
+        "options": [
+          "custom"
+        ],
+        "id": {
+          "id": "last",
+          "location": [
+            {
+              "line": 15,
+              "col": 3
+            },
+            {
+              "line": 15,
+              "col": 6
+            }
+          ]
+        }
+      },
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 3
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 16,
+      "col": 3
+    }
+  ]
+}

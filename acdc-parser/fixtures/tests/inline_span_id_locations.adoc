@@ -1,0 +1,18 @@
+:span-id: expanded-span
+
+Earlier paragraph.
+
+é😀 [#strong]*strong* [#emphasis]_emphasis_ [#code]`code` [#mark]#mark#.
+
+[#sub]~sub~ [#super]^super^ [#quote]"`quote`" [#apostrophe]'`apostrophe`'.
+
+[#strong-open]**strong** [#emphasis-open]__emphasis__ [#code-open]``code`` [#discarded.role#mark-open]##mark##.
+
+[#{span-id}]*expanded*.
+
+[cols=a]
+|===
+|é😀 [#cell-span]_cell_
+|===
+
+include::includes/inline_span_id_locations.adoc[tag=selected,indent=0]

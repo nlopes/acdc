@@ -10,11 +10,26 @@
       },
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Positional ordered",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Positional ordered",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 1
+                    },
+                    {
+                      "line": 2,
+                      "col": 18
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 2,
@@ -22,30 +37,41 @@
                 },
                 {
                   "line": 2,
-                  "col": 18
+                  "col": 20
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Positional style remains effective.",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 22
-                },
-                {
-                  "line": 2,
-                  "col": 56
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Positional style remains effective.",
+                "location": [
+                  {
+                    "line": 2,
+                    "col": 22
+                  },
+                  {
+                    "line": 2,
+                    "col": 56
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 2,
+                "col": 22
+              },
+              {
+                "line": 2,
+                "col": 56
+              }
+            ]
+          },
           "location": [
             {
               "line": 2,
@@ -53,7 +79,7 @@
             },
             {
               "line": 2,
-              "col": 57
+              "col": 56
             }
           ]
         }
@@ -65,7 +91,7 @@
         },
         {
           "line": 2,
-          "col": 57
+          "col": 56
         }
       ]
     },
@@ -77,11 +103,26 @@
       },
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Named ordered",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Named ordered",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 1
+                    },
+                    {
+                      "line": 5,
+                      "col": 13
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 5,
@@ -89,30 +130,41 @@
                 },
                 {
                   "line": 5,
-                  "col": 13
+                  "col": 15
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Named style becomes effective.",
-              "location": [
-                {
-                  "line": 5,
-                  "col": 17
-                },
-                {
-                  "line": 5,
-                  "col": 46
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Named style becomes effective.",
+                "location": [
+                  {
+                    "line": 5,
+                    "col": 17
+                  },
+                  {
+                    "line": 5,
+                    "col": 46
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 5,
+                "col": 17
+              },
+              {
+                "line": 5,
+                "col": 46
+              }
+            ]
+          },
           "location": [
             {
               "line": 5,
@@ -120,7 +172,7 @@
             },
             {
               "line": 5,
-              "col": 47
+              "col": 46
             }
           ]
         }
@@ -132,7 +184,7 @@
         },
         {
           "line": 5,
-          "col": 47
+          "col": 46
         }
       ]
     },
@@ -144,11 +196,26 @@
       },
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Positional unordered",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Positional unordered",
+                  "location": [
+                    {
+                      "line": 8,
+                      "col": 1
+                    },
+                    {
+                      "line": 8,
+                      "col": 20
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 8,
@@ -156,30 +223,41 @@
                 },
                 {
                   "line": 8,
-                  "col": 20
+                  "col": 22
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Positional style remains effective.",
-              "location": [
-                {
-                  "line": 8,
-                  "col": 24
-                },
-                {
-                  "line": 8,
-                  "col": 58
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Positional style remains effective.",
+                "location": [
+                  {
+                    "line": 8,
+                    "col": 24
+                  },
+                  {
+                    "line": 8,
+                    "col": 58
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 8,
+                "col": 24
+              },
+              {
+                "line": 8,
+                "col": 58
+              }
+            ]
+          },
           "location": [
             {
               "line": 8,
@@ -187,7 +265,7 @@
             },
             {
               "line": 8,
-              "col": 59
+              "col": 58
             }
           ]
         }
@@ -199,7 +277,7 @@
         },
         {
           "line": 8,
-          "col": 59
+          "col": 58
         }
       ]
     },
@@ -211,11 +289,26 @@
       },
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Named unordered",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Named unordered",
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 1
+                    },
+                    {
+                      "line": 11,
+                      "col": 15
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 11,
@@ -223,30 +316,41 @@
                 },
                 {
                   "line": 11,
-                  "col": 15
+                  "col": 17
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Named style becomes effective.",
-              "location": [
-                {
-                  "line": 11,
-                  "col": 19
-                },
-                {
-                  "line": 11,
-                  "col": 48
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Named style becomes effective.",
+                "location": [
+                  {
+                    "line": 11,
+                    "col": 19
+                  },
+                  {
+                    "line": 11,
+                    "col": 48
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 11,
+                "col": 19
+              },
+              {
+                "line": 11,
+                "col": 48
+              }
+            ]
+          },
           "location": [
             {
               "line": 11,
@@ -254,7 +358,7 @@
             },
             {
               "line": 11,
-              "col": 49
+              "col": 48
             }
           ]
         }
@@ -266,7 +370,7 @@
         },
         {
           "line": 11,
-          "col": 49
+          "col": 48
         }
       ]
     }

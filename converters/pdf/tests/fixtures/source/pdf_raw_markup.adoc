@@ -1,0 +1,67 @@
+= Raw markup controls
+:word: expanded
+
+P01 +<em>single protected</em>+.
+
+P02 ++<em>double protected</em>++.
+
+P03 +++<em>raw emphasis</em>+++.
+
+P04 pass:[<strong>raw strong</strong>].
+
+P05 +++<em>outer <strong>nested</strong></em>+++.
+
+P06 +++<widget>unknown</widget>+++.
+
+P07 +++<em>unclosed+++.
+
+P08 +++</em>unopened+++.
+
+P09 +++<em></em>+++.
+
+P10 A pass:[] B.
+
+P11 +++&lt;em&gt;encoded&lt;/em&gt;+++.
+
+P12 \+++<em>escaped</em>+++.
+
+P13 pass:a[<em>{word}</em>].
+
+P14 pass:c[<em>{word}</em>].
+
+P15 pass:q[<em>*AsciiDoc bold*</em>].
+
+P16 pass:n[<em>{word}</em>].
+
+P17 ++<em>{word}</em>++.
+
+[[native]]
+P18 [.red]+++<em>styled</em>+++.
+
+P19 <<native>>.
+
+P20 +++<a id="html-only" href="https://example.org/raw">raw link</a>+++.
+
+P21 link:https://example.org/native[Native link].
+
+P22 pass:[#panic("literal Typst")].
+
+[[block-anchor]]
+++++
+B01 <em>block raw</em>
+++++
+
+[pass]
+B02 <strong>pass style</strong>
+
+[subs=attributes]
+++++
+B03 <em>{word}</em>
+++++
+
+[subs=normal]
+++++
+B04 <em>*AsciiDoc bold* {word}</em>
+++++
+
+B05 <<block-anchor>>.

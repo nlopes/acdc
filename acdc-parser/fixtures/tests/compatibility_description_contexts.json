@@ -1,0 +1,262 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Description contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 22
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 22
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Wrapped π paragraph.\nTerm:: Still included paragraph text.",
+          "location": [
+            {
+              "line": 2,
+              "col": 1,
+              "file": [
+                "includes/compatibility_description_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 37,
+              "file": [
+                "includes/compatibility_description_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 1,
+          "file": [
+            "includes/compatibility_description_selected.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 37,
+          "file": [
+            "includes/compatibility_description_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Wrapped cell paragraph.\nTerm:: Still cell paragraph text.",
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 2
+                          },
+                          {
+                            "line": 8,
+                            "col": 33
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 7,
+                        "col": 2
+                      },
+                      {
+                        "line": 8,
+                        "col": 33
+                      }
+                    ]
+                  },
+                  {
+                    "name": "dlist",
+                    "type": "block",
+                    "items": [
+                      {
+                        "terms": [
+                          {
+                            "content": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Actual",
+                                "location": [
+                                  {
+                                    "line": 10,
+                                    "col": 1
+                                  },
+                                  {
+                                    "line": 10,
+                                    "col": 6
+                                  }
+                                ]
+                              }
+                            ],
+                            "delimiter": "::",
+                            "location": [
+                              {
+                                "line": 10,
+                                "col": 1
+                              },
+                              {
+                                "line": 10,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "definition": {
+                          "principal": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "Real description.",
+                              "location": [
+                                {
+                                  "line": 10,
+                                  "col": 10
+                                },
+                                {
+                                  "line": 10,
+                                  "col": 26
+                                }
+                              ]
+                            }
+                          ],
+                          "blocks": [],
+                          "location": [
+                            {
+                              "line": 10,
+                              "col": 10
+                            },
+                            {
+                              "line": 10,
+                              "col": 26
+                            }
+                          ]
+                        },
+                        "location": [
+                          {
+                            "line": 10,
+                            "col": 1
+                          },
+                          {
+                            "line": 10,
+                            "col": 26
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 10,
+                        "col": 1
+                      },
+                      {
+                        "line": 10,
+                        "col": 26
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 6,
+            "col": 1
+          },
+          {
+            "line": 11,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 11,
+      "col": 4
+    }
+  ]
+}

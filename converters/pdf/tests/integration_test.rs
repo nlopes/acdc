@@ -1,4 +1,4 @@
-use acdc_parser::{Document, Options, ParseResult, parse, parse_file};
+use acdc_parser::{CompatibilityMode, Document, Options, ParseResult, parse, parse_file};
 use lopdf::{Document as PdfDocument, Object, ObjectId, decode_text_string};
 use std::{
     collections::HashMap,
@@ -12,6 +12,370 @@ use acdc_converters_core::{
 use acdc_converters_pdf::{PageLayout, PageMargins, PageSize, PdfOptions, Processor, ThemeFormat};
 
 type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn table_footnotes_keep_distinct_pdf_targets_for_each_owner() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/table_cell_footnotes.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let pdf = render_parsed(&parsed)?;
+        let pages = pdf.get_pages();
+        let text = pdf.extract_text(&pages.keys().copied().collect::<Vec<_>>())?;
+        for body in [
+            "Outernote.",
+            "Firstnote.",
+            "Nestednote.",
+            "Secondnote.",
+            "Afternote.",
+            "Normalnote.",
+        ] {
+            assert_eq!(text.matches(body).count(), 1, "{mode:?}: {text}");
+        }
+        let targets = named_destinations(&pdf)?;
+        let mut uses = HashMap::new();
+        for page in pages.values() {
+            for annotation in pdf.get_page_annotations(*page)? {
+                let target = annotation
+                    .get(b"Dest")
+                    .or_else(|_| annotation.get(b"A")?.as_dict()?.get(b"D"))?;
+                let destination = resolve_destination(&pdf, &targets, target)?;
+                *uses.entry(format!("{destination:?}")).or_insert(0) += 1;
+            }
+        }
+        let mut counts = uses.into_values().collect::<Vec<_>>();
+        counts.sort_unstable();
+        // Each definition also links back to its first marker.
+        let mut expected = vec![1; 6];
+        expected.extend([1, 2, 2, 2, 3, 4]);
+        assert_eq!(counts, expected, "{mode:?}");
+    }
+    Ok(())
+}
+
+#[test]
+fn shared_description_styles_keep_terms_notes_and_distinct_destinations() -> Result<(), Error> {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        for style in ["", "horizontal", "qanda", "ordered", "unordered"] {
+            let attributes = if style.is_empty() {
+                String::new()
+            } else {
+                format!("[{style}]\n")
+            };
+            let source = format!(
+                "= Shared\n\n{attributes}[[first]]FirstTerm::\n[[second]]SecondTerm:: Sharedbody footnote:shared[Sharednote].\n+\nAttachedbody footnote:shared[].\n\n<<<\n\nSee <<first,FirstTarget>> and <<second,SecondTarget>>.\n"
+            );
+            let parsed = parse(
+                &source,
+                &Options::builder().with_compatibility_mode(mode).build()?,
+            )?;
+            let pdf = render_parsed(&parsed)?;
+            assert_eq!(pdf.get_pages().len(), 2, "{mode:?}/{style}");
+            let text = pdf.extract_text(&[1, 2])?;
+            for needle in [
+                "FirstTerm",
+                "SecondTerm",
+                "Sharedbody",
+                "Attachedbody",
+                "Sharednote",
+            ] {
+                assert_eq!(text.matches(needle).count(), 1, "{mode:?}/{style}: {text}");
+            }
+            assert_eq!(internal_link_pages(&pdf, 2)?, [1, 1], "{mode:?}/{style}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn decoded_media_links_and_asset_names_reach_pdf() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/decoded_output_controls.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse_file(
+            &path,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let processor = cli_fixture_processor(
+            Options::builder()
+                .with_compatibility_mode(mode)
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document().attributes())
+                        .into_inputs(),
+                ),
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        processor.write_to(
+            parsed.document(),
+            &mut output,
+            Some(&path),
+            None,
+            &mut Diagnostics::new(&WarningSource::new("pdf"), &mut warnings),
+        )?;
+        let [warning] = warnings.as_slice() else {
+            return Err(format!("unexpected warnings: {warnings:?}").into());
+        };
+        assert!(
+            warning
+                .message
+                .starts_with("interactive media playback is unavailable"),
+            "{warnings:?}"
+        );
+        let pdf = PdfDocument::load_mem(&output)?;
+        let mut targets = Vec::new();
+        for page in pdf.get_pages().values() {
+            for annotation in pdf.get_page_annotations(*page)? {
+                if let Ok(action) = annotation.get(b"A").and_then(Object::as_dict)
+                    && let Ok(uri) = action.get(b"URI")
+                {
+                    targets.push(String::from_utf8(uri.as_str()?.to_vec())?);
+                }
+            }
+        }
+        for target in [
+            "'https://example.org/block'",
+            "'https://example.org/icon'",
+            "'https://example.org/inline'",
+        ] {
+            assert!(
+                targets.iter().any(|actual| actual == target),
+                "{mode:?}: {targets:?}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn caption_families_preserve_text_styles_links_and_numbering() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/caption_families.adoc").replace(
+        "missing-caption-image.png",
+        concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/fixtures/source/inline-image-dimensions.svg"
+        ),
+    );
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            &source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let processor = cli_fixture_processor(
+            Options::builder()
+                .with_compatibility_mode(mode)
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document().attributes())
+                        .into_inputs(),
+                ),
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let source = WarningSource::new("pdf");
+        processor.write_to(
+            parsed.document(),
+            &mut output,
+            None,
+            None,
+            &mut Diagnostics::new(&source, &mut warnings),
+        )?;
+        assert_eq!(warnings, []);
+        let pdf = PdfDocument::load_mem(&output)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf
+            .extract_text(&pages)?
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        for (family, label) in [
+            ("image", "Figure"),
+            ("table", "Table"),
+            ("listing", "Listing"),
+            ("example", "Example"),
+        ] {
+            for expected in [
+                format!("{label} 1. {family} default"),
+                format!("{label} π prefix Link & <tag> #[x]"),
+                format!("*Literal* & <tag> #[x] {family} literal"),
+                format!("{family} empty"),
+                format!("{family} disabled"),
+                format!("{label} 2. {family} after"),
+            ] {
+                assert!(
+                    text.contains(&expected),
+                    "{mode:?}: missing {expected:?} in {text}"
+                );
+            }
+            assert!(!text.contains(&format!("{label} 3.")), "{text}");
+        }
+        assert_text_font(&pdf_text_fonts(&pdf)?, "prefix", "Italic");
+        let mut links = Vec::new();
+        for page in pdf.get_pages().values() {
+            for annotation in pdf.get_page_annotations(*page)? {
+                if let Ok(action) = annotation.get(b"A").and_then(Object::as_dict)
+                    && let Ok(uri) = action.get(b"URI")
+                {
+                    links.push(String::from_utf8(uri.as_str()?.to_vec())?);
+                }
+            }
+        }
+        links.sort();
+        assert_eq!(
+            links,
+            [
+                "https://example.org/example?a=1&b=2",
+                "https://example.org/image?a=1&b=2",
+                "https://example.org/listing?a=1&b=2",
+                "https://example.org/table?a=1&b=2",
+            ]
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn resolved_pdf_text_and_code_links_work_in_every_build() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/subs_resolved_text.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let pdf = render_parsed(&parsed)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf
+            .extract_text(&pages)?
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        for expected in [
+            r"R02 X \*word* (C) -> *literal*.",
+            r"R03 X \*word* (C) -> *literal*.",
+            "R04 tail © → —",
+            r"R05 X \*word* (C) ->",
+            "Title © bold",
+            "R07 Body (C) *literal*.",
+            "R08 Normal © → — end.",
+            r"R09 \*literal* \'word\' © →.",
+            "R10 © Next",
+        ] {
+            assert!(text.contains(expected), "missing {expected}: {text}");
+        }
+        let page = *pdf.get_pages().get(&1).ok_or("missing page")?;
+        let targets = named_destinations(&pdf)?;
+        let mut internal = Vec::new();
+        let mut external = Vec::new();
+        for annotation in pdf.get_page_annotations(page)? {
+            if let Ok(action) = annotation.get(b"A").and_then(Object::as_dict)
+                && let Ok(uri) = action.get(b"URI")
+            {
+                external.push(String::from_utf8(uri.as_str()?.to_vec())?);
+                continue;
+            }
+            let destination = annotation
+                .get(b"Dest")
+                .or_else(|_| annotation.get(b"A")?.as_dict()?.get(b"D"))?;
+            internal.push(destination_page_id(
+                &pdf,
+                resolve_destination(&pdf, &targets, destination)?,
+            )?);
+        }
+        assert_eq!(internal, [page]);
+        assert_eq!(external, ["https://example.org"]);
+    }
+    Ok(())
+}
+
+#[test]
+fn unresolved_tables_preserve_body_and_nested_cell_decoration() -> Result<(), Error> {
+    fn clear_table_presentations(blocks: &mut [acdc_parser::Block<'_>]) {
+        fn clear_row(mut row: acdc_parser::TableRow<'_>) -> acdc_parser::TableRow<'_> {
+            let cells = row.take_cells().map(|mut cell| {
+                let mut content: Vec<_> = cell.take_blocks().collect();
+                clear_table_presentations(&mut content);
+                cell.set_blocks(content);
+                cell
+            });
+            row.set_cells(cells);
+            row
+        }
+
+        for block in blocks {
+            let acdc_parser::Block::DelimitedBlock(block) = block else {
+                continue;
+            };
+            let acdc_parser::ast::BlockKind::Table(source) =
+                acdc_parser::ast::BlockRef::from(&*block).kind()
+            else {
+                continue;
+            };
+            let location = acdc_parser::Location::from(source.delimited_location());
+            let mut body = block.clone_body();
+            let acdc_parser::DelimitedBlockType::DelimitedTable(table) = &mut body else {
+                continue;
+            };
+            let header = table.take_header().map(clear_row);
+            let footer = table.take_footer().map(clear_row);
+            let rows = table.take_rows().map(clear_row).collect();
+            *table = acdc_parser::Table::new(rows, location)
+                .with_header(header)
+                .with_footer(footer)
+                .with_columns(table.take_columns().collect());
+            block.replace_body(body);
+        }
+    }
+
+    let parsed = parse(
+        "= Tables\n:table-frame: all\n:table-grid: all\n\nBody.\n\n:table-frame: none\n:table-grid: none\n:table-stripes: odd\n\n[cols=\"a\"]\n|===\n|\nNested.\n\n[cols=\"2*\"]\n!===\n!A !B\n!C !D\n!===\n|===\n\n:table-frame: sides\n:table-grid: cols\n\n[cols=\"2*\"]\n|===\n|E |F\n|G |H\n|===\n",
+        &Options::default(),
+    )?;
+    let mut stored = Document::default();
+    stored.set_attributes(acdc_parser::DocumentAttributes::from(
+        parsed.document().attributes(),
+    ));
+    stored.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+    let mut unresolved = Document::from(acdc_parser::ast::DocumentRef::from(&stored));
+    let mut blocks: Vec<_> = unresolved.take_blocks().collect();
+    clear_table_presentations(&mut blocks);
+    unresolved.set_blocks(blocks);
+    let directory = tempfile::tempdir()?;
+    let mut rendered = Vec::new();
+    for (name, document) in [("stored", &stored), ("unresolved", &unresolved)] {
+        let typst = directory.path().join(name).with_extension("typ");
+        let processor = cli_fixture_processor(
+            Options::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(
+                    acdc_parser::ast::DocumentRef::from(document).attributes(),
+                )
+                .into_inputs(),
+            ),
+        )?
+        .with_pdf_options(PdfOptions {
+            emit_typst: Some(typst.clone()),
+            ..PdfOptions::default()
+        });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        processor.write_to(
+            document.into(),
+            &mut Vec::new(),
+            None,
+            None,
+            &mut Diagnostics::new(&source, &mut warnings),
+        )?;
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let output = read_to_string(typst)?;
+        assert_eq!(output.matches("#table(columns:").count(), 3);
+        rendered.push(output);
+    }
+    let [stored, unresolved] = rendered.as_slice() else {
+        return Err("expected two renderings".into());
+    };
+    assert_eq!(stored, unresolved);
+    Ok(())
+}
 
 #[test]
 fn theme_config_export_rejects_library_input_and_output_collisions() -> Result<(), Error> {
@@ -282,7 +646,9 @@ fn asciidoctor_theme_page_settings_respect_document_and_caller_overrides() -> Re
         }
         let processor = Processor::new(
             ConverterOptions::default(),
-            Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
+            Options::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?
         .with_pdf_options(options);
         let source = WarningSource::new("pdf");
@@ -492,9 +858,9 @@ fn page_break_layout_changes_update_image_widths_and_code_wrapping() -> Result<(
     let parsed = parse(&input, &Options::default())?;
     let output_dir = tempfile::tempdir()?;
     let typst_path = output_dir.path().join("layout.typ");
-    let processor = cli_fixture_processor(
-        Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
-    )?
+    let processor = cli_fixture_processor(Options::builder().with_attributes(
+        acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+    ))?
     .with_pdf_options(PdfOptions {
         emit_typst: Some(typst_path.clone()),
         ..PdfOptions::default()
@@ -596,7 +962,6 @@ fn assert_pdf_page_layouts(
 #[rstest::rstest]
 #[case::plain("")]
 #[case::highlighted(":source-highlighter: rouge\n")]
-#[cfg(feature = "pre-spec-subs")]
 fn callout_comment_prefixes_keep_pdf_link_and_anchor_positions(
     #[case] highlighter: &str,
 ) -> Result<(), Error> {
@@ -744,7 +1109,6 @@ fn nested_styles_use_combined_pdf_fonts_and_restore_outer_styles() -> Result<(),
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn nested_styles_preserve_enabled_and_disabled_code_quotes() -> Result<(), Error> {
     let pdf = render_input(include_str!("fixtures/source/subs_nested_font_styles.adoc"))?;
@@ -896,7 +1260,7 @@ fn incomplete_links_omit_pdf_annotations_for_unfinished_targets() -> Result<(), 
 fn named_index_delimiters_keep_pdf_annotations_and_one_note() -> Result<(), Error> {
     let source = "= Index labels\n\nindexterm2:[Before https://example.org[Link] footnote:one[Only note.] anchor:inner[] after].\n\nReuse footnote:one[] and <<inner,Inner>>.\n\n<<<\n\n[index]\n== Index\n";
     let parsed = parse(source, &Options::default())?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     let pdf = render_parsed(&parsed)?;
     assert_eq!(pdf.extract_text(&[1])?.matches("Only note.").count(), 1);
     let links = external_link_rects(&pdf, 1)?;
@@ -910,7 +1274,7 @@ fn named_index_delimiters_keep_pdf_annotations_and_one_note() -> Result<(), Erro
 fn link_formatting_boundaries_keep_pdf_links_and_one_note() -> Result<(), Error> {
     let source = "= Links\n\n*Before https://outer.example[*Bold mailto:inner@example.org[Inner] footnote:one[Only note.] tail* after] end*.\n\nReuse footnote:one[].\n";
     let parsed = parse(source, &Options::default())?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     let pdf = render_parsed(&parsed)?;
     let text = pdf.extract_text(&[1])?;
     assert_eq!(text.matches("Only note.").count(), 1, "{text}");
@@ -936,7 +1300,7 @@ fn verse_keeps_pdf_line_positions_and_macro_targets(
         "= Verse\n\n[verse]\n{fence}First (C).\n  anchor:verse-target[]Second (TM).\n{stanza}Third (R). link:https://example.org/verse[Link] footnote:note[Verse note.]\n{fence}\nAfter <<verse-target,Target>> and footnote:note[].\n"
     );
     let parsed = parse(&source, &Options::default())?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     let pdf = render_parsed(&parsed)?;
     let text = pdf.extract_text(&[1])?;
     for content in ["First ©.", "Second ™.", "Third ®."] {
@@ -963,11 +1327,10 @@ fn verse_keeps_pdf_line_positions_and_macro_targets(
 }
 
 #[test]
-#[cfg(feature = "pre-spec-subs")]
 fn title_substitutions_keep_pdf_links_and_footnotes() -> Result<(), Error> {
     let source = "= Titles\n\n.Title link:https://example.org/title[Link (C)] footnote:note[Note (R).]\n[#target]\n[subs=\"none\"]\nBody (C) footnote:[Inactive note.].\n\nReuse footnote:note[] and see <<target,Target>>.\n";
     let parsed = parse(source, &Options::default())?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     let pdf = render_parsed(&parsed)?;
     let text = pdf.extract_text(&[1])?;
     assert!(text.contains("Link ©"), "{text}");
@@ -1035,7 +1398,6 @@ fn plain_table_paragraph_linebreaks_keep_pdf_text_positions() -> Result<(), Erro
 }
 
 #[test]
-#[cfg(feature = "pre-spec-subs")]
 fn code_typography_preserves_escapes_and_pdf_navigation() -> Result<(), Error> {
     let actual = render_input(
         "= Code\n\n[subs=\"+replacements,+macros\"]\n----\n(C) \\(R) \\*literal\\* pass:r[\\(TM)] anchor:target[]https://example.org/type[Next \\*label\\*]\n----",
@@ -1097,7 +1459,6 @@ fn code_typography_preserves_escapes_and_pdf_navigation() -> Result<(), Error> {
 fn deferred_typography_keeps_pdf_link_and_anchor_positions() -> Result<(), Error> {
     for body in [
         "`{value}anchor:target[]https://example.org/type[Next]`.",
-        #[cfg(feature = "pre-spec-subs")]
         "[subs=\"+attributes,+macros\"]\n----\n{value}anchor:target[]https://example.org/type[Next]\n----",
     ] {
         let actual = render_input(&format!("= Type\n:value: pass:r[(C)]\n\n{body}\n"))?;
@@ -1210,7 +1571,6 @@ fn inline_code_spaces_keep_their_width_across_formatting_boundaries() -> Result<
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn disabled_passthrough_attributes_do_not_create_pdf_links() -> Result<(), Error> {
     let pdf = render_input(
@@ -1348,7 +1708,6 @@ fn inline_verbatim_links_preserve_local_reference_navigation() -> Result<(), Err
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn inline_verbatim_links_honor_context_and_copied_title_ownership() -> Result<(), Error> {
     let pdf = render_input(include_str!(
@@ -1578,18 +1937,20 @@ fn named_pdf_destinations_keep_caller_built_document_titles() -> Result<(), Erro
         include_str!("fixtures/source/named_destinations.adoc"),
         &Options::default(),
     )?;
-    let header = parsed
-        .document()
-        .header
-        .as_ref()
-        .ok_or("missing fixture header")?;
+    let mut header =
+        acdc_parser::Header::from(parsed.document().header().ok_or("missing fixture header")?);
     let mut document = Document::default();
-    document.header = Some(
-        acdc_parser::Header::new(header.title.clone(), header.location.clone())
-            .with_metadata(header.metadata.clone()),
-    );
-    document.attributes = parsed.document().attributes.clone();
-    let pdf = render_document(&document)?;
+    document.set_header(Some(
+        acdc_parser::Header::new(
+            header.take_title(),
+            acdc_parser::Location::from(acdc_parser::ast::HeaderRef::from(&header).location()),
+        )
+        .with_metadata(header.take_metadata())?,
+    ));
+    document.set_attributes(acdc_parser::DocumentAttributes::from(
+        parsed.document().attributes(),
+    ));
+    let pdf = render_document((&document).into())?;
     let destinations = named_destinations(&pdf)?;
     assert!(destinations.contains_key("document-top"));
     assert!(!destinations.contains_key("unused-header"));
@@ -1644,14 +2005,13 @@ fn named_pdf_destinations_preserve_positions_and_first_ownership() -> Result<(),
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn named_pdf_destinations_omit_unrendered_targets_and_copied_titles() -> Result<(), Error> {
     let source = include_str!("fixtures/source/subs_named_destinations.adoc");
     let parsed = parse(source, &Options::default())?;
     for id in ["omitted", "_empty_index"] {
         assert!(
-            parsed.document().references.contains_key(id),
+            parsed.document().references().contains(id),
             "missing catalog control {id}"
         );
     }
@@ -1713,7 +2073,6 @@ fn unused_attribute_footnotes_do_not_add_an_empty_pdf_page() -> Result<(), Error
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn formatted_attributes_keep_pdf_code_formatting_and_links() -> Result<(), Error> {
     let source = include_str!("fixtures/source/subs_document_attribute_formatted.adoc");
@@ -1750,7 +2109,6 @@ fn formatted_attributes_keep_pdf_code_formatting_and_links() -> Result<(), Error
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn passthrough_character_references_preserve_visible_pdf_code() -> Result<(), Error> {
     let source =
@@ -1778,7 +2136,6 @@ fn passthrough_character_references_preserve_visible_pdf_code() -> Result<(), Er
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_quotes_use_bold_and_italic_pdf_fonts() -> Result<(), Error> {
     let pdf =
@@ -1806,7 +2163,6 @@ fn verbatim_quotes_use_bold_and_italic_pdf_fonts() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_quotes_preserve_pdf_destinations_and_notes() -> Result<(), Error> {
     let source = include_str!("fixtures/source/subs_verbatim_quotes_nested.adoc");
@@ -1913,7 +2269,6 @@ fn inline_verbatim_targets_keep_glyph_positions() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn inline_verbatim_targets_keep_duplicate_and_copied_title_ownership() -> Result<(), Error> {
     let pdf = render_input(include_str!(
@@ -2037,7 +2392,6 @@ fn inline_anchor_spacing_keeps_glyph_positions() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn inline_anchor_spacing_in_code_keeps_pdf_destinations() -> Result<(), Error> {
     let source = include_str!("fixtures/source/subs_inline_anchor_spacing.adoc");
@@ -2087,7 +2441,6 @@ fn index_dash_context_keeps_catalog_labels_independent_of_body_context() -> Resu
 }
 
 #[test]
-#[cfg(feature = "pre-spec-subs")]
 fn index_dash_context_preserves_code_destinations_and_link_positions() -> Result<(), Error> {
     let input = "= Context\n\n[source,text,subs=\"specialchars,macros,replacements\"]\n----\n\
         12anchor:before[]indexterm2:[--]anchor:after[]34 link:https://next.example/context[Next]\n----\n";
@@ -2136,7 +2489,6 @@ fn index_dash_context_preserves_code_destinations_and_link_positions() -> Result
 }
 
 #[test]
-#[cfg(feature = "pre-spec-subs")]
 fn index_replacement_context_keeps_code_anchor_ownership() -> Result<(), Error> {
     for (body, control) in [
         (
@@ -2492,7 +2844,6 @@ fn anchor_macros_keep_their_pdf_destinations() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn anchor_macros_in_code_keep_pdf_destinations() -> Result<(), Error> {
     for highlighting in ["", ":source-highlighter: rouge\n"] {
@@ -2513,7 +2864,6 @@ fn anchor_macros_in_code_keep_pdf_destinations() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn anchor_macros_in_code_target_the_occurrence_page() -> Result<(), Error> {
     for target_line in [1, 50, 70] {
@@ -2591,7 +2941,6 @@ fn xref_nested_footnotes_keep_their_own_page_destination() -> Result<(), Error> 
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_xref_nested_footnotes_keep_their_own_page_destination() -> Result<(), Error> {
     for highlighter in ["", ":source-highlighter: rouge\n"] {
@@ -2611,7 +2960,6 @@ fn verbatim_xref_nested_footnotes_keep_their_own_page_destination() -> Result<()
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn index_catalog_labels_do_not_create_extra_pdf_footnotes() -> Result<(), Error> {
     let pdf = render_input(include_str!("fixtures/source/subs_index_stage_labels.adoc"))?;
@@ -2725,7 +3073,6 @@ fn inline_code_footnotes_survive_table_wrapping() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_footnotes_keep_clickable_markers_and_reuse_definitions() -> Result<(), Error> {
     for highlighter in ["", ":source-highlighter: rouge\n"] {
@@ -2748,7 +3095,6 @@ fn verbatim_footnotes_keep_clickable_markers_and_reuse_definitions() -> Result<(
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_footnotes_inside_link_labels_keep_their_own_destination() -> Result<(), Error> {
     for highlighter in ["", ":source-highlighter: rouge\n"] {
@@ -2785,7 +3131,6 @@ fn verbatim_footnotes_inside_link_labels_keep_their_own_destination() -> Result<
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn wrapped_verbatim_footnotes_render_once() -> Result<(), Error> {
     for prefix in 60..=100 {
@@ -2801,7 +3146,6 @@ fn wrapped_verbatim_footnotes_render_once() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn named_footnotes_do_not_insert_spaces_in_code() -> Result<(), Error> {
     for highlighter in ["", ":source-highlighter: rouge\n"] {
@@ -2816,7 +3160,6 @@ fn named_footnotes_do_not_insert_spaces_in_code() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_links_preserve_clickable_labels_and_spacing() -> Result<(), Error> {
     for highlighter in ["", ":source-highlighter: rouge\n"] {
@@ -2845,7 +3188,6 @@ fn verbatim_links_preserve_clickable_labels_and_spacing() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_cross_references_reach_the_target_page() -> Result<(), Error> {
     for highlighter in ["", ":source-highlighter: rouge\n"] {
@@ -2860,7 +3202,6 @@ fn verbatim_cross_references_reach_the_target_page() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_link_ids_and_wrapped_links_compile() -> Result<(), Error> {
     let parsed = parse(
@@ -2922,18 +3263,20 @@ fn render_parsed(parsed: &ParseResult) -> Result<PdfDocument, Error> {
     render_document(parsed.document())
 }
 
-fn render_document(document: &Document<'_>) -> Result<PdfDocument, Error> {
+fn render_document(document: acdc_parser::ast::DocumentRef<'_>) -> Result<PdfDocument, Error> {
     let (pdf, warnings) = render_document_with_warnings(document)?;
     assert!(warnings.is_empty(), "{warnings:?}");
     Ok(pdf)
 }
 
 fn render_document_with_warnings(
-    document: &Document<'_>,
+    document: acdc_parser::ast::DocumentRef<'_>,
 ) -> Result<(PdfDocument, Vec<Warning>), Error> {
     let processor = Processor::new(
         ConverterOptions::default(),
-        Options::builder().with_attributes(document.attributes.clone().into_inputs()),
+        Options::builder().with_attributes(
+            acdc_parser::DocumentAttributes::from(document.attributes()).into_inputs(),
+        ),
     )?;
     let source = WarningSource::new("pdf");
     let mut warnings = Vec::new();
@@ -2969,7 +3312,6 @@ fn multiple_index_catalogs_compile_with_relationship_links() -> Result<(), Error
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_index_locators_follow_the_rendered_code_pages() -> Result<(), Error> {
     use std::fmt::Write as _;
@@ -3026,7 +3368,6 @@ fn verbatim_index_locators_follow_the_rendered_code_pages() -> Result<(), Error>
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_index_anchors_preserve_numbered_code_alignment() -> Result<(), Error> {
     for autofit in ["", ",options=autofit"] {
@@ -3047,7 +3388,6 @@ fn verbatim_index_anchors_preserve_numbered_code_alignment() -> Result<(), Error
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_index_locators_match_occurrences_at_page_boundaries() -> Result<(), Error> {
     use std::fmt::Write as _;
@@ -3511,8 +3851,8 @@ fn anchors_in_repeated_table_headers_resolve_to_the_first_page() -> Result<(), E
     Ok(())
 }
 
-fn fixture_theme(doc: &acdc_parser::Document<'_>) -> Option<PathBuf> {
-    doc.attributes
+fn fixture_theme(doc: acdc_parser::ast::DocumentRef<'_>) -> Option<PathBuf> {
+    doc.attributes()
         .get("acdc-pdf-test-theme")
         .and_then(|value| value.text())
         .map(|name| {
@@ -3573,11 +3913,6 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
         .and_then(|name| name.to_str())
         .ok_or("invalid fixture file name")?;
 
-    #[cfg(not(feature = "pre-spec-subs"))]
-    if file_name.contains("subs") {
-        return Ok(());
-    }
-
     let expected_path = Path::new("tests/fixtures/expected")
         .join(file_name)
         .with_extension("typ");
@@ -3585,9 +3920,9 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
     let parsed = parse_file(path, bootstrap.parser_options())?;
     let output_dir = tempfile::tempdir()?;
     let typst_path = output_dir.path().join("actual.typ");
-    let processor = cli_fixture_processor(
-        Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
-    )?
+    let processor = cli_fixture_processor(Options::builder().with_attributes(
+        acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+    ))?
     .with_pdf_options(PdfOptions {
         emit_typst: Some(typst_path.clone()),
         theme: fixture_theme(parsed.document()),
@@ -3679,13 +4014,31 @@ fn typst_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> Res
 }
 
 #[test]
+fn literal_hyperlink_ids_are_named_pdf_destinations() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/literal_hyperlink_ids.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let pdf = render_parsed(&parsed)?;
+        let mut names = named_destinations(&pdf)?.into_keys().collect::<Vec<_>>();
+        names.sort();
+        assert_eq!(names, ["'code-π'", "'link-π'", "'mail-π'", "'url-π'"]);
+    }
+    Ok(())
+}
+
+#[test]
 fn link_macro_ids_are_named_pdf_destinations() -> Result<(), Error> {
     let path = Path::new("tests/fixtures/source/link_macro_ids.adoc");
     let bootstrap = Processor::new(ConverterOptions::default(), Options::builder())?;
     let parsed = parse_file(path, bootstrap.parser_options())?;
     let processor = Processor::new(
         ConverterOptions::default(),
-        Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
+        Options::builder().with_attributes(
+            acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+        ),
     )?;
     let mut pdf = Vec::new();
     let mut warnings = Vec::new();
@@ -3743,7 +4096,9 @@ fn image_alt_text_reaches_pdf_structure() -> Result<(), Error> {
             .build(),
         Options::builder()
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            .with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
     )?;
     let mut pdf = Vec::new();
     let mut warnings = Vec::new();
@@ -3781,5 +4136,161 @@ fn image_alt_text_reaches_pdf_structure() -> Result<(), Error> {
         ]
     );
     assert!(warnings.is_empty(), "{warnings:?}");
+    Ok(())
+}
+
+#[test]
+fn repeated_selected_includes_keep_the_first_public_section_destination() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/section_destination_identity.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse_file(
+            &path,
+            &Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        let pdf = render_parsed(&parsed)?;
+        let names = named_destinations(&pdf)?;
+        assert!(names.contains_key("shared"));
+        assert!(names.contains_key("tail"));
+        assert_eq!(pdf.get_pages().len(), 5);
+        assert_eq!(internal_link_pages(&pdf, 1)?, [3, 4, 5]);
+        assert_eq!(internal_link_pages(&pdf, 2)?, [3, 5]);
+    }
+    Ok(())
+}
+
+#[test]
+fn rebuilt_selected_include_catalogs_keep_first_public_and_separate_toc_destinations()
+-> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/section_destination_identity.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse_file(
+            &path,
+            &Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        let mut document = Document::from(parsed.document());
+        document.rebuild_references_and_toc()?;
+        let pdf = render_document(acdc_parser::ast::DocumentRef::from(&document))?;
+        assert_eq!(internal_link_pages(&pdf, 1)?, [3, 4, 5]);
+        assert_eq!(internal_link_pages(&pdf, 2)?, [3, 5]);
+        assert!(named_destinations(&pdf)?.contains_key("shared"));
+    }
+    Ok(())
+}
+
+#[test]
+fn rebuilt_toc_does_not_link_to_a_same_id_paragraph_with_equal_source_spans() -> Result<(), Error> {
+    use acdc_parser::{Block, InlineNode, Location, Plain, Title};
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            "= Ownership\n:toc:\n\n[#shared]\n.Same\nParagraph.\n\nSee <<shared,Target>>.\n\n<<<\n\n[#shared]\n== Same\n\nHeading body.\n",
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let mut document = Document::from(parsed.document());
+        let mut blocks: Vec<_> = document.take_blocks().collect();
+        for block in &mut blocks {
+            let prepared_title = || {
+                Title::new(vec![InlineNode::PlainText(Plain::new(
+                    "Same",
+                    Location::default(),
+                ))])
+            };
+            if let Block::Paragraph(paragraph) = block {
+                let mut metadata = paragraph.clone_metadata();
+                if metadata.id.is_some() {
+                    paragraph.set_location(Location::default());
+                    paragraph.set_title(prepared_title());
+                    if let Some(anchor) = &mut metadata.id {
+                        anchor.set_location(Location::default());
+                    }
+                    for anchor in &mut metadata.anchors {
+                        anchor.set_location(Location::default());
+                    }
+                    paragraph.set_metadata(metadata)?;
+                }
+            } else if let Block::Section(section) = block {
+                section.set_location(Location::default());
+                section.set_title(prepared_title());
+            }
+        }
+        document.set_blocks(blocks);
+        document.rebuild_references_and_toc()?;
+        let pdf = render_document(acdc_parser::ast::DocumentRef::from(&document))?;
+        assert_eq!(internal_link_pages(&pdf, 1)?, [3]);
+        assert_eq!(internal_link_pages(&pdf, 2)?, [2]);
+        assert!(named_destinations(&pdf)?.contains_key("shared"));
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
+fn raw_html_stays_literal_without_creating_pdf_links_or_destinations(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let source = include_str!("fixtures/source/pdf_raw_markup.adoc");
+    let parsed = parse(
+        source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+    let before = Document::from(parsed.document());
+    let pdf = render_parsed(&parsed)?;
+    assert_eq!(Document::from(parsed.document()), before);
+    let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+    let text = pdf
+        .extract_text(&pages)?
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    for expected in [
+        "P01 <em>single protected</em>.",
+        "P02 <em>double protected</em>.",
+        "P03 <em>raw emphasis</em>.",
+        "P04 <strong>raw strong</strong>.",
+        "P05 <em>outer <strong>nested</strong></em>.",
+        "P06 <widget>unknown</widget>.",
+        "P07 <em>unclosed.",
+        "P08 </em>unopened.",
+        "P09 <em></em>.",
+        "P10 A B.",
+        "P11 &lt;em&gt;encoded&lt;/em&gt;.",
+        "P12 +<em>escaped</em>+.",
+        "P13 <em>expanded</em>.",
+        "P14 <em>{word}</em>.",
+        "P15 <em> AsciiDoc bold </em>.",
+        "P16 <em>expanded</em>.",
+        "P17 <em>{word}</em>.",
+        r#"P20 <a id="html-only" href="https://example.org/raw">raw link</a>."#,
+        r#"P22 #panic("literal Typst")."#,
+        "B01 <em>block raw</em>",
+        "B02 <strong>pass style</strong>",
+        "B03 <em>expanded</em>",
+        "B04 <em>AsciiDoc bold expanded</em>",
+    ] {
+        assert!(
+            text.contains(expected),
+            "{mode:?}: missing {expected:?}: {text}"
+        );
+    }
+    let mut links = Vec::new();
+    for page in pages {
+        links.extend(
+            external_link_rects(&pdf, page)?
+                .into_iter()
+                .map(|(uri, _)| uri),
+        );
+    }
+    assert_eq!(links, ["https://example.org/native"]);
+    let destinations = named_destinations(&pdf)?;
+    assert!(destinations.contains_key("native"));
+    assert!(destinations.contains_key("block-anchor"));
+    assert!(!destinations.contains_key("html-only"));
     Ok(())
 }

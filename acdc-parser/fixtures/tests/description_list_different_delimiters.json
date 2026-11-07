@@ -7,11 +7,26 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Level 1",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Level 1",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 1
+                    },
+                    {
+                      "line": 1,
+                      "col": 7
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 1,
@@ -19,103 +34,157 @@
                 },
                 {
                   "line": 1,
-                  "col": 7
+                  "col": 9
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "First level item",
-              "location": [
-                {
-                  "line": 1,
-                  "col": 11
-                },
-                {
-                  "line": 1,
-                  "col": 26
-                }
-              ]
-            }
-          ],
-          "description": [
-            {
-              "name": "dlist",
-              "type": "block",
-              "items": [
-                {
-                  "term": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Level 2",
-                      "location": [
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "First level item",
+                "location": [
+                  {
+                    "line": 1,
+                    "col": 11
+                  },
+                  {
+                    "line": 1,
+                    "col": 26
+                  }
+                ]
+              }
+            ],
+            "blocks": [
+              {
+                "name": "dlist",
+                "type": "block",
+                "items": [
+                  {
+                    "terms": [
+                      {
+                        "content": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Level 2",
+                            "location": [
+                              {
+                                "line": 2,
+                                "col": 1
+                              },
+                              {
+                                "line": 2,
+                                "col": 7
+                              }
+                            ]
+                          }
+                        ],
+                        "delimiter": ":::",
+                        "location": [
+                          {
+                            "line": 2,
+                            "col": 1
+                          },
+                          {
+                            "line": 2,
+                            "col": 10
+                          }
+                        ]
+                      }
+                    ],
+                    "definition": {
+                      "principal": [
                         {
-                          "line": 2,
-                          "col": 1
-                        },
-                        {
-                          "line": 2,
-                          "col": 7
-                        }
-                      ]
-                    }
-                  ],
-                  "delimiter": ":::",
-                  "principal_text": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Second level item",
-                      "location": [
-                        {
-                          "line": 2,
-                          "col": 12
-                        },
-                        {
-                          "line": 2,
-                          "col": 28
-                        }
-                      ]
-                    }
-                  ],
-                  "description": [
-                    {
-                      "name": "dlist",
-                      "type": "block",
-                      "items": [
-                        {
-                          "term": [
+                          "name": "text",
+                          "type": "string",
+                          "value": "Second level item",
+                          "location": [
                             {
-                              "name": "text",
-                              "type": "string",
-                              "value": "Level 3",
+                              "line": 2,
+                              "col": 12
+                            },
+                            {
+                              "line": 2,
+                              "col": 28
+                            }
+                          ]
+                        }
+                      ],
+                      "blocks": [
+                        {
+                          "name": "dlist",
+                          "type": "block",
+                          "items": [
+                            {
+                              "terms": [
+                                {
+                                  "content": [
+                                    {
+                                      "name": "text",
+                                      "type": "string",
+                                      "value": "Level 3",
+                                      "location": [
+                                        {
+                                          "line": 3,
+                                          "col": 1
+                                        },
+                                        {
+                                          "line": 3,
+                                          "col": 7
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "delimiter": ";;",
+                                  "location": [
+                                    {
+                                      "line": 3,
+                                      "col": 1
+                                    },
+                                    {
+                                      "line": 3,
+                                      "col": 9
+                                    }
+                                  ]
+                                }
+                              ],
+                              "definition": {
+                                "principal": [
+                                  {
+                                    "name": "text",
+                                    "type": "string",
+                                    "value": "Another delimiter",
+                                    "location": [
+                                      {
+                                        "line": 3,
+                                        "col": 11
+                                      },
+                                      {
+                                        "line": 3,
+                                        "col": 27
+                                      }
+                                    ]
+                                  }
+                                ],
+                                "blocks": [],
+                                "location": [
+                                  {
+                                    "line": 3,
+                                    "col": 11
+                                  },
+                                  {
+                                    "line": 3,
+                                    "col": 27
+                                  }
+                                ]
+                              },
                               "location": [
                                 {
                                   "line": 3,
                                   "col": 1
-                                },
-                                {
-                                  "line": 3,
-                                  "col": 7
-                                }
-                              ]
-                            }
-                          ],
-                          "delimiter": ";;",
-                          "principal_text": [
-                            {
-                              "name": "text",
-                              "type": "string",
-                              "value": "Another delimiter",
-                              "location": [
-                                {
-                                  "line": 3,
-                                  "col": 11
                                 },
                                 {
                                   "line": 3,
@@ -124,7 +193,6 @@
                               ]
                             }
                           ],
-                          "description": [],
                           "location": [
                             {
                               "line": 3,
@@ -132,47 +200,57 @@
                             },
                             {
                               "line": 3,
-                              "col": 28
+                              "col": 27
                             }
                           ]
                         }
                       ],
                       "location": [
                         {
-                          "line": 3,
-                          "col": 1
+                          "line": 2,
+                          "col": 12
                         },
                         {
                           "line": 3,
-                          "col": 28
+                          "col": 27
                         }
                       ]
-                    }
-                  ],
-                  "location": [
-                    {
-                      "line": 2,
-                      "col": 1
                     },
-                    {
-                      "line": 3,
-                      "col": 28
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 2,
-                  "col": 1
-                },
-                {
-                  "line": 3,
-                  "col": 28
-                }
-              ]
-            }
-          ],
+                    "location": [
+                      {
+                        "line": 2,
+                        "col": 1
+                      },
+                      {
+                        "line": 3,
+                        "col": 27
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 2,
+                    "col": 1
+                  },
+                  {
+                    "line": 3,
+                    "col": 27
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 1,
+                "col": 11
+              },
+              {
+                "line": 3,
+                "col": 27
+              }
+            ]
+          },
           "location": [
             {
               "line": 1,
@@ -180,7 +258,7 @@
             },
             {
               "line": 3,
-              "col": 28
+              "col": 27
             }
           ]
         }
@@ -192,7 +270,7 @@
         },
         {
           "line": 3,
-          "col": 28
+          "col": 27
         }
       ]
     }

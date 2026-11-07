@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -126,7 +127,7 @@
 
 #text("P20 ")#metadata(none)<id-6f757465722d7370616e>#raw("x")#metadata(none)<id-696e6e65722d746172676574>#raw("y")#text(".")
 
-#text("P21 ")#raw(". # <tag> {text} \\path (C)")#text(".")
+#text("P21 ")#raw(". # <tag> {text} \\path ©")#text(".")
 
 #text("P22 ")#metadata(none)<id-6974616c6963>#emph[#raw("Italic")]#raw(" ")#metadata(none)<id-6e65737465642d6d6f6e6f>#raw("Mono ")#metadata(none)<id-6d61726b>#raw("Marked ")#metadata(none)<id-7375706572>#super[#raw("Sup")]#raw(" ")#metadata(none)<id-737562>#sub[#raw("Sub")]#raw(" ")#metadata(none)<id-646f75626c65>#raw("“Double” ")#metadata(none)<id-73696e676c65>#raw("‘Single’")#text(".")
 

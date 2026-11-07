@@ -3,6 +3,7 @@ John Doe <john@example.com>
 :doctype: manpage
 :manmanual: Sample Manual
 :mansource: Sample Project 1.0
+:docdate: 2025-01-01
 :revdate: 2025-01-01
 
 == Name

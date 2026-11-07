@@ -344,8 +344,7 @@
                                 "line": 19,
                                 "col": 36
                               }
-                            ],
-                            "attributes": {}
+                            ]
                           },
                           {
                             "name": "text",
@@ -455,6 +454,7 @@
                     ]
                   },
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "paragraph",
@@ -561,6 +561,7 @@
                     ]
                   },
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "paragraph",
@@ -615,8 +616,7 @@
                                 "line": 33,
                                 "col": 59
                               }
-                            ],
-                            "attributes": {}
+                            ]
                           },
                           {
                             "name": "text",
@@ -827,6 +827,7 @@
                     ]
                   },
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "paragraph",
@@ -1029,6 +1030,7 @@
               "name": "xref",
               "type": "inline",
               "target": "plain-cell-target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",

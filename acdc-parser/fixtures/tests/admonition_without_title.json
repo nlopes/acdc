@@ -6,6 +6,7 @@
       "name": "admonition",
       "type": "block",
       "variant": "warning",
+      "form": "paragraph",
       "blocks": [
         {
           "name": "paragraph",

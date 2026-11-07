@@ -68,15 +68,13 @@ P16 \(co
 .sp
 P17 \fB\(co\fR
 .sp
-P18 \fB\(co\fR
+P18 pass:q,c,r[*&#169;*]
 .sp
 P19 \c
 .URL "https://example.org" "" "\fR\c"
 [\(co]
 .sp
-P20 \c
-.URL "https://example.org" "" "\fR\c"
-[\(co]
+P20 pass:m,c,r[https://example.org[&#169;]]
 .sp
 P21 café \(coΩ \(co\(co
 .sp

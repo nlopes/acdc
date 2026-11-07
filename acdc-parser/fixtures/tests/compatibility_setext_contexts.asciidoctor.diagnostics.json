@@ -1,0 +1,40 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 191,
+      "absolute_start": 178,
+      "file": "compatibility_setext_contexts.adoc",
+      "location": [
+        {
+          "col": 1,
+          "line": 16
+        },
+        {
+          "col": 14,
+          "line": 16
+        }
+      ]
+    },
+    "message": "unterminated listing block (opened by `--------------`)"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 191,
+        "absolute_start": 178,
+        "file": "compatibility_setext_contexts.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 16
+          },
+          {
+            "col": 14,
+            "line": 16
+          }
+        ]
+      },
+      "message": "unterminated listing block (opened by `--------------`)"
+    }
+  ]
+}

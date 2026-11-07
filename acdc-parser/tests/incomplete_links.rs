@@ -1,4 +1,8 @@
-use acdc_parser::{InlineMacro, InlineNode, Options, parse_inline};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse, parse_inline,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -8,13 +12,18 @@ fn incomplete_links_do_not_duplicate_nested_notes() -> Result<(), Error> {
         include_str!("../fixtures/tests/incomplete_links.adoc"),
         &Options::default(),
     )?;
-    let [note] = parsed.document().footnotes.as_slice() else {
+    let [note] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
         return Err("expected one note from the incomplete link's remaining text".into());
     };
-    let [InlineNode::PlainText(body)] = note.content.as_slice() else {
+    let [InlineKind::Plain(body)] = &*note
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected plain note body".into());
     };
-    assert_eq!(body.content, "Only note.");
+    assert_eq!(body.text(), "Only note.");
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
@@ -40,19 +49,19 @@ fn incomplete_links_keep_targets_literal_and_source_spans(
     let source = format!("α link:{target}{suffix}");
     let parsed = parse_inline(&source, &Options::default())?;
     let mut text = String::new();
-    for node in parsed.inlines() {
-        let InlineNode::PlainText(plain) = node else {
+    for node in parsed.content().inlines() {
+        let InlineKind::Plain(plain) = node.kind() else {
             return Err(format!("unexpected node for {source}: {node:?}").into());
         };
-        text.push_str(plain.content);
-        let location = &plain.location;
+        text.push_str(plain.text());
+        let location = &plain.location();
         assert_eq!(
-            &source[location.absolute_start..=location.absolute_end],
-            plain.content
+            &source[location.absolute_start()..=location.absolute_end()],
+            plain.text()
         );
         assert_eq!(
-            location.start.column as usize,
-            source[..location.absolute_start].chars().count() + 1
+            location.start().column() as usize,
+            source[..location.absolute_start()].chars().count() + 1
         );
     }
     assert_eq!(text, source);
@@ -64,10 +73,10 @@ fn incomplete_links_preserve_complete_nested_macros() -> Result<(), Error> {
     let source = "link:https://unfinished.example[Before https://valid.example[Valid]";
     let parsed = parse_inline(source, &Options::default())?;
     let links: Vec<_> = parsed
+        .content()
         .inlines()
-        .iter()
         .filter_map(|node| {
-            if let InlineNode::Macro(InlineMacro::Url(link)) = node {
+            if let InlineKind::Url(link) = node.kind() {
                 Some(link)
             } else {
                 None
@@ -77,33 +86,48 @@ fn incomplete_links_preserve_complete_nested_macros() -> Result<(), Error> {
     let [link] = links.as_slice() else {
         return Err("expected the complete inner link".into());
     };
-    assert_eq!(link.target.to_string(), "https://valid.example");
+    assert_eq!(link.target().to_string(), "https://valid.example");
     assert_eq!(
-        &source[link.location.absolute_start..=link.location.absolute_end],
+        &source[link.location().absolute_start()..=link.location().absolute_end()],
         "https://valid.example[Valid]"
     );
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn incomplete_links_cannot_be_completed_by_late_attributes() -> Result<(), Error> {
-    use acdc_parser::{Block, parse};
-
     for label in ["{open}Label]", "[Label{close}", "{open}Label{close}"] {
         for (subs, linked) in [("macros,attributes", false), ("attributes,macros", true)] {
             let source = format!(
                 ":open: [\n:close: ]\n\n[subs=\"{subs}\"]\nlink:https://example.org{label}\n"
             );
             let parsed = parse(&source, &Options::default())?;
-            let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+            let [BlockKind::Paragraph(paragraph)] = &*parsed
+                .document()
+                .blocks()
+                .map(BlockRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err("expected paragraph".into());
             };
             assert_eq!(
-                paragraph
-                    .content
-                    .iter()
-                    .any(|node| matches!(node, InlineNode::Macro(_))),
+                paragraph.content().inlines().any(|node| matches!(
+                    node.kind(),
+                    InlineKind::Footnote(_)
+                        | InlineKind::Icon(_)
+                        | InlineKind::Image(_)
+                        | InlineKind::Keyboard(_)
+                        | InlineKind::Button(_)
+                        | InlineKind::Menu(_)
+                        | InlineKind::Url(_)
+                        | InlineKind::Link(_)
+                        | InlineKind::Mailto(_)
+                        | InlineKind::Autolink(_)
+                        | InlineKind::CrossReference(_)
+                        | InlineKind::Pass(_)
+                        | InlineKind::Stem(_)
+                        | InlineKind::IndexTerm(_)
+                )),
                 linked,
                 "{source}"
             );

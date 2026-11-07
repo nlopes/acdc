@@ -230,8 +230,8 @@ fn is_background_color(code: &str) -> bool {
 }
 
 /// Enhanced `update_ansi_state` that also handles:
-/// - `\x1b[39m` cancelling any foreground color (including `\x1b[38;5;Nm`)
-/// - `\x1b[49m` cancelling any background color (including `\x1b[48;2;R;G;Bm`)
+/// - `\x1b[39m` canceling any foreground color (including `\x1b[38;5;Nm`)
+/// - `\x1b[49m` canceling any background color (including `\x1b[48;2;R;G;Bm`)
 fn update_ansi_state_full(seq: &str, active_codes: &mut Vec<String>) {
     // Full reset
     if seq == "\x1b[0m" || seq == "\x1b[m" {

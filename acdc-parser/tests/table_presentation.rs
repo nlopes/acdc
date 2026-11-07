@@ -1,29 +1,27 @@
 use acdc_parser::{
-    Block, DelimitedBlockType, Options, Table, TableFrame, TableGrid, TableStripes, parse,
+    Options, TableFrame, TableGrid, TableStripes,
+    ast::{BlockKind, DocumentRef, TableRef},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
 
-fn tables<'a>(blocks: &'a [Block<'a>]) -> Vec<&'a Table<'a>> {
-    let mut found = Vec::new();
-    collect_tables(blocks, &mut found);
-    found
-}
-
-fn collect_tables<'a>(blocks: &'a [Block<'a>], found: &mut Vec<&'a Table<'a>>) {
-    for block in blocks {
-        let Block::DelimitedBlock(block) = block else {
-            continue;
-        };
-        if let DelimitedBlockType::DelimitedTable(table) = &block.inner {
-            found.push(table);
-        }
-    }
+fn tables(document: DocumentRef<'_>) -> Vec<TableRef<'_>> {
+    document
+        .blocks()
+        .filter_map(|block| {
+            if let BlockKind::Table(table) = block.kind() {
+                Some(table)
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 type Presentation = (TableFrame, TableGrid, TableStripes);
 
-fn assert_presentations(tables: &[&Table<'_>], expected: &[Presentation]) {
+fn assert_presentations(tables: &[TableRef<'_>], expected: &[Presentation]) {
     let actual = tables
         .iter()
         .map(|table| {
@@ -67,7 +65,7 @@ fn table_presentation_uses_local_values_and_reference_fallbacks() -> Result<(), 
     )?;
 
     assert_presentations(
-        &tables(&parsed.document().blocks),
+        &tables(parsed.document()),
         &[
             (TableFrame::Ends, TableGrid::Rows, TableStripes::Odd),
             (TableFrame::Ends, TableGrid::Columns, TableStripes::Even),
@@ -111,7 +109,7 @@ fn table_presentation_follows_document_attributes_in_source_order() -> Result<()
     )?;
 
     assert_presentations(
-        &tables(&parsed.document().blocks),
+        &tables(parsed.document()),
         &[
             (TableFrame::Sides, TableGrid::Rows, TableStripes::Odd),
             (TableFrame::Ends, TableGrid::Columns, TableStripes::Hover),

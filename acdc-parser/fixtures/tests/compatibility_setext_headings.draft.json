@@ -1,0 +1,146 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Legacy guide",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 12
+        }
+      ]
+    },
+    {
+      "name": "example",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "============",
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "First level",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 1
+                },
+                {
+                  "line": 5,
+                  "col": 11
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "anchors": [
+              {
+                "id": "legacy",
+                "location": [
+                  {
+                    "line": 4,
+                    "col": 1
+                  },
+                  {
+                    "line": 4,
+                    "col": 10
+                  }
+                ]
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "-----------",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "// Comment after a heading.\n\nFirst body and <<legacy>>.\n\nSecond level\n~~~~~~~~~~~~\n\nSecond body.\n\nThird level\n^^^^^^^^^^^\n\nThird body.\n\nFourth level\n++++++++++++\n\nFourth body.",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 24,
+                  "col": 12
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 12
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 24,
+      "col": 12
+    }
+  ]
+}

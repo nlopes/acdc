@@ -1,0 +1,19 @@
+widget(1)
+=========
+:doctype: manpage
+:manmanual: Widget Manual
+:mansource: Widget
+:docdate: 2026-01-01
+:revdate: 2026-01-01
+
+NAME
+----
+widget - demonstrate legacy headings
+
+SYNOPSIS
+--------
+*widget* [options]
+
+DESCRIPTION
+-----------
+Legacy headings work by default.

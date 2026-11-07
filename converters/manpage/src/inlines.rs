@@ -4,18 +4,18 @@
 
 use std::{borrow::Cow, io::Write, rc::Rc};
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     TraversalContext, decode_numeric_char_refs,
     link::{link_fallback, mailto_fallback, mailto_target},
-    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements},
-    visitor::{Visitor, WritableVisitor},
-    xref::{XrefDisplay, resolve_xref},
+    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
+    xref::{XrefDisplay, local_reference_id, resolve_local_reference, with_caption_prefix},
 };
 use acdc_parser::{
-    Autolink, CrossReference, ElementAttributes, InlineMacro, InlineNode, Link, Mailto,
-    Substitution,
+    Substitution, SymbolKind,
+    ast::{
+        AttributeValueRef, AutolinkRef, ContentRef, CrossReferenceRef, IconRef, InlineKind,
+        InlineRef, LinkRef, MailtoRef, RawRef, ReferenceRef, TokensRef, UrlRef,
+    },
 };
 
 use crate::{
@@ -77,8 +77,18 @@ fn role_affixes(
     (prefix, suffix)
 }
 
-fn role_from_attributes<'a>(attributes: &ElementAttributes<'a>) -> Option<Cow<'a, str>> {
-    attributes.get_string("role")
+fn role_from_tokens(roles: TokensRef<'_>) -> Option<String> {
+    if roles.is_empty() {
+        return None;
+    }
+    let mut role = String::new();
+    for (index, token) in roles.iter().enumerate() {
+        if index > 0 {
+            role.push(' ');
+        }
+        role.push_str(token);
+    }
+    Some(role)
 }
 
 fn has_degraded_role(role: Option<&str>) -> bool {
@@ -90,35 +100,6 @@ fn has_degraded_role(role: Option<&str>) -> bool {
                 "underline" | "subtitle" | "big" | "small" | "highlight"
             )
         })
-}
-
-/// Apply manpage typography replacements to a `PlainText` leaf.
-///
-/// When `pre-spec-subs` is enabled, defers to
-/// [`apply_replacements`](acdc_converters_core::substitutions::apply_replacements)
-/// so that `[subs="-replacements"]` can suppress the transform. Otherwise,
-/// always applies — matching the asciidoctor default.
-#[cfg(feature = "pre-spec-subs")]
-fn transform_plain<'a>(
-    text: &'a str,
-    visitor: &ManpageVisitor<'_, '_, impl Write>,
-    text_boundaries: TextBoundaries,
-) -> Cow<'a, str> {
-    apply_replacements(
-        text,
-        visitor.processor.current_subs.get(),
-        &replacements(),
-        text_boundaries,
-    )
-}
-
-#[cfg(not(feature = "pre-spec-subs"))]
-fn transform_plain<'a>(
-    text: &'a str,
-    _visitor: &ManpageVisitor<'_, '_, impl Write>,
-    text_boundaries: TextBoundaries,
-) -> Cow<'a, str> {
-    Cow::Owned(replacements().transform(text, text_boundaries))
 }
 
 /// Apply the casing the surrounding context asks for, keeping inline markup.
@@ -164,63 +145,62 @@ pub(crate) struct LinkLabel {
     split: bool,
 }
 
-fn is_empty_formatting(node: &InlineNode<'_>) -> bool {
-    let content = match node {
-        InlineNode::BoldText(n) => &n.content,
-        InlineNode::ItalicText(n) => &n.content,
-        InlineNode::MonospaceText(n) => &n.content,
-        InlineNode::HighlightText(n) => &n.content,
-        InlineNode::SubscriptText(n) => &n.content,
-        InlineNode::SuperscriptText(n) => &n.content,
-        // Curved quotes and other inline nodes can contribute visible text
-        // or converter effects even when they have no child content.
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
-        | _ => return false,
+fn is_empty_formatting(node: InlineRef<'_>) -> bool {
+    let content = if let InlineKind::Bold(node) = node.kind() {
+        node.content()
+    } else if let InlineKind::Italic(node) = node.kind() {
+        node.content()
+    } else if let InlineKind::Monospace(node) = node.kind() {
+        node.content()
+    } else if let InlineKind::Highlight(node) = node.kind() {
+        node.content()
+    } else if let InlineKind::Subscript(node) = node.kind() {
+        node.content()
+    } else if let InlineKind::Superscript(node) = node.kind() {
+        node.content()
+    } else {
+        return false;
     };
-    content.iter().all(is_empty_formatting)
+    content.inlines().all(is_empty_formatting)
 }
 
-pub(crate) fn contains_link(node: &InlineNode<'_>) -> bool {
-    let children = match node {
-        InlineNode::Macro(
-            InlineMacro::Link(_)
-            | InlineMacro::Url(_)
-            | InlineMacro::Mailto(_)
-            | InlineMacro::Autolink(_)
-            | InlineMacro::CrossReference(_),
-        ) => return true,
-        InlineNode::Macro(InlineMacro::Image(image)) => {
-            return image.metadata.attributes.contains_key("link");
-        }
-        InlineNode::BoldText(n) => &n.content,
-        InlineNode::ItalicText(n) => &n.content,
-        InlineNode::MonospaceText(n) => &n.content,
-        InlineNode::HighlightText(n) => &n.content,
-        InlineNode::SubscriptText(n) => &n.content,
-        InlineNode::SuperscriptText(n) => &n.content,
-        InlineNode::CurvedQuotationText(n) => &n.content,
-        InlineNode::CurvedApostropheText(n) => &n.content,
-        InlineNode::Macro(InlineMacro::IndexTerm(n)) if n.is_visible() => n.term(),
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
+pub(crate) fn contains_link(node: InlineRef<'_>) -> bool {
+    let content = match node.kind() {
+        InlineKind::Link(_)
+        | InlineKind::Url(_)
+        | InlineKind::Mailto(_)
+        | InlineKind::Autolink(_)
+        | InlineKind::CrossReference(_) => return true,
+        InlineKind::Image(image) => return image.attributes().contains("link"),
+        InlineKind::Bold(node) => node.content(),
+        InlineKind::Italic(node) => node.content(),
+        InlineKind::Monospace(node) => node.content(),
+        InlineKind::Highlight(node) => node.content(),
+        InlineKind::Subscript(node) => node.content(),
+        InlineKind::Superscript(node) => node.content(),
+        InlineKind::CurvedQuotation(node) => node.content(),
+        InlineKind::CurvedApostrophe(node) => node.content(),
+        InlineKind::IndexTerm(term) if term.is_visible() => term.term(),
+        InlineKind::Plain(_)
+        | InlineKind::Raw(_)
+        | InlineKind::Verbatim(_)
+        | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::CharacterReference(_)
+        | InlineKind::Symbol(_)
+        | InlineKind::LineBreak(_)
+        | InlineKind::Anchor(_)
+        | InlineKind::Callout(_)
+        | InlineKind::Footnote(_)
+        | InlineKind::Icon(_)
+        | InlineKind::Keyboard(_)
+        | InlineKind::Button(_)
+        | InlineKind::Menu(_)
+        | InlineKind::Pass(_)
+        | InlineKind::Stem(_)
+        | InlineKind::IndexTerm(_)
         | _ => return false,
     };
-    children.iter().any(contains_link)
+    content.inlines().any(contains_link)
 }
 
 impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
@@ -256,7 +236,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         Ok(())
     }
 
-    fn with_link_label(
+    pub(crate) fn with_link_label(
         &mut self,
         target: String,
         mailto: bool,
@@ -367,36 +347,36 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn render_formatted_inlines(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        text: &[InlineNode<'_>],
+        text: ContentRef<'_>,
         prefix: &str,
         suffix: &str,
     ) -> Result<(), Error> {
-        let split = self.link_label.is_some() && text.iter().any(contains_link);
+        let split = self.link_label.is_some() && text.inlines().any(contains_link);
         self.render_affixed(prefix, suffix, split, |visitor| {
-            visitor.visit_inline_nodes(traversal, text)
+            visitor.write_content(traversal, text)
         })
     }
 
     fn render_font_inlines(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        text: &[InlineNode<'_>],
+        text: ContentRef<'_>,
         font: &'static str,
     ) -> Result<(), Error> {
-        let split = self.link_label.is_some() && text.iter().any(contains_link);
+        let split = self.link_label.is_some() && text.inlines().any(contains_link);
         self.render_font(font, split, |visitor| {
-            visitor.visit_inline_nodes(traversal, text)
+            visitor.write_content(traversal, text)
         })
     }
 
     fn render_link_content(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        text: &[InlineNode<'_>],
+        text: ContentRef<'_>,
         fallback: &str,
         role: Option<&str>,
     ) -> Result<(), Error> {
-        let split = text.iter().any(contains_link);
+        let split = text.inlines().any(contains_link);
         self.render_with_role(role, RoleDefault::Plain, split, |visitor| {
             if text.is_empty() {
                 write!(
@@ -405,7 +385,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                     manify(fallback, EscapeMode::Normalize)
                 )?;
             } else {
-                visitor.visit_inline_nodes(traversal, text)?;
+                visitor.write_content(traversal, text)?;
             }
             Ok(())
         })
@@ -418,12 +398,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         } else {
             text
         };
-        let mut content = transform_plain(content, self, self.text_boundaries);
-        if self.text_boundaries.at_paragraph_end() && text.ends_with("--") && content.ends_with(' ')
-        {
-            content.to_mut().pop();
-        }
-        let content = apply_text_case(content, self.text_case);
+        let content = apply_text_case(Cow::Borrowed(content), self.text_case);
         let escaped = manify(&content, self.text_escape_mode);
         let w = self.writer_mut();
         if let Some(restored) = restore_em_dash_line_prefixes(&content, &escaped) {
@@ -434,104 +409,118 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         Ok(())
     }
 
-    /// Visit an inline node.
+    fn render_raw_inline(&mut self, text: RawRef<'_>) -> Result<(), Error> {
+        let roles = role_from_tokens(text.roles());
+        self.render_with_role(roles.as_deref(), RoleDefault::Plain, false, |visitor| {
+            visitor.render_raw_content(text)
+        })
+    }
+
+    fn render_raw_content(&mut self, text: RawRef<'_>) -> Result<(), Error> {
+        let mut replaced = apply_passthrough_replacements_iter(
+            text.text(),
+            text.substitutions(),
+            &replacements(),
+            self.text_boundaries,
+        );
+        if self.text_boundaries.at_paragraph_end()
+            && text.text().ends_with("--")
+            && replaced.ends_with(' ')
+        {
+            replaced.to_mut().pop();
+        }
+        let decoded = if text.substitutions().last() == Some(Substitution::SpecialChars) {
+            Cow::Borrowed(replaced.as_ref())
+        } else {
+            decode_numeric_char_refs(&replaced)
+        };
+        let content = if self.strip_next_leading_space {
+            self.strip_next_leading_space = false;
+            decoded.trim_start_matches(|character: char| character.is_ascii_whitespace())
+        } else {
+            &decoded
+        };
+        let content = apply_text_case(Cow::Borrowed(content), self.text_case);
+        let escaped = manify(&content, self.text_escape_mode);
+        let w = self.writer_mut();
+        write!(w, "{escaped}")?;
+        Ok(())
+    }
+
+    fn render_formatting_span(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: InlineRef<'_>,
+    ) -> Result<(), Error> {
+        if let InlineKind::Bold(bold) = node.kind() {
+            self.render_font_inlines(traversal, bold.content(), "\\fB")?;
+        } else if let InlineKind::Italic(italic) = node.kind() {
+            self.render_font_inlines(traversal, italic.content(), "\\fI")?;
+        } else if let InlineKind::Monospace(mono) = node.kind() {
+            self.render_font_inlines(traversal, mono.content(), "\\f(CR")?;
+        } else if let InlineKind::Highlight(highlight) = node.kind() {
+            let default = if highlight.id().is_some() {
+                RoleDefault::Plain
+            } else {
+                RoleDefault::Highlight
+            };
+            let split =
+                self.link_label.is_some() && highlight.content().inlines().any(contains_link);
+            self.render_with_role(highlight.role(), default, split, |visitor| {
+                visitor.write_content(traversal, highlight.content())
+            })?;
+        } else if let InlineKind::Subscript(sub) = node.kind() {
+            if !sub.content().inlines().all(is_empty_formatting) {
+                self.render_formatted_inlines(traversal, sub.content(), "_(", ")")?;
+            }
+        } else if let InlineKind::Superscript(sup) = node.kind() {
+            if !sup.content().inlines().all(is_empty_formatting) {
+                self.render_formatted_inlines(traversal, sup.content(), "^(", ")")?;
+            }
+        } else if let InlineKind::CurvedQuotation(quoted) = node.kind() {
+            self.render_formatted_inlines(traversal, quoted.content(), "\\(lq", "\\(rq")?;
+        } else if let InlineKind::CurvedApostrophe(quoted) = node.kind() {
+            self.render_formatted_inlines(traversal, quoted.content(), "\\(oq", "\\(cq")?;
+        } else {
+            self.warn_unsupported_parser_variant("formatting span");
+        }
+        Ok(())
+    }
+
     pub(crate) fn render_inline_node(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        node: &InlineNode,
+        node: InlineRef<'_>,
     ) -> Result<(), Error> {
-        match node {
-            InlineNode::PlainText(text) => self.render_plain_text(text.content)?,
-
-            InlineNode::RawText(text) => {
-                let mut replaced = apply_passthrough_replacements(
-                    text.content,
-                    &text.subs,
-                    &replacements(),
-                    self.text_boundaries,
-                );
-                if self.text_boundaries.at_paragraph_end()
-                    && text.content.ends_with("--")
-                    && replaced.ends_with(' ')
+        match node.kind() {
+            InlineKind::Plain(text) => self.render_plain_text(text.text())?,
+            InlineKind::CharacterReference(reference) => self.render_plain_text(
+                &acdc_converters_core::character_reference_text(reference.kind()),
+            )?,
+            InlineKind::Symbol(symbol) => {
+                self.render_plain_text(replacements().symbol(symbol.kind()))?;
+                if symbol.kind() == SymbolKind::SpacedEmDash
+                    && self.text_boundaries.at_paragraph_end()
                 {
-                    replaced.to_mut().pop();
+                    write!(self.writer_mut(), "\\&")?;
                 }
-                let decoded = if text.subs.last() == Some(&Substitution::SpecialChars) {
-                    Cow::Borrowed(replaced.as_ref())
-                } else {
-                    decode_numeric_char_refs(&replaced)
-                };
-                let content = if self.strip_next_leading_space {
-                    self.strip_next_leading_space = false;
-                    decoded.trim_start_matches(|character: char| character.is_ascii_whitespace())
-                } else {
-                    &decoded
-                };
-                let content = apply_text_case(Cow::Borrowed(content), self.text_case);
-                let escaped = manify(&content, self.text_escape_mode);
-                let w = self.writer_mut();
-                write!(w, "{escaped}")?;
             }
 
-            InlineNode::VerbatimText(text) => {
-                // Verbatim text - render as-is, preserve whitespace
-                let content = apply_text_case(Cow::Borrowed(text.content), self.text_case);
+            InlineKind::Raw(text) => self.render_raw_inline(text)?,
+
+            InlineKind::Verbatim(text) => {
+                let content = apply_text_case(Cow::Borrowed(text.text()), self.text_case);
                 let escaped = manify(&content, EscapeMode::Preserve);
                 let w = self.writer_mut();
                 write!(w, "{escaped}")?;
             }
 
-            InlineNode::BoldText(bold) => {
-                self.render_font_inlines(traversal, &bold.content, "\\fB")?;
-            }
-
-            InlineNode::ItalicText(italic) => {
-                self.render_font_inlines(traversal, &italic.content, "\\fI")?;
-            }
-
-            InlineNode::MonospaceText(mono) => {
-                self.render_font_inlines(traversal, &mono.content, "\\f(CR")?;
-            }
-
-            InlineNode::HighlightText(highlight) => {
-                let default = if highlight.id.is_some() {
-                    RoleDefault::Plain
-                } else {
-                    RoleDefault::Highlight
-                };
-                let split =
-                    self.link_label.is_some() && highlight.content.iter().any(contains_link);
-                self.render_with_role(highlight.role, default, split, |visitor| {
-                    visitor.visit_inline_nodes(traversal, &highlight.content)
-                })?;
-            }
-
-            InlineNode::SubscriptText(sub) => {
-                if !sub.content.iter().all(is_empty_formatting) {
-                    self.render_formatted_inlines(traversal, &sub.content, "_(", ")")?;
-                }
-            }
-
-            InlineNode::SuperscriptText(sup) => {
-                if !sup.content.iter().all(is_empty_formatting) {
-                    self.render_formatted_inlines(traversal, &sup.content, "^(", ")")?;
-                }
-            }
-
-            InlineNode::CurvedQuotationText(quoted) => {
-                self.render_formatted_inlines(traversal, &quoted.content, "\\(lq", "\\(rq")?;
-            }
-
-            InlineNode::CurvedApostropheText(quoted) => {
-                self.render_formatted_inlines(traversal, &quoted.content, "\\(oq", "\\(cq")?;
-            }
-
-            InlineNode::StandaloneCurvedApostrophe(_) => {
+            InlineKind::StandaloneCurvedApostrophe(_) => {
                 let w = self.writer_mut();
                 write!(w, "\\(cq")?;
             }
 
-            InlineNode::LineBreak(_) => {
+            InlineKind::LineBreak(_) => {
                 let w = self.writer_mut();
                 writeln!(w)?;
                 writeln!(w, ".br")?;
@@ -539,39 +528,133 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
 
             // A roff comment here can start mid-line and print its leading dot.
             // References use the parser's catalog; the target needs no output.
-            InlineNode::InlineAnchor(_) => {}
+            InlineKind::Anchor(_) => {}
 
-            InlineNode::Macro(inline_macro) => {
-                self.render_inline_macro(traversal, inline_macro)?;
+            InlineKind::Callout(callout) => {
+                let w = self.writer_mut();
+                write!(w, "\\fB({})\\fP", callout.number())?;
             }
 
-            InlineNode::CalloutRef(callout) => {
-                // Render callout reference in manpage format: <N>
+            InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_) => self.render_formatting_span(traversal, node)?,
+            InlineKind::Url(url) => self.render_url(traversal, url)?,
+            InlineKind::Link(link) => self.render_link(traversal, link)?,
+            InlineKind::Mailto(mailto) => self.render_mailto(traversal, mailto)?,
+            InlineKind::Autolink(autolink) => self.render_autolink(autolink)?,
+            InlineKind::CrossReference(xref) => self.render_cross_reference(traversal, xref)?,
+            InlineKind::Footnote(footnote) => write!(self.writer_mut(), "[{}]", footnote.number())?,
+            InlineKind::Icon(icon) => self.render_icon(traversal, icon)?,
+            InlineKind::Image(img) => {
+                self.render_inline_image(traversal, img)?;
+            }
+
+            InlineKind::Keyboard(kbd) => {
+                for (index, key) in kbd.keys().enumerate() {
+                    if index > 0 {
+                        write!(self.writer_mut(), "+")?;
+                    }
+                    self.render_font_inlines(traversal, key, "\\fB")?;
+                }
+            }
+            InlineKind::Button(btn) => {
+                write!(self.writer_mut(), "[")?;
+                self.render_font_inlines(traversal, btn.label(), "\\fB")?;
+                write!(self.writer_mut(), "]")?;
+            }
+            InlineKind::Menu(menu) => {
+                self.render_font_inlines(traversal, menu.target(), "\\fB")?;
+                for item in menu.items() {
+                    write!(self.writer_mut(), " \\(ra ")?;
+                    self.render_font_inlines(traversal, item, "\\fB")?;
+                }
+            }
+
+            InlineKind::Pass(pass) => {
+                // Passthrough content is backend-native and intentionally bypasses escaping.
+                if let Some(text) = pass.text() {
+                    let w = self.writer_mut();
+                    write!(w, "{text}")?;
+                }
+            }
+
+            InlineKind::Stem(stem) => {
+                let content = manify(stem.text(), EscapeMode::Collapse);
                 let w = self.writer_mut();
-                write!(w, "\\fB({})\\fP", callout.number)?;
+                write!(w, "{content}")?;
+            }
+
+            InlineKind::IndexTerm(it) => {
+                self.render_index_term(traversal, it)?;
             }
 
             _ => self.warn_unsupported_parser_variant("inline node"),
         }
+        Ok(())
+    }
 
+    fn render_url(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        url: UrlRef<'_>,
+    ) -> Result<(), Error> {
+        let target = url.target().to_string();
+        let role = role_from_tokens(url.roles());
+        self.with_link_label(escape_roff_macro_argument(&target), false, |visitor| {
+            let styled = !role_affixes(role.as_deref(), RoleDefault::Plain, &mut "\\fR")
+                .0
+                .is_empty();
+            if !url.text().is_empty() || url.hides_uri_scheme() || styled {
+                visitor.render_link_content(
+                    traversal,
+                    url.text(),
+                    link_fallback(&target, url.hides_uri_scheme()),
+                    role.as_deref(),
+                )?;
+            }
+            Ok(())
+        })?;
+        Ok(())
+    }
+
+    fn render_icon(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        icon: IconRef<'_>,
+    ) -> Result<(), Error> {
+        let fallback = acdc_converters_core::icon::alt_from_content(icon.target(), None);
+        self.render_media_label(
+            traversal,
+            icon.alt(),
+            &fallback,
+            icon.attributes()
+                .get("link")
+                .and_then(AttributeValueRef::as_str),
+            true,
+        )?;
         Ok(())
     }
 
     fn render_link(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        link: &Link,
+        link: LinkRef<'_>,
     ) -> Result<(), Error> {
-        let target = link.target.to_string();
-        let role = role_from_attributes(&link.attributes);
+        let target = link.target().to_string();
+        let role = role_from_tokens(link.roles());
         self.with_link_label(escape_roff_macro_argument(&target), false, |visitor| {
             let styled = !role_affixes(role.as_deref(), RoleDefault::Plain, &mut "\\fR")
                 .0
                 .is_empty();
-            if !link.text.is_empty() || link.hides_uri_scheme() || styled {
+            if !link.text().is_empty() || link.hides_uri_scheme() || styled {
                 visitor.render_link_content(
                     traversal,
-                    &link.text,
+                    link.text(),
                     link_fallback(&target, link.hides_uri_scheme()),
                     role.as_deref(),
                 )?;
@@ -583,20 +666,20 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn render_mailto(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        mailto: &Mailto,
+        mailto: MailtoRef<'_>,
     ) -> Result<(), Error> {
-        let target = mailto.target.to_string();
+        let target = mailto.target().to_string();
         let destination = mailto_target(mailto);
         let email = escape_roff_macro_argument(mailto_fallback(&destination)).replace('@', "\\(at");
-        let role = role_from_attributes(&mailto.attributes);
+        let role = role_from_tokens(mailto.roles());
         self.with_link_label(email, true, |visitor| {
             let styled = !role_affixes(role.as_deref(), RoleDefault::Plain, &mut "\\fR")
                 .0
                 .is_empty();
-            if !mailto.text.is_empty() || styled || destination != target {
+            if !mailto.text().is_empty() || styled || destination != target {
                 visitor.render_link_content(
                     traversal,
-                    &mailto.text,
+                    mailto.text(),
                     mailto_fallback(&target),
                     role.as_deref(),
                 )?;
@@ -605,8 +688,8 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         })
     }
 
-    fn render_autolink(&mut self, autolink: &Autolink) -> Result<(), Error> {
-        let target = autolink.url.to_string();
+    fn render_autolink(&mut self, autolink: AutolinkRef<'_>) -> Result<(), Error> {
+        let target = autolink.target().to_string();
         if let Some(email) = target.strip_prefix("mailto:") {
             let email = escape_roff_macro_argument(email).replace('@', "\\(at");
             self.write_link_command("MTO", &email, "")
@@ -621,132 +704,45 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         }
     }
 
-    /// Visit an inline macro.
-    fn render_inline_macro(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        macro_node: &InlineMacro,
-    ) -> Result<(), Error> {
-        match macro_node {
-            InlineMacro::Url(_)
-            | InlineMacro::Mailto(_)
-            | InlineMacro::Link(_)
-            | InlineMacro::Autolink(_)
-            | InlineMacro::CrossReference(_) => {
-                self.render_url_inline_macro(traversal, macro_node)?;
-            }
-
-            InlineMacro::Footnote(footnote) => {
-                let w = self.writer_mut();
-                write!(w, "[{}]", footnote.number)?;
-            }
-
-            InlineMacro::Image(_)
-            | InlineMacro::Icon(_)
-            | InlineMacro::Keyboard(_)
-            | InlineMacro::Button(_)
-            | InlineMacro::Menu(_)
-            | InlineMacro::Pass(_)
-            | InlineMacro::Stem(_)
-            | InlineMacro::IndexTerm(_) => {
-                self.render_ui_inline_macro(traversal, macro_node)?;
-            }
-
-            _ => self.warn_unsupported_parser_variant("inline macro"),
-        }
-
-        Ok(())
-    }
-
-    /// Render URL-like inline macros: url, mailto, link, autolink, cross-reference.
-    fn render_url_inline_macro(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        macro_node: &InlineMacro,
-    ) -> Result<(), Error> {
-        match macro_node {
-            InlineMacro::Url(url) => {
-                let target = url.target.to_string();
-                let role = role_from_attributes(&url.attributes);
-                self.with_link_label(escape_roff_macro_argument(&target), false, |visitor| {
-                    let styled = !role_affixes(role.as_deref(), RoleDefault::Plain, &mut "\\fR")
-                        .0
-                        .is_empty();
-                    if !url.text.is_empty() || url.hides_uri_scheme() || styled {
-                        visitor.render_link_content(
-                            traversal,
-                            &url.text,
-                            link_fallback(&target, url.hides_uri_scheme()),
-                            role.as_deref(),
-                        )?;
-                    }
-                    Ok(())
-                })?;
-            }
-
-            InlineMacro::Mailto(mailto) => {
-                self.render_mailto(traversal, mailto)?;
-            }
-
-            InlineMacro::Link(link) => {
-                self.render_link(traversal, link)?;
-            }
-
-            InlineMacro::Autolink(autolink) => {
-                self.render_autolink(autolink)?;
-            }
-
-            InlineMacro::CrossReference(xref) => {
-                self.render_cross_reference(traversal, xref)?;
-            }
-
-            InlineMacro::Footnote(_)
-            | InlineMacro::Icon(_)
-            | InlineMacro::Image(_)
-            | InlineMacro::Keyboard(_)
-            | InlineMacro::Button(_)
-            | InlineMacro::Menu(_)
-            | InlineMacro::Pass(_)
-            | InlineMacro::Stem(_)
-            | InlineMacro::IndexTerm(_)
-            | _ => {}
-        }
-        Ok(())
-    }
-
     fn render_cross_reference(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        xref: &CrossReference<'_>,
+        xref: CrossReferenceRef<'_>,
     ) -> Result<(), Error> {
-        if !xref.text.is_empty() {
-            return self.visit_inline_nodes(traversal, &xref.text);
+        if !xref.text().is_empty() {
+            return self.write_content(traversal, xref.text());
         }
 
         // Clone the handles so the borrowed reference text and the resolution
         // guard both outlive the `&mut self` render calls.
         let references = Rc::clone(&self.processor.references);
         let guard = self.processor.xref_guard.clone();
-        let target = xref.target;
+        let target = local_reference_id(xref);
         // Manpages print reference text without a link. Asciidoctor uses a
         // matching local label even when the syntax selects another document.
-        let mut display_xref = xref.clone();
-        display_xref.target_is_local = true;
-        match resolve_xref(references.get(target), &display_xref, &guard) {
+        match resolve_local_reference(
+            references.get(target.as_ref()).map(ReferenceRef::from),
+            xref,
+            &guard,
+        ) {
             // A reference to a level-1 section reads as that section's `.SH`
             // heading, which manpages upper-case. An explicit label reads as
             // written.
             XrefDisplay::Title(inlines, _scope) => {
-                let text_case = if self.processor.top_level_section_ids.contains(target) {
+                let text_case = if self
+                    .processor
+                    .top_level_section_ids
+                    .contains(target.as_ref())
+                {
                     TextCase::Uppercase
                 } else {
                     TextCase::Preserve
                 };
                 self.with_text_case(text_case, |visitor| {
-                    visitor.visit_inline_nodes(traversal, inlines)
+                    visitor.write_content(traversal, inlines)
                 })
             }
-            XrefDisplay::Label(inlines, _scope) => self.visit_inline_nodes(traversal, inlines),
+            XrefDisplay::Label(inlines, _scope) => self.write_content(traversal, inlines),
             XrefDisplay::ShortCaption(prefix) => {
                 let text = manify(&prefix, EscapeMode::Normalize);
                 write!(self.writer_mut(), "{text}")?;
@@ -756,9 +752,23 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 let prefix = manify(&prefix, EscapeMode::Normalize);
                 let separator = manify(", “", EscapeMode::Normalize);
                 write!(self.writer_mut(), "{prefix}{separator}")?;
-                self.visit_inline_nodes(traversal, inlines)?;
+                self.write_content(traversal, inlines)?;
                 let closing_quote = manify("”", EscapeMode::Normalize);
                 write!(self.writer_mut(), "{closing_quote}")?;
+                Ok(())
+            }
+            XrefDisplay::ShortCustomCaption(prefix, _scope) => {
+                with_caption_prefix(prefix, |prefix| self.write_content(traversal, prefix))
+            }
+            XrefDisplay::FullCustomCaption(prefix, inlines, _scope) => {
+                with_caption_prefix(prefix, |prefix| self.write_content(traversal, prefix))?;
+                write!(
+                    self.writer_mut(),
+                    "{}",
+                    manify(", “", EscapeMode::Normalize)
+                )?;
+                self.write_content(traversal, inlines)?;
+                write!(self.writer_mut(), "{}", manify("”", EscapeMode::Normalize))?;
                 Ok(())
             }
             XrefDisplay::Emphasized(prefix, inlines, _scope) => {
@@ -783,83 +793,5 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 Ok(())
             }
         }
-    }
-
-    /// Render UI-element inline macros: image, icon, keyboard, button, menu, pass, stem, index-term.
-    fn render_ui_inline_macro(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        macro_node: &InlineMacro,
-    ) -> Result<(), Error> {
-        match macro_node {
-            InlineMacro::Image(img) => {
-                self.render_inline_image(img)?;
-            }
-
-            InlineMacro::Icon(icon) => {
-                let alt = acdc_converters_core::icon::alt(&icon.target, &icon.attributes);
-                let alt = manify(&alt, EscapeMode::Collapse);
-                write!(self.writer_mut(), "[{alt}]")?;
-            }
-
-            InlineMacro::Keyboard(kbd) => {
-                // Keyboard shortcut - render as bold
-                let w = self.writer_mut();
-                write!(w, "\\fB")?;
-                for (i, key) in kbd.keys.iter().enumerate() {
-                    if i > 0 {
-                        write!(w, "+")?;
-                    }
-                    let key = manify(key, EscapeMode::Collapse);
-                    write!(w, "{key}")?;
-                }
-                write!(w, "\\fP")?;
-            }
-
-            InlineMacro::Button(btn) => {
-                // Button - render in brackets
-                let label = manify(btn.label, EscapeMode::Collapse);
-                let w = self.writer_mut();
-                write!(w, "[\\fB{label}\\fP]")?;
-            }
-
-            InlineMacro::Menu(menu) => {
-                // Menu - render target and items with arrows between them
-                let target = manify(menu.target, EscapeMode::Collapse);
-                let w = self.writer_mut();
-                write!(w, "\\fB{target}\\fP")?;
-                for item in &menu.items {
-                    let item = manify(item, EscapeMode::Collapse);
-                    write!(w, " \\(ra \\fB{item}\\fP")?;
-                }
-            }
-
-            InlineMacro::Pass(pass) => {
-                // Passthrough content is backend-native and intentionally bypasses escaping.
-                if let Some(text) = &pass.text {
-                    let w = self.writer_mut();
-                    write!(w, "{text}")?;
-                }
-            }
-
-            InlineMacro::Stem(stem) => {
-                let content = manify(stem.content, EscapeMode::Collapse);
-                let w = self.writer_mut();
-                write!(w, "{content}")?;
-            }
-
-            InlineMacro::IndexTerm(it) => {
-                self.render_index_term(traversal, it)?;
-            }
-
-            InlineMacro::Footnote(_)
-            | InlineMacro::Url(_)
-            | InlineMacro::Link(_)
-            | InlineMacro::Mailto(_)
-            | InlineMacro::Autolink(_)
-            | InlineMacro::CrossReference(_)
-            | _ => {}
-        }
-        Ok(())
     }
 }

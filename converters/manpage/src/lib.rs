@@ -40,15 +40,14 @@ use std::{
     rc::Rc,
 };
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, Doctype, Options, TraversalContext,
-    section::has_index_section, visitor::Visitor, xref::XrefGuard,
+    section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
 };
 
 use acdc_parser::{
-    AttributeValue, Document, DocumentAttributes, Options as ParserOptions, Reference,
+    AttributeValue, DocumentAttributes, Options as ParserOptions, Reference,
+    ast::{DocumentRef, TocEntryRef},
 };
 
 mod admonition;
@@ -105,72 +104,52 @@ pub struct Processor<'a> {
     pub(crate) inline_role_warning: Rc<Cell<bool>>,
     pub(crate) index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
     pub(crate) has_valid_index_section: bool,
-    /// Substitutions active for the block currently being rendered, resolved
-    /// from `[subs="…"]` (or the block-kind baseline when absent). Shared
-    /// across clones so sub-visitors inherit the outer block's effective
-    /// subs. `Cell<SubsFlags>` is a single-byte load/store with no borrow
-    /// tracking.
-    ///
-    /// Only present when the `pre-spec-subs` feature is enabled; otherwise
-    /// the converter applies typography unconditionally (asciidoctor default).
-    #[cfg(feature = "pre-spec-subs")]
-    pub(crate) current_subs: Rc<Cell<SubsFlags>>,
 }
 
 impl Processor<'_> {
     /// Convert a document to manpage output, writing to the provided writer.
+    /// Date fields use the document's resolved `docdate` unless `reproducible` is set.
     ///
     /// # Errors
     ///
     /// Returns an error if conversion or writing fails.
-    pub fn write_document<'doc, W: Write>(
+    pub fn write_document<W: Write>(
         &self,
-        doc: &Document<'doc>,
+        doc: DocumentRef<'_>,
         writer: W,
-        source_file: Option<&Path>,
+        _source_file: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
-        let mut attrs: DocumentAttributes<'doc> = doc.attributes.clone();
-
-        if attrs.get("revdate").is_none()
-            && let Some(date_str) = source_file.and_then(file_modified_date)
-        {
-            attrs = ParserOptions::builder()
-                .with_attributes(attrs.into_inputs())
-                .with_attribute("revdate", date_str)
-                .build()?
-                .into_document_attributes();
-        }
+        let document = doc;
+        let attrs: DocumentAttributes<'_> = document.attributes().into();
 
         // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
-        let processor: Processor<'doc> = Processor {
+        let processor: Processor<'_> = Processor {
             options: self.options.clone(),
             parser_options: ParserOptions::default().with_document_attributes(attrs),
-            references: Rc::new(doc.references.clone()),
+            references: Rc::new(doc.references().into()),
             xref_guard: XrefGuard::default(),
             top_level_section_ids: Rc::new(
-                doc.toc_entries
-                    .iter()
-                    .filter(|entry| entry.level == 1)
-                    .map(|entry| entry.id)
+                document
+                    .toc_entries()
+                    .filter(|entry| entry.level() == 1)
+                    .map(TocEntryRef::id)
                     .collect(),
             ),
             static_media_warning: Rc::new(Cell::new(false)),
             inline_role_warning: Rc::new(Cell::new(false)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
-            has_valid_index_section: has_index_section(&doc.blocks),
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: Rc::new(Cell::new(SubsFlags::all())),
+            has_valid_index_section: contains_index_section(document.blocks()),
         };
-        let mut traversal = TraversalContext::new(&doc.attributes);
+        let mut traversal = TraversalContext::new(document.attributes());
         let mut visitor = ManpageVisitor::new(writer, &processor, diagnostics.reborrow());
-        visitor.visit_document(&mut traversal, doc)
+        visitor.visit_document(&mut traversal, document)
     }
 
     /// Determine the output file extension based on the volume number.
-    fn output_extension(doc: &Document<'_>) -> String {
+    fn output_extension(doc: DocumentRef<'_>) -> String {
         // Read manvolnum from document attributes (set by parser)
-        acdc_converters_core::document_attribute_text((doc.attributes).get("manvolnum"))
+        acdc_converters_core::document_attribute_text(doc.attributes().get("manvolnum"))
             .map_or_else(|| String::from("1"), str::to_owned)
     }
 }
@@ -210,8 +189,6 @@ impl<'a> Converter<'a> for Processor<'a> {
             inline_role_warning: Rc::new(Cell::new(false)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: false,
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: Rc::new(Cell::new(SubsFlags::all())),
         })
     }
 
@@ -226,7 +203,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn derive_output_path(
         &self,
         input: &Path,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
     ) -> Result<Option<PathBuf>, Error> {
         let extension = Self::output_extension(doc);
         let manpage_path = input.with_extension(&extension);
@@ -239,7 +216,7 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         writer: W,
         source_file: Option<&Path>,
         _output_path: Option<&Path>,
@@ -251,14 +228,6 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn name(&self) -> &'static str {
         "manpage"
     }
-}
-
-/// Get a file's modification date as a `YYYY-MM-DD` string.
-fn file_modified_date(path: &Path) -> Option<String> {
-    let metadata = std::fs::metadata(path).ok()?;
-    let modified = metadata.modified().ok()?;
-    let datetime: chrono::DateTime<chrono::Local> = modified.into();
-    Some(datetime.format("%Y-%m-%d").to_string())
 }
 
 #[cfg(test)]
@@ -306,8 +275,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let source = processor.warning_source();
         let mut warnings = Vec::new();

@@ -7,10 +7,15 @@
 
 use std::ops;
 
-use acdc_parser::{Block, DelimitedBlockType, Document, Location};
+use acdc_parser::ast::{BlockKind, BlockRef, DocumentRef, StructuralRef};
 use tower_lsp_server::ls_types::{FormattingOptions, Position, Range, TextEdit};
 
-use crate::{convert::is_primary_location, state::DocumentState};
+use crate::{
+    convert::{
+        LineIndex, byte_range_to_utf16_range, is_primary_location, normalize_range, to_lsp_u32,
+    },
+    state::DocumentState,
+};
 
 /// A line range where formatting must not be applied (e.g., inside listing blocks).
 /// Lines are 0-indexed.
@@ -36,20 +41,26 @@ pub(crate) fn format_document(doc: &DocumentState, options: &FormattingOptions) 
     let mut edits = Vec::new();
 
     edits.extend(trim_trailing_whitespace(&lines, &protected, range.clone()));
-    edits.extend(collapse_blank_lines(&lines, &protected, range.clone()));
+    edits.extend(collapse_blank_lines(
+        &lines,
+        &protected,
+        range.clone(),
+        doc.text(),
+    ));
 
     if let Some(ast) = doc.ast() {
         edits.extend(ensure_block_separation(
             &lines,
             ast.document(),
+            doc.text(),
             &protected,
             range,
         ));
     }
 
-    edits.extend(normalize_final_newline(doc.text(), options));
+    edits.extend(normalize_final_newline(doc.text(), options, &protected));
 
-    edits
+    coalesce_deletions(edits)
 }
 
 /// Format a range of a document, returning a list of text edits.
@@ -60,12 +71,20 @@ pub(crate) fn format_range(
     range: &Range,
     options: &FormattingOptions,
 ) -> Vec<TextEdit> {
+    let Some(range) = normalize_range(doc.text(), *range) else {
+        return Vec::new();
+    };
     let lines: Vec<&str> = doc.text().lines().collect();
     let line_count = lines.len();
 
     // Expand to full lines
     let start_line = range.start.line as usize;
-    let end_line = (range.end.line as usize).min(line_count.saturating_sub(1));
+    let last_selected = if range.end.character == 0 && range.end.line > range.start.line {
+        range.end.line - 1
+    } else {
+        range.end.line
+    };
+    let end_line = (last_selected as usize).min(line_count.saturating_sub(1));
     let line_range = start_line..end_line + 1;
 
     let protected = if let Some(ast) = doc.ast() {
@@ -81,12 +100,18 @@ pub(crate) fn format_range(
         &protected,
         line_range.clone(),
     ));
-    edits.extend(collapse_blank_lines(&lines, &protected, line_range.clone()));
+    edits.extend(collapse_blank_lines(
+        &lines,
+        &protected,
+        line_range.clone(),
+        doc.text(),
+    ));
 
     if let Some(ast) = doc.ast() {
         edits.extend(ensure_block_separation(
             &lines,
             ast.document(),
+            doc.text(),
             &protected,
             line_range.clone(),
         ));
@@ -94,91 +119,69 @@ pub(crate) fn format_range(
 
     // Only normalize final newline if range includes the last line
     if end_line >= line_count.saturating_sub(1) {
-        edits.extend(normalize_final_newline(doc.text(), options));
+        edits.extend(normalize_final_newline(doc.text(), options, &protected));
     }
 
-    edits
+    coalesce_deletions(edits)
 }
 
 /// Protect verbatim blocks in the original text and primary-source AST ranges.
-pub(crate) fn collect_protected_ranges(ast: &Document, text: &str) -> Vec<ProtectedRange> {
+pub(crate) fn collect_protected_ranges(ast: DocumentRef<'_>, text: &str) -> Vec<ProtectedRange> {
     let mut ranges = collect_protected_ranges_from_text(text);
-    collect_protected_ranges_from_blocks(&ast.blocks, &mut ranges);
+    for block in ast.blocks() {
+        collect_protected_ranges_from_block(block, &mut ranges);
+    }
     ranges
 }
 
-/// Recursively walk blocks to find verbatim delimited blocks.
-fn collect_protected_ranges_from_blocks(blocks: &[Block], ranges: &mut Vec<ProtectedRange>) {
-    for block in blocks {
-        match block {
-            Block::DelimitedBlock(db) => {
-                if is_verbatim_block_type(&db.inner) && is_primary_location(&db.location) {
-                    // Location is 1-indexed, convert to 0-indexed
-                    ranges.push(ProtectedRange {
-                        start_line: db.location.start.line.saturating_sub(1) as usize,
-                        end_line: db.location.end.line.saturating_sub(1) as usize,
-                    });
-                } else {
-                    // Non-verbatim delimited blocks can contain nested verbatim blocks
-                    match &db.inner {
-                        DelimitedBlockType::DelimitedExample(nested)
-                        | DelimitedBlockType::DelimitedOpen(nested)
-                        | DelimitedBlockType::DelimitedSidebar(nested)
-                        | DelimitedBlockType::DelimitedQuote(nested) => {
-                            collect_protected_ranges_from_blocks(nested, ranges);
-                        }
-                        DelimitedBlockType::DelimitedComment(_)
-                        | DelimitedBlockType::DelimitedListing(_)
-                        | DelimitedBlockType::DelimitedLiteral(_)
-                        | DelimitedBlockType::DelimitedTable(_)
-                        | DelimitedBlockType::DelimitedPass(_)
-                        | DelimitedBlockType::DelimitedVerse(_)
-                        | DelimitedBlockType::DelimitedStem(_)
-                        // non_exhaustive
-                        | _ => {}
-                    }
-                }
+fn collect_protected_ranges_from_block(block: BlockRef<'_>, ranges: &mut Vec<ProtectedRange>) {
+    match block.kind() {
+        BlockKind::Listing(_)
+        | BlockKind::Literal(_)
+        | BlockKind::Passthrough(_)
+        | BlockKind::DelimitedComment(_)
+        | BlockKind::Verse(_)
+        | BlockKind::Stem(_) => {
+            let location = block.location();
+            if is_primary_location(location) {
+                ranges.push(ProtectedRange {
+                    start_line: location.start().line().saturating_sub(1) as usize,
+                    end_line: location.end().line().saturating_sub(1) as usize,
+                });
             }
-            Block::Section(s) => {
-                collect_protected_ranges_from_blocks(&s.content, ranges);
-            }
-            Block::Admonition(a) => {
-                collect_protected_ranges_from_blocks(&a.blocks, ranges);
-            }
-            Block::TableOfContents(_)
-            | Block::DiscreteHeader(_)
-            | Block::DocumentAttribute(_)
-            | Block::ThematicBreak(_)
-            | Block::PageBreak(_)
-            | Block::UnorderedList(_)
-            | Block::OrderedList(_)
-            | Block::CalloutList(_)
-            | Block::DescriptionList(_)
-            | Block::Paragraph(_)
-            | Block::Image(_)
-            | Block::Audio(_)
-            | Block::Video(_)
-            | Block::Comment(_)
-            // non_exhaustive
-            | _ => {}
+            return;
+        }
+        BlockKind::Section(_)
+        | BlockKind::Admonition(_)
+        | BlockKind::Example(_)
+        | BlockKind::Open(_)
+        | BlockKind::Sidebar(_)
+        | BlockKind::Quote(_) => {}
+        BlockKind::TableOfContents(_)
+        | BlockKind::DiscreteHeader(_)
+        | BlockKind::DocumentAttribute(_)
+        | BlockKind::ThematicBreak(_)
+        | BlockKind::PageBreak(_)
+        | BlockKind::UnorderedList(_)
+        | BlockKind::OrderedList(_)
+        | BlockKind::CalloutList(_)
+        | BlockKind::DescriptionList(_)
+        | BlockKind::Paragraph(_)
+        | BlockKind::Image(_)
+        | BlockKind::Audio(_)
+        | BlockKind::Video(_)
+        | BlockKind::Comment(_)
+        | BlockKind::Table(_)
+        | _ => return,
+    }
+    for child in StructuralRef::from(block).children() {
+        if let StructuralRef::Block(block) = child {
+            collect_protected_ranges_from_block(block, ranges);
         }
     }
 }
 
-/// Check if a delimited block type is verbatim (content should not be formatted).
-fn is_verbatim_block_type(inner: &DelimitedBlockType) -> bool {
-    matches!(
-        inner,
-        DelimitedBlockType::DelimitedListing(_)
-            | DelimitedBlockType::DelimitedLiteral(_)
-            | DelimitedBlockType::DelimitedPass(_)
-            | DelimitedBlockType::DelimitedComment(_)
-            | DelimitedBlockType::DelimitedVerse(_)
-            | DelimitedBlockType::DelimitedStem(_)
-    )
-}
-
-/// Fallback: detect verbatim block ranges from raw text when AST is unavailable.
+/// Protect verbatim source through its closing delimiter or end of file.
 pub(crate) fn collect_protected_ranges_from_text(text: &str) -> Vec<ProtectedRange> {
     let mut ranges = Vec::new();
     let delimiter_chars = ['-', '.', '+', '/'];
@@ -206,6 +209,12 @@ pub(crate) fn collect_protected_ranges_from_text(text: &str) -> Vec<ProtectedRan
         }
     }
 
+    if let Some((_, start_line)) = open_delimiter {
+        ranges.push(ProtectedRange {
+            start_line,
+            end_line: text.lines().count().saturating_sub(1),
+        });
+    }
     ranges
 }
 
@@ -214,6 +223,12 @@ pub(crate) fn is_protected(line: usize, ranges: &[ProtectedRange]) -> bool {
     ranges
         .iter()
         .any(|r| line >= r.start_line && line <= r.end_line)
+}
+
+pub(super) fn is_protected_after_opener(line: usize, ranges: &[ProtectedRange]) -> bool {
+    ranges
+        .iter()
+        .any(|range| range.start_line < line && line <= range.end_line)
 }
 
 /// Generate edits to trim trailing whitespace from lines.
@@ -235,8 +250,8 @@ fn trim_trailing_whitespace(
 
         let trimmed = line.trim_end();
         if trimmed.len() < line.len() {
-            let start_char = trimmed.len() as u32;
-            let end_char = line.len() as u32;
+            let start_char = to_lsp_u32(trimmed.encode_utf16().count());
+            let end_char = to_lsp_u32(line.encode_utf16().count());
             edits.push(TextEdit {
                 range: Range {
                     start: Position {
@@ -262,6 +277,7 @@ fn collapse_blank_lines(
     lines: &[&str],
     protected: &[ProtectedRange],
     range: ops::Range<usize>,
+    text: &str,
 ) -> Vec<TextEdit> {
     let mut edits = Vec::new();
     let mut blank_run_start: Option<usize> = None;
@@ -313,9 +329,13 @@ fn collapse_blank_lines(
                         line: (start + 1) as u32,
                         character: 0,
                     },
-                    end: Position {
-                        line: end as u32,
-                        character: 0,
+                    end: if end < lines.len() || text.ends_with('\n') {
+                        Position::new(to_lsp_u32(end), 0)
+                    } else {
+                        Position::new(
+                            to_lsp_u32(end - 1),
+                            to_lsp_u32(lines.last().map_or(0, |line| line.encode_utf16().count())),
+                        )
                     },
                 },
                 new_text: String::new(),
@@ -326,60 +346,31 @@ fn collapse_blank_lines(
     edits
 }
 
-/// Get the location from a `Block` enum variant.
-fn block_location<'a>(block: &'a Block<'_>) -> &'a Location {
-    match block {
-        Block::Section(s) => &s.location,
-        Block::Paragraph(p) => &p.location,
-        Block::UnorderedList(l) => &l.location,
-        Block::OrderedList(l) => &l.location,
-        Block::DescriptionList(l) => &l.location,
-        Block::CalloutList(l) => &l.location,
-        Block::DelimitedBlock(d) => &d.location,
-        Block::Admonition(a) => &a.location,
-        Block::TableOfContents(t) => &t.location,
-        Block::DiscreteHeader(h) => &h.location,
-        Block::DocumentAttribute(a) => &a.location,
-        Block::ThematicBreak(tb) => &tb.location,
-        Block::PageBreak(pb) => &pb.location,
-        Block::Image(i) => &i.location,
-        Block::Audio(a) => &a.location,
-        Block::Video(v) => &v.location,
-        Block::Comment(c) => &c.location,
-        // non_exhaustive: default location for unknown variants
-        _ => {
-            static DEFAULT: std::sync::LazyLock<Location> =
-                std::sync::LazyLock::new(Location::default);
-            &DEFAULT
-        }
-    }
-}
-
 /// Generate edits to ensure a blank line between consecutive top-level blocks.
 #[allow(clippy::cast_possible_truncation)]
 fn ensure_block_separation(
     lines: &[&str],
-    ast: &Document,
+    ast: DocumentRef<'_>,
+    text: &str,
     protected: &[ProtectedRange],
     range: ops::Range<usize>,
 ) -> Vec<TextEdit> {
     let mut edits = Vec::new();
-    let blocks = &ast.blocks;
+    let source = LineIndex::new(text);
 
-    for pair in blocks.windows(2) {
-        let (Some(prev_block), Some(curr_block)) = (pair.first(), pair.get(1)) else {
-            continue;
-        };
-
-        if !is_primary_location(block_location(prev_block))
-            || !is_primary_location(block_location(curr_block))
+    for (prev_block, curr_block) in ast.blocks().zip(ast.blocks().skip(1)) {
+        let previous = prev_block.location();
+        let current = curr_block.location();
+        if !is_primary_location(previous)
+            || !is_primary_location(current)
+            || source.range(&previous.into()).is_none()
+            || source.range(&current.into()).is_none()
         {
             continue;
         }
 
-        // Convert 1-indexed AST locations to 0-indexed
-        let prev_end_line = block_location(prev_block).end.line.saturating_sub(1) as usize;
-        let curr_start_line = block_location(curr_block).start.line.saturating_sub(1) as usize;
+        let prev_end_line = previous.end().line().saturating_sub(1) as usize;
+        let curr_start_line = current.start().line().saturating_sub(1) as usize;
 
         // An include can close a parsed block before its closing delimiter in
         // the editor text. Do not add separators inside that original block.
@@ -398,15 +389,15 @@ fn ensure_block_separation(
         // If blocks are immediately adjacent (no blank line between them)
         if curr_start_line == prev_end_line + 1 {
             // Don't insert between consecutive document attributes
-            if matches!(prev_block, Block::DocumentAttribute(_))
-                && matches!(curr_block, Block::DocumentAttribute(_))
+            if matches!(prev_block.kind(), BlockKind::DocumentAttribute(_))
+                && matches!(curr_block.kind(), BlockKind::DocumentAttribute(_))
             {
                 continue;
             }
 
             // Insert a blank line at the end of the previous block's last line
             if let Some(line) = lines.get(prev_end_line) {
-                let col = line.len() as u32;
+                let col = to_lsp_u32(line.encode_utf16().count());
                 edits.push(TextEdit {
                     range: Range {
                         start: Position {
@@ -418,7 +409,7 @@ fn ensure_block_separation(
                             character: col,
                         },
                     },
-                    new_text: "\n".to_string(),
+                    new_text: line_ending(text).to_string(),
                 });
             }
         }
@@ -427,92 +418,71 @@ fn ensure_block_separation(
     edits
 }
 
-/// Generate edits to normalize the final newline.
-#[allow(clippy::cast_possible_truncation)]
-fn normalize_final_newline(text: &str, options: &FormattingOptions) -> Vec<TextEdit> {
-    let mut edits = Vec::new();
+pub(super) fn line_ending(text: &str) -> &str {
+    if text
+        .split_once('\n')
+        .is_some_and(|(prefix, _)| prefix.ends_with('\r'))
+    {
+        "\r\n"
+    } else {
+        "\n"
+    }
+}
 
+fn normalize_final_newline(
+    text: &str,
+    options: &FormattingOptions,
+    protected: &[ProtectedRange],
+) -> Vec<TextEdit> {
     let insert_final = options.insert_final_newline.unwrap_or(true);
     let trim_final = options.trim_final_newlines.unwrap_or(true);
-
-    if text.is_empty() {
-        if insert_final {
-            edits.push(TextEdit {
-                range: Range {
-                    start: Position {
-                        line: 0,
-                        character: 0,
-                    },
-                    end: Position {
-                        line: 0,
-                        character: 0,
-                    },
-                },
-                new_text: "\n".to_string(),
-            });
+    let last_line = text.lines().count().saturating_sub(1);
+    let content = if is_protected(last_line, protected) {
+        text.trim_end_matches(['\r', '\n'])
+    } else {
+        text.trim_end()
+    };
+    let trailing = text.get(content.len()..).unwrap_or_default();
+    let bytes = if let Some(newline) = trailing.find('\n') {
+        // Keep the first line ending, including its CR when present.
+        let keep_end = content.len() + newline + 1;
+        if !trim_final || keep_end == text.len() {
+            return Vec::new();
         }
-        return edits;
+        keep_end..text.len()
+    } else if insert_final {
+        text.len()..text.len()
+    } else {
+        return Vec::new();
+    };
+    let Some(range) = byte_range_to_utf16_range(text, bytes.clone()) else {
+        return Vec::new();
+    };
+    vec![TextEdit {
+        range,
+        new_text: if bytes.is_empty() {
+            line_ending(text).to_string()
+        } else {
+            String::new()
+        },
+    }]
+}
+
+fn coalesce_deletions(mut edits: Vec<TextEdit>) -> Vec<TextEdit> {
+    edits.sort_by_key(|edit| (edit.range.start, edit.range.end));
+    let mut result: Vec<TextEdit> = Vec::with_capacity(edits.len());
+    for edit in edits {
+        if let Some(previous) = result.last_mut()
+            && previous.new_text.is_empty()
+            && edit.new_text.is_empty()
+            && edit.range.start <= previous.range.end
+        {
+            previous.range.end = previous.range.end.max(edit.range.end);
+        } else {
+            result.push(edit);
+        }
     }
-
-    // Count trailing newlines
-    let content_end = text.trim_end_matches('\n').trim_end_matches('\r');
-    let trailing = &text[content_end.len()..];
-    let trailing_newline_count = trailing.matches('\n').count();
-
-    if trim_final && trailing_newline_count > 1 {
-        let lines: Vec<&str> = text.lines().collect();
-        let total_lines = lines.len();
-
-        // Find the last non-empty line
-        let mut last_content_line = total_lines.saturating_sub(1);
-        while last_content_line > 0 {
-            if let Some(line) = lines.get(last_content_line)
-                && !line.trim().is_empty()
-            {
-                break;
-            }
-            last_content_line -= 1;
-        }
-
-        // Replace from end of last content line + 1 newline to end of file
-        // Keep exactly one newline after last content line
-        let replace_start_line = last_content_line + 1;
-        if replace_start_line < total_lines || text.ends_with('\n') {
-            edits.push(TextEdit {
-                range: Range {
-                    start: Position {
-                        line: replace_start_line as u32,
-                        character: 0,
-                    },
-                    end: Position {
-                        line: (total_lines + trailing_newline_count - 1) as u32,
-                        character: 0,
-                    },
-                },
-                new_text: String::new(),
-            });
-        }
-    } else if insert_final && trailing_newline_count == 0 {
-        let lines: Vec<&str> = text.lines().collect();
-        let last_line = lines.len().saturating_sub(1);
-        let last_col = lines.last().map_or(0, |l| l.len()) as u32;
-
-        edits.push(TextEdit {
-            range: Range {
-                start: Position {
-                    line: last_line as u32,
-                    character: last_col,
-                },
-                end: Position {
-                    line: last_line as u32,
-                    character: last_col,
-                },
-            },
-            new_text: "\n".to_string(),
-        });
-    }
-
-    edits
+    result
 }
 
 #[cfg(test)]
@@ -521,7 +491,7 @@ mod tests {
     use tower_lsp_server::ls_types::Uri;
 
     use super::*;
-    use crate::state::Workspace;
+    use crate::{convert::position_to_offset, state::Workspace};
 
     fn make_options() -> FormattingOptions {
         FormattingOptions {
@@ -564,25 +534,12 @@ mod tests {
 
         let mut result = src.to_string();
         for edit in sorted {
-            let start_offset = position_to_offset(&result, edit.range.start);
-            let end_offset = position_to_offset(&result, edit.range.end);
+            let start_offset = position_to_offset(&result, edit.range.start).unwrap();
+            let end_offset = position_to_offset(&result, edit.range.end).unwrap();
             result.replace_range(start_offset..end_offset, &edit.new_text);
         }
 
         result
-    }
-
-    /// Convert an LSP Position to a byte offset in the source text.
-    #[allow(clippy::cast_possible_truncation)]
-    fn position_to_offset(text: &str, pos: Position) -> usize {
-        let mut offset = 0;
-        for (i, line) in text.split('\n').enumerate() {
-            if i == pos.line as usize {
-                return offset + (pos.character as usize).min(line.len());
-            }
-            offset += line.len() + 1; // +1 for the '\n'
-        }
-        text.len()
     }
 
     // ── Trailing whitespace tests ───────────────────────────────────────
@@ -756,7 +713,7 @@ mod tests {
             },
             end: Position {
                 line: 2,
-                character: 12,
+                character: 11,
             },
         };
         let options = make_options();
@@ -781,7 +738,7 @@ mod tests {
     #[test]
     fn test_parse_failed_document_still_formats() {
         let src = "Some text  \n\n\n\nMore text  \n";
-        let doc = DocumentState::new_failure(src.to_string(), 1, vec![]);
+        let doc = DocumentState::new_failure(src.to_string(), 1);
 
         let options = make_options();
         let edits = format_document(&doc, &options);

@@ -3088,6 +3088,7 @@
               "name": "xref",
               "type": "inline",
               "target": "café",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -3135,6 +3136,7 @@
               "name": "xref",
               "type": "inline",
               "target": "école",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -3182,6 +3184,7 @@
               "name": "xref",
               "type": "inline",
               "target": "東京",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -3229,6 +3232,7 @@
               "name": "xref",
               "type": "inline",
               "target": "café",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -3276,6 +3280,7 @@
               "name": "xref",
               "type": "inline",
               "target": "topic🚀",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",

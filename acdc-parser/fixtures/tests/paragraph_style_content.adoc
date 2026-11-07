@@ -1,0 +1,32 @@
+= Paragraph style content
+
+:word: expanded
+
+.Sidebar title
+[sidebar#side.role]
+Sidebar *Bold* {word} footnote:side[Sidebar note].
+
+[sidebar]
+  Indented *Bold*.
+
+[pass]
+<span>*Raw* {word} footnote:raw[Hidden]</span>
+
+[pass]
+  <b>Indented *Raw*</b>
+
+.Note title
+[NOTE#note.role]
+Note *Bold* footnote:note[Note body].
+
+.Tip title
+[#tip.role,subs=none]
+TIP: *Raw* {word} footnote:tip[Hidden].
+
+[NOTE]
+--
+Compound *Body*.
+--
+
+[quote,Author,Citation]
+Quote *Bold*.

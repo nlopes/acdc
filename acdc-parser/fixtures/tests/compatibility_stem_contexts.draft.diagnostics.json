@@ -1,0 +1,58 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 144,
+      "absolute_start": 92,
+      "file": "includes/compatibility_stem_selected.adoc",
+      "location": [
+        {
+          "col": 5,
+          "line": 5
+        },
+        {
+          "col": 57,
+          "line": 5
+        }
+      ]
+    },
+    "message": "Inline STEM substitution lists are not supported. Source is preserved."
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 144,
+        "absolute_start": 92,
+        "file": "includes/compatibility_stem_selected.adoc",
+        "location": [
+          {
+            "col": 5,
+            "line": 5
+          },
+          {
+            "col": 57,
+            "line": 5
+          }
+        ]
+      },
+      "message": "Inline STEM substitution lists are not supported. Source is preserved."
+    },
+    {
+      "location": {
+        "absolute_end": 260,
+        "absolute_start": 210,
+        "file": "compatibility_stem_contexts.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 16
+          },
+          {
+            "col": 51,
+            "line": 16
+          }
+        ]
+      },
+      "message": "Inline STEM substitution lists are not supported. Source is preserved."
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+= Arrow contexts
+:arrow: ->
+:tail: >
+
+Earlier.
+
+α🚀 *->* link:guide.html[=>] footnote:arrow[Note <-] <=
+
+[subs="attributes,specialchars,replacements"]
+{arrow}
+
+[subs="specialchars,replacements,attributes"]
+{arrow}
+
+pass:a,c,r[-{tail}]
+
+pass:c,r,a[-{tail}]
+
+[cols="a"]
+|===
+|Cell -> *=>*.
+|===
+
+include::includes/compatibility_typography_arrows.adoc[lines=2..3,indent=0]

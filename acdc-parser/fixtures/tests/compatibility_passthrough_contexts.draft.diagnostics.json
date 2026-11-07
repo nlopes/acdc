@@ -1,0 +1,58 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 88,
+      "absolute_start": 70,
+      "file": "compatibility_passthrough_contexts.adoc",
+      "location": [
+        {
+          "col": 13,
+          "line": 7
+        },
+        {
+          "col": 29,
+          "line": 7
+        }
+      ]
+    },
+    "message": "inline passthrough escaping after formatting or macros requires backend markup; value retained literally"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 88,
+        "absolute_start": 70,
+        "file": "compatibility_passthrough_contexts.adoc",
+        "location": [
+          {
+            "col": 13,
+            "line": 7
+          },
+          {
+            "col": 29,
+            "line": 7
+          }
+        ]
+      },
+      "message": "inline passthrough escaping after formatting or macros requires backend markup; value retained literally"
+    },
+    {
+      "location": {
+        "absolute_end": 131,
+        "absolute_start": 113,
+        "file": "includes/compatibility_passthrough_contexts.adoc",
+        "location": [
+          {
+            "col": 20,
+            "line": 3
+          },
+          {
+            "col": 37,
+            "line": 3
+          }
+        ]
+      },
+      "message": "unknown inline passthrough substitution: typo; value retained literally"
+    }
+  ]
+}

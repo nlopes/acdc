@@ -1,14 +1,3 @@
-#[cfg(any(
-    feature = "html",
-    feature = "manpage",
-    feature = "markdown",
-    feature = "pdf",
-    feature = "terminal",
-    feature = "execute",
-    feature = "inspect",
-    feature = "lint",
-    feature = "tck",
-))]
 use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
 
 #[cfg(any(
@@ -31,17 +20,6 @@ mod subcommands;
 ))]
 mod timing;
 
-#[cfg(any(
-    feature = "html",
-    feature = "manpage",
-    feature = "markdown",
-    feature = "pdf",
-    feature = "terminal",
-    feature = "execute",
-    feature = "inspect",
-    feature = "lint",
-    feature = "tck",
-))]
 #[derive(Parser)]
 #[command(name = "acdc")]
 #[command(author, version, about = "AsciiDoc toolchain", long_about = None)]
@@ -50,19 +28,11 @@ struct Cli {
     command: Commands,
 }
 
-#[cfg(any(
-    feature = "html",
-    feature = "manpage",
-    feature = "markdown",
-    feature = "pdf",
-    feature = "terminal",
-    feature = "execute",
-    feature = "inspect",
-    feature = "lint",
-    feature = "tck",
-))]
 #[derive(Subcommand)]
 enum Commands {
+    /// Parse into native JSON or a checked ASG format
+    Parse(subcommands::parse::Args),
+
     #[cfg(any(
         feature = "html",
         feature = "manpage",
@@ -106,17 +76,6 @@ fn setup_logging() {
     }
 }
 
-#[cfg(any(
-    feature = "html",
-    feature = "manpage",
-    feature = "markdown",
-    feature = "pdf",
-    feature = "terminal",
-    feature = "execute",
-    feature = "inspect",
-    feature = "lint",
-    feature = "tck",
-))]
 fn main() {
     setup_logging();
     let matches = Cli::command().get_matches();
@@ -127,6 +86,7 @@ fn main() {
 
     #[cfg(feature = "lint")]
     let full_error_output = match &cli.command {
+        Commands::Parse(_) => true,
         Commands::Lint(args) => args.output_style.is_full(),
         #[cfg(any(
             feature = "html",
@@ -143,7 +103,12 @@ fn main() {
         #[cfg(feature = "tck")]
         Commands::Tck(_) => true,
     };
-    let result = match cli.command {
+    let result: miette::Result<()> = match cli.command {
+        Commands::Parse(args) => {
+            subcommands::json::finish(subcommands::parse::run(&args));
+            Ok(())
+        }
+
         #[cfg(any(
             feature = "html",
             feature = "manpage",
@@ -171,7 +136,8 @@ fn main() {
 
         #[cfg(feature = "tck")]
         Commands::Tck(args) => {
-            subcommands::tck::run(&args).map_err(|e| miette::miette!("TCK failed: {e}"))
+            subcommands::json::finish(subcommands::tck::run(&args));
+            Ok(())
         }
     };
 
@@ -190,28 +156,4 @@ fn main() {
         }
         std::process::exit(1);
     }
-}
-
-/// Stub entry point compiled when **no** subcommand feature is enabled
-/// (e.g. `--no-default-features` with nothing added back). The binary is
-/// not useful in this configuration; emit a clear diagnostic instead of
-/// shipping something that does nothing.
-#[cfg(not(any(
-    feature = "html",
-    feature = "manpage",
-    feature = "markdown",
-    feature = "pdf",
-    feature = "terminal",
-    feature = "execute",
-    feature = "inspect",
-    feature = "lint",
-    feature = "tck",
-)))]
-fn main() {
-    setup_logging();
-    eprintln!(
-        "acdc was built without any subcommand features. Enable at least \
-         one of: html, manpage, markdown, pdf, terminal, execute, inspect, lint, tck."
-    );
-    std::process::exit(2);
 }

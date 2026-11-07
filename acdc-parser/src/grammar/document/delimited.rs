@@ -1,9 +1,9 @@
 //! Delimited block construction and delimiter recovery.
 
 use crate::{
-    Admonition, AdmonitionVariant, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, Error,
-    InlineNode, Location, Plain, Raw, SourceLocation, StemContent, StemNotation, Title, Warning,
-    WarningKind,
+    Admonition, AdmonitionForm, AdmonitionVariant, Block, BlockMetadata, DelimitedBlock,
+    DelimitedBlockType, Error, InlineNode, Location, Plain, Raw, SourceLocation, StemContent,
+    StemNotation, Substitution, Title, Warning, WarningKind,
     grammar::{
         ParserState,
         document::verbatim::verbatim_inner,
@@ -80,6 +80,21 @@ pub(super) enum DelimitedKind {
 }
 
 impl DelimitedKind {
+    pub(super) fn with_style(self, style: Option<&str>) -> Self {
+        match (self, style) {
+            (Self::Open | Self::Literal, Some("source" | "listing")) => Self::Listing,
+            (Self::Open | Self::Listing, Some("literal")) => Self::Literal,
+            (
+                Self::Open,
+                Some("example" | "NOTE" | "TIP" | "IMPORTANT" | "CAUTION" | "WARNING"),
+            ) => Self::Example,
+            (Self::Open, Some("quote" | "verse")) => Self::Quote,
+            (Self::Open, Some("sidebar")) => Self::Sidebar,
+            (Self::Open, Some("pass")) => Self::Pass,
+            (kind, _) => kind,
+        }
+    }
+
     /// Block name used in the `unterminated <name> block` warning and the
     /// mismatched-delimiter error.
     fn name(self) -> &'static str {
@@ -127,12 +142,11 @@ fn parse_block_content<'input>(
 
 /// Source ranges and delimiters for a block.
 /// `close` is `None` when the block reaches end of input without a closing delimiter.
+#[derive(Clone, Copy, Debug)]
 pub(super) struct DelimitedParams<'input> {
     pub(super) kind: DelimitedKind,
     /// The opening delimiter as it appeared in source (e.g. `"===="`).
     pub(super) open_delim: &'input str,
-    /// Language captured after a Markdown ```` ``` ```` fence, if any.
-    pub(super) lang: Option<&'input str>,
     pub(super) content: &'input str,
     pub(super) source_text: &'input str,
     pub(super) open_start: usize,
@@ -153,6 +167,11 @@ pub(super) fn build_delimited_block<'input>(
     p: &DelimitedParams<'input>,
 ) -> Result<Block<'input>, Error> {
     let close_delimiter_location = resolve_delimited_close(state, p)?;
+    let resolved = DelimitedParams {
+        kind: p.kind.with_style(block_metadata.metadata.style),
+        ..*p
+    };
+    let p = &resolved;
     let location = state.create_block_location(p.start, p.end, p.offset);
     let open_delimiter_location = state.create_location(
         p.open_start + p.offset,
@@ -241,11 +260,11 @@ fn build_example_block<'input>(
         && let Ok(variant) = style.parse::<AdmonitionVariant>()
     {
         metadata.style = None;
-        return Ok(Block::Admonition(
-            Admonition::new(variant, blocks, location)
-                .with_metadata(metadata)
-                .with_title(block_metadata.title.clone()),
-        ));
+        let mut admonition = Admonition::new(variant, blocks, location)
+            .with_form(AdmonitionForm::Delimited(p.open_delim))
+            .with_title(block_metadata.title.clone());
+        admonition.metadata = metadata;
+        return Ok(Block::Admonition(admonition));
     }
     Ok(assemble_delimited(
         metadata,
@@ -330,7 +349,7 @@ fn pass_inner<'input>(
     p: &DelimitedParams<'input>,
 ) -> DelimitedBlockType<'input> {
     if matches!(metadata.style, Some("stem" | "latexmath" | "asciimath")) {
-        let [notation] = metadata.take_positional_attributes::<1>();
+        let notation = metadata.take_next_positional_attribute();
         let notation = match metadata.style {
             Some("latexmath") => StemNotation::Latexmath,
             Some("asciimath") => StemNotation::Asciimath,
@@ -342,13 +361,29 @@ fn pass_inner<'input>(
             ),
         };
         let content = p.content;
-        #[cfg(feature = "pre-spec-subs")]
         let content = metadata.substitutions.as_ref().map_or(content, |spec| {
-            state.intern_cow(crate::substitute(
-                content,
-                &spec.resolve(&[crate::Substitution::SpecialChars]),
-                &state.document_attributes,
-            ))
+            let substitutions = spec.resolve(&[Substitution::SpecialChars]);
+            let unsupported = substitutions
+                .iter()
+                .filter(|substitution| {
+                    !matches!(substitution, Substitution::SpecialChars | Substitution::Attributes)
+                })
+                .map(ToString::to_string)
+                .collect::<Vec<_>>();
+            if !unsupported.is_empty() {
+                state.add_warning(Warning::new(
+                    WarningKind::ContentRecovery {
+                        message: format!(
+                            "STEM blocks do not support these substitutions: {}. Formula text is preserved; supported substitutions still apply.",
+                            unsupported.join(", ")
+                        ).into(),
+                    },
+                    Some(state.create_error_source_location(
+                        state.create_block_location(p.content_start, p.content_end, p.offset)
+                    )),
+                ));
+            }
+            state.intern_cow(crate::substitute(content, &substitutions, &state.document_attributes))
         });
         metadata.move_positional_attributes_to_attributes();
         metadata.style = None;
@@ -357,11 +392,18 @@ fn pass_inner<'input>(
         metadata.move_positional_attributes_to_attributes();
         let content_location =
             state.create_block_location(p.content_start, p.content_end, p.offset);
-        DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
-            content: p.content,
-            location: content_location,
-            subs: vec![],
-        })])
+        DelimitedBlockType::DelimitedPass(
+            super::super::passthrough_processing::process_block_passthrough(
+                Raw {
+                    metadata: None,
+                    content: p.content,
+                    location: content_location,
+                    subs: Vec::new(),
+                },
+                metadata.substitutions.as_ref(),
+                state,
+            ),
+        )
     }
 }
 

@@ -1,0 +1,7 @@
+Excluded.
+    α🚀 left-[[include-anchor]]-right; left indexterm2:[--] right.
+
+    **left-indexterm2:[-]right**; footnote:included[left indexterm2:[--] right].
+
+    link:outer.html[left-indexterm2:[-]right].
+Excluded again.

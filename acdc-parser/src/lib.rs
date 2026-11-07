@@ -22,7 +22,7 @@
 //!
 //! let parsed = parse(content, &Options::default())?;
 //! let document = parsed.document();
-//! assert!(!document.blocks.is_empty());
+//! assert!(document.blocks().next().is_some());
 //!
 //! for warning in parsed.warnings() {
 //!     eprintln!("{warning}");
@@ -32,10 +32,9 @@
 //!
 //! # Cargo features
 //!
-//! - `pre-spec-subs` (default): experimental block `subs=` settings and their AST types.
-//!   Without it, explicit settings report source recovery and use block defaults.
-//! - `setext` (off by default): legacy underlined headings, enabled through
-//!   `OptionsBuilder::with_setext()` when the feature is compiled.
+//! Language behavior follows [`CompatibilityMode`] in every build.
+//!
+//! - `asg` (off by default): checked export to the pinned ASG draft subset.
 //! - `network` (off by default): HTTP(S) includes, subject to safe mode and caller permission.
 //!
 //! The parser uses the draft `AsciiDoc` specification and Asciidoctor as references;
@@ -154,15 +153,22 @@ use std::{
 
 use tracing::instrument;
 
+#[cfg(feature = "asg")]
+pub mod asg;
+pub mod ast;
+mod author_attributes;
 mod blocks;
+mod caption_repair;
 mod constants;
 mod document_attribute;
 mod error;
 pub(crate) mod grammar;
+pub use grammar::footnotes::FootnoteRebuildError;
 mod model;
 mod options;
 mod parsed;
 mod preprocessor;
+mod reference_repair;
 mod safe_mode;
 mod source_provider;
 mod warning;
@@ -170,30 +176,32 @@ mod warning;
 pub(crate) use grammar::{InlinePreprocessorParserState, ProcessedContent, inline_preprocessing};
 use preprocessor::Preprocessor;
 
-pub use error::{Error, SourceLocation};
+pub use error::{CaptionRepairError, Error, ReferenceRepairError, SourceLocation};
 pub use grammar::parse_text_for_quotes;
 pub use model::{
-    Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Attribution, Audio,
-    Author, Autolink, Block, BlockMetadata, Bold, Button, CalloutList, CalloutListItem, CalloutRef,
-    CalloutRefKind, Caption, CaptionKind, CiteTitle, ColumnFormat, ColumnStyle, ColumnWidth,
-    Comment, CommentKind, CrossReference, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
-    DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader, Document,
-    DocumentAttribute, DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes,
-    ElementAttributes, Footnote, Form, HEADER, Header, Highlight, HorizontalAlignment, ICON_SIZES,
-    Icon, Image, IndexTerm, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode, Italic,
-    Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, MAX_SECTION_LEVELS,
-    MAX_TOC_LEVELS, Mailto, Menu, Monospace, NORMAL, OrderedList, PageBreak, Paragraph, Pass,
-    PassthroughKind, Plain, Position, Raw, Reference, Role, Section, SectionKind, Source,
-    SourceUrl, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
-    Substitution, Subtitle, Superscript, Table, TableColumn, TableFrame, TableGrid,
-    TableOfContents, TablePresentation, TableRow, TableStripes, ThematicBreak, Title, TocEntry,
-    UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video,
-    XrefCaptionLabel, XrefSignifier, XrefStyle, strip_quotes, substitute, substitute_attributes,
+    Admonition, AdmonitionForm, AdmonitionVariant, Anchor, AttributeName, AttributeValue,
+    Attribution, Audio, Author, Autolink, Block, BlockMetadata, Bold, Button, CalloutList,
+    CalloutListItem, CalloutRef, CalloutRefKind, Caption, CaptionKind, CharacterReference,
+    CharacterReferenceKind, CiteTitle, ColumnFormat, ColumnStyle, ColumnWidth, Comment,
+    CommentKind, ContentAttribute, CrossReference, CurvedApostrophe, CurvedQuotation,
+    DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListDefinition,
+    DescriptionListItem, DescriptionListTerm, DiscreteHeader, Document, DocumentAttribute,
+    DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes, ElementAttributes,
+    ElementId, Footnote, FootnoteDefinition, Form, HEADER, Header, Highlight, HorizontalAlignment,
+    ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind, IndexTermRelationship, InlineImage,
+    InlineMacro, InlineMetadata, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,
+    ListItemCheckedStatus, Location, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, Mailto, Menu, Monospace,
+    NORMAL, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Position, Raw,
+    Reference, ReservedAttribute, Role, Section, SectionKind, Source, SourceUrl,
+    StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript, Substitution,
+    SubstitutionOp, SubstitutionSpec, Subtitle, Superscript, Symbol, SymbolKind, Table,
+    TableColumn, TableFrame, TableGrid, TableOfContents, TablePresentation, TableRow, TableStripes,
+    ThematicBreak, Title, TocEntry, TokenAssignment, UNNUMBERED_SECTION_STYLES, UnorderedList, Url,
+    VERBATIM, Verbatim, VerticalAlignment, Video, XrefCaptionLabel, XrefSignifier, XrefStyle,
+    substitute, substitute_attributes,
 };
-#[cfg(feature = "pre-spec-subs")]
-pub use model::{SubstitutionOp, SubstitutionSpec};
-pub use options::{Options, OptionsBuilder, SafeMode};
-pub use parsed::{OwnedSource, ParseInlineResult, ParseResult};
+pub use options::{CompatibilityMode, Options, OptionsBuilder, SafeMode};
+pub use parsed::{ConditionalEvaluation, OwnedSource, ParseInlineResult, ParseResult};
 pub use source_provider::{
     IncludeLoader, IncludeSource, IncludeSourceError, IncludeSourceErrorKind,
     IncludeSourceProvider, IncludeSourceTarget,
@@ -350,7 +358,7 @@ impl<'input> Parser<'input> {
 ///     .build()?;
 /// let reader = Cursor::new("= Example\n\nContent.\n");
 /// let parsed = parse_from_reader(reader, &options)?;
-/// assert!(!parsed.document().blocks.is_empty());
+/// assert!(parsed.document().blocks().next().is_some());
 /// # Ok::<(), acdc_parser::Error>(())
 /// ```
 ///
@@ -362,7 +370,7 @@ pub fn parse_from_reader<R: std::io::Read>(
     reader: R,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
-    let mut options = options
+    let options = options
         .clone()
         .prepare_for_parse(document_attribute::InputKind::Reader);
     // Shared across the preprocessor and the grammar state so both layers'
@@ -372,22 +380,7 @@ pub fn parse_from_reader<R: std::io::Read>(
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process_reader(reader, &options, Rc::clone(&warnings_handle))?
     };
-    if let Some(front_matter) = result.front_matter {
-        options
-            .document_attributes
-            .set_text("front-matter".into(), front_matter.into());
-    }
-    let text: Box<str> = result.text.into_owned().into_boxed_str();
-    let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
-    parse_input(
-        text,
-        options,
-        None,
-        result.leveloffset_ranges,
-        result.source_ranges,
-        result.included_files,
-        warnings_handle,
-    )
+    parse_input(result, options, None, warnings_handle)
 }
 
 /// Parse `AsciiDoc` content from a string.
@@ -430,7 +423,7 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// Recoverable problems appear in the result's warnings.
 #[instrument(skip_all, fields(input_len = input.len(), safe_mode = ?options.safe_mode))]
 pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
-    let mut options = options
+    let options = options
         .clone()
         .prepare_for_parse(document_attribute::InputKind::String);
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
@@ -438,22 +431,7 @@ pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process(input, &options, Rc::clone(&warnings_handle))?
     };
-    if let Some(front_matter) = result.front_matter {
-        options
-            .document_attributes
-            .set_text("front-matter".into(), front_matter.into());
-    }
-    let text: Box<str> = result.text.into_owned().into_boxed_str();
-    let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
-    parse_input(
-        text,
-        options,
-        None,
-        result.leveloffset_ranges,
-        result.source_ranges,
-        result.included_files,
-        warnings_handle,
-    )
+    parse_input(result, options, None, warnings_handle)
 }
 
 /// Parse `AsciiDoc` content from a file.
@@ -486,7 +464,7 @@ pub fn parse_file<P: AsRef<Path>>(
     file_path: P,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
-    let mut options = options
+    let options = options
         .clone()
         .prepare_for_parse(document_attribute::InputKind::File(file_path.as_ref()));
     let path = file_path.as_ref().to_path_buf();
@@ -501,22 +479,7 @@ pub fn parse_file<P: AsRef<Path>>(
             Rc::clone(&warnings_handle),
         )?
     };
-    if let Some(front_matter) = result.front_matter {
-        options
-            .document_attributes
-            .set_text("front-matter".into(), front_matter.into());
-    }
-    let text: Box<str> = result.text.into_owned().into_boxed_str();
-    let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
-    parse_input(
-        text,
-        options,
-        Some(path),
-        result.leveloffset_ranges,
-        result.source_ranges,
-        result.included_files,
-        warnings_handle,
-    )
+    parse_input(result, options, Some(path), warnings_handle)
 }
 
 /// Helper to convert a PEG parse error to our `SourceLocation` type,
@@ -547,14 +510,19 @@ fn peg_error_to_source_location(
 
 #[instrument(skip_all)]
 fn parse_input(
-    input: Box<str>,
-    options: Options<'_>,
+    result: preprocessor::PreprocessorResult<'_>,
+    mut options: Options<'_>,
     file_path: Option<PathBuf>,
-    leveloffset_ranges: Vec<model::LeveloffsetRange>,
-    source_ranges: Vec<model::SourceRange>,
-    included_files: std::collections::HashSet<String>,
     warnings_handle: Rc<RefCell<Vec<Warning>>>,
 ) -> Result<ParseResult, Error> {
+    if let Some(front_matter) = result.front_matter {
+        options
+            .document_attributes
+            .set_text("front-matter".into(), front_matter.into());
+    }
+    let input = result.text.into_owned().into_boxed_str();
+    let _span = tracing::info_span!("grammar_parse", input_len = input.len()).entered();
+    let source_ranges = result.source_ranges;
     tracing::trace!(input_len = input.len(), "post preprocessor");
     // Pin the preprocessed source text and a fresh `bumpalo::Bump` arena
     // together. The grammar borrows `&owner.source` and allocates every owned
@@ -573,48 +541,56 @@ fn parse_input(
     let warnings_for_state = Rc::clone(&warnings_handle);
 
     let source_files = parsed::SourceFiles::new(file_path.clone(), &source_ranges);
-    ParseResult::try_new(owner, warnings_handle, source_files, move |owner| {
-        let mut state = grammar::ParserState::new(&owner.source, &owner.arena);
-        state.document_attributes = Rc::new(options_owned.document_attributes.clone());
-        state.options = Rc::new(options_owned);
-        state.initialize_hardbreaks();
-        state.current_file = file_path.map(std::sync::Arc::new);
-        state.leveloffset_ranges = leveloffset_ranges;
-        state.source_ranges = source_ranges;
-        state.included_files = included_files;
-        state.warnings = warnings_for_state;
-        if state.document_attributes.contains_key("toc2") {
-            state.add_warning(Warning::new(WarningKind::DeprecatedToc2Attribute, None));
-        }
-        let result = match grammar::document_parser::document(&owner.source, &mut state) {
-            Ok(Ok(mut doc)) => {
-                // Rewrite every node's location from preprocessed coordinates to the
-                // original source (file + line + byte offset). No-op when the
-                // preprocessor recorded no ranges (no includes/edits).
-                grammar::remap_document_to_source(
-                    &mut doc,
-                    &state.source_ranges,
-                    &owner.source,
-                    &state.line_map,
-                );
-                Ok(doc)
+    ParseResult::try_new(
+        owner,
+        warnings_handle,
+        source_files,
+        result.conditionals,
+        move |owner| {
+            let mut state =
+                grammar::ParserState::new(&owner.source, &owner.arena, Rc::new(options_owned));
+            state.current_file = file_path.map(std::sync::Arc::new);
+            state.leveloffset_ranges = result.leveloffset_ranges;
+            state.source_ranges = source_ranges;
+            state.included_files = result.included_files;
+            state.warnings = warnings_for_state;
+            state.warn_unsupported_compat_mode(None);
+            if state.document_attributes.contains_key("toc2") {
+                state.add_warning(Warning::new(WarningKind::DeprecatedToc2Attribute, None));
             }
-            Ok(Err(e)) => Err(e),
-            Err(error) => {
-                tracing::error!("error parsing document content");
-                let source_location = peg_error_to_source_location(&error, &state);
-                Err(Error::Parse(Box::new(source_location), error.to_string()))
-            }
-        };
-        state.emit_warnings();
-        result
-    })
+            let result = match grammar::document_parser::document(&owner.source, &mut state) {
+                Ok(Ok(mut doc)) => {
+                    grammar::reference_text::finish_document(&mut state, &mut doc)?;
+                    // Rewrite every node's location from preprocessed coordinates to the
+                    // original source (file + line + byte offset). No-op when the
+                    // preprocessor recorded no ranges (no includes/edits).
+                    grammar::remap_document_to_source(
+                        &mut doc,
+                        &state.source_ranges,
+                        &owner.source,
+                        &state.line_map,
+                    );
+                    Ok(doc)
+                }
+                Ok(Err(e)) => Err(e),
+                Err(error) => {
+                    tracing::error!("error parsing document content");
+                    let source_location = peg_error_to_source_location(&error, &state);
+                    Err(Error::Parse(Box::new(source_location), error.to_string()))
+                }
+            };
+            state.emit_warnings();
+            result
+        },
+    )
 }
 
 /// Parse inline `AsciiDoc` content from a string.
 ///
 /// The result owns its inline nodes without a block document. Use it for fragments
-/// containing emphasis, links, macros, or other inline content.
+/// containing emphasis, links, macros, or other inline content. It uses the same
+/// inline substitutions as document content, including attribute references and
+/// passthroughs, and preserves surrounding whitespace.
 ///
 /// # Example
 ///
@@ -633,7 +609,6 @@ fn parse_input(
 /// This function returns an error if the inline content cannot be parsed.
 #[instrument(skip_all, fields(input_len = input.len(), safe_mode = ?options.safe_mode))]
 pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineResult, Error> {
-    tracing::trace!(input_len = input.len(), "post preprocessor");
     let owner = parsed::OwnedInput::new(input.into());
     let options_owned = options
         .clone()
@@ -643,44 +618,49 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
     let warnings_for_state = Rc::clone(&warnings_handle);
 
     ParseInlineResult::try_new(owner, warnings_handle, move |owner| {
-        let mut state = grammar::ParserState::new(&owner.source, &owner.arena);
+        let mut state =
+            grammar::ParserState::new(&owner.source, &owner.arena, Rc::new(options_owned));
         state.scope = grammar::ParserScope::Inline;
-        state.document_attributes = Rc::new(options_owned.document_attributes.clone());
-        state.options = Rc::new(options_owned);
-        state.initialize_hardbreaks();
+        state
+            .inline_ctx
+            .rules
+            .insert(grammar::InlineRules::ISOLATED_TEXT);
         state
             .inline_ctx
             .rules
             .set(grammar::InlineRules::HARD_BREAKS, state.hardbreaks);
         state.warnings = warnings_for_state;
-        let result = match grammar::inline_parser::inlines(&owner.source, &mut state) {
-            Ok(mut inlines) => {
-                grammar::remap_inlines_to_source(
-                    &mut inlines,
-                    &state.source_ranges,
-                    &owner.source,
-                    &state.line_map,
-                );
-                // Nested parsing uses inline scope to retain whitespace. Finalize
-                // diagnostics only once all locations refer to the original input.
-                state.scope = grammar::ParserScope::Document;
-                for inline in &mut inlines {
-                    grammar::walk_inline_nodes_mut(inline, &mut |node| {
-                        if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
-                            state.finalize_footnote(note);
-                        }
-                    });
-                }
-                Ok(inlines)
+        state.warn_unsupported_compat_mode(None);
+        let metadata =
+            grammar::helpers::BlockParsingMetadata::new(state.options.compatibility_mode);
+        let result = grammar::process_inlines(
+            &mut state,
+            &metadata,
+            0,
+            owner.source.len(),
+            0,
+            &owner.source,
+        )
+        .and_then(|(mut inlines, _)| {
+            grammar::reference_text::resolve_inline_tree(&mut state, &mut inlines)?;
+            grammar::remap_inlines_to_source(
+                &mut inlines,
+                &state.source_ranges,
+                &owner.source,
+                &state.line_map,
+            );
+            // Nested parsing uses inline scope to retain whitespace. Finalize
+            // diagnostics only once all locations refer to the original input.
+            state.scope = grammar::ParserScope::Document;
+            for inline in &mut inlines {
+                grammar::walk_inline_nodes_mut(inline, &mut |node| {
+                    if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+                        state.finalize_footnote(note);
+                    }
+                });
             }
-            Err(error) => {
-                tracing::error!("error parsing inline content");
-                Err(Error::Parse(
-                    Box::new(peg_error_to_source_location(&error, &state)),
-                    error.to_string(),
-                ))
-            }
-        };
+            Ok(inlines)
+        });
         state.emit_warnings();
         result
     })
@@ -694,19 +674,11 @@ mod proptests;
 #[allow(clippy::panic)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use std::{error::Error as StdError, fs, path::PathBuf};
+    use std::{error::Error as StdError, path::PathBuf};
 
     use pretty_assertions::assert_eq;
 
     use super::*;
-
-    fn read_file_contents_with_extension(path: &PathBuf, ext: &str) -> Result<String, Error> {
-        let test_file_path = path.with_extension(ext);
-        let file_contents = fs::read_to_string(&test_file_path).inspect_err(
-            |e| tracing::warn!(?path, ?test_file_path, error = %e, "test file not found"),
-        )?;
-        Ok(file_contents)
-    }
 
     #[test]
     fn table_comments_leave_hidden_footnotes_and_targets_unregistered() -> Result<(), Error> {
@@ -717,8 +689,13 @@ mod tests {
                 ..Options::default()
             },
         )?;
-        assert_eq!(parsed.document().footnotes, []);
-        assert!(!parsed.document().references.contains_key("hidden-table"));
+        assert_eq!(parsed.document_storage().footnotes, []);
+        assert!(
+            !parsed
+                .document_storage()
+                .references
+                .contains_key("hidden-table")
+        );
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
         Ok(())
     }
@@ -729,7 +706,7 @@ mod tests {
             "fixtures/tests/header_comment_attributes.adoc",
             &Options::default(),
         )?;
-        let doc = parsed.document();
+        let doc = parsed.document_storage();
         assert_eq!(doc.attributes.text("kept"), Some("original"));
         assert_eq!(doc.attributes.text("author"), Some("Correct Author"));
         assert_eq!(doc.attributes.text("revnumber"), Some("1.0"));
@@ -765,7 +742,10 @@ mod tests {
                 parse(input, &options)?,
                 parse_from_reader(input.as_bytes(), &options)?,
             ] {
-                assert_eq!(parsed.document().attributes.text("kept"), Some("caller"));
+                assert_eq!(
+                    parsed.document_storage().attributes.text("kept"),
+                    Some("caller")
+                );
                 assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
             }
         }
@@ -778,7 +758,7 @@ mod tests {
             "fixtures/tests/header_comment_boundaries.adoc",
             &Options::default(),
         )?;
-        let doc = parsed.document();
+        let doc = parsed.document_storage();
         assert_eq!(doc.attributes.text("kept"), Some("header"));
         assert!(!doc.attributes.contains_key("body"));
         assert!(!doc.attributes.contains_key("source-highlighter"));
@@ -818,7 +798,10 @@ mod tests {
             "fixtures/tests/header_comment_unterminated.adoc",
             &Options::default(),
         )?;
-        assert_eq!(parsed.document().attributes.text("kept"), Some("original"));
+        assert_eq!(
+            parsed.document_storage().attributes.text("kept"),
+            Some("original")
+        );
         assert_eq!(parsed.warnings().len(), 1, "{:?}", parsed.warnings());
         let warning = parsed
             .warnings()
@@ -840,14 +823,17 @@ mod tests {
             "= T\n:kept: value\n\n////\n////\n\nBody.\n",
         ] {
             let parsed = parse(input, &Options::default())?;
-            assert!(parsed.document().header.is_some(), "{input}");
-            assert_eq!(parsed.document().attributes.text("kept"), Some("value"));
+            assert!(parsed.document_storage().header.is_some(), "{input}");
+            assert_eq!(
+                parsed.document_storage().attributes.text("kept"),
+                Some("value")
+            );
             assert!(
                 parsed.warnings().is_empty(),
                 "{input}: {:?}",
                 parsed.warnings()
             );
-            assert!(parsed.document().blocks.iter().any(|block| matches!(
+            assert!(parsed.document_storage().blocks.iter().any(|block| matches!(
                 block, Block::Paragraph(paragraph) if paragraph.content.iter().any(|inline| matches!(inline,
                     InlineNode::PlainText(text) if text.content == "Body."))
             )));
@@ -865,7 +851,7 @@ mod tests {
             let source = format!("= T\n\n{body}");
             let parsed = parse(&source, &Options::default())?;
             let attribute = parsed
-                .document()
+                .document_storage()
                 .blocks
                 .iter()
                 .find_map(|block| {
@@ -896,7 +882,7 @@ mod tests {
             let parsed = parse("First line\nSecond line\n", &options)
                 .expect("parse paragraph with caller hard breaks");
             let paragraph = parsed
-                .document()
+                .document_storage()
                 .blocks
                 .first()
                 .and_then(|block| {
@@ -936,19 +922,19 @@ mod tests {
         let parsed = parse_inline("pass:[raw] pass:[]", &Options::default())
             .expect("parse pass macros without substitution names");
         let [
-            InlineNode::Macro(InlineMacro::Pass(with_content)),
+            InlineNode::RawText(with_content),
             InlineNode::PlainText(separator),
-            InlineNode::Macro(InlineMacro::Pass(empty)),
+            InlineNode::RawText(empty),
         ] = parsed.inlines()
         else {
-            panic!("expected two pass macros, got {:?}", parsed.inlines());
+            panic!("expected two raw passthroughs, got {:?}", parsed.inlines());
         };
 
-        assert_eq!(with_content.text, Some("raw"));
-        assert_eq!(with_content.substitutions, []);
+        assert_eq!(with_content.content, "raw");
+        assert_eq!(with_content.subs, []);
         assert_eq!(separator.content, " ");
-        assert_eq!(empty.text, Some(""));
-        assert_eq!(empty.substitutions, []);
+        assert_eq!(empty.content, "");
+        assert_eq!(empty.subs, []);
     }
 
     #[test]
@@ -963,7 +949,7 @@ mod tests {
             .build()?;
         let result = parse_file("fixtures/preprocessor/include_indent_main.adoc", &opts)
             .expect("parse indented include");
-        let doc = result.document();
+        let doc = result.document_storage();
         let inlines = doc
             .blocks
             .iter()
@@ -1020,7 +1006,7 @@ mod tests {
             .build()?;
         let result = parse_file("fixtures/preprocessor/include_quote_main.adoc", &opts)
             .expect("parse included quote block");
-        let doc = result.document();
+        let doc = result.document_storage();
         let metadata = doc
             .blocks
             .iter()
@@ -1040,7 +1026,7 @@ mod tests {
         let attribution = metadata
             .attribution
             .as_ref()
-            .and_then(|a| a.first())
+            .and_then(|a| a.as_inlines().first())
             .expect("attribution inline")
             .location();
         assert_eq!(attribution.start.line, 3, "attribution origin line");
@@ -1049,7 +1035,7 @@ mod tests {
         let citetitle = metadata
             .citetitle
             .as_ref()
-            .and_then(|c| c.first())
+            .and_then(|c| c.as_inlines().first())
             .expect("citetitle inline")
             .location();
         assert_eq!(citetitle.start.line, 3, "citetitle origin line");
@@ -1121,7 +1107,7 @@ mod tests {
             .build()?;
         let result = parse_file("fixtures/preprocessor/include_refs_main.adoc", &opts)
             .expect("parse included section");
-        let doc = result.document();
+        let doc = result.document_storage();
         let part = Some("include_refs_part.adoc");
 
         let entry = doc
@@ -1152,7 +1138,7 @@ mod tests {
         // line (5 here), not the line a byte-offset-into-the-paragraph would fall on.
         let input = "= Title\n\nPara one.\n\nPara two with a note.footnote:[The note.]\n";
         let result = parse(input, &Options::default()).expect("parse footnote doc");
-        let doc = result.document();
+        let doc = result.document_storage();
         let footnote = doc.footnotes.first().expect("one footnote");
         assert_eq!(
             footnote.location.start.line, 5,
@@ -1173,7 +1159,7 @@ mod tests {
             .build()?;
         let result = parse_file("fixtures/preprocessor/include_footnote_main.adoc", &opts)
             .expect("parse included footnote");
-        let doc = result.document();
+        let doc = result.document_storage();
         let footnote = doc.footnotes.first().expect("one footnote");
         assert_eq!(footnote.location.start.line, 3, "footnote origin line");
         assert_eq!(
@@ -1197,7 +1183,7 @@ mod tests {
         let input =
             "= Title\n\nFirst ref.footnote:fn[The definition.]\n\nSecond ref.footnote:fn[]\n";
         let result = parse(input, &Options::default()).expect("parse named footnote doc");
-        let doc = result.document();
+        let doc = result.document_storage();
         assert_eq!(doc.footnotes.len(), 1, "one distinct footnote");
         let footnote = doc.footnotes.first().expect("the distinct footnote");
         assert_eq!(footnote.location.start.line, 3, "defining occurrence line");
@@ -1219,7 +1205,7 @@ mod tests {
             .build()?;
         let result =
             parse_file("fixtures/include_chain/main.adoc", &opts).expect("parse include chain");
-        let location = &result.document().location;
+        let location = &result.document_storage().location;
 
         assert!(
             location.start.file.is_none(),
@@ -1287,7 +1273,7 @@ mod tests {
     ) -> Result<(), Box<dyn StdError>> {
         let parsed = parse_file(path, &Options::default())?;
         let metadata: Vec<_> = parsed
-            .document()
+            .document_storage()
             .blocks
             .iter()
             .filter_map(Block::metadata)
@@ -1314,7 +1300,7 @@ mod tests {
             let mut retained = working.clone();
             for slot in &mut retained.positional_attributes {
                 slot.location = None;
-                slot.substitutions = !slot.substitutions;
+                slot.quoted_empty = !slot.quoted_empty;
             }
             retained.retained_positional_attributes =
                 Some(std::mem::take(&mut retained.positional_attributes));
@@ -1353,60 +1339,6 @@ mod tests {
         Ok(())
     }
 
-    #[rstest::rstest]
-    #[tracing_test::traced_test]
-    fn test_with_fixtures(
-        #[files("fixtures/tests/**/*.adoc")]
-        #[exclude(r"[/\\]includes[/\\]")]
-        path: PathBuf,
-    ) -> Result<(), Error> {
-        let stem = path
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-            .unwrap_or("");
-
-        #[cfg(not(feature = "pre-spec-subs"))]
-        if stem.starts_with("subs_") {
-            return Ok(());
-        }
-
-        // Fixtures whose name contains `with_setext` exercise Setext (two-line
-        // underlined) headings, which are opt-in: their expected JSON captures the
-        // `--enable-setext-compatibility` behaviour. Skip when the feature is off
-        // (the AST would diverge); enable the option when it is on. The `with_`
-        // prefix keeps the marker unambiguous (vs a future `without_setext`).
-        let setext_fixture = stem.contains("with_setext");
-        #[cfg(not(feature = "setext"))]
-        if setext_fixture {
-            return Ok(());
-        }
-
-        let builder = Options::builder().with_safe_mode(SafeMode::Unsafe);
-        #[cfg(feature = "setext")]
-        let builder = if setext_fixture {
-            builder.with_setext()
-        } else {
-            builder
-        };
-        let options = builder.build()?;
-
-        match parse_file(&path, &options) {
-            Ok(result) => {
-                let expected = read_file_contents_with_extension(&path, "json")?;
-                let actual = serde_json::to_string_pretty(result.document())
-                    .expect("could not serialize result");
-                assert_eq!(expected, actual);
-            }
-            Err(e) => {
-                let file_contents = read_file_contents_with_extension(&path, "error")?;
-                // Error fixtures contain expected error message as plain text
-                let expected = file_contents.trim();
-                assert_eq!(expected, e.to_string());
-            }
-        }
-        Ok(())
-    }
-
     #[test]
     fn quoted_xref_labels_preserve_single_quote_byte_ranges() -> Result<(), Box<dyn StdError>> {
         // Fixture JSON stores line/column locations, not absolute byte ranges.
@@ -1415,7 +1347,7 @@ mod tests {
             (r"xref:target['\'',role=hot]", r"\'"),
         ] {
             let parsed = parse(source, &Options::default())?;
-            let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+            let Some(Block::Paragraph(paragraph)) = parsed.document_storage().blocks.first() else {
                 panic!("expected a paragraph");
             };
             let Some(InlineNode::Macro(InlineMacro::CrossReference(xref))) =
@@ -1442,7 +1374,7 @@ mod tests {
             "= Doc\n\nfirst para\n// dropped comment\nsecond para\n\n== Section\n\nbody text\n";
         let result = parse(input, &Options::builder().build()?).expect("parse");
         let section = result
-            .document()
+            .document_storage()
             .blocks
             .iter()
             .find_map(|b| {
@@ -1485,7 +1417,7 @@ mod tests {
         let result = parse_file(&path, &options).expect("parse");
         // The first section comes from the included file, at its own line 1.
         let section = result
-            .document()
+            .document_storage()
             .blocks
             .iter()
             .find_map(|b| {
@@ -1522,7 +1454,7 @@ mod tests {
         let result = parse_file(&path, &options).expect("parse");
 
         let paragraphs = result
-            .document()
+            .document_storage()
             .blocks
             .iter()
             .filter_map(|block| {
@@ -1585,7 +1517,7 @@ mod tests {
 
                 match result {
                     Ok(parsed) => {
-                        let doc = parsed.document();
+                        let doc = parsed.document_storage();
                         // Validate the invariant using absolute offsets
                         assert!(
                             doc.location.absolute_start <= doc.location.absolute_end,
@@ -1614,7 +1546,7 @@ mod tests {
                 let options = Options::default();
                 let parsed =
                     parse(input, &options).unwrap_or_else(|_| panic!("Should parse {input:?}"));
-                let doc = parsed.document();
+                let doc = parsed.document_storage();
 
                 assert!(
                     doc.location.absolute_start <= doc.location.absolute_end,
@@ -1646,7 +1578,7 @@ mod tests {
 
                 match result {
                     Ok(parsed) => {
-                        let doc = parsed.document();
+                        let doc = parsed.document_storage();
                         // All offsets should be on UTF-8 boundaries
                         assert!(
                             input.is_char_boundary(doc.location.absolute_start),
@@ -1834,35 +1766,11 @@ mod tests {
             );
         }
 
-        /// Explicit `subs` settings warn in both feature modes: experimental
-        /// behavior when enabled, or ignored settings when disabled.
         #[test]
-        fn subs_attribute_always_surfaces_a_warning() {
-            let input = "[subs=\"-quotes\"]\nContent\n";
-            let options = Options::default();
-            let result = parse(input, &options).expect("document should parse");
-
-            let messages: Vec<String> = result
-                .warnings()
-                .iter()
-                .map(|w| w.kind.to_string())
-                .collect();
-            assert!(
-                messages.iter().any(|m| m.contains("subs=")),
-                "expected a `subs=` warning, got: {messages:?}",
-            );
-            #[cfg(feature = "pre-spec-subs")]
-            assert!(
-                messages.iter().any(|m| m.contains(
-                    "https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16"
-                )),
-                "expected warning with feature on, got: {messages:?}",
-            );
-            #[cfg(not(feature = "pre-spec-subs"))]
-            assert!(
-                messages.iter().any(|m| m.contains("not honoured")),
-                "expected feature-off warning, got: {messages:?}",
-            );
+        fn supported_subs_attribute_does_not_warn() {
+            let result = parse("[subs=\"-quotes\"]\nContent\n", &Options::default())
+                .expect("document should parse");
+            assert!(result.warnings().is_empty(), "{:?}", result.warnings());
         }
     }
 
@@ -1879,7 +1787,7 @@ mod tests {
 ";
             let options = Options::default();
             let parsed = parse(input, &options).expect("should parse");
-            let doc = parsed.document();
+            let doc = parsed.document_storage();
 
             // foo should have bar's value expanded at definition time
             assert_eq!(doc.attributes.text("foo"), Some("resolved-bar"));
@@ -1895,7 +1803,7 @@ mod tests {
 ";
             let options = Options::default();
             let parsed = parse(input, &options).expect("should parse");
-            let doc = parsed.document();
+            let doc = parsed.document_storage();
 
             // foo should keep {bar} as literal since bar wasn't defined yet
             assert_eq!(doc.attributes.text("foo"), Some("{bar}"));
@@ -1913,7 +1821,7 @@ mod tests {
 ";
             let options = Options::default();
             let parsed = parse(input, &options).expect("should parse");
-            let doc = parsed.document();
+            let doc = parsed.document_storage();
 
             // c is defined first, so b gets "final-value", then a gets "final-value"
             assert_eq!(doc.attributes.text("c"), Some("final-value"));

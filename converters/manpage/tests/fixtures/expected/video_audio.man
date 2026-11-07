@@ -37,17 +37,13 @@ video\-audio\-test \- test static media fallbacks
 .sp
 \fBA tutorial video\fR
 .br
-.URL "media%20assets/video.mp4" "[Video source 1/2: A tutorial video]" ""
-.br
-.URL "media%20assets/video.webm" "[Video source 2/2: A tutorial video]" ""
+.URL "media%20assets/video.mp4,video.webm" "[Video: A tutorial video]" ""
 .br
 .URL "media%20assets/cover.jpg" "[Poster: cover.jpg]" ""
 .sp
 .URL "media%20assets/standalone.mp4" "[Video: standalone.mp4]" ""
 .sp
-[Video]
-.br
-.URL "media%20assets/orphan\-cover.jpg" "[Poster: orphan\-cover.jpg]" ""
+video::[poster=orphan\-cover.jpg]
 .SS "Audio"
 .sp
 \fBA podcast episode\fR

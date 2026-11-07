@@ -5,17 +5,21 @@
 //! from both, and any warnings the parser produced — all bound together so
 //! callers can hold the AST past the caller's input slice without any
 //! `into_static()` copy. Drop releases the arena, source, and warnings in
-//! one shot. `ParseInlineResult` plays the same role for the inline-only
-//! entry point used by TCK tests and the HTML converter's quotes-only
-//! fallback.
+//! one shot. `ParseInlineResult` plays the same role for standalone inline content.
 //!
-//! Consumers reach the AST via `.document()` (or `.inlines()`); bumpalo
-//! never appears in a public signature.
+//! Consumers reach the AST via `.document()` or `.content()`; bumpalo never
+//! appears in a public signature.
 //!
 //! `OwnedSource` covers the parse-failure case (we have the text but no
 //! AST) without paying for an empty arena.
 
-use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    path::{Path, PathBuf},
+    rc::Rc,
+    sync::Arc,
+};
 
 use bumpalo::Bump;
 
@@ -104,6 +108,51 @@ self_cell::self_cell! {
     impl {Debug}
 }
 
+/// A conditional decision made while reading the source, before block parsing.
+///
+/// The result uses attributes at the directive and all enclosing conditions.
+/// It describes this parse and does not change when a document is copied or edited.
+#[derive(Clone, Debug)]
+pub struct ConditionalEvaluation {
+    pub(crate) file: Option<Arc<PathBuf>>,
+    pub(crate) start_line: usize,
+    pub(crate) active: bool,
+    pub(crate) inline: bool,
+    pub(crate) end_line: Option<usize>,
+}
+
+impl ConditionalEvaluation {
+    /// Original source file, absent for primary string or reader input.
+    #[must_use]
+    pub fn source_file(&self) -> Option<&Path> {
+        self.file.as_deref().map(PathBuf::as_path)
+    }
+
+    /// One-based opening line in the original source.
+    #[must_use]
+    pub fn start_line(&self) -> usize {
+        self.start_line
+    }
+
+    /// Whether the condition and all enclosing conditions selected its content.
+    #[must_use]
+    pub fn is_active(&self) -> bool {
+        self.active
+    }
+
+    /// Whether the directive contains its content on the opening line.
+    #[must_use]
+    pub fn is_inline(&self) -> bool {
+        self.inline
+    }
+
+    /// One-based closing line in the same file, absent for inline or unclosed directives.
+    #[must_use]
+    pub fn end_line(&self) -> Option<usize> {
+        self.end_line
+    }
+}
+
 /// Owns a parsed document, its backing text, and non-fatal warnings.
 ///
 /// A successful parse can contain recovered content. Check [`Self::source_recovery`]
@@ -115,6 +164,7 @@ pub struct ParseResult {
     warnings: Vec<Warning>,
     source_recovery: Option<Box<Warning>>,
     source_files: SourceFiles,
+    conditionals: Vec<ConditionalEvaluation>,
 }
 
 impl ParseResult {
@@ -123,6 +173,7 @@ impl ParseResult {
         owner: OwnedInput,
         warnings_handle: Rc<RefCell<Vec<Warning>>>,
         source_files: SourceFiles,
+        conditionals: Vec<ConditionalEvaluation>,
         builder: impl for<'a> FnOnce(&'a OwnedInput) -> Result<Document<'a>, E>,
     ) -> Result<Self, E> {
         let cell = ParsedDocumentCell::try_new(owner, builder)?;
@@ -133,6 +184,7 @@ impl ParseResult {
                 matches!(
                     warning.kind,
                     WarningKind::ContentRecovery { .. }
+                        | WarningKind::UnsupportedCounter { .. }
                         | WarningKind::UnterminatedDelimitedBlock { .. }
                         | WarningKind::UnterminatedTable { .. }
                         | WarningKind::TableUnknownFormat { .. }
@@ -147,12 +199,30 @@ impl ParseResult {
             warnings,
             source_recovery,
             source_files,
+            conditionals,
         })
     }
 
-    /// Borrow the document AST.
+    /// Read the document through typed handles and iterators.
+    ///
+    /// The document cannot outlive this parse result:
+    ///
+    /// ```compile_fail,E0597
+    /// use acdc_parser::{Options, parse};
+    ///
+    /// let document = {
+    ///     let parsed = parse("A paragraph.", &Options::default()).unwrap();
+    ///     parsed.document()
+    /// };
+    /// println!("{}", document.blocks().count());
+    /// ```
     #[must_use]
-    pub fn document(&self) -> &Document<'_> {
+    pub fn document(&self) -> crate::ast::DocumentRef<'_> {
+        crate::ast::DocumentRef::from(self.cell.borrow_dependent())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn document_storage(&self) -> &Document<'_> {
         self.cell.borrow_dependent()
     }
 
@@ -174,6 +244,24 @@ impl ParseResult {
     #[must_use]
     pub fn source_location(&self, location: &Location) -> SourceLocation {
         self.source_files.location(location)
+    }
+
+    /// Resolve a location from this parse to its original file and position.
+    ///
+    /// This has the same source-mapping rules as [`Self::source_location`] and
+    /// returns an owned location, which may copy its file path.
+    #[must_use]
+    pub fn resolve_location(&self, location: crate::ast::LocationRef<'_>) -> SourceLocation {
+        self.source_location(location.as_location())
+    }
+
+    /// Conditional decisions in preprocessing order, including selected include sources.
+    ///
+    /// Each decision retains original file and line numbers, including directives
+    /// whose content was omitted. These records describe the parsed source and
+    /// remain separate from authored AST content.
+    pub fn conditionals(&self) -> impl ExactSizeIterator<Item = &ConditionalEvaluation> {
+        self.conditionals.iter()
     }
 
     /// Borrow the collected warnings.
@@ -200,9 +288,15 @@ impl ParseResult {
     }
 }
 
-/// Successful inline-only parse output: the inline-node slice plus the
-/// buffers it borrows from, plus any non-fatal warnings. Counterpart to
-/// [`ParseResult`] for the inline-only entry point.
+/// Inline content and its source text, with any nonfatal warnings.
+///
+/// Read content through [`Self::content`]. The backing slice is private:
+///
+/// ```compile_fail,E0624
+/// use acdc_parser::{Options, parse_inline};
+/// let parsed = parse_inline("Text", &Options::default()).unwrap();
+/// let _ = parsed.inlines();
+/// ```
 #[derive(Debug)]
 #[must_use = "ignoring a ParseInlineResult drops any warnings the parser produced"]
 pub struct ParseInlineResult {
@@ -224,9 +318,8 @@ impl ParseInlineResult {
         })
     }
 
-    /// Infallible variant for callers that don't need warnings (e.g. the
-    /// HTML converter's quotes-only fallback via `parse_text_for_quotes`).
-    /// `warnings` is always empty.
+    /// Build inline content without fallible parsing or diagnostics.
+    /// Used by [`crate::parse_text_for_quotes`].
     pub(crate) fn from_infallible(
         owner: OwnedInput,
         builder: impl for<'a> FnOnce(&'a OwnedInput) -> Vec<InlineNode<'a>>,
@@ -240,7 +333,7 @@ impl ParseInlineResult {
 
     /// Borrow the inline-node slice.
     #[must_use]
-    pub fn inlines(&self) -> &[InlineNode<'_>] {
+    pub(crate) fn inlines(&self) -> &[InlineNode<'_>] {
         self.cell.borrow_dependent()
     }
 

@@ -137,11 +137,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "S01 Normal title (C)",
+              "value": "S01 Normal title ",
               "location": [
                 {
                   "line": 13,
                   "col": 2
+                },
+                {
+                  "line": 13,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 19
                 },
                 {
                   "line": 13,
@@ -212,11 +227,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "S03 Normal title (C)",
+              "value": "S03 Normal title ",
               "location": [
                 {
                   "line": 18,
                   "col": 2
+                },
+                {
+                  "line": 18,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 19
                 },
                 {
                   "line": 18,
@@ -337,8 +367,7 @@
                   "line": 29,
                   "col": 51
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",
@@ -449,9 +478,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "symbol",
               "type": "string",
-              "value": "(TM)",
+              "value": "™",
               "location": [
                 {
                   "line": 34,
@@ -470,11 +499,11 @@
               "location": [
                 {
                   "line": 34,
-                  "col": 20
+                  "col": 19
                 },
                 {
                   "line": 34,
-                  "col": 24
+                  "col": 23
                 }
               ]
             },
@@ -500,7 +529,7 @@
               "location": [
                 {
                   "line": 34,
-                  "col": 35
+                  "col": 34
                 },
                 {
                   "line": 34,
@@ -670,11 +699,71 @@
             {
               "name": "text",
               "type": "string",
-              "value": "S12 *Bold* {value} (C).\n  S13 (R) footnote:[Inactive].",
+              "value": "S12 *Bold* {value} ",
               "location": [
                 {
                   "line": 45,
                   "col": 1
+                },
+                {
+                  "line": 45,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 45,
+                  "col": 20
+                },
+                {
+                  "line": 45,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".\n  S13 ",
+              "location": [
+                {
+                  "line": 45,
+                  "col": 23
+                },
+                {
+                  "line": 46,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 7
+                },
+                {
+                  "line": 46,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " footnote:[Inactive].",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 10
                 },
                 {
                   "line": 46,
@@ -757,7 +846,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": " expanded (C) ",
+              "value": " expanded ",
               "location": [
                 {
                   "line": 51,
@@ -765,7 +854,37 @@
                 },
                 {
                   "line": 51,
-                  "col": 24
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 20
+                },
+                {
+                  "line": 51,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 23
+                },
+                {
+                  "line": 51,
+                  "col": 23
                 }
               ]
             },
@@ -791,7 +910,7 @@
               "location": [
                 {
                   "line": 51,
-                  "col": 35
+                  "col": 34
                 },
                 {
                   "line": 52,
@@ -847,11 +966,41 @@
             {
               "name": "text",
               "type": "string",
-              "value": "After (C), ",
+              "value": "After ",
               "location": [
                 {
                   "line": 56,
                   "col": 1
+                },
+                {
+                  "line": 56,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 56,
+                  "col": 7
+                },
+                {
+                  "line": 56,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ", ",
+              "location": [
+                {
+                  "line": 56,
+                  "col": 10
                 },
                 {
                   "line": 56,

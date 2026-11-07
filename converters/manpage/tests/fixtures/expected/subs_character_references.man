@@ -1,0 +1,54 @@
+'\" t
+.\"     Title: character-references
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-01-01
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "CHARACTER\-REFERENCES" "1" "2026-01-01" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+character\-references \- character reference meanings
+.SH "DESCRIPTION"
+.SH "HEADING ©"
+.sp
+R01 Named \(co ≂̸ fj &unknown; and numeric A \(co 😀\&.
+.sp
+R02 Literal &a; &ab123; &#9; &#X41; and bare & between words.
+.sp
+R03 Escaped &copy; \e&copy; &#169; and formatted \fB\(co\fR \fI\(co\fR \f(CR&\fR\&.
+.sp
+R04 \(co \(co &copy; &copy;\&.
+.sp
+R05 &copy; &#169; &amp;.
+.sp
+R06 &copy; &copy; &#169; &#169;\&.
+.EX
+R07 Code \(co \(co &copy;\&.
+.EE
+.sp
+R08 \c
+.URL "https://example.org" "Label \(co" "\fR\c"
+ and \fBFile\fR \(ra \fBOpen > Close\fR\&.
+.sp
+R09 Expanded \(co &copy; &copy;\&.

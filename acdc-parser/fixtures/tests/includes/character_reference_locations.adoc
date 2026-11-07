@@ -1,0 +1,3 @@
+// tag::selected[]
+    Included é &copy; and *&#169;*.
+// end::selected[]

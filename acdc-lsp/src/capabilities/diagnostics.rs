@@ -1,165 +1,98 @@
-//! Diagnostics: convert acdc-parser errors to LSP diagnostics
-//!
-//! This module handles two types of diagnostics:
-//! - Parse errors: converted from acdc-parser errors
-//! - Validation warnings: unresolved xrefs, duplicate anchors, etc.
+//! Diagnostic messages and their final LSP representation.
 
 use std::{collections::HashMap, hash::BuildHasher, path::Path};
 
-use acdc_parser::{Block, Document, Error, Location, SourceLocation, Warning};
+use acdc_parser::{
+    Error, Location, SourceLocation, Warning,
+    ast::{BlockKind, DocumentRef, SectionRef},
+};
 use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, DiagnosticTag, Range};
 
-use crate::{
-    convert::location_to_range,
-    state::{
-        ConditionalBlock, ConditionalDirectiveKind, ConditionalOperation, XrefTarget,
-        document::OwnedSource,
-    },
+use crate::state::{
+    ConditionalBlock, ConditionalDirectiveKind, ConditionalOperation, XrefTarget,
+    document::OwnedSource,
 };
 
-/// Convert acdc-parser Error to LSP Diagnostic
-#[must_use]
-pub(crate) fn error_to_diagnostic(error: &Error) -> Diagnostic {
-    let range = error
-        .source_location()
-        .map(|source_loc| location_to_range(&source_loc.location))
-        .unwrap_or_default();
+/// Diagnostic content whose source range has not yet been resolved.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct DiagnosticMessage {
+    pub(crate) message: String,
+    pub(crate) severity: DiagnosticSeverity,
+}
 
-    // Section level mismatches are warnings with a user-friendly message
+impl DiagnosticMessage {
+    pub(crate) fn new(message: String, severity: DiagnosticSeverity) -> Self {
+        Self { message, severity }
+    }
+
+    pub(crate) fn into_diagnostic(self, range: Range) -> Diagnostic {
+        Diagnostic {
+            range,
+            message: self.message,
+            severity: Some(self.severity),
+            source: Some("acdc".into()),
+            ..Default::default()
+        }
+    }
+}
+
+pub(crate) fn error_message(error: &Error) -> DiagnosticMessage {
     if let Error::NestedSectionLevelMismatch(_, found, expected) = error {
         let expected_markers = "=".repeat(usize::from(*expected));
         let found_markers = "=".repeat(usize::from(*found));
-        return Diagnostic {
-            range,
-            severity: Some(DiagnosticSeverity::WARNING),
-            source: Some("acdc".to_string()),
-            message: format!(
+        return DiagnosticMessage::new(
+            format!(
                 "Section level skipped: expected level {expected} (`{expected_markers}`) but found level {found} (`{found_markers}`)"
             ),
-            ..Default::default()
-        };
+            DiagnosticSeverity::WARNING,
+        );
     }
-
-    let message = error.to_string();
-
-    Diagnostic {
-        range,
-        severity: Some(DiagnosticSeverity::ERROR),
-        source: Some("acdc".to_string()),
-        message,
-        ..Default::default()
-    }
+    DiagnosticMessage::new(error.to_string(), DiagnosticSeverity::ERROR)
 }
 
-/// Convert an acdc-parser `Warning` to an LSP `Diagnostic`. Parser
-/// warnings are non-fatal by definition, so the severity is always
-/// `WARNING`. Warnings without a source location fall back to a
-/// zero-width range at the document start.
-#[must_use]
-pub(crate) fn warning_to_diagnostic(warning: &Warning) -> Diagnostic {
-    let range = warning
-        .source_location()
-        .map(|loc| location_to_range(&loc.location))
-        .unwrap_or_default();
-
-    Diagnostic {
-        range,
-        severity: Some(DiagnosticSeverity::WARNING),
-        source: Some("acdc".to_string()),
-        message: warning.kind.to_string(),
-        ..Default::default()
-    }
+pub(crate) fn warning_message(warning: &Warning) -> DiagnosticMessage {
+    DiagnosticMessage::new(warning.kind.to_string(), DiagnosticSeverity::WARNING)
 }
 
-/// Compute validation warnings for a document.
-///
-/// Returns warnings for:
-/// - Unresolved xref targets (target ID doesn't exist as an anchor)
-/// - Duplicate anchor IDs
-///
-/// When `cross_file_resolver` is provided, cross-file xrefs are validated
-/// using the resolver (which may check open documents, on-disk files, etc.).
-/// Without it, cross-file xrefs get an info-level diagnostic.
-#[must_use]
+/// Check local targets and use the resolver for cross-file references when available.
 pub(crate) fn compute_warnings<S: BuildHasher, F>(
     anchors: &HashMap<String, SourceLocation, S>,
-    xrefs: &[(String, Location)],
+    targets: &[String],
     cross_file_resolver: Option<&F>,
-) -> Vec<Diagnostic>
+) -> Vec<DiagnosticMessage>
 where
     F: Fn(&XrefTarget) -> bool,
 {
     let mut diagnostics = Vec::new();
-
-    // Check for unresolved xrefs
-    for (target, location) in xrefs {
-        if !anchors.contains_key(target) {
-            let parsed = XrefTarget::parse(target);
-            if parsed.is_cross_file() {
-                // Check with resolver if available
-                let resolved = cross_file_resolver.is_some_and(|resolver| resolver(&parsed));
-                if !resolved {
-                    diagnostics.push(Diagnostic {
-                        range: location_to_range(location),
-                        severity: Some(DiagnosticSeverity::INFORMATION),
-                        source: Some("acdc".to_string()),
-                        message: format!(
-                            "Cross-file reference: '{target}' (cannot verify — target file may not be open)"
-                        ),
-                        ..Default::default()
-                    });
-                }
-            } else {
-                diagnostics.push(Diagnostic {
-                    range: location_to_range(location),
-                    severity: Some(DiagnosticSeverity::WARNING),
-                    source: Some("acdc".to_string()),
-                    message: format!("Unresolved cross-reference: target '{target}' not found"),
-                    ..Default::default()
-                });
+    for target in targets {
+        if anchors.contains_key(target) {
+            continue;
+        }
+        let parsed = XrefTarget::parse(target);
+        if parsed.is_cross_file() {
+            if !cross_file_resolver.is_some_and(|resolver| resolver(&parsed)) {
+                diagnostics.push(DiagnosticMessage::new(format!("Cross-file reference: '{target}' (cannot verify — target file may not be open)"), DiagnosticSeverity::INFORMATION));
             }
+        } else {
+            diagnostics.push(DiagnosticMessage::new(
+                format!("Unresolved cross-reference: target '{target}' not found"),
+                DiagnosticSeverity::WARNING,
+            ));
         }
     }
-
     diagnostics
 }
 
-/// Check if an anchor ID is already defined; returns a warning diagnostic if so.
-#[cfg(test)]
-#[must_use]
-fn check_duplicate_anchors<S: BuildHasher>(
-    anchor_id: &str,
-    location: &Location,
-    existing_anchors: &HashMap<String, Location, S>,
-) -> Option<Diagnostic> {
-    if existing_anchors.contains_key(anchor_id) {
-        Some(Diagnostic {
-            range: location_to_range(location),
-            severity: Some(DiagnosticSeverity::WARNING),
-            source: Some("acdc".to_string()),
-            message: format!("Duplicate anchor ID: '{anchor_id}' is already defined"),
-            ..Default::default()
-        })
-    } else {
-        None
-    }
-}
-
-/// Compute diagnostics for missing files referenced by images, audio, video, and includes.
-///
-/// Checks that local file paths actually exist on disk. URLs and icon names are skipped.
-/// Image paths are resolved relative to `imagesdir` (if set), then relative to `doc_dir`.
-/// Include paths are resolved relative to `doc_dir`.
-#[must_use]
+/// Check local media and include paths against the source directory.
+/// Relative media paths also use `imagesdir` when supplied; URLs and icon names are skipped.
 pub(crate) fn compute_link_diagnostics(
-    media_sources: &[(OwnedSource, Location)],
-    includes: &[(String, Location)],
+    media_sources: &[OwnedSource],
+    includes: &[String],
     doc_dir: &Path,
     imagesdir: Option<&str>,
-) -> Vec<Diagnostic> {
+) -> Vec<DiagnosticMessage> {
     let mut diagnostics = Vec::new();
-
-    for (source, location) in media_sources {
+    for source in media_sources {
         if let OwnedSource::Path(path) = source {
             let resolved = if path.is_absolute() {
                 path.clone()
@@ -168,82 +101,67 @@ pub(crate) fn compute_link_diagnostics(
             } else {
                 doc_dir.join(path)
             };
-
             if !resolved.exists() {
-                diagnostics.push(Diagnostic {
-                    range: location_to_range(location),
-                    severity: Some(DiagnosticSeverity::WARNING),
-                    source: Some("acdc".to_string()),
-                    message: format!("File not found: '{}'", path.display()),
-                    ..Default::default()
-                });
+                diagnostics.push(DiagnosticMessage::new(
+                    format!("File not found: '{}'", path.display()),
+                    DiagnosticSeverity::WARNING,
+                ));
             }
         }
     }
-
-    for (target, location) in includes {
-        if target.contains("://") {
-            continue;
-        }
-        let resolved = doc_dir.join(target);
-        if !resolved.exists() {
-            diagnostics.push(Diagnostic {
-                range: location_to_range(location),
-                severity: Some(DiagnosticSeverity::WARNING),
-                source: Some("acdc".to_string()),
-                message: format!("Included file not found: '{target}'"),
-                ..Default::default()
-            });
+    for target in includes {
+        if !target.contains("://") && !doc_dir.join(target).exists() {
+            diagnostics.push(DiagnosticMessage::new(
+                format!("Included file not found: '{target}'"),
+                DiagnosticSeverity::WARNING,
+            ));
         }
     }
-
     diagnostics
-}
-
-/// Collect sections in document order by walking the AST recursively.
-fn collect_sections<'a>(blocks: &'a [Block<'_>]) -> Vec<(u8, &'a Location)> {
-    let mut sections = Vec::new();
-    for block in blocks {
-        if let Block::Section(section) = block {
-            sections.push((section.level, &section.location));
-            sections.extend(collect_sections(&section.content));
-        }
-    }
-    sections
 }
 
 /// Compute diagnostics for skipped section heading levels.
 ///
-/// Walks the AST to find sections in document order and checks that
-/// levels don't jump by more than 1 (e.g., `==` followed by `====` skips `===`).
-/// Going back to a higher level is always fine.
+/// Only root sections and their nested sections participate. Headings inside
+/// other block types do not affect the progression.
 #[must_use]
-pub(crate) fn compute_section_level_diagnostics(ast: &Document) -> Vec<(Location, Diagnostic)> {
-    let sections = collect_sections(&ast.blocks);
+pub(crate) fn compute_section_level_diagnostics(
+    ast: DocumentRef<'_>,
+) -> Vec<(Location, DiagnosticMessage)> {
     let mut diagnostics = Vec::new();
-    let mut last_level: u8 = 0;
-
-    for &(level, location) in &sections {
-        if level > last_level + 1 {
-            let expected = last_level + 2; // display level (internal + 1)
-            let found = level + 1;
-            let expected_markers = "=".repeat(expected as usize);
-            let found_markers = "=".repeat(found as usize);
-
-            diagnostics.push((location.clone(), Diagnostic {
-                range: location_to_range(location),
-                severity: Some(DiagnosticSeverity::WARNING),
-                source: Some("acdc".to_string()),
-                message: format!(
-                    "Section level skipped: expected level {expected} (`{expected_markers}`) but found level {found} (`{found_markers}`)"
-                ),
-                ..Default::default()
-            }));
+    let mut last_level = 0;
+    for block in ast.blocks() {
+        if let BlockKind::Section(section) = block.kind() {
+            check_section_level(section, &mut last_level, &mut diagnostics);
         }
-        last_level = level;
     }
-
     diagnostics
+}
+
+fn check_section_level(
+    section: SectionRef<'_>,
+    last_level: &mut u8,
+    diagnostics: &mut Vec<(Location, DiagnosticMessage)>,
+) {
+    let level = section.level();
+    if level > *last_level + 1 {
+        let expected = *last_level + 2;
+        let found = level + 1;
+        let expected_markers = "=".repeat(usize::from(expected));
+        let found_markers = "=".repeat(usize::from(found));
+        diagnostics.push((section.location().into(), DiagnosticMessage {
+            severity: DiagnosticSeverity::WARNING,
+            message: format!(
+                "Section level skipped: expected level {expected} (`{expected_markers}`) but found level {found} (`{found_markers}`)"
+            ),
+        }));
+    }
+    *last_level = level;
+    for block in section.blocks() {
+        if let BlockKind::Section(section) = block.kind() {
+            check_section_level(section, last_level, diagnostics);
+        }
+    }
 }
 
 /// Compute diagnostics for inactive conditional blocks.
@@ -254,6 +172,7 @@ pub(crate) fn compute_section_level_diagnostics(ast: &Document) -> Vec<(Location
 #[must_use]
 pub(crate) fn compute_conditional_diagnostics(
     conditionals: &[ConditionalBlock],
+    source: &str,
 ) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
 
@@ -276,20 +195,24 @@ pub(crate) fn compute_conditional_diagnostics(
         };
         let attrs = cond.attributes.join(separator);
 
-        let start_line: u32 = cond.start_line.try_into().unwrap_or(u32::MAX);
-        let end_line_u32: u32 = end_line.try_into().unwrap_or(u32::MAX);
+        let Some(last_line) = source.lines().nth(end_line) else {
+            continue;
+        };
+        let Ok(end_character) = u32::try_from(last_line.encode_utf16().count()) else {
+            continue;
+        };
+        let Ok(start_line) = u32::try_from(cond.start_line) else {
+            continue;
+        };
+        let Ok(end_line) = u32::try_from(end_line) else {
+            continue;
+        };
 
         diagnostics.push(Diagnostic {
-            range: Range {
-                start: tower_lsp_server::ls_types::Position {
-                    line: start_line,
-                    character: 0,
-                },
-                end: tower_lsp_server::ls_types::Position {
-                    line: end_line_u32,
-                    character: u32::MAX,
-                },
-            },
+            range: Range::new(
+                tower_lsp_server::ls_types::Position::new(start_line, 0),
+                tower_lsp_server::ls_types::Position::new(end_line, end_character),
+            ),
             severity: Some(DiagnosticSeverity::HINT),
             source: Some("acdc".to_string()),
             message: format!("Inactive conditional block ({directive}::{attrs})"),
@@ -333,7 +256,7 @@ mod tests {
         let diags = compute_section_level_diagnostics(parsed.document());
         assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
         let (_, d) = diags.first().ok_or("expected a diagnostic")?;
-        assert_eq!(d.severity, Some(DiagnosticSeverity::WARNING));
+        assert_eq!(d.severity, DiagnosticSeverity::WARNING);
         assert!(
             d.message.contains("Section level skipped"),
             "message: {}",
@@ -365,7 +288,7 @@ mod tests {
         let diags = compute_section_level_diagnostics(parsed.document());
         assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
         let (_, d) = diags.first().ok_or("expected a diagnostic")?;
-        assert_eq!(d.severity, Some(DiagnosticSeverity::WARNING));
+        assert_eq!(d.severity, DiagnosticSeverity::WARNING);
         assert!(
             d.message.contains("`==`"),
             "should suggest == as expected, message: {}",
@@ -400,7 +323,7 @@ mod tests {
         let diags = compute_section_level_diagnostics(parsed.document());
         assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
         let (_, diag) = diags.first().ok_or("expected a diagnostic")?;
-        assert_eq!(diag.severity, Some(DiagnosticSeverity::WARNING));
+        assert_eq!(diag.severity, DiagnosticSeverity::WARNING);
         assert!(
             diag.message.contains("Section level skipped"),
             "message: {}",
@@ -420,26 +343,9 @@ mod tests {
     }
 
     #[test]
-    fn test_positioning_converts_to_zero_indexed() {
-        // Use Location::default() since Location is non_exhaustive
-        let loc = Location::default();
-        let range = location_to_range(&loc);
-
-        // Default Location has line=0, column=0
-        // 0.saturating_sub(1) = 0
-        assert_eq!(range.start.line, 0);
-        assert_eq!(range.start.character, 0);
-    }
-
-    #[test]
     fn test_unresolved_xref_warning() {
         let anchors = HashMap::new();
-        let mut loc = Location::default();
-        loc.start.line = 5;
-        loc.start.column = 1;
-        loc.end.line = 5;
-        loc.end.column = 20;
-        let xrefs = vec![("missing-target".to_string(), loc)];
+        let xrefs = vec!["missing-target".to_string()];
 
         let warnings = compute_warnings::<_, fn(&XrefTarget) -> bool>(&anchors, &xrefs, None);
         assert_eq!(warnings.len(), 1);
@@ -452,7 +358,7 @@ mod tests {
         );
         assert_eq!(
             warning.map(|(_, sev)| sev),
-            Some(Some(DiagnosticSeverity::WARNING))
+            Some(DiagnosticSeverity::WARNING)
         );
     }
 
@@ -465,43 +371,17 @@ mod tests {
             "existing-target".to_string(),
             SourceLocation::at_location(None, loc.clone()),
         );
-        let xrefs = vec![("existing-target".to_string(), loc)];
+        let xrefs = vec!["existing-target".to_string()];
 
         let warnings = compute_warnings::<_, fn(&XrefTarget) -> bool>(&anchors, &xrefs, None);
         assert_eq!(warnings, []);
     }
 
     #[test]
-    fn test_duplicate_anchor_warning() {
-        let mut loc = Location::default();
-        loc.start.line = 10;
-        let mut anchors = HashMap::new();
-        anchors.insert("my-anchor".to_string(), loc.clone());
-
-        let warning = check_duplicate_anchors("my-anchor", &loc, &anchors);
-        assert!(warning.is_some(), "expected warning for duplicate anchor");
-        assert!(
-            warning.is_some_and(|w| w.message.contains("my-anchor")),
-            "expected warning about my-anchor"
-        );
-    }
-
-    #[test]
-    fn test_unique_anchor_no_warning() {
-        let anchors = HashMap::new();
-        let loc = Location::default();
-
-        let warning = check_duplicate_anchors("new-anchor", &loc, &anchors);
-        assert!(warning.is_none());
-    }
-
-    #[test]
     fn test_missing_image_produces_warning() -> Result<(), Box<dyn std::error::Error>> {
-        let loc = Location::default();
-        let media = vec![(
-            OwnedSource::Path(std::path::PathBuf::from("nonexistent.png")),
-            loc,
-        )];
+        let media = vec![OwnedSource::Path(std::path::PathBuf::from(
+            "nonexistent.png",
+        ))];
         let tmp = std::env::temp_dir().join("acdc_test_missing_img");
         std::fs::create_dir_all(&tmp)?;
 
@@ -509,7 +389,7 @@ mod tests {
         assert_eq!(diags.len(), 1);
         let d = diags.first().ok_or("expected a diagnostic")?;
         assert!(d.message.contains("nonexistent.png"));
-        assert_eq!(d.severity, Some(DiagnosticSeverity::WARNING));
+        assert_eq!(d.severity, DiagnosticSeverity::WARNING);
 
         let _ = std::fs::remove_dir_all(&tmp);
         Ok(())
@@ -517,15 +397,11 @@ mod tests {
 
     #[test]
     fn test_existing_image_no_warning() -> Result<(), Box<dyn std::error::Error>> {
-        let loc = Location::default();
         let tmp = std::env::temp_dir().join("acdc_test_existing_img");
         std::fs::create_dir_all(&tmp)?;
         std::fs::write(tmp.join("photo.png"), b"fake")?;
 
-        let media = vec![(
-            OwnedSource::Path(std::path::PathBuf::from("photo.png")),
-            loc,
-        )];
+        let media = vec![OwnedSource::Path(std::path::PathBuf::from("photo.png"))];
         let diags = compute_link_diagnostics(&media, &[], &tmp, None);
         assert_eq!(diags, []);
 
@@ -535,11 +411,7 @@ mod tests {
 
     #[test]
     fn test_url_source_skipped() {
-        let loc = Location::default();
-        let media = vec![(
-            OwnedSource::Url("https://example.com/img.png".to_string()),
-            loc,
-        )];
+        let media = vec![OwnedSource::Url("https://example.com/img.png".to_string())];
         let tmp = std::env::temp_dir();
 
         let diags = compute_link_diagnostics(&media, &[], &tmp, None);
@@ -548,8 +420,7 @@ mod tests {
 
     #[test]
     fn test_name_source_skipped() {
-        let loc = Location::default();
-        let media = vec![(OwnedSource::Name("heart".to_string()), loc)];
+        let media = vec![OwnedSource::Name("heart".to_string())];
         let tmp = std::env::temp_dir();
 
         let diags = compute_link_diagnostics(&media, &[], &tmp, None);
@@ -558,8 +429,7 @@ mod tests {
 
     #[test]
     fn test_missing_include_produces_warning() -> Result<(), Box<dyn std::error::Error>> {
-        let loc = Location::default();
-        let includes = vec![("missing.adoc".to_string(), loc)];
+        let includes = vec!["missing.adoc".to_string()];
         let tmp = std::env::temp_dir().join("acdc_test_missing_inc");
         std::fs::create_dir_all(&tmp)?;
 
@@ -574,12 +444,11 @@ mod tests {
 
     #[test]
     fn test_existing_include_no_warning() -> Result<(), Box<dyn std::error::Error>> {
-        let loc = Location::default();
         let tmp = std::env::temp_dir().join("acdc_test_existing_inc");
         std::fs::create_dir_all(&tmp)?;
         std::fs::write(tmp.join("chapter.adoc"), "= Chapter")?;
 
-        let includes = vec![("chapter.adoc".to_string(), loc)];
+        let includes = vec!["chapter.adoc".to_string()];
         let diags = compute_link_diagnostics(&[], &includes, &tmp, None);
         assert_eq!(diags, []);
 
@@ -589,15 +458,11 @@ mod tests {
 
     #[test]
     fn test_imagesdir_prepended_to_relative_paths() -> Result<(), Box<dyn std::error::Error>> {
-        let loc = Location::default();
         let tmp = std::env::temp_dir().join("acdc_test_imagesdir");
         std::fs::create_dir_all(tmp.join("images"))?;
         std::fs::write(tmp.join("images/photo.png"), b"fake")?;
 
-        let media = vec![(
-            OwnedSource::Path(std::path::PathBuf::from("photo.png")),
-            loc,
-        )];
+        let media = vec![OwnedSource::Path(std::path::PathBuf::from("photo.png"))];
 
         // Without imagesdir: should warn (file not in root)
         let diags = compute_link_diagnostics(&media, &[], &tmp, None);
@@ -613,13 +478,12 @@ mod tests {
 
     #[test]
     fn test_absolute_path_ignores_imagesdir() -> Result<(), Box<dyn std::error::Error>> {
-        let loc = Location::default();
         let tmp = std::env::temp_dir().join("acdc_test_abs_img");
         std::fs::create_dir_all(&tmp)?;
         std::fs::write(tmp.join("absolute.png"), b"fake")?;
 
         let abs_path = tmp.join("absolute.png");
-        let media = vec![(OwnedSource::Path(abs_path), loc)];
+        let media = vec![OwnedSource::Path(abs_path)];
 
         // imagesdir should be ignored for absolute paths
         let diags = compute_link_diagnostics(&media, &[], &tmp, Some("other"));
@@ -631,8 +495,7 @@ mod tests {
 
     #[test]
     fn test_url_include_skipped() {
-        let loc = Location::default();
-        let includes = vec![("https://example.com/file.adoc".to_string(), loc)];
+        let includes = vec!["https://example.com/file.adoc".to_string()];
         let tmp = std::env::temp_dir();
 
         let diags = compute_link_diagnostics(&[], &includes, &tmp, None);
@@ -650,7 +513,10 @@ mod tests {
             end_line: Some(4),
         }];
 
-        let diags = compute_conditional_diagnostics(&conditionals);
+        let diags = compute_conditional_diagnostics(
+            &conditionals,
+            "= Title\r\n\r\nifdef::missing-attr[]\r\n😀 body\r\nendif::[]",
+        );
         assert_eq!(diags.len(), 1);
         let d = diags.first().ok_or("expected one diagnostic")?;
         assert_eq!(d.severity, Some(DiagnosticSeverity::HINT));
@@ -672,7 +538,10 @@ mod tests {
             end_line: Some(2),
         }];
 
-        let diags = compute_conditional_diagnostics(&conditionals);
+        let diags = compute_conditional_diagnostics(
+            &conditionals,
+            "= Title\r\n\r\nifdef::missing-attr[]\r\n😀 body\r\nendif::[]",
+        );
         assert_eq!(diags, []);
     }
 }

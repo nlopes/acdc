@@ -1,3 +1,6 @@
+pub mod json;
+pub mod parse;
+
 #[cfg(any(
     feature = "html",
     feature = "manpage",

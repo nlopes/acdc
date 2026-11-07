@@ -1,0 +1,37 @@
+= Attribute Whitespace
+
+[ source,role=leading]
+Leading whitespace keeps this line in the paragraph.
+
+[source,role=trailing ]
+printf 'café'
+
+image::diagram.svg[ café, width=25 ]
+
+image:diagram.svg[ café, width=25 ]
+
+[data=" inner spaces ",role=quoted]
+Quoted inner spaces stay in the value.
+
+[role=first, data = value, other=second]
+Spaces around entry separators are allowed.
+
+[{sp}source]
+printf 'expanded leading space'
+
+[source{sp}]
+printf 'expanded trailing space'
+
+image::diagram.svg[café{sp}]
+
+[source]
+[ literal body]
+// This comment belongs to the source paragraph.
+
+[	source]
+A leading tab keeps this line in the paragraph.
+
+[source	]
+printf 'trailing tab'
+
+toc::[ levels=2 ]

@@ -1,8 +1,8 @@
-// Quote credits do not become dimensions.
+// Asciidoctor mode does not map preceding quote positions to dimensions.
 [quote,Alice,Book]
 image::sample.png[Alt]
 
-// Preceding positional attributes do not become dimensions.
+// Asciidoctor mode does not map preceding positions to dimensions.
 [custom,100,200]
 image::sample.png[Alt]
 
@@ -14,7 +14,7 @@ image::sample.png[Alt,width=300,height=400]
 [custom,100,200]
 image::sample.png[Alt,300,400]
 
-// An empty width slot does not inherit a preceding positional value.
+// An empty width slot inherits the preceding value only in Draft mode.
 [custom,100,200]
 image::sample.png[Alt,,400]
 

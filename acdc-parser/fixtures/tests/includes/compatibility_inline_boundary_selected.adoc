@@ -1,0 +1,6 @@
+Excluded.
+// tag::keep[]
+    π \*Literal\* and “*Included*” and ((Term (R))).
+    \footnote:inactive-include[Literal.] and footnote:included[Included note.].
+// end::keep[]
+Excluded.

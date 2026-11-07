@@ -1,5 +1,6 @@
-use acdc_parser::{
-    Block, DelimitedBlock, DelimitedBlockType, Document, InlineMacro, InlineNode, Location,
+use acdc_parser::ast::{
+    BlockKind, ContentRef, DocumentRef, InlineKind, InlineRef, LocationRef, PositionRef,
+    StructuralRef,
 };
 
 use crate::LintId;
@@ -8,95 +9,43 @@ use super::{LintEmitter, SourceLine, line_range_for_inlines, source_lines_for_ra
 
 pub(crate) fn lint_one_sentence_per_line(
     emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
+    document: DocumentRef<'_>,
     lines: &[SourceLine<'_>],
 ) {
-    lint_one_sentence_blocks(emitter, &document.blocks, lines);
+    lint_one_sentence_structure(emitter, StructuralRef::Document(document), lines);
 }
 
-fn lint_one_sentence_blocks(
+fn lint_one_sentence_structure(
     emitter: &mut LintEmitter<'_>,
-    blocks: &[Block<'_>],
+    node: StructuralRef<'_>,
     lines: &[SourceLine<'_>],
 ) {
-    for block in blocks {
-        match block {
-            Block::Admonition(block) => lint_one_sentence_blocks(emitter, &block.blocks, lines),
-            Block::CalloutList(list) => {
-                for item in &list.items {
-                    lint_one_sentence_blocks(emitter, &item.blocks, lines);
-                }
-            }
-            Block::DescriptionList(list) => {
-                for item in &list.items {
-                    if let Some(range) = line_range_for_inlines(&item.principal_text) {
-                        // Exclude the term, which can contain its own sentence punctuation.
-                        let mut locations = Vec::new();
-                        collect_prose_locations(&item.principal_text, &mut locations);
-                        lint_prose_lines(emitter, source_lines_for_range(lines, range), &locations);
-                    }
-                    lint_one_sentence_blocks(emitter, &item.description, lines);
-                }
-            }
-            Block::DelimitedBlock(block) => {
-                lint_one_sentence_delimited_block(emitter, block, lines);
-            }
-            Block::OrderedList(list) => {
-                for item in &list.items {
-                    lint_one_sentence_inlines(emitter, &item.principal, lines);
-                    lint_one_sentence_blocks(emitter, &item.blocks, lines);
-                }
-            }
-            Block::Paragraph(paragraph) => {
-                lint_one_sentence_inlines(emitter, &paragraph.content, lines);
-            }
-            Block::Section(section) => lint_one_sentence_blocks(emitter, &section.content, lines),
-            Block::UnorderedList(list) => {
-                for item in &list.items {
-                    lint_one_sentence_inlines(emitter, &item.principal, lines);
-                    lint_one_sentence_blocks(emitter, &item.blocks, lines);
-                }
-            }
-            Block::Audio(_)
-            | Block::Comment(_)
-            | Block::DiscreteHeader(_)
-            | Block::DocumentAttribute(_)
-            | Block::Image(_)
-            | Block::PageBreak(_)
-            | Block::TableOfContents(_)
-            | Block::ThematicBreak(_)
-            | Block::Video(_)
-            | _ => {}
+    if let StructuralRef::Block(block) = node {
+        if let BlockKind::Table(_) = block.kind() {
+            return;
         }
+        if let BlockKind::Paragraph(paragraph) = block.kind() {
+            lint_one_sentence_inlines(emitter, paragraph.content(), lines);
+        }
+    } else if let StructuralRef::ListItem(item) = node {
+        lint_one_sentence_inlines(emitter, item.principal(), lines);
+    } else if let StructuralRef::DescriptionListDefinition(definition) = node
+        && let Some(principal) = definition.principal()
+        && let Some(range) = line_range_for_inlines(principal)
+    {
+        // Exclude the term, which can contain its own sentence punctuation.
+        let mut locations = Vec::new();
+        collect_prose_locations(principal, &mut locations);
+        lint_prose_lines(emitter, source_lines_for_range(lines, range), &locations);
     }
-}
-
-fn lint_one_sentence_delimited_block(
-    emitter: &mut LintEmitter<'_>,
-    block: &DelimitedBlock<'_>,
-    lines: &[SourceLine<'_>],
-) {
-    match &block.inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks) => {
-            lint_one_sentence_blocks(emitter, blocks, lines);
-        }
-        DelimitedBlockType::DelimitedComment(_)
-        | DelimitedBlockType::DelimitedListing(_)
-        | DelimitedBlockType::DelimitedLiteral(_)
-        | DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        | DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedVerse(_)
-        | _ => {}
+    for child in node.children() {
+        lint_one_sentence_structure(emitter, child, lines);
     }
 }
 
 fn lint_one_sentence_inlines(
     emitter: &mut LintEmitter<'_>,
-    inlines: &[InlineNode<'_>],
+    inlines: ContentRef<'_>,
     lines: &[SourceLine<'_>],
 ) {
     let Some(range) = line_range_for_inlines(inlines) else {
@@ -104,7 +53,7 @@ fn lint_one_sentence_inlines(
     };
     let mut locations = Vec::new();
     if inlines
-        .iter()
+        .inlines()
         .any(|node| formatting_content(node).is_some())
     {
         collect_prose_locations(inlines, &mut locations);
@@ -112,60 +61,83 @@ fn lint_one_sentence_inlines(
     lint_prose_lines(emitter, source_lines_for_range(lines, range), &locations);
 }
 
-fn formatting_content<'a, 's>(node: &'a InlineNode<'s>) -> Option<&'a [InlineNode<'s>]> {
-    match node {
-        InlineNode::BoldText(text) => Some(&text.content),
-        InlineNode::ItalicText(text) => Some(&text.content),
-        InlineNode::MonospaceText(text) => Some(&text.content),
-        InlineNode::HighlightText(text) => Some(&text.content),
-        InlineNode::SubscriptText(text) => Some(&text.content),
-        InlineNode::SuperscriptText(text) => Some(&text.content),
-        InlineNode::CurvedQuotationText(text) => Some(&text.content),
-        InlineNode::CurvedApostropheText(text) => Some(&text.content),
-        InlineNode::Macro(macro_node) => formatted_link_label(macro_node),
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::CalloutRef(_)
+fn formatting_content(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
+    match node.kind() {
+        InlineKind::Bold(text) => Some(text.content()),
+        InlineKind::Italic(text) => Some(text.content()),
+        InlineKind::Monospace(text) => Some(text.content()),
+        InlineKind::Highlight(text) => Some(text.content()),
+        InlineKind::Subscript(text) => Some(text.content()),
+        InlineKind::Superscript(text) => Some(text.content()),
+        InlineKind::CurvedQuotation(text) => Some(text.content()),
+        InlineKind::CurvedApostrophe(text) => Some(text.content()),
+        InlineKind::Link(_)
+        | InlineKind::Url(_)
+        | InlineKind::Mailto(_)
+        | InlineKind::CrossReference(_) => formatted_link_label(node),
+        InlineKind::Plain(_)
+        | InlineKind::Raw(_)
+        | InlineKind::Verbatim(_)
+        | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::LineBreak(_)
+        | InlineKind::Anchor(_)
+        | InlineKind::Callout(_)
+        | InlineKind::Symbol(_)
+        | InlineKind::CharacterReference(_)
+        | InlineKind::Autolink(_)
+        | InlineKind::Footnote(_)
+        | InlineKind::Icon(_)
+        | InlineKind::Image(_)
+        | InlineKind::Keyboard(_)
+        | InlineKind::Button(_)
+        | InlineKind::Menu(_)
+        | InlineKind::Pass(_)
+        | InlineKind::Stem(_)
+        | InlineKind::IndexTerm(_)
         | _ => None,
     }
 }
 
-fn formatted_link_label<'a, 's>(macro_node: &'a InlineMacro<'s>) -> Option<&'a [InlineNode<'s>]> {
-    let label = match macro_node {
-        InlineMacro::Link(link) => &link.text,
-        InlineMacro::Url(link) => &link.text,
-        InlineMacro::Mailto(link) => &link.text,
-        InlineMacro::CrossReference(link) => &link.text,
-        InlineMacro::Autolink(_)
-        | InlineMacro::Footnote(_)
-        | InlineMacro::Icon(_)
-        | InlineMacro::Image(_)
-        | InlineMacro::Keyboard(_)
-        | InlineMacro::Button(_)
-        | InlineMacro::Menu(_)
-        | InlineMacro::Pass(_)
-        | InlineMacro::Stem(_)
-        | InlineMacro::IndexTerm(_)
-        | _ => return None,
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "Only link-like nodes have labels checked against an authored macro range"
+)]
+fn formatted_link_label(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
+    let label = match node.kind() {
+        InlineKind::Link(link) => link.text(),
+        InlineKind::Url(link) => link.text(),
+        InlineKind::Mailto(link) => link.text(),
+        InlineKind::CrossReference(link) => link.text(),
+        _ => return None,
     };
-    let parent = macro_node.location();
-    let is_source_label = label.iter().all(|node| {
+    let parent = node.location();
+    let is_source_label = label.inlines().all(|node| {
         let location = node.location();
-        location.start.file == parent.start.file
-            && location.end.file == parent.end.file
-            && location.absolute_start >= parent.absolute_start
-            && location.absolute_end <= parent.absolute_end
+        same_include_chain(location.start(), parent.start())
+            && same_include_chain(location.end(), parent.end())
+            && location.absolute_start() >= parent.absolute_start()
+            && location.absolute_end() <= parent.absolute_end()
     });
-    (is_source_label && label.iter().any(|node| formatting_content(node).is_some()))
-        .then_some(label.as_slice())
+    (is_source_label
+        && label
+            .inlines()
+            .any(|node| formatting_content(node).is_some()))
+    .then_some(label)
 }
 
-fn collect_prose_locations<'a>(inlines: &'a [InlineNode<'_>], locations: &mut Vec<&'a Location>) {
-    for inline in inlines {
+fn same_include_chain(first: PositionRef<'_>, second: PositionRef<'_>) -> bool {
+    match (first.include_chain(), second.include_chain()) {
+        (Some(first), Some(second)) => first.eq(second),
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+fn collect_prose_locations<'doc>(
+    inlines: ContentRef<'doc>,
+    locations: &mut Vec<LocationRef<'doc>>,
+) {
+    for inline in inlines.inlines() {
         if let Some(content) = formatting_content(inline) {
             collect_prose_locations(content, locations);
         } else {
@@ -174,14 +146,14 @@ fn collect_prose_locations<'a>(inlines: &'a [InlineNode<'_>], locations: &mut Ve
     }
 }
 
-fn write_prose_line(line: SourceLine<'_>, locations: &mut &[&Location], text: &mut String) {
+fn write_prose_line(line: SourceLine<'_>, locations: &mut &[LocationRef<'_>], text: &mut String) {
     text.clear();
     text.reserve(line.text.len());
 
     while let Some((location, remaining)) = locations.split_first() {
-        if location.start.file.is_some()
-            || location.end.file.is_some()
-            || usize::try_from(location.end.line).unwrap_or(usize::MAX) < line.number
+        if location.start().include_chain().is_some()
+            || location.end().include_chain().is_some()
+            || usize::try_from(location.end().line()).unwrap_or(usize::MAX) < line.number
         {
             *locations = remaining;
         } else {
@@ -193,11 +165,11 @@ fn write_prose_line(line: SourceLine<'_>, locations: &mut &[&Location], text: &m
     // source spans more than once when attributes expand into several inline nodes.
     let mut chars = line.text.chars().enumerate().peekable();
     for location in *locations {
-        if location.start.file.is_some() || location.end.file.is_some() {
+        if location.start().include_chain().is_some() || location.end().include_chain().is_some() {
             continue;
         }
-        let start_line = usize::try_from(location.start.line).unwrap_or(usize::MAX);
-        let end_line = usize::try_from(location.end.line).unwrap_or(usize::MAX);
+        let start_line = usize::try_from(location.start().line()).unwrap_or(usize::MAX);
+        let end_line = usize::try_from(location.end().line()).unwrap_or(usize::MAX);
         if line.number < start_line {
             break;
         }
@@ -206,12 +178,12 @@ fn write_prose_line(line: SourceLine<'_>, locations: &mut &[&Location], text: &m
         }
 
         let start_column = if line.number == start_line {
-            usize::try_from(location.start.column.saturating_sub(1)).unwrap_or(usize::MAX)
+            usize::try_from(location.start().column().saturating_sub(1)).unwrap_or(usize::MAX)
         } else {
             0
         };
         let end_column = if line.number == end_line {
-            usize::try_from(location.end.column).unwrap_or(usize::MAX)
+            usize::try_from(location.end().column()).unwrap_or(usize::MAX)
         } else {
             usize::MAX
         };
@@ -228,7 +200,7 @@ fn write_prose_line(line: SourceLine<'_>, locations: &mut &[&Location], text: &m
 fn lint_prose_lines(
     emitter: &mut LintEmitter<'_>,
     paragraph: &[SourceLine<'_>],
-    mut locations: &[&Location],
+    mut locations: &[LocationRef<'_>],
 ) {
     if paragraph.is_empty() {
         return;

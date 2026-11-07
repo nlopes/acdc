@@ -1,0 +1,659 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Nested list boundaries",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 24
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 24
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "unordered",
+      "marker": "*",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Included item",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 3,
+                  "file": [
+                    "includes/compatibility_list_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 15,
+                  "file": [
+                    "includes/compatibility_list_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Included π body with ",
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 1,
+                      "file": [
+                        "includes/compatibility_list_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 6,
+                      "col": 21,
+                      "file": [
+                        "includes/compatibility_list_selected.adoc"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "footnote",
+                  "type": "inline",
+                  "id": null,
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "One selected note",
+                      "location": [
+                        {
+                          "line": 6,
+                          "col": 32,
+                          "file": [
+                            "includes/compatibility_list_selected.adoc"
+                          ]
+                        },
+                        {
+                          "line": 6,
+                          "col": 48,
+                          "file": [
+                            "includes/compatibility_list_selected.adoc"
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 22,
+                      "file": [
+                        "includes/compatibility_list_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 6,
+                      "col": 49,
+                      "file": [
+                        "includes/compatibility_list_selected.adoc"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": ".",
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 50,
+                      "file": [
+                        "includes/compatibility_list_selected.adoc"
+                      ]
+                    },
+                    {
+                      "line": 6,
+                      "col": 50,
+                      "file": [
+                        "includes/compatibility_list_selected.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 6,
+                  "col": 1,
+                  "file": [
+                    "includes/compatibility_list_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 6,
+                  "col": 50,
+                  "file": [
+                    "includes/compatibility_list_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 1,
+              "file": [
+                "includes/compatibility_list_selected.adoc"
+              ]
+            },
+            {
+              "line": 6,
+              "col": 50,
+              "file": [
+                "includes/compatibility_list_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "*",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Included sibling or text",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 3,
+                  "file": [
+                    "includes/compatibility_list_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 7,
+                  "col": 26,
+                  "file": [
+                    "includes/compatibility_list_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1,
+              "file": [
+                "includes/compatibility_list_selected.adoc"
+              ]
+            },
+            {
+              "line": 7,
+              "col": 26,
+              "file": [
+                "includes/compatibility_list_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1,
+          "file": [
+            "includes/compatibility_list_selected.adoc"
+          ]
+        },
+        {
+          "line": 7,
+          "col": 26,
+          "file": [
+            "includes/compatibility_list_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "list",
+                    "type": "block",
+                    "variant": "unordered",
+                    "marker": "*",
+                    "items": [
+                      {
+                        "name": "listItem",
+                        "type": "block",
+                        "marker": "*",
+                        "principal": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell item",
+                            "location": [
+                              {
+                                "line": 7,
+                                "col": 4
+                              },
+                              {
+                                "line": 7,
+                                "col": 12
+                              }
+                            ]
+                          }
+                        ],
+                        "blocks": [
+                          {
+                            "name": "paragraph",
+                            "type": "block",
+                            "inlines": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Cell paragraph",
+                                "location": [
+                                  {
+                                    "line": 9,
+                                    "col": 1
+                                  },
+                                  {
+                                    "line": 9,
+                                    "col": 14
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 9,
+                                "col": 1
+                              },
+                              {
+                                "line": 9,
+                                "col": 14
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 2
+                          },
+                          {
+                            "line": 9,
+                            "col": 14
+                          }
+                        ]
+                      },
+                      {
+                        "name": "listItem",
+                        "type": "block",
+                        "marker": "*",
+                        "principal": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell sibling or text",
+                            "location": [
+                              {
+                                "line": 10,
+                                "col": 3
+                              },
+                              {
+                                "line": 10,
+                                "col": 22
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 10,
+                            "col": 1
+                          },
+                          {
+                            "line": 10,
+                            "col": 22
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 7,
+                        "col": 2
+                      },
+                      {
+                        "line": 10,
+                        "col": 22
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 6,
+            "col": 1
+          },
+          {
+            "line": 11,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "First ",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 1,
+          "location": [
+            {
+              "line": 14,
+              "col": 7
+            },
+            {
+              "line": 14,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nSecond ",
+          "location": [
+            {
+              "line": 14,
+              "col": 10
+            },
+            {
+              "line": 15,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 2,
+          "location": [
+            {
+              "line": 15,
+              "col": 8
+            },
+            {
+              "line": 15,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "callout",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 1,
+            "location": [
+              {
+                "line": 21,
+                "col": 1
+              },
+              {
+                "line": 21,
+                "col": 17
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "First callout",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 5
+                },
+                {
+                  "line": 17,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Callout attachment.",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 1
+                    },
+                    {
+                      "line": 19,
+                      "col": 19
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 19,
+                  "col": 1
+                },
+                {
+                  "line": 19,
+                  "col": 19
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 2,
+            "location": [
+              {
+                "line": 24,
+                "col": 1
+              },
+              {
+                "line": 24,
+                "col": 18
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Second callout",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 5
+                },
+                {
+                  "line": 20,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 18
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 20,
+      "col": 18
+    }
+  ]
+}

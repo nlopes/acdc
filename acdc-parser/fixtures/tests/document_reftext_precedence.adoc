@@ -1,0 +1,9 @@
+[[guide,*Header* label]]
+= Main: _Subtitle_
+:reftext: *Document* & label
+
+<<guide>>, xref:#[], and <<guide,_Inline_ label>>.
+
+== Section
+
+See <<_section>>.

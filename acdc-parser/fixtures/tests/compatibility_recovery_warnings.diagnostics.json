@@ -1,0 +1,328 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 55,
+      "absolute_start": 38,
+      "file": "compatibility_recovery_warnings.adoc",
+      "location": [
+        {
+          "col": 4,
+          "line": 5
+        },
+        {
+          "col": 21,
+          "line": 5
+        }
+      ]
+    },
+    "message": "invalid footnote reference: missing"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 55,
+        "absolute_start": 38,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 4,
+            "line": 5
+          },
+          {
+            "col": 21,
+            "line": 5
+          }
+        ]
+      },
+      "message": "invalid footnote reference: missing"
+    },
+    {
+      "location": {
+        "absolute_end": 78,
+        "absolute_start": 61,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 27,
+            "line": 5
+          },
+          {
+            "col": 44,
+            "line": 5
+          }
+        ]
+      },
+      "message": "invalid footnote reference: missing"
+    },
+    {
+      "location": {
+        "absolute_end": 103,
+        "absolute_start": 89,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 8,
+            "line": 7
+          },
+          {
+            "col": 22,
+            "line": 7
+          }
+        ]
+      },
+      "message": "invalid footnote reference: bold"
+    },
+    {
+      "location": {
+        "absolute_end": 123,
+        "absolute_start": 109,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 28,
+            "line": 7
+          },
+          {
+            "col": 42,
+            "line": 7
+          }
+        ]
+      },
+      "message": "invalid footnote reference: bold"
+    },
+    {
+      "location": {
+        "absolute_end": 167,
+        "absolute_start": 153,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 25,
+            "line": 9
+          },
+          {
+            "col": 39,
+            "line": 9
+          }
+        ]
+      },
+      "message": "invalid footnote reference: link"
+    },
+    {
+      "location": {
+        "absolute_end": 187,
+        "absolute_start": 173,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 45,
+            "line": 9
+          },
+          {
+            "col": 59,
+            "line": 9
+          }
+        ]
+      },
+      "message": "invalid footnote reference: link"
+    },
+    {
+      "location": {
+        "absolute_end": 219,
+        "absolute_start": 205,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 8,
+            "line": 11
+          },
+          {
+            "col": 22,
+            "line": 11
+          }
+        ]
+      },
+      "message": "invalid footnote reference: raw"
+    },
+    {
+      "location": {
+        "absolute_end": 239,
+        "absolute_start": 225,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 28,
+            "line": 11
+          },
+          {
+            "col": 42,
+            "line": 11
+          }
+        ]
+      },
+      "message": "invalid footnote reference: raw"
+    },
+    {
+      "location": {
+        "absolute_end": 270,
+        "absolute_start": 252,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 10,
+            "line": 13
+          },
+          {
+            "col": 28,
+            "line": 13
+          }
+        ]
+      },
+      "message": "invalid footnote reference: escaped"
+    },
+    {
+      "location": {
+        "absolute_end": 294,
+        "absolute_start": 276,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 34,
+            "line": 13
+          },
+          {
+            "col": 52,
+            "line": 13
+          }
+        ]
+      },
+      "message": "invalid footnote reference: escaped"
+    },
+    {
+      "location": {
+        "absolute_end": 352,
+        "absolute_start": 329,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 10,
+            "line": 16
+          },
+          {
+            "col": 33,
+            "line": 16
+          }
+        ]
+      },
+      "message": "invalid footnote reference: expanded"
+    },
+    {
+      "location": {
+        "absolute_end": 381,
+        "absolute_start": 358,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 39,
+            "line": 16
+          },
+          {
+            "col": 62,
+            "line": 16
+          }
+        ]
+      },
+      "message": "invalid footnote reference: expanded"
+    },
+    {
+      "location": {
+        "absolute_end": 409,
+        "absolute_start": 392,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 8,
+            "line": 18
+          },
+          {
+            "col": 25,
+            "line": 18
+          }
+        ]
+      },
+      "message": "invalid footnote reference: caption"
+    },
+    {
+      "location": {
+        "absolute_end": 456,
+        "absolute_start": 438,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 16,
+            "line": 21
+          },
+          {
+            "col": 34,
+            "line": 21
+          }
+        ]
+      },
+      "message": "invalid footnote reference: selected"
+    },
+    {
+      "location": {
+        "absolute_end": 569,
+        "absolute_start": 556,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 21,
+            "line": 27
+          },
+          {
+            "col": 34,
+            "line": 27
+          }
+        ]
+      },
+      "message": "invalid footnote reference: alt"
+    },
+    {
+      "location": {
+        "absolute_end": 731,
+        "absolute_start": 709,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 18,
+            "line": 37
+          },
+          {
+            "col": 40,
+            "line": 37
+          }
+        ]
+      },
+      "message": "invalid footnote reference: bibliography"
+    },
+    {
+      "location": {
+        "absolute_end": 790,
+        "absolute_start": 777,
+        "file": "compatibility_recovery_warnings.adoc",
+        "location": [
+          {
+            "col": 5,
+            "line": 41
+          },
+          {
+            "col": 18,
+            "line": 41
+          }
+        ]
+      },
+      "message": "invalid reference: unresolved"
+    }
+  ]
+}

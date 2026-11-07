@@ -105,13 +105,58 @@
       ],
       "inlines": [
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- First line. +\n-- Second line.",
+          "value": " — ",
           "location": [
             {
               "line": 10,
               "col": 1
+            },
+            {
+              "line": 10,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "First line. +",
+          "location": [
+            {
+              "line": 10,
+              "col": 4
+            },
+            {
+              "line": 10,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 10,
+              "col": 17
+            },
+            {
+              "line": 11,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Second line.",
+          "location": [
+            {
+              "line": 11,
+              "col": 4
             },
             {
               "line": 11,
@@ -240,13 +285,28 @@
       ],
       "inlines": [
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- First line.",
+          "value": " — ",
           "location": [
             {
               "line": 20,
               "col": 1
+            },
+            {
+              "line": 20,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "First line.",
+          "location": [
+            {
+              "line": 20,
+              "col": 4
             },
             {
               "line": 20,
@@ -271,11 +331,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "{empty}\n-- Second line.",
+          "value": "{empty}",
           "location": [
             {
               "line": 21,
               "col": 1
+            },
+            {
+              "line": 21,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 21,
+              "col": 8
+            },
+            {
+              "line": 22,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Second line.",
+          "location": [
+            {
+              "line": 22,
+              "col": 4
             },
             {
               "line": 22,
@@ -424,13 +514,58 @@
       ],
       "inlines": [
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- First line.\n\n-- Second line.",
+          "value": " — ",
           "location": [
             {
               "line": 32,
               "col": 1
+            },
+            {
+              "line": 32,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "First line.\n",
+          "location": [
+            {
+              "line": 32,
+              "col": 4
+            },
+            {
+              "line": 32,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 33,
+              "col": 8
+            },
+            {
+              "line": 34,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Second line.",
+          "location": [
+            {
+              "line": 34,
+              "col": 4
             },
             {
               "line": 34,
@@ -480,13 +615,58 @@
       ],
       "inlines": [
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- First line. +\n-- Second line.",
+          "value": " — ",
           "location": [
             {
               "line": 38,
               "col": 1
+            },
+            {
+              "line": 38,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "First line. +",
+          "location": [
+            {
+              "line": 38,
+              "col": 4
+            },
+            {
+              "line": 38,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 38,
+              "col": 17
+            },
+            {
+              "line": 39,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Second line.",
+          "location": [
+            {
+              "line": 39,
+              "col": 4
             },
             {
               "line": 39,
@@ -535,13 +715,28 @@
       ],
       "inlines": [
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- First line.",
+          "value": " — ",
           "location": [
             {
               "line": 43,
               "col": 1
+            },
+            {
+              "line": 43,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "First line.",
+          "location": [
+            {
+              "line": 43,
+              "col": 4
             },
             {
               "line": 43,
@@ -564,13 +759,28 @@
           ]
         },
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- Second line.",
+          "value": " — ",
           "location": [
             {
               "line": 44,
               "col": 1
+            },
+            {
+              "line": 44,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Second line.",
+          "location": [
+            {
+              "line": 44,
+              "col": 4
             },
             {
               "line": 44,
@@ -619,13 +829,28 @@
       ],
       "inlines": [
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- First line.",
+          "value": " — ",
           "location": [
             {
               "line": 48,
               "col": 1
+            },
+            {
+              "line": 48,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "First line.",
+          "location": [
+            {
+              "line": 48,
+              "col": 4
             },
             {
               "line": 48,
@@ -648,13 +873,28 @@
           ]
         },
         {
-          "name": "text",
+          "name": "symbol",
           "type": "string",
-          "value": "-- Second line.",
+          "value": " — ",
           "location": [
             {
               "line": 49,
               "col": 1
+            },
+            {
+              "line": 49,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Second line.",
+          "location": [
+            {
+              "line": 49,
+              "col": 4
             },
             {
               "line": 49,

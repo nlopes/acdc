@@ -158,6 +158,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 15,
@@ -179,8 +182,7 @@
               "line": 15,
               "col": 43
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "metadata": {
@@ -222,6 +224,7 @@
           "name": "xref",
           "type": "inline",
           "target": "code-target",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -341,8 +344,7 @@
               "line": 21,
               "col": 50
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -363,7 +365,23 @@
           "name": "anchor",
           "type": "inline",
           "id": "code-target",
-          "xreflabel": "Code target",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Code target",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 27
+                },
+                {
+                  "line": 22,
+                  "col": 37
+                }
+              ]
+            }
+          ],
           "location": [
             {
               "line": 22,
@@ -466,8 +484,7 @@
               "line": 27,
               "col": 47
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -551,7 +568,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "code-note",
-          "inlines": [],
           "location": [
             {
               "line": 31,

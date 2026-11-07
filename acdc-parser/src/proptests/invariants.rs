@@ -51,7 +51,7 @@ proptest! {
     #[test]
     fn all_locations_in_bounds(input in ascii_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             let input_len = input.len();
             walk_document_locations(doc, &mut |loc, ctx| {
                 assert!(
@@ -83,9 +83,7 @@ proptest! {
         if let Ok(result) = crate::Preprocessor::process(&input, &options, Rc::default()) {
             // Parse the preprocessed input
             let arena = bumpalo::Bump::new();
-            let mut state = crate::grammar::ParserState::new(&result.text, &arena);
-            state.document_attributes = Rc::new(options.document_attributes.clone());
-            state.options = Rc::new(options.clone());
+            let mut state = crate::grammar::ParserState::new(&result.text, &arena, Rc::new(options.clone()));
             state.leveloffset_ranges = result.leveloffset_ranges;
             if let Ok(Ok(doc)) = crate::grammar::document_parser::document(&result.text, &mut state) {
                 let text = &result.text;
@@ -114,7 +112,7 @@ proptest! {
     #[test]
     fn positions_are_monotonic(input in structured_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             verify_monotonic_positions("Block", &doc.blocks);
         }
     }
@@ -128,7 +126,7 @@ proptest! {
     #[test]
     fn table_locations_in_bounds(input in table_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             let input_len = input.len();
             walk_document_locations(doc, &mut |loc, ctx| {
                 assert!(
@@ -167,7 +165,7 @@ proptest! {
     #[test]
     fn description_list_positions_monotonic(input in description_list_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             verify_monotonic_positions("DescriptionList", &doc.blocks);
         }
     }
@@ -177,7 +175,7 @@ proptest! {
     #[test]
     fn rich_document_positions_monotonic(input in rich_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             verify_monotonic_positions("RichDocument", &doc.blocks);
         }
     }
@@ -187,7 +185,7 @@ proptest! {
     #[test]
     fn nested_list_locations_in_bounds(input in nested_list_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             let input_len = input.len();
             walk_document_locations(doc, &mut |loc, ctx| {
                 assert!(
@@ -209,7 +207,7 @@ proptest! {
     #[test]
     fn delimited_block_positions_monotonic(input in delimited_block_document()) {
         let options = Options::default();
-        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document();
+        if let Ok(parsed) = parse(&input, &options) { let doc = parsed.document_storage();
             verify_monotonic_positions("DelimitedBlock", &doc.blocks);
         }
     }
@@ -265,11 +263,20 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
         Block::DescriptionList(list) => {
             for item in &list.items {
                 visitor(&item.location, "description list item");
-                for inline in &item.term {
-                    walk_inline_locations(inline, visitor);
+                for term in &item.terms {
+                    visitor(&term.location, "description term");
+                    for inline in &term.content {
+                        walk_inline_locations(inline, visitor);
+                    }
                 }
-                for child in &item.description {
-                    walk_block_locations(child, visitor);
+                if let Some(definition) = &item.definition {
+                    visitor(&definition.location, "description definition");
+                    for inline in definition.principal.iter().flatten() {
+                        walk_inline_locations(inline, visitor);
+                    }
+                    for child in &definition.blocks {
+                        walk_block_locations(child, visitor);
+                    }
                 }
             }
         }
@@ -287,7 +294,7 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
             }
         }
         Block::DiscreteHeader(header) => {
-            for inline in &header.title {
+            for inline in header.title.as_inlines() {
                 walk_inline_locations(inline, visitor);
             }
         }
@@ -317,7 +324,7 @@ fn walk_delimited_block_locations(
     if let Some(loc) = &delimited.close_delimiter_location {
         visitor(loc, "delimited block close delimiter");
     }
-    for inline in &delimited.title {
+    for inline in delimited.title.as_inlines() {
         walk_inline_locations(inline, visitor);
     }
     match &delimited.inner {
@@ -407,6 +414,8 @@ fn walk_inline_locations(inline: &InlineNode, visitor: &mut impl FnMut(&Location
         | InlineNode::RawText(_)
         | InlineNode::VerbatimText(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::Symbol(_)
+        | InlineNode::CharacterReference(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
         | InlineNode::Macro(_)
@@ -422,12 +431,21 @@ fn verify_monotonic_positions(prefix: &str, blocks: &[Block]) {
         let location = block.location();
         let start = location.absolute_start;
         // Metadata-line events precede the block whose source range contains them.
-        let contained_metadata_event = matches!(
-            previous,
-            Some(Block::DocumentAttribute(attribute))
-                if location.absolute_start <= attribute.location.absolute_start
-                    && location.absolute_end >= attribute.location.absolute_end
-        );
+        let contained_metadata_event = previous.is_some_and(|previous| {
+            let prefix_event = matches!(
+                previous,
+                Block::DocumentAttribute(_)
+                    | Block::Comment(_)
+                    | Block::DelimitedBlock(DelimitedBlock {
+                        inner: DelimitedBlockType::DelimitedComment(_),
+                        ..
+                    })
+            );
+            let previous_location = previous.location();
+            prefix_event
+                && location.absolute_start <= previous_location.absolute_start
+                && location.absolute_end >= previous_location.absolute_end
+        });
         assert!(
             start >= last_end || contained_metadata_event,
             "{prefix} starts at {start} but previous ended at {last_end}"
@@ -505,9 +523,15 @@ fn verify_block_monotonic(block: &Block) {
         }
         Block::DescriptionList(list) => {
             for item in &list.items {
-                verify_inline_monotonic("DescriptionList term", &item.term);
-                verify_inline_monotonic("DescriptionList principal", &item.principal_text);
-                verify_monotonic_positions("DescriptionList description", &item.description);
+                for term in &item.terms {
+                    verify_inline_monotonic("DescriptionList term", &term.content);
+                }
+                if let Some(definition) = &item.definition {
+                    if let Some(principal) = &definition.principal {
+                        verify_inline_monotonic("DescriptionList principal", principal);
+                    }
+                    verify_monotonic_positions("DescriptionList description", &definition.blocks);
+                }
             }
         }
         Block::CalloutList(list) => {
@@ -517,7 +541,7 @@ fn verify_block_monotonic(block: &Block) {
             }
         }
         Block::DiscreteHeader(header) => {
-            verify_inline_monotonic("DiscreteHeader title", &header.title);
+            verify_inline_monotonic("DiscreteHeader title", header.title.as_inlines());
         }
         Block::TableOfContents(_)
         | Block::DocumentAttribute(_)

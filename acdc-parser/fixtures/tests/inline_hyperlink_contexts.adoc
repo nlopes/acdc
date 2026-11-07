@@ -1,0 +1,10 @@
+= Hyperlink contexts
+
+include::includes/inline_hyperlink_metadata.adoc[]
+
+[cols="a"]
+|===
+|link:guide.adoc[Cell,id=cell-link,role="one two",opts="a,b",title='*Tip*']
+
+mailto:team@example.org[Mail,Subject,Body,id=cell-mail,custom=kept]
+|===

@@ -9,10 +9,15 @@ use serde::{
 
 mod admonition;
 mod anchor;
-pub(crate) use anchor::{BibliographyLabel, SectionReference};
+pub(crate) use anchor::{
+    BibliographyLabel, DocumentReferenceLabel, SectionOccurrence, SectionReference,
+    displayed_reference_label,
+};
 mod attributes;
 mod attribution;
+mod boundaries;
 pub(crate) mod caption;
+pub(crate) mod content_attribute;
 mod inlines;
 mod lists;
 mod location;
@@ -22,28 +27,33 @@ pub(crate) mod section;
 pub(crate) mod substitution;
 mod tables;
 mod title;
+mod token_assignment;
 
-pub use admonition::{Admonition, AdmonitionVariant};
+pub use admonition::{Admonition, AdmonitionForm, AdmonitionVariant};
 pub use anchor::{Anchor, Reference, TocEntry, UNNUMBERED_SECTION_STYLES};
 pub(crate) use attributes::RawAttributes;
 pub(crate) use attributes::{
-    AttributeInlineFragment, DocumentAttributeStatus, default_document_attribute_values,
+    AttributeInlineFragment, AttributeInlineSource, DocumentAttributeStatus,
+    canonical_attribute_name, default_document_attribute_values,
 };
 pub use attributes::{
     AttributeName, AttributeValue, DocumentAttributeAssignment, DocumentAttributeValue,
-    DocumentAttributes, ElementAttributes, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, strip_quotes,
+    DocumentAttributes, ElementAttributes, MAX_SECTION_LEVELS, MAX_TOC_LEVELS,
 };
 pub use attribution::{Attribution, CiteTitle};
 pub use caption::{Caption, CaptionKind};
+pub use content_attribute::ContentAttribute;
 pub use inlines::*;
 pub use lists::{
-    CalloutList, CalloutListItem, DescriptionList, DescriptionListItem, ListItem,
-    ListItemCheckedStatus, ListLevel, OrderedList, UnorderedList,
+    CalloutList, CalloutListItem, DescriptionList, DescriptionListDefinition, DescriptionListItem,
+    DescriptionListTerm, ListItem, ListItemCheckedStatus, ListLevel, OrderedList, UnorderedList,
 };
 pub use location::*;
-pub use media::{Audio, Image, Source, SourceUrl, Video};
-pub(crate) use metadata::PositionalAttribute;
-pub use metadata::{BlockMetadata, Role};
+pub use media::{Audio, Image, InlineImage, Source, SourceUrl, Video};
+pub(crate) use metadata::{
+    AttributePosition, BlockPrefixEvents, MacroAttributes, PositionalAttribute,
+};
+pub use metadata::{BlockMetadata, ElementId, InlineMetadata, ReservedAttribute, Role};
 pub use section::*;
 pub use substitution::*;
 pub use tables::{
@@ -51,18 +61,27 @@ pub use tables::{
     TableGrid, TablePresentation, TableRow, TableStripes, VerticalAlignment,
 };
 pub use title::{Subtitle, Title};
+pub use token_assignment::TokenAssignment;
 
-/// A `Document` represents the root of an `AsciiDoc` document.
+/// An editable `AsciiDoc` document tree.
+///
+/// Edits do not reparse content or rebuild reference, TOC, or footnote catalogs.
+/// [`Self::renumber_sections`] and [`Self::renumber_captions`] update only their
+/// documented numbering state. Use [`Self::rebuild_references_and_toc`] or
+/// [`Self::rebuild_captions`] to refresh the corresponding prepared catalogs.
+/// Use [`Self::rebuild_footnotes`] for prepared note registrations and
+/// [`Self::rebuild_author_attributes`] for author-derived header assignments.
+/// Reparse source to recompute declaration-order attribute snapshots.
 #[derive(Default, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Document<'a> {
-    pub header: Option<Header<'a>>,
+    pub(crate) header: Option<Header<'a>>,
     /// Effective end-of-header values. Later accepted changes are ordered
     /// [`Block::DocumentAttribute`] nodes and do not update this snapshot.
-    pub attributes: DocumentAttributes<'a>,
-    pub blocks: Vec<Block<'a>>,
-    pub footnotes: Vec<Footnote<'a>>,
-    pub toc_entries: Vec<TocEntry<'a>>,
+    pub(crate) attributes: DocumentAttributes<'a>,
+    pub(crate) blocks: Vec<Block<'a>>,
+    pub(crate) footnotes: Vec<FootnoteDefinition<'a>>,
+    pub(crate) toc_entries: Vec<TocEntry<'a>>,
     /// Cross-reference targets keyed by id, for O(1) `<<id>>` resolution.
     /// Covers sections, blocks, explicit inline anchors, and IDs on formatted
     /// inline spans; collected during parsing. `toc_entries` remains the ordered
@@ -70,11 +89,97 @@ pub struct Document<'a> {
     /// document title or label when a reference addresses the document top.
     /// Like `toc_entries` and
     /// `footnotes`, this is not serialized.
-    pub references: HashMap<&'a str, Reference<'a>>,
-    pub location: Location,
+    pub(crate) references: HashMap<&'a str, Reference<'a>>,
+    pub(crate) location: Location,
 }
 
-impl Document<'_> {
+impl<'a> Document<'a> {
+    /// Replace the header without updating author-derived document attributes.
+    pub fn set_header(&mut self, header: Option<Header<'a>>) {
+        self.header = header;
+    }
+
+    /// Remove and return the header without updating derived attributes.
+    #[must_use]
+    pub fn take_header(&mut self) -> Option<Header<'a>> {
+        self.header.take()
+    }
+
+    /// Replace the end-of-header snapshot without reinterpreting stored content.
+    pub fn set_attributes(&mut self, attributes: DocumentAttributes<'a>) {
+        self.attributes = attributes;
+    }
+
+    /// Remove the end-of-header snapshot, leaving empty document attributes.
+    #[must_use]
+    pub fn take_attributes(&mut self) -> DocumentAttributes<'a> {
+        std::mem::take(&mut self.attributes)
+    }
+
+    /// Replace the block tree without rebuilding registrations or numbering.
+    pub fn set_blocks(&mut self, blocks: impl IntoIterator<Item = Block<'a>>) {
+        self.blocks = blocks.into_iter().collect();
+    }
+
+    /// Append a block without rebuilding registrations or numbering.
+    pub fn push_block(&mut self, block: Block<'a>) {
+        self.blocks.push(block);
+    }
+
+    /// Remove the block tree, retaining the source lifetime of each owned block.
+    pub fn take_blocks(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = Block<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.blocks).into_iter()
+    }
+
+    /// Replace prepared footnote registrations without changing tree occurrences.
+    pub fn set_footnotes(&mut self, footnotes: impl IntoIterator<Item = FootnoteDefinition<'a>>) {
+        self.footnotes = footnotes.into_iter().collect();
+    }
+
+    /// Remove footnote registrations without changing tree occurrences.
+    pub fn take_footnotes(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = FootnoteDefinition<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.footnotes).into_iter()
+    }
+
+    /// Replace prepared TOC entries without changing the section tree.
+    pub fn set_toc_entries(&mut self, entries: impl IntoIterator<Item = TocEntry<'a>>) {
+        self.toc_entries = entries.into_iter().collect();
+    }
+
+    /// Remove TOC entries without changing the section tree.
+    pub fn take_toc_entries(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = TocEntry<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.toc_entries).into_iter()
+    }
+
+    /// Replace prepared reference snapshots without registering tree targets.
+    ///
+    /// If a key occurs more than once, the last value wins. Stored title presence
+    /// and source identity are preserved; catalog coherence is not checked.
+    pub fn set_references(
+        &mut self,
+        references: impl IntoIterator<Item = (&'a str, Reference<'a>)>,
+    ) {
+        self.references = references.into_iter().collect();
+    }
+
+    /// Remove reference snapshots without changing target elements.
+    pub fn take_references(
+        &mut self,
+    ) -> impl ExactSizeIterator<Item = (&'a str, Reference<'a>)> + use<'a> {
+        std::mem::take(&mut self.references).into_iter()
+    }
+
+    /// Replace the document span without relocating its children or catalogs.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+
     /// Reassign section numbers from the current section tree.
     ///
     /// Parsing does this automatically. Call it after changing the section tree or a
@@ -115,6 +220,7 @@ impl Document<'_> {
     /// or inserting a block whose `metadata.caption` has been set. A caller-built block whose
     /// `metadata.caption` is `None` stays unnumbered: nothing knows the document attributes at
     /// a source position it never had, so a converter's own fallback owns it.
+    /// Use [`Self::rebuild_captions`] to refresh reference caption snapshots too.
     pub fn renumber_captions(&mut self) {
         caption::renumber_captions(&mut self.blocks);
     }
@@ -134,33 +240,33 @@ impl Document<'_> {
 ///
 /// The header contains the title, subtitle, authors, and optional metadata
 /// (such as ID and roles) that can be applied to the document title.
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Header<'a> {
     #[serde(skip_serializing_if = "BlockMetadata::is_default")]
-    pub metadata: BlockMetadata<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
     #[serde(skip_serializing_if = "Title::is_empty")]
-    pub title: Title<'a>,
+    pub(crate) title: Title<'a>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub subtitle: Option<Subtitle<'a>>,
+    pub(crate) subtitle: Option<Subtitle<'a>>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub authors: Vec<Author<'a>>,
-    pub location: Location,
+    pub(crate) authors: Vec<Author<'a>>,
+    pub(crate) location: Location,
 }
 
 /// An `Author` represents the author of a document.
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Author<'a> {
     #[serde(rename = "firstname")]
-    pub first_name: &'a str,
+    pub(crate) first_name: &'a str,
     #[serde(skip_serializing_if = "Option::is_none", rename = "middlename")]
-    pub middle_name: Option<&'a str>,
+    pub(crate) middle_name: Option<&'a str>,
     #[serde(rename = "lastname")]
-    pub last_name: &'a str,
-    pub initials: &'a str,
+    pub(crate) last_name: &'a str,
+    pub(crate) initials: &'a str,
     #[serde(skip_serializing_if = "Option::is_none", rename = "address")]
-    pub email: Option<&'a str>,
+    pub(crate) email: Option<&'a str>,
 }
 
 impl<'a> Header<'a> {
@@ -176,29 +282,122 @@ impl<'a> Header<'a> {
         }
     }
 
-    /// Set the metadata.
-    #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
-        self.metadata = metadata;
-        self
+    /// Replace metadata without shadowing dedicated fields.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated metadata or title fields.
+    pub fn with_metadata(
+        mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<Self, crate::ReservedAttribute> {
+        self.set_metadata(metadata)?;
+        Ok(self)
     }
 
     /// Set the subtitle.
     #[must_use]
     pub fn with_subtitle(mut self, subtitle: Subtitle<'a>) -> Self {
-        self.subtitle = Some(subtitle);
+        self.set_subtitle(Some(subtitle));
         self
     }
 
     /// Set the authors.
     #[must_use]
     pub fn with_authors(mut self, authors: Vec<Author<'a>>) -> Self {
-        self.authors = authors;
+        self.set_authors(authors);
         self
+    }
+    /// Replace metadata without shadowing the header title or common metadata.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated fields, leaving the header unchanged.
+    pub fn set_metadata(
+        &mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<(), crate::ReservedAttribute> {
+        metadata.validate_attributes(&["title"])?;
+        self.metadata = metadata;
+        Ok(())
+    }
+
+    /// Copy metadata to prepare a checked replacement, retaining its source lifetime.
+    #[must_use]
+    pub fn clone_metadata(&self) -> BlockMetadata<'a> {
+        self.metadata.clone()
+    }
+
+    /// Remove metadata without changing title, subtitle, or authors.
+    #[must_use]
+    pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
+        std::mem::take(&mut self.metadata)
+    }
+
+    /// Replace the title, including an explicitly empty value.
+    pub fn set_title(&mut self, title: Title<'a>) {
+        self.title = title;
+    }
+
+    /// Remove the title, leaving it absent.
+    #[must_use]
+    pub fn take_title(&mut self) -> Title<'a> {
+        std::mem::take(&mut self.title)
+    }
+
+    /// Replace the optional subtitle. `Some` retains explicit empty content.
+    pub fn set_subtitle(&mut self, subtitle: Option<Subtitle<'a>>) {
+        self.subtitle = subtitle;
+    }
+
+    /// Remove and return the optional subtitle.
+    #[must_use]
+    pub fn take_subtitle(&mut self) -> Option<Subtitle<'a>> {
+        self.subtitle.take()
+    }
+
+    /// Replace authors without updating author-derived document attributes.
+    pub fn set_authors(&mut self, authors: impl IntoIterator<Item = Author<'a>>) {
+        self.authors = authors.into_iter().collect();
+    }
+
+    /// Remove authors, retaining each author's source lifetime.
+    pub fn take_authors(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = Author<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.authors).into_iter()
+    }
+
+    /// Replace the header span without relocating its content or metadata.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 }
 
 impl<'a> Author<'a> {
+    /// Replace the prepared first name without normalization.
+    pub fn set_first_name(&mut self, first_name: &'a str) {
+        self.first_name = first_name;
+    }
+
+    /// Replace or remove the prepared middle name without normalization.
+    pub fn set_middle_name(&mut self, middle_name: Option<&'a str>) {
+        self.middle_name = middle_name;
+    }
+
+    /// Replace the prepared last name without normalization.
+    pub fn set_last_name(&mut self, last_name: &'a str) {
+        self.last_name = last_name;
+    }
+
+    /// Replace prepared initials without recomputing them from the name.
+    pub fn set_initials(&mut self, initials: &'a str) {
+        self.initials = initials;
+    }
+
+    /// Replace or remove the email address without updating document attributes.
+    pub fn set_email(&mut self, email: Option<&'a str>) {
+        self.email = email;
+    }
+
     /// Assemble an author from already-prepared name parts. No normalization
     /// or allocation happens — callers (tests, external consumers) are
     /// responsible for providing the display-ready strings they want.
@@ -269,7 +468,7 @@ impl<'a> Author<'a> {
     /// Set the email address.
     #[must_use]
     pub fn with_email(mut self, email: &'a str) -> Self {
-        self.email = Some(email);
+        self.set_email(Some(email));
         self
     }
 
@@ -305,13 +504,15 @@ pub enum CommentKind {
 /// A comment in a document that produces no output.
 ///
 /// Either a `//` single-line comment or a `[comment]`-styled paragraph; the
-/// [`kind`](Comment::kind) distinguishes them.
+/// [`ast::CommentRef::kind`](crate::ast::CommentRef::kind) distinguishes them.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Comment<'a> {
-    pub kind: CommentKind,
-    pub content: &'a str,
-    pub location: Location,
+    pub(crate) kind: CommentKind,
+    pub(crate) content: &'a str,
+    pub(crate) location: Location,
+    // Styled paragraph comments must retain preceding source events without metadata.
+    pub(crate) prefix_events: Option<Box<BlockPrefixEvents<'a>>>,
 }
 
 /// A `Block` represents a block in a document.
@@ -374,9 +575,23 @@ impl<'a> Block<'a> {
         }
     }
 
+    /// Copy this block's metadata without copying its title or content.
+    ///
+    /// Use [`crate::ast::BlockRef::attributes`] to read attributes without a copy.
+    ///
+    /// ```compile_fail,E0624
+    /// use acdc_parser::{Block, Location, Paragraph};
+    /// let block = Block::Paragraph(Paragraph::new(Vec::new(), Location::default()));
+    /// block.metadata();
+    /// ```
+    #[must_use]
+    pub fn clone_metadata(&self) -> Option<BlockMetadata<'a>> {
+        self.metadata().cloned()
+    }
+
     /// This block's metadata, for the blocks that carry any.
     #[must_use]
-    pub fn metadata(&self) -> Option<&BlockMetadata<'a>> {
+    pub(crate) fn metadata(&self) -> Option<&BlockMetadata<'a>> {
         match self {
             Block::Section(block) => Some(&block.metadata),
             Block::DelimitedBlock(block) => Some(&block.metadata),
@@ -417,8 +632,7 @@ impl<'a> Block<'a> {
         }
     }
 
-    /// The anchor defining this block's id (its cross-reference target), if any:
-    /// the explicit `[#id]` or the first `[[id]]` anchor.
+    /// The authored anchor selected as this block's cross-reference target.
     pub(crate) fn anchor(&self) -> Option<&Anchor<'a>> {
         match self {
             Block::Section(b) => b.metadata.id_anchor(),
@@ -435,12 +649,12 @@ impl<'a> Block<'a> {
             Block::CalloutList(b) => b.metadata.id_anchor(),
             Block::DescriptionList(b) => b.metadata.id_anchor(),
             Block::TableOfContents(b) => b.metadata.id_anchor(),
-            Block::ThematicBreak(b) => b.anchors.first(),
+            Block::ThematicBreak(b) => b.primary_anchor(),
             Block::DocumentAttribute(_) | Block::Comment(_) => None,
         }
     }
 
-    /// This block's title, if it has a non-empty one (used as the cross-reference
+    /// This block's title, if one was supplied (used as the cross-reference
     /// text when an `<<id>>` to this block has no explicit label).
     pub(crate) fn title(&self) -> Option<&Title<'a>> {
         let title = match self {
@@ -462,7 +676,7 @@ impl<'a> Block<'a> {
                 return None;
             }
         };
-        (!title.is_empty()).then_some(title)
+        title.is_present().then_some(title)
     }
 }
 
@@ -496,8 +710,8 @@ impl Block<'_> {
 #[derive(Clone, PartialEq)]
 #[non_exhaustive]
 pub struct DocumentAttribute<'a> {
-    pub name: AttributeName<'a>,
-    pub location: Location,
+    pub(crate) name: AttributeName<'a>,
+    pub(crate) location: Location,
     assignment: DocumentAttributeAssignment<'a>,
     accepted: bool,
 }
@@ -556,7 +770,7 @@ impl Serialize for DocumentAttribute<'_> {
         let mut state = serializer.serialize_map(None)?;
         state.serialize_entry("name", &self.name)?;
         state.serialize_entry("type", "attribute")?;
-        state.serialize_entry("value", &self.assignment.serialized_value(false))?;
+        state.serialize_entry("value", &self.assignment.serialized_value())?;
         state.serialize_entry("location", &self.location)?;
         state.end()
     }
@@ -569,19 +783,19 @@ impl Serialize for DocumentAttribute<'_> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct DiscreteHeader<'a> {
-    pub metadata: BlockMetadata<'a>,
-    pub title: Title<'a>,
-    pub level: u8,
-    pub location: Location,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) title: Title<'a>,
+    pub(crate) level: u8,
+    pub(crate) location: Location,
 }
 
 /// A `ThematicBreak` represents a thematic break in a document.
 #[derive(Clone, Default, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct ThematicBreak<'a> {
-    pub anchors: Vec<Anchor<'a>>,
-    pub title: Title<'a>,
-    pub location: Location,
+    pub(crate) anchors: Vec<Anchor<'a>>,
+    pub(crate) title: Title<'a>,
+    pub(crate) location: Location,
 }
 
 impl Serialize for ThematicBreak<'_> {
@@ -596,7 +810,7 @@ impl Serialize for ThematicBreak<'_> {
         if !self.anchors.is_empty() {
             state.serialize_entry("anchors", &self.anchors)?;
         }
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("location", &self.location)?;
@@ -608,9 +822,9 @@ impl Serialize for ThematicBreak<'_> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct PageBreak<'a> {
-    pub title: Title<'a>,
-    pub metadata: BlockMetadata<'a>,
-    pub location: Location,
+    pub(crate) title: Title<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) location: Location,
 }
 
 impl Serialize for PageBreak<'_> {
@@ -622,7 +836,7 @@ impl Serialize for PageBreak<'_> {
         state.serialize_entry("name", "break")?;
         state.serialize_entry("type", "block")?;
         state.serialize_entry("variant", "page")?;
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         if !self.metadata.is_default() {
@@ -657,8 +871,8 @@ impl Serialize for Comment<'_> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct TableOfContents<'a> {
-    pub metadata: BlockMetadata<'a>,
-    pub location: Location,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) location: Location,
 }
 
 impl Serialize for TableOfContents<'_> {
@@ -681,10 +895,10 @@ impl Serialize for TableOfContents<'_> {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Paragraph<'a> {
-    pub metadata: BlockMetadata<'a>,
-    pub title: Title<'a>,
-    pub content: Vec<InlineNode<'a>>,
-    pub location: Location,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) title: Title<'a>,
+    pub(crate) content: Vec<InlineNode<'a>>,
+    pub(crate) location: Location,
     pub(crate) source_text: Option<&'a str>,
 }
 
@@ -710,27 +924,91 @@ impl<'a> Paragraph<'a> {
         }
     }
 
-    /// The paragraph body after document preprocessing, before inline substitutions.
+    /// The original body after document preprocessing, before inline substitutions.
     ///
-    /// Absent for programmatically constructed paragraphs. This text is not part
-    /// of ASG serialization or semantic equality.
+    /// Semantic edits retain this source snapshot. It is absent for constructed
+    /// paragraphs and is not part of ASG serialization or semantic equality.
     #[must_use]
     pub fn source_text(&self) -> Option<&'a str> {
         self.source_text
     }
 
-    /// Set the metadata.
-    #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
-        self.metadata = metadata;
-        self
+    /// Replace metadata without shadowing dedicated fields.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated metadata or title fields.
+    pub fn with_metadata(
+        mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<Self, crate::ReservedAttribute> {
+        self.set_metadata(metadata)?;
+        Ok(self)
     }
 
     /// Set the title.
     #[must_use]
     pub fn with_title(mut self, title: Title<'a>) -> Self {
-        self.title = title;
+        self.set_title(title);
         self
+    }
+    /// Replace metadata without shadowing the title or common metadata fields.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated fields, leaving the paragraph unchanged.
+    pub fn set_metadata(
+        &mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<(), crate::ReservedAttribute> {
+        metadata.validate_attributes(&["title"])?;
+        self.metadata = metadata;
+        Ok(())
+    }
+
+    /// Copy metadata to prepare a checked replacement, retaining its source lifetime.
+    #[must_use]
+    pub fn clone_metadata(&self) -> BlockMetadata<'a> {
+        self.metadata.clone()
+    }
+
+    /// Remove metadata without changing content or its source snapshot.
+    #[must_use]
+    pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
+        std::mem::take(&mut self.metadata)
+    }
+
+    /// Replace the title, including an explicitly empty value.
+    pub fn set_title(&mut self, title: Title<'a>) {
+        self.title = title;
+    }
+
+    /// Remove the title, leaving it absent.
+    #[must_use]
+    pub fn take_title(&mut self) -> Title<'a> {
+        std::mem::take(&mut self.title)
+    }
+
+    /// Replace prepared content, retaining the original source snapshot.
+    ///
+    /// Footnote and reference registrations are not rebuilt.
+    pub fn set_content(&mut self, content: impl IntoIterator<Item = InlineNode<'a>>) {
+        self.content = content.into_iter().collect();
+    }
+
+    /// Append a prepared inline without rebuilding registrations or source text.
+    pub fn push_inline(&mut self, inline: InlineNode<'a>) {
+        self.content.push(inline);
+    }
+
+    /// Remove content, retaining each inline's source lifetime and the source snapshot.
+    pub fn take_content(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = InlineNode<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.content).into_iter()
+    }
+
+    /// Replace the paragraph span without relocating content or its source snapshot.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 }
 
@@ -738,13 +1016,13 @@ impl<'a> Paragraph<'a> {
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct DelimitedBlock<'a> {
-    pub metadata: BlockMetadata<'a>,
-    pub inner: DelimitedBlockType<'a>,
-    pub delimiter: &'a str,
-    pub title: Title<'a>,
-    pub location: Location,
-    pub open_delimiter_location: Option<Location>,
-    pub close_delimiter_location: Option<Location>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) inner: DelimitedBlockType<'a>,
+    pub(crate) delimiter: &'a str,
+    pub(crate) title: Title<'a>,
+    pub(crate) location: Location,
+    pub(crate) open_delimiter_location: Option<Location>,
+    pub(crate) close_delimiter_location: Option<Location>,
     pub(crate) source_text: Option<&'a str>,
 }
 
@@ -786,18 +1064,111 @@ impl<'a> DelimitedBlock<'a> {
         self.source_text
     }
 
-    /// Set the metadata.
-    #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
+    /// Replace metadata without shadowing dedicated fields.
+    ///
+    /// Table decoration is refreshed using the defaults at the table's source position.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated metadata or title fields.
+    pub fn with_metadata(
+        mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<Self, crate::ReservedAttribute> {
+        self.set_metadata(metadata)?;
+        Ok(self)
+    }
+
+    /// Replace metadata, retaining a table's source-position decoration defaults.
+    ///
+    /// Column formats and cell content keep their parsed values. Caller-built tables
+    /// without stored defaults remain unresolved for the converter to resolve.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated metadata or title fields,
+    /// leaving the block unchanged.
+    pub fn set_metadata(
+        &mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<(), crate::ReservedAttribute> {
+        metadata.validate_attributes(&["title"])?;
+        if let DelimitedBlockType::DelimitedTable(table) = &mut self.inner {
+            table.refresh_presentation(&metadata);
+        }
         self.metadata = metadata;
-        self
+        Ok(())
     }
 
     /// Set the title.
     #[must_use]
     pub fn with_title(mut self, title: Title<'a>) -> Self {
-        self.title = title;
+        self.set_title(title);
         self
+    }
+
+    /// Copy metadata to prepare a checked replacement without copying the body.
+    #[must_use]
+    pub fn clone_metadata(&self) -> BlockMetadata<'a> {
+        self.metadata.clone()
+    }
+
+    /// Remove metadata and refresh table decoration from its source-position defaults.
+    #[must_use]
+    pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
+        let metadata = std::mem::take(&mut self.metadata);
+        if let DelimitedBlockType::DelimitedTable(table) = &mut self.inner {
+            table.refresh_presentation(&self.metadata);
+        }
+        metadata
+    }
+
+    /// Replace the title, including an explicitly empty value.
+    pub fn set_title(&mut self, title: Title<'a>) {
+        self.title = title;
+    }
+
+    /// Remove the title, leaving it absent.
+    #[must_use]
+    pub fn take_title(&mut self) -> Title<'a> {
+        std::mem::take(&mut self.title)
+    }
+
+    /// Copy the body to prepare a replacement without copying metadata.
+    #[must_use]
+    pub fn clone_body(&self) -> DelimitedBlockType<'a> {
+        self.inner.clone()
+    }
+
+    /// Consume the block and transfer its body with the original source lifetime.
+    #[must_use]
+    pub fn into_body(self) -> DelimitedBlockType<'a> {
+        self.inner
+    }
+
+    /// Replace the prepared body and return the previous one.
+    ///
+    /// The delimiter, source snapshot and registrations are retained. An incoming
+    /// table resolves local decoration against its own source-position defaults.
+    pub fn replace_body(&mut self, mut body: DelimitedBlockType<'a>) -> DelimitedBlockType<'a> {
+        if let DelimitedBlockType::DelimitedTable(table) = &mut body {
+            table.refresh_presentation(&self.metadata);
+        }
+        std::mem::replace(&mut self.inner, body)
+    }
+
+    /// Replace delimiter spelling without reparsing the body or relocating its spans.
+    pub fn set_delimiter(&mut self, delimiter: &'a str) {
+        self.delimiter = delimiter;
+    }
+
+    /// Replace delimiter spans without relocating the body or the block span.
+    pub fn set_delimiter_locations(&mut self, open: Option<Location>, close: Option<Location>) {
+        self.open_delimiter_location = open;
+        self.close_delimiter_location = close;
+    }
+
+    /// Replace the block span without relocating its body or delimiters.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 }
 
@@ -841,11 +1212,41 @@ impl FromStr for StemNotation {
 }
 
 /// Content of a stem block with math notation.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{StemContent, StemNotation};
+/// let mut formula = StemContent::new("x", StemNotation::Latexmath);
+/// formula.content = "changed";
+/// ```
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct StemContent<'a> {
-    pub content: &'a str,
-    pub notation: StemNotation,
+    pub(crate) content: &'a str,
+    pub(crate) notation: StemNotation,
+}
+
+impl<'a> StemContent<'a> {
+    /// The prepared formula text.
+    #[must_use]
+    pub fn text(&self) -> &str {
+        self.content
+    }
+
+    /// The stored formula notation.
+    #[must_use]
+    pub fn notation(&self) -> StemNotation {
+        self.notation.clone()
+    }
+
+    /// Replace protected formula text and return its previous value.
+    pub fn replace_text(&mut self, content: &'a str) -> &'a str {
+        std::mem::replace(&mut self.content, content)
+    }
+
+    /// Replace the notation without translating the formula text.
+    pub fn replace_notation(&mut self, notation: StemNotation) -> StemNotation {
+        std::mem::replace(&mut self.notation, notation)
+    }
 }
 
 impl<'a> StemContent<'a> {
@@ -998,7 +1399,7 @@ impl Serialize for DelimitedBlock<'_> {
                 state.serialize_entry("blocks", &inner)?;
             }
         }
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("location", &self.location)?;
@@ -1014,7 +1415,7 @@ impl Serialize for DiscreteHeader<'_> {
         let mut state = serializer.serialize_map(None)?;
         state.serialize_entry("name", "heading")?;
         state.serialize_entry("type", "block")?;
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("level", &self.level)?;
@@ -1034,7 +1435,7 @@ impl Serialize for Paragraph<'_> {
         let mut state = serializer.serialize_map(None)?;
         state.serialize_entry("name", "paragraph")?;
         state.serialize_entry("type", "block")?;
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("inlines", &self.content)?;

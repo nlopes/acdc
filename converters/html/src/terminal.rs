@@ -10,26 +10,29 @@
 //!   server-rendered so no-JS / reduced-motion readers still see it.
 //!
 //! Both modes share the base CSS class `.terminal-view` (the box, the
-//! `.terminal-view--light`/`--dark` theme colours, and the static `.terminal-view__screen`
+//! `.terminal-view--light`/`--dark` theme colors, and the static `.terminal-view__screen`
 //! `<pre>`). A replay additionally carries the `.terminal-view--replay` marker (which
 //! is also the player's JS hook) and its own inner structure —
 //! `.terminal-view__viewport` > `.terminal-view__stream` > `.terminal-view__row`. A recording
-//! that carried its own theme is painted with inline colours; otherwise the
-//! `.terminal-view--{light,dark}` class colours it. The authoring surface keeps the
+//! that carried its own theme is painted with inline colors; otherwise the
+//! `.terminal-view--{light,dark}` class colors it. The authoring surface keeps the
 //! `acdc-terminal`/`terminal`/`replay` names; only the rendered classes use
 //! the `terminal-view` hierarchy.
 
 use std::{borrow::Cow, collections::HashMap, io::Write, time::Duration};
 
-use acdc_converters_core::{Diagnostics, Options, code::detect_language};
+use acdc_converters_core::{Diagnostics, Options, code::source_language};
 use acdc_converters_terminal::{
     asciicast,
     cell_grid::{Cell, CellDecorations, CellGrid, Rgb, TerminalSize, capture_ansi},
     replay::{self, Options as ReplayOptions},
 };
-use acdc_parser::{AttributeValue, BlockMetadata, DocumentAttributes, InlineNode};
+use acdc_parser::{
+    DocumentAttributes,
+    ast::{AttributeValueRef, AttributesRef, ContentRef, DocumentAttributesRef},
+};
 
-use crate::Error;
+use crate::{Error, image_helpers::attribute_scalar};
 
 const DEFAULT_COLS: usize = 80;
 const AUTO_ROW_PADDING: usize = 1;
@@ -55,7 +58,10 @@ enum Theme {
 
 impl Theme {
     fn from_document_attributes(attrs: &DocumentAttributes<'_>) -> Self {
-        if attrs.get("dark-mode").is_some() {
+        if DocumentAttributesRef::from(attrs)
+            .get("dark-mode")
+            .is_some()
+        {
             Self::Dark
         } else {
             Self::Light
@@ -78,23 +84,23 @@ struct PreviewOptions {
 }
 
 impl PreviewOptions {
-    fn resolve(attrs: &DocumentAttributes<'_>, metadata: Option<&BlockMetadata<'_>>) -> Self {
+    fn resolve(attrs: &DocumentAttributes<'_>, attributes: Option<AttributesRef<'_>>) -> Self {
         let document_cols = resolved_usize(attrs, "acdc-terminal-cols");
         let document_rows = resolved_usize(attrs, "acdc-terminal-rows");
         let document_theme = Theme::from_document_attributes(attrs);
 
         Self {
-            cols: metadata
-                .and_then(|metadata| {
-                    attr_usize(metadata.attributes.get("cols"))
-                        .or_else(|| attr_usize(metadata.attributes.get("acdc-terminal-cols")))
+            cols: attributes
+                .and_then(|attributes| {
+                    attr_usize(attributes.get("cols"))
+                        .or_else(|| attr_usize(attributes.get("acdc-terminal-cols")))
                 })
                 .or(document_cols)
                 .unwrap_or(DEFAULT_COLS),
-            rows: metadata
-                .and_then(|metadata| {
-                    attr_usize(metadata.attributes.get("rows"))
-                        .or_else(|| attr_usize(metadata.attributes.get("acdc-terminal-rows")))
+            rows: attributes
+                .and_then(|attributes| {
+                    attr_usize(attributes.get("rows"))
+                        .or_else(|| attr_usize(attributes.get("acdc-terminal-rows")))
                 })
                 .or(document_rows),
             theme: document_theme,
@@ -118,62 +124,68 @@ struct SpanStyle {
 }
 
 pub(crate) fn is_enabled(attrs: &DocumentAttributes<'_>) -> bool {
-    attrs.get("acdc-terminal").is_some()
+    DocumentAttributesRef::from(attrs)
+        .get("acdc-terminal")
+        .is_some()
 }
 
 pub(crate) fn is_terminal_listing(
     attrs: &DocumentAttributes<'_>,
-    metadata: &BlockMetadata<'_>,
+    attributes: AttributesRef<'_>,
 ) -> bool {
-    is_enabled(attrs) && detect_language(metadata).is_some_and(is_terminal_language)
+    is_enabled(attrs) && source_language(attributes).is_some_and(is_terminal_language)
 }
 
-pub(crate) fn is_terminal_session(metadata: &BlockMetadata<'_>) -> bool {
-    metadata.style == Some("terminal")
+pub(crate) fn is_terminal_session(attributes: AttributesRef<'_>) -> bool {
+    matches!(
+        attributes.get("style"),
+        Some(AttributeValueRef::Text("terminal"))
+    )
 }
 
-fn is_terminal_replay(metadata: &BlockMetadata<'_>) -> bool {
-    metadata.options.contains(&REPLAY_OPTION) || metadata.attributes.contains_key(REPLAY_OPTION)
+fn is_terminal_replay(attributes: AttributesRef<'_>) -> bool {
+    matches!(attributes.get("options"), Some(AttributeValueRef::Tokens(options)) if options.contains(REPLAY_OPTION))
+        || attributes.contains(REPLAY_OPTION)
 }
 
 pub(crate) fn render_listing<W: Write>(
     writer: W,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
 ) -> Result<(), Error> {
     let preview_options = PreviewOptions::resolve(attrs, None);
-    render_with_options(writer, inlines, metadata, options, attrs, preview_options)
+    render_with_options(writer, content, attributes, options, attrs, preview_options)
 }
 
 pub(crate) fn render_session<W: Write>(
     writer: W,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
-    let preview_options = PreviewOptions::resolve(attrs, Some(metadata));
-    if is_terminal_replay(metadata) {
+    let preview_options = PreviewOptions::resolve(attrs, Some(attributes));
+    if is_terminal_replay(attributes) {
         return render_replay(
             writer,
-            inlines,
-            metadata,
+            content,
+            attributes,
             options,
             attrs,
             preview_options,
             diagnostics,
         );
     }
-    render_with_options(writer, inlines, metadata, options, attrs, preview_options)
+    render_with_options(writer, content, attributes, options, attrs, preview_options)
 }
 
 fn render_with_options<W: Write>(
     mut writer: W,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
     preview_options: PreviewOptions,
@@ -181,8 +193,8 @@ fn render_with_options<W: Write>(
     let ansi = normalize_terminal_newlines(&acdc_converters_terminal::render_listing_to_ansi(
         options,
         attrs.clone(),
-        inlines,
-        metadata,
+        content,
+        attributes,
         preview_options.cols,
         preview_options.theme == Theme::Dark,
     )?);
@@ -201,11 +213,16 @@ enum ReplayFormat {
     Asciicast,
 }
 
-fn replay_format(metadata: &BlockMetadata<'_>, diagnostics: &mut Diagnostics<'_>) -> ReplayFormat {
-    let Some(value) = metadata.attributes.get(REPLAY_FORMAT_ATTR) else {
+fn replay_format(attributes: AttributesRef<'_>, diagnostics: &mut Diagnostics<'_>) -> ReplayFormat {
+    let Some(value) = attributes.get(REPLAY_FORMAT_ATTR) else {
         return ReplayFormat::Ansi;
     };
-    match value.to_string().trim().to_ascii_lowercase().as_str() {
+    match attribute_scalar(value)
+        .unwrap_or("<non-text value>")
+        .trim()
+        .to_ascii_lowercase()
+        .as_str()
+    {
         "" | "ansi" => ReplayFormat::Ansi,
         "asciicast" | "cast" => ReplayFormat::Asciicast,
         other => {
@@ -222,18 +239,18 @@ fn replay_format(metadata: &BlockMetadata<'_>, diagnostics: &mut Diagnostics<'_>
 
 fn render_replay<W: Write>(
     writer: W,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
     preview_options: PreviewOptions,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
-    match replay_format(metadata, diagnostics) {
+    match replay_format(attributes, diagnostics) {
         ReplayFormat::Ansi => render_replay_ansi(
             writer,
-            inlines,
-            metadata,
+            content,
+            attributes,
             options,
             attrs,
             preview_options,
@@ -241,8 +258,8 @@ fn render_replay<W: Write>(
         ),
         ReplayFormat::Asciicast => render_replay_asciicast(
             writer,
-            inlines,
-            metadata,
+            content,
+            attributes,
             options,
             attrs,
             preview_options,
@@ -253,23 +270,23 @@ fn render_replay<W: Write>(
 
 fn render_replay_ansi<W: Write>(
     mut writer: W,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
     preview_options: PreviewOptions,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
-    let Some(size) = replay_size(attrs, metadata, diagnostics) else {
-        return render_with_options(writer, inlines, metadata, options, attrs, preview_options);
+    let Some(size) = replay_size(attrs, attributes, diagnostics) else {
+        return render_with_options(writer, content, attributes, options, attrs, preview_options);
     };
-    let playback_duration = replay_playback_override(metadata, diagnostics);
+    let playback_duration = replay_playback_override(attributes, diagnostics);
 
     let ansi = normalize_terminal_newlines(&acdc_converters_terminal::render_listing_to_ansi(
         options,
         attrs.clone(),
-        inlines,
-        metadata,
+        content,
+        attributes,
         size.cols,
         preview_options.theme == Theme::Dark,
     )?);
@@ -318,7 +335,7 @@ fn render_replay_ansi<W: Write>(
         return render_static(&mut writer, &grid, preview_options.theme);
     }
     // Raw ANSI carries no recorded theme or title, so the player uses the
-    // generic light/dark colours and emits no `data-title`.
+    // generic light/dark colors and emits no `data-title`.
     render_replay_player(
         writer,
         &frames,
@@ -331,8 +348,8 @@ fn render_replay_ansi<W: Write>(
 
 fn render_replay_asciicast<W: Write>(
     mut writer: W,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
     preview_options: PreviewOptions,
@@ -342,12 +359,12 @@ fn render_replay_asciicast<W: Write>(
     // playback dwells on real output; absent, the header or a default applies.
     let idle_limit = positive_attr(
         REPLAY_IDLE_LIMIT_MS_ATTR,
-        metadata.attributes.get(REPLAY_IDLE_LIMIT_MS_ATTR),
+        attributes.get(REPLAY_IDLE_LIMIT_MS_ATTR),
         diagnostics,
     )
     .map(|ms| Duration::from_millis(ms as u64));
 
-    let recording = match asciicast::parse_inlines_with(inlines, idle_limit) {
+    let recording = match asciicast::parse_inlines_with(content.inlines(), idle_limit) {
         Ok(recording) => recording,
         Err(err) => {
             diagnostics.warn_with_advice(
@@ -356,14 +373,21 @@ fn render_replay_asciicast<W: Write>(
                 ),
                 "Provide a valid asciicast v2 or v3 recording, or drop `format=asciicast` to replay raw ANSI.",
             );
-            return render_with_options(writer, inlines, metadata, options, attrs, preview_options);
+            return render_with_options(
+                writer,
+                content,
+                attributes,
+                options,
+                attrs,
+                preview_options,
+            );
         }
     };
 
     // Block `cols`/`rows` override the recording; the asciicast header supplies
     // the size otherwise, so dimensions are never required on the block.
-    let size = replay_size_with_default(attrs, metadata, recording.size(), diagnostics);
-    let playback_duration = replay_playback_override(metadata, diagnostics);
+    let size = replay_size_with_default(attrs, attributes, recording.size(), diagnostics);
+    let playback_duration = replay_playback_override(attributes, diagnostics);
     // Header metadata paints the replay chrome; read it before `capture` consumes
     // the recording.
     let recorded_theme = recording.theme();
@@ -457,12 +481,12 @@ fn window_grid_to_bottom(grid: &CellGrid, display_rows: usize) -> CellGrid {
 
 /// The `replay-duration-ms` playback override, if set to a positive integer.
 fn replay_playback_override(
-    metadata: &BlockMetadata<'_>,
+    attributes: AttributesRef<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<Duration> {
     positive_attr(
         REPLAY_DURATION_MS_ATTR,
-        metadata.attributes.get(REPLAY_DURATION_MS_ATTR),
+        attributes.get(REPLAY_DURATION_MS_ATTR),
         diagnostics,
     )
     .map(|ms| Duration::from_millis(ms as u64))
@@ -474,13 +498,13 @@ fn replay_playback_override(
 /// because the asciicast header supplies the default.
 fn replay_size_with_default(
     attrs: &DocumentAttributes<'_>,
-    metadata: &BlockMetadata<'_>,
+    attributes: AttributesRef<'_>,
     default: TerminalSize,
     diagnostics: &mut Diagnostics<'_>,
 ) -> TerminalSize {
-    let cols = replay_dimension(attrs, metadata, "cols", "acdc-terminal-cols", diagnostics)
+    let cols = replay_dimension(attrs, attributes, "cols", "acdc-terminal-cols", diagnostics)
         .unwrap_or(default.cols);
-    let rows = replay_dimension(attrs, metadata, "rows", "acdc-terminal-rows", diagnostics)
+    let rows = replay_dimension(attrs, attributes, "rows", "acdc-terminal-rows", diagnostics)
         .unwrap_or(default.rows);
     TerminalSize::new(cols, rows)
 }
@@ -492,13 +516,13 @@ fn replay_size_with_default(
 /// warned about by [`positive_attr`].
 fn replay_dimension(
     attrs: &DocumentAttributes<'_>,
-    metadata: &BlockMetadata<'_>,
+    attributes: AttributesRef<'_>,
     primary: &'static str,
     document: &'static str,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<usize> {
-    positive_attr(primary, metadata.attributes.get(primary), diagnostics)
-        .or_else(|| positive_attr(document, metadata.attributes.get(document), diagnostics))
+    positive_attr(primary, attributes.get(primary), diagnostics)
+        .or_else(|| positive_attr(document, attributes.get(document), diagnostics))
         .or_else(|| positive_document_attr(document, attrs, diagnostics))
 }
 
@@ -507,11 +531,11 @@ fn positive_document_attr(
     attributes: &DocumentAttributes<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<usize> {
-    attributes.get(name)?;
+    DocumentAttributesRef::from(attributes).get(name)?;
     let parsed = resolved_usize(attributes, name);
     if parsed.is_none() {
         let mut presented = String::new();
-        if attributes
+        if DocumentAttributesRef::from(attributes)
             .get(name)
             .is_none_or(|value| value.write_text(&mut presented).is_err())
         {
@@ -538,11 +562,11 @@ fn render_blank_preview<W: Write>(
 
 fn replay_size(
     attrs: &DocumentAttributes<'_>,
-    metadata: &BlockMetadata<'_>,
+    attributes: AttributesRef<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<TerminalSize> {
-    let cols = replay_dimension(attrs, metadata, "cols", "acdc-terminal-cols", diagnostics);
-    let rows = replay_dimension(attrs, metadata, "rows", "acdc-terminal-rows", diagnostics);
+    let cols = replay_dimension(attrs, attributes, "cols", "acdc-terminal-cols", diagnostics);
+    let rows = replay_dimension(attrs, attributes, "rows", "acdc-terminal-rows", diagnostics);
 
     if let (Some(cols), Some(rows)) = (cols, rows) {
         Some(TerminalSize::new(cols, rows))
@@ -557,12 +581,13 @@ fn replay_size(
 
 fn positive_attr(
     name: &'static str,
-    value: Option<&AttributeValue<'_>>,
+    value: Option<AttributeValueRef<'_>>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<usize> {
     let value = value?;
     let parsed = attr_usize(Some(value));
     if parsed.is_none() {
+        let value = attribute_scalar(value).unwrap_or("<non-text value>");
         diagnostics.warn_with_advice(
             format!("terminal replay attribute `{name}` must be a positive integer, got `{value}`"),
             format!("Set `{name}` to a positive integer."),
@@ -710,7 +735,7 @@ fn normalize_terminal_newlines(ansi: &[u8]) -> Vec<u8> {
 }
 
 fn render_static<W: Write>(writer: &mut W, grid: &CellGrid, theme: Theme) -> Result<(), Error> {
-    // Colours come from the `.terminal-view--{light,dark}` stylesheet classes, so they
+    // Colors come from the `.terminal-view--{light,dark}` stylesheet classes, so they
     // are overridable with plain CSS (no inline style to fight).
     write!(
         writer,
@@ -761,8 +786,8 @@ pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str = env!("ACDC_REPLAY_PLAYER_CSP_HAS
 /// faithfully and smoothly while keeping the payload compact: a long session
 /// costs one copy of each unique line, not one screen per frame.
 ///
-/// The player wears the recording's own colours when its header carried a theme
-/// (raw ANSI has none, so it uses the generic light/dark colours). The final
+/// The player wears the recording's own colors when its header carried a theme
+/// (raw ANSI has none, so it uses the generic light/dark colors). The final
 /// frame is rendered into the DOM server-side, so readers with scripting
 /// disabled (or who prefer reduced motion) see the finished screen; only the
 /// animation is lost.
@@ -775,11 +800,11 @@ pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str = env!("ACDC_REPLAY_PLAYER_CSP_HAS
 /// inner `.terminal-view__viewport` > `.terminal-view__stream` > `.terminal-view__row`, and the
 /// `data-title` attribute (the recorded title, present only when the recording
 /// carried one, for building custom chrome via `::before{content:attr(data-title)}`).
-/// A theme-less replay takes its colours from the `.terminal-view--{light,dark}` class
+/// A theme-less replay takes its colors from the `.terminal-view--{light,dark}` class
 /// (overridable with plain CSS); a recording's own theme is painted inline
 /// (override it with `!important`).
 ///
-/// Per-cell colours are emitted as inline `style` colours (resolved against the
+/// Per-cell colors are emitted as inline `style` colors (resolved against the
 /// recording's own palette via [`resolve_cell_color`]), matching the static
 /// terminal preview. Under a strict CSP these inline styles need
 /// `style-src 'unsafe-inline'`; the inline player `<script>` can be allowlisted
@@ -807,8 +832,8 @@ fn render_replay_player<W: Write>(
 
     // Pool unique rendered rows; each frame becomes a list of indices into the
     // pool. Identical lines across frames (most of them) are stored once. Cell
-    // colours are resolved against the recording's own palette (when it carried
-    // one) so the replay shows the colours it was recorded with.
+    // colors are resolved against the recording's own palette (when it carried
+    // one) so the replay shows the colors it was recorded with.
     let palette = recorded.map_or([None; 16], |theme| theme.palette);
     let (pool, frame_rows) = build_row_pool(frames, rows, &palette)?;
 
@@ -831,9 +856,9 @@ fn render_replay_player<W: Write>(
         .collect();
 
     // A recording that carried its own theme is painted faithfully with an inline
-    // background/foreground (its palette also colours the cells). Without one (raw
+    // background/foreground (its palette also colors the cells). Without one (raw
     // ANSI, or a theme-less cast) the generic `.terminal-view--{light,dark}`
-    // class colours it, so no inline style is emitted and a consumer can restyle
+    // class colors it, so no inline style is emitted and a consumer can restyle
     // it with plain CSS.
     let colour_style = recorded.map_or_else(String::new, |t| {
         format!(
@@ -944,7 +969,7 @@ fn build_row_pool(
 
 /// Render one terminal row to its HTML string for the player pool, using the
 /// same inline-styled markup as the static preview's [`render_row`] but with
-/// cell colours resolved against the recording's own palette (see
+/// cell colors resolved against the recording's own palette (see
 /// [`resolve_cell_color`]).
 fn row_to_html(row: &[Cell], palette: &[Option<Rgb>; 16]) -> Result<String, Error> {
     let mut buffer: Vec<u8> = Vec::new();
@@ -952,10 +977,10 @@ fn row_to_html(row: &[Cell], palette: &[Option<Rgb>; 16]) -> Result<String, Erro
     Ok(String::from_utf8(buffer).unwrap_or_default())
 }
 
-/// Resolve a cell colour for the player: a palette index maps to the recording's
-/// own palette colour when present, so the replay shows the colours it was
+/// Resolve a cell color for the player: a palette index maps to the recording's
+/// own palette color when present, so the replay shows the colors it was
 /// recorded with (libghostty resolves indices against its built-in palette;
-/// `palette` from the cast header overrides that). Truecolor / 256-colour cells
+/// `palette` from the cast header overrides that). Truecolor / 256-color cells
 /// have no index and use their already-resolved RGB.
 fn resolve_cell_color(
     index: Option<u8>,
@@ -968,7 +993,7 @@ fn resolve_cell_color(
     }
 }
 
-/// The replay player's payload, ready to serialise as JSON.
+/// The replay player's payload, ready to serialize as JSON.
 struct ReplayData<'a> {
     cols: usize,
     rows: usize,
@@ -1064,10 +1089,10 @@ fn replay_frame_budget(playback_ms: u128) -> usize {
 /// every palette index to RGB, so there is nothing to re-resolve against.
 const NO_PALETTE: [Option<Rgb>; 16] = [None; 16];
 
-/// Render a terminal row as inline-styled spans, resolving each cell's colours
+/// Render a terminal row as inline-styled spans, resolving each cell's colors
 /// against `palette` (see [`resolve_cell_color`]). The static preview passes an
 /// empty [`NO_PALETTE`] (the cells already carry resolved RGB); the replay player
-/// passes the recording's own palette so it shows the colours it was recorded
+/// passes the recording's own palette so it shows the colors it was recorded
 /// with.
 fn render_row_with<W: Write>(
     writer: &mut W,
@@ -1126,15 +1151,15 @@ fn flush_span<W: Write>(
     Ok(())
 }
 
-fn attr_usize(value: Option<&AttributeValue<'_>>) -> Option<usize> {
+fn attr_usize(value: Option<AttributeValueRef<'_>>) -> Option<usize> {
     value
-        .map(ToString::to_string)
+        .and_then(attribute_scalar)
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|value| *value > 0)
 }
 
 fn resolved_usize(attributes: &DocumentAttributes<'_>, name: &str) -> Option<usize> {
-    attributes
+    DocumentAttributesRef::from(attributes)
         .get(name)
         .and_then(|value| {
             if let Some(value) = value.as_integer() {
@@ -1305,7 +1330,9 @@ mod tests {
             .build();
         let processor = Processor::new_with_variant(
             options,
-            acdc_parser::Options::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            acdc_parser::Options::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
             variant,
         )?;
         let mut output = Vec::new();
@@ -1322,6 +1349,84 @@ mod tests {
     }
 
     #[test]
+    fn terminal_session_style_preserves_exact_matching() -> TestResult {
+        use acdc_parser::{Location, Paragraph, ast::ParagraphRef};
+
+        for (style, expected) in [
+            ("terminal", true),
+            ("'terminal'", false),
+            ("\"terminal\"", false),
+            ("console", false),
+        ] {
+            let mut block = Paragraph::new(Vec::new(), Location::default());
+            let mut metadata = block.take_metadata();
+            metadata.style = Some(style);
+            block.set_metadata(metadata)?;
+            assert_eq!(
+                super::is_terminal_session(ParagraphRef::from(&block).attributes()),
+                expected,
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn replay_controls_preserve_scalar_presence_and_warning_text() -> TestResult {
+        use super::{ReplayFormat, positive_attr, replay_format};
+        use acdc_parser::{
+            AttributeValue, Location, Paragraph,
+            ast::{AttributeValueRef, ParagraphRef},
+        };
+
+        for (value, number, presented) in [
+            (AttributeValue::None, None, "null"),
+            (AttributeValue::Bool(false), None, "false"),
+            (AttributeValue::Bool(true), None, "true"),
+            (AttributeValue::from("0"), None, "0"),
+            (AttributeValue::from(" 2 "), None, " 2 "),
+            (AttributeValue::from("002"), Some(2), "002"),
+        ] {
+            let source = WarningSource::new("html");
+            let mut warnings = Vec::new();
+            let parsed = positive_attr(
+                "cols",
+                Some(AttributeValueRef::from(&value)),
+                &mut Diagnostics::new(&source, &mut warnings),
+            );
+            assert_eq!(parsed, number);
+            if number.is_none() {
+                let [warning] = warnings.as_slice() else {
+                    return Err("expected one warning".into());
+                };
+                assert!(warning.message.ends_with(&format!("got `{presented}`")));
+            } else {
+                assert_eq!(warnings, []);
+            }
+            let mut block = Paragraph::new(Vec::new(), Location::default());
+            let mut metadata = block.take_metadata();
+            metadata.attributes.set("format".into(), value);
+            block.set_metadata(metadata)?;
+            warnings.clear();
+            assert_eq!(
+                replay_format(
+                    ParagraphRef::from(&block).attributes(),
+                    &mut Diagnostics::new(&source, &mut warnings)
+                ),
+                ReplayFormat::Ansi,
+            );
+            let [warning] = warnings.as_slice() else {
+                return Err("expected unknown format warning".into());
+            };
+            assert!(
+                warning
+                    .message
+                    .contains(&format!("value `{}`", presented.trim()))
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn standard_html_can_include_selectable_terminal_preview() -> TestResult {
         let html = render(
             "= Example\n:acdc-terminal:\n\n[source,console]\n----\n$ acdc --version\nacdc 0.2.0\n----\n\nAfter preview.\n",
@@ -1331,7 +1436,7 @@ mod tests {
         assert!(html.contains("<div id=\"content\">"));
         assert!(html.contains("<div class=\"listingblock terminal-block\">"));
         assert!(html.contains("<div class=\"terminal-view terminal-view--light\""));
-        // Preview colours come from the stylesheet class, not an inline style.
+        // Preview colors come from the stylesheet class, not an inline style.
         assert!(html.contains(".terminal-view--light{background-color:#f6f8fa;color:#1f2328}"));
         assert!(html.contains("terminal-view--light\" data-cols="));
         assert!(html.contains("$</span>"));
@@ -1371,7 +1476,7 @@ mod tests {
         )?;
 
         assert!(html.contains("<div class=\"terminal-view terminal-view--dark\""));
-        // Preview colours come from the stylesheet class, not an inline style.
+        // Preview colors come from the stylesheet class, not an inline style.
         assert!(html.contains(".terminal-view--dark{background-color:#0d1117;color:#e6edf3}"));
         assert!(html.contains("terminal-view--dark\" data-cols="));
         Ok(())
@@ -1668,8 +1773,8 @@ mod tests {
 
     #[test]
     fn asciicast_replay_without_recorded_theme_is_class_based() -> TestResult {
-        // A theme-less cast takes its colours from `.terminal-view--{theme}`,
-        // so the container carries no inline colour (overridable with plain CSS).
+        // A theme-less cast takes its colors from `.terminal-view--{theme}`,
+        // so the container carries no inline color (overridable with plain CSS).
         let html = render(
             "= Example\n\n[terminal%replay,format=asciicast,cols=20,rows=4]\n----\n{\"version\":2,\"width\":20,\"height\":4}\n[0.0,\"o\",\"first\\r\\n\"]\n----\n",
             HtmlVariant::Standard,

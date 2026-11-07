@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -116,11 +117,11 @@
 
 #text("Escaped triple markup: ")#text("+")#text("<mark>")#strong[#text("bold")]#text("</mark>")#text("+")
 
-#text("Escaped single numeric: +©+")
+#text("Escaped single numeric: +")#text("©")#text("+")
 
 #text("Escaped double numeric: ")#text("+&#169;")#text("+")
 
-#text("Escaped triple numeric: ")#text("+")#text("©+++")
+#text("Escaped triple numeric: ")#text("+")#text("©")#text("+++")
 
 #text("Macros disabled escaped single: \\+")#strong[#text("bold")]#text("+")
 
@@ -140,7 +141,7 @@
 
 #text("Quotes: ")#strong[#text("bold")]#text(" ")#emph[#text("italic")]#text(" ")#highlight[#text("marked")]
 
-#text("Replacements: ")#text("© -> … — ")
+#text("Replacements: ")#text("©")#text(" ")#text("->")#text(" ")#text("…")#text(" — ")
 
 #text("Macros: ")#link("https://example.com")[#text("https://example.com")]
 
@@ -148,7 +149,7 @@
 
 #heading(level: 1)[#text("Substitution groups")] <id-5f737562737469747574696f6e5f67726f757073>
 
-#text("Normal: ")#text("<tag> ")#text("Ada")#text(" ")#strong[#text("bold")]#text(" © ")#link("https://example.com")[#text("https://example.com")]
+#text("Normal: ")#text("<tag> ")#text("Ada")#text(" ")#strong[#text("bold")]#text(" ")#text("©")#text(" ")#link("https://example.com")[#text("https://example.com")]
 
 #text("Normal quotes before attributes: ")#text("*attribute bold*")
 
@@ -186,6 +187,6 @@
 
 #text("Quotes: ")#text("*")#text("literal*")
 
-#text("Replacement escape: ")#text("\\->")
+#text("Replacement escape: ")#text("\\")#text("->")
 
 #text("Typst source stays text: ")#text("literal #pagebreak() ) \\ \" #raw(\"injected\")")

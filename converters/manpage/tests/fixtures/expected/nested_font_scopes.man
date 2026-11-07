@@ -60,7 +60,7 @@ Target paragraph.
 .sp
 \fI[deleted: \fBB15 \fII13\fB B16\fI]\fR R10.
 .sp
-\fBB17 [\fBB18\fP] B19 \fBB20\fP B21 \fBB22\fP \(ra \fBB23\fP B24\fR R11.
+\fBB17 [\fBB18\fB] B19 \fBB20\fB B21 \fBB22\fB \(ra \fBB23\fB B24\fR R11.
 .sp
 \fBB25 \fII14\fB B26\fR
 .br
@@ -76,11 +76,13 @@ R12 quote body.
 .RS 0
 .IP \(bu 2
 R13 list item.
-.RE
-.RS 0
+.RS 2
+.RS 4
 .TP
 \fBB29 \fII16\fB B30\fR
 R14 description.
+.RE
+.RE
 .RE
 .RS 0
 .sp

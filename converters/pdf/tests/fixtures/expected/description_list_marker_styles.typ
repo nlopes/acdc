@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -135,7 +136,7 @@
 
 #[
 #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
-  + #block(width: 100%)[#strong[#text("Short name")#text(":")] #text("Both terms share this answer.")]
+  + #block(width: 100%)[#strong[#text("Short name")#text(":")]#linebreak()#strong[#text("Long name")#text(":")] #text("Both terms share this answer.")]
 ]
 
 #heading(level: 1)[#text("Attached content")] <id-5f61747461636865645f636f6e74656e74>

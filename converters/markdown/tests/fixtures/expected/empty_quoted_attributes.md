@@ -38,7 +38,7 @@ Q13 Before <span class="role"><strong></strong></span> after.
 
 Q14 Before <a id="empty-id"></a><strong></strong> after.
 
-Q15 Before "" and '' after.
+Q15 Before “” and ‘’ after.
 
 Q16 Before <strong></strong> and <em></em> after.
 

@@ -76,7 +76,7 @@
 > — Margaret **Hamilton**, <cite>`Apollo`</cite>
 
 > Escaped single quote.
-> — A'B, <cite>Notes</cite>
+> — A’B, <cite>Notes</cite>
 
 > Unquoted macros.
 > — https://example.com\[Literal Author\], <cite>https://example.org\[Literal Work\]</cite>

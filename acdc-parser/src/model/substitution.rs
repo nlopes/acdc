@@ -22,11 +22,11 @@
 //! when their substitution is active. Each converter decides how those nodes
 //! appear in its output.
 
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use serde::Serialize;
 
-use crate::DocumentAttributes;
+use crate::{CompatibilityMode, DocumentAttributes};
 
 const SUBSTITUTION_STAGE_COUNT: usize = 7;
 const DISABLED_SUBSTITUTION: u8 = u8::MAX;
@@ -34,6 +34,16 @@ const DEFAULT_PARSER_SUBSTITUTIONS: &[Substitution] = &[
     Substitution::SpecialChars,
     Substitution::Quotes,
     Substitution::Attributes,
+    Substitution::Replacements,
+    Substitution::Macros,
+    Substitution::PostReplacements,
+    Substitution::Callouts,
+];
+
+const DRAFT_PARSER_SUBSTITUTIONS: &[Substitution] = &[
+    Substitution::SpecialChars,
+    Substitution::Attributes,
+    Substitution::Quotes,
     Substitution::Replacements,
     Substitution::Macros,
     Substitution::PostReplacements,
@@ -66,11 +76,30 @@ impl SubstitutionPlan {
         Self::from_substitutions(std::slice::from_ref(substitution))
     }
 
-    #[cfg(feature = "pre-spec-subs")]
-    pub(crate) fn for_block_spec(spec: &SubstitutionSpec) -> Self {
+    pub(crate) fn without(mut self, substitution: &Substitution) -> Self {
+        if let Some(rank) =
+            substitution_stage_index(substitution).and_then(|index| self.ranks.get_mut(index))
+        {
+            *rank = DISABLED_SUBSTITUTION;
+        }
+        self
+    }
+
+    fn defaults(mode: CompatibilityMode) -> &'static [Substitution] {
+        match mode {
+            CompatibilityMode::Asciidoctor => DEFAULT_PARSER_SUBSTITUTIONS,
+            CompatibilityMode::Draft => DRAFT_PARSER_SUBSTITUTIONS,
+        }
+    }
+
+    pub(crate) fn for_mode(mode: CompatibilityMode) -> Self {
+        Self::from_substitutions(Self::defaults(mode))
+    }
+
+    pub(crate) fn for_block_spec(spec: &SubstitutionSpec, mode: CompatibilityMode) -> Self {
         // Parser defaults include callout discovery for verbatim blocks. Resolve once:
         // filling missing stages afterwards would restore removed group members.
-        Self::from_substitutions(&spec.resolve(DEFAULT_PARSER_SUBSTITUTIONS))
+        Self::from_substitutions(&spec.resolve(Self::defaults(mode)))
     }
 
     pub(crate) fn enabled(self, substitution: &Substitution) -> bool {
@@ -220,7 +249,6 @@ const PASSTHROUGH_VERBATIM: &[Substitution] = &[Substitution::SpecialChars];
 
 #[derive(Clone, Copy)]
 enum GroupContext {
-    #[cfg(feature = "pre-spec-subs")]
     Block,
     Passthrough,
 }
@@ -228,7 +256,6 @@ enum GroupContext {
 fn substitution_members(substitution: &Substitution, context: GroupContext) -> &[Substitution] {
     match (substitution, context) {
         (Substitution::Normal, _) => NORMAL,
-        #[cfg(feature = "pre-spec-subs")]
         (Substitution::Verbatim, GroupContext::Block) => VERBATIM,
         (Substitution::Verbatim, GroupContext::Passthrough) => PASSTHROUGH_VERBATIM,
         (
@@ -267,14 +294,43 @@ pub(crate) fn resolve_passthrough_substitutions(
     resolved
 }
 
+pub(crate) fn parse_passthrough_substitutions(
+    names: &str,
+    context: &str,
+) -> Result<Vec<Substitution>, String> {
+    let mut substitutions = Vec::new();
+    for name in names
+        .split(',')
+        .filter(|name| !name.is_empty() && *name != "none")
+    {
+        let Some(stage) = substitution_named(name) else {
+            return Err(format!(
+                "unknown {context} substitution: {name}; value retained literally"
+            ));
+        };
+        substitutions.push(stage);
+    }
+    let substitutions = resolve_passthrough_substitutions(&substitutions);
+    let mut structural = false;
+    for stage in &substitutions {
+        if *stage == Substitution::Callouts {
+            return Err(format!(
+                "{context} callout substitution is unsupported; value retained literally"
+            ));
+        }
+        if *stage == Substitution::SpecialChars && structural {
+            return Err(format!(
+                "{context} escaping after formatting or macros requires backend markup; value retained literally"
+            ));
+        }
+        structural |= matches!(stage, Substitution::Quotes | Substitution::Macros);
+    }
+    Ok(substitutions)
+}
+
 /// A substitution operation to apply to a default substitution list.
 ///
 /// Used when the `subs` attribute contains modifier syntax (`+quotes`, `-callouts`, `quotes+`).
-///
-/// Only available when the `pre-spec-subs` feature is enabled — the draft
-/// `AsciiDoc` spec is dropping the substitution model in favour of an inline
-/// parsing grammar, so this type goes away with the feature.
-#[cfg(feature = "pre-spec-subs")]
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum SubstitutionOp {
     /// `+name` - append substitution to end of default list
@@ -285,7 +341,6 @@ pub enum SubstitutionOp {
     Remove(Substitution),
 }
 
-#[cfg(feature = "pre-spec-subs")]
 impl std::fmt::Display for SubstitutionOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -298,8 +353,8 @@ impl std::fmt::Display for SubstitutionOp {
 
 /// Specification for substitutions to apply to a block.
 ///
-/// Parsed documents use [`Self::Source`] to preserve the entries in the `subs`
-/// attribute, including groups, aliases, duplicates and modifiers. Only whitespace
+/// Parsed documents use [`Self::Source`] to preserve
+/// `subs` entries, including groups, aliases, duplicates and modifiers. Only whitespace
 /// around each entry is trimmed. Attribute references in the list have already
 /// been expanded by metadata parsing.
 ///
@@ -317,9 +372,6 @@ impl std::fmt::Display for SubstitutionOp {
 /// Serializes to a flat array. Source entries retain their spelling, for example
 /// `["verbatim", "-macros"]`; typed entries use canonical names such as
 /// `"special_chars"`.
-///
-/// Only available when the `pre-spec-subs` feature is enabled.
-#[cfg(feature = "pre-spec-subs")]
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum SubstitutionSpec {
     /// Authored entries, interpreted when resolving against block defaults.
@@ -330,7 +382,6 @@ pub enum SubstitutionSpec {
     Modifiers(Vec<SubstitutionOp>),
 }
 
-#[cfg(feature = "pre-spec-subs")]
 impl Serialize for SubstitutionSpec {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -345,8 +396,19 @@ impl Serialize for SubstitutionSpec {
     }
 }
 
-#[cfg(feature = "pre-spec-subs")]
 impl SubstitutionSpec {
+    pub(crate) fn unsupported_entries(&self) -> impl Iterator<Item = &str> {
+        let entries = match self {
+            Self::Source(entries) => entries.as_slice(),
+            Self::Explicit(_) | Self::Modifiers(_) => &[],
+        };
+        entries.iter().filter_map(|entry| {
+            let (name, _) = parse_subs_part(entry);
+            (!name.is_empty() && name != "none" && substitution_named(name).is_none())
+                .then_some(entry.as_str())
+        })
+    }
+
     pub(crate) fn contains(&self, substitution: &Substitution, defaults: &[Substitution]) -> bool {
         match self {
             Self::Source(entries) => entries
@@ -417,7 +479,6 @@ impl SubstitutionSpec {
 }
 
 /// Modifier for a substitution in the `subs` attribute (internal parsing helper).
-#[cfg(feature = "pre-spec-subs")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SubsModifier {
     /// `+name` - append to end of default list
@@ -429,7 +490,6 @@ enum SubsModifier {
 }
 
 /// Parse a single subs part into name and optional modifier.
-#[cfg(feature = "pre-spec-subs")]
 fn parse_subs_part(part: &str) -> (&str, Option<SubsModifier>) {
     if let Some(name) = part.strip_prefix('+') {
         (name, Some(SubsModifier::Append))
@@ -442,8 +502,7 @@ fn parse_subs_part(part: &str) -> (&str, Option<SubsModifier>) {
     }
 }
 
-/// Preserve `subs` entries and report unknown names once during parsing.
-#[cfg(feature = "pre-spec-subs")]
+/// Preserve authored `subs` entries for resolution and diagnostics.
 #[must_use]
 pub(crate) fn parse_subs_attribute(value: &str) -> SubstitutionSpec {
     let value = value.trim();
@@ -454,16 +513,9 @@ pub(crate) fn parse_subs_attribute(value: &str) -> SubstitutionSpec {
         .split(',')
         .map(|entry| entry.trim().to_owned())
         .collect::<Vec<_>>();
-    for entry in &entries {
-        let (name, _) = parse_subs_part(entry);
-        if !name.is_empty() && name != "none" {
-            let _ = parse_substitution(name);
-        }
-    }
     SubstitutionSpec::Source(entries)
 }
 
-#[cfg(feature = "pre-spec-subs")]
 fn resolve_source_substitutions(entries: &[String], default: &[Substitution]) -> Vec<Substitution> {
     let mut parts = entries
         .iter()
@@ -492,13 +544,11 @@ fn resolve_source_substitutions(entries: &[String], default: &[Substitution]) ->
 }
 
 /// Append a substitution (or group) to the end of the list.
-#[cfg(feature = "pre-spec-subs")]
 pub(crate) fn append_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     append_expanded_substitution(result, sub, GroupContext::Block);
 }
 
 /// Move a substitution (or group) to the beginning, preserving group order.
-#[cfg(feature = "pre-spec-subs")]
 pub(crate) fn prepend_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     // The prepended occurrence wins, including members already enabled by the baseline.
     remove_substitution(result, sub);
@@ -507,7 +557,6 @@ pub(crate) fn prepend_substitution(result: &mut Vec<Substitution>, sub: &Substit
 }
 
 /// Remove a substitution (or group) from the list.
-#[cfg(feature = "pre-spec-subs")]
 pub(crate) fn remove_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     for s in substitution_members(sub, GroupContext::Block) {
         result.retain(|x| x != s);
@@ -637,10 +686,7 @@ mod group_tests {
     }
 }
 
-// Tests cover the `subs=` machinery (parse_subs_attribute, SubstitutionSpec,
-// SubstitutionOp), all of which are feature-gated. `substitute()` is
-// exercised indirectly through the parser's fixture suite.
-#[cfg(all(test, feature = "pre-spec-subs"))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::AttributeValue;
@@ -1455,7 +1501,7 @@ mod tests {
     ) {
         let spec = parse_subs_attribute(subs_attr);
         assert_eq!(
-            !SubstitutionPlan::for_block_spec(&spec).enabled(&sub),
+            !SubstitutionPlan::for_block_spec(&spec, CompatibilityMode::Asciidoctor).enabled(&sub),
             expected,
             "spec={subs_attr:?} sub={sub:?}"
         );
@@ -1492,7 +1538,10 @@ mod tests {
             ("-normal,+quotes,-normal", "callouts"),
         ] {
             assert_eq!(
-                SubstitutionPlan::for_block_spec(&parse_subs_attribute(spec)),
+                SubstitutionPlan::for_block_spec(
+                    &parse_subs_attribute(spec),
+                    CompatibilityMode::Asciidoctor
+                ),
                 SubstitutionPlan::from_substitutions(&parse_subs_attribute(expected).resolve(&[])),
                 "{spec}"
             );
@@ -1524,17 +1573,19 @@ pub(crate) fn resolve_attribute_entry_text<'text>(
     if let Some(profile) = attribute_inline_profile(text, attributes) {
         return match profile {
             Ok((inner, mut substitutions)) => {
+                let source = ordered_attribute_source(inner, &substitutions, attributes);
                 let inner = if substitutions.contains(&Substitution::Attributes) {
                     expand_attribute_entry_references(inner, attributes, false).into()
                 } else {
                     Cow::Borrowed(inner)
                 };
-                // References are frozen at assignment. Structural rules run at
-                // the use site and must not expand those references again.
-                substitutions.retain(|stage| *stage != Substitution::Attributes);
+                if source.is_none() {
+                    substitutions.retain(|stage| *stage != Substitution::Attributes);
+                }
                 let fragment = super::AttributeInlineFragment {
                     range: 0..inner.len(),
                     substitutions: substitutions.into_boxed_slice(),
+                    source,
                 };
                 (
                     super::DocumentAttributeValue::with_inline_fragments(
@@ -1552,6 +1603,7 @@ pub(crate) fn resolve_attribute_entry_text<'text>(
                     vec![super::AttributeInlineFragment {
                         range: 0..text.len(),
                         substitutions: vec![Substitution::SpecialChars].into_boxed_slice(),
+                        source: None,
                     }],
                 ),
                 Some(message),
@@ -1587,6 +1639,45 @@ pub(crate) fn resolve_attribute_entry_text<'text>(
         );
     }
     (resolve_attribute_references(text, attributes, false), None)
+}
+
+fn ordered_attribute_source(
+    text: &str,
+    substitutions: &[Substitution],
+    attributes: &DocumentAttributes<'_>,
+) -> Option<Arc<super::AttributeInlineSource>> {
+    let position = substitutions
+        .iter()
+        .position(|stage| *stage == Substitution::Attributes)?;
+    if !text.contains('{')
+        || !substitutions.iter().take(position).any(|stage| {
+            matches!(
+                stage,
+                Substitution::Quotes
+                    | Substitution::Macros
+                    | Substitution::Replacements
+                    | Substitution::PostReplacements
+            )
+        })
+    {
+        return None;
+    }
+    let mut references = rustc_hash::FxHashMap::default();
+    let _ = substitute_attributes(text, |name| {
+        let value = attributes.get(name);
+        references.entry(Box::<str>::from(name)).or_insert_with(|| {
+            value
+                .cloned()
+                .map(super::DocumentAttributeValue::into_static)
+        });
+        value
+    });
+    let mut references: Vec<_> = references.into_iter().collect();
+    references.sort_by(|(left, _), (right, _)| left.cmp(right));
+    Some(Arc::new(super::AttributeInlineSource {
+        text: text.into(),
+        references: references.into_boxed_slice(),
+    }))
 }
 
 fn resolve_attribute_references<'text>(
@@ -1637,6 +1728,7 @@ fn resolve_attribute_references<'text>(
                 .map(|range| super::AttributeInlineFragment {
                     range,
                     substitutions: Box::default(),
+                    source: None,
                 }),
         );
     }
@@ -1650,19 +1742,10 @@ fn attribute_inline_profile<'text>(
 ) -> Option<Result<(&'text str, Vec<Substitution>), String>> {
     let (names, inner) = text.trim().strip_prefix("pass:")?.split_once('[')?;
     let inner = inner.strip_suffix(']')?;
-    let mut substitutions = Vec::new();
-    for name in names
-        .split(',')
-        .filter(|name| !name.is_empty() && *name != "none")
-    {
-        let Some(stage) = parse_substitution(name) else {
-            return Some(Err(format!(
-                "unknown attribute-value substitution: {name}; value retained literally"
-            )));
-        };
-        substitutions.push(stage);
-    }
-    let substitutions = resolve_passthrough_substitutions(&substitutions);
+    let substitutions = match parse_passthrough_substitutions(names, "attribute-value") {
+        Ok(substitutions) => substitutions,
+        Err(message) => return Some(Err(message)),
+    };
     if !substitutions.iter().any(|stage| {
         matches!(
             stage,
@@ -1681,13 +1764,6 @@ fn attribute_inline_profile<'text>(
             return Some(Err("attribute-value escaping combined with formatted references is unsupported; value retained literally".into()));
         }
         return None;
-    }
-    let mut structural = false;
-    for stage in &substitutions {
-        if *stage == Substitution::SpecialChars && structural {
-            return Some(Err("attribute-value escaping after formatting or macros requires backend markup; value retained literally".into()));
-        }
-        structural |= matches!(stage, Substitution::Quotes | Substitution::Macros);
     }
     Some(Ok((inner, substitutions)))
 }
@@ -1734,45 +1810,26 @@ pub(crate) fn escape_attribute_characters(text: &str) -> String {
 
 /// Find a reference-shaped token, including its existing `amp;` escaping.
 pub(crate) fn character_reference_end(text: &str) -> Option<usize> {
+    let component = |text: &str| {
+        for (offset, character) in text.char_indices() {
+            if character == ';' {
+                return (offset > 0).then_some(offset + 1);
+            }
+            if character != '#' && !crate::CharacterReference::name_continue(character) {
+                return None;
+            }
+        }
+        None
+    };
     let tail = text.strip_prefix('&')?;
-    let first = tail.find(';')?;
-    if tail[..first].is_empty()
-        || !tail[..first]
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'#')
-    {
-        return None;
+    let mut end = 1 + component(tail)?;
+    let mut remaining = tail;
+    while let Some(rest) = remaining.strip_prefix("amp;") {
+        let Some(length) = component(rest) else { break };
+        end = text.len() - rest.len() + length;
+        remaining = rest;
     }
-    let mut unescaped = tail;
-    while let Some(rest) = unescaped.strip_prefix("amp;") {
-        unescaped = rest;
-    }
-    let end = unescaped.find(';').filter(|end| {
-        !unescaped[..*end].is_empty()
-            && unescaped[..*end]
-                .bytes()
-                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'#')
-    });
-    Some(
-        end.map_or((text.len() - unescaped.len()).max(first + 2), |end| {
-            text.len() - unescaped.len() + end + 1
-        }),
-    )
-}
-
-pub(crate) fn is_restorable_character_reference(body: &str) -> bool {
-    // Asciidoctor restores only this subset during replacements. In particular,
-    // a one-digit numeric reference and an uppercase hex prefix stay escaped.
-    if let Some(digits) = body.strip_prefix("#x") {
-        (2..=5).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_hexdigit())
-    } else if let Some(digits) = body.strip_prefix('#') {
-        (2..=6).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_digit())
-    } else {
-        let letters = body.bytes().take_while(u8::is_ascii_alphabetic).count();
-        letters >= 2
-            && body.len() - letters <= 2
-            && body[letters..].bytes().all(|byte| byte.is_ascii_digit())
-    }
+    Some(end)
 }
 
 fn expand_attribute_entry_references(

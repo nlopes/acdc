@@ -2,9 +2,22 @@
 
 mod common;
 mod integration {
+    mod authored_ids;
     mod backend_options;
+    mod completion_state;
+    mod coordinate_audit;
+    mod coordinates;
+    mod formatting_content;
+    mod hover_content;
     mod includes;
     mod inlay_hints;
+    mod link_navigation;
     mod preview;
+    mod reference_displays;
     mod selection_range;
+    mod source_edits;
+    mod source_highlighting;
+    mod structural_displays;
+    mod symbol_text;
+    mod xref_content;
 }

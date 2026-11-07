@@ -1,0 +1,51 @@
+<figure class="image-block" id="one">
+<img src="one.svg" alt="one"><figcaption>First 1. First image</figcaption>
+</figure>
+<figure class="image-block" id="two">
+<img src="two.svg" alt="two"><figcaption>Later 2. Second image</figcaption>
+</figure>
+<figure class="image-block" id="custom">
+<img src="custom.svg" alt="custom"><figcaption>Custom: Custom image</figcaption>
+</figure>
+<figure class="image-block" id="empty">
+<img src="empty.svg" alt="empty"><figcaption>Empty prefix</figcaption>
+</figure>
+<figure class="image-block" id="unnumbered">
+<img src="unnumbered.svg" alt="unnumbered"><figcaption>Unnumbered image</figcaption>
+</figure>
+<figure class="image-block" id="blank">
+<img src="blank.svg" alt="blank"><figcaption> 3. Empty numbered label</figcaption>
+</figure>
+<figure class="example-block" id="outer">
+<figcaption>Example 2. Outer example</figcaption>
+<div class="example">
+<figure id="inner" class="example-block">
+<figcaption>Example 1. Inner example</figcaption>
+<div class="example">
+Body.
+</div>
+</figure>
+</div>
+</figure>
+<figure class="listing-block" id="source">
+<figcaption>Code 1. Source listing</figcaption>
+<pre class="highlight"><code class="language-rust" data-lang="rust">fn main() {}</code></pre>
+</figure>
+<div class="table-block">
+<table id="table" class="frame-all grid-all stretch">
+<caption class="title">Table 1. Table title</caption>
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top"><figure class="image-block" id="cell">
+<img src="cell.svg" alt="cell"><figcaption> 4. Cell image</figcaption>
+</figure>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>See <a href="#one">First image</a>, <a href="#two">Second image</a>, <a href="#custom">Custom image</a>, <a href="#empty">Empty prefix</a>, <a href="#unnumbered">Unnumbered image</a>, <a href="#blank">Empty numbered label</a>,
+<a href="#inner">Inner example</a>, <a href="#outer">Outer example</a>, <a href="#source">Source listing</a>, <a href="#cell">Cell image</a> and <a href="#table">Table title</a>.</p>

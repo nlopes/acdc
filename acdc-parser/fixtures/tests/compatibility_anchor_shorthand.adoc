@@ -1,0 +1,36 @@
+= Anchor Shorthand
+
+[[early,Read, this\] label]note#late.one%ready]
+The hash ID overrides the anchor ID.
+
+See <<late>>.
+
+[[short]note.two]
+An anchor can omit reference text.
+
+[[label,Reference]note#replacement,reftext="Named label"]
+A later named reference text wins.
+
+See <<replacement>>.
+
+[[quoted,"Literal quotes"]note]
+Quotes in the reference text are content.
+
+See <<quoted>>.
+
+[[,Missing ID]note]
+Malformed anchor shorthand.
+
+[[empty,]note]
+Empty reference text.
+
+[[discard,Label]note..role]
+An invalid suffix keeps the whole value literal.
+
+[[ordinary,Ordinary label]]
+An ordinary standalone anchor.
+
+[bibliography]
+* [[[reference,Entry]]] A bibliography entry.
+
+image::photo.svg["[id,label]note#literal.role"]

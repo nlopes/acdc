@@ -95,12 +95,12 @@
                 "id": "paragraph-section",
                 "location": [
                   {
-                    "line": 1,
-                    "col": 9
+                    "line": 5,
+                    "col": 1
                   },
                   {
-                    "line": 1,
-                    "col": 30
+                    "line": 5,
+                    "col": 22
                   }
                 ]
               }
@@ -242,12 +242,12 @@
                 "id": "unordered-section",
                 "location": [
                   {
-                    "line": 1,
-                    "col": 8
+                    "line": 14,
+                    "col": 1
                   },
                   {
-                    "line": 1,
-                    "col": 29
+                    "line": 14,
+                    "col": 22
                   }
                 ]
               }
@@ -389,12 +389,12 @@
                 "id": "ordered-section",
                 "location": [
                   {
-                    "line": 1,
-                    "col": 8
+                    "line": 23,
+                    "col": 1
                   },
                   {
-                    "line": 1,
-                    "col": 27
+                    "line": 23,
+                    "col": 20
                   }
                 ]
               }
@@ -465,11 +465,26 @@
           "type": "block",
           "items": [
             {
-              "term": [
+              "terms": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Term",
+                  "content": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Term",
+                      "location": [
+                        {
+                          "line": 31,
+                          "col": 1
+                        },
+                        {
+                          "line": 31,
+                          "col": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "delimiter": "::",
                   "location": [
                     {
                       "line": 31,
@@ -477,30 +492,41 @@
                     },
                     {
                       "line": 31,
-                      "col": 4
+                      "col": 6
                     }
                   ]
                 }
               ],
-              "delimiter": "::",
-              "principal_text": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Description",
-                  "location": [
-                    {
-                      "line": 31,
-                      "col": 8
-                    },
-                    {
-                      "line": 31,
-                      "col": 18
-                    }
-                  ]
-                }
-              ],
-              "description": [],
+              "definition": {
+                "principal": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Description",
+                    "location": [
+                      {
+                        "line": 31,
+                        "col": 8
+                      },
+                      {
+                        "line": 31,
+                        "col": 18
+                      }
+                    ]
+                  }
+                ],
+                "blocks": [],
+                "location": [
+                  {
+                    "line": 31,
+                    "col": 8
+                  },
+                  {
+                    "line": 31,
+                    "col": 18
+                  }
+                ]
+              },
               "location": [
                 {
                   "line": 31,
@@ -508,7 +534,7 @@
                 },
                 {
                   "line": 31,
-                  "col": 19
+                  "col": 18
                 }
               ]
             }
@@ -520,7 +546,7 @@
             },
             {
               "line": 31,
-              "col": 19
+              "col": 18
             }
           ]
         },
@@ -550,12 +576,12 @@
                 "id": "description-section",
                 "location": [
                   {
-                    "line": 1,
-                    "col": 20
+                    "line": 32,
+                    "col": 1
                   },
                   {
-                    "line": 4,
-                    "col": 2
+                    "line": 32,
+                    "col": 24
                   }
                 ]
               }
@@ -730,12 +756,12 @@
                 "id": "continuation-section",
                 "location": [
                   {
-                    "line": 1,
-                    "col": 20
+                    "line": 43,
+                    "col": 1
                   },
                   {
-                    "line": 4,
-                    "col": 3
+                    "line": 43,
+                    "col": 25
                   }
                 ]
               }

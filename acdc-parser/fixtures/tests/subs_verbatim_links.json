@@ -100,8 +100,7 @@
               "line": 8,
               "col": 64
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -122,6 +121,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -169,6 +169,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "location": [
             {
               "line": 10,
@@ -229,8 +230,7 @@
               "line": 11,
               "col": 57
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -264,8 +264,7 @@
               "line": 12,
               "col": 32
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -316,8 +315,7 @@
               "line": 12,
               "col": 67
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -402,8 +400,7 @@
               "line": 13,
               "col": 61
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -454,8 +451,7 @@
               "line": 14,
               "col": 42
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -694,8 +690,7 @@
               "line": 21,
               "col": 49
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -716,6 +711,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -809,8 +805,7 @@
               "line": 27,
               "col": 51
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -831,6 +826,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "location": [
             {
               "line": 27,
@@ -928,8 +924,7 @@
               "line": 30,
               "col": 63
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -950,6 +945,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "location": [
             {
               "line": 30,
@@ -1047,8 +1043,7 @@
               "line": 33,
               "col": 58
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -1069,6 +1064,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "location": [
             {
               "line": 33,
@@ -1161,8 +1157,7 @@
               "line": 37,
               "col": 20
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -1213,8 +1208,7 @@
               "line": 37,
               "col": 32
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -1276,8 +1270,7 @@
               "line": 42,
               "col": 20
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -1398,6 +1391,7 @@
           "name": "xref",
           "type": "inline",
           "target": "missing",
+          "target_is_local": true,
           "location": [
             {
               "line": 57,
@@ -1428,6 +1422,7 @@
           "name": "xref",
           "type": "inline",
           "target": "other.adoc#part",
+          "target_is_local": false,
           "inlines": [
             {
               "name": "text",
@@ -1475,6 +1470,7 @@
           "name": "xref",
           "type": "inline",
           "target": "",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -1562,8 +1558,7 @@
               "line": 62,
               "col": 33
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -1614,8 +1609,7 @@
               "line": 63,
               "col": 34
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -1642,9 +1636,9 @@
           },
           "inlines": [
             {
-              "name": "text",
+              "name": "symbol",
               "type": "string",
-              "value": "->",
+              "value": "→",
               "location": [
                 {
                   "line": 64,
@@ -1666,8 +1660,7 @@
               "line": 64,
               "col": 35
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -1692,7 +1685,7 @@
         },
         {
           "line": 67,
-          "col": 4
+          "col": 3
         }
       ]
     },

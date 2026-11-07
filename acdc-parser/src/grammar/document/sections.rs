@@ -3,7 +3,7 @@
 use crate::{
     DocumentAttributes, Location, Warning, WarningKind,
     grammar::ParserState,
-    model::{LeveloffsetRange, SectionKind, SectionLevel, strip_quotes},
+    model::{LeveloffsetRange, SectionKind, SectionLevel},
 };
 
 /// Add the include-range and document `leveloffset` values to a section level.
@@ -18,7 +18,6 @@ pub(super) fn apply_leveloffset(
 
     let attr_offset = document_attributes
         .text("leveloffset")
-        .map(strip_quotes)
         .and_then(|s| s.parse::<isize>().ok())
         .unwrap_or(0);
 

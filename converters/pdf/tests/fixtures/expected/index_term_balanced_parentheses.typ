@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -88,7 +89,7 @@
 
 #heading(level: 1)[#text("Description")] <id-5f6465736372697074696f6e>
 
-#text("P01 ")#metadata(none)<__indexterm-1>#text("Term ®")#text(" after.")
+#text("P01 ")#metadata(none)<__indexterm-1>#text("Term ")#text("®")#text(" after.")
 
 #text("P02 ")#metadata(none)<__indexterm-2>#text("function(argument)")#text(" after.")
 
@@ -136,7 +137,7 @@
 
 #text("P24 ")#metadata(none)<__indexterm-25>#text("Before ")#text("((literal))")#text(" after")#text(" end.")
 
-#text("P25 ")#link("https://example.org")[#metadata(none)<__indexterm-26>#text("Linked ®")#text(" label")]#text(" after.")
+#text("P25 ")#link("https://example.org")[#metadata(none)<__indexterm-26>#text("Linked ")#text("®")#text(" label")]#text(" after.")
 
 #text("P26 ((Unclosed (label)")
 
@@ -212,7 +213,7 @@
 #v(0.75em)
 #text(weight: "bold")[#text("L")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("Linked ®")#_acdc_index_pages((<__indexterm-26>,), "term")]
+#par(hanging-indent: 1em)[#text("Linked ")#text("®")#_acdc_index_pages((<__indexterm-26>,), "term")]
 #par(hanging-indent: 1em)[#text("Literal ) text")#_acdc_index_pages((<__indexterm-13>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("N")]
@@ -230,7 +231,7 @@
 #text(weight: "bold")[#text("T")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("Term") (see #link(<__indextermdef-66756e6374696f6e28617267756d656e7429002374657874282266756e6374696f6e28617267756d656e74292229>)[#text("function(argument)")])]
-#par(hanging-indent: 1em)[#text("Term ®")#_acdc_index_pages((<__indexterm-1>,), "term")]
+#par(hanging-indent: 1em)[#text("Term ")#text("®")#_acdc_index_pages((<__indexterm-1>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("W")]
 #v(0.25em)

@@ -1,0 +1,35 @@
+= Attribute Aggregation
+
+[role=old,opts="one,two"]
+[role=new,opts=three]
+A later named role replaces earlier roles in Asciidoctor mode.
+
+[.short,role=named]
+The named role and shorthand both contribute.
+
+[role=old]
+[role=""]
+An empty named role clears the compatible role list.
+
+[.one.one%ready%ready]
+[roles="two one",options="wide, compact extra"]
+Aliases and splitting follow the selected mode.
+
+[role=outer,opts="one,two"]
+image::photo.png[Photo,role=inner,opts=three]
+
+[role=outer,opts=one]
+image::photo.png[Photo,role="",opts=""]
+
+[role=outer,opts=one]
+audio::audio.ogg[role=inner,opts=two]
+
+[role=outer,opts=one]
+video::movie.mp4[Poster,role=inner,opts=two]
+
+[cols=a]
+|===
+|[role=old]
+[role=new]
+Nested roles.
+|===

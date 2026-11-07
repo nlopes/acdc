@@ -1,0 +1,22 @@
+= Menu separator stages
+:experimental:
+
+menu:File[Open > Close] and menu:File[Open &gt; Close].
+
+menu:File[Open &#62; Close] and menu:File[Open &amp;gt; Close].
+
+[subs=macros]
+menu:File[Open > Close] and menu:File[Open &gt; Close].
+
+[subs="specialchars,macros"]
+menu:File[Open > Close] and menu:File[Open &gt; Close].
+
+[subs="replacements,specialchars,macros"]
+menu:File[Open &gt; Close].
+
+[subs="specialchars,replacements,macros"]
+menu:File[Open &gt; Close].
+
+π menu:File[Öpen &gt; Closé footnote:note[Note.]].
+
+menu:File[Open &gt; pass:[A &gt; B]] and menu:File[Open &gt; ].

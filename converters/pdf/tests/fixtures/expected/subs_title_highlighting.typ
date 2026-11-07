@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -84,13 +85,13 @@
 
 #heading(level: 1)[#text("Synopsis")] <id-5f73796e6f70736973>
 
-#blocktitle[#text("H01 Default title ")#strong[#text("bold")]#text(" © and ")#text("*")#text("literal*")]
+#blocktitle[#text("H01 Default title ")#strong[#text("bold")]#text(" ")#text("©")#text(" and ")#text("*")#text("literal*")]
 #raw(block: true, lang: "rust", "let default = \"(C)\";")
 
-#blocktitle[#text("H02 Disabled title ® and ")#text("(TM)")]
+#blocktitle[#text("H02 Disabled title ")#text("®")#text(" and ")#text("(TM)")]
 #raw(block: true, lang: "rust", "let disabled = \"(R)\";")
 
-#blocktitle[#text("H03 Enabled title ™")]
+#blocktitle[#text("H03 Enabled title ")#text("™")]
 #raw(block: true, lang: "rust", "let enabled = \"™\";")
 
-#text("H04 Following prose ©.")
+#text("H04 Following prose ")#text("©")#text(".")

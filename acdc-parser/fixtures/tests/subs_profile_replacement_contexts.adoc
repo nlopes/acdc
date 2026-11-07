@@ -1,0 +1,32 @@
+= Profile replacement contexts
+:word: Sam
+:tail: s
+:mark: (C)
+:dash: --
+:late: pass:r,a[{mark}]
+:early: pass:a,r[{mark}]
+
+Earlier.
+
+{late} and {early}
+
+:mark: (R)
+
+{late} and {early}
+
+include::includes/subs_profile_replacement_selected.adoc[tag=selected,indent=0]
+
+[cols="a"]
+|===
+|Cell.
+
+pass:r,a[{word}']s
+
+pass:a,r[{word}']s
+
+pass:r,a[{mark}] and pass:a,r[{mark}]
+|===
+
+footnote:n[pass:r,a[{word}']s]
+
+link:outer.html[pass:r,a[{word}']s]

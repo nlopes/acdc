@@ -1,6 +1,10 @@
 use std::path::Path;
 
-use acdc_parser::{InlineNode, Options, WarningKind, parse, parse_file};
+use acdc_parser::{
+    Options, WarningKind,
+    ast::{InlineKind, InlineRef},
+    parse, parse_file,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -36,11 +40,13 @@ fn duplicate_sections_keep_the_first_reference_text() -> Result<(), Error> {
     )?;
     let title = parsed
         .document()
-        .references
+        .references()
         .get("same")
-        .and_then(|reference| reference.title.as_ref())
+        .and_then(acdc_parser::ast::ReferenceRef::title)
         .ok_or("missing reference title")?;
-    assert!(matches!(&title[..], [InlineNode::PlainText(text)] if text.content == "First"));
+    assert!(
+        matches!(title.inlines().map(InlineRef::kind).collect::<Vec<_>>().as_slice(), [InlineKind::Plain(text)] if text.text() == "First")
+    );
     Ok(())
 }
 
@@ -64,11 +70,13 @@ fn duplicate_section_does_not_replace_an_earlier_block() -> Result<(), Error> {
     )?;
     let title = parsed
         .document()
-        .references
+        .references()
         .get("same")
-        .and_then(|reference| reference.title.as_ref())
+        .and_then(acdc_parser::ast::ReferenceRef::title)
         .ok_or("missing reference title")?;
-    assert!(matches!(&title[..], [InlineNode::PlainText(text)] if text.content == "First block"));
+    assert!(
+        matches!(title.inlines().map(InlineRef::kind).collect::<Vec<_>>().as_slice(), [InlineKind::Plain(text)] if text.text() == "First block")
+    );
     assert_eq!(parsed.warnings().len(), 1);
     Ok(())
 }

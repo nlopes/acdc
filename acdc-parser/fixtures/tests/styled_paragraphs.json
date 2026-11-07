@@ -78,9 +78,12 @@
             "style": "quote",
             "attribution": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Albert Einstein",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 5,
@@ -88,7 +91,7 @@
                   },
                   {
                     "line": 5,
-                    "col": 24
+                    "col": 23
                   }
                 ]
               }
@@ -129,9 +132,12 @@
             "style": "quote",
             "attribution": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Abraham Lincoln",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 8,
@@ -139,16 +145,19 @@
                   },
                   {
                     "line": 8,
-                    "col": 24
+                    "col": 23
                   }
                 ]
               }
             ],
             "citetitle": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Gettysburg Address",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 8,
@@ -156,7 +165,7 @@
                   },
                   {
                     "line": 8,
-                    "col": 44
+                    "col": 43
                   }
                 ]
               }
@@ -231,9 +240,12 @@
             "style": "verse",
             "attribution": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Carl Sandburg",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 13,
@@ -241,16 +253,19 @@
                   },
                   {
                     "line": 13,
-                    "col": 22
+                    "col": 21
                   }
                 ]
               }
             ],
             "citetitle": [
               {
-                "name": "text",
+                "name": "raw",
                 "type": "string",
                 "value": "Fog",
+                "substitutions": [
+                  "special_chars"
+                ],
                 "location": [
                   {
                     "line": 13,
@@ -258,7 +273,7 @@
                   },
                   {
                     "line": 13,
-                    "col": 27
+                    "col": 26
                   }
                 ]
               }

@@ -1,6 +1,7 @@
 = index-empty(1)
 :doctype: manpage
 :acdc-index:
+:docdate: 2026-09-26
 :revdate: 2026-09-26
 :manmanual: Index Manual
 :mansource: acdc

@@ -19,13 +19,13 @@ Alias: **Bold** / **Early** / [^1] / **Body** / [^2] / [^3].
 
 Macros: [Site](https://example.org) / <a id="_indexterm_0"></a>Term / [^n] / [^n].
 
-Empty: ** / **. Escaped: **{name}**.
+Empty: ** / <strong></strong>. Escaped: **{name}**.
 
 Order: pass:q,c\[\*Escaped\*\] / pass:m,c\[https://example.org\[Escaped site\]\]. Partial: prefix pass:q\[\*Literal\*\].
 
 |  |  |
 | :--- | :--- |
-| Cell: **Early** / **Bold** / **Early** / [^5]. | Other: Late / **Body**. |
+| Cell: **Early** / **Bold** / **Early** / [^acdc-cell-footnote-5]. | Other: Late / **Body**. |
 
 Unset: {bold} / **Bold** / **Early** / [^6].
 
@@ -40,5 +40,5 @@ Unset: {bold} / **Bold** / **Early** / [^6].
 [^2]: Anonymous body.
 [^3]: Anonymous body.
 [^n]: Named body.
-[^5]: Anonymous body.
+[^acdc-cell-footnote-5]: Anonymous body.
 [^6]: Anonymous body.

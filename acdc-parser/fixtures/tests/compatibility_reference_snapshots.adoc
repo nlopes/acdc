@@ -1,0 +1,44 @@
+= Reference snapshots
+:word: *Before*
+:saved: {later}
+:later: Declared
+
+[id=snapshot,reftext='{word} {saved}']
+:word: *After*
+:later: Reassigned
+== Snapshot title
+
+[reftext='Discarded footnote:discarded[Discarded]']
+[[selected,Selected *label*]]
+Body.
+
+[[named,Earlier anchor]]
+[reftext='Selected _named_ label']
+Body.
+
+[id=restricted,reftext='link:https://example.org[Link] footnote:[Note] *Bold*',subs=none]
+Body.
+
+[id=natural,reftext='Custom *Formatted* Label']
+Body.
+
+[id=duplicate,reftext='First *owner*']
+Body.
+
+[id=duplicate,reftext='Second owner']
+Body.
+
+<<snapshot>>, <<selected>>, <<named>>, <<restricted>>, <<Custom *Formatted* Label>>, and <<duplicate>>.
+
+[bibliography]
+* [[[book,Book *label*]]] Entry.
+
+See <<book>>.
+
+[role=example]
+:word: At anchor
+[[anchor-snapshot,{word}]]
+:word: After anchor
+Body.
+
+See <<anchor-snapshot>>.

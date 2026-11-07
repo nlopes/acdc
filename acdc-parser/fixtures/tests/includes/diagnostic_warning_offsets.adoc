@@ -1,0 +1,6 @@
+π🚀 excluded.
+// tag::warning[]
+:compat-mode: λ
+
+Included body.
+// end::warning[]

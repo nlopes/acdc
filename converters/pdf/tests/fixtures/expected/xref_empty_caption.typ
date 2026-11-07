@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -93,32 +94,32 @@
 #metadata(none) <id-666967757265>
 #block(width: 100%, breakable: false)[
 #docimage("/images/de454d7e4e1cfda7.svg", alt: "Figure", width: 30pt)
-#imagecaption[#text("")#text("Figure ")#emph[#text("title")]]
+#imagecaption[#text("Figure ")#emph[#text("title")]]
 ]
 
 #block(sticky: true, above: 0pt, below: 0pt)[
 #metadata(none) <id-7461626c65>
 ]
 #block(sticky: true, above: 0pt, below: 0pt)[
-#blocktitle[#text("")#text("Table ")#strong[#text("title")]]
+#blocktitle[#text("Table ")#strong[#text("title")]]
 ]
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Cell")
 
 ])
 
 #metadata(none) <id-6578616d706c65>
-#blocktitle[#text("")#text("Example title")]
+#blocktitle[#text("Example title")]
 #examplebox[
 #text("Body.")
 
 ]
 
 #metadata(none) <id-6c697374696e67>
-#blocktitle[#text("")#text("Listing title")]
+#blocktitle[#text("Listing title")]
 #raw(block: true, "Code.")
 
 #metadata(none) <id-6c6162656c6c6564>
-#blocktitle[#text("")#text("Unused title")]
+#blocktitle[#text("Unused title")]
 #examplebox[
 #text("Body.")
 

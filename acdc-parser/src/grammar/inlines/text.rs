@@ -4,15 +4,87 @@ use crate::{
     InlineNode, Substitution,
     grammar::{
         ParserState,
+        attributes::AttributeQuote,
         helpers::BlockParsingMetadata,
         inline_preprocessor::SourceMap,
         inline_processing::{process_inlines, process_inlines_no_autolinks},
         inlines::index_terms::IndexTermSegment,
+        state::InlineRules,
     },
 };
 use std::ops::Range;
 
-pub(super) fn process_unescaped_xref_label<'a>(
+pub(super) fn parse_bracket_label<'a>(
+    state: &mut ParserState<'a>,
+    metadata: &BlockParsingMetadata<'_>,
+    text: &'a str,
+    start: usize,
+    quote: AttributeQuote,
+    source_map: Option<&SourceMap>,
+) -> Result<Vec<InlineNode<'a>>, crate::Error> {
+    let rules = state.inline_ctx.rules;
+    state.inline_ctx.rules.insert(InlineRules::BRACKET_LABEL);
+    state.inline_ctx.rules.set(
+        InlineRules::DOUBLE_QUOTED_LINK,
+        quote == AttributeQuote::Double,
+    );
+    state.inline_ctx.rules.set(
+        InlineRules::SINGLE_QUOTED_LINK,
+        quote == AttributeQuote::Single,
+    );
+    let parsed = if let Some(source_map) = source_map {
+        process_unescaped_label(
+            state,
+            metadata,
+            text,
+            start + state.inline_ctx.offset,
+            source_map,
+        )
+    } else {
+        process_inlines_no_autolinks(
+            state,
+            metadata,
+            start,
+            start + text.len(),
+            state.inline_ctx.offset,
+            text,
+        )
+    };
+    state.inline_ctx.rules = rules;
+    parsed
+}
+
+pub(super) fn parse_shorthand_label<'a>(
+    state: &mut ParserState<'a>,
+    metadata: &BlockParsingMetadata<'_>,
+    text: &'a str,
+    start: usize,
+) -> Result<Vec<InlineNode<'a>>, crate::Error> {
+    // Asciidoctor's shorthand uses Ruby's lstrip, not Unicode trimming.
+    let trimmed =
+        text.trim_start_matches(|character: char| matches!(character, '\0' | ' ' | '\t'..='\r'));
+    if trimmed.is_empty() {
+        return Ok(Vec::new());
+    }
+    let start = start + text.len() - trimmed.len();
+    let rules = state.inline_ctx.rules;
+    state
+        .inline_ctx
+        .rules
+        .remove(InlineRules::BRACKET_LABEL | InlineRules::QUOTED_LINK);
+    let parsed = process_inlines_no_autolinks(
+        state,
+        metadata,
+        start,
+        start + trimmed.len(),
+        state.inline_ctx.offset,
+        trimmed,
+    );
+    state.inline_ctx.rules = rules;
+    parsed
+}
+
+pub(super) fn process_unescaped_label<'a>(
     state: &mut ParserState<'a>,
     metadata: &BlockParsingMetadata<'_>,
     text: &'a str,

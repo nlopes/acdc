@@ -1,0 +1,7 @@
+Ignored.
+
+// tag::selected[]
+    é😀 [#included-span]**included**.
+// end::selected[]
+
+Ignored.

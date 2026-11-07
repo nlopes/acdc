@@ -5,7 +5,7 @@ use std::{
     io::Write,
 };
 
-use acdc_converters_core::{Converter, document_attribute_text, visitor::WritableVisitor};
+use acdc_converters_core::{Converter, document_attribute_text};
 
 use crate::{Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Processor};
 
@@ -246,8 +246,8 @@ fn render_entries<W: Write + ?Sized>(
     Ok(())
 }
 
-pub(crate) fn render<'a, V: WritableVisitor<'a, Error = Error>>(
-    visitor: &mut V,
+pub(crate) fn render(
+    writer: &mut dyn Write,
     processor: &Processor<'_>,
     heading_level: usize,
 ) -> Result<(), Error> {
@@ -264,7 +264,6 @@ pub(crate) fn render<'a, V: WritableVisitor<'a, Error = Error>>(
     let definitions = definition_terms(&index);
     let grouped = group_by_letter(index);
     let hashes = "#".repeat(heading_level.min(6));
-    let writer = visitor.writer_mut();
 
     for (letter, terms) in grouped {
         writeln!(writer)?;

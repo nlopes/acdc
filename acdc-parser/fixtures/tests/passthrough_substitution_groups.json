@@ -29,6 +29,9 @@
           "name": "raw",
           "type": "string",
           "value": "<tag> & &#169;",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 4,
@@ -75,6 +78,9 @@
           "name": "raw",
           "type": "string",
           "value": "Ada",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 6,
@@ -345,11 +351,29 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "\\->",
+          "value": "\\",
+          "substitutions": [
+            "replacements"
+          ],
           "location": [
             {
               "line": 12,
               "col": 28
+            },
+            {
+              "line": 12,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "->",
+          "location": [
+            {
+              "line": 12,
+              "col": 29
             },
             {
               "line": 12,
@@ -467,6 +491,9 @@
           "name": "raw",
           "type": "string",
           "value": "<tag> ",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -482,6 +509,9 @@
           "name": "raw",
           "type": "string",
           "value": "Ada",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -497,6 +527,9 @@
           "name": "raw",
           "type": "string",
           "value": " ",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
@@ -518,6 +551,9 @@
               "name": "raw",
               "type": "string",
               "value": "bold",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 17,
@@ -544,11 +580,47 @@
         {
           "name": "raw",
           "type": "string",
-          "value": " (C) ",
+          "value": " ",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 17,
               "col": 35
+            },
+            {
+              "line": 17,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "©",
+          "location": [
+            {
+              "line": 17,
+              "col": 36
+            },
+            {
+              "line": 17,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": " ",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 39
             },
             {
               "line": 17,
@@ -610,6 +682,9 @@
           "name": "raw",
           "type": "string",
           "value": "*attribute bold*",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 19,
@@ -656,6 +731,9 @@
           "name": "raw",
           "type": "string",
           "value": "<tag> {name} *bold* (C) <1>",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 21,

@@ -7,7 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Native JSON and named ASG exports retain multiple description terms with one
+  shared definition. The TCK projection preserves the same grouping.
+
+- `inspect` displays scalar block controls in name order so repeated runs produce a stable outline. The displayed hierarchy, text, and source ranges are unchanged.
+
+- Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+
+### Breaking changes
+
+- Conversion recognizes legacy underlined headings by default, matching
+  Asciidoctor. The redundant `convert --setext` and
+  `--enable-setext-compatibility` flags have been removed; the `setext` Cargo
+  feature is a compatibility alias.
+
 ### Added
+
+- `acdc parse` exports native JSON from files or stdin in every build. `--format upstream-asg` and `--format acdc-asg-v1` select checked export when built with `asg`; `--compatibility-mode` selects language rules independently. `--type inline` parses a fragment. Parser/export diagnostics are JSON lines on stderr, and semantic failures do not replace output files.
+
+- `convert`, `inspect`, `lint`, and `execute` accept `--compatibility-mode
+  asciidoctor|draft`. Asciidoctor remains the default. The selected rules apply
+  to every input and nested include/table cell; safety and resource limits
+  remain separate.
 
 - `convert --force-local-file-xrefs` resolves file-qualified references by their
   local anchors in combined or partially included documents. It preserves URLs
@@ -44,6 +65,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The `tck` adapter uses Draft mode and a smaller upstream ASG projection,
+  omitting derived caption state and generated heading IDs that no exported
+  reference uses. Explicit IDs, titles and document caption settings remain;
+  unsupported authored content still fails before output. Native JSON, regular
+  ASG exports and conversion are unchanged. Diagnostics are JSON lines on stderr.
+
 - Explicit `toc2` settings now warn once per input document. Use `:toc: left`
   or `-a toc=left`. TOC output is unchanged. With `--fail-on-warnings`, this
   warning gives exit status 1 and retains the output.
@@ -51,6 +78,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--doctype article` or `--doctype book` is supplied. Output is unchanged.
 
 ### Fixed
+
+- `inspect` shows the complete video target, including commas and playlist slots.
+
+- HTML output supports inline and interactive SVG images and `data-uri`
+  embedding. Builds with `network` also embed remote images when `allow-uri-read`
+  is supplied by the caller; safe modes still restrict resource access.
 
 - Valid Asciidoctor `code_font_size` and `code_font_size_min` values no longer
   produce a false adjustment warning or fail with `--fail-on-warnings`.

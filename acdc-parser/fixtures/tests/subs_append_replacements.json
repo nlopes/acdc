@@ -16,11 +16,56 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Arrow: -> and <-",
+          "value": "Arrow: ",
           "location": [
             {
               "line": 3,
               "col": 1
+            },
+            {
+              "line": 3,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "→",
+          "location": [
+            {
+              "line": 3,
+              "col": 8
+            },
+            {
+              "line": 3,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 3,
+              "col": 10
+            },
+            {
+              "line": 3,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "←",
+          "location": [
+            {
+              "line": 3,
+              "col": 15
             },
             {
               "line": 3,

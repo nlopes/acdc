@@ -1,0 +1,9 @@
+Excluded.
+// tag::selected[]
+Included heading
+----------------
+// Included comment.
+
+Included body.
+// end::selected[]
+Excluded tail.

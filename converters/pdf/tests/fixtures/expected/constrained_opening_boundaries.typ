@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -118,7 +119,7 @@
 
 #text("P17 =")#text("*")#text("Bold* =")#text("_")#text("Italic_ =")#text("`")#text("Code` =")#text("#")#text("Mark#.")
 
-#text("P18 &amp;*Bold* *_Italic_ *`Code` &gt;#Mark#.")
+#text("P18 ")#text("&")#text("*Bold* ")#text("*")#text("_Italic_ ")#text("*")#text("`Code` ")#text(">")#text("#Mark#.")
 
 #text("P19 :")#strong[#text("Bold")]#text(" ;")#emph[#text("Italic")]#text(" }")#raw("Code")#text(" _")#highlight[#text("Mark")]#text(".")
 
@@ -126,7 +127,7 @@
 
 #text("P21 <del>")#strong[#text("Bold")]#text("</del> <del>")#emph[#text("Italic")]#text("</del> <del>")#raw("Code")#text("</del> <del>")#highlight[#text("Mark")]#text("</del>.")
 
-#text("P22 ⇒")#strong[#text("Bold")]#text(".")
+#text("P22 ")#text("⇒")#strong[#text("Bold")]#text(".")
 
 #text("P23 =")#strong[#text("Bold")]#text(" =")#metadata(none)<id-636f6465>#raw("Code")#text(".")
 

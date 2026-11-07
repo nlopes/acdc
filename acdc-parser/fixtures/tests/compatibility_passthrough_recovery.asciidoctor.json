@@ -1,0 +1,713 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Passthrough recovery",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 22
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 5,
+        "col": 30
+      }
+    ]
+  },
+  "attributes": {
+    "callouts": "pass:callouts[<1>]",
+    "m-c": "pass:m,c[footnote:discarded[Discarded.]]",
+    "q-c": "pass:q,c[*Escaped*]",
+    "unknown": "pass:typo[*Unknown*]"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Attribute values: ",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "pass:q,c[*Escaped*]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 19
+            },
+            {
+              "line": 7,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " / ",
+          "location": [
+            {
+              "line": 7,
+              "col": 24
+            },
+            {
+              "line": 7,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "pass:m,c[footnote:discarded[Discarded.]]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 27
+            },
+            {
+              "line": 7,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " / ",
+          "location": [
+            {
+              "line": 7,
+              "col": 32
+            },
+            {
+              "line": 7,
+              "col": 34
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "pass:callouts[<1>]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 35
+            },
+            {
+              "line": 7,
+              "col": 44
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " / ",
+          "location": [
+            {
+              "line": 7,
+              "col": 45
+            },
+            {
+              "line": 7,
+              "col": 47
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "pass:typo[*Unknown*]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 48
+            },
+            {
+              "line": 7,
+              "col": 56
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 7,
+              "col": 57
+            },
+            {
+              "line": 7,
+              "col": 57
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 57
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Quotes then escaping: ",
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "pass:q,c[<mark>*Bold*</mark>]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 23
+            },
+            {
+              "line": 9,
+              "col": 51
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 9,
+              "col": 52
+            },
+            {
+              "line": 9,
+              "col": 52
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 52
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Macros then escaping: ",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "pass:m,c[footnote:unused[Unused.\\] anchor:unused[\\]]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 23
+            },
+            {
+              "line": 11,
+              "col": 74
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 11,
+              "col": 75
+            },
+            {
+              "line": 11,
+              "col": 75
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 75
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Unknown: ",
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "pass:typo[<tag> *Bold*]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 10
+            },
+            {
+              "line": 13,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 13,
+              "col": 33
+            },
+            {
+              "line": 13,
+              "col": 33
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 33
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Callouts: ",
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "pass:callouts[<1>]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 15,
+              "col": 11
+            },
+            {
+              "line": 15,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 15,
+              "col": 29
+            },
+            {
+              "line": 15,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 29
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Groups: ",
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "pass:q,verbatim[*Bold*]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 9
+            },
+            {
+              "line": 17,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 17,
+              "col": 32
+            },
+            {
+              "line": 17,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Unicode café: ",
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "pass:q,c[α *Éva* \\] tail]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 19,
+              "col": 15
+            },
+            {
+              "line": 19,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after.",
+          "location": [
+            {
+              "line": 19,
+              "col": 40
+            },
+            {
+              "line": 19,
+              "col": 46
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 46
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Valid later macro: ",
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "n",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Kept.",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 31
+                },
+                {
+                  "line": 21,
+                  "col": 35
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 21,
+              "col": 20
+            },
+            {
+              "line": 21,
+              "col": 36
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 21,
+              "col": 37
+            },
+            {
+              "line": 21,
+              "col": 37
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 21,
+          "col": 37
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Disabled macros: pass:q,c[*Literal*].",
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 37
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "specialcharacters",
+          "attributes"
+        ]
+      },
+      "location": [
+        {
+          "line": 23,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 37
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 24,
+      "col": 37
+    }
+  ]
+}

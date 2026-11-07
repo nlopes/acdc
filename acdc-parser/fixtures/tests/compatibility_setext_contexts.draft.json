@@ -1,0 +1,159 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Setext contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 17
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 17
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included heading",
+          "location": [
+            {
+              "line": 3,
+              "col": 1,
+              "file": [
+                "includes/compatibility_setext_selected.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 16,
+              "file": [
+                "includes/compatibility_setext_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1,
+          "file": [
+            "includes/compatibility_setext_selected.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 16,
+          "file": [
+            "includes/compatibility_setext_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----------------",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "// Included comment.\n\nIncluded body.\n\n[cols=\"a\"]\n|===\n|Cell heading\n------------\n\nCell body.\n|===\n\n[example]\n====\nNested heading\n--------------\n\nNested body.\n====\n\n:compat-mode:\n\nStill mode owned",
+          "location": [
+            {
+              "line": 5,
+              "col": 1,
+              "file": [
+                "includes/compatibility_setext_selected.adoc"
+              ]
+            },
+            {
+              "line": 23,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1,
+          "file": [
+            "includes/compatibility_setext_selected.adoc"
+          ]
+        },
+        {
+          "line": 24,
+          "col": 16
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "End.",
+          "location": [
+            {
+              "line": 26,
+              "col": 1
+            },
+            {
+              "line": 26,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 26,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 26,
+      "col": 4
+    }
+  ]
+}

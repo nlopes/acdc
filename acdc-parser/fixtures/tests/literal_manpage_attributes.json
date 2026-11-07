@@ -1,0 +1,185 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "source-name(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 16
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 6,
+        "col": 20
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "manpage",
+    "manmanual": "\"Manual\"",
+    "manname": "'authored-name'",
+    "manname-title": "Name",
+    "manpurpose": "\"Quoted purpose\"",
+    "mantitle": "source-name",
+    "manvolnum": "1",
+    "revdate": "2026-11-04"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "NAME",
+          "location": [
+            {
+              "line": 8,
+              "col": 4
+            },
+            {
+              "line": 8,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "source-name - fallback purpose",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 1
+                },
+                {
+                  "line": 10,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 30
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "DESCRIPTION",
+          "location": [
+            {
+              "line": 12,
+              "col": 4
+            },
+            {
+              "line": 12,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body.",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 1
+                },
+                {
+                  "line": 14,
+                  "col": 5
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 5
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 5
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 14,
+      "col": 5
+    }
+  ]
+}

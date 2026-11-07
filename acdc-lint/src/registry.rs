@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use acdc_parser::{Document, ParseResult};
+use acdc_parser::{ParseResult, ast::DocumentRef};
 
 use crate::{
     LintId, LintOptions,
@@ -22,7 +22,7 @@ pub(crate) struct LintContext<'context, 'source> {
 }
 
 impl LintContext<'_, '_> {
-    pub(crate) fn document(&self) -> &Document<'_> {
+    pub(crate) fn document(&self) -> DocumentRef<'_> {
         self.parsed.document()
     }
 }
@@ -254,7 +254,7 @@ fn run_multiple_document_title(emitter: &mut LintEmitter<'_>, context: &LintCont
 }
 
 fn run_delimited_blocks(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    blocks::lint_blocks(emitter, &context.document().blocks, context.lines);
+    blocks::lint_blocks(emitter, context.document(), context.lines);
 }
 
 fn run_section_title_marker_spacing(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
@@ -286,7 +286,7 @@ fn run_resources(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
 }
 
 fn run_nested_unordered_list_marker(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    lists::lint_nested_unordered_list_markers(emitter, &context.document().blocks, 0);
+    lists::lint_nested_unordered_list_markers(emitter, context.document());
 }
 
 fn run_adjacent_list_separator(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {

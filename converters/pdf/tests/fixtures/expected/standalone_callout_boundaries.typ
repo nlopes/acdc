@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -114,7 +115,7 @@
 
 #heading(level: 2)[#text("Not markers")] <id-5f6e6f745f6d61726b657273>
 
-#text("←1> Negative. <+1> Plus. <1.> Dot. <..> Dots.")
+#text("←")#text("1> Negative. <+1> Plus. <1.> Dot. <..> Dots.")
 
 #heading(level: 2)[#text("Escaped")] <id-5f65736361706564>
 
@@ -136,7 +137,7 @@
 
 #heading(level: 2)[#text("Tab indent")] <id-5f7461625f696e64656e74>
 
-#text(" <1> Alpha. <2> Beta.")
+#raw(block: true, "<1> Alpha.\n<2> Beta.")
 
 #heading(level: 2)[#text("Tab separator")] <id-5f7461625f736570617261746f72>
 

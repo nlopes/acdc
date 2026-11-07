@@ -1,7 +1,10 @@
-use std::{fmt::Write as _, io::Write};
+use std::io::Write;
 
-use acdc_converters_core::{TraversalContext, media::resolve_target, visitor::WritableVisitor};
-use acdc_parser::{AttributeValue, Audio};
+use acdc_converters_core::{
+    TraversalContext,
+    media::{resolve_target, with_time_range_from_attributes},
+};
+use acdc_parser::ast::AudioRef;
 
 use crate::{Error, TerminalVisitor, inlines};
 
@@ -9,9 +12,9 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     pub(crate) fn render_audio(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        audio: &Audio,
+        audio: AudioRef<'_>,
     ) -> Result<(), Error> {
-        let mut target = resolve_target(&audio.source.to_string(), traversal);
+        let mut target = resolve_target(&audio.source().to_string(), traversal);
         if target.is_empty() {
             if self.processor.mark_fallback("audio-missing-source") {
                 self.diagnostics.warn_with_advice(
@@ -21,25 +24,16 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             }
             return Ok(());
         }
-        match (
-            audio.metadata.attributes.get("start"),
-            audio.metadata.attributes.get("end"),
-        ) {
-            (Some(AttributeValue::String(start)), Some(AttributeValue::String(end))) => {
-                let _ = write!(target, "#t={start},{end}");
-            }
-            (Some(AttributeValue::String(start)), _) => {
-                let _ = write!(target, "#t={start}");
-            }
-            _ => {}
-        }
-        let title = if audio.title.is_empty() {
-            audio
-                .source
-                .get_filename()
-                .map_or_else(|| audio.source.to_string(), str::to_string)
+        target = with_time_range_from_attributes(&target, audio.attributes());
+        let title = if let Some(title) = audio.title() {
+            acdc_converters_core::InlineTextTransform::default()
+                .decode_char_refs(true)
+                .content_to_string(title)
         } else {
-            acdc_converters_core::inlines_to_string(&audio.title)
+            audio
+                .source()
+                .file_name()
+                .map_or_else(|| audio.source().to_string(), str::to_string)
         };
         let text = format!("[Audio: {title}]");
         let processor = self.processor;
@@ -51,7 +45,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
 #[cfg(test)]
 mod tests {
-    use acdc_parser::{Location, Source};
+    use acdc_parser::{Audio, Location, Source};
 
     use super::*;
 
@@ -67,8 +61,8 @@ mod tests {
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(Vec::new(), &processor, diagnostics.reborrow());
 
-        visitor.render_audio(&mut traversal, &audio)?;
-        visitor.render_audio(&mut traversal, &audio)?;
+        visitor.render_audio(&mut traversal, (&audio).into())?;
+        visitor.render_audio(&mut traversal, (&audio).into())?;
         let output = visitor.into_writer();
 
         assert_eq!(output, [] as [u8; 0]);

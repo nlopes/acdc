@@ -11,5 +11,8 @@ acdc-parser.workspace = true
 acdc-converters-core.workspace = true
 crossterm.workspace = true
 
+[dev-dependencies]
+tempfile.workspace = true
+
 [lints]
 workspace = true

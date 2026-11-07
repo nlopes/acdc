@@ -83,11 +83,13 @@ M20 Body  with  spaces.
 .RS 0
 .IP \(bu 2
 M21 Item  with  spaces.
-.RE
-.RS 0
+.RS 2
+.RS 4
 .TP
 \fBTerm\fR
 M22 Description  with  spaces.
+.RE
+.RE
 .RE
 .TS
 allbox tab(:);

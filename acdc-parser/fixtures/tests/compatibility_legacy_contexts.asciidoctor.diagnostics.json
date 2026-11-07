@@ -1,0 +1,58 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 0,
+      "absolute_start": 0,
+      "file": "compatibility_legacy_contexts.adoc",
+      "location": [
+        {
+          "col": 1,
+          "line": 5
+        },
+        {
+          "col": 1,
+          "line": 5
+        }
+      ]
+    },
+    "message": "include uri not read because URI access is disabled: https://example.invalid/blocked.adoc"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 0,
+        "absolute_start": 0,
+        "file": "compatibility_legacy_contexts.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 5
+          },
+          {
+            "col": 1,
+            "line": 5
+          }
+        ]
+      },
+      "message": "include uri not read because URI access is disabled: https://example.invalid/blocked.adoc"
+    },
+    {
+      "location": {
+        "absolute_end": 100,
+        "absolute_start": 85,
+        "file": "includes/compatibility_legacy_selected.adoc",
+        "location": [
+          {
+            "col": 11,
+            "line": 6
+          },
+          {
+            "col": 26,
+            "line": 6
+          }
+        ]
+      },
+      "message": "invalid reference: Installation"
+    }
+  ]
+}

@@ -134,7 +134,7 @@ fn check_mandoc(output: &str, expected: &HashSet<&str>) -> Result<(), Error> {
 
 #[rstest::rstest]
 #[case("nested_font_scopes")]
-#[cfg_attr(feature = "pre-spec-subs", case("subs_nested_font_scopes"))]
+#[case("subs_nested_font_scopes")]
 fn nested_fonts_restore_the_enclosing_style(#[case] fixture: &str) -> Result<(), Error> {
     let path =
         Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("tests/fixtures/source/{fixture}.adoc"));

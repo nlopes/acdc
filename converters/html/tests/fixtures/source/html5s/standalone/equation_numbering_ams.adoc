@@ -1,0 +1,12 @@
+= Equations
+:stem: latexmath
+:stylesheet!:
+:webfonts!:
+:eqnums: AMS
+
+Inline latexmath:[x + 1].
+
+[latexmath]
+++++
+x = 2
+++++

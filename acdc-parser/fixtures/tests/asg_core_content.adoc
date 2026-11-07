@@ -1,0 +1,13 @@
+= *Export Guide*
+Ada Lovelace <ada@example.org>
+:unset-value!:
+:toclevels: 03
+:literal-value: "quoted"
+
+[#intro,role=compact,opts=wide]
+== Introduction
+
+[reftext='*Reference*',title='A _title_']
+Text with **strong**, _emphasis_, `code`, and #mark#.
+
+Text +<literal>+ and +++<b>raw</b>+++ ... (C).

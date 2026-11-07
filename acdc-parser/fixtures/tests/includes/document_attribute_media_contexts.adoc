@@ -1,0 +1,7 @@
+Excluded before.
+// tag::selected[]
+    :name: Include
+
+    image::included.png["β {alias}"]
+// end::selected[]
+Excluded after.

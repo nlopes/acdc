@@ -1,0 +1,313 @@
+//! Image embedding shared by block and inline HTML images.
+
+use std::{
+    io::{Read as _, Write as _},
+    path::{Path, PathBuf},
+};
+
+use acdc_converters_core::TraversalContext;
+use acdc_parser::{
+    SafeMode,
+    ast::{AttributeValueRef, AttributesRef, ContentRef, SourceRef, TokensRef},
+};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
+use quick_xml::{
+    Reader, Writer,
+    events::{BytesStart, Event},
+};
+
+use crate::{
+    Error, HtmlVariant, HtmlVisitor,
+    image_helpers::{escape_image_text, write_dimension_attributes},
+    inlines::escape_attribute,
+};
+
+// Apply the same bound to local files and decoded HTTP response bodies.
+const MAX_IMAGE_BYTES: u64 = 20 * 1024 * 1024;
+
+struct ImageData {
+    mime: Option<String>,
+    bytes: Vec<u8>,
+}
+
+impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
+    pub(crate) fn image_markup(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        source: SourceRef<'_>,
+        attributes: AttributesRef<'_>,
+        options: TokensRef<'_>,
+        alt: Option<ContentRef<'_>>,
+        tooltip: Option<ContentRef<'_>>,
+    ) -> Result<String, Error> {
+        let alt_content = alt;
+        let alt = acdc_converters_core::media::image_alt_from_content(source, alt);
+        let target = acdc_converters_core::media::resolve_target(&source.to_string(), traversal);
+        let svg = attributes.get("format").and_then(AttributeValueRef::as_str) == Some("svg")
+            || target.contains(".svg");
+        let embedding_allowed = self.processor.options.safe_mode() < SafeMode::Secure;
+        if svg && embedding_allowed && options.contains("inline") {
+            let result = self
+                .read_image(&target, traversal)
+                .and_then(|data| inline_svg(&data.bytes, attributes));
+            return Ok(match result {
+                Ok(svg) => svg,
+                Err(error) => {
+                    self.diagnostics
+                        .warn(format!("could not embed SVG {target}: {error}"));
+                    format!(
+                        "<span class=\"alt\">{}</span>",
+                        match alt_content {
+                            Some(content) => self.content_html(traversal, content)?,
+                            None => escape_image_text(&alt),
+                        }
+                    )
+                }
+            });
+        }
+
+        let mut attrs = Vec::new();
+        write_dimension_attributes(&mut attrs, attributes)?;
+        write!(attrs, "{}", crate::inlines::tooltip_attribute(tooltip))?;
+        if self.processor.variant() == HtmlVariant::Semantic
+            && let Some(loading) = attributes
+                .get("loading")
+                .and_then(AttributeValueRef::as_str)
+        {
+            write!(attrs, " loading=\"{}\"", escape_attribute(loading))?;
+        }
+        let attrs = String::from_utf8(attrs)?;
+        let source = escape_attribute(&self.image_uri(&target, traversal));
+        let alt = escape_image_text(&alt);
+        if svg && embedding_allowed && options.contains("interactive") {
+            let fallback = if let Some(fallback) = attributes
+                .get("fallback")
+                .and_then(AttributeValueRef::as_str)
+            {
+                let fallback = acdc_converters_core::media::resolve_target(fallback, traversal);
+                let fallback = escape_attribute(&self.image_uri(&fallback, traversal));
+                format!("<img src=\"{fallback}\" alt=\"{alt}\"{attrs}>")
+            } else {
+                format!(
+                    "<span class=\"alt\">{}</span>",
+                    match alt_content {
+                        Some(content) => self.content_html(traversal, content)?,
+                        None => alt.clone(),
+                    }
+                )
+            };
+            Ok(format!(
+                "<object type=\"image/svg+xml\" data=\"{source}\"{attrs}>{fallback}</object>"
+            ))
+        } else {
+            Ok(format!("<img src=\"{source}\" alt=\"{alt}\"{attrs}>"))
+        }
+    }
+
+    pub(crate) fn image_uri(&mut self, target: &str, traversal: &TraversalContext<'_>) -> String {
+        let remote = target.starts_with("https://") || target.starts_with("http://");
+        if self.processor.options.safe_mode() >= SafeMode::Secure
+            || traversal.get("data-uri").is_none()
+            || target.starts_with("data:")
+            || (remote && traversal.get("allow-uri-read").is_none())
+        {
+            return target.to_owned();
+        }
+        let path = target.split(['?', '#']).next().unwrap_or(target);
+        let extension = Path::new(path).extension().and_then(|value| value.to_str());
+        let mut mime = match extension {
+            Some("svg") => "image/svg+xml".to_owned(),
+            Some(extension) => format!("image/{extension}"),
+            None => "application/octet-stream".to_owned(),
+        };
+        let bytes = match self.read_image(target, traversal) {
+            Ok(data) => {
+                if let Some(content_type) = data.mime {
+                    mime = content_type;
+                }
+                data.bytes
+            }
+            Err(error) => {
+                self.diagnostics
+                    .warn(format!("could not embed image {target}: {error}"));
+                if remote {
+                    return target.to_owned();
+                }
+                Vec::new()
+            }
+        };
+        format!("data:{mime};base64,{}", STANDARD.encode(bytes))
+    }
+
+    fn read_image(
+        &self,
+        target: &str,
+        traversal: &TraversalContext<'_>,
+    ) -> Result<ImageData, String> {
+        if target.starts_with("https://") || target.starts_with("http://") {
+            if traversal.get("allow-uri-read").is_none() {
+                return Err("remote image reads require allow-uri-read".into());
+            }
+            return read_remote_image(target);
+        }
+        let base = self
+            .render_options
+            .source_dir
+            .as_deref()
+            .unwrap_or_else(|| Path::new("."));
+        let path = if target.starts_with("file:") {
+            file_url_path(target)?
+        } else if target.contains("://") || target.starts_with("//") || target.starts_with("data:")
+        {
+            return Err("unsupported image source".into());
+        } else {
+            let decoded = percent_encoding::percent_decode_str(target)
+                .decode_utf8()
+                .map_err(|error| error.to_string())?;
+            base.join(decoded.as_ref())
+        };
+        let path = path.canonicalize().map_err(|error| error.to_string())?;
+        if self.processor.options.safe_mode() >= SafeMode::Safe {
+            let base = base.canonicalize().map_err(|error| error.to_string())?;
+            if !path.starts_with(base) {
+                return Err("image is outside the source document directory".into());
+            }
+        }
+        if !path
+            .metadata()
+            .map_err(|error| error.to_string())?
+            .is_file()
+        {
+            return Err("image source is not a regular file".into());
+        }
+        let bytes = read_capped(std::fs::File::open(path).map_err(|error| error.to_string())?)?;
+        Ok(ImageData { mime: None, bytes })
+    }
+}
+
+// Match the targets where url exposes Url::to_file_path.
+#[cfg(any(
+    unix,
+    windows,
+    target_os = "redox",
+    target_os = "wasi",
+    target_os = "hermit"
+))]
+fn file_url_path(target: &str) -> Result<PathBuf, String> {
+    url::Url::parse(target)
+        .map_err(|error| error.to_string())?
+        .to_file_path()
+        .map_err(|()| "not a local file URL".into())
+}
+
+#[cfg(not(any(
+    unix,
+    windows,
+    target_os = "redox",
+    target_os = "wasi",
+    target_os = "hermit"
+)))]
+fn file_url_path(_target: &str) -> Result<PathBuf, String> {
+    Err("local file URLs are not supported on this platform".into())
+}
+
+fn read_capped(reader: impl std::io::Read) -> Result<Vec<u8>, String> {
+    let mut bytes = Vec::new();
+    reader
+        .take(MAX_IMAGE_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| error.to_string())?;
+    if bytes.len() as u64 > MAX_IMAGE_BYTES {
+        return Err("image exceeds the 20 MiB embedding limit".into());
+    }
+    Ok(bytes)
+}
+
+#[cfg(feature = "network")]
+fn read_remote_image(target: &str) -> Result<ImageData, String> {
+    let config = ureq::Agent::config_builder()
+        .timeout_global(Some(std::time::Duration::from_secs(10)))
+        .build();
+    let mut response = ureq::Agent::new_with_config(config)
+        .get(target)
+        .call()
+        .map_err(|error| error.to_string())?;
+    let mime = response
+        .headers()
+        .get("content-type")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.split(';').next())
+        .unwrap_or("application/octet-stream")
+        .trim()
+        .to_owned();
+    let bytes = read_capped(response.body_mut().as_reader())?;
+    Ok(ImageData {
+        mime: Some(mime),
+        bytes,
+    })
+}
+
+#[cfg(not(feature = "network"))]
+fn read_remote_image(_target: &str) -> Result<ImageData, String> {
+    Err("remote image embedding requires the network feature".into())
+}
+
+fn inline_svg(bytes: &[u8], attributes: AttributesRef<'_>) -> Result<String, String> {
+    let source = std::str::from_utf8(bytes).map_err(|error| error.to_string())?;
+    let mut reader = Reader::from_str(source);
+    loop {
+        let start = usize::try_from(reader.buffer_position()).map_err(|error| error.to_string())?;
+        let event = reader.read_event().map_err(|error| error.to_string())?;
+        let (tag, empty) = match event {
+            Event::Start(tag) => (tag, false),
+            Event::Empty(tag) => (tag, true),
+            Event::Eof => return Err("missing SVG root element".into()),
+            Event::End(_)
+            | Event::Text(_)
+            | Event::CData(_)
+            | Event::Comment(_)
+            | Event::Decl(_)
+            | Event::PI(_)
+            | Event::DocType(_)
+            | Event::GeneralRef(_) => continue,
+        };
+        if tag.name().as_ref() != b"svg" {
+            return Err("image root element is not svg".into());
+        }
+        let width = attributes.get("width").and_then(AttributeValueRef::as_str);
+        let height = attributes.get("height").and_then(AttributeValueRef::as_str);
+        if width.is_none() && height.is_none() {
+            return Ok(source
+                .get(start..)
+                .unwrap_or_default()
+                .trim_end()
+                .to_owned());
+        }
+        // Either supplied dimension replaces both intrinsic dimensions and style.
+        let mut replacement = BytesStart::new("svg");
+        for attribute in tag.attributes() {
+            let attribute = attribute.map_err(|error| error.to_string())?;
+            if !matches!(attribute.key.as_ref(), b"width" | b"height" | b"style") {
+                replacement.push_attribute(attribute);
+            }
+        }
+        for (name, value) in [("width", width), ("height", height)] {
+            if let Some(value) = value {
+                replacement.push_attribute((name, value));
+            }
+        }
+        let mut writer = Writer::new(Vec::new());
+        writer
+            .write_event(if empty {
+                Event::Empty(replacement)
+            } else {
+                Event::Start(replacement)
+            })
+            .map_err(|error| error.to_string())?;
+        let mut output =
+            String::from_utf8(writer.into_inner()).map_err(|error| error.to_string())?;
+        let end = usize::try_from(reader.buffer_position()).map_err(|error| error.to_string())?;
+        output.push_str(source.get(end..).unwrap_or_default().trim_end());
+        return Ok(output);
+    }
+}

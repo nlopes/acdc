@@ -5,11 +5,11 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use acdc_converters_core::visitor::WritableVisitor;
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
 };
+use std::io::Write;
 
 use crate::{Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Processor};
 
@@ -91,10 +91,7 @@ fn group_by_letter(
 }
 
 /// Render the index catalog for an `[index]` section.
-pub(crate) fn render<'a, V: WritableVisitor<'a, Error = Error>>(
-    visitor: &mut V,
-    processor: &Processor<'_>,
-) -> Result<(), Error> {
+pub(crate) fn render<W: Write + ?Sized>(w: &mut W, processor: &Processor<'_>) -> Result<(), Error> {
     let entries = processor.index_entries.borrow();
 
     if entries.is_empty() {
@@ -103,8 +100,6 @@ pub(crate) fn render<'a, V: WritableVisitor<'a, Error = Error>>(
 
     let index = build_index_structure(&entries);
     let grouped = group_by_letter(index);
-
-    let w = visitor.writer_mut();
 
     for (letter, terms) in &grouped {
         // Letter heading (bold + colored)

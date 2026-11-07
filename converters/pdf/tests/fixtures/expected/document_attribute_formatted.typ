@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -88,13 +89,13 @@
 
 #heading(level: 1)[#text("DESCRIPTION")] <id-5f6465736372697074696f6e>
 
-#text("Frozen: ")#strong[#text("Early")]#text(" / ")#strong[#text("Early")]#text(" / ")#strong[#text("Early")]#text(" ©")#text(" / ")#strong[#text("Late")]#text(".")
+#text("Frozen: ")#strong[#text("Early")]#text(" / ")#strong[#text("Early")]#text(" / ")#strong[#text("Early")]#text(" ")#text("©")#text(" / ")#strong[#text("Late")]#text(".")
 
 #text("Alias: ")#strong[#text("Bold")]#text(" / ")#strong[#text("Early")]#text(" / ")#counter(footnote).update(0)#footnote[#text("Anonymous body.")]#text(" / ")#strong[#text("Body")]#text(" / ")#counter(footnote).update(1)#footnote[#text("Anonymous body.")]#text(" / ")#counter(footnote).update(2)#footnote[#text("Anonymous body.")]#text(".")
 
 #text("Macros: ")#link("https://example.org")[#text("Site")]#text(" / ")#metadata(none)<__indexterm-1>#text("Term")#text(" / ")#counter(footnote).update(3)#footnote[#text("Named body.")]<id-666f6f746e6f74653a6e>#text(" / ")#footnote(<id-666f6f746e6f74653a6e>)#text(".")
 
-#text("Empty: ")#text("**")#text(" / ")#text("**")#text(". Escaped: ")#strong[#text("{name}")]#text(".")
+#text("Empty: ")#text("**")#text(" / ")#strong[]#text(". Escaped: ")#strong[#text("{name}")]#text(".")
 
 #text("Order: ")#text("pass:q,c[*Escaped*]")#text(" / ")#text("pass:m,c[https://example.org[Escaped site]]")#text(". Partial: prefix pass:q[*Literal*].")
 

@@ -1,6 +1,6 @@
 use crate::escape::{escape_markup, escape_string};
 
-/// A thin builder around the output markup string that centralises escaping.
+/// A thin builder around the output markup string that centralizes escaping.
 /// Converters use this to assemble Typst *body* markup.
 pub struct Writer {
     buffer: String,

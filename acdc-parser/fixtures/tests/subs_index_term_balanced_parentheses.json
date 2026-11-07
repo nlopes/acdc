@@ -145,11 +145,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Term (R)",
+              "value": "Term ",
               "location": [
                 {
                   "line": 10,
                   "col": 7
+                },
+                {
+                  "line": 10,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 12
                 },
                 {
                   "line": 10,
@@ -165,6 +180,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Term (R)",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 10,
@@ -260,11 +278,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Term (R)",
+              "value": "Term ",
               "location": [
                 {
                   "line": 13,
                   "col": 7
+                },
+                {
+                  "line": 13,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 12
                 },
                 {
                   "line": 13,
@@ -273,6 +306,55 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Term ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 13,
+                      "col": 7
+                    },
+                    {
+                      "line": 13,
+                      "col": 11
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 13,
+                      "col": 12
+                    },
+                    {
+                      "line": 13,
+                      "col": 14
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 13,
+                "col": 5
+              },
+              {
+                "line": 13,
+                "col": 16
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -425,8 +507,7 @@
               "line": 17,
               "col": 53
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -474,11 +555,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Code (R)",
+              "value": "Code ",
               "location": [
                 {
                   "line": 22,
                   "col": 7
+                },
+                {
+                  "line": 22,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 12
                 },
                 {
                   "line": 22,
@@ -487,6 +583,55 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Code ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 7
+                    },
+                    {
+                      "line": 22,
+                      "col": 11
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 22,
+                      "col": 12
+                    },
+                    {
+                      "line": 22,
+                      "col": 14
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 22,
+                "col": 5
+              },
+              {
+                "line": 22,
+                "col": 16
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -548,8 +693,7 @@
               "line": 22,
               "col": 53
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -647,8 +791,7 @@
               "line": 23,
               "col": 57
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -672,11 +815,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Code (R)",
+              "value": "Code ",
               "location": [
                 {
                   "line": 24,
                   "col": 7
+                },
+                {
+                  "line": 24,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 12
                 },
                 {
                   "line": 24,
@@ -685,6 +843,55 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Code ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 7
+                    },
+                    {
+                      "line": 24,
+                      "col": 11
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 12
+                    },
+                    {
+                      "line": 24,
+                      "col": 14
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 24,
+                "col": 5
+              },
+              {
+                "line": 24,
+                "col": 16
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -746,8 +953,7 @@
               "line": 24,
               "col": 54
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -795,11 +1001,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Late (R)",
+              "value": "Late ",
               "location": [
                 {
                   "line": 29,
                   "col": 7
+                },
+                {
+                  "line": 29,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 29,
+                  "col": 12
                 },
                 {
                   "line": 29,
@@ -815,6 +1036,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Late (R)",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 29,
@@ -900,8 +1124,7 @@
               "line": 29,
               "col": 53
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -925,7 +1148,7 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "\\(R)",
+              "value": "(R)",
               "location": [
                 {
                   "line": 30,
@@ -959,7 +1182,7 @@
                 {
                   "name": "raw",
                   "type": "string",
-                  "value": "\\(R)",
+                  "value": "(R)",
                   "location": [
                     {
                       "line": 30,
@@ -975,6 +1198,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": " Escaped",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 30,
@@ -1060,8 +1286,7 @@
               "line": 30,
               "col": 65
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -1135,6 +1360,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": " Literal",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 31,
@@ -1220,8 +1448,7 @@
               "line": 31,
               "col": 63
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -1270,11 +1497,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Attribute (R)",
+              "value": "Attribute ",
               "location": [
                 {
                   "line": 36,
                   "col": 7
+                },
+                {
+                  "line": 36,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 17
                 },
                 {
                   "line": 36,
@@ -1290,6 +1532,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Attribute (R)",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 36,
@@ -1375,8 +1620,7 @@
               "line": 36,
               "col": 63
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -1425,11 +1669,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Late attribute (R)",
+              "value": "Late attribute ",
               "location": [
                 {
                   "line": 41,
                   "col": 7
+                },
+                {
+                  "line": 41,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 41,
+                  "col": 22
                 },
                 {
                   "line": 41,
@@ -1445,6 +1704,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Late attribute {symbol}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 41,
@@ -1530,8 +1792,7 @@
               "line": 41,
               "col": 68
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -1575,6 +1836,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Late close {close}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 42,
@@ -1660,8 +1924,7 @@
               "line": 42,
               "col": 63
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -1705,6 +1968,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Late open {open}literal",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 43,
@@ -1790,8 +2056,7 @@
               "line": 43,
               "col": 68
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -1819,11 +2084,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": "S15 ((Disabled macro (R))) after.",
+          "value": "S15 ((Disabled macro ",
           "location": [
             {
               "line": 48,
               "col": 1
+            },
+            {
+              "line": 48,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "®",
+          "location": [
+            {
+              "line": 48,
+              "col": 22
+            },
+            {
+              "line": 48,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ")) after.",
+          "location": [
+            {
+              "line": 48,
+              "col": 25
             },
             {
               "line": 48,
@@ -1889,11 +2184,26 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Footnote (R)",
+                  "value": "Footnote ",
                   "location": [
                     {
                       "line": 51,
                       "col": 19
+                    },
+                    {
+                      "line": 51,
+                      "col": 27
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 51,
+                      "col": 28
                     },
                     {
                       "line": 51,
@@ -1902,6 +2212,55 @@
                   ]
                 }
               ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "Footnote ",
+                      "substitutions": [
+                        "special_chars"
+                      ],
+                      "location": [
+                        {
+                          "line": 51,
+                          "col": 19
+                        },
+                        {
+                          "line": 51,
+                          "col": 27
+                        }
+                      ]
+                    },
+                    {
+                      "name": "symbol",
+                      "type": "string",
+                      "value": "®",
+                      "location": [
+                        {
+                          "line": 51,
+                          "col": 28
+                        },
+                        {
+                          "line": 51,
+                          "col": 30
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 51,
+                    "col": 17
+                  },
+                  {
+                    "line": 51,
+                    "col": 32
+                  }
+                ]
+              },
               "visible": true,
               "location": [
                 {

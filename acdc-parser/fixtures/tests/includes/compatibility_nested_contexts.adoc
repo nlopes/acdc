@@ -1,0 +1,7 @@
+This line is excluded by the include selection.
+:kind: source
+
+[{kind},title="*{word}*"]
+code
+// visible
+This line is excluded too.

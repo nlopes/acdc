@@ -3,7 +3,7 @@
 use tower_lsp_server::ls_types::{Position, Uri};
 
 use crate::{
-    convert::{location_to_range, position_to_offset, source_uri},
+    convert::{position_to_scalar_position, source_uri},
     state::{DocumentState, Workspace, XrefTarget},
 };
 
@@ -20,12 +20,13 @@ pub(crate) fn find_references(
     position: Position,
     include_declaration: bool,
 ) -> Option<Vec<tower_lsp_server::ls_types::Location>> {
-    let offset = position_to_offset(doc.text(), position)?;
+    let source_position = position_to_scalar_position(doc.text(), position)?;
     let ast_guard = doc.ast()?;
     let ast = ast_guard.document();
 
     // Check if cursor is on an xref - find all references to its target
-    if let Some((target_id, _xref_loc)) = super::hover::find_xref_at_offset(ast, offset) {
+    if let Some((target_id, _xref_loc)) = super::hover::find_xref_at_position(ast, &source_position)
+    {
         let parsed = XrefTarget::parse(&target_id);
         let anchor_id = parsed.anchor.as_deref().unwrap_or(&target_id);
         return Some(collect_cross_file_references(
@@ -38,11 +39,11 @@ pub(crate) fn find_references(
     }
 
     // Check if cursor is on an anchor - find all xrefs pointing to it
-    if let Some((anchor_id, _anchor_loc)) = super::hover::find_anchor_at_offset(ast, offset, doc) {
+    if let Some(anchor) = super::hover::find_anchor_at_position(ast, &source_position) {
         return Some(collect_cross_file_references(
             workspace,
             doc_uri,
-            &anchor_id,
+            anchor.id,
             include_declaration,
             None,
         ));
@@ -75,18 +76,15 @@ fn collect_cross_file_references(
                     crate::convert::resolve_relative_uri(current_uri, file_path)
                 && let Some((source_uri, loc)) =
                     workspace.find_anchor_in_document(&target_uri, anchor_id)
+                && let Some(location) = workspace.lsp_location(&source_uri, &loc)
             {
-                locations.push(tower_lsp_server::ls_types::Location {
-                    uri: source_uri,
-                    range: location_to_range(&loc),
-                });
+                locations.push(location);
             }
         } else {
             for (uri, loc) in global {
-                locations.push(tower_lsp_server::ls_types::Location {
-                    uri,
-                    range: location_to_range(&loc),
-                });
+                if let Some(location) = workspace.lsp_location(&uri, &loc) {
+                    locations.push(location);
+                }
             }
         }
     }
@@ -107,14 +105,10 @@ pub(super) fn collect_xref_locations(
             let target_anchor = parsed.anchor.as_deref().unwrap_or(xref_target.as_str());
             if target_anchor == anchor_id
                 && let Some(uri) = source_uri(uri, xref_loc)
+                && let Some(location) = workspace.lsp_location(&uri, &xref_loc.location)
+                && !locations.contains(&location)
             {
-                let location = tower_lsp_server::ls_types::Location {
-                    uri,
-                    range: location_to_range(&xref_loc.location),
-                };
-                if !locations.contains(&location) {
-                    locations.push(location);
-                }
+                locations.push(location);
             }
         }
     });
@@ -126,6 +120,25 @@ pub(super) fn collect_xref_locations(
 mod tests {
     use super::*;
     use crate::state::Workspace;
+
+    #[test]
+    fn references_after_emoji_use_utf16() -> Result<(), Box<dyn std::error::Error>> {
+        let source = "[[target]]\n== Target\n\n😀 See <<target>>.\n";
+        let uri: Uri = "file:///emoji.adoc".parse()?;
+        let workspace = Workspace::new();
+        workspace.update_document(uri.clone(), source.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document")?;
+        let refs = find_references(&doc, &uri, &workspace, Position::new(3, 10), false)
+            .ok_or("references")?;
+        let [reference] = refs.as_slice() else {
+            return Err("one reference".into());
+        };
+        assert_eq!(
+            reference.range,
+            tower_lsp_server::ls_types::Range::new(Position::new(3, 7), Position::new(3, 17))
+        );
+        Ok(())
+    }
 
     #[test]
     fn test_find_references_from_xref() -> Result<(), Box<dyn std::error::Error>> {

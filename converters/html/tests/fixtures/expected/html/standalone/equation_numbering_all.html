@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="acdc v0.1.0">
+<title>Equations</title>
+<script>// MathJax configuration acdc emits when `:stem:` is set. Loaded before the
+// MathJax bundle so it is picked up at startup.
+MathJax = {
+  loader: {load: ['input/asciimath']},
+  tex: {
+    processEscapes: false,
+    inlineMath: [['\\(', '\\)']],
+    displayMath: [['\\[', '\\]']]
+  },
+  asciimath: {
+    delimiters: {'[+]': [['\\$', '\\$']]},
+    displaystyle: false
+  },
+  options: {
+    ignoreHtmlClass: 'tex2jax_ignore|nostem|nolatexmath|noasciimath',
+    processHtmlClass: 'tex2jax_process'
+  },
+  startup: {
+    ready() {
+      MathJax.startup.defaultReady();
+      MathJax.startup.promise.then(() => {
+        const asciimath = MathJax._.input.asciimath.AsciiMath;
+        if (asciimath) {
+          const originalCompile = asciimath.compile;
+          asciimath.compile = function(math, display) {
+            const node = math.math;
+            if (node && node.parentElement && node.parentElement.parentElement &&
+              node.parentElement.parentElement.classList.contains('stemblock')) {
+              display = true;
+            }
+            return originalCompile.call(this, math, display);
+          };
+        }
+      });
+    }
+  }
+};
+</script>
+<script>MathJax.tex.tags = 'all';
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+</head>
+<body class="article">
+<div id="header">
+<h1>Equations</h1>
+</div>
+<div id="content">
+<div class="paragraph">
+<p>Inline \(x + 1\).</p>
+</div>
+<div class="stemblock">
+<div class="content">
+\[x = 2\]</div>
+</div>
+</div>
+<div id="footer">
+<div id="footer-text">
+</div>
+</div>
+</body>
+</html>

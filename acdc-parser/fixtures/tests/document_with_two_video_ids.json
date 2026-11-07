@@ -8,23 +8,13 @@
       "form": "macro",
       "metadata": {
         "attributes": {
-          "youtube": true
+          "poster": "youtube"
         }
       },
-      "sources": [
-        {
-          "type": "name",
-          "value": "Video1ID"
-        },
-        {
-          "type": "name",
-          "value": "Video2ID"
-        },
-        {
-          "type": "name",
-          "value": "Video3ID"
-        }
-      ],
+      "source": {
+        "type": "name",
+        "value": "Video1ID,Video2ID,Video3ID"
+      },
       "location": [
         {
           "line": 1,

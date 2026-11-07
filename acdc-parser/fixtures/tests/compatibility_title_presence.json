@@ -1,0 +1,175 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "No title.",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 9
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 9
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Empty unquoted title.",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Empty double-quoted title.",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 26
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Empty single-quoted title.",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 26
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "An empty title replaces earlier content.",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 40
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 40
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 14,
+      "col": 40
+    }
+  ]
+}

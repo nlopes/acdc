@@ -1,0 +1,417 @@
+use crate::{InlineMacro, InlineNode};
+
+use super::{ContentRef, InlineImageRef, LocationRef};
+
+mod hyperlinks;
+mod icons;
+mod index_terms;
+mod notes;
+mod spans;
+mod stem;
+mod text;
+mod ui;
+mod xrefs;
+
+pub use hyperlinks::HyperlinkRef;
+pub use index_terms::{IndexTermLabelsRef, IndexTermRelationshipRef};
+
+node_ref!(
+    SymbolRef<'doc>,
+    crate::Symbol,
+    "A resolved typographic symbol."
+);
+node_ref!(
+    CharacterReferenceRef<'doc>,
+    crate::CharacterReference<'doc>,
+    "An identified character reference."
+);
+node_ref!(PlainRef<'doc>, crate::Plain<'doc>, "Plain text.");
+node_ref!(
+    RawRef<'doc>,
+    crate::Raw<'doc>,
+    "Passthrough text with its own substitutions."
+);
+node_ref!(
+    VerbatimRef<'doc>,
+    crate::Verbatim<'doc>,
+    "Text with verbatim whitespace and escaping."
+);
+node_ref!(BoldRef<'doc>, crate::Bold<'doc>, "A bold span.");
+node_ref!(ItalicRef<'doc>, crate::Italic<'doc>, "An italic span.");
+node_ref!(
+    MonospaceRef<'doc>,
+    crate::Monospace<'doc>,
+    "A monospace span."
+);
+node_ref!(
+    HighlightRef<'doc>,
+    crate::Highlight<'doc>,
+    "A marked or generic span."
+);
+node_ref!(
+    SubscriptRef<'doc>,
+    crate::Subscript<'doc>,
+    "A subscript span."
+);
+node_ref!(
+    SuperscriptRef<'doc>,
+    crate::Superscript<'doc>,
+    "A superscript span."
+);
+node_ref!(
+    CurvedQuotationRef<'doc>,
+    crate::CurvedQuotation<'doc>,
+    "A curved-quotation span."
+);
+node_ref!(
+    CurvedApostropheRef<'doc>,
+    crate::CurvedApostrophe<'doc>,
+    "A curved-apostrophe span."
+);
+node_ref!(
+    StandaloneCurvedApostropheRef<'doc>,
+    crate::StandaloneCurvedApostrophe,
+    "A standalone curved apostrophe."
+);
+node_ref!(
+    LineBreakRef<'doc>,
+    crate::LineBreak,
+    "An inline line break."
+);
+node_ref!(AnchorRef<'doc>, crate::Anchor<'doc>, "An anchor.");
+node_ref!(CalloutRef<'doc>, crate::CalloutRef, "A callout reference.");
+node_ref!(
+    FootnoteRef<'doc>,
+    crate::Footnote<'doc>,
+    "A footnote definition or reference."
+);
+node_ref!(IconRef<'doc>, crate::Icon<'doc>, "An icon macro.");
+node_ref!(
+    KeyboardRef<'doc>,
+    crate::Keyboard<'doc>,
+    "A keyboard shortcut."
+);
+node_ref!(ButtonRef<'doc>, crate::Button<'doc>, "A button macro.");
+node_ref!(MenuRef<'doc>, crate::Menu<'doc>, "A menu path.");
+node_ref!(
+    UrlRef<'doc>,
+    crate::Url<'doc>,
+    "A URL with optional label content."
+);
+node_ref!(LinkRef<'doc>, crate::Link<'doc>, "An explicit link.");
+node_ref!(MailtoRef<'doc>, crate::Mailto<'doc>, "An email link.");
+node_ref!(
+    AutolinkRef<'doc>,
+    crate::Autolink<'doc>,
+    "An automatic link."
+);
+node_ref!(
+    CrossReferenceRef<'doc>,
+    crate::CrossReference<'doc>,
+    "A cross-reference."
+);
+node_ref!(
+    PassRef<'doc>,
+    crate::Pass<'doc>,
+    "An inline passthrough macro."
+);
+node_ref!(
+    StemRef<'doc>,
+    crate::Stem<'doc>,
+    "Inline mathematical content."
+);
+node_ref!(IndexTermRef<'doc>, crate::IndexTerm<'doc>, "An index term.");
+
+/// An inline node with a semantic kind and source location.
+///
+/// Copy a selected node with `InlineNode::from(inline)`. Copies keep source
+/// locations and registration snapshots, and can still borrow source text:
+///
+/// ```compile_fail,E0597
+/// use acdc_parser::{InlineNode, Options, parse_inline};
+/// let copied = {
+///     let parsed = parse_inline("Text", &Options::default()).unwrap();
+///     InlineNode::from(parsed.content().inlines().next().unwrap())
+/// };
+/// drop(copied);
+/// ```
+#[derive(Clone, Copy, Debug)]
+pub struct InlineRef<'doc> {
+    kind: InlineKind<'doc>,
+}
+
+/// The semantic kind of an inline, including macros.
+#[derive(Clone, Copy, Debug)]
+#[non_exhaustive]
+pub enum InlineKind<'doc> {
+    Plain(PlainRef<'doc>),
+    Symbol(SymbolRef<'doc>),
+    CharacterReference(CharacterReferenceRef<'doc>),
+    Raw(RawRef<'doc>),
+    Verbatim(VerbatimRef<'doc>),
+    Bold(BoldRef<'doc>),
+    Italic(ItalicRef<'doc>),
+    Monospace(MonospaceRef<'doc>),
+    Highlight(HighlightRef<'doc>),
+    Subscript(SubscriptRef<'doc>),
+    Superscript(SuperscriptRef<'doc>),
+    CurvedQuotation(CurvedQuotationRef<'doc>),
+    CurvedApostrophe(CurvedApostropheRef<'doc>),
+    StandaloneCurvedApostrophe(StandaloneCurvedApostropheRef<'doc>),
+    LineBreak(LineBreakRef<'doc>),
+    Anchor(AnchorRef<'doc>),
+    Callout(CalloutRef<'doc>),
+    Footnote(FootnoteRef<'doc>),
+    Icon(IconRef<'doc>),
+    Image(InlineImageRef<'doc>),
+    Keyboard(KeyboardRef<'doc>),
+    Button(ButtonRef<'doc>),
+    Menu(MenuRef<'doc>),
+    Url(UrlRef<'doc>),
+    Link(LinkRef<'doc>),
+    Mailto(MailtoRef<'doc>),
+    Autolink(AutolinkRef<'doc>),
+    CrossReference(CrossReferenceRef<'doc>),
+    Pass(PassRef<'doc>),
+    Stem(StemRef<'doc>),
+    IndexTerm(IndexTermRef<'doc>),
+}
+
+impl<'doc> InlineRef<'doc> {
+    /// Match the semantic kind while retaining a concrete typed handle.
+    #[must_use]
+    pub fn kind(self) -> InlineKind<'doc> {
+        self.kind
+    }
+
+    /// The source span of this inline node.
+    #[must_use]
+    pub fn location(self) -> LocationRef<'doc> {
+        match self.kind {
+            InlineKind::Plain(node) => node.location(),
+            InlineKind::Symbol(node) => node.location(),
+            InlineKind::CharacterReference(node) => node.location(),
+            InlineKind::Raw(node) => node.location(),
+            InlineKind::Verbatim(node) => node.location(),
+            InlineKind::Bold(node) => node.location(),
+            InlineKind::Italic(node) => node.location(),
+            InlineKind::Monospace(node) => node.location(),
+            InlineKind::Highlight(node) => node.location(),
+            InlineKind::Subscript(node) => node.location(),
+            InlineKind::Superscript(node) => node.location(),
+            InlineKind::CurvedQuotation(node) => node.location(),
+            InlineKind::CurvedApostrophe(node) => node.location(),
+            InlineKind::StandaloneCurvedApostrophe(node) => node.location(),
+            InlineKind::LineBreak(node) => node.location(),
+            InlineKind::Anchor(node) => node.location(),
+            InlineKind::Callout(node) => node.location(),
+            InlineKind::Footnote(node) => node.location(),
+            InlineKind::Icon(node) => node.location(),
+            InlineKind::Image(node) => node.location(),
+            InlineKind::Keyboard(node) => node.location(),
+            InlineKind::Button(node) => node.location(),
+            InlineKind::Menu(node) => node.location(),
+            InlineKind::Url(node) => node.location(),
+            InlineKind::Link(node) => node.location(),
+            InlineKind::Mailto(node) => node.location(),
+            InlineKind::Autolink(node) => node.location(),
+            InlineKind::CrossReference(node) => node.location(),
+            InlineKind::Pass(node) => node.location(),
+            InlineKind::Stem(node) => node.location(),
+            InlineKind::IndexTerm(node) => node.location(),
+        }
+    }
+}
+
+impl<'doc> From<&'doc InlineNode<'doc>> for InlineRef<'doc> {
+    fn from(inline: &'doc InlineNode<'doc>) -> Self {
+        let kind = match inline {
+            InlineNode::Symbol(node) => InlineKind::Symbol(SymbolRef::new(node)),
+            InlineNode::CharacterReference(node) => {
+                InlineKind::CharacterReference(CharacterReferenceRef::new(node))
+            }
+            InlineNode::PlainText(node) => InlineKind::Plain(PlainRef::new(node)),
+            InlineNode::RawText(node) => InlineKind::Raw(RawRef::new(node)),
+            InlineNode::VerbatimText(node) => InlineKind::Verbatim(VerbatimRef::new(node)),
+            InlineNode::BoldText(node) => InlineKind::Bold(BoldRef::new(node)),
+            InlineNode::ItalicText(node) => InlineKind::Italic(ItalicRef::new(node)),
+            InlineNode::MonospaceText(node) => InlineKind::Monospace(MonospaceRef::new(node)),
+            InlineNode::HighlightText(node) => InlineKind::Highlight(HighlightRef::new(node)),
+            InlineNode::SubscriptText(node) => InlineKind::Subscript(SubscriptRef::new(node)),
+            InlineNode::SuperscriptText(node) => InlineKind::Superscript(SuperscriptRef::new(node)),
+            InlineNode::CurvedQuotationText(node) => {
+                InlineKind::CurvedQuotation(CurvedQuotationRef::new(node))
+            }
+            InlineNode::CurvedApostropheText(node) => {
+                InlineKind::CurvedApostrophe(CurvedApostropheRef::new(node))
+            }
+            InlineNode::StandaloneCurvedApostrophe(node) => {
+                InlineKind::StandaloneCurvedApostrophe(StandaloneCurvedApostropheRef::new(node))
+            }
+            InlineNode::LineBreak(node) => InlineKind::LineBreak(LineBreakRef::new(node)),
+            InlineNode::InlineAnchor(node) => InlineKind::Anchor(AnchorRef::new(node)),
+            InlineNode::CalloutRef(node) => InlineKind::Callout(CalloutRef::new(node)),
+            InlineNode::Macro(node) => return Self::from(node),
+        };
+        Self { kind }
+    }
+}
+
+impl<'doc> From<&'doc InlineMacro<'doc>> for InlineRef<'doc> {
+    fn from(inline: &'doc InlineMacro<'doc>) -> Self {
+        let kind = match inline {
+            InlineMacro::Footnote(node) => InlineKind::Footnote(FootnoteRef::new(node)),
+            InlineMacro::Icon(node) => InlineKind::Icon(IconRef::new(node)),
+            InlineMacro::Image(node) => InlineKind::Image(InlineImageRef::new(node)),
+            InlineMacro::Keyboard(node) => InlineKind::Keyboard(KeyboardRef::new(node)),
+            InlineMacro::Button(node) => InlineKind::Button(ButtonRef::new(node)),
+            InlineMacro::Menu(node) => InlineKind::Menu(MenuRef::new(node)),
+            InlineMacro::Url(node) => InlineKind::Url(UrlRef::new(node)),
+            InlineMacro::Link(node) => InlineKind::Link(LinkRef::new(node)),
+            InlineMacro::Mailto(node) => InlineKind::Mailto(MailtoRef::new(node)),
+            InlineMacro::Autolink(node) => InlineKind::Autolink(AutolinkRef::new(node)),
+            InlineMacro::CrossReference(node) => {
+                InlineKind::CrossReference(CrossReferenceRef::new(node))
+            }
+            InlineMacro::Pass(node) => InlineKind::Pass(PassRef::new(node)),
+            InlineMacro::Stem(node) => InlineKind::Stem(StemRef::new(node)),
+            InlineMacro::IndexTerm(node) => InlineKind::IndexTerm(IndexTermRef::new(node)),
+        };
+        Self { kind }
+    }
+}
+
+impl<'doc> AnchorRef<'doc> {
+    /// The anchor's ID text.
+    #[must_use]
+    pub fn id(self) -> &'doc str {
+        self.node.id
+    }
+
+    /// Supplied reference text, including explicitly empty content.
+    #[must_use]
+    pub fn reftext(self) -> Option<ContentRef<'doc>> {
+        self.node.xreflabel.as_ref().map(ContentRef::from)
+    }
+
+    /// Whether this anchor identifies a bibliography entry.
+    #[must_use]
+    pub fn is_bibliography(self) -> bool {
+        self.node.is_bibliography()
+    }
+
+    /// The bibliography entry's display label, separate from citation `reftext()`.
+    /// `None` means an ordinary anchor or an entry that uses its ID as the label.
+    #[must_use]
+    pub fn bibliography_label(self) -> Option<ContentRef<'doc>> {
+        self.node.bibliography_label().map(ContentRef::new)
+    }
+}
+
+impl<'doc> From<&'doc crate::Anchor<'doc>> for AnchorRef<'doc> {
+    fn from(owner: &'doc crate::Anchor<'doc>) -> Self {
+        Self::new(owner)
+    }
+}
+
+impl CalloutRef<'_> {
+    /// Whether the marker was explicit or automatically numbered.
+    #[must_use]
+    pub fn kind(self) -> crate::CalloutRefKind {
+        self.node.kind
+    }
+
+    /// The resolved number within its callout sequence, not a global identity.
+    #[must_use]
+    pub fn number(self) -> usize {
+        self.node.number
+    }
+}
+
+impl<'doc> From<&'doc crate::CalloutRef> for CalloutRef<'doc> {
+    fn from(owner: &'doc crate::CalloutRef) -> Self {
+        Self::new(owner)
+    }
+}
+
+impl<'doc> From<AnchorRef<'doc>> for crate::Anchor<'doc> {
+    fn from(read: AnchorRef<'doc>) -> Self {
+        read.node.clone()
+    }
+}
+
+impl From<CalloutRef<'_>> for crate::CalloutRef {
+    fn from(read: CalloutRef<'_>) -> Self {
+        read.node.clone()
+    }
+}
+
+impl<'doc> From<InlineRef<'doc>> for InlineNode<'doc> {
+    fn from(read: InlineRef<'doc>) -> Self {
+        match read.kind() {
+            InlineKind::Plain(node) => InlineNode::PlainText(crate::Plain::from(node)),
+            InlineKind::Symbol(node) => InlineNode::Symbol(crate::Symbol::from(node)),
+            InlineKind::CharacterReference(node) => {
+                InlineNode::CharacterReference(crate::CharacterReference::from(node))
+            }
+            InlineKind::Raw(node) => InlineNode::RawText(crate::Raw::from(node)),
+            InlineKind::Verbatim(node) => InlineNode::VerbatimText(crate::Verbatim::from(node)),
+            InlineKind::Bold(node) => InlineNode::BoldText(crate::Bold::from(node)),
+            InlineKind::Italic(node) => InlineNode::ItalicText(crate::Italic::from(node)),
+            InlineKind::Monospace(node) => InlineNode::MonospaceText(crate::Monospace::from(node)),
+            InlineKind::Highlight(node) => InlineNode::HighlightText(crate::Highlight::from(node)),
+            InlineKind::Subscript(node) => InlineNode::SubscriptText(crate::Subscript::from(node)),
+            InlineKind::Superscript(node) => {
+                InlineNode::SuperscriptText(crate::Superscript::from(node))
+            }
+            InlineKind::CurvedQuotation(node) => {
+                InlineNode::CurvedQuotationText(crate::CurvedQuotation::from(node))
+            }
+            InlineKind::CurvedApostrophe(node) => {
+                InlineNode::CurvedApostropheText(crate::CurvedApostrophe::from(node))
+            }
+            InlineKind::StandaloneCurvedApostrophe(node) => InlineNode::StandaloneCurvedApostrophe(
+                crate::StandaloneCurvedApostrophe::from(node),
+            ),
+            InlineKind::LineBreak(node) => InlineNode::LineBreak(crate::LineBreak::from(node)),
+            InlineKind::Anchor(node) => InlineNode::InlineAnchor(crate::Anchor::from(node)),
+            InlineKind::Callout(node) => InlineNode::CalloutRef(crate::CalloutRef::from(node)),
+            InlineKind::Footnote(node) => {
+                InlineNode::Macro(InlineMacro::Footnote(crate::Footnote::from(node)))
+            }
+            InlineKind::Icon(node) => {
+                InlineNode::Macro(InlineMacro::Icon(Box::new(crate::Icon::from(node))))
+            }
+            InlineKind::Image(node) => {
+                InlineNode::Macro(InlineMacro::Image(Box::new(crate::InlineImage::from(node))))
+            }
+            InlineKind::Keyboard(node) => {
+                InlineNode::Macro(InlineMacro::Keyboard(crate::Keyboard::from(node)))
+            }
+            InlineKind::Button(node) => {
+                InlineNode::Macro(InlineMacro::Button(crate::Button::from(node)))
+            }
+            InlineKind::Menu(node) => InlineNode::Macro(InlineMacro::Menu(crate::Menu::from(node))),
+            InlineKind::Url(node) => {
+                InlineNode::Macro(InlineMacro::Url(Box::new(crate::Url::from(node))))
+            }
+            InlineKind::Link(node) => {
+                InlineNode::Macro(InlineMacro::Link(Box::new(crate::Link::from(node))))
+            }
+            InlineKind::Mailto(node) => {
+                InlineNode::Macro(InlineMacro::Mailto(Box::new(crate::Mailto::from(node))))
+            }
+            InlineKind::Autolink(node) => {
+                InlineNode::Macro(InlineMacro::Autolink(crate::Autolink::from(node)))
+            }
+            InlineKind::CrossReference(node) => InlineNode::Macro(InlineMacro::CrossReference(
+                Box::new(crate::CrossReference::from(node)),
+            )),
+            InlineKind::Pass(node) => InlineNode::Macro(InlineMacro::Pass(crate::Pass::from(node))),
+            InlineKind::Stem(node) => InlineNode::Macro(InlineMacro::Stem(crate::Stem::from(node))),
+            InlineKind::IndexTerm(node) => InlineNode::Macro(InlineMacro::IndexTerm(Box::new(
+                crate::IndexTerm::from(node),
+            ))),
+        }
+    }
+}

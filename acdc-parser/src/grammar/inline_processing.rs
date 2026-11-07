@@ -13,10 +13,131 @@ use crate::{
 
 use super::{
     ParserState,
+    attributes::ResolvedContentAttribute,
     helpers::BlockParsingMetadata,
     inlines::inline_parser,
     state::{InlineContext, InlineRules, ParserScope},
 };
+
+pub(super) fn process_attribute_inlines<'a>(
+    state: &mut ParserState<'a>,
+    source: &ResolvedContentAttribute<'a>,
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    let mut substitutions = SubstitutionPlan::default();
+    if state.options.compatibility_mode == crate::CompatibilityMode::Draft {
+        substitutions = substitutions.without(&Substitution::Attributes);
+    }
+    process_attribute_inlines_with_substitutions(
+        state,
+        source,
+        substitutions,
+        InlineRules::default() | InlineRules::ISOLATED_TEXT,
+    )
+}
+
+pub(super) fn process_attribute_inlines_with_substitutions<'a>(
+    state: &ParserState<'a>,
+    source: &ResolvedContentAttribute<'a>,
+    substitutions: SubstitutionPlan,
+    rules: InlineRules,
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    let metadata = BlockParsingMetadata {
+        substitutions,
+        ..BlockParsingMetadata::default()
+    };
+    process_mapped_inlines(
+        state,
+        source.text,
+        &source.source_map,
+        &metadata,
+        &source.attributes,
+        rules,
+    )
+}
+
+pub(super) fn process_mapped_inlines<'a>(
+    state: &ParserState<'a>,
+    text: &'a str,
+    source_map: &SourceMap,
+    metadata: &BlockParsingMetadata<'a>,
+    attributes: &Rc<crate::DocumentAttributes<'a>>,
+    rules: InlineRules,
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    let mut child = ParserState::for_inline_parsing(
+        text,
+        state,
+        InlineContext {
+            rules,
+            ..InlineContext::default()
+        },
+    );
+    child.document_attributes = Rc::clone(attributes);
+    child.warnings = Rc::default();
+    child.warnings_start = 0;
+    let parsed = process_inlines(&mut child, metadata, 0, text.len(), 0, text);
+    for mut warning in std::mem::take(&mut *child.warnings.borrow_mut()) {
+        if let Some(location) = &mut warning.location {
+            *location = mapped_source_location(state, text, source_map, &location.location)?;
+        }
+        state.add_warning(warning);
+    }
+    let (mut nodes, _) = match parsed {
+        Ok(parsed) => parsed,
+        Err(mut error) => {
+            if let Error::PegParse(location, _) = &mut error {
+                **location = mapped_source_location(state, text, source_map, &location.location)?;
+            }
+            return Err(error);
+        }
+    };
+    for node in &mut nodes {
+        super::location_walk::try_walk_inline_locations_mut(
+            node,
+            &mut |location| -> Result<(), Error> {
+                let start = source_map.map_position(location.absolute_start)?;
+                let end = source_map.map_end_position(location.absolute_end)?;
+                *location = state.create_location(start, end);
+                Ok(())
+            },
+        )?;
+    }
+    for node in &mut nodes {
+        super::location_walk::walk_inline_nodes_mut(node, &mut |node| {
+            if let InlineNode::Macro(crate::InlineMacro::Footnote(note)) = node {
+                state.finalize_footnote(note);
+            }
+        });
+    }
+    Ok(nodes)
+}
+
+fn mapped_source_location(
+    state: &ParserState<'_>,
+    text: &str,
+    source_map: &SourceMap,
+    location: &Location,
+) -> Result<SourceLocation, Error> {
+    let start = source_map.map_position(position_offset(text, &location.start))?;
+    let end = source_map.map_end_position(position_offset(text, &location.end))?;
+    Ok(state.create_error_source_location(state.create_location(start, end)))
+}
+
+fn position_offset(input: &str, position: &Position) -> usize {
+    let line = usize::try_from(position.line.saturating_sub(1)).unwrap_or(usize::MAX);
+    let column = usize::try_from(position.column.saturating_sub(1)).unwrap_or(usize::MAX);
+    let mut offset = 0;
+    for (index, text) in input.split_inclusive('\n').enumerate() {
+        if index == line {
+            return offset
+                + text
+                    .char_indices()
+                    .nth(column)
+                    .map_or(text.len(), |(offset, _)| offset);
+        }
+        offset += text.len();
+    }
+    offset
+}
 
 /// Adjust PEG parser error positions to account for substring parsing
 ///
@@ -123,11 +244,11 @@ pub(crate) fn preprocess_inline_content<'a>(
     };
     let location = state.create_location(content_start + offset, content_end_offset);
 
-    // Fast path: skip the preprocessing PEG pass when content has no trigger characters.
-    // The preprocessor only modifies content containing { (attribute/counter references),
-    // + (constrained/unconstrained passthroughs), or pass: (macro passthroughs).
+    // Avoid the preprocessing pass for ordinary text and literal formulas.
     let needs_preprocessing = content.as_bytes().iter().any(|&b| b == b'{' || b == b'+')
-        || (substitutions.enabled(&Substitution::Macros) && content.contains("pass:"));
+        || (substitutions.enabled(&Substitution::Macros)
+            && (content.contains("pass:")
+                || super::inline_preprocessor::has_stem_substitution_list(content)));
 
     if !needs_preprocessing {
         // Hot path: no preprocessing trigger characters. Borrow directly from
@@ -152,11 +273,8 @@ pub(crate) fn preprocess_inline_content<'a>(
         substitutions.enabled(&Substitution::Macros),
         substitutions.enabled(&Substitution::Attributes),
     );
-    #[cfg(feature = "pre-spec-subs")]
-    {
-        inline_state.defer_monospace = !substitutions.enabled(&Substitution::Attributes)
-            || substitutions.precedes(&Substitution::Quotes, &Substitution::Attributes);
-    }
+    inline_state.defer_monospace = !substitutions.enabled(&Substitution::Attributes)
+        || substitutions.precedes(&Substitution::Quotes, &Substitution::Attributes);
     inline_state.set_initial_position(&location, content_start + offset);
     inline_state
         .attribute_value_ranges
@@ -215,12 +333,47 @@ fn attribute_value_ranges(
     ranges
 }
 
+fn resolved_reference_ranges(
+    processed: &ProcessedContent<'_>,
+    parent: &ParserState<'_>,
+    location: &Location,
+) -> Vec<Range<usize>> {
+    let mut ranges = Vec::new();
+    let mut replacements = processed.source_map.replacements.iter().peekable();
+    let mut original = location.absolute_start;
+    let mut projected = 0;
+    for range in parent.resolved_reference_ranges.iter().filter(|range| {
+        range.start >= location.absolute_start
+            && range.end <= location.absolute_end.saturating_add(1)
+    }) {
+        while let Some(replacement) = replacements.peek() {
+            if replacement.absolute_end > range.start {
+                break;
+            }
+            if replacement.absolute_start >= original {
+                projected += replacement.absolute_start - original + replacement.byte_len;
+                original = replacement.absolute_end;
+            }
+            replacements.next();
+        }
+        if replacements
+            .peek()
+            .is_some_and(|replacement| replacement.absolute_start < range.end)
+        {
+            continue;
+        }
+        ranges.push(projected + range.start - original..projected + range.end - original);
+    }
+    ranges
+}
+
 fn inline_context(
     state: &ParserState<'_>,
     block_metadata: &BlockParsingMetadata<'_>,
     autolinks: bool,
 ) -> InlineContext {
     let mut rules = state.inline_ctx.rules;
+    rules.remove(InlineRules::ISOLATED_TEXT);
     rules.set(InlineRules::AUTOLINKS, autolinks);
     rules.set(
         InlineRules::PRESERVE_BLANK_LINES,
@@ -259,10 +412,19 @@ fn parse_processed_inlines<'a>(
         inline_peg_state.outer_constrained_delimiter = None;
     }
     if !processed.passthroughs.is_empty() {
+        if text.contains("[[") || text.contains("anchor:") {
+            inline_peg_state.reference_text_context =
+                Some(Rc::new(super::reference_text::ReferenceTextContext {
+                    input: state.input,
+                    passthroughs: processed.passthroughs.clone().into(),
+                }));
+        }
         inline_peg_state.attribute_passthroughs = if processed
             .passthroughs
             .iter()
             .any(|pass| !pass.attribute_fragments.is_empty())
+            || (state.options.compatibility_mode == crate::CompatibilityMode::Asciidoctor
+                && text.contains("]���"))
         {
             processed.passthroughs.clone().into()
         } else {
@@ -286,12 +448,17 @@ fn parse_processed_inlines<'a>(
     inline_peg_state.empty_attribute_offsets.sort_unstable();
     inline_peg_state.empty_attribute_offsets.dedup();
     inline_peg_state.attribute_value_ranges = attribute_value_ranges(processed, state, location);
+    inline_peg_state.resolved_reference_ranges =
+        resolved_reference_ranges(processed, state, location);
     if inline_ctx
         .substitutions
         .precedes(&Substitution::Macros, &Substitution::Attributes)
         || inline_ctx
             .substitutions
             .precedes(&Substitution::Quotes, &Substitution::Attributes)
+        || inline_ctx
+            .substitutions
+            .precedes(&Substitution::Replacements, &Substitution::Attributes)
     {
         inline_peg_state.late_attribute_sources =
             late_attribute_sources(processed, state, location);
@@ -306,24 +473,41 @@ fn parse_processed_inlines<'a>(
         inline_parser::inlines(text, &mut inline_peg_state)
     };
 
-    let mut inlines = match inlines {
-        Ok(inlines) => inlines,
-        Err(err) => {
-            return Err(adjust_peg_error_position(
-                &err,
-                text,
-                location.absolute_start,
-                state,
-            ));
-        }
-    };
+    let warnings = inline_peg_state.take_inline_warnings();
+    let mut inlines = inlines
+        .map_err(|error| adjust_peg_error_position(&error, text, location.absolute_start, state))?;
 
-    for inline in &mut inlines {
-        if let InlineNode::InlineAnchor(anchor) = inline {
-            anchor.bibliography_label =
-                parse_bibliography_label(&inline_peg_state, &anchor.location)?;
+    inlines = super::inlines::typography::resolve_plain(
+        inlines,
+        &inline_peg_state,
+        state.scope == ParserScope::Document
+            || state.inline_ctx.rules.contains(InlineRules::ISOLATED_TEXT),
+    );
+    super::passthrough_processing::prepare_index_catalogs(&mut inlines, &inline_peg_state);
+    let labels = inlines
+        .iter_mut()
+        .try_for_each(|inline| -> Result<(), Error> {
+            if let InlineNode::InlineAnchor(anchor) = inline {
+                anchor.bibliography_label =
+                    parse_bibliography_label(&inline_peg_state, &anchor.location)?;
+            }
+            Ok(())
+        });
+    let warnings = warnings
+        .into_iter()
+        .chain(inline_peg_state.take_inline_warnings());
+    let context = super::location_mapping::LocationMappingContext {
+        state,
+        processed,
+        base_location: location,
+    };
+    for mut warning in warnings {
+        if let Some(source) = &mut warning.location {
+            *source = state.create_error_source_location(context.map_location(&source.location)?);
         }
+        state.add_warning(warning);
     }
+    labels?;
     Ok(inlines)
 }
 
@@ -375,6 +559,13 @@ fn late_attribute_sources<'a>(
     sources
 }
 
+pub(super) fn trim_bibliography_label(text: &str) -> &str {
+    // Asciidoctor strips leading ASCII spaces but keeps one supplied character.
+    let spaces = text.len() - text.trim_start_matches(' ').len();
+    text.get(spaces.min(text.len().saturating_sub(1))..)
+        .unwrap_or_default()
+}
+
 fn parse_bibliography_label<'a>(
     state: &ParserState<'a>,
     location: &Location,
@@ -394,7 +585,7 @@ fn parse_bibliography_label<'a>(
     let Some((_, label)) = body.split_once(',') else {
         return Ok(None);
     };
-    let label = label.trim_start();
+    let label = trim_bibliography_label(label);
     let offset = start + anchor.len() - 3 - label.len();
     let mut inline_ctx = state.inline_ctx;
     inline_ctx.offset = 0;
@@ -411,8 +602,24 @@ fn parse_bibliography_label<'a>(
         .collect();
     // Passthroughs and attributes were already processed with the list item.
     // Keep their placeholders and ranges until the enclosing location mapping.
-    let mut content = inline_parser::inlines(label, &mut child)
-        .map_err(|error| adjust_peg_error_position(&error, label, offset, state))?;
+    let parsed = if label.is_empty() {
+        Ok(Vec::new())
+    } else {
+        inline_parser::inlines(label, &mut child)
+    };
+    for mut warning in child.take_inline_warnings() {
+        if let Some(source) = &mut warning.location {
+            let location = state.create_location(
+                offset + source.location.absolute_start,
+                offset + source.location.absolute_end,
+            );
+            *source = state.create_error_source_location(location);
+        }
+        state.add_warning(warning);
+    }
+    let content =
+        parsed.map_err(|error| adjust_peg_error_position(&error, label, offset, state))?;
+    let mut content = super::inlines::typography::resolve_plain(content, &child, false);
     for inline in &mut content {
         super::location_walk::walk_inline_locations_mut(inline, &mut |location| {
             location.absolute_start += offset;
@@ -449,7 +656,6 @@ pub(crate) fn process_inlines<'a>(
     )
 }
 
-#[cfg(feature = "pre-spec-subs")]
 pub(crate) fn process_verbatim_inlines<'a>(
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
@@ -473,6 +679,7 @@ pub(crate) fn process_verbatim_inlines<'a>(
             };
             if text.escaped {
                 InlineNode::RawText(crate::Raw {
+                    metadata: None,
                     content: text.content,
                     location: text.location,
                     subs: vec![Substitution::SpecialChars],
@@ -523,7 +730,7 @@ fn process_inline_content<'a>(
     )?;
     processed.attribute_substitutions = block_metadata.substitutions;
     let inlines =
-        super::location_mapping::map_inline_locations(state, &processed, content, &location)?;
+        super::location_mapping::map_paragraph_locations(state, &processed, content, &location)?;
     let source = if processed.passthroughs.is_empty() {
         source
     } else {

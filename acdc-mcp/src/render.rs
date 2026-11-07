@@ -1,6 +1,12 @@
-use acdc_parser::{Block, DelimitedBlockType, InlineMacro, InlineNode, Title};
+use acdc_parser::ast::{
+    AttributeValueRef, BlockKind, BlockRef, ContentRef, InlineKind, SectionRef, StructuralRef,
+    TableRef,
+};
 use rmcp::schemars::{self, JsonSchema};
 use serde::{Deserialize, Serialize};
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -10,132 +16,113 @@ pub(super) enum Format {
     Plain,
 }
 
-pub(super) fn title<'a>(block: &'a Block<'a>) -> Option<&'a Title<'a>> {
-    match block {
-        Block::Section(b) => Some(&b.title),
-        Block::Paragraph(b) => Some(&b.title),
-        Block::DelimitedBlock(b) => Some(&b.title),
-        Block::DiscreteHeader(b) => Some(&b.title),
-        Block::Admonition(b) => Some(&b.title),
-        Block::UnorderedList(b) => Some(&b.title),
-        Block::OrderedList(b) => Some(&b.title),
-        Block::DescriptionList(b) => Some(&b.title),
-        Block::CalloutList(b) => Some(&b.title),
-        Block::Image(b) => Some(&b.title),
-        Block::Audio(b) => Some(&b.title),
-        Block::Video(b) => Some(&b.title),
-        Block::PageBreak(b) => Some(&b.title),
-        Block::ThematicBreak(b) => Some(&b.title),
-        _ => None,
+pub(super) fn children(block: BlockRef<'_>) -> Vec<BlockRef<'_>> {
+    fn append<'doc>(node: StructuralRef<'doc>, blocks: &mut Vec<BlockRef<'doc>>) {
+        for child in node.children() {
+            if let StructuralRef::Block(block) = child {
+                blocks.push(block);
+            } else {
+                append(child, blocks);
+            }
+        }
+    }
+    let mut result = Vec::new();
+    append(block.into(), &mut result);
+    result
+}
+
+pub(super) fn kind(block: BlockRef<'_>) -> &'static str {
+    match block.kind() {
+        BlockKind::Section(_) => "section",
+        BlockKind::Paragraph(_) => "paragraph",
+        BlockKind::DiscreteHeader(_) => "discrete_heading",
+        BlockKind::UnorderedList(_)
+        | BlockKind::OrderedList(_)
+        | BlockKind::DescriptionList(_)
+        | BlockKind::CalloutList(_) => "list",
+        BlockKind::Admonition(_) => "admonition",
+        BlockKind::Image(_) => "image",
+        BlockKind::Audio(_) => "audio",
+        BlockKind::Video(_) => "video",
+        BlockKind::Table(_) => "table",
+        BlockKind::Listing(_) => "listing",
+        BlockKind::Literal(_) => "literal",
+        BlockKind::Stem(_) => "stem",
+        BlockKind::Comment(_) | BlockKind::DelimitedComment(_) => "comment",
+        BlockKind::Example(_)
+        | BlockKind::Open(_)
+        | BlockKind::Sidebar(_)
+        | BlockKind::Quote(_)
+        | BlockKind::Verse(_)
+        | BlockKind::Passthrough(_) => "container",
+        BlockKind::DocumentAttribute(_) => "attribute",
+        BlockKind::ThematicBreak(_)
+        | BlockKind::PageBreak(_)
+        | BlockKind::TableOfContents(_)
+        | _ => "block",
     }
 }
 
-pub(super) fn children<'a>(block: &'a Block<'a>) -> Vec<&'a Block<'a>> {
-    match block {
-        Block::Section(s) => s.content.iter().collect(),
-        Block::Admonition(a) => a.blocks.iter().collect(),
-        Block::UnorderedList(l) => l.items.iter().flat_map(|i| &i.blocks).collect(),
-        Block::OrderedList(l) => l.items.iter().flat_map(|i| &i.blocks).collect(),
-        Block::CalloutList(l) => l.items.iter().flat_map(|i| &i.blocks).collect(),
-        Block::DescriptionList(l) => l.items.iter().flat_map(|i| &i.description).collect(),
-        Block::DelimitedBlock(d) => match &d.inner {
-            DelimitedBlockType::DelimitedExample(b)
-            | DelimitedBlockType::DelimitedOpen(b)
-            | DelimitedBlockType::DelimitedSidebar(b)
-            | DelimitedBlockType::DelimitedQuote(b) => b.iter().collect(),
-            DelimitedBlockType::DelimitedTable(t) => t
-                .header
-                .iter()
-                .chain(&t.rows)
-                .chain(&t.footer)
-                .flat_map(|row| &row.columns)
-                .flat_map(|cell| &cell.content)
-                .collect(),
-            _ => Vec::new(),
-        },
-        _ => Vec::new(),
-    }
-}
-
-pub(super) fn kind(block: &Block<'_>) -> &'static str {
-    match block {
-        Block::Section(_) => "section",
-        Block::Paragraph(_) => "paragraph",
-        Block::DiscreteHeader(_) => "discrete_heading",
-        Block::UnorderedList(_)
-        | Block::OrderedList(_)
-        | Block::DescriptionList(_)
-        | Block::CalloutList(_) => "list",
-        Block::Admonition(_) => "admonition",
-        Block::Image(_) => "image",
-        Block::Audio(_) => "audio",
-        Block::Video(_) => "video",
-        Block::DelimitedBlock(d) => match d.inner {
-            DelimitedBlockType::DelimitedTable(_) => "table",
-            DelimitedBlockType::DelimitedListing(_) => "listing",
-            DelimitedBlockType::DelimitedLiteral(_) => "literal",
-            DelimitedBlockType::DelimitedStem(_) => "stem",
-            DelimitedBlockType::DelimitedComment(_) => "comment",
-            _ => "container",
-        },
-        Block::DocumentAttribute(_) => "attribute",
-        Block::Comment(_) => "comment",
-        _ => "block",
-    }
-}
-
-pub(super) fn inline_text(nodes: &[InlineNode<'_>], format: Format) -> String {
+pub(super) fn inline_text(nodes: ContentRef<'_>, format: Format) -> String {
     let mut output = String::new();
-    for node in nodes {
-        let text = match node {
-            InlineNode::PlainText(t) => {
-                if format == Format::Asciidoc && t.escaped {
-                    format!("\\{}", t.content)
+    for node in nodes.inlines() {
+        let text = match node.kind() {
+            InlineKind::Plain(t) => {
+                if format == Format::Asciidoc && t.is_escaped() {
+                    format!("\\{}", t.text())
                 } else {
-                    t.content.to_owned()
+                    t.text().to_owned()
                 }
             }
-            InlineNode::RawText(t) => {
+            InlineKind::Raw(t) => {
                 if format == Format::Asciidoc {
-                    format!("pass:[{}]", t.content)
+                    format!("pass:[{}]", t.text())
                 } else {
-                    t.content.to_owned()
+                    t.text().to_owned()
                 }
             }
-            InlineNode::VerbatimText(t) => t.content.to_owned(),
-            InlineNode::BoldText(t) => wrap(&t.content, "**", format),
-            InlineNode::ItalicText(t) => wrap(&t.content, "__", format),
-            InlineNode::MonospaceText(t) => wrap(&t.content, "``", format),
-            InlineNode::HighlightText(t) => wrap(&t.content, "##", format),
-            InlineNode::SubscriptText(t) => wrap(&t.content, "~", format),
-            InlineNode::SuperscriptText(t) => wrap(&t.content, "^", format),
-            InlineNode::CurvedQuotationText(t) => format!("“{}”", inline_text(&t.content, format)),
-            InlineNode::CurvedApostropheText(t) => format!("‘{}’", inline_text(&t.content, format)),
-            InlineNode::StandaloneCurvedApostrophe(_) => "’".into(),
-            InlineNode::LineBreak(_) => {
+            InlineKind::Verbatim(t) => t.text().to_owned(),
+            InlineKind::Bold(t) => wrap(t.content(), "**", format),
+            InlineKind::Italic(t) => wrap(t.content(), "__", format),
+            InlineKind::Monospace(t) => wrap(t.content(), "``", format),
+            InlineKind::Highlight(t) => wrap(t.content(), "##", format),
+            InlineKind::Subscript(t) => wrap(t.content(), "~", format),
+            InlineKind::Superscript(t) => wrap(t.content(), "^", format),
+            InlineKind::CurvedQuotation(t) => format!("“{}”", inline_text(t.content(), format)),
+            InlineKind::CurvedApostrophe(t) => format!("‘{}’", inline_text(t.content(), format)),
+            InlineKind::Symbol(symbol) => symbol.kind().text().into(),
+            InlineKind::CharacterReference(reference) => {
+                let spelling = reference.kind().to_string();
+                if format == Format::Asciidoc {
+                    spelling
+                } else {
+                    html_escape::decode_html_entities(&spelling).into_owned()
+                }
+            }
+            InlineKind::StandaloneCurvedApostrophe(_) => "’".into(),
+            InlineKind::LineBreak(_) => {
                 if format == Format::Asciidoc {
                     " +\n".into()
                 } else {
                     "\n".into()
                 }
             }
-            InlineNode::InlineAnchor(a) => {
+            InlineKind::Anchor(a) => {
                 if format == Format::Asciidoc {
-                    format!("[[{}]]", a.id)
+                    format!("[[{}]]", a.element_id().as_str())
                 } else {
                     String::new()
                 }
             }
-            InlineNode::CalloutRef(c) => format!("<{}>", c.number),
-            InlineNode::Macro(m) => macro_text(m, format),
-            _ => "[unsupported inline]".into(),
+            InlineKind::Callout(c) => format!("<{}>", c.number()),
+            other => macro_text(other, format),
         };
         output.push_str(&text);
     }
     output
 }
 
-fn wrap(nodes: &[InlineNode<'_>], marker: &str, format: Format) -> String {
+fn wrap(nodes: ContentRef<'_>, marker: &str, format: Format) -> String {
     let text = inline_text(nodes, format);
     if format == Format::Asciidoc {
         format!("{marker}{text}{marker}")
@@ -144,7 +131,7 @@ fn wrap(nodes: &[InlineNode<'_>], marker: &str, format: Format) -> String {
     }
 }
 
-fn labelled_link(target: &str, label: &[InlineNode<'_>], format: Format, prefix: &str) -> String {
+fn labelled_link(target: &str, label: ContentRef<'_>, format: Format, prefix: &str) -> String {
     let label = inline_text(label, format);
     if format == Format::Asciidoc {
         format!("{prefix}{target}[{}]", label.replace(']', "\\]"))
@@ -155,207 +142,243 @@ fn labelled_link(target: &str, label: &[InlineNode<'_>], format: Format, prefix:
     }
 }
 
-fn macro_text(m: &InlineMacro<'_>, format: Format) -> String {
+fn macro_text(m: InlineKind<'_>, format: Format) -> String {
     match m {
-        InlineMacro::Link(l) => labelled_link(&l.target.to_string(), &l.text, format, "link:"),
-        InlineMacro::Url(l) => labelled_link(&l.target.to_string(), &l.text, format, "link:"),
-        InlineMacro::Mailto(l) => labelled_link(&l.target.to_string(), &l.text, format, "mailto:"),
-        InlineMacro::Autolink(l) => l.url.to_string(),
-        InlineMacro::CrossReference(l) => labelled_link(l.target, &l.text, format, "xref:"),
-        InlineMacro::Footnote(f) => {
-            let text = inline_text(&f.content, format);
+        InlineKind::Link(l) => labelled_link(&l.target().to_string(), l.text(), format, "link:"),
+        InlineKind::Url(l) => labelled_link(&l.target().to_string(), l.text(), format, "link:"),
+        InlineKind::Mailto(l) => {
+            labelled_link(&l.target().to_string(), l.text(), format, "mailto:")
+        }
+        InlineKind::Autolink(l) => l.target().to_string(),
+        InlineKind::CrossReference(l) => labelled_link(l.target(), l.text(), format, "xref:"),
+        InlineKind::Footnote(f) => {
+            let text = f
+                .content()
+                .map_or_else(String::new, |body| inline_text(body, format));
             if format == Format::Asciidoc {
                 format!("footnote:[{text}]")
             } else {
                 format!("[{text}]")
             }
         }
-        InlineMacro::Pass(p) => {
+        InlineKind::Pass(p) => {
             if format == Format::Asciidoc {
-                format!("pass:[{}]", p.text.unwrap_or_default())
+                format!("pass:[{}]", p.text().unwrap_or_default())
             } else {
-                p.text.unwrap_or_default().to_owned()
+                p.text().unwrap_or_default().to_owned()
             }
         }
-        InlineMacro::Stem(s) => {
+        InlineKind::Stem(s) => {
             if format == Format::Asciidoc {
-                format!("stem:[{}]", s.content)
+                format!("stem:[{}]", s.text())
             } else {
-                s.content.to_owned()
+                s.text().to_owned()
             }
         }
-        InlineMacro::Button(b) => b.label.to_owned(),
-        InlineMacro::Keyboard(k) => k.keys.join("+"),
-        InlineMacro::Menu(m) => std::iter::once(m.target)
-            .chain(m.items.iter().copied())
+        InlineKind::Button(b) => inline_text(b.label(), format),
+        InlineKind::Keyboard(k) => k
+            .keys()
+            .map(|key| inline_text(key, format))
+            .collect::<Vec<_>>()
+            .join("+"),
+        InlineKind::Menu(m) => std::iter::once(m.target())
+            .chain(m.items())
+            .map(|item| inline_text(item, format))
             .collect::<Vec<_>>()
             .join(" > "),
-        InlineMacro::Image(i) => {
+        InlineKind::Image(i) => {
             let alt = i
-                .metadata
-                .attributes
-                .get_string("alt")
-                .unwrap_or_else(|| inline_text(&i.title, Format::Plain).into());
+                .alt()
+                .map_or_else(String::new, |alt| inline_text(alt, Format::Plain));
             if format == Format::Asciidoc {
-                format!("image:{}[{alt}]", i.source)
+                format!("image:{}[{alt}]", i.source())
             } else {
                 let label = if alt.is_empty() {
                     "Image"
                 } else {
                     alt.as_ref()
                 };
-                format!("{label} ({})", i.source)
+                format!("{label} ({})", i.source())
             }
         }
-        InlineMacro::Icon(i) => i.target.to_string(),
-        InlineMacro::IndexTerm(i) => match &i.kind {
-            acdc_parser::IndexTermKind::Flow(term) => inline_text(term, format),
-            _ => String::new(),
-        },
+        InlineKind::Icon(i) => i.target().to_string(),
+        InlineKind::IndexTerm(i) if i.is_visible() => inline_text(i.term(), format),
+        InlineKind::IndexTerm(_) => String::new(),
         _ => "[unsupported macro]".into(),
     }
 }
 
-fn render_many(blocks: &[Block<'_>], format: Format) -> String {
+fn render_many<'doc>(blocks: impl Iterator<Item = BlockRef<'doc>>, format: Format) -> String {
     blocks
-        .iter()
         .map(|b| render_block(b, format, true))
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
         .join("\n\n")
 }
 
-pub(super) fn render_block(block: &Block<'_>, format: Format, include_subsections: bool) -> String {
-    let title = title(block)
+pub(super) fn render_block(
+    block: BlockRef<'_>,
+    format: Format,
+    include_subsections: bool,
+) -> String {
+    let title = block
+        .title()
         .map(|t| inline_text(t, format))
         .unwrap_or_default();
-    let mut body = match block {
-        Block::Section(s) => {
-            let heading = if format == Format::Asciidoc {
-                format!("{} {title}", "=".repeat(usize::from(s.level) + 1))
-            } else {
-                title.clone()
-            };
-            let content = s
-                .content
-                .iter()
-                .filter(|b| include_subsections || !matches!(b, Block::Section(_)))
-                .map(|b| render_block(b, format, include_subsections))
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<_>>()
-                .join("\n\n");
-            return if content.is_empty() {
-                heading
-            } else {
-                format!("{heading}\n\n{content}")
-            };
-        }
-        Block::Paragraph(p) => inline_text(&p.content, format),
-        Block::DiscreteHeader(h) => {
+    let mut body = match block.kind() {
+        BlockKind::Section(s) => return render_section(s, &title, format, include_subsections),
+        BlockKind::Paragraph(p) => inline_text(p.content(), format),
+        BlockKind::DiscreteHeader(h) => {
             if format == Format::Asciidoc {
                 format!(
                     "[discrete]\n{} {title}",
-                    "=".repeat(usize::from(h.level) + 1)
+                    "=".repeat(usize::from(h.level()) + 1)
                 )
             } else {
                 title.clone()
             }
         }
-        Block::Admonition(a) => {
-            let text = render_many(&a.blocks, format);
+        BlockKind::Admonition(a) => {
+            let text = render_many(a.blocks(), format);
             if format == Format::Asciidoc {
                 format!(
                     "[{}]\n====\n{text}\n====",
-                    a.variant.to_string().to_uppercase()
+                    a.variant().to_string().to_uppercase()
                 )
             } else {
-                format!("{}: {text}", a.variant.to_string().to_uppercase())
+                format!("{}: {text}", a.variant().to_string().to_uppercase())
             }
         }
-        Block::UnorderedList(_)
-        | Block::OrderedList(_)
-        | Block::DescriptionList(_)
-        | Block::CalloutList(_) => render_list(block, format),
-        Block::DelimitedBlock(d) => render_delimited(d, format),
-        Block::Image(i) => {
+        BlockKind::UnorderedList(_)
+        | BlockKind::OrderedList(_)
+        | BlockKind::DescriptionList(_)
+        | BlockKind::CalloutList(_) => render_list(block, format),
+        BlockKind::Example(_)
+        | BlockKind::Open(_)
+        | BlockKind::Sidebar(_)
+        | BlockKind::Quote(_)
+        | BlockKind::Listing(_)
+        | BlockKind::Literal(_)
+        | BlockKind::Verse(_)
+        | BlockKind::Passthrough(_)
+        | BlockKind::DelimitedComment(_)
+        | BlockKind::Stem(_)
+        | BlockKind::Table(_) => render_delimited(block, format),
+        BlockKind::Image(i) => {
             let alt = i
-                .metadata
-                .attributes
-                .get_string("alt")
-                .unwrap_or_else(|| "Image".into());
+                .alt()
+                .map_or_else(|| "Image".into(), |alt| inline_text(alt, Format::Plain));
             if format == Format::Asciidoc {
-                format!("image::{}[{alt}]", i.source)
+                format!("image::{}[{alt}]", i.source())
             } else {
-                format!("{alt} ({})", i.source)
+                format!("{alt} ({})", i.source())
             }
         }
-        Block::Audio(a) => {
+        BlockKind::Audio(a) => {
             if format == Format::Asciidoc {
-                format!("audio::{}[]", a.source)
+                format!("audio::{}[]", a.source())
             } else {
-                a.source.to_string()
+                a.source().to_string()
             }
         }
-        Block::Video(v) => render_video(v, format),
-        Block::ThematicBreak(_) => "---".into(),
-        Block::PageBreak(_) => {
+        BlockKind::Video(v) => render_video(v.source().to_string(), format),
+        BlockKind::ThematicBreak(_) => "---".into(),
+        BlockKind::PageBreak(_) => {
             if format == Format::Asciidoc {
                 "<<<".into()
             } else {
                 String::new()
             }
         }
-        Block::TableOfContents(_) | Block::DocumentAttribute(_) | Block::Comment(_) => {
+        BlockKind::TableOfContents(_) | BlockKind::DocumentAttribute(_) | BlockKind::Comment(_) => {
             String::new()
         }
         _ => "[unsupported block]".into(),
     };
     if format == Format::Asciidoc {
-        if !title.is_empty() && !matches!(block, Block::DiscreteHeader(_)) {
+        if !title.is_empty() && !matches!(block.kind(), BlockKind::DiscreteHeader(_)) {
             body = format!(".{title}\n{body}");
         }
-        if let Some(metadata) = block.metadata()
-            && let Some(anchor) = &metadata.id
-        {
-            body = format!("[#{}]\n{body}", anchor.id);
+        if let Some(id) = block.id() {
+            body = format!("[#{}]\n{body}", id.as_str());
         }
-    } else if !title.is_empty() && !matches!(block, Block::DiscreteHeader(_)) {
+    } else if !title.is_empty() && !matches!(block.kind(), BlockKind::DiscreteHeader(_)) {
         body = format!("{title}\n{body}");
     }
     body
 }
 
-fn render_delimited(d: &acdc_parser::DelimitedBlock<'_>, format: Format) -> String {
-    let (body, default_delimiter) = match &d.inner {
-        DelimitedBlockType::DelimitedListing(n) | DelimitedBlockType::DelimitedLiteral(n) => {
-            (inline_text(n, Format::Plain), "----")
-        }
-        DelimitedBlockType::DelimitedVerse(n) | DelimitedBlockType::DelimitedPass(n) => {
-            (inline_text(n, format), "____")
-        }
-        DelimitedBlockType::DelimitedComment(_) => return String::new(),
-        DelimitedBlockType::DelimitedExample(b) => (render_many(b, format), "===="),
-        DelimitedBlockType::DelimitedOpen(b) => (render_many(b, format), "--"),
-        DelimitedBlockType::DelimitedSidebar(b) => (render_many(b, format), "****"),
-        DelimitedBlockType::DelimitedQuote(b) => (render_many(b, format), "____"),
-        DelimitedBlockType::DelimitedStem(s) => (s.content.to_owned(), "++++"),
-        DelimitedBlockType::DelimitedTable(t) => return render_table(t, format),
+fn render_section(
+    section: SectionRef<'_>,
+    title: &str,
+    format: Format,
+    include_subsections: bool,
+) -> String {
+    let heading = if format == Format::Asciidoc {
+        format!("{} {title}", "=".repeat(usize::from(section.level()) + 1))
+    } else {
+        title.to_owned()
+    };
+    let content = section
+        .blocks()
+        .filter(|b| include_subsections || !matches!(b.kind(), BlockKind::Section(_)))
+        .map(|b| render_block(b, format, include_subsections))
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    if content.is_empty() {
+        heading
+    } else {
+        format!("{heading}\n\n{content}")
+    }
+}
+
+fn render_delimited(block: BlockRef<'_>, format: Format) -> String {
+    let (body, default_delimiter, authored_delimiter) = match block.kind() {
+        BlockKind::Listing(n) => (
+            inline_text(n.content(), Format::Plain),
+            "----",
+            n.delimiter(),
+        ),
+        BlockKind::Literal(n) => (
+            inline_text(n.content(), Format::Plain),
+            "----",
+            n.delimiter(),
+        ),
+        BlockKind::Verse(n) => (inline_text(n.content(), format), "____", n.delimiter()),
+        BlockKind::Passthrough(n) => (inline_text(n.content(), format), "____", n.delimiter()),
+        BlockKind::DelimitedComment(_) => return String::new(),
+        BlockKind::Example(n) => (render_many(n.blocks(), format), "====", n.delimiter()),
+        BlockKind::Open(n) => (render_many(n.blocks(), format), "--", n.delimiter()),
+        BlockKind::Sidebar(n) => (render_many(n.blocks(), format), "****", n.delimiter()),
+        BlockKind::Quote(n) => (render_many(n.blocks(), format), "____", n.delimiter()),
+        BlockKind::Stem(n) => (n.text().to_owned(), "++++", n.delimiter()),
+        BlockKind::Table(n) => return render_table(n, format),
         _ => return "[unsupported delimited block]".into(),
     };
     if format == Format::Plain {
         return body;
     }
-    let delimiter = if d.delimiter.is_empty() {
+    let delimiter = if authored_delimiter.is_empty() {
         default_delimiter
     } else {
-        d.delimiter
+        authored_delimiter
     };
-    let style = d.metadata.style.unwrap_or_default();
-    let language = d
-        .metadata
-        .attributes
-        .get_string("language")
-        .unwrap_or_default();
+    let attributes = block.attributes();
+    let value = |name| {
+        attributes
+            .and_then(|attributes| attributes.get(name))
+            .and_then(|value| {
+                if let AttributeValueRef::Text(text) = value {
+                    Some(text)
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_default()
+    };
+    let style = value("style");
+    let language = value("language");
     let attributes = if style.is_empty() {
         String::new()
     } else if language.is_empty() {
@@ -373,18 +396,7 @@ fn render_delimited(d: &acdc_parser::DelimitedBlock<'_>, format: Format) -> Stri
     )
 }
 
-fn render_video(video: &acdc_parser::Video<'_>, format: Format) -> String {
-    let separator = if format == Format::Asciidoc {
-        ","
-    } else {
-        ", "
-    };
-    let targets = video
-        .sources
-        .iter()
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(separator);
+fn render_video(targets: String, format: Format) -> String {
     if format == Format::Asciidoc {
         format!("video::{targets}[]")
     } else {
@@ -392,17 +404,22 @@ fn render_video(video: &acdc_parser::Video<'_>, format: Format) -> String {
     }
 }
 
-fn render_table(table: &acdc_parser::Table<'_>, format: Format) -> String {
+fn render_table(table: TableRef<'_>, format: Format) -> String {
     let mut rows = Vec::new();
-    for row in table.header.iter().chain(&table.rows).chain(&table.footer) {
+    for row in table
+        .header()
+        .into_iter()
+        .chain(table.rows())
+        .chain(table.footer())
+    {
         let mut cells = Vec::new();
-        for cell in &row.columns {
-            let text = render_many(&cell.content, format);
+        for cell in row.cells() {
+            let text = render_many(cell.blocks(), format);
             if format == Format::Plain {
                 cells.push(text.replace('\n', " "));
             } else {
-                let span = if cell.colspan > 1 || cell.rowspan > 1 {
-                    format!("{}.{}+", cell.colspan, cell.rowspan)
+                let span = if cell.colspan() > 1 || cell.rowspan() > 1 {
+                    format!("{}.{}+", cell.colspan(), cell.rowspan())
                 } else {
                     String::new()
                 };
@@ -420,11 +437,11 @@ fn render_table(table: &acdc_parser::Table<'_>, format: Format) -> String {
         return rows;
     }
     let columns = table
-        .columns
-        .len()
-        .max(table.rows.first().map_or(0, |r| r.columns.len()))
+        .columns()
+        .count()
+        .max(table.rows().next().map_or(0, |r| r.cells().count()))
         .max(1);
-    let options = if table.header.is_some() {
+    let options = if table.header().is_some() {
         ",options=header"
     } else {
         ""
@@ -432,14 +449,13 @@ fn render_table(table: &acdc_parser::Table<'_>, format: Format) -> String {
     format!("[cols=\"{columns}*\"{options}]\n|===\n{rows}\n|===")
 }
 
-fn render_list(block: &Block<'_>, format: Format) -> String {
-    match block {
-        Block::UnorderedList(l) => l
-            .items
-            .iter()
+fn render_list(block: BlockRef<'_>, format: Format) -> String {
+    match block.kind() {
+        BlockKind::UnorderedList(l) => l
+            .items()
             .map(|i| {
-                let text = inline_text(&i.principal, format);
-                let nested = render_many(&i.blocks, format);
+                let text = inline_text(i.principal(), format);
+                let nested = render_many(i.blocks(), format);
                 if nested.is_empty() {
                     format!("* {text}")
                 } else if format == Format::Asciidoc {
@@ -450,13 +466,12 @@ fn render_list(block: &Block<'_>, format: Format) -> String {
             })
             .collect::<Vec<_>>()
             .join("\n"),
-        Block::OrderedList(l) => l
-            .items
-            .iter()
+        BlockKind::OrderedList(l) => l
+            .items()
             .enumerate()
             .map(|(n, i)| {
-                let text = inline_text(&i.principal, format);
-                let nested = render_many(&i.blocks, format);
+                let text = inline_text(i.principal(), format);
+                let nested = render_many(i.blocks(), format);
                 let marker = if format == Format::Asciidoc {
                     ".".into()
                 } else {
@@ -472,31 +487,41 @@ fn render_list(block: &Block<'_>, format: Format) -> String {
             })
             .collect::<Vec<_>>()
             .join("\n"),
-        Block::DescriptionList(l) => l
-            .items
-            .iter()
-            .map(|i| {
-                let term = inline_text(&i.term, format);
-                let principal = inline_text(&i.principal_text, format);
-                let nested = render_many(&i.description, format);
-                let delimiter = if format == Format::Asciidoc {
-                    "::"
-                } else {
-                    ":"
+        BlockKind::DescriptionList(l) => l
+            .items()
+            .map(|item| {
+                let terms = item
+                    .terms()
+                    .map(|term| {
+                        let content = inline_text(term.content(), format);
+                        let delimiter = if format == Format::Asciidoc {
+                            term.delimiter()
+                        } else {
+                            ":"
+                        };
+                        format!("{content}{delimiter}")
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let Some(definition) = item.definition() else {
+                    return terms;
                 };
-                format!("{term}{delimiter} {principal}\n{nested}")
+                let principal = definition
+                    .principal()
+                    .map_or_else(String::new, |content| inline_text(content, format));
+                let nested = render_many(definition.blocks(), format);
+                format!("{terms} {principal}\n{nested}")
             })
             .collect::<Vec<_>>()
             .join("\n"),
-        Block::CalloutList(l) => l
-            .items
-            .iter()
+        BlockKind::CalloutList(l) => l
+            .items()
             .map(|i| {
                 format!(
                     "<{}> {}\n{}",
-                    i.callout.number,
-                    inline_text(&i.principal, format),
-                    render_many(&i.blocks, format)
+                    i.callout().number(),
+                    inline_text(i.principal(), format),
+                    render_many(i.blocks(), format)
                 )
             })
             .collect::<Vec<_>>()

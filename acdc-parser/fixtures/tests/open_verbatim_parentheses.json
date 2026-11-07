@@ -24,11 +24,26 @@
       },
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Operation",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Operation",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 1
+                    },
+                    {
+                      "line": 2,
+                      "col": 9
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 2,
@@ -36,13 +51,11 @@
                 },
                 {
                   "line": 2,
-                  "col": 9
+                  "col": 11
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "description": [],
           "location": [
             {
               "line": 2,
@@ -50,7 +63,7 @@
             },
             {
               "line": 2,
-              "col": 12
+              "col": 11
             }
           ]
         }
@@ -62,7 +75,7 @@
         },
         {
           "line": 2,
-          "col": 12
+          "col": 11
         }
       ]
     },

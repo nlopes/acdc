@@ -11,7 +11,7 @@ use serde::ser::{Serialize, SerializeMap, Serializer};
 use crate::{
     Block, BlockMetadata, ColumnStyle, DelimitedBlockType, DocumentAttributes, InlineMacro,
     InlineNode, Location, MAX_SECTION_LEVELS, Reference, Table, TocEntry,
-    model::{DocumentAttributeStatus, SectionReference},
+    model::{DocumentAttributeStatus, SectionOccurrence, SectionReference},
 };
 
 use super::title::Title;
@@ -160,21 +160,111 @@ impl SectionKind {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct SectionIdSettings<'a> {
+    prefix: &'a str,
+    pub(crate) separator: Option<char>,
+}
+
+impl Default for SectionIdSettings<'_> {
+    fn default() -> Self {
+        Self {
+            prefix: "_",
+            separator: Some('_'),
+        }
+    }
+}
+
+impl<'a> SectionIdSettings<'a> {
+    pub(crate) fn from_attributes(arena: &'a Bump, attributes: &DocumentAttributes<'_>) -> Self {
+        let prefix = match attributes
+            .get("idprefix")
+            .map(|value| value.as_str().unwrap_or(""))
+        {
+            None | Some("_") => "_",
+            Some("") => "",
+            Some(prefix) => arena.alloc_str(prefix),
+        };
+        let separator = attributes.get("idseparator").map_or(Some('_'), |value| {
+            value.as_str().unwrap_or("").chars().next()
+        });
+        Self { prefix, separator }
+    }
+
+    pub(crate) fn generate(
+        self,
+        arena: &'a Bump,
+        metadata: &BlockMetadata<'a>,
+        title: &[InlineNode<'a>],
+    ) -> &'a str {
+        if self == Self::default() {
+            return Section::generate_id(arena, metadata, title).as_arena_str(arena);
+        }
+        arena.alloc_str(&self.title_id(title))
+    }
+
+    fn title_id(self, title: &[InlineNode<'a>]) -> String {
+        let mut id = String::new();
+        let mut previous_separator = false;
+        let mut append = |ch| {
+            if let Some(separator) = self.separator {
+                if matches!(ch, ' ' | '.' | '-') || ch == separator {
+                    if !previous_separator {
+                        id.push(separator);
+                    }
+                    previous_separator = true;
+                } else {
+                    id.push(ch);
+                    previous_separator = false;
+                }
+            } else if ch != ' ' {
+                id.push(ch);
+            }
+        };
+        for ch in self.prefix.chars() {
+            append(ch);
+        }
+        Section::append_id_from_inlines(title, &mut |text| {
+            for ch in text.chars().flat_map(char::to_lowercase) {
+                if ch.is_whitespace() {
+                    append(' ');
+                } else if ch.is_alphanumeric() || matches!(ch, '_' | '-' | '.') {
+                    append(ch);
+                }
+            }
+        });
+        if let Some(separator) = self.separator {
+            if id.ends_with(separator) {
+                id.pop();
+            }
+            if self.prefix.is_empty() && id.starts_with(separator) {
+                id.drain(..separator.len_utf8());
+            }
+        }
+        id
+    }
+}
+
 /// A `Section` represents a section in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Section<'a> {
-    pub metadata: BlockMetadata<'a>,
-    pub title: Title<'a>,
-    pub level: SectionLevel,
-    pub content: Vec<Block<'a>>,
+    pub(crate) heading_location: Location,
+    pub(crate) occurrence: Option<SectionOccurrence>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) title: Title<'a>,
+    pub(crate) level: SectionLevel,
+    pub(crate) content: Vec<Block<'a>>,
     /// The section's structural category (special-section style, or `Normal`).
-    pub kind: SectionKind,
+    pub(crate) kind: SectionKind,
     numbering: SectionNumbering,
     pub(crate) id: Option<&'a str>,
+    // Retain the origin of the assigned ID across semantic edits.
+    pub(crate) id_generated: bool,
+    pub(crate) id_settings: SectionIdSettings<'a>,
     // Retained until the reference catalog assigns the section's ID.
     pub(crate) reference_text: Option<&'a str>,
-    pub location: Location,
+    pub(crate) location: Location,
 }
 
 impl<'a> Section<'a> {
@@ -188,6 +278,8 @@ impl<'a> Section<'a> {
         location: Location,
     ) -> Self {
         Self {
+            heading_location: location.clone(),
+            occurrence: None,
             metadata,
             title,
             level,
@@ -195,6 +287,8 @@ impl<'a> Section<'a> {
             kind,
             numbering,
             id: None,
+            id_generated: false,
+            id_settings: SectionIdSettings::default(),
             reference_text: None,
             location,
         }
@@ -209,6 +303,8 @@ impl<'a> Section<'a> {
         location: Location,
     ) -> Self {
         Self {
+            heading_location: location.clone(),
+            occurrence: None,
             metadata: BlockMetadata::default(),
             title,
             level,
@@ -216,17 +312,104 @@ impl<'a> Section<'a> {
             kind: SectionKind::Normal,
             numbering: SectionNumbering::disabled(),
             id: None,
+            id_generated: false,
+            id_settings: SectionIdSettings::default(),
             reference_text: None,
             location,
         }
     }
 
-    /// Set the metadata.
-    #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
+    /// Replace metadata without shadowing dedicated fields.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated metadata or title fields.
+    pub fn with_metadata(
+        mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<Self, crate::ReservedAttribute> {
+        self.set_metadata(metadata)?;
+        Ok(self)
+    }
+
+    /// Replace metadata and classify the section from its prepared style.
+    ///
+    /// Title and role edits keep the assigned ID. Changing the selected authored
+    /// ID clears its local assignment without repairing document catalogs.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated fields, leaving the section unchanged.
+    pub fn set_metadata(
+        &mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<(), crate::ReservedAttribute> {
+        metadata.validate_attributes(&["title"])?;
+        if Self::explicit_id(&self.metadata) != Self::explicit_id(&metadata) {
+            self.id = None;
+            self.id_generated = false;
+        }
+        self.kind = SectionKind::from_style(metadata.style);
         self.metadata = metadata;
-        self.id = None;
-        self
+        Ok(())
+    }
+
+    /// Copy metadata to prepare a checked replacement, retaining its source lifetime.
+    #[must_use]
+    pub fn clone_metadata(&self) -> BlockMetadata<'a> {
+        self.metadata.clone()
+    }
+
+    /// Remove metadata, clearing an authored ID assignment and the special style.
+    ///
+    /// An assigned generated ID is retained. Document catalogs are unchanged.
+    #[must_use]
+    pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
+        if Self::explicit_id(&self.metadata).is_some() {
+            self.id = None;
+            self.id_generated = false;
+        }
+        self.kind = SectionKind::Normal;
+        std::mem::take(&mut self.metadata)
+    }
+
+    /// Replace prepared title content without changing an assigned ID or catalogs.
+    pub fn set_title(&mut self, title: Title<'a>) {
+        self.title = title;
+    }
+
+    /// Remove the title without changing an assigned ID or catalogs.
+    #[must_use]
+    pub fn take_title(&mut self) -> Title<'a> {
+        std::mem::take(&mut self.title)
+    }
+
+    /// Replace prepared children without rebuilding document registrations.
+    pub fn set_blocks(&mut self, blocks: impl IntoIterator<Item = Block<'a>>) {
+        self.content = blocks.into_iter().collect();
+    }
+
+    /// Append a prepared child without rebuilding document registrations.
+    pub fn push_block(&mut self, block: Block<'a>) {
+        self.content.push(block);
+    }
+
+    /// Remove children, retaining each child's source lifetime.
+    pub fn take_blocks(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = Block<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.content).into_iter()
+    }
+
+    /// Replace the nesting level without moving children or renumbering sections.
+    pub fn set_level(&mut self, level: SectionLevel) {
+        self.level = level;
+    }
+
+    /// Replace the section span without relocating titles, children or catalogs.
+    pub fn set_location(&mut self, location: Location) {
+        if self.location != location {
+            self.heading_location = location.clone();
+        }
+        self.location = location;
     }
 
     /// Return the explicit or parser-assigned section ID.
@@ -236,7 +419,12 @@ impl<'a> Section<'a> {
     #[must_use]
     pub fn id(&self) -> Cow<'a, str> {
         Self::explicit_id(&self.metadata).or(self.id).map_or_else(
-            || Cow::Owned(Self::generate_id_string(&self.metadata, &self.title)),
+            || {
+                Cow::Owned(Self::generate_id_string(
+                    &self.metadata,
+                    self.title.as_inlines(),
+                ))
+            },
             Cow::Borrowed,
         )
     }
@@ -248,12 +436,25 @@ impl<'a> Section<'a> {
     /// this policy on a section in a document.
     #[must_use]
     pub fn with_numbering(mut self, enabled: bool) -> Self {
+        self.set_numbering(enabled);
+        self
+    }
+
+    /// Replace numbering policy and clear the assigned number.
+    ///
+    /// Call `Document::renumber_sections` to assign numbers and refresh existing
+    /// reference and table-of-contents numbers after editing the tree.
+    pub fn set_numbering(&mut self, enabled: bool) {
         self.numbering = if enabled {
             SectionNumbering::explicitly_enabled()
         } else {
             SectionNumbering::disabled()
         };
-        self
+    }
+
+    #[cfg(feature = "asg")]
+    pub(crate) fn numbering_is_disabled(&self) -> bool {
+        !self.numbering.enabled && self.numbering.number.is_none()
     }
 
     /// Return the assigned number without presentation punctuation or a signifier.
@@ -372,6 +573,22 @@ pub(crate) fn renumber_sections<'a>(
             .unwrap_or_default();
         entry.set_number(number);
     }
+    let aliases: Vec<_> = references
+        .iter()
+        .filter_map(|(id, reference)| {
+            if *id == reference.target {
+                return None;
+            }
+            references
+                .get(reference.target)
+                .map(|canonical| (*id, canonical.section.clone()))
+        })
+        .collect();
+    for (id, section) in aliases {
+        if let Some(reference) = references.get_mut(id) {
+            reference.section = section;
+        }
+    }
 }
 
 /// The two numbers a section can have.
@@ -392,7 +609,7 @@ struct SectionNumbers {
 
 /// The name Asciidoctor gives a section in a cross-reference: the special
 /// section's style, or `part`, `chapter` or `section` by level. It selects the
-/// `<name>-refsig` attribute and whether a `full` reference emphasises the title.
+/// `<name>-refsig` attribute and whether a `full` reference emphasizes the title.
 pub(crate) fn reference_name(kind: SectionKind, level: u8, is_book: bool) -> &'static str {
     kind.as_style().unwrap_or(match level {
         0 => "part",
@@ -408,9 +625,14 @@ fn update_section_reference(
     references: &mut HashMap<&str, Reference<'_>>,
 ) {
     if let Some(reference) = references.get_mut(section.id().as_ref())
-        // A duplicate ID must not replace the first target's section metadata.
-        && reference.location.absolute_start == section.location.absolute_start
-        && reference.location.start == section.location.start
+        && match (&section.occurrence, &reference.occurrence) {
+            (Some(section), Some(reference)) => section == reference,
+            (None, None) => {
+                reference.location.absolute_start == section.location.absolute_start
+                    && reference.location.start == section.location.start
+            }
+            _ => false,
+        }
     {
         reference.section = Some(SectionReference {
             name,
@@ -448,6 +670,18 @@ pub(crate) fn number_parsed_sections<'a>(
                 if let Some(id) = section.id {
                     entry.id = id;
                 }
+                entry.xreflabel = section
+                    .metadata
+                    .reftext
+                    .as_ref()
+                    .or_else(|| {
+                        section
+                            .metadata
+                            .anchors
+                            .last()
+                            .and_then(|anchor| anchor.xreflabel.as_ref())
+                    })
+                    .cloned();
                 entry.set_number(numbers.shown);
                 toc_index += 1;
             }
@@ -531,14 +765,16 @@ fn renumber_blocks<'a, F>(
             }
             Block::DescriptionList(list) => {
                 for item in &mut list.items {
-                    renumber_blocks(
-                        &mut item.description,
-                        state,
-                        is_book,
-                        suppressed,
-                        record_toc,
-                        record_number,
-                    );
+                    if let Some(definition) = &mut item.definition {
+                        renumber_blocks(
+                            &mut definition.blocks,
+                            state,
+                            is_book,
+                            suppressed,
+                            record_toc,
+                            record_number,
+                        );
+                    }
                 }
             }
             Block::DelimitedBlock(delimited) => renumber_delimited(
@@ -759,7 +995,7 @@ fn to_upper_roman(mut number: usize) -> String {
     result
 }
 
-/// A `SafeId` represents a sanitised ID.
+/// A `SafeId` represents a sanitized ID.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum SafeId<'a> {
@@ -800,134 +1036,127 @@ impl<'a> SafeId<'a> {
 }
 
 impl<'a> Section<'a> {
-    /// Build a section id from title text: lowercase, non-alphanumerics
-    /// (except whitespace, `-`, `.`, `_`) dropped, survivors joined with `_`,
-    /// consecutive `_` collapsed, leading and trailing `_` trimmed. Single
-    /// pass. The `_` prefix on a generated id is added by `SafeId`, so leading
-    /// separators here must be squeezed away to avoid a doubled `__`.
     fn id_from_title(title: &[InlineNode<'a>]) -> String {
-        let mut out = String::new();
-        // Start as if a `_` was just emitted so leading separators are dropped.
-        let mut last_was_underscore = true;
-        Self::append_id_from_inlines(title, &mut out, &mut last_was_underscore);
-        while out.ends_with('_') {
-            out.pop();
+        SectionIdSettings {
+            prefix: "",
+            separator: Some('_'),
         }
-        out
+        .title_id(title)
     }
 
-    fn append_id_from_inlines(
-        inlines: &[InlineNode<'a>],
-        out: &mut String,
-        last_was_underscore: &mut bool,
-    ) {
+    fn append_id_from_inlines(inlines: &[InlineNode<'a>], append: &mut impl FnMut(&str)) {
         for node in inlines {
             match node {
                 InlineNode::PlainText(text) => {
-                    Self::append_id_text(text.content, out, last_was_underscore);
+                    append(text.content);
                 }
                 InlineNode::RawText(text) => {
-                    Self::append_id_text(text.content, out, last_was_underscore);
+                    append(text.content);
                 }
                 InlineNode::VerbatimText(text) => {
-                    Self::append_id_text(text.content, out, last_was_underscore);
+                    append(text.content);
                 }
                 InlineNode::BoldText(text) => {
-                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                    Self::append_id_from_inlines(&text.content, append);
                 }
                 InlineNode::ItalicText(text) => {
-                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                    Self::append_id_from_inlines(&text.content, append);
                 }
                 InlineNode::MonospaceText(text) => {
-                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                    Self::append_id_from_inlines(&text.content, append);
                 }
                 InlineNode::HighlightText(text) => {
-                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                    Self::append_id_from_inlines(&text.content, append);
                 }
                 InlineNode::SubscriptText(text) => {
-                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                    Self::append_id_from_inlines(&text.content, append);
                 }
                 InlineNode::SuperscriptText(text) => {
-                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                    Self::append_id_from_inlines(&text.content, append);
                 }
                 InlineNode::CurvedQuotationText(text) => {
-                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                    Self::append_id_from_inlines(&text.content, append);
                 }
                 InlineNode::CurvedApostropheText(text) => {
-                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                    Self::append_id_from_inlines(&text.content, append);
+                }
+                InlineNode::Symbol(symbol) => {
+                    append(symbol.kind.text());
                 }
                 InlineNode::StandaloneCurvedApostrophe(_) => {
-                    Self::append_id_text("'", out, last_was_underscore);
+                    append("'");
                 }
                 InlineNode::LineBreak(_) => {
-                    Self::append_id_text(" ", out, last_was_underscore);
+                    append(" ");
                 }
-                InlineNode::InlineAnchor(_) => {}
+                InlineNode::CharacterReference(_) | InlineNode::InlineAnchor(_) => {}
                 InlineNode::Macro(macro_node) => {
-                    Self::append_id_from_macro(macro_node, out, last_was_underscore);
+                    Self::append_id_from_macro(macro_node, append);
                 }
                 InlineNode::CalloutRef(callout) => {
-                    Self::append_id_text(
-                        &format!("<{}>", callout.number),
-                        out,
-                        last_was_underscore,
-                    );
+                    append(&format!("<{}>", callout.number));
                 }
             }
         }
     }
 
-    fn append_id_from_macro(
-        macro_node: &InlineMacro<'a>,
-        out: &mut String,
-        last_was_underscore: &mut bool,
-    ) {
+    fn append_id_from_macro(macro_node: &InlineMacro<'a>, append: &mut impl FnMut(&str)) {
         match macro_node {
             InlineMacro::Link(link) => {
                 if link.text.is_empty() {
-                    Self::append_id_text(&link.target.to_string(), out, last_was_underscore);
+                    append(&link.target.to_string());
                 } else {
-                    Self::append_id_from_inlines(&link.text, out, last_was_underscore);
+                    Self::append_id_from_inlines(&link.text, append);
                 }
             }
             InlineMacro::Url(url) => {
                 if url.text.is_empty() {
-                    Self::append_id_text(&url.target.to_string(), out, last_was_underscore);
+                    append(&url.target.to_string());
                 } else {
-                    Self::append_id_from_inlines(&url.text, out, last_was_underscore);
+                    Self::append_id_from_inlines(&url.text, append);
                 }
             }
             InlineMacro::Mailto(mailto) => {
                 if mailto.text.is_empty() {
-                    Self::append_id_text(&mailto.target.to_string(), out, last_was_underscore);
+                    append(&mailto.target.to_string());
                 } else {
-                    Self::append_id_from_inlines(&mailto.text, out, last_was_underscore);
+                    Self::append_id_from_inlines(&mailto.text, append);
                 }
             }
             InlineMacro::Autolink(autolink) => {
-                Self::append_id_text(&autolink.url.to_string(), out, last_was_underscore);
+                append(&autolink.url.to_string());
             }
             InlineMacro::CrossReference(xref) => {
                 if xref.text.is_empty() {
-                    Self::append_id_text(xref.target, out, last_was_underscore);
+                    append(xref.target);
                 } else {
-                    Self::append_id_from_inlines(&xref.text, out, last_was_underscore);
+                    Self::append_id_from_inlines(&xref.text, append);
                 }
             }
             InlineMacro::IndexTerm(index_term) if index_term.is_visible() => {
-                Self::append_id_from_inlines(index_term.term(), out, last_was_underscore);
+                Self::append_id_from_inlines(index_term.term(), append);
             }
             InlineMacro::Pass(pass) => {
-                Self::append_id_text(pass.text.unwrap_or_default(), out, last_was_underscore);
+                append(pass.text.unwrap_or_default());
             }
             InlineMacro::Keyboard(keyboard) => {
-                Self::append_id_text(&keyboard.keys.join("+"), out, last_was_underscore);
+                for (index, key) in keyboard.keys.iter().enumerate() {
+                    if index > 0 {
+                        append("+");
+                    }
+                    Self::append_id_from_inlines(key.as_inlines(), append);
+                }
             }
             InlineMacro::Button(button) => {
-                Self::append_id_text(button.label, out, last_was_underscore);
+                Self::append_id_from_inlines(button.label.as_inlines(), append);
             }
             InlineMacro::Menu(menu) => {
-                Self::append_id_text(&menu.items.join(" > "), out, last_was_underscore);
+                for (index, item) in menu.items.iter().enumerate() {
+                    if index > 0 {
+                        append(" > ");
+                    }
+                    Self::append_id_from_inlines(item.as_inlines(), append);
+                }
             }
             InlineMacro::Image(_)
             | InlineMacro::Footnote(_)
@@ -937,37 +1166,10 @@ impl<'a> Section<'a> {
         }
     }
 
-    fn append_id_text(text: &str, out: &mut String, last_was_underscore: &mut bool) {
-        for c in text.chars() {
-            for c in c.to_lowercase() {
-                let mapped = if c.is_alphanumeric() {
-                    Some(c)
-                } else if c.is_whitespace() || c == '-' || c == '.' || c == '_' {
-                    Some('_')
-                } else {
-                    None
-                };
-                let Some(ch) = mapped else { continue };
-                if ch == '_' {
-                    if !*last_was_underscore {
-                        out.push('_');
-                    }
-                    *last_was_underscore = true;
-                } else {
-                    out.push(ch);
-                    *last_was_underscore = false;
-                }
-            }
-        }
-    }
-
     /// Pick the explicit id if metadata provides one, else None. Shared by
     /// the arena-returning and `String`-returning variants below.
     pub(crate) fn explicit_id(metadata: &BlockMetadata<'a>) -> Option<&'a str> {
-        if let Some(anchor) = &metadata.id {
-            return Some(anchor.id);
-        }
-        metadata.anchors.last().map(|a| a.id)
+        metadata.heading_anchor().map(|anchor| anchor.id)
     }
 
     /// Generate a section ID based on its title and metadata.
@@ -1041,9 +1243,9 @@ mod tests {
             &Options::default(),
         )?;
         let mut document = Document {
-            attributes: parsed.document().attributes.clone(),
-            blocks: parsed.document().blocks.clone(),
-            references: parsed.document().references.clone(),
+            attributes: parsed.document_storage().attributes.clone(),
+            blocks: parsed.document_storage().blocks.clone(),
+            references: parsed.document_storage().references.clone(),
             ..Document::default()
         };
         let outer = document
@@ -1113,16 +1315,16 @@ mod tests {
             &Options::default(),
         )?;
         let mut document = Document {
-            attributes: parsed.document().attributes.clone(),
-            blocks: parsed.document().blocks.clone(),
-            toc_entries: parsed.document().toc_entries.clone(),
-            references: parsed.document().references.clone(),
+            attributes: parsed.document_storage().attributes.clone(),
+            blocks: parsed.document_storage().blocks.clone(),
+            toc_entries: parsed.document_storage().toc_entries.clone(),
+            references: parsed.document_storage().references.clone(),
             ..Document::default()
         };
         document.renumber_sections();
         for (id, reference) in &document.references {
             let original = parsed
-                .document()
+                .document_storage()
                 .references
                 .get(id)
                 .ok_or("missing reference")?;
@@ -1246,6 +1448,7 @@ mod tests {
                 xreflabel: None,
                 location: Location::default(),
                 bibliography: false,
+                reftext_source: None,
                 bibliography_label: None,
             }),
             ..Default::default()
@@ -1262,6 +1465,7 @@ mod tests {
                 xreflabel: None,
                 location: Location::default(),
                 bibliography: false,
+                reftext_source: None,
                 bibliography_label: None,
             }],
             ..Default::default()
@@ -1279,6 +1483,7 @@ mod tests {
                     xreflabel: None,
                     location: Location::default(),
                     bibliography: false,
+                    reftext_source: None,
                     bibliography_label: None,
                 },
                 Anchor {
@@ -1286,6 +1491,7 @@ mod tests {
                     xreflabel: None,
                     location: Location::default(),
                     bibliography: false,
+                    reftext_source: None,
                     bibliography_label: None,
                 },
             ],
@@ -1303,6 +1509,7 @@ mod tests {
                 xreflabel: None,
                 location: Location::default(),
                 bibliography: false,
+                reftext_source: None,
                 bibliography_label: None,
             }),
             anchors: vec![Anchor {
@@ -1310,6 +1517,7 @@ mod tests {
                 xreflabel: None,
                 location: Location::default(),
                 bibliography: false,
+                reftext_source: None,
                 bibliography_label: None,
             }],
             ..Default::default()

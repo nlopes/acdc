@@ -1,0 +1,150 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Before café 😀.",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "break",
+      "type": "block",
+      "variant": "page",
+      "location": [
+        {
+          "line": 3,
+          "col": 5,
+          "file": [
+            "includes/page_break_selected.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 8,
+          "file": [
+            "includes/page_break_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "break",
+                    "type": "block",
+                    "variant": "page",
+                    "location": [
+                      {
+                        "line": 7,
+                        "col": 2
+                      },
+                      {
+                        "line": 7,
+                        "col": 4
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 6,
+            "col": 1
+          },
+          {
+            "line": 8,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "break",
+      "type": "block",
+      "variant": "page",
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 3
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 10,
+      "col": 3
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+Outside selection
+// tag::selected[]
+[verse]
+Included café before metadata
+[quote]
+Included second paragraph
+// end::selected[]
+Outside selection
+
+// tag::tail[]
+Included final café line
+// end::tail[]

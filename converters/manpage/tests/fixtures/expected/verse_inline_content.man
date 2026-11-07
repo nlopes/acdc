@@ -34,7 +34,7 @@ verse\-content \- preserve verse content and layout
 \fBP01 Title \(co\fR
 .br
 .nf
-P01 \fBBold\fR \fIitalic\fR expanded \(co \(rg \(tm.
+P01 \fBBold\fR \fIitalic\fR expanded \(co \(rg \(tm\&.
   P02 \fBindented
     formatting\fR and \f(CRcode\fR\&.
 P03 \c
@@ -52,7 +52,7 @@ Work \(em Writer
 \fBD01 Title \(co\fR
 .br
 .nf
-D01 \fBBold\fR \fIitalic\fR expanded \(co \(rg \(tm.
+D01 \fBBold\fR \fIitalic\fR expanded \(co \(rg \(tm\&.
   D02 \fBindented
     formatting\fR and \f(CRcode\fR\&.
 
@@ -79,11 +79,11 @@ ltx.
 T{
 .sp
 .nf
-T01 \fBCell\fR \(co.
+T01 \fBCell\fR \(co\&.
   T02 second line.
 .fi
 .nf
-T03 \fBCell block\fR \(rg.
+T03 \fBCell block\fR \(rg\&.
   T04 second line.
 
 T05 final line.
@@ -96,7 +96,7 @@ T}
 Attached verse
 .RS 2
 .nf
-L01 \fBAttached\fR \(tm.
+L01 \fBAttached\fR \(tm\&.
   L02 second line.
 .fi
 .RE
@@ -104,7 +104,7 @@ L01 \fBAttached\fR \(tm.
 .nf
 .fi
 .sp
-After \(co. Reuse [1] and [2]\&.
+After \(co\&. Reuse [1] and [2]\&.
 See Paragraph and Delimited\&.
 .SH "INDEX"
 .SS "D"
@@ -119,6 +119,6 @@ Paragraph term
 .RE
 .SH "NOTES"
 .IP [1] 4
-Paragraph note \(rg.
+Paragraph note \(rg\&.
 .IP [2] 4
-Delimited note \(rg.
+Delimited note \(rg\&.

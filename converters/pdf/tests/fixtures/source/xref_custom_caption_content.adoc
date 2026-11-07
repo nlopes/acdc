@@ -1,0 +1,96 @@
+= Custom caption references
+:caption-word: *First*
+:listing-caption: Listing
+
+Forward: xref:custom[xrefstyle=short] / xref:custom[xrefstyle=full] / xref:custom[].
+
+[#custom,caption='{caption-word}. ']
+.An _example_
+====
+Body.
+====
+
+:caption-word: *Later*
+:example-caption: Changed
+
+Backward: xref:custom[xrefstyle=short] / xref:custom[xrefstyle=full].
+
+[#table,caption='*Table prefix*. ']
+.A table
+|===
+|Cell
+|===
+
+Table: xref:table[xrefstyle=short] / xref:table[xrefstyle=full].
+
+[#listing,caption='*Code prefix*. ']
+.A listing
+----
+code
+----
+
+Listing: xref:listing[xrefstyle=short] / xref:listing[xrefstyle=full].
+
+[#punctuation,caption='*Keep.* ']
+.Styled period
+====
+Body.
+====
+
+Punctuation: xref:punctuation[xrefstyle=short] / xref:punctuation[xrefstyle=full].
+
+[#raw,caption='*Raw* pass:[.] ']
+.Separate suffix
+====
+Body.
+====
+
+Raw suffix: xref:raw[xrefstyle=short] / xref:raw[xrefstyle=full].
+
+[#raw-role,caption='[.underline]++Keep. ++']
+.Attributed raw suffix
+====
+Body.
+====
+
+Raw role: xref:raw-role[xrefstyle=short] / xref:raw-role[xrefstyle=full].
+
+[#labelled,caption='*Unused*. ',reftext='Chosen _label_']
+.A title
+====
+Body.
+====
+
+Label: xref:labelled[xrefstyle=short] / xref:labelled[xrefstyle=full].
+
+[#nested,caption='*See* xref:custom[]. ']
+.Nested reference
+====
+Body.
+====
+
+Nested: xref:nested[xrefstyle=short] / xref:nested[xrefstyle=full].
+
+[#linked,caption='*Visit* https://example.org[site]. ']
+.External link
+====
+Body.
+====
+
+Linked: xref:linked[xrefstyle=short] / xref:linked[xrefstyle=full].
+
+[#registered,caption='[#caption-mark]*Mark* footnote:caption-note[One note]. ']
+.Registered content
+====
+Body.
+====
+
+Registered: xref:registered[xrefstyle=short] / xref:registered[xrefstyle=full].
+
+Buffered: ^xref:custom[xrefstyle=short]^.
+
+[source,subs="specialcharacters,macros"]
+----
+xref:custom[xrefstyle=short] / xref:custom[xrefstyle=full]
+xref:punctuation[xrefstyle=short] / xref:punctuation[xrefstyle=full]
+----

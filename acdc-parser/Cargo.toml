@@ -21,12 +21,9 @@ exclude = [
 ]
 
 [features]
-default = ["pre-spec-subs"]
+default = []
+asg = ["dep:jsonschema"]
 network = ["dep:ureq"]
-setext = []  # Enable Setext-style (underlined) header parsing
-# Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
-# See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16
-pre-spec-subs = []
 
 [dependencies]
 bitflags = "2.11"
@@ -35,6 +32,7 @@ chrono.workspace = true
 csv = "1.4"
 encoding_rs = "0.8"
 evalexpr = "13"
+jsonschema = { version = "0.59", optional = true, default-features = false }
 peg = "0.8.6"
 regex-syntax = { version = "0.8", default-features = false, features = ["unicode-perl"] }
 rustc-hash.workspace = true
@@ -50,17 +48,29 @@ url = "2.5"
 ureq = { version = "3.1", optional = true }
 
 [dev-dependencies]
+jsonschema = { version = "0.59", default-features = false }
+sha2.workspace = true
+syn = { version = "2", features = ["full"] }
 criterion = { version = "0.8", features = ["html_reports"] }
-crossterm = "0.29"
+libtest-mimic = "0.8.2"
 pretty_assertions.workspace = true
 proptest = "1.9"
 rstest.workspace = true
+tempfile.workspace = true
 # Tiny tracking global allocator for the `no_leak` integration test. Encapsulates
 # its own `unsafe impl GlobalAlloc` so the workspace `forbid(unsafe_code)` lint
 # stays untouched.
 stats_alloc = "0.1"
 # Integration tests must also capture events from the parser crate.
 tracing-test = { workspace = true, features = ["no-env-filter"] }
+
+[[test]]
+name = "fixtures"
+harness = false
+
+[[test]]
+name = "owned_inline_selection"
+harness = false
 
 [[bench]]
 name = "parser_bench"
@@ -86,3 +96,7 @@ test = false
 
 [lints]
 workspace = true
+
+[[example]]
+name = "generate_asg_fixtures"
+required-features = ["asg"]

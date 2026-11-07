@@ -234,6 +234,7 @@
           {
             "columns": [
               {
+                "footnote_scope": true,
                 "content": [],
                 "style": "asciidoc"
               }

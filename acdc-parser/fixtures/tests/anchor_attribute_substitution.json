@@ -62,7 +62,23 @@
         "anchors": [
           {
             "id": "doc-intro",
-            "xreflabel": "Introduction Section",
+            "xreflabel": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Introduction Section",
+                "location": [
+                  {
+                    "line": 7,
+                    "col": 18
+                  },
+                  {
+                    "line": 7,
+                    "col": 39
+                  }
+                ]
+              }
+            ],
             "location": [
               {
                 "line": 7,
@@ -247,7 +263,23 @@
               "name": "anchor",
               "type": "inline",
               "id": "ch1-overview",
-              "xreflabel": "Chapter 1 Overview",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Chapter 1 Overview",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 43
+                    },
+                    {
+                      "line": 19,
+                      "col": 60
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 19,
@@ -404,6 +436,7 @@
               "name": "xref",
               "type": "inline",
               "target": "doc-intro",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 25,
@@ -465,6 +498,7 @@
               "name": "xref",
               "type": "inline",
               "target": "ch1-overview",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -575,6 +609,7 @@
                   "name": "anchor",
                   "type": "inline",
                   "id": "doc-ref01",
+                  "bibliography": true,
                   "location": [
                     {
                       "line": 32,
@@ -622,7 +657,41 @@
                   "name": "anchor",
                   "type": "inline",
                   "id": "doc-ref02",
-                  "xreflabel": "{section-name} Reference",
+                  "xreflabel": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "{section-name} Reference",
+                      "location": [
+                        {
+                          "line": 33,
+                          "col": 16
+                        },
+                        {
+                          "line": 33,
+                          "col": 39
+                        }
+                      ]
+                    }
+                  ],
+                  "bibliography": true,
+                  "bibliography_label": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Introduction Reference",
+                      "location": [
+                        {
+                          "line": 33,
+                          "col": 21
+                        },
+                        {
+                          "line": 33,
+                          "col": 44
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 33,

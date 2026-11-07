@@ -1,0 +1,21 @@
+= Quoted menu contexts
+:experimental:
+:path: File > Open
+:quoted: "File > Open"
+:gap: {sp}
+
+"{path}" and {quoted} and "File{gap}> Open".
+
+[subs="macros,attributes,quotes,replacements,specialchars"]
+"{path}" and {quoted} and "File{gap}> Open".
+
+:path: Edit > Copy
+
+"{path}".
+
+[cols=a]
+|===
+|π "Édition > Ouvrir footnote:cell[Cell.]".
+|===
+
+include::includes/compatibility_implicit_menu_selected.adoc[tag=keep,indent=0]

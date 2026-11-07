@@ -1,0 +1,28 @@
+= Passthrough identity
+:role-name: expanded
+:identifier: expanded-id
+
+P01 [.red]++<b>*protected*</b>++.
+
+P02 [#raw.red.blue]+++<em>raw</em>+++.
+
+P03 [.red]+*protected*+.
+
+P04 [.red]pass:[<i>macro</i>].
+
+P05 \[.red]++protected++.
+
+P06 x[.red]+word+y.
+
+P07 [#{identifier}.{role-name}]++Ω protected++.
+
+P08 *[#nested.red]++nested++*.
+
+[cols=a]
+|===
+a|P09 [#cell.blue]++cell++.
+|===
+
+include::includes/passthrough_metadata.adoc[tag=selected,indent=0]
+
+P11 <<raw>> and <<cell>>.

@@ -1,0 +1,7 @@
+= Diagnostic primary offsets
+
+include::includes/diagnostic_plain_offsets.adoc[]
+
+:compat-mode: λ
+
+After.

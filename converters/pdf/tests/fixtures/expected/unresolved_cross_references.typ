@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -82,7 +83,7 @@
 
 #text("See ")#text("[no-such-id]")#text(" and ")#text("explicit text")#text(".")
 
-#text("A reference whose target’s reference text holds a reference of its own resolves one level, then falls back to ")#raw("[id]")#text(".")
+#text("A reference whose target")#text("’")#text("s reference text holds a reference of its own resolves one level, then falls back to ")#raw("[id]")#text(".")
 
 #metadata(none) <id-73656c662d7265666572656e6365>
 #blocktitle[#text("Example 1. ")#text("See ")#context link(query(<id-73656c662d7265666572656e6365>).first().location())[#text("See ")#text("[self-reference]")#text(" again")]#text(" again")]

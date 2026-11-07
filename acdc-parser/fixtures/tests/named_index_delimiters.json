@@ -249,8 +249,7 @@
                       "line": 15,
                       "col": 52
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -275,6 +274,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/url[Link] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 15,
@@ -410,8 +412,7 @@
                       "line": 17,
                       "col": 58
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -436,6 +437,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before link:https://example.org/link[Link] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 17,
@@ -571,8 +575,7 @@
                       "line": 19,
                       "col": 52
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -597,6 +600,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before mailto:user@example.org[Mail] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 19,
@@ -702,6 +708,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "target",
+                  "target_is_local": true,
                   "inlines": [
                     {
                       "name": "text",
@@ -753,6 +760,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before xref:target[Target] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 21,
@@ -909,6 +919,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before footnote:one[Only note.] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 23,
@@ -964,7 +977,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "one",
-              "inlines": [],
               "location": [
                 {
                   "line": 23,
@@ -1123,6 +1135,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 27,
@@ -1269,6 +1284,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/incomplete[Link",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 29,
@@ -1408,6 +1426,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 31,
@@ -1442,6 +1463,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/escaped[Link",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 31,
@@ -1457,6 +1481,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "]",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 31,
@@ -1472,6 +1499,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": " after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 31,
@@ -1611,6 +1641,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before \\https://example.org/inactive[Link] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 33,
@@ -1748,8 +1781,7 @@
                       "line": 35,
                       "col": 63
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 }
               ],
               "tertiary": [
@@ -1777,6 +1809,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "Category",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 35,
@@ -1794,6 +1829,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "https://example.org/comma[Link, label]",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 35,
@@ -1811,6 +1849,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "Tail",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 35,
@@ -1917,7 +1958,23 @@
                   "name": "anchor",
                   "type": "inline",
                   "id": "inner",
-                  "xreflabel": "Ref",
+                  "xreflabel": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Ref",
+                      "location": [
+                        {
+                          "line": 37,
+                          "col": 37
+                        },
+                        {
+                          "line": 37,
+                          "col": 39
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 37,
@@ -1952,6 +2009,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before anchor:inner[Ref] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 37,
@@ -2007,6 +2067,7 @@
               "name": "xref",
               "type": "inline",
               "target": "inner",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -2103,7 +2164,23 @@
                 {
                   "name": "button",
                   "type": "inline",
-                  "label": "Save",
+                  "label": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Save",
+                      "location": [
+                        {
+                          "line": 39,
+                          "col": 29
+                        },
+                        {
+                          "line": 39,
+                          "col": 32
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 39,
@@ -2212,8 +2289,40 @@
                   "name": "keyboard",
                   "type": "inline",
                   "keys": [
-                    "Ctrl",
-                    "C"
+                    [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Ctrl",
+                        "location": [
+                          {
+                            "line": 41,
+                            "col": 29
+                          },
+                          {
+                            "line": 41,
+                            "col": 32
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "C",
+                        "location": [
+                          {
+                            "line": 41,
+                            "col": 34
+                          },
+                          {
+                            "line": 41,
+                            "col": 34
+                          }
+                        ]
+                      }
+                    ]
                   ],
                   "location": [
                     {
@@ -2322,10 +2431,58 @@
                 {
                   "name": "menu",
                   "type": "inline",
-                  "target": "File",
+                  "target": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "File",
+                      "location": [
+                        {
+                          "line": 43,
+                          "col": 29
+                        },
+                        {
+                          "line": 43,
+                          "col": 32
+                        }
+                      ]
+                    }
+                  ],
                   "items": [
-                    "Open",
-                    "Recent"
+                    [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Open",
+                        "location": [
+                          {
+                            "line": 43,
+                            "col": 34
+                          },
+                          {
+                            "line": 43,
+                            "col": 37
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Recent",
+                        "location": [
+                          {
+                            "line": 43,
+                            "col": 41
+                          },
+                          {
+                            "line": 43,
+                            "col": 46
+                          }
+                        ]
+                      }
+                    ]
                   ],
                   "location": [
                     {
@@ -2435,6 +2592,7 @@
                   "name": "xref",
                   "type": "inline",
                   "target": "target",
+                  "target_is_local": true,
                   "inlines": [
                     {
                       "name": "text",
@@ -2486,6 +2644,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before <<target,Target] text>> after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 45,
@@ -2639,8 +2800,7 @@
                       "line": 47,
                       "col": 57
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -2665,6 +2825,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/format[",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 47,
@@ -2686,6 +2849,9 @@
                           "name": "raw",
                           "type": "string",
                           "value": "Bold",
+                          "substitutions": [
+                            "special_chars"
+                          ],
                           "location": [
                             {
                               "line": 47,
@@ -2713,6 +2879,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 47,
@@ -2872,8 +3041,7 @@
                           "line": 49,
                           "col": 82
                         }
-                      ],
-                      "attributes": {}
+                      ]
                     },
                     {
                       "name": "text",
@@ -2900,8 +3068,7 @@
                       "line": 49,
                       "col": 88
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -2926,6 +3093,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://outer.example[Outer mailto:inner@example.org[Inner] tail] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 49,
@@ -3109,7 +3279,6 @@
                   "name": "footnote",
                   "type": "inline",
                   "id": "one",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 53,
@@ -3144,6 +3313,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before footnote:one[] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 53,
@@ -3279,8 +3451,7 @@
                       "line": 55,
                       "col": 56
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -3305,6 +3476,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/unicode[café] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 55,
@@ -3434,6 +3608,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "]",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 57,
@@ -3470,8 +3647,7 @@
                       "line": 57,
                       "col": 67
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -3496,6 +3672,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/bracket[Bracket",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 57,
@@ -3511,6 +3690,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "]",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 57,
@@ -3526,6 +3708,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": " label] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 57,
@@ -3661,8 +3846,7 @@
                       "line": 60,
                       "col": 6
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -3687,6 +3871,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/multiline[Multiline label] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 59,
@@ -3822,8 +4009,7 @@
                       "line": 62,
                       "col": 47
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -3874,8 +4060,7 @@
                       "line": 62,
                       "col": 76
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 },
                 {
                   "name": "text",
@@ -3900,6 +4085,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://one.example[One] and https://two.example[Two] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 62,
@@ -4189,6 +4377,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "Category",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 66,
@@ -4206,6 +4397,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "https://example.org/unquoted[Link",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 66,
@@ -4223,6 +4417,9 @@
                         "name": "raw",
                         "type": "string",
                         "value": "label]",
+                        "substitutions": [
+                          "special_chars"
+                        ],
                         "location": [
                           {
                             "line": 66,
@@ -4355,8 +4552,7 @@
                   "line": 68,
                   "col": 62
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",
@@ -4520,6 +4716,11 @@
                   "name": "ref",
                   "type": "inline",
                   "variant": "link",
+                  "metadata": {
+                    "roles": [
+                      "term"
+                    ]
+                  },
                   "target": {
                     "type": "url",
                     "value": "https://example.org/quoted"
@@ -4550,10 +4751,7 @@
                       "line": 72,
                       "col": 75
                     }
-                  ],
-                  "attributes": {
-                    "role": "term"
-                  }
+                  ]
                 },
                 {
                   "name": "text",
@@ -4578,6 +4776,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Before https://example.org/quoted[\"Label, comma\",role=term] after",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 72,
@@ -4713,8 +4914,7 @@
                       "line": 74,
                       "col": 56
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 }
               ],
               "catalog": {
@@ -4724,6 +4924,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "First https://example.org/adjacent[Link]",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 74,

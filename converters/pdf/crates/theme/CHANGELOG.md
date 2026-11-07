@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Theme validation errors and compatibility warnings now use "color"
+  consistently. Theme keys and accepted values are unchanged.
+
 - The crate now lives under `converters/pdf/crates` as a non-publishable implementation
   component of `acdc-converters-pdf`; its Cargo package name remains unchanged.
 
@@ -49,13 +52,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Themes can control the number of index catalog columns and their gap. The
   bundled defaults are two columns with a 12 pt gap; custom themes without a
   gap use the body font size, matching Asciidoctor PDF.
-- Themes can place tables at the left, centre, or right of the available page
+- Themes can place tables at the left, center, or right of the available page
   width. The default is left.
 - Themes can control table borders, the header divider, row stripes, and header
   and footer backgrounds. The defaults match Asciidoctor PDF.
 - Themes can control the vertical margin between document blocks. The 12 pt
   default matches Asciidoctor PDF.
-- Themes can control the alignment, colour, size, weight, style, and spacing of
+- Themes can control the alignment, color, size, weight, style, and spacing of
   block titles and captions. The defaults closely match Asciidoctor PDF.
 - Themes can control page breaks before book parts and chapters and can avoid a
   forced break before a part's first chapter.

@@ -1,0 +1,30 @@
+= Image title attributes
+:caption-word: expanded
+
+[[macro-title]]
+image::inline-image-dimensions.svg[Alt,title="Macro *bold* {caption-word}",width=72]
+
+.Line title
+image::inline-image-dimensions.svg[Alt,title="Macro wins",width=72]
+
+[title="Metadata title"]
+image::inline-image-dimensions.svg[Alt,width=72]
+
+[title="Metadata title"]
+image::inline-image-dimensions.svg[Alt,title="Macro override",width=72]
+
+.Line title
+image::inline-image-dimensions.svg[Alt,title="",width=72]
+
+image::inline-image-dimensions.svg[Alt,title="First",title="Last",width=72]
+
+image::inline-image-dimensions.svg[Alt,title="Custom",caption="Plate: ",width=72]
+
+.Discarded footnote:[Unused note.]
+image::inline-image-dimensions.svg[Alt,title="Selected footnote:[Caption note.]",width=72]
+
+image::inline-image-dimensions.svg[Untitled,width=72]
+
+Inline image:inline-image-dimensions.svg[Alternative text,title="Hover text",width=24].
+
+See <<macro-title>>.

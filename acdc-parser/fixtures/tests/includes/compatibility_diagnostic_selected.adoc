@@ -1,0 +1,7 @@
+Excluded {counter:excluded}.
+// tag::selected[]
+    α🚀 pass:q,c[*Included*].
+
+    Before {counter:included} after.
+// end::selected[]
+Excluded pass:q,c[*Excluded*].

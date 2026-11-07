@@ -1,0 +1,149 @@
+{
+  "recovery": null,
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 504,
+        "absolute_start": 486,
+        "file": "stacked_block_ids.adoc",
+        "location": [
+          {
+            "col": 13,
+            "line": 25
+          },
+          {
+            "col": 31,
+            "line": 25
+          }
+        ]
+      },
+      "message": "invalid reference: paragraph-first"
+    },
+    {
+      "location": {
+        "absolute_end": 541,
+        "absolute_start": 527,
+        "file": "stacked_block_ids.adoc",
+        "location": [
+          {
+            "col": 54,
+            "line": 25
+          },
+          {
+            "col": 68,
+            "line": 25
+          }
+        ]
+      },
+      "message": "invalid reference: named-first"
+    },
+    {
+      "location": {
+        "absolute_end": 576,
+        "absolute_start": 561,
+        "file": "stacked_block_ids.adoc",
+        "location": [
+          {
+            "col": 18,
+            "line": 26
+          },
+          {
+            "col": 33,
+            "line": 26
+          }
+        ]
+      },
+      "message": "invalid reference: anchor-first"
+    },
+    {
+      "location": {
+        "absolute_end": 611,
+        "absolute_start": 595,
+        "file": "stacked_block_ids.adoc",
+        "location": [
+          {
+            "col": 52,
+            "line": 26
+          },
+          {
+            "col": 68,
+            "line": 26
+          }
+        ]
+      },
+      "message": "invalid reference: listing-first"
+    },
+    {
+      "location": {
+        "absolute_end": 645,
+        "absolute_start": 632,
+        "file": "stacked_block_ids.adoc",
+        "location": [
+          {
+            "col": 19,
+            "line": 27
+          },
+          {
+            "col": 32,
+            "line": 27
+          }
+        ]
+      },
+      "message": "invalid reference: list-first"
+    },
+    {
+      "location": {
+        "absolute_end": 874,
+        "absolute_start": 856,
+        "file": "stacked_block_ids.adoc",
+        "location": [
+          {
+            "col": 13,
+            "line": 37
+          },
+          {
+            "col": 31,
+            "line": 37
+          }
+        ]
+      },
+      "message": "invalid reference: inherited-first"
+    },
+    {
+      "location": {
+        "absolute_end": 911,
+        "absolute_start": 897,
+        "file": "stacked_block_ids.adoc",
+        "location": [
+          {
+            "col": 54,
+            "line": 37
+          },
+          {
+            "col": 68,
+            "line": 37
+          }
+        ]
+      },
+      "message": "invalid reference: empty-first"
+    },
+    {
+      "location": {
+        "absolute_end": 1039,
+        "absolute_start": 1023,
+        "file": "stacked_block_ids.adoc",
+        "location": [
+          {
+            "col": 13,
+            "line": 43
+          },
+          {
+            "col": 29,
+            "line": 43
+          }
+        ]
+      },
+      "message": "invalid reference: heading-first"
+    }
+  ]
+}

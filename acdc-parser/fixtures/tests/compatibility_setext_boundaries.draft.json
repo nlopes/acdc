@@ -1,0 +1,286 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Heading boundaries",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 20
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 20
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Short",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 5
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 5
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nMinus one.\n\nLong\n-----\n\nPlus one.\n\nOutside\n-----\n\nMinus two is not a heading.\n-----\n\nOutside\n---------\n\nPlus two is not a heading.\n---------\n\n....",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Punctuation is not a heading.",
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 27,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 27,
+          "col": 29
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "....\n\n.Title\n====\nMetadata is not a heading.\n====\n\nTerm:: Description.",
+          "location": [
+            {
+              "line": 29,
+              "col": 1
+            },
+            {
+              "line": 36,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 28,
+          "col": 1
+        },
+        {
+          "line": 37,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Listing body.",
+          "location": [
+            {
+              "line": 38,
+              "col": 1
+            },
+            {
+              "line": 38,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 38,
+          "col": 1
+        },
+        {
+          "line": 38,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "inlines": [],
+      "location": [
+        {
+          "line": 39,
+          "col": 1
+        },
+        {
+          "line": 41,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Literal title",
+          "location": [
+            {
+              "line": 42,
+              "col": 1
+            },
+            {
+              "line": 42,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 42,
+          "col": 1
+        },
+        {
+          "line": 42,
+          "col": 13
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "-------------",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "----\n\n// A title may contain Unicode.\nRésumé\n------\n\nUnicode body.",
+          "location": [
+            {
+              "line": 44,
+              "col": 1
+            },
+            {
+              "line": 50,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 43,
+          "col": 1
+        },
+        {
+          "line": 50,
+          "col": 13
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 50,
+      "col": 13
+    }
+  ]
+}

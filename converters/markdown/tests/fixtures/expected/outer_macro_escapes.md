@@ -37,7 +37,7 @@ E11 [Label](https://example.org) and link:manual.html\[File\] and link:mailto:us
 
 E12 mailto:user@example.org\[One\] and \\mailto:user@example.org\[Two\].
 
-E13 <<target>> and \\<<target>> and ((Visible)) and \\((Visible)).
+E13 \<\<target\>\> and \\\<\<target\>\> and ((Visible)) and \\((Visible)).
 
 E14 image:missing.png\[Alt\] and \\image:missing.png\[Alt\] and \\image:missing.png\[Incomplete
 

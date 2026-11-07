@@ -1,0 +1,31 @@
+= Image snapshots
+:word: *Early*
+
+[alt='{word}']
+:word: *Later*
+image::snapshot.png[]
+
+:media: alt='Alt footnote:alt[Alt note]',caption='Caption footnote:caption[Caption note]: '
+
+.Title
+[{media}]
+image::expanded-list.png[]
+
+:media: caption='First footnote:first[First note]: ',alt='Alt footnote:second[Second note]'
+
+.Title
+[{media}]
+image::caption-first.png[]
+
+[alt='Discarded footnote:hidden[Hidden note]']
+[alt='Selected']
+image::selected.png[]
+
+Inline image:inline.png[alt='*Inline* footnote:inline[Inline note]',title='*Tip*'].
+
+:other: Before
+:nested: \{other}
+
+[alt='{nested}']
+:other: After
+image::nested-snapshot.png[]

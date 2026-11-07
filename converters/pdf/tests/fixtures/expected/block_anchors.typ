@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -122,7 +123,7 @@
 ]
 
 #metadata(none) <id-696d6167652d6964>
-#text("[Missing image]")#text(" | missing.png")
+#text("[")#text("Missing image")#text("]")#text(" | missing.png")
 
 #metadata(none) <id-766964656f2d6964>
 #text("► ")#link("video.mp4")[#text("video.mp4")]#text(" ")#emph[#text("(video)")]

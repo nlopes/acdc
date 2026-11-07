@@ -1,4 +1,4 @@
-use crate::{Error, Form, InlineNode, Location};
+use crate::{ElementId, Error, InlineNode, Location};
 
 use super::location_mapping::LocationMappingContext;
 
@@ -9,6 +9,8 @@ pub(crate) trait MarkedText<'a>: Sized {
 
     /// Get the optional cross-reference ID.
     fn id(&self) -> Option<&'a str>;
+
+    fn id_mut(&mut self) -> Option<&mut ElementId<'a>>;
 
     /// Get an immutable reference to the location
     fn location(&self) -> &Location;
@@ -22,14 +24,9 @@ pub(crate) trait MarkedText<'a>: Sized {
     /// Get a mutable reference to the content
     fn content_mut(&mut self) -> &mut Self::Content;
 
-    /// Get the form (constrained/unconstrained)
-    fn form(&self) -> &Form;
-
-    /// Map the node and its content to source coordinates with its delimiter form.
+    /// Map the node and its content to source coordinates.
     fn map_locations(&mut self, ctx: &LocationMappingContext<'_, 'a>) -> Result<(), Error> {
-        // Get the form first to avoid borrowing issues
-        let form = self.form().clone();
-        let mapped_outer = ctx.map_location(self.location(), Some(&form))?;
+        let mapped_outer = ctx.map_location(self.location())?;
         let extended_location = super::location_mapping::extend_attribute_location_if_needed(
             ctx.state,
             ctx.processed,
@@ -37,7 +34,10 @@ pub(crate) trait MarkedText<'a>: Sized {
         );
         *self.location_mut() = extended_location;
 
-        self.content_mut().map_locations_with(ctx, Some(&form))?;
+        if let Some(id) = self.id_mut() {
+            id.location = ctx.map_location(&id.location)?;
+        }
+        self.content_mut().map_locations_with(ctx)?;
 
         Ok(())
     }
@@ -45,23 +45,14 @@ pub(crate) trait MarkedText<'a>: Sized {
 
 /// Formatted content whose locations can be mapped back to source.
 pub trait LocationMappable<'a> {
-    /// Map this content using the source context and enclosing delimiter form.
-    fn map_locations_with(
-        &mut self,
-        ctx: &LocationMappingContext<'_, 'a>,
-        form: Option<&Form>,
-    ) -> Result<(), Error>;
+    /// Map this content using the source context.
+    fn map_locations_with(&mut self, ctx: &LocationMappingContext<'_, 'a>) -> Result<(), Error>;
 }
 
 /// Implementation for Vec<`InlineNode`<'a>> - the most common content type
 impl<'a> LocationMappable<'a> for Vec<InlineNode<'a>> {
-    fn map_locations_with(
-        &mut self,
-        ctx: &LocationMappingContext<'_, 'a>,
-        form: Option<&Form>,
-    ) -> Result<(), Error> {
-        *self =
-            super::location_mapping::map_inner_content_locations(std::mem::take(self), ctx, form)?;
+    fn map_locations_with(&mut self, ctx: &LocationMappingContext<'_, 'a>) -> Result<(), Error> {
+        *self = super::location_mapping::map_inner_content_locations(std::mem::take(self), ctx)?;
         Ok(())
     }
 }
@@ -74,7 +65,11 @@ macro_rules! impl_marked_text {
                 type Content = Vec<InlineNode<'a>>;
 
                 fn id(&self) -> Option<&'a str> {
-                    self.id
+                    self.id.as_ref().map(|id| id.id)
+                }
+
+                fn id_mut(&mut self) -> Option<&mut ElementId<'a>> {
+                    self.id.as_mut()
                 }
 
                 fn location(&self) -> &Location {
@@ -93,9 +88,6 @@ macro_rules! impl_marked_text {
                     &mut self.content
                 }
 
-                fn form(&self) -> &Form {
-                    &self.form
-                }
             }
         )+
     };
@@ -133,6 +125,8 @@ pub(crate) fn map_marked_text_locations<'a>(
         | InlineNode::InlineAnchor(_)
         | InlineNode::CalloutRef(_)
         | InlineNode::Macro(_)
-        | InlineNode::StandaloneCurvedApostrophe(_) => Ok(()),
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::Symbol(_)
+        | InlineNode::CharacterReference(_) => Ok(()),
     }
 }

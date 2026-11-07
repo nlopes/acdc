@@ -1,0 +1,43 @@
+= Indented styles
+
+:word: expanded
+
+.Normal title
+[normal#normal-id.role]
+  é *Bold* {word} footnote:normal[Normal note].
+    https://example.org[Link]
+
+[paragraph]
+  Alias *Bold* {word}.
+
+[quote,Author,Citation]
+  Quote *Bold* footnote:quote[Quote note].
+    Still indented.
+
+[verse,Author,Citation]
+  Verse *Bold*.
+    Second line.
+
+[sidebar]
+  Sidebar *Bold* footnote:sidebar[Sidebar note].
+
+[example]
+  Example *Bold*.
+
+[NOTE]
+  Note *Bold* footnote:note[Note body].
+
+[source,rust]
+  let value = "*literal* {word}"; <1>
+
+<1> Source explanation.
+
+[literal]
+  Literal *Bold* {word}.
+
+[unknown]
+  Unknown *Bold* {word}.
+    Extra indentation.
+
+    Implicit literal.
+      Extra indentation.

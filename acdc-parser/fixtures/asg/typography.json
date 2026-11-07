@@ -1,0 +1,482 @@
+{
+  "attributes": {},
+  "blocks": [
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 3
+            },
+            {
+              "col": 16,
+              "line": 3
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "The formula E=mc"
+        },
+        {
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 18,
+                  "line": 3
+                },
+                {
+                  "col": 18,
+                  "line": 3
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "2"
+            }
+          ],
+          "location": [
+            {
+              "col": 17,
+              "line": 3
+            },
+            {
+              "col": 19,
+              "line": 3
+            }
+          ],
+          "name": "span",
+          "type": "inline",
+          "variant": "superscript"
+        },
+        {
+          "location": [
+            {
+              "col": 20,
+              "line": 3
+            },
+            {
+              "col": 31,
+              "line": 3
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": " and water H"
+        },
+        {
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 33,
+                  "line": 3
+                },
+                {
+                  "col": 33,
+                  "line": 3
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "2"
+            }
+          ],
+          "location": [
+            {
+              "col": 32,
+              "line": 3
+            },
+            {
+              "col": 34,
+              "line": 3
+            }
+          ],
+          "name": "span",
+          "type": "inline",
+          "variant": "subscript"
+        },
+        {
+          "location": [
+            {
+              "col": 35,
+              "line": 3
+            },
+            {
+              "col": 36,
+              "line": 3
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "O."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 3
+        },
+        {
+          "col": 36,
+          "line": 3
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 3,
+                  "line": 5
+                },
+                {
+                  "col": 9,
+                  "line": 5
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Double "
+            },
+            {
+              "form": "constrained",
+              "inlines": [
+                {
+                  "location": [
+                    {
+                      "col": 11,
+                      "line": 5
+                    },
+                    {
+                      "col": 16,
+                      "line": 5
+                    }
+                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "nested"
+                }
+              ],
+              "location": [
+                {
+                  "col": 10,
+                  "line": 5
+                },
+                {
+                  "col": 17,
+                  "line": 5
+                }
+              ],
+              "name": "span",
+              "type": "inline",
+              "variant": "strong"
+            }
+          ],
+          "location": [
+            {
+              "col": 1,
+              "line": 5
+            },
+            {
+              "col": 19,
+              "line": 5
+            }
+          ],
+          "name": "span",
+          "quotes": [
+            "“",
+            "”"
+          ],
+          "type": "inline",
+          "variant": "quotation"
+        },
+        {
+          "location": [
+            {
+              "col": 20,
+              "line": 5
+            },
+            {
+              "col": 24,
+              "line": 5
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": " and "
+        },
+        {
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "location": [
+                {
+                  "col": 27,
+                  "line": 5
+                },
+                {
+                  "col": 33,
+                  "line": 5
+                }
+              ],
+              "name": "text",
+              "type": "string",
+              "value": "Single "
+            },
+            {
+              "form": "constrained",
+              "inlines": [
+                {
+                  "location": [
+                    {
+                      "col": 35,
+                      "line": 5
+                    },
+                    {
+                      "col": 40,
+                      "line": 5
+                    }
+                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "nested"
+                }
+              ],
+              "location": [
+                {
+                  "col": 34,
+                  "line": 5
+                },
+                {
+                  "col": 41,
+                  "line": 5
+                }
+              ],
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis"
+            }
+          ],
+          "location": [
+            {
+              "col": 25,
+              "line": 5
+            },
+            {
+              "col": 43,
+              "line": 5
+            }
+          ],
+          "name": "span",
+          "quotes": [
+            "‘",
+            "’"
+          ],
+          "type": "inline",
+          "variant": "quotation"
+        },
+        {
+          "location": [
+            {
+              "col": 44,
+              "line": 5
+            },
+            {
+              "col": 44,
+              "line": 5
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 5
+        },
+        {
+          "col": 44,
+          "line": 5
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 7
+            },
+            {
+              "col": 4,
+              "line": 7
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Olaf"
+        },
+        {
+          "location": [
+            {
+              "col": 5,
+              "line": 7
+            },
+            {
+              "col": 6,
+              "line": 7
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "’"
+        },
+        {
+          "location": [
+            {
+              "col": 7,
+              "line": 7
+            },
+            {
+              "col": 17,
+              "line": 7
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "s keyboard."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 7
+        },
+        {
+          "col": 17,
+          "line": 7
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 9
+            },
+            {
+              "col": 10,
+              "line": 9
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Protected "
+        },
+        {
+          "location": [
+            {
+              "col": 12,
+              "line": 9
+            },
+            {
+              "col": 37,
+              "line": 9
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "^caret^ ~tilde~ \"`quoted`\""
+        },
+        {
+          "location": [
+            {
+              "col": 39,
+              "line": 9
+            },
+            {
+              "col": 39,
+              "line": 9
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 9
+        },
+        {
+          "col": 39,
+          "line": 9
+        }
+      ],
+      "name": "paragraph",
+      "type": "block"
+    }
+  ],
+  "header": {
+    "location": [
+      {
+        "col": 1,
+        "line": 1
+      },
+      {
+        "col": 21,
+        "line": 1
+      }
+    ],
+    "title": [
+      {
+        "location": [
+          {
+            "col": 3,
+            "line": 1
+          },
+          {
+            "col": 21,
+            "line": 1
+          }
+        ],
+        "name": "text",
+        "type": "string",
+        "value": "Resolved typography"
+      }
+    ]
+  },
+  "location": [
+    {
+      "col": 1,
+      "line": 1
+    },
+    {
+      "col": 39,
+      "line": 9
+    }
+  ],
+  "name": "document",
+  "profile": "urn:acdc:asg:1",
+  "type": "block"
+}

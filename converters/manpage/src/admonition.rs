@@ -5,8 +5,8 @@
 
 use std::io::Write;
 
-use acdc_converters_core::{TraversalContext, visitor::WritableVisitor};
-use acdc_parser::Admonition;
+use acdc_converters_core::TraversalContext;
+use acdc_parser::ast::AdmonitionRef;
 
 use crate::{Error, ManpageVisitor};
 
@@ -15,7 +15,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     pub(crate) fn render_admonition(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        admon: &'a Admonition<'a>,
+        admon: AdmonitionRef<'a>,
     ) -> Result<(), Error> {
         let w = self.writer_mut();
 
@@ -23,13 +23,21 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         writeln!(w, ".sp")?;
 
         // Label (bold, uppercase)
-        let label = format!("{:?}", admon.variant).to_uppercase();
-        write!(w, "\\fB{label}:\\fP")?;
+        let label = format!("{:?}", admon.variant()).to_uppercase();
+        if let Some(content) = admon.caption_content() {
+            let _ = w;
+            write!(self.writer_mut(), "\\fB")?;
+            self.write_content(traversal, content)?;
+            write!(self.writer_mut(), ":\\fP")?;
+        } else {
+            write!(w, "\\fB{label}:\\fP")?;
+        }
+        let w = self.writer_mut();
 
         // Optional title
-        if !admon.title.is_empty() {
+        if admon.title().is_some() {
             write!(w, " ")?;
-            self.render_title_inlines(traversal, &admon.title)?;
+            self.render_title_inlines(traversal, admon.title())?;
         }
 
         let w = self.writer_mut();
@@ -38,7 +46,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         // Indented content
         writeln!(w, ".RS 4")?;
 
-        for block in &admon.blocks {
+        for block in admon.blocks() {
             traversal.visit_block(self, block)?;
         }
 

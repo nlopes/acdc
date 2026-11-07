@@ -225,6 +225,9 @@ impl<'a> Remapper<'a> {
     /// file boundary (e.g. the document, or a section containing an `include::`)
     /// reports each endpoint's true file and line.
     fn remap_one(&self, loc: &mut Location) {
+        if loc.is_unknown() {
+            return;
+        }
         let Some((src_start, start_line, start_range)) = self.map_offset(loc.absolute_start) else {
             return;
         };
@@ -237,13 +240,11 @@ impl<'a> Remapper<'a> {
             self.map_offset(end_probe)
                 .unwrap_or((src_start, start_line, start_range));
 
-        // Line + column are always origin-relative. Columns shift by a per-range
-        // constant for re-indented includes; untransformed ranges (shift 0) leave
-        // them unchanged.
-        loc.start.line = start_line;
-        loc.end.line = end_line.max(start_line);
-        loc.start.column = shift_column(loc.start.column, start_range.column_shift);
-        loc.end.column = shift_column(loc.end.column, end_range.column_shift);
+        remap_endpoints(
+            loc,
+            (src_start, start_line, start_range),
+            (src_end, end_line, end_range),
+        );
         // `range_file` hashes the include chain, so resolve once and reuse when start and
         // end fall in the same range — the case for nearly every node (single-file spans),
         // including the end-probe fallback, which reuses `start_range`.
@@ -255,26 +256,31 @@ impl<'a> Remapper<'a> {
         };
         loc.start.file = start_file;
         loc.end.file = end_file;
+    }
+}
 
-        // Byte offsets are origin-relative only for 1:1 ranges. A re-indented range
-        // inserts/removes bytes per line, so `source_offset` can't recover origin
-        // offsets — keep the preprocessed offset (in bounds, never overruns the
-        // shorter origin file) rather than claim a wrong one. `absolute_*` is not
-        // serialized to the ASG, so this divergence is internal only.
-        //
-        // When start and end fall in different files, the two offsets are in different
-        // coordinate spaces and aren't a meaningful byte span (consumers must use the
-        // per-boundary `file`/line — see `Location`). The `.max(start)` only upholds the
-        // `start <= end` invariant for that degenerate cross-file case; it isn't a real
-        // length.
-        if start_range.column_shift == 0 {
-            loc.absolute_start = src_start;
-        }
-        if end_range.column_shift == 0 {
-            loc.absolute_end = src_end.max(loc.absolute_start);
-        } else {
-            loc.absolute_end = loc.absolute_end.max(loc.absolute_start);
-        }
+/// Apply each endpoint's source line, column, and byte mapping.
+/// Reindented ranges retain their merged byte offsets.
+pub(super) fn remap_endpoints(
+    location: &mut Location,
+    (start_offset, start_line, start_range): (usize, u32, &SourceRange),
+    (end_offset, end_line, end_range): (usize, u32, &SourceRange),
+) {
+    location.start.line = start_line;
+    location.end.line = if start_range.file_chain == end_range.file_chain {
+        end_line.max(start_line)
+    } else {
+        end_line
+    };
+    location.start.column = shift_column(location.start.column, start_range.column_shift);
+    location.end.column = shift_column(location.end.column, end_range.column_shift);
+    if start_range.column_shift == 0 {
+        location.absolute_start = start_offset;
+    }
+    if end_range.column_shift == 0 {
+        location.absolute_end = end_offset.max(location.absolute_start);
+    } else {
+        location.absolute_end = location.absolute_end.max(location.absolute_start);
     }
 }
 
@@ -318,6 +324,33 @@ mod tests {
             source_start_offset: 0,
             column_shift: 0,
         }
+    }
+
+    #[test]
+    fn cross_file_endpoints_keep_independent_source_lines() {
+        let input = "one\ntwo";
+        let line_map = LineMap::new(input);
+        let mut parent = range(0, 4);
+        parent.start_line = 20;
+        let mut included = range(4, input.len());
+        included.start_line = 2;
+        included.file_chain.push("part.adoc".into());
+        let ranges = [parent, included];
+        let remapper = Remapper::new(&ranges, input, &line_map);
+        let mut location = Location {
+            absolute_start: 0,
+            absolute_end: input.len() - 1,
+            start: line_map.offset_to_position(0, input),
+            end: line_map.offset_to_position(input.len() - 1, input),
+        };
+        remapper.remap_one(&mut location);
+        assert_eq!(location.start.line, 20);
+        assert_eq!(location.end.line, 2);
+        assert!(location.start.file.is_none());
+        assert_eq!(
+            location.end.file.as_deref().map(Vec::as_slice),
+            Some(["part.adoc".to_string()].as_slice())
+        );
     }
 
     /// The segment-cover lookup must resolve the same innermost (last-recorded)

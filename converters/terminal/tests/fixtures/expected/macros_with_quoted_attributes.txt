@@ -10,7 +10,7 @@ Test all macros that support positional attributes with quoted values.
 [38;2;215;0;135m[1mInline Macros[0m
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 Inline image: [Image: Settings icon]
-Icon with quoted title: [Icon: Favorite]
+Icon with quoted title: [Icon: heart]
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;2;215;0;135m[1mAudio and Video[0m

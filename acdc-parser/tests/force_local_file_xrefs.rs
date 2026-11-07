@@ -2,25 +2,28 @@
 //! `<<anchor>>`.
 
 use acdc_parser::{
-    Block, CrossReference, InlineMacro, InlineNode, Options, SafeMode, WarningKind, parse,
-    parse_inline,
+    Options, SafeMode, WarningKind,
+    ast::{BlockKind, BlockRef, ContentRef, CrossReferenceRef, InlineKind, InlineRef},
+    parse, parse_inline,
 };
 
 type Error = Box<dyn std::error::Error>;
 
-fn paragraph_xrefs<'d, 'a>(blocks: &'d [Block<'a>]) -> Vec<&'d CrossReference<'a>> {
+fn paragraph_xrefs<'doc>(
+    blocks: impl IntoIterator<Item = BlockRef<'doc>>,
+) -> Vec<CrossReferenceRef<'doc>> {
     blocks
-        .iter()
+        .into_iter()
         .filter_map(|block| {
-            if let Block::Paragraph(paragraph) = block {
-                Some(&paragraph.content)
+            if let BlockKind::Paragraph(paragraph) = block.kind() {
+                Some(paragraph.content())
             } else {
                 None
             }
         })
-        .flatten()
+        .flat_map(ContentRef::inlines)
         .filter_map(|inline| {
-            if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+            if let InlineKind::CrossReference(xref) = inline.kind() {
                 Some(xref)
             } else {
                 None
@@ -36,21 +39,26 @@ fn xref(source: &str, force_local: bool) -> Result<(String, String), Error> {
         builder = builder.with_force_local_file_xrefs();
     }
     let parsed = parse_inline(source, &builder.build()?)?;
-    let [InlineNode::Macro(InlineMacro::CrossReference(xref))] = parsed.inlines() else {
-        return Err(format!("expected one cross-reference, got {:?}", parsed.inlines()).into());
+    let [InlineKind::CrossReference(xref)] = &*parsed
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err(format!("expected one cross-reference, got {:?}", parsed.content()).into());
     };
     let text = xref
-        .text
-        .iter()
+        .text()
+        .inlines()
         .map(|node| {
-            if let InlineNode::PlainText(text) = node {
-                text.content
+            if let InlineKind::Plain(text) = node.kind() {
+                text.text()
             } else {
                 "?"
             }
         })
         .collect::<String>();
-    Ok((xref.target.to_string(), text))
+    Ok((xref.target().to_string(), text))
 }
 
 #[test]
@@ -77,7 +85,12 @@ fn reopening_options_preserves_file_xref_resolution() -> Result<(), Error> {
             .with_attribute("sectnums", true)
             .build()?;
         let parsed = parse_inline("xref:other.adoc#anchor[text]", &options)?;
-        let [InlineNode::Macro(InlineMacro::CrossReference(xref))] = parsed.inlines() else {
+        let [InlineKind::CrossReference(xref)] = &*parsed
+            .content()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected one cross-reference".into());
         };
         let expected = if force_local {
@@ -85,8 +98,8 @@ fn reopening_options_preserves_file_xref_resolution() -> Result<(), Error> {
         } else {
             "other.adoc#anchor"
         };
-        assert_eq!(xref.target, expected);
-        assert_eq!(xref.target_is_local, force_local);
+        assert_eq!(xref.target(), expected);
+        assert_eq!(xref.target_is_local(), force_local);
     }
     Ok(())
 }
@@ -182,17 +195,16 @@ fn protected_urls_are_preserved_before_filename_removal() -> Result<(), Error> {
     let parsed = parse(source, &options)?;
     let targets = parsed
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .filter_map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return None;
             };
-            let InlineNode::Macro(InlineMacro::CrossReference(xref)) = paragraph.content.first()?
+            let InlineKind::CrossReference(xref) = paragraph.content().inlines().next()?.kind()
             else {
                 return None;
             };
-            Some(xref.target)
+            Some(xref.target())
         })
         .collect::<Vec<_>>();
     assert_eq!(targets, [target, target]);
@@ -215,11 +227,16 @@ fn forced_fragments_are_local_for_both_syntaxes() -> Result<(), Error> {
             format!("xref:other.adoc#{target}[Explicit]"),
         ] {
             let parsed = parse_inline(&source, &options)?;
-            let [InlineNode::Macro(InlineMacro::CrossReference(xref))] = parsed.inlines() else {
+            let [InlineKind::CrossReference(xref)] = &*parsed
+                .content()
+                .inlines()
+                .map(InlineRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err(format!("missing xref: {source}").into());
             };
-            assert_eq!(xref.target, target);
-            assert!(xref.target_is_local, "{source}");
+            assert_eq!(xref.target(), target);
+            assert!(xref.target_is_local(), "{source}");
         }
     }
     Ok(())
@@ -230,9 +247,13 @@ fn forced_fragments_use_local_diagnostics_and_natural_labels() -> Result<(), Err
     let options = Options::builder().with_force_local_file_xrefs().build()?;
     let source = "xref:other.adoc#rule.1[Explicit] <<other.adoc#rule.1>> <<other.adoc#Rule>>\n\nxref:other.adoc#missing.id[] <<other.adoc#missing:id,Missing>>\n\nxref:other.adoc#++rule.1++[Protected]\n\n[[rule.1]]\n== Rule\n";
     let parsed = parse(source, &options)?;
-    let xrefs = paragraph_xrefs(&parsed.document().blocks);
+    let xrefs = paragraph_xrefs(parsed.document().blocks());
     assert_eq!(
-        xrefs.iter().map(|xref| xref.target).collect::<Vec<_>>(),
+        xrefs
+            .iter()
+            .copied()
+            .map(CrossReferenceRef::target)
+            .collect::<Vec<_>>(),
         [
             "rule.1",
             "rule.1",
@@ -242,7 +263,7 @@ fn forced_fragments_use_local_diagnostics_and_natural_labels() -> Result<(), Err
             "rule.1"
         ]
     );
-    assert!(xrefs.iter().all(|xref| xref.target_is_local));
+    assert!(xrefs.iter().all(|xref| xref.target_is_local()));
     let warnings = parsed.warnings();
     assert_eq!(warnings.len(), 2, "{warnings:?}");
     for (warning, expected) in warnings.iter().zip(["missing.id", "missing:id"]) {
@@ -273,13 +294,13 @@ fn forced_fragments_are_not_reinterpreted_as_source_paths() -> Result<(), Error>
         "xref:other.adoc#chapter.adoc[Literal ID]\n\ninclude::chapter.adoc[]\n",
         &options,
     )?;
-    let xrefs = paragraph_xrefs(&parsed.document().blocks);
+    let xrefs = paragraph_xrefs(parsed.document().blocks());
     let [xref] = xrefs.as_slice() else {
         return Err("missing xref".into());
     };
-    assert_eq!(xref.target, "chapter.adoc");
-    assert!(xref.target_is_local);
-    assert!(!parsed.document().references.contains_key(""));
+    assert_eq!(xref.target(), "chapter.adoc");
+    assert!(xref.target_is_local());
+    assert!(!parsed.document().references().contains(""));
     assert!(
         matches!(parsed.warnings(), [warning] if matches!(&warning.kind, WarningKind::UnresolvedReference { target } if target == "chapter.adoc"))
     );
@@ -294,7 +315,7 @@ fn forcing_a_fragment_does_not_load_the_named_file() -> Result<(), Error> {
         .with_force_local_file_xrefs()
         .build()?;
     let parsed = parse("xref:xref_include_target.adoc#included-target[]", &options)?;
-    assert!(parsed.document().references.is_empty());
+    assert!(parsed.document().references().iter().next().is_none());
     assert!(
         matches!(parsed.warnings(), [warning] if matches!(&warning.kind, WarningKind::UnresolvedReference { target } if target == "included-target"))
     );
@@ -312,11 +333,11 @@ fn forcing_partial_sources_also_redirects_external_file_references() -> Result<(
             builder = builder.with_force_local_file_xrefs();
         }
         let parsed = parse(source, &builder.build()?)?;
-        assert!(parsed.document().references.contains_key("catalog-target"));
+        assert!(parsed.document().references().contains("catalog-target"));
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
-        let targets = paragraph_xrefs(&parsed.document().blocks)
+        let targets = paragraph_xrefs(parsed.document().blocks())
             .iter()
-            .map(|xref| (xref.target, xref.target_is_local))
+            .map(|xref| (xref.target(), xref.target_is_local()))
             .collect::<Vec<_>>();
         let expected = if force_local {
             [("catalog-target", true), ("catalog-target", true)]
@@ -360,9 +381,9 @@ fn scoped_assembly_anchors_work_without_forcing_file_references() -> Result<(), 
         }
         let parsed = parse(source, &builder.build()?)?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
-        let targets = paragraph_xrefs(&parsed.document().blocks)
+        let targets = paragraph_xrefs(parsed.document().blocks())
             .iter()
-            .map(|xref| (xref.target, xref.target_is_local))
+            .map(|xref| (xref.target(), xref.target_is_local()))
             .collect::<Vec<_>>();
         assert_eq!(targets, [("a:::intro", true), ("b:::intro", true)]);
     }

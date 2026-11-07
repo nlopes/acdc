@@ -1,0 +1,50 @@
+= Comment metadata
+
+[.attached]
+////
+Hidden footnote:[Not registered].
+////
+Visible paragraph.
+
+[[selected,Reference]]
+.Discarded footnote:[Discarded]
+/////
+////
+[discrete]
+:value: hidden
+/////
+.Selected footnote:[Selected]
+Visible {value}.
+
+[source,rust]
+////
+Hidden.
+////
+----
+let value = 1;
+----
+
+[.list]
+////
+Hidden.
+////
+* First
+* Second
+
+== First section
+
+[.section]
+////
+[discrete]
+////
+== Second section
+
+[discrete]
+////
+Hidden.
+////
+=== Floating
+
+Body.
+
+<<selected>>

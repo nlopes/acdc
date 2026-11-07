@@ -3,6 +3,8 @@ use acdc_lint::{
     Lintable,
 };
 
+use acdc_parser::CompatibilityMode;
+
 const MULTIPLE: &str = "multiple sentences on one source line";
 const WRAPPED: &str = "sentence spans multiple source lines";
 
@@ -17,8 +19,10 @@ fn lint_options() -> LintOptions {
 }
 
 fn assert_diagnostics(source: &str, expected: &[(&str, u32)]) -> Result<(), Error> {
-    let report = source.lint(&lint_options())?;
-    assert_report_diagnostics(&report, source, expected);
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let report = source.lint(&lint_options().with_compatibility_mode(mode))?;
+        assert_report_diagnostics(&report, source, expected);
+    }
     Ok(())
 }
 
@@ -274,7 +278,6 @@ fn one_sentence_per_line_recognizes_formatting_in_link_labels() -> Result<(), Er
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn one_sentence_per_line_preserves_markers_when_quotes_are_disabled() -> Result<(), Error> {
     for substitutions in ["-quotes", "none", "specialcharacters"] {
@@ -288,13 +291,4 @@ fn one_sentence_per_line_preserves_markers_when_quotes_are_disabled() -> Result<
         &[(WRAPPED, 4)],
     )?;
     Ok(())
-}
-
-#[cfg(not(feature = "pre-spec-subs"))]
-#[test]
-fn one_sentence_per_line_ignores_subs_without_pre_spec_subs() -> Result<(), Error> {
-    assert_diagnostics(
-        "= Title\n\n[subs=\"-quotes\"]\n*One sentence.*\nAnother sentence.\n",
-        &[],
-    )
 }

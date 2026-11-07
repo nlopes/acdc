@@ -1,0 +1,22 @@
+= STEM contexts
+:stem: latexmath
+:value: Before
+
+stem:[{value}].
+
+include::includes/compatibility_stem_selected.adoc[tag=keep,indent=0]
+
+:stem: asciimath
+:value: After
+
+[cols=a]
+|===
+|π stem:[α \in [0,1\]].
+
+stem:attributes[{value} footnote:table[Discarded.]].
+|===
+
+[stem,subs="+attributes"]
+++++
+{value} *x*
+++++

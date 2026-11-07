@@ -1,0 +1,265 @@
+//! Table decoration preserves local declarations and document snapshots.
+
+use std::collections::HashMap;
+
+use acdc_parser::{
+    AttributeValue, CompatibilityMode, DelimitedBlock, DelimitedBlockType, DocumentAttributes,
+    Location, Options, Table, TableFrame, TableGrid, TablePresentation, TableStripes,
+    ast::{BlockKind, BlockRef},
+    parse,
+};
+
+type Error = Box<dyn std::error::Error>;
+type Decoration = (TableFrame, TableGrid, TableStripes);
+
+fn decoration(value: TablePresentation) -> Decoration {
+    (value.frame(), value.grid(), value.stripes())
+}
+
+fn resolve(block: &DelimitedBlock<'_>, defaults: &DocumentAttributes<'_>) -> TablePresentation {
+    let expected =
+        TablePresentation::from_attributes(&block.clone_metadata(), |name| defaults.get(name));
+    let actual = TablePresentation::resolve(BlockRef::from(block).attributes(), defaults.into());
+    assert_eq!(actual, expected);
+    assert_eq!(
+        TablePresentation::resolve_with(BlockRef::from(block).attributes(), |name| defaults
+            .get(name)),
+        expected
+    );
+    actual
+}
+
+fn empty_table() -> DelimitedBlock<'static> {
+    DelimitedBlock::new(
+        DelimitedBlockType::DelimitedTable(Table::new(Vec::new(), Location::default())),
+        "|===",
+        Location::default(),
+    )
+}
+
+#[rstest::rstest]
+fn local_values_mask_defaults_without_changing_their_meaning(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(
+        "= Tables\n:table-frame: sides\n:table-grid: cols\n:table-stripes: even\n\nText.",
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    for (local, expected) in [
+        (
+            None,
+            (TableFrame::Sides, TableGrid::Columns, TableStripes::Even),
+        ),
+        (
+            Some(AttributeValue::None),
+            (TableFrame::All, TableGrid::All, TableStripes::None),
+        ),
+        (
+            Some(AttributeValue::Bool(false)),
+            (TableFrame::All, TableGrid::All, TableStripes::None),
+        ),
+        (
+            Some(AttributeValue::Bool(true)),
+            (TableFrame::None, TableGrid::None, TableStripes::None),
+        ),
+        (
+            Some(AttributeValue::from("")),
+            (TableFrame::None, TableGrid::None, TableStripes::None),
+        ),
+        (
+            Some(AttributeValue::from("all")),
+            (TableFrame::All, TableGrid::All, TableStripes::All),
+        ),
+        (
+            Some(AttributeValue::from("none")),
+            (TableFrame::None, TableGrid::None, TableStripes::None),
+        ),
+        (
+            Some(AttributeValue::from("ends")),
+            (TableFrame::Ends, TableGrid::None, TableStripes::None),
+        ),
+        (
+            Some(AttributeValue::from("topbot")),
+            (TableFrame::Ends, TableGrid::None, TableStripes::None),
+        ),
+        (
+            Some(AttributeValue::from("sides")),
+            (TableFrame::Sides, TableGrid::None, TableStripes::None),
+        ),
+        (
+            Some(AttributeValue::from("rows")),
+            (TableFrame::None, TableGrid::Rows, TableStripes::None),
+        ),
+        (
+            Some(AttributeValue::from("cols")),
+            (TableFrame::None, TableGrid::Columns, TableStripes::None),
+        ),
+        (
+            Some(AttributeValue::from("odd")),
+            (TableFrame::None, TableGrid::None, TableStripes::Odd),
+        ),
+        (
+            Some(AttributeValue::from("even")),
+            (TableFrame::None, TableGrid::None, TableStripes::Even),
+        ),
+        (
+            Some(AttributeValue::from("hover")),
+            (TableFrame::None, TableGrid::None, TableStripes::Hover),
+        ),
+        (
+            Some(AttributeValue::from("INVALID")),
+            (TableFrame::None, TableGrid::None, TableStripes::None),
+        ),
+        (
+            Some(AttributeValue::from("'all'")),
+            (TableFrame::None, TableGrid::None, TableStripes::None),
+        ),
+    ] {
+        let mut block = empty_table();
+        if let Some(local) = local {
+            let mut metadata = block.take_metadata();
+            for name in ["frame", "grid", "stripes"] {
+                metadata.attributes.set(name.into(), local.clone());
+            }
+            block.set_metadata(metadata)?;
+        }
+        assert_eq!(
+            decoration(resolve(
+                &block,
+                &DocumentAttributes::from(parsed.document().attributes())
+            )),
+            expected
+        );
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
+fn document_values_distinguish_absence_presence_unsets_and_exact_text(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    for (entries, expected) in [
+        ("", (TableFrame::All, TableGrid::All, TableStripes::None)),
+        (
+            ":table-frame:\n:table-grid:\n:table-stripes:\n",
+            (TableFrame::None, TableGrid::None, TableStripes::None),
+        ),
+        (
+            ":table-frame!:\n:table-grid!:\n:table-stripes!:\n",
+            (TableFrame::All, TableGrid::All, TableStripes::None),
+        ),
+        (
+            ":table-frame: sides\n:table-grid: rows\n:table-stripes: odd\n",
+            (TableFrame::Sides, TableGrid::Rows, TableStripes::Odd),
+        ),
+        (
+            ":table-frame: INVALID\n:table-grid: INVALID\n:table-stripes: INVALID\n",
+            (TableFrame::None, TableGrid::None, TableStripes::None),
+        ),
+        (
+            ":table-frame: 'sides'\n:table-grid: 'rows'\n:table-stripes: 'odd'\n",
+            (TableFrame::None, TableGrid::None, TableStripes::None),
+        ),
+    ] {
+        let value = {
+            let source = format!("= Tables\n{entries}\nText.");
+            let parsed = parse(
+                &source,
+                &Options::builder().with_compatibility_mode(mode).build()?,
+            )?;
+            let value = resolve(
+                &empty_table(),
+                &DocumentAttributes::from(parsed.document().attributes()),
+            );
+            assert_eq!(
+                TablePresentation::resolve(None, parsed.document().attributes()),
+                value
+            );
+            value
+        };
+        assert_eq!(decoration(value), expected, "{entries:?}");
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
+fn lookup_resolution_uses_body_assignments_and_unsets_without_updating_tables(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(
+        "= Tables\n:table-frame: sides\n:table-grid: rows\n:table-stripes: odd\n\n|===\n|Header defaults\n|===\n\n:table-frame: ends\n:table-grid: cols\n:table-stripes: even\n\n|===\n|Body defaults\n|===\n\n:table-frame!:\n:table-grid!:\n:table-stripes!:\n\n|===\n|Unset defaults\n|===\n",
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let header = parsed.document().attributes();
+    let mut overlay = HashMap::new();
+    let mut actual = Vec::new();
+    let unresolved = empty_table();
+    let BlockKind::Table(constructed) = BlockRef::from(&unresolved).kind() else {
+        return Err("expected constructed table".into());
+    };
+    for block in parsed.document().blocks() {
+        if let BlockKind::DocumentAttribute(event) = block.kind() {
+            overlay.insert(event.name(), event.assignment().value());
+        } else if let BlockKind::Table(table) = block.kind() {
+            let lookup = |name: &str| {
+                overlay
+                    .get(name)
+                    .copied()
+                    .unwrap_or_else(|| header.get(name))
+            };
+            let stored = table.presentation();
+            let resolved = TablePresentation::resolve_with(Some(constructed.attributes()), lookup);
+            assert_eq!(Some(resolved), stored);
+            assert_eq!(
+                resolved,
+                TablePresentation::from_attributes(&unresolved.clone_metadata(), lookup)
+            );
+            assert_eq!(table.presentation(), stored);
+            assert_eq!(constructed.presentation(), None);
+            actual.push(decoration(resolved));
+        }
+    }
+    assert_eq!(
+        actual,
+        [
+            (TableFrame::Sides, TableGrid::Rows, TableStripes::Odd),
+            (TableFrame::Ends, TableGrid::Columns, TableStripes::Even),
+            (TableFrame::All, TableGrid::All, TableStripes::None),
+        ]
+    );
+    assert_eq!(
+        decoration(TablePresentation::resolve(None, header)),
+        (TableFrame::Sides, TableGrid::Rows, TableStripes::Odd)
+    );
+    Ok(())
+}
+
+#[test]
+fn local_values_mask_lookup_defaults_without_requesting_them() -> Result<(), Error> {
+    for value in [
+        AttributeValue::None,
+        AttributeValue::Bool(false),
+        AttributeValue::from(""),
+    ] {
+        let mut block = empty_table();
+        let mut metadata = block.take_metadata();
+        for name in ["frame", "grid", "stripes"] {
+            metadata.attributes.set(name.into(), value.clone());
+        }
+        block.set_metadata(metadata)?;
+        let mut requested = Vec::new();
+        let resolved =
+            TablePresentation::resolve_with(BlockRef::from(&block).attributes(), |name| {
+                requested.push(name.to_owned());
+                None
+            });
+        assert_eq!(requested, [] as [String; 0]);
+        let expected = if value == AttributeValue::from("") {
+            (TableFrame::None, TableGrid::None, TableStripes::None)
+        } else {
+            (TableFrame::All, TableGrid::All, TableStripes::None)
+        };
+        assert_eq!(decoration(resolved), expected);
+    }
+    Ok(())
+}

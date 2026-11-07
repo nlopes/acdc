@@ -28,12 +28,11 @@ fn index_children_have_structured_warnings_at_each_direct_heading() -> Result<()
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 fn index_children_in_setext_sections_have_the_same_diagnostic() -> Result<(), Error> {
     let parsed = parse(
         "= Document\n\n[index]\nIndex\n-----\n\nChild\n~~~~~\n\nDetails.\n",
-        &Options::builder().with_setext().build()?,
+        &Options::builder().build()?,
     )?;
     let warnings = parsed
         .warnings()

@@ -3,56 +3,27 @@ use std::{
     io::{Error as IoError, ErrorKind, Write},
 };
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     Diagnostics, InlineTextTransform, TraversalContext, WarningSource, decode_numeric_char_refs,
-    inlines_to_string,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
-    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements},
-    visitor::{Visitor, WritableVisitor},
-    xref::{XrefDisplay, resolve_xref},
+    substitutions::{Replacements, TextBoundaries, apply_passthrough_replacements_iter},
+    xref::{XrefDisplay, resolve_reference, with_caption_prefix},
 };
 use acdc_parser::{
-    Button, CrossReference, Image, IndexTerm, IndexTermRelationship, InlineMacro, InlineNode,
-    Keyboard, Raw, Substitution,
+    Substitution,
+    ast::{
+        AttributeValueRef, ButtonRef, ContentRef, CrossReferenceRef, IconRef, IndexTermRef,
+        IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef, KeyboardRef, LinkRef,
+        RawRef, ReferenceRef,
+    },
 };
+
 use crossterm::{
     QueueableCommand,
     style::{Attribute, Color, Print, PrintStyledContent, SetAttribute, Stylize},
 };
 
 use crate::{Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Processor};
-
-/// Apply Unicode typography replacements to a `PlainText` leaf.
-///
-/// When `pre-spec-subs` is enabled, defers to
-/// [`apply_replacements`](acdc_converters_core::substitutions::apply_replacements)
-/// so that `[subs="-replacements"]` can suppress the transform.
-/// Otherwise, always applies — matching the asciidoctor default and the
-/// pre-`pre-spec-subs` behaviour of this converter.
-#[cfg(feature = "pre-spec-subs")]
-fn transform_plain<'a>(
-    text: &'a str,
-    processor: &Processor<'_>,
-    text_boundaries: TextBoundaries,
-) -> Cow<'a, str> {
-    apply_replacements(
-        text,
-        processor.current_subs.get(),
-        &Replacements::unicode(),
-        text_boundaries,
-    )
-}
-
-#[cfg(not(feature = "pre-spec-subs"))]
-fn transform_plain<'a>(
-    text: &'a str,
-    _processor: &Processor<'_>,
-    text_boundaries: TextBoundaries,
-) -> Cow<'a, str> {
-    Cow::Owned(Replacements::unicode().transform(text, text_boundaries))
-}
 
 /// Try to convert a character to its Unicode superscript equivalent.
 /// Only digits and a few reliable symbols are mapped; letters are not included
@@ -117,7 +88,7 @@ fn try_to_unicode_subscript(text: &str) -> Option<String> {
 /// Render super/subscript content: try Unicode conversion first, fall back to
 /// dim-styled text to subtly indicate super/subscript.
 fn render_script_text<'a, W: Write + ?Sized>(
-    nodes: &[InlineNode],
+    nodes: ContentRef<'_>,
     w: &mut W,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
@@ -125,25 +96,13 @@ fn render_script_text<'a, W: Write + ?Sized>(
 ) -> Result<(), Error> {
     // Collect plain text to attempt Unicode conversion
     let plain: Option<String> = nodes
-        .iter()
-        .map(|n| match n {
-            InlineNode::PlainText(p) => Some(p.content),
-            InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::BoldText(_)
-            | InlineNode::ItalicText(_)
-            | InlineNode::MonospaceText(_)
-            | InlineNode::HighlightText(_)
-            | InlineNode::SubscriptText(_)
-            | InlineNode::SuperscriptText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
-            | _ => None,
+        .inlines()
+        .map(|node| {
+            if let InlineKind::Plain(text) = node.kind() {
+                Some(text.text())
+            } else {
+                None
+            }
         })
         .collect::<Option<Vec<_>>>()
         .map(|parts| parts.join(""));
@@ -157,19 +116,16 @@ fn render_script_text<'a, W: Write + ?Sized>(
 
     // Fall back to dim-styled text
     w.queue(SetAttribute(Attribute::Dim))?;
-    for node in nodes {
+    for node in nodes.inlines() {
         render_inline_node_to_writer(node, w, processor, traversal)?;
     }
     w.queue(SetAttribute(Attribute::NormalIntensity))?;
     Ok(())
 }
 
-/// Helper to render inline nodes to a string buffer.
-///
-/// This is used to render styled text (bold, italic, etc.) where crossterm
-/// requires the full text upfront to apply styling.
-fn render_inline_nodes_to_string<'a>(
-    nodes: &[InlineNode],
+/// Render a link label or script fallback, trimming surrounding whitespace.
+fn render_inline_nodes_to_string<'a, 'inline>(
+    nodes: impl Iterator<Item = InlineRef<'inline>>,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
 ) -> Result<String, Error> {
@@ -182,8 +138,8 @@ fn render_inline_nodes_to_string<'a>(
 ///
 /// Reference text is rendered with this variant: the space in `.A title` or
 /// around a formatted span belongs to the text.
-fn render_inline_nodes_to_owned<'a>(
-    nodes: &[InlineNode],
+fn render_inline_nodes_to_owned<'a, 'inline>(
+    nodes: impl Iterator<Item = InlineRef<'inline>>,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
 ) -> Result<String, Error> {
@@ -195,8 +151,8 @@ fn render_inline_nodes_to_owned<'a>(
     Ok(String::from_utf8(buffer.into_inner()?)?)
 }
 
-fn render_inline_nodes_with_styles_to_owned<'a>(
-    nodes: &[InlineNode],
+pub(crate) fn render_content_with_styles_to_owned<'a>(
+    nodes: ContentRef<'_>,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
 ) -> Result<String, Error> {
@@ -208,123 +164,143 @@ fn render_inline_nodes_with_styles_to_owned<'a>(
         Diagnostics::new(&source, &mut warnings),
     );
     visitor.text_boundaries = TextBoundaries::NONE;
-    visitor.visit_inline_nodes(traversal, nodes)?;
+    visitor.write_content(traversal, nodes)?;
     Ok(String::from_utf8(visitor.into_writer())?)
 }
 
 fn write_raw_text<W: Write + ?Sized>(
     w: &mut W,
-    raw: &Raw<'_>,
+    raw: RawRef<'_>,
     boundaries: TextBoundaries,
 ) -> Result<(), Error> {
-    let replaced = apply_passthrough_replacements(
-        raw.content,
-        &raw.subs,
+    let replaced = apply_passthrough_replacements_iter(
+        raw.text(),
+        raw.substitutions(),
         &Replacements::unicode(),
         boundaries,
     );
-    let text = if raw.subs.last() == Some(&Substitution::SpecialChars) {
+    let text = if raw.substitutions().last() == Some(Substitution::SpecialChars) {
         Cow::Borrowed(replaced.as_ref())
     } else {
         decode_numeric_char_refs(&replaced)
     };
+    let underline = raw.roles().iter().any(|role| role == "underline");
+    let strike = raw.roles().iter().any(|role| role == "line-through");
+    if underline {
+        w.queue(SetAttribute(Attribute::Underlined))?;
+    }
+    if strike {
+        w.queue(SetAttribute(Attribute::CrossedOut))?;
+    }
     write!(w, "{text}")?;
+    if strike {
+        w.queue(SetAttribute(Attribute::NotCrossedOut))?;
+    }
+    if underline {
+        w.queue(SetAttribute(Attribute::NoUnderline))?;
+    }
     Ok(())
 }
 
 /// Render one node inside a span, where text edges are not paragraph edges.
 fn render_inline_node_to_writer<'a, W: Write + ?Sized>(
-    node: &InlineNode,
+    node: InlineRef<'_>,
     w: &mut W,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
-    match node {
-        InlineNode::PlainText(p) => {
-            let text = transform_plain(p.content, processor, TextBoundaries::NONE);
-            write!(w, "{text}")?;
-        }
-        InlineNode::RawText(r) => {
+    match node.kind() {
+        InlineKind::Plain(p) => write!(w, "{}", p.text())?,
+        InlineKind::CharacterReference(reference) => write!(
+            w,
+            "{}",
+            acdc_converters_core::character_reference_text(reference.kind())
+        )?,
+        InlineKind::Raw(r) => {
             write_raw_text(w, r, TextBoundaries::NONE)?;
         }
-        InlineNode::VerbatimText(v) => {
-            // Verbatim text preserves backslashes
-            write!(w, "{}", v.content)?;
-        }
-        InlineNode::ItalicText(i) => {
-            for inner in &i.content {
+        InlineKind::Verbatim(v) => write!(w, "{}", v.text())?,
+        InlineKind::Italic(i) => {
+            for inner in i.content().inlines() {
                 render_inline_node_to_writer(inner, w, processor, traversal)?;
             }
         }
-        InlineNode::BoldText(b) => {
-            for inner in &b.content {
+        InlineKind::Bold(b) => {
+            for inner in b.content().inlines() {
                 render_inline_node_to_writer(inner, w, processor, traversal)?;
             }
         }
-        InlineNode::HighlightText(h) => {
-            if h.role == Some("underline") {
-                // Underline role: just render content (no highlight styling in buffer)
-                for inner in &h.content {
-                    render_inline_node_to_writer(inner, w, processor, traversal)?;
-                }
-            } else {
-                for inner in &h.content {
-                    render_inline_node_to_writer(inner, w, processor, traversal)?;
-                }
-            }
-        }
-        InlineNode::MonospaceText(m) => {
-            for inner in &m.content {
+        InlineKind::Highlight(h) => {
+            for inner in h.content().inlines() {
                 render_inline_node_to_writer(inner, w, processor, traversal)?;
             }
         }
-        InlineNode::Macro(m) => {
-            render_inline_macro_to_writer(m, w, processor, traversal)?;
+        InlineKind::Monospace(m) => {
+            for inner in m.content().inlines() {
+                render_inline_node_to_writer(inner, w, processor, traversal)?;
+            }
         }
-        InlineNode::SuperscriptText(s) => {
+        InlineKind::Url(_)
+        | InlineKind::Link(_)
+        | InlineKind::Mailto(_)
+        | InlineKind::Autolink(_)
+        | InlineKind::Footnote(_)
+        | InlineKind::Button(_)
+        | InlineKind::CrossReference(_)
+        | InlineKind::Pass(_)
+        | InlineKind::Image(_)
+        | InlineKind::Icon(_)
+        | InlineKind::Keyboard(_)
+        | InlineKind::Menu(_)
+        | InlineKind::Stem(_)
+        | InlineKind::IndexTerm(_) => {
+            render_inline_macro_to_writer(node, w, processor, traversal)?;
+        }
+        InlineKind::Superscript(s) => {
             render_script_text(
-                &s.content,
+                s.content(),
                 w,
                 processor,
                 traversal,
                 try_to_unicode_superscript,
             )?;
         }
-        InlineNode::SubscriptText(s) => {
+        InlineKind::Subscript(s) => {
             render_script_text(
-                &s.content,
+                s.content(),
                 w,
                 processor,
                 traversal,
                 try_to_unicode_subscript,
             )?;
         }
-        InlineNode::CurvedQuotationText(c) => {
+        InlineKind::CurvedQuotation(c) => {
             write!(w, "\u{201C}")?;
-            for inner in &c.content {
+            for inner in c.content().inlines() {
                 render_inline_node_to_writer(inner, w, processor, traversal)?;
             }
             write!(w, "\u{201D}")?;
         }
-        InlineNode::CurvedApostropheText(c) => {
+        InlineKind::CurvedApostrophe(c) => {
             write!(w, "\u{2018}")?;
-            for inner in &c.content {
+            for inner in c.content().inlines() {
                 render_inline_node_to_writer(inner, w, processor, traversal)?;
             }
             write!(w, "\u{2019}")?;
         }
-        InlineNode::StandaloneCurvedApostrophe(_) => {
+        InlineKind::Symbol(symbol) => write!(w, "{}", symbol.text())?,
+        InlineKind::StandaloneCurvedApostrophe(_) => {
             write!(w, "\u{2019}")?;
         }
-        InlineNode::LineBreak(_) => {
+        InlineKind::LineBreak(_) => {
             writeln!(w)?;
         }
-        InlineNode::InlineAnchor(_) => {
+        InlineKind::Anchor(_) => {
             // Anchors are invisible
         }
-        InlineNode::CalloutRef(callout) => {
+        InlineKind::Callout(callout) => {
             // Render callout reference as (N)
-            write!(w, "({})", callout.number)?;
+            write!(w, "({})", callout.number())?;
         }
         _ => {
             return Err(IoError::new(
@@ -342,80 +318,93 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
     pub(crate) fn render_inline_node(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        node: &InlineNode,
+        node: InlineRef<'_>,
     ) -> Result<(), Error> {
         let processor = self.processor;
-        match node {
-            InlineNode::PlainText(p) => {
-                let text = transform_plain(p.content, processor, self.text_boundaries);
-                let w = self.writer_mut();
-                write!(w, "{text}")?;
+        match node.kind() {
+            InlineKind::Plain(p) => {
+                write!(self.writer_mut(), "{}", p.text())?;
             }
-            InlineNode::ItalicText(_)
-            | InlineNode::BoldText(_)
-            | InlineNode::HighlightText(_)
-            | InlineNode::MonospaceText(_) => {
+            InlineKind::CharacterReference(reference) => write!(
+                self.writer_mut(),
+                "{}",
+                acdc_converters_core::character_reference_text(reference.kind())
+            )?,
+            InlineKind::Italic(_)
+            | InlineKind::Bold(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Monospace(_) => {
                 self.render_formatted_inline_node(traversal, node, processor)?;
             }
-            InlineNode::SuperscriptText(_) | InlineNode::SubscriptText(_) => {
+            InlineKind::Superscript(_) | InlineKind::Subscript(_) => {
                 self.render_script_inline_node(traversal, node, processor)?;
             }
-            InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
+            InlineKind::CrossReference(xref) => {
                 self.render_cross_reference(traversal, xref, processor)?;
             }
-            InlineNode::Macro(InlineMacro::Button(button)) => {
-                let experimental = traversal.contains_key("experimental");
+            InlineKind::Button(button) => {
                 let w = self.writer_mut();
-                render_button(button, w, experimental)?;
+                render_button(button, w, processor, traversal)?;
             }
-            InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
+            InlineKind::IndexTerm(term) => {
                 register_index_term(term, processor, traversal)?;
                 if term.is_visible() {
-                    self.visit_inline_nodes(traversal, term.term())?;
+                    self.write_content(traversal, term.term())?;
                 }
             }
-            InlineNode::Macro(m) => {
-                render_inline_macro_to_writer(m, &mut self.writer, processor, traversal)?;
+            InlineKind::Url(_)
+            | InlineKind::Link(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Image(_)
+            | InlineKind::Icon(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Stem(_) => {
+                render_inline_macro_to_writer(node, &mut self.writer, processor, traversal)?;
             }
-            InlineNode::InlineAnchor(_) => {
+            InlineKind::Anchor(_) => {
                 // Anchors are invisible in terminal output
             }
-            InlineNode::RawText(r) => {
+            InlineKind::Raw(r) => {
                 write_raw_text(&mut self.writer, r, self.text_boundaries)?;
             }
-            InlineNode::VerbatimText(v) => {
+            InlineKind::Verbatim(v) => {
                 let w = self.writer_mut();
-                write!(w, "{}", v.content)?;
+                write!(w, "{}", v.text())?;
             }
-            InlineNode::CurvedQuotationText(c) => {
+            InlineKind::CurvedQuotation(c) => {
                 let w = self.writer_mut();
                 write!(w, "\u{201C}")?;
-                self.visit_inline_nodes(traversal, &c.content)?;
+                self.write_content(traversal, c.content())?;
                 let w = self.writer_mut();
                 write!(w, "\u{201D}")?;
             }
-            InlineNode::CurvedApostropheText(c) => {
+            InlineKind::CurvedApostrophe(c) => {
                 let w = self.writer_mut();
                 write!(w, "\u{2018}")?;
-                self.visit_inline_nodes(traversal, &c.content)?;
+                self.write_content(traversal, c.content())?;
                 let w = self.writer_mut();
                 write!(w, "\u{2019}")?;
             }
-            InlineNode::StandaloneCurvedApostrophe(_) => {
+            InlineKind::Symbol(symbol) => write!(self.writer_mut(), "{}", symbol.text())?,
+            InlineKind::StandaloneCurvedApostrophe(_) => {
                 let w = self.writer_mut();
                 write!(w, "\u{2019}")?;
             }
-            InlineNode::LineBreak(_) => {
+            InlineKind::LineBreak(_) => {
                 let w = self.writer_mut();
                 writeln!(w)?;
             }
-            InlineNode::CalloutRef(callout) => {
+            InlineKind::Callout(callout) => {
                 // Render callout reference as bold (N)
                 let w = self.writer_mut();
                 w.queue(crossterm::style::SetAttribute(
                     crossterm::style::Attribute::Bold,
                 ))?;
-                write!(w, "({})", callout.number)?;
+                write!(w, "({})", callout.number())?;
                 w.queue(crossterm::style::SetAttribute(
                     crossterm::style::Attribute::NormalIntensity,
                 ))?;
@@ -434,23 +423,26 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
     fn render_cross_reference(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        xref: &CrossReference<'_>,
+        xref: CrossReferenceRef<'_>,
         processor: &Processor<'a>,
     ) -> Result<(), Error> {
-        if !xref.text.is_empty() {
+        if !xref.text().is_empty() {
             return self.write_link_styled(processor, |visitor| {
-                visitor.visit_inline_nodes(traversal, &xref.text)
+                visitor.write_content(traversal, xref.text())
             });
         }
 
-        match resolve_xref(
-            processor.references.get(xref.target),
+        match resolve_reference(
+            processor
+                .references
+                .get(xref.target())
+                .map(ReferenceRef::from),
             xref,
             &processor.xref_guard,
         ) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => self
                 .write_link_styled(processor, |visitor| {
-                    visitor.visit_inline_nodes(traversal, inlines)
+                    visitor.write_content(traversal, inlines)
                 }),
             XrefDisplay::ShortCaption(prefix) => self.write_link_styled(processor, |visitor| {
                 write!(visitor.writer_mut(), "{prefix}")?;
@@ -459,7 +451,21 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
             XrefDisplay::FullCaption(prefix, inlines, _scope) => {
                 self.write_link_styled(processor, |visitor| {
                     write!(visitor.writer_mut(), "{prefix}, “")?;
-                    visitor.visit_inline_nodes(traversal, inlines)?;
+                    visitor.write_content(traversal, inlines)?;
+                    write!(visitor.writer_mut(), "”")?;
+                    Ok(())
+                })
+            }
+            XrefDisplay::ShortCustomCaption(prefix, _scope) => {
+                self.write_link_styled(processor, |visitor| {
+                    with_caption_prefix(prefix, |prefix| visitor.write_content(traversal, prefix))
+                })
+            }
+            XrefDisplay::FullCustomCaption(prefix, inlines, _scope) => {
+                self.write_link_styled(processor, |visitor| {
+                    with_caption_prefix(prefix, |prefix| visitor.write_content(traversal, prefix))?;
+                    write!(visitor.writer_mut(), ", “")?;
+                    visitor.write_content(traversal, inlines)?;
                     write!(visitor.writer_mut(), "”")?;
                     Ok(())
                 })
@@ -472,7 +478,7 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
                     visitor
                         .writer_mut()
                         .queue(SetAttribute(Attribute::Italic))?;
-                    visitor.visit_inline_nodes(traversal, inlines)?;
+                    visitor.write_content(traversal, inlines)?;
                     visitor
                         .writer_mut()
                         .queue(SetAttribute(Attribute::NoItalic))?;
@@ -490,7 +496,7 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
                 Ok(())
             }),
             // Already inside a reference's styling: plain text, so the outer
-            // reference keeps its colour and underline.
+            // reference keeps its color and underline.
             XrefDisplay::Nested(text) => {
                 write!(self.writer_mut(), "{text}")?;
                 Ok(())
@@ -498,7 +504,7 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
         }
     }
 
-    /// Write reference text in the link colour, underlined.
+    /// Write reference text in the link color, underlined.
     fn write_link_styled(
         &mut self,
         processor: &Processor<'a>,
@@ -518,60 +524,75 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
     fn render_formatted_inline_node(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        node: &InlineNode,
+        node: InlineRef<'_>,
         processor: &crate::Processor<'a>,
     ) -> Result<(), Error> {
-        match node {
-            InlineNode::ItalicText(i) => {
+        match node.kind() {
+            InlineKind::Italic(i) => {
                 let w = self.writer_mut();
                 w.queue(SetAttribute(Attribute::Italic))?;
-                self.visit_inline_nodes(traversal, &i.content)?;
+                self.write_content(traversal, i.content())?;
                 let w = self.writer_mut();
                 w.queue(SetAttribute(Attribute::NoItalic))?;
             }
-            InlineNode::BoldText(b) => {
+            InlineKind::Bold(b) => {
                 let w = self.writer_mut();
                 w.queue(SetAttribute(Attribute::Bold))?;
-                self.visit_inline_nodes(traversal, &b.content)?;
+                self.write_content(traversal, b.content())?;
                 let w = self.writer_mut();
                 w.queue(SetAttribute(Attribute::NormalIntensity))?;
             }
-            InlineNode::HighlightText(h) => {
-                if h.role == Some("underline") {
+            InlineKind::Highlight(h) => {
+                if h.role() == Some("underline") {
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::Underlined))?;
-                    self.visit_inline_nodes(traversal, &h.content)?;
+                    self.write_content(traversal, h.content())?;
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::NoUnderline))?;
-                } else if h.role == Some("line-through") {
+                } else if h.role() == Some("line-through") {
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::CrossedOut))?;
-                    self.visit_inline_nodes(traversal, &h.content)?;
+                    self.write_content(traversal, h.content())?;
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::NotCrossedOut))?;
                 } else {
                     self.push_colors(Some(Color::Black), Some(Color::Yellow))?;
-                    self.visit_inline_nodes(traversal, &h.content)?;
+                    self.write_content(traversal, h.content())?;
                     self.pop_colors()?;
                 }
             }
-            InlineNode::MonospaceText(m) => {
+            InlineKind::Monospace(m) => {
                 self.push_colors(Some(processor.appearance.colors.inline_monospace), None)?;
-                self.visit_inline_nodes(traversal, &m.content)?;
+                self.write_content(traversal, m.content())?;
                 self.pop_colors()?;
             }
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::SubscriptText(_)
-            | InlineNode::SuperscriptText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
+            InlineKind::Plain(_)
+            | InlineKind::Raw(_)
+            | InlineKind::Verbatim(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::CharacterReference(_)
+            | InlineKind::Symbol(_)
+            | InlineKind::LineBreak(_)
+            | InlineKind::Anchor(_)
+            | InlineKind::Url(_)
+            | InlineKind::Link(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::Button(_)
+            | InlineKind::CrossReference(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Image(_)
+            | InlineKind::Icon(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Stem(_)
+            | InlineKind::IndexTerm(_)
+            | InlineKind::Callout(_)
             | _ => {}
         }
         Ok(())
@@ -581,12 +602,13 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
     fn render_script_inline_node(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        node: &InlineNode,
+        node: InlineRef<'_>,
         processor: &crate::Processor<'a>,
     ) -> Result<(), Error> {
-        match node {
-            InlineNode::SuperscriptText(s) => {
-                let text = render_inline_nodes_to_string(&s.content, processor, traversal)?;
+        match node.kind() {
+            InlineKind::Superscript(s) => {
+                let text =
+                    render_inline_nodes_to_string(s.content().inlines(), processor, traversal)?;
                 let w = self.writer_mut();
                 if let Some(converted) = try_to_unicode_superscript(&text) {
                     write!(w, "{converted}")?;
@@ -596,8 +618,9 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
                     w.queue(SetAttribute(Attribute::NormalIntensity))?;
                 }
             }
-            InlineNode::SubscriptText(s) => {
-                let text = render_inline_nodes_to_string(&s.content, processor, traversal)?;
+            InlineKind::Subscript(s) => {
+                let text =
+                    render_inline_nodes_to_string(s.content().inlines(), processor, traversal)?;
                 let w = self.writer_mut();
                 if let Some(converted) = try_to_unicode_subscript(&text) {
                     write!(w, "{converted}")?;
@@ -607,20 +630,35 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
                     w.queue(SetAttribute(Attribute::NormalIntensity))?;
                 }
             }
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::BoldText(_)
-            | InlineNode::ItalicText(_)
-            | InlineNode::MonospaceText(_)
-            | InlineNode::HighlightText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
+            InlineKind::Plain(_)
+            | InlineKind::Raw(_)
+            | InlineKind::Verbatim(_)
+            | InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::CharacterReference(_)
+            | InlineKind::Symbol(_)
+            | InlineKind::LineBreak(_)
+            | InlineKind::Anchor(_)
+            | InlineKind::Url(_)
+            | InlineKind::Link(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::Button(_)
+            | InlineKind::CrossReference(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Image(_)
+            | InlineKind::Icon(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Stem(_)
+            | InlineKind::IndexTerm(_)
+            | InlineKind::Callout(_)
             | _ => {}
         }
         Ok(())
@@ -650,58 +688,64 @@ pub(crate) fn maybe_render_osc8_link<W: Write + ?Sized>(
     Ok(())
 }
 
-fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
-    inline_macro: &InlineMacro<'_>,
+fn render_link_to_writer<'a, W: Write + ?Sized>(
+    l: LinkRef<'_>,
     w: &mut W,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
-    match inline_macro {
-        InlineMacro::Link(l) => {
-            let target = l.target.to_string();
-            if l.text.iter().any(is_self_linked_image) {
-                for node in &l.text {
-                    if is_self_linked_image(node) {
-                        render_inline_node_to_writer(node, w, processor, traversal)?;
-                    } else {
-                        let text = render_inline_nodes_to_string(
-                            std::slice::from_ref(node),
-                            processor,
-                            traversal,
-                        )?;
-                        maybe_render_osc8_link(&target, &text, w, processor)?;
-                    }
-                }
+    let target = l.target().to_string();
+    if l.text().inlines().any(is_self_linked_image) {
+        for node in l.text().inlines() {
+            if is_self_linked_image(node) {
+                render_inline_node_to_writer(node, w, processor, traversal)?;
             } else {
-                let text = if l.text.is_empty() {
-                    link_fallback(&target, l.hides_uri_scheme()).to_string()
-                } else {
-                    render_inline_nodes_to_string(&l.text, processor, traversal)?
-                };
+                let text =
+                    render_inline_nodes_to_string(std::iter::once(node), processor, traversal)?;
                 maybe_render_osc8_link(&target, &text, w, processor)?;
             }
         }
-        InlineMacro::Url(u) => {
-            let target = u.target.to_string();
-            let text = if u.text.is_empty() {
+    } else {
+        let text = if l.text().is_empty() {
+            link_fallback(&target, l.hides_uri_scheme()).to_string()
+        } else {
+            render_inline_nodes_to_string(l.text().inlines(), processor, traversal)?
+        };
+        maybe_render_osc8_link(&target, &text, w, processor)?;
+    }
+    Ok(())
+}
+
+fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
+    node: InlineRef<'_>,
+    w: &mut W,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
+) -> Result<(), Error> {
+    match node.kind() {
+        InlineKind::Link(link) => render_link_to_writer(link, w, processor, traversal)?,
+        InlineKind::Url(u) => {
+            let target = u.target().to_string();
+            let text = if u.text().is_empty() {
                 link_fallback(&target, u.hides_uri_scheme()).to_string()
             } else {
-                render_inline_nodes_to_string(&u.text, processor, traversal)?
+                render_inline_nodes_to_string(u.text().inlines(), processor, traversal)?
             };
             maybe_render_osc8_link(&target, &text, w, processor)?;
         }
-        InlineMacro::Mailto(m) => {
-            let target = m.target.to_string();
-            let text = if m.text.is_empty() {
+        InlineKind::Mailto(m) => {
+            let target = m.target().to_string();
+            let text = if m.text().is_empty() {
                 mailto_fallback(&target).to_string()
             } else {
-                render_inline_nodes_to_string(&m.text, processor, traversal)?
+                render_inline_nodes_to_string(m.text().inlines(), processor, traversal)?
             };
             maybe_render_osc8_link(&mailto_target(m), &text, w, processor)?;
         }
-        InlineMacro::Autolink(a) => {
-            let target = a.url.to_string();
-            let (text, bracketed) = autolink_fallback(&target, a.bracketed, a.hides_uri_scheme());
+        InlineKind::Autolink(a) => {
+            let target = a.target().to_string();
+            let (text, bracketed) =
+                autolink_fallback(&target, a.is_bracketed(), a.hides_uri_scheme());
             let text = if bracketed {
                 format!("<{text}>")
             } else {
@@ -709,108 +753,139 @@ fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
             };
             maybe_render_osc8_link(&target, &text, w, processor)?;
         }
-        InlineMacro::Footnote(footnote) => {
+        InlineKind::Footnote(footnote) => {
             // Render footnote as superscript number in terminal
             // For terminal output, we'll show [n] format since true superscript is limited
             w.queue(PrintStyledContent(
-                format!("[{}]", footnote.number).cyan().bold(),
+                format!("[{}]", footnote.number()).cyan().bold(),
             ))?;
         }
-        InlineMacro::Button(b) => render_button(b, w, traversal.contains_key("experimental"))?,
-        InlineMacro::CrossReference(xref) => {
+        InlineKind::Button(b) => render_button(b, w, processor, traversal)?,
+        InlineKind::CrossReference(xref) => {
             render_cross_reference_to_writer(xref, w, processor, traversal)?;
         }
-        InlineMacro::Pass(p) => {
+        InlineKind::Pass(p) => {
             // Pass content through as-is
-            if let Some(text) = p.text {
+            if let Some(text) = p.text() {
                 write!(w, "{text}")?;
             }
         }
-        InlineMacro::Image(img) => {
-            render_inline_image(img, w, processor)?;
+        InlineKind::Image(img) => {
+            render_inline_image(img, w, processor, traversal)?;
         }
-        InlineMacro::Icon(icon) => {
-            let alt = acdc_converters_core::icon::alt(&icon.target, &icon.attributes);
-            write!(w, "[Icon: {alt}]")?;
-        }
-        InlineMacro::Keyboard(kbd) => render_keyboard_to_writer(kbd, w)?,
-        InlineMacro::Menu(menu) => {
+        InlineKind::Icon(icon) => render_icon_to_writer(icon, w, processor, traversal)?,
+        InlineKind::Keyboard(kbd) => render_keyboard_to_writer(kbd, w, processor, traversal)?,
+        InlineKind::Menu(menu) => {
             // Show menu path
-            write!(w, "{}", menu.target)?;
-            for item in &menu.items {
-                write!(w, " > {item}")?;
+            write!(
+                w,
+                "{}",
+                render_content_with_styles_to_owned(menu.target(), processor, traversal)?
+            )?;
+            for item in menu.items() {
+                write!(
+                    w,
+                    " > {}",
+                    render_content_with_styles_to_owned(item, processor, traversal)?
+                )?;
             }
         }
-        InlineMacro::Stem(stem) => {
+        InlineKind::Stem(stem) => {
             // Show stem content as-is (terminal can't render math)
-            write!(w, "[{}]", stem.content)?;
+            write!(w, "[{}]", stem.text())?;
         }
-        InlineMacro::IndexTerm(term) => {
+        InlineKind::IndexTerm(term) => {
             render_index_term_to_writer(term, w, processor, traversal)?;
         }
-        _ => {
-            return Err(IoError::new(
-                ErrorKind::Unsupported,
-                format!("Unsupported inline macro in terminal: {inline_macro:?}"),
-            )
-            .into());
+        InlineKind::Plain(_)
+        | InlineKind::Raw(_)
+        | InlineKind::CharacterReference(_)
+        | InlineKind::Symbol(_)
+        | InlineKind::Verbatim(_)
+        | InlineKind::Italic(_)
+        | InlineKind::Bold(_)
+        | InlineKind::Highlight(_)
+        | InlineKind::Monospace(_)
+        | InlineKind::Superscript(_)
+        | InlineKind::Subscript(_)
+        | InlineKind::CurvedQuotation(_)
+        | InlineKind::CurvedApostrophe(_)
+        | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::LineBreak(_)
+        | InlineKind::Anchor(_)
+        | InlineKind::Callout(_)
+        | _ => {
+            return Err(unsupported_inline_macro(node));
         }
     }
     Ok(())
 }
 
-fn render_keyboard_to_writer<W: Write + ?Sized>(
-    keyboard: &Keyboard<'_>,
+fn render_icon_to_writer<'a, W: Write + ?Sized>(
+    icon: IconRef<'_>,
     w: &mut W,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
+) -> Result<(), Error> {
+    let alt = match icon.alt() {
+        Some(content) => render_content_with_styles_to_owned(content, processor, traversal)?,
+        None => acdc_converters_core::icon::alt_from_content(icon.target(), None).into_owned(),
+    };
+    let label = format!("[Icon: {alt}]");
+    if let Some(target) = icon
+        .attributes()
+        .get("link")
+        .and_then(AttributeValueRef::as_str)
+    {
+        maybe_render_osc8_link(target, &label, w, processor)?;
+    } else {
+        write!(w, "{label}")?;
+    }
+    Ok(())
+}
+
+fn render_keyboard_to_writer<'a, W: Write + ?Sized>(
+    keyboard: KeyboardRef<'_>,
+    w: &mut W,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
     write!(w, "[")?;
-    for (index, key) in keyboard.keys.iter().enumerate() {
+    for (index, key) in keyboard.keys().enumerate() {
         if index > 0 {
             write!(w, "+")?;
         }
-        write!(w, "{key}")?;
+        write!(
+            w,
+            "{}",
+            render_content_with_styles_to_owned(key, processor, traversal)?
+        )?;
     }
     write!(w, "]")?;
     Ok(())
 }
 
-fn is_self_linked_image(node: &InlineNode<'_>) -> bool {
-    matches!(
-        node,
-        InlineNode::Macro(InlineMacro::Image(image))
-            if image.metadata.attributes.get_string("link").is_some()
-    )
+fn is_self_linked_image(node: InlineRef<'_>) -> bool {
+    matches!(node.kind(), InlineKind::Image(image) if image.attributes().get("link").and_then(AttributeValueRef::as_str).is_some())
 }
 
-pub(crate) fn block_image_alt(image: &Image<'_>) -> String {
-    if let Some(alt) = image.metadata.attributes.get_string("alt") {
-        return alt.into_owned();
-    }
-    image
-        .source
-        .get_filename()
-        .and_then(|filename| std::path::Path::new(filename).file_stem())
-        .and_then(std::ffi::OsStr::to_str)
-        .unwrap_or_default()
-        .replace(['-', '_'], " ")
-}
-
-fn inline_image_alt(image: &Image<'_>) -> String {
-    if image.title.is_empty() {
-        block_image_alt(image)
-    } else {
-        inlines_to_string(&image.title)
-    }
-}
-
-fn render_inline_image<W: Write + ?Sized>(
-    image: &Image<'_>,
+fn render_inline_image<'a, W: Write + ?Sized>(
+    image: InlineImageRef<'_>,
     w: &mut W,
-    processor: &Processor<'_>,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
-    let text = format!("[Image: {}]", inline_image_alt(image));
-    if let Some(target) = image.metadata.attributes.get_string("link") {
-        maybe_render_osc8_link(&target, &text, w, processor)
+    let alt = match image.alt() {
+        Some(content) => render_content_with_styles_to_owned(content, processor, traversal)?,
+        None => acdc_converters_core::media::image_alt_from_content(image.source(), image.alt()),
+    };
+    let text = format!("[Image: {alt}]");
+    if let Some(target) = image
+        .attributes()
+        .get("link")
+        .and_then(AttributeValueRef::as_str)
+    {
+        maybe_render_osc8_link(target, &text, w, processor)
     } else {
         write!(w, "{text}")?;
         Ok(())
@@ -818,31 +893,32 @@ fn render_inline_image<W: Write + ?Sized>(
 }
 
 pub(crate) fn register_index_term<'a>(
-    term: &IndexTerm<'_>,
+    term: IndexTermRef<'_>,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
-    let term = term.catalog_entry();
-    let mut render_label = |inlines: &[InlineNode]| -> Result<IndexTermLabel, Error> {
+    let term = term.catalog();
+    let mut render_label = |inlines: ContentRef<'_>| -> Result<IndexTermLabel, Error> {
         Ok(IndexTermLabel {
-            plain: InlineTextTransform::default().to_string(inlines),
-            rendered: render_inline_nodes_with_styles_to_owned(inlines, processor, traversal)?,
+            plain: InlineTextTransform::default()
+                .decode_char_refs(true)
+                .content_to_string(inlines),
+            rendered: render_content_with_styles_to_owned(inlines, processor, traversal)?,
         })
     };
     processor.add_index_entry(IndexTermEntry {
         primary: render_label(term.term())?,
         secondary: term.secondary().map(&mut render_label).transpose()?,
         tertiary: term.tertiary().map(&mut render_label).transpose()?,
-        relationship: match term.relationship.as_ref() {
-            Some(IndexTermRelationship::See { target }) => {
+        relationship: match term.relationship() {
+            Some(IndexTermRelationshipRef::See { target }) => {
                 IndexCatalogRelationship::See(render_label(target)?)
             }
-            Some(IndexTermRelationship::SeeAlso { targets }) => IndexCatalogRelationship::SeeAlso(
-                targets
-                    .iter()
-                    .map(|target| render_label(target))
-                    .collect::<Result<_, _>>()?,
-            ),
+            Some(IndexTermRelationshipRef::SeeAlso { targets }) => {
+                IndexCatalogRelationship::SeeAlso(
+                    targets.iter().map(render_label).collect::<Result<_, _>>()?,
+                )
+            }
             None | Some(_) => IndexCatalogRelationship::None,
         },
     });
@@ -851,7 +927,7 @@ pub(crate) fn register_index_term<'a>(
 }
 
 fn render_index_term_to_writer<'a, W: Write + ?Sized>(
-    term: &IndexTerm<'_>,
+    term: IndexTermRef<'_>,
     w: &mut W,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
@@ -861,27 +937,20 @@ fn render_index_term_to_writer<'a, W: Write + ?Sized>(
         write!(
             w,
             "{}",
-            render_inline_nodes_with_styles_to_owned(term.term(), processor, traversal)?
+            render_content_with_styles_to_owned(term.term(), processor, traversal)?
         )?;
     }
     Ok(())
 }
 
-fn render_button<W: Write + ?Sized>(
-    button: &Button,
+fn render_button<'a, W: Write + ?Sized>(
+    button: ButtonRef<'_>,
     w: &mut W,
-    experimental: bool,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
-    if experimental {
-        w.queue(PrintStyledContent(
-            format!("[{}]", button.label).white().bold(),
-        ))?;
-    } else {
-        // If the no-button attribute is set, just render the label as plain text
-        w.queue(PrintStyledContent(
-            format!("btn:[{}]", button.label).white(),
-        ))?;
-    }
+    let label = render_content_with_styles_to_owned(button.label(), processor, traversal)?;
+    w.queue(PrintStyledContent(format!("[{label}]").white().bold()))?;
     Ok(())
 }
 
@@ -889,32 +958,48 @@ fn render_button<W: Write + ?Sized>(
 ///
 /// Used inside buffered inline spans, such as superscripts and subscripts.
 fn render_cross_reference_to_writer<'a, W: Write + ?Sized>(
-    xref: &CrossReference,
+    xref: CrossReferenceRef<'_>,
     w: &mut W,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
-    let text = if xref.text.is_empty() {
-        match resolve_xref(
-            processor.references.get(xref.target),
+    let text = if xref.text().is_empty() {
+        match resolve_reference(
+            processor
+                .references
+                .get(xref.target())
+                .map(ReferenceRef::from),
             xref,
             &processor.xref_guard,
         ) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
-                render_inline_nodes_to_owned(inlines, processor, traversal)?
+                render_inline_nodes_to_owned(inlines.inlines(), processor, traversal)?
             }
             XrefDisplay::ShortCaption(prefix) => prefix,
             XrefDisplay::FullCaption(prefix, inlines, _scope) => format!(
                 "{prefix}, “{}”",
-                render_inline_nodes_to_owned(inlines, processor, traversal)?
+                render_inline_nodes_to_owned(inlines.inlines(), processor, traversal)?
             ),
+            XrefDisplay::ShortCustomCaption(prefix, _scope) => {
+                with_caption_prefix(prefix, |prefix| {
+                    render_content_with_styles_to_owned(prefix, processor, traversal)
+                })?
+            }
+            XrefDisplay::FullCustomCaption(prefix, inlines, _scope) => {
+                let prefix = with_caption_prefix(prefix, |prefix| {
+                    render_content_with_styles_to_owned(prefix, processor, traversal)
+                })?;
+                format!(
+                    "{prefix}, “{}”",
+                    render_inline_nodes_to_owned(inlines.inlines(), processor, traversal)?
+                )
+            }
             XrefDisplay::Emphasized(prefix, inlines, _scope) => {
                 let prefix = prefix.map_or_else(String::new, |mut prefix| {
                     prefix.push_str(", ");
                     prefix
                 });
-                let title =
-                    render_inline_nodes_with_styles_to_owned(inlines, processor, traversal)?;
+                let title = render_content_with_styles_to_owned(inlines, processor, traversal)?;
                 format!(
                     "{prefix}{}{title}{}",
                     SetAttribute(Attribute::Italic),
@@ -927,7 +1012,9 @@ fn render_cross_reference_to_writer<'a, W: Write + ?Sized>(
             XrefDisplay::External(target) => format!("[{target}]"),
         }
     } else {
-        inlines_to_string(&xref.text)
+        InlineTextTransform::default()
+            .decode_char_refs(true)
+            .content_to_string(xref.text())
     };
     w.queue(PrintStyledContent(
         text.with(processor.appearance.colors.link).underlined(),
@@ -935,25 +1022,28 @@ fn render_cross_reference_to_writer<'a, W: Write + ?Sized>(
     Ok(())
 }
 
+fn unsupported_inline_macro(node: InlineRef<'_>) -> Error {
+    IoError::new(
+        ErrorKind::Unsupported,
+        format!("Unsupported inline macro in terminal: {node:?}"),
+    )
+    .into()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{TerminalVisitor, create_test_processor};
 
-    use acdc_converters_core::visitor::Visitor;
     use acdc_parser::{
-        Anchor, Bold, CrossReference, CurvedApostrophe, CurvedQuotation, Form, Highlight, Image,
-        InlineMacro, Italic, Keyboard, LineBreak, Link, Location, Monospace, Paragraph, Plain,
-        Source, StandaloneCurvedApostrophe, Subscript, Superscript,
+        Anchor, Bold, CrossReference, CurvedApostrophe, CurvedQuotation, Form, Highlight,
+        InlineImage, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Location,
+        Monospace, Paragraph, Plain, Source, StandaloneCurvedApostrophe, Subscript, Superscript,
     };
 
     /// Create simple plain text inline node for testing
     fn create_plain_text(content: &str) -> InlineNode<'_> {
-        InlineNode::PlainText(Plain {
-            content,
-            location: Location::default(),
-            escaped: false,
-        })
+        InlineNode::PlainText(Plain::new(content, Location::default()))
     }
 
     /// Helper to render a paragraph with inline nodes and return the output
@@ -969,7 +1059,7 @@ mod tests {
             acdc_converters_core::Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_paragraph(&mut traversal, &paragraph)?;
+        visitor.render_paragraph(&mut traversal, (&paragraph).into())?;
         let output = visitor.into_writer();
 
         Ok(String::from_utf8_lossy(&output).to_string())
@@ -987,13 +1077,11 @@ mod tests {
 
     #[test]
     fn test_bold_text() -> Result<(), Error> {
-        let bold = InlineNode::BoldText(Bold {
-            content: vec![create_plain_text("bold text")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let bold = InlineNode::BoldText(Bold::new(
+            vec![create_plain_text("bold text")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![bold])?;
         // Bold text should contain ANSI bold escape codes
@@ -1007,13 +1095,11 @@ mod tests {
 
     #[test]
     fn test_italic_text() -> Result<(), Error> {
-        let italic = InlineNode::ItalicText(Italic {
-            content: vec![create_plain_text("italic text")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let italic = InlineNode::ItalicText(Italic::new(
+            vec![create_plain_text("italic text")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![italic])?;
         // Italic text should contain ANSI italic escape codes
@@ -1030,20 +1116,18 @@ mod tests {
 
     #[test]
     fn test_monospace_text() -> Result<(), Error> {
-        let monospace = InlineNode::MonospaceText(Monospace {
-            content: vec![create_plain_text("monospace text")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let monospace = InlineNode::MonospaceText(Monospace::new(
+            vec![create_plain_text("monospace text")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![monospace])?;
         assert!(
             output.contains("monospace text"),
             "Should contain monospace text content"
         );
-        // Monospace uses black text on grey background (codes 30 and 100)
+        // Monospace uses black text on gray background (codes 30 and 100)
         assert!(
             output.contains("\x1b["),
             "Should contain ANSI escape codes for styling"
@@ -1055,21 +1139,17 @@ mod tests {
     fn test_mixed_formatting() -> Result<(), Error> {
         let output = render_paragraph(vec![
             create_plain_text("Normal "),
-            InlineNode::BoldText(Bold {
-                content: vec![create_plain_text("bold")],
-                role: None,
-                id: None,
-                form: Form::Constrained,
-                location: Location::default(),
-            }),
+            InlineNode::BoldText(Bold::new(
+                vec![create_plain_text("bold")],
+                Form::Constrained,
+                Location::default(),
+            )),
             create_plain_text(" and "),
-            InlineNode::ItalicText(Italic {
-                content: vec![create_plain_text("italic")],
-                role: None,
-                id: None,
-                form: Form::Constrained,
-                location: Location::default(),
-            }),
+            InlineNode::ItalicText(Italic::new(
+                vec![create_plain_text("italic")],
+                Form::Constrained,
+                Location::default(),
+            )),
         ])?;
 
         assert!(output.contains("Normal"), "Should contain normal text");
@@ -1080,13 +1160,11 @@ mod tests {
 
     #[test]
     fn test_highlight_text() -> Result<(), Error> {
-        let highlight = InlineNode::HighlightText(Highlight {
-            content: vec![create_plain_text("highlighted")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let highlight = InlineNode::HighlightText(Highlight::new(
+            vec![create_plain_text("highlighted")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![highlight])?;
         assert!(
@@ -1100,13 +1178,11 @@ mod tests {
 
     #[test]
     fn test_superscript_text() -> Result<(), Error> {
-        let superscript = InlineNode::SuperscriptText(Superscript {
-            content: vec![create_plain_text("2")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let superscript = InlineNode::SuperscriptText(Superscript::new(
+            vec![create_plain_text("2")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![create_plain_text("x"), superscript])?;
 
@@ -1120,13 +1196,11 @@ mod tests {
 
     #[test]
     fn test_subscript_text() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript {
-            content: vec![create_plain_text("2")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let subscript = InlineNode::SubscriptText(Subscript::new(
+            vec![create_plain_text("2")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![create_plain_text("a"), subscript])?;
 
@@ -1140,13 +1214,11 @@ mod tests {
 
     #[test]
     fn test_subscript_fallback_for_letters() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript {
-            content: vec![create_plain_text("n")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let subscript = InlineNode::SubscriptText(Subscript::new(
+            vec![create_plain_text("n")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![create_plain_text("a"), subscript])?;
         assert!(
@@ -1162,13 +1234,11 @@ mod tests {
 
     #[test]
     fn test_superscript_fallback_for_letters() -> Result<(), Error> {
-        let superscript = InlineNode::SuperscriptText(Superscript {
-            content: vec![create_plain_text("abc")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let superscript = InlineNode::SuperscriptText(Superscript::new(
+            vec![create_plain_text("abc")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![superscript])?;
         assert!(
@@ -1184,13 +1254,11 @@ mod tests {
 
     #[test]
     fn test_curved_quotation_text() -> Result<(), Error> {
-        let quoted = InlineNode::CurvedQuotationText(CurvedQuotation {
-            content: vec![create_plain_text("quoted text")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let quoted = InlineNode::CurvedQuotationText(CurvedQuotation::new(
+            vec![create_plain_text("quoted text")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![quoted])?;
         assert!(
@@ -1207,13 +1275,11 @@ mod tests {
 
     #[test]
     fn test_curved_apostrophe_text() -> Result<(), Error> {
-        let apostrophe = InlineNode::CurvedApostropheText(CurvedApostrophe {
-            content: vec![create_plain_text("text")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let apostrophe = InlineNode::CurvedApostropheText(CurvedApostrophe::new(
+            vec![create_plain_text("text")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![apostrophe])?;
         assert!(
@@ -1229,9 +1295,9 @@ mod tests {
 
     #[test]
     fn test_standalone_curved_apostrophe() -> Result<(), Error> {
-        let apostrophe = InlineNode::StandaloneCurvedApostrophe(StandaloneCurvedApostrophe {
-            location: Location::default(),
-        });
+        let apostrophe = InlineNode::StandaloneCurvedApostrophe(StandaloneCurvedApostrophe::new(
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![apostrophe])?;
         assert!(
@@ -1243,10 +1309,10 @@ mod tests {
 
     #[test]
     fn test_link_macro() -> Result<(), Error> {
-        let link = InlineNode::Macro(InlineMacro::Link(Link::new(
+        let link = InlineNode::Macro(InlineMacro::Link(Box::new(Link::new(
             Source::Name("https://example.com"),
             Location::default(),
-        )));
+        ))));
 
         let output = render_paragraph(vec![link])?;
         assert!(
@@ -1258,7 +1324,7 @@ mod tests {
 
     #[test]
     fn test_image_macro_placeholder() -> Result<(), Error> {
-        let image = InlineNode::Macro(InlineMacro::Image(Box::new(Image::new(
+        let image = InlineNode::Macro(InlineMacro::Image(Box::new(InlineImage::new(
             Source::Name("logo.png"),
             Location::default(),
         ))));
@@ -1274,7 +1340,15 @@ mod tests {
     #[test]
     fn test_keyboard_macro() -> Result<(), Error> {
         let kbd = InlineNode::Macro(InlineMacro::Keyboard(Keyboard::new(
-            vec!["Ctrl", "C"],
+            ["Ctrl", "C"]
+                .into_iter()
+                .map(|content| {
+                    acdc_parser::ContentAttribute::new(vec![InlineNode::PlainText(Plain::new(
+                        content,
+                        Location::default(),
+                    ))])
+                })
+                .collect(),
             Location::default(),
         )));
 
@@ -1288,10 +1362,10 @@ mod tests {
 
     #[test]
     fn test_cross_reference_with_text() -> Result<(), Error> {
-        let xref = InlineNode::Macro(InlineMacro::CrossReference(
+        let xref = InlineNode::Macro(InlineMacro::CrossReference(Box::new(
             CrossReference::new("section-id", Location::default())
                 .with_text(vec![create_plain_text("See Section 1")]),
-        ));
+        )));
 
         let output = render_paragraph(vec![xref])?;
         assert!(
@@ -1307,10 +1381,10 @@ mod tests {
 
     #[test]
     fn test_cross_reference_without_text() -> Result<(), Error> {
-        let xref = InlineNode::Macro(InlineMacro::CrossReference(CrossReference::new(
+        let xref = InlineNode::Macro(InlineMacro::CrossReference(Box::new(CrossReference::new(
             "section-id",
             Location::default(),
-        )));
+        ))));
 
         let output = render_paragraph(vec![xref])?;
         assert!(
@@ -1324,9 +1398,7 @@ mod tests {
     fn test_line_break() -> Result<(), Error> {
         let output = render_paragraph(vec![
             create_plain_text("First line"),
-            InlineNode::LineBreak(LineBreak {
-                location: Location::default(),
-            }),
+            InlineNode::LineBreak(LineBreak::new(Location::default())),
             create_plain_text("Second line"),
         ])?;
 
@@ -1361,12 +1433,14 @@ mod tests {
 
     #[test]
     fn test_highlight_text_with_underline_role() -> Result<(), Error> {
-        let highlight = InlineNode::HighlightText(Highlight {
-            content: vec![create_plain_text("underlined text")],
-            role: Some("underline"),
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
+        let highlight = InlineNode::HighlightText({
+            let mut span = Highlight::new(
+                vec![create_plain_text("underlined text")],
+                Form::Constrained,
+                Location::default(),
+            );
+            span.replace_role(Some("underline"));
+            span
         });
 
         let output = render_paragraph(vec![highlight])?;
@@ -1389,13 +1463,11 @@ mod tests {
 
     #[test]
     fn test_superscript_renders_unicode() -> Result<(), Error> {
-        let superscript = InlineNode::SuperscriptText(Superscript {
-            content: vec![create_plain_text("2")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let superscript = InlineNode::SuperscriptText(Superscript::new(
+            vec![create_plain_text("2")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![create_plain_text("x"), superscript])?;
         assert!(output.contains('x'), "Should contain base text");
@@ -1408,13 +1480,11 @@ mod tests {
 
     #[test]
     fn test_subscript_renders_unicode() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript {
-            content: vec![create_plain_text("2")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let subscript = InlineNode::SubscriptText(Subscript::new(
+            vec![create_plain_text("2")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![create_plain_text("H"), subscript])?;
         assert!(output.contains('H'), "Should contain base text");
@@ -1428,13 +1498,11 @@ mod tests {
     #[test]
     fn test_superscript_fallback_for_unsupported_chars() -> Result<(), Error> {
         // Characters without Unicode superscript equivalents should fall back
-        let superscript = InlineNode::SuperscriptText(Superscript {
-            content: vec![create_plain_text("@")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let superscript = InlineNode::SuperscriptText(Superscript::new(
+            vec![create_plain_text("@")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![superscript])?;
         assert!(
@@ -1450,13 +1518,11 @@ mod tests {
 
     #[test]
     fn test_subscript_fallback_for_unsupported_chars() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript {
-            content: vec![create_plain_text("@")],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let subscript = InlineNode::SubscriptText(Subscript::new(
+            vec![create_plain_text("@")],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![subscript])?;
         assert!(
@@ -1473,19 +1539,15 @@ mod tests {
     #[test]
     fn test_nested_formatting() -> Result<(), Error> {
         // Test bold text containing italic text
-        let nested = InlineNode::BoldText(Bold {
-            content: vec![InlineNode::ItalicText(Italic {
-                content: vec![create_plain_text("bold italic")],
-                role: None,
-                id: None,
-                form: Form::Constrained,
-                location: Location::default(),
-            })],
-            role: None,
-            id: None,
-            form: Form::Constrained,
-            location: Location::default(),
-        });
+        let nested = InlineNode::BoldText(Bold::new(
+            vec![InlineNode::ItalicText(Italic::new(
+                vec![create_plain_text("bold italic")],
+                Form::Constrained,
+                Location::default(),
+            ))],
+            Form::Constrained,
+            Location::default(),
+        ));
 
         let output = render_paragraph(vec![nested])?;
         assert!(

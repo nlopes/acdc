@@ -1,0 +1,41 @@
+[caption='*Image* <tag> &copy; "quoted": ']
+.Image title
+image::sample.svg[Alt]
+
+[caption='*Listing* <tag> &copy;: ',subs=none]
+.Listing title
+----
+*Body stays literal.*
+----
+
+[caption='*Example* <tag>: ',subs=none]
+.Example title
+====
+Body.
+====
+
+[subs=none]
+--
+[caption='*Table* <tag>: ']
+.Table title
+|===
+|Cell
+|===
+--
+
+[caption='pass:[<em>Allowed</em>] ']
+.Passthrough prefix
+image::sample.svg[Alt]
+
+[caption="*Literal* <tag> &copy;: ",subs=none]
+.Literal prefix
+----
+Body.
+----
+
+[caption=""]
+.Empty prefix
+image::sample.svg[Alt]
+
+.Numbered after custom prefixes
+image::sample.svg[Alt]

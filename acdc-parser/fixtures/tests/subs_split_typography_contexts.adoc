@@ -1,0 +1,13 @@
+= Split typography contexts
+
+Earlier paragraph.
+
+include::includes/subs_split_typography.adoc[lines=2..6,indent=0]
+
+[cols="1a"]
+|===
+|
+α🚀 left-[[cell-anchor]]-right; left indexterm2:[--] right.
+
+footnote:cell[left-indexterm2:[-]right].
+|===

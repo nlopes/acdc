@@ -82,6 +82,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 10,
@@ -253,6 +256,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 14,
@@ -377,6 +383,9 @@
               "name": "raw",
               "type": "string",
               "value": "café",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 16,
@@ -662,6 +671,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "bold",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 22,
@@ -773,6 +785,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "bold",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 24,
@@ -819,6 +834,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "*bold*",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 24,
@@ -920,6 +938,9 @@
           "name": "raw",
           "type": "string",
           "value": "Expanded",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 26,
@@ -1030,6 +1051,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 28,

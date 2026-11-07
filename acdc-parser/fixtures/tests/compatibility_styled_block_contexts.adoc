@@ -1,0 +1,38 @@
+= Styled block contexts
+:kind: source
+:enabled:
+
+[{kind},text]
+* List item
+// Removed from a Draft list
+* Second item
+
+[source,text]
+Ordinary paragraph before a delimiter
+ifdef::enabled[]
+----
+Separate listing body
+// Preserved inside listing
+----
+endif::[]
+
+include::includes/compatibility_styled_block_contexts.adoc[tag=selected]
+
+* Parent item
++
+[literal]
+. Continued ordered item
+. Second continued item
+
+[cols="a"]
+|===
+|
+[literal]
+* Cell item
+* Second cell item
+|===
+
+[source,text]
+Parent paragraph ending inside an include
+include::includes/compatibility_styled_block_contexts.adoc[tag=tail]
+// Preserved only in Asciidoctor mode

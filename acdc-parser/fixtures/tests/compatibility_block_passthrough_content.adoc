@@ -1,0 +1,30 @@
+:word: *Declared*
+
+[subs=normal]
+++++
+café *Authored* {word} (C) footnote:one[One note.] indexterm:[First] anchor:first[]
+++++
+
+[pass,subs=normal]
+*Paragraph* {word} (TM) footnote:two[Two note.]
+
+[subs="attributes,quotes,specialchars,replacements,macros"]
+++++
+{word} (R) footnote:three[Three note.] anchor:third[]
+++++
+
+[pass,subs="attributes,quotes"]
+{word}
+
+[subs="quotes,typo"]
+++++
+*Supported* {word} footnote:unused[Not selected.]
+++++
+
+[subs=none]
+++++
+<em>Raw</em> (C) {word} footnote:unused[Not selected.]
+++++
+
+[pass,subs=none]
+<em>Raw paragraph</em> {word}

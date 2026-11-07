@@ -1,0 +1,37 @@
+= Block mathematics
+:stem: latexmath
+:formula: *x*
+
+[stem]
+++++
+x^2 + {formula}
+++++
+
+[asciimath]
+++++
+sum_(i=1)^n i < n & z
+++++
+
+[latexmath,subs=attributes]
+++++
+{formula}^2
+++++
+
+[stem,subs=none]
+++++
+x < y & z
+++++
+
+[stem]
+++++
+++++
+
+[stem]
+Ordinary E=mc^2^ paragraph.
+
+--
+[asciimath]
+++++
+x+y
+++++
+--

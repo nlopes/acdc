@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -257,7 +258,7 @@
     }
   }
   let links = (
-    ((0, 7, body => context link(query(<id-746172676574>).first().location(), body)), (7, 10, body => [#counter(footnote).update(5)#footnote[#text("Éva ")#strong[#text("bold")]#text(" ©.")]]), (10, 16, body => context link(query(<id-746172676574>).first().location(), body)), ),
+    ((0, 7, body => context link(query(<id-746172676574>).first().location(), body)), (7, 10, body => [#counter(footnote).update(5)#footnote[#text("Éva ")#strong[#text("bold")]#text(" ")#text("©")#text(".")]]), (10, 16, body => context link(query(<id-746172676574>).first().location(), body)), ),
   )
   let code-links(line) = {
     let start = 0

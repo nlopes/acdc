@@ -7,14 +7,15 @@ use std::{
     ops::Range,
     path::{Component, Path, PathBuf},
     rc::Rc,
+    sync::Arc,
 };
 
 use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
 
 use crate::{
-    DocumentAttributeValue, DocumentAttributes, IncludeSource, IncludeSourceError,
-    IncludeSourceErrorKind, IncludeSourceProvider, IncludeSourceTarget, Location, Options, Warning,
-    WarningKind,
+    ConditionalEvaluation, DocumentAttributeValue, DocumentAttributes, IncludeSource,
+    IncludeSourceError, IncludeSourceErrorKind, IncludeSourceProvider, IncludeSourceTarget,
+    Location, Options, Warning, WarningKind,
     error::{Error, SourceLocation},
     model::{LeveloffsetRange, Position, SourceRange},
 };
@@ -62,6 +63,7 @@ pub(crate) struct PreprocessorResult<'input> {
     /// Fully included `AsciiDoc` source names, relative to the entry base directory,
     /// without their extensions. Partial and unsuccessful includes are omitted.
     pub(crate) included_files: HashSet<String>,
+    pub(crate) conditionals: Vec<ConditionalEvaluation>,
     /// Front matter captured from the primary input. Included front matter does not replace it.
     pub(crate) front_matter: Option<String>,
     comment_context: comment::BlockContext,
@@ -77,6 +79,7 @@ impl PreprocessorResult<'_> {
             leveloffset_ranges: self.leveloffset_ranges,
             source_ranges: self.source_ranges,
             included_files: self.included_files,
+            conditionals: self.conditionals,
             front_matter: self.front_matter,
             comment_context: self.comment_context,
         }
@@ -387,6 +390,7 @@ struct ConditionalFrame<'input> {
     conditional: conditional::Conditional<'input>,
     active: bool,
     opening_line: usize,
+    evaluation: usize,
 }
 
 /// Mutable state accumulated during preprocessing.
@@ -401,11 +405,12 @@ struct PreprocessorState<'input> {
     leveloffset_ranges: Vec<LeveloffsetRange>,
     source_ranges: Vec<SourceRange>,
     included_files: HashSet<String>,
+    conditionals: Vec<ConditionalEvaluation>,
     /// The file the in-progress output is being read from, used as the `file`
     /// of the main-file [`SourceRange`]s recorded below. `None` for stdin/string
     /// input — ranges are still recorded (so line/offset remapping works) with a
     /// `None` file.
-    source_file: Option<PathBuf>,
+    source_file: Option<Arc<PathBuf>>,
     /// Byte offset of each 1-indexed source line in the (normalized) primary input,
     /// so a run/chunk anchored at a source line can record its origin-file byte
     /// offset. `src_line_starts[n - 1]` is the start of source line `n`.
@@ -451,7 +456,9 @@ impl<'input> PreprocessorState<'input> {
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
-            source_file: source_origin.and_then(|origin| origin.as_path().map(Path::to_path_buf)),
+            conditionals: Vec::new(),
+            source_file: source_origin
+                .and_then(|origin| origin.as_path().map(|path| Arc::new(path.to_path_buf()))),
             src_line_starts,
             line_origins,
             run: None,
@@ -565,7 +572,7 @@ impl<'input> PreprocessorState<'input> {
             self.push_source_range(
                 run.out_start,
                 self.byte_offset,
-                self.source_file.clone(),
+                self.source_file.as_deref().cloned(),
                 // Own content: the include chain is empty here; an enclosing
                 // `include::` prepends its target when this file's ranges are merged.
                 Vec::new(),
@@ -586,7 +593,7 @@ impl<'input> PreprocessorState<'input> {
         self.push_source_range(
             start,
             self.byte_offset,
-            self.source_file.clone(),
+            self.source_file.as_deref().cloned(),
             Vec::new(),
             origin,
         );
@@ -797,22 +804,24 @@ impl Preprocessor {
         &self,
         text: &str,
         setext: bool,
-        attributes: &DocumentAttributes<'_>,
+        options: &Options<'_>,
     ) -> Option<CommentScanner> {
+        let attributes = &options.document_attributes;
         // Dropping an adjacent line comment is the one rewrite that can't be
         // spotted with a simple per-line check: whether a `//` line is dropped
         // depends on the previous line and on being outside a verbatim block.
         // Use the same scanner as the slow path so preserved comments alone
         // do not force a rebuild.
-        let mut scanner = CommentScanner::new(setext, self.include_context.block_context.clone());
+        let mut scanner = CommentScanner::new(
+            setext,
+            self.include_context.block_context.clone(),
+            options.compatibility_mode,
+        );
         let mut style_options = (text.contains('{')
             && text
                 .lines()
                 .any(|line| line.starts_with('[') && line.contains('{')))
-        .then(|| Options {
-            document_attributes: attributes.clone(),
-            ..Options::default()
-        });
+        .then(|| options.clone());
         for line in text.lines() {
             if scanner.preserves_comment_line(line) {
                 scanner.record(line, attributes);
@@ -1083,6 +1092,7 @@ impl Preprocessor {
         state: &mut PreprocessorState<'_>,
     ) {
         state.included_files.extend(include_result.included_files);
+        state.conditionals.extend(include_result.conditionals);
         state.flush_borrowed_run();
         let start_offset = state.byte_offset;
 
@@ -1202,6 +1212,14 @@ impl Preprocessor {
                     ctx.current_file(),
                 )?;
 
+            let evaluation = out.conditionals.len();
+            out.conditionals.push(ConditionalEvaluation {
+                file: out.source_file.clone(),
+                start_line: ctx.source_line,
+                active,
+                inline: is_inline,
+                end_line: None,
+            });
             if is_inline {
                 if active {
                     scanner.record_expansion(&content, attributes);
@@ -1212,6 +1230,7 @@ impl Preprocessor {
                     conditional,
                     active,
                     opening_line: ctx.source_line,
+                    evaluation,
                 });
             }
             return Ok(true);
@@ -1234,6 +1253,9 @@ impl Preprocessor {
                 return Err(Error::InvalidConditionalDirective(Box::new(
                     Self::create_source_location(ctx.source_line, ctx.current_file()),
                 )));
+            }
+            if let Some(evaluation) = out.conditionals.get_mut(frame.evaluation) {
+                evaluation.end_line = Some(ctx.source_line);
             }
             stack.pop();
             return Ok(true);
@@ -1324,7 +1346,7 @@ impl Preprocessor {
         options: &mut Options<'_>,
     ) -> Result<PreprocessorResult<'input>, Error> {
         let normalized = Preprocessor::normalize(input);
-        let setext = comment::setext_enabled(options);
+        let setext = crate::grammar::setext::is_enabled(options.compatibility_mode);
         let front_matter = options
             .document_attributes
             .contains_key("skip-front-matter")
@@ -1336,14 +1358,14 @@ impl Preprocessor {
         // the caller's input so that downstream parsing can be zero-copy.
         if front_matter.is_none()
             && !self.nested_attributes_must_propagate(&normalized)
-            && let Some(scanner) =
-                self.try_pass_through(&normalized, setext, &options.document_attributes)
+            && let Some(scanner) = self.try_pass_through(&normalized, setext, options)
         {
             return Ok(PreprocessorResult {
                 text: normalized,
                 leveloffset_ranges: Vec::new(),
                 source_ranges: Vec::new(),
                 included_files: HashSet::new(),
+                conditionals: Vec::new(),
                 front_matter: None,
                 comment_context: scanner.block_context(),
             });
@@ -1370,7 +1392,7 @@ impl Preprocessor {
     ) -> Result<NestedPreprocessorResult, Error> {
         let mut options = options.clone();
         let normalized = Preprocessor::normalize(&input);
-        let setext = comment::setext_enabled(&options);
+        let setext = crate::grammar::setext::is_enabled(options.compatibility_mode);
         let front_matter = options
             .document_attributes
             .contains_key("skip-front-matter")
@@ -1378,8 +1400,7 @@ impl Preprocessor {
             .flatten();
         if front_matter.is_none()
             && !self.nested_attributes_must_propagate(&normalized)
-            && let Some(scanner) =
-                self.try_pass_through(&normalized, setext, &options.document_attributes)
+            && let Some(scanner) = self.try_pass_through(&normalized, setext, &options)
         {
             let source_ranges = {
                 let normalized_ref = normalized.as_ref();
@@ -1404,6 +1425,7 @@ impl Preprocessor {
                 leveloffset_ranges: Vec::new(),
                 source_ranges,
                 included_files: HashSet::new(),
+                conditionals: Vec::new(),
                 front_matter: None,
                 comment_context: scanner.block_context(),
             };
@@ -1454,7 +1476,11 @@ impl Preprocessor {
         // Tracks verbatim-block and previous-line context so adjacent line
         // comments can be dropped (matching asciidoctor's reader). See
         // `comment::CommentScanner`.
-        let mut scanner = CommentScanner::new(setext, self.include_context.block_context.clone());
+        let mut scanner = CommentScanner::new(
+            setext,
+            self.include_context.block_context.clone(),
+            options.compatibility_mode,
+        );
         let mut conditional_stack: Vec<ConditionalFrame<'_>> = Vec::new();
         let captured_front_matter = consume_front_matter(
             &mut lines,
@@ -1471,11 +1497,11 @@ impl Preprocessor {
         while let Some(line) = lines.next() {
             // Keep raw comment lines and their source coordinates before
             // considering directives or folding attribute continuations.
-            if scanner.preserves_comment_line(line) {
-                if conditional_stack.last().is_none_or(|frame| frame.active) {
-                    out.push_source_line(line, line_number);
-                    scanner.record(line, &options.document_attributes);
-                }
+            if conditional_stack.last().is_none_or(|frame| frame.active)
+                && scanner.preserves_comment_line(line)
+            {
+                out.push_source_line(line, line_number);
+                scanner.record(line, &options.document_attributes);
                 line_number += 1;
                 continue;
             }
@@ -1561,6 +1587,7 @@ impl Preprocessor {
             leveloffset_ranges: out.leveloffset_ranges,
             source_ranges: out.source_ranges,
             included_files: out.included_files,
+            conditionals: out.conditionals,
             front_matter: captured_front_matter,
             comment_context: scanner.block_context(),
         })
@@ -1732,6 +1759,7 @@ mod tests {
                 target: "included.adoc".into(),
                 source_ranges: Vec::new(),
                 included_files: HashSet::new(),
+                conditionals: Vec::new(),
                 document_attributes: None,
                 comment_context: None,
             };
@@ -1920,9 +1948,9 @@ endif::backend-pdf,backend-docbook5[]
 == Visible
 Body";
         let parsed = crate::parse(input, &Options::default())?;
-        assert!(parsed.document().header.is_some());
+        assert!(parsed.document_storage().header.is_some());
         assert!(matches!(
-            parsed.document().blocks.as_slice(),
+            parsed.document_storage().blocks.as_slice(),
             [crate::Block::Section(_)]
         ));
         Ok(())
@@ -2174,6 +2202,43 @@ endif::inner[]";
         Ok(())
     }
 
+    #[rstest::rstest]
+    fn styled_open_contents_survive_fast_and_slow_paths(
+        #[values(crate::CompatibilityMode::Asciidoctor, crate::CompatibilityMode::Draft)]
+        mode: crate::CompatibilityMode,
+        #[values("source,text", "listing", "literal", "verse", "pass", "comment")] style: &str,
+    ) -> Result<(), Error> {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        for source in [
+            format!("[{style}]\n--\nBody\n// visible\n////\nStill body\n////\n--"),
+            format!(":kind: {style}\n\n[{{kind}}]\n--\nBody\n// visible\n--"),
+        ] {
+            let fast = Preprocessor::process(&source, &options, Rc::default())?;
+            assert_eq!(fast.text, source);
+            assert!(matches!(fast.text, Cow::Borrowed(_)));
+            let slow_source = format!("ifndef::missing[]\n{source}\nendif::[]");
+            let slow = Preprocessor::process(&slow_source, &options, Rc::default())?;
+            assert_eq!(slow.text, source);
+            assert!(matches!(slow.text, Cow::Owned(_)));
+        }
+        Ok(())
+    }
+
+    #[rstest::rstest]
+    fn styled_open_comments_ignore_excluded_delimiters(
+        #[values(crate::CompatibilityMode::Asciidoctor, crate::CompatibilityMode::Draft)]
+        mode: crate::CompatibilityMode,
+    ) -> Result<(), Error> {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let source = "[comment]\nifdef::missing[]\n--\nendif::[]\n--\ninclude::missing-comment-file.adoc[]\n--\nVisible";
+        let result = Preprocessor::process(source, &options, Rc::default())?;
+        assert_eq!(
+            result.text,
+            "[comment]\n--\ninclude::missing-comment-file.adoc[]\n--\nVisible"
+        );
+        Ok(())
+    }
+
     #[test]
     fn styled_paragraph_comments_survive_fast_and_slow_paths() -> Result<(), Error> {
         for style in ["source,text", "listing", "literal", "verse"] {
@@ -2196,6 +2261,86 @@ endif::inner[]";
         assert_eq!(result.text, source);
         assert!(matches!(result.text, Cow::Borrowed(_)));
         assert_eq!(result.source_ranges, []);
+        Ok(())
+    }
+
+    #[test]
+    fn compatibility_modes_preserve_fast_and_slow_style_context() -> Result<(), Error> {
+        let source = Cow::Borrowed(":kind: source\n\n[{kind},title=\"*Title*\"]\ncode\n// visible");
+        for mode in [
+            crate::CompatibilityMode::Draft,
+            crate::CompatibilityMode::Asciidoctor,
+        ] {
+            let options = Options::builder()
+                .with_compatibility_mode(mode)
+                .with_attribute("untouched", "caller")
+                .build()?;
+            let fast = Preprocessor::process(&source, &options, Rc::default())?;
+            assert_eq!(
+                matches!(fast.text, Cow::Borrowed(_)),
+                mode == crate::CompatibilityMode::Asciidoctor
+            );
+            let mut slow_options = options.clone();
+            let preprocessor = Preprocessor::new(&options, Rc::default());
+            let slow = preprocessor.process_slow_path(
+                &source,
+                None,
+                &mut slow_options,
+                crate::grammar::setext::is_enabled(options.compatibility_mode),
+                Vec::new(),
+                None,
+            )?;
+            let expected = if mode == crate::CompatibilityMode::Draft {
+                source.replace("// visible", "")
+            } else {
+                source.to_string()
+            };
+            assert_eq!(fast.text.trim_end(), expected.trim_end());
+            assert_eq!(fast.text, slow.text);
+            assert_eq!(slow_options.compatibility_mode, mode);
+            assert_eq!(
+                options.document_attributes.text("untouched"),
+                Some("caller")
+            );
+            assert!(!options.document_attributes.contains_key("kind"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn styled_boundaries_keep_fast_and_slow_preprocessing_in_agreement() -> Result<(), Error> {
+        for mode in [
+            crate::CompatibilityMode::Asciidoctor,
+            crate::CompatibilityMode::Draft,
+        ] {
+            let options = Options::builder().with_compatibility_mode(mode).build()?;
+            for content in [
+                "* List item",
+                "Ordinary paragraph before a delimiter",
+                " indented paragraph",
+            ] {
+                let source =
+                    format!("[source,text]\n{content}\n// comment\n----\nlisting body\n----");
+                let expected = if mode == crate::CompatibilityMode::Draft {
+                    source.replace("// comment\n", "")
+                } else {
+                    source.clone()
+                };
+                let fast = Preprocessor::process(&source, &options, Rc::default())?;
+                let mut slow_options = options.clone();
+                let preprocessor = Preprocessor::new(&options, Rc::default());
+                let slow = preprocessor.process_slow_path(
+                    &Cow::Borrowed(source.as_str()),
+                    None,
+                    &mut slow_options,
+                    crate::grammar::setext::is_enabled(options.compatibility_mode),
+                    Vec::new(),
+                    None,
+                )?;
+                assert_eq!(fast.text, expected, "{mode:?}: {content}");
+                assert_eq!(slow.text, expected, "{mode:?}: {content}");
+            }
+        }
         Ok(())
     }
 
@@ -2241,15 +2386,20 @@ endif::inner[]";
     }
 
     #[test]
-    #[cfg(feature = "setext")]
     fn styled_paragraph_comments_respect_setext_headings() -> Result<(), Error> {
-        let options = Options::builder().with_setext().build()?;
+        let options = Options::builder().build()?;
         for title in ["= Title", "Title\n====="] {
             let source =
                 format!("{title}\n\n[source]\nHeading\n-------\nordinary\n// hidden\ntail");
             let result = Preprocessor::process(&source, &options, Rc::default())?;
             assert_eq!(result.text, source.replace("// hidden\n", ""));
-            let result = Preprocessor::process(&source, &Options::default(), Rc::default())?;
+            let result = Preprocessor::process(
+                &source,
+                &Options::builder()
+                    .with_compatibility_mode(crate::CompatibilityMode::Draft)
+                    .build()?,
+                Rc::default(),
+            )?;
             assert_eq!(result.text, source);
         }
         for source in [
@@ -2616,10 +2766,12 @@ code line
     }
 
     #[test]
-    fn test_line_comment_after_equals_run_dropped_without_setext() -> Result<(), Error> {
+    fn test_line_comment_after_equals_run_dropped_in_draft() -> Result<(), Error> {
         // Without Setext, `=====` is ordinary content, so an adjacent comment
         // after it is dropped like any other mid-paragraph comment.
-        let options = Options::default();
+        let options = Options::builder()
+            .with_compatibility_mode(crate::CompatibilityMode::Draft)
+            .build()?;
         let input = "Title
 =====
 // a comment
@@ -2629,12 +2781,11 @@ body";
         Ok(())
     }
 
-    #[cfg(feature = "setext")]
     #[test]
     fn test_line_comment_after_setext_underline_is_preserved() -> Result<(), Error> {
         // With Setext enabled, `=====` is a heading underline (a block
         // boundary), so a comment after it is preserved rather than absorbed.
-        let options = Options::builder().with_setext().build()?;
+        let options = Options::builder().build()?;
         let input = "Title
 =====
 // a comment

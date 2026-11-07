@@ -1,0 +1,5 @@
+Excluded.
+// tag::selected[]
+  α pass:a,r[(C{close}] and pass:a,r[Sam'{empty}s].
+// end::selected[]
+Excluded.

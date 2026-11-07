@@ -125,7 +125,7 @@ termination.
 | `with_max_bytes` | Size cap enforced per image across *every* source; anything larger is a per-image failure. Default 20 MiB.
 | `with_max_sources` | Maximum distinct source strings attempted per call, including failures. Default 1,024.
 | `with_max_total_bytes` | Maximum accepted encoded image bytes per call. Different source strings each count, including matching content. Default 100 MiB.
-| `with_source_policy` | `Unrestricted` (default), `Confined { allow_network }`, or `DenyAll`. Confined local paths must remain beneath `base_dir` after canonicalisation.
+| `with_source_policy` | `Unrestricted` (default), `Confined { allow_network }`, or `DenyAll`. Confined local paths must remain beneath `base_dir` after canonicalization.
 | `with_remote_concurrency` | Maximum simultaneous remote image requests. Default two. Zero or one selects sequential fetching. Quotas can reduce the batch size.
 |===
 

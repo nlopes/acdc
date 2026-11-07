@@ -1,0 +1,42 @@
+= Attribute Escapes
+:who: café
+
+[data="\{who}",role=one]
+One backslash protects a reference.
+
+[data="\\{who}",role=two]
+Two backslashes select the mode's reference rule.
+
+[data="\\\{who}",role=three]
+Three backslashes preserve an escaped reference.
+
+[data="\\\\{who}",role=four]
+Four backslashes select the mode's reference rule.
+
+[data="α\"β",role=quoted]
+The matching quote is escaped.
+
+[data="α\\\"β",role=odd]
+An odd backslash run precedes an interior quote.
+
+[data="α\\",role=even]
+An even backslash run can precede a closing quote in Draft.
+
+[data="C:\path\file",other=\{not a reference}]
+Backslashes before ordinary text stay literal.
+
+[quote,"α\\",Book]
+____
+The attribution follows the quoted-value rules.
+____
+
+[[bracket,Label\] with café]]
+This anchor contains an escaped closing bracket.
+
+See <<bracket>>.
+
+[[closing,Label\]]]
+The escaped bracket precedes the anchor's closing brackets.
+
+[[slashes,Label\\]]
+The label ends with a backslash run.

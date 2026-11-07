@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -134,7 +135,7 @@
 }
 #text("S08 indexterm2:[No substitutions \\] text].")
 
-#text("S09 ")#text("indexterm2:[")#strong[#text("Late")]#text(" — \\] text]")#text(".")
+#text("S09 ")#text("indexterm2:[")#strong[#text("Late")]#text(" — ")#text("\\] text]")#text(".")
 
 #text("S10 ")#counter(footnote).update(1)#footnote[#text("Frozen {label} ")#text("]")#text(" note")]#text(".")
 

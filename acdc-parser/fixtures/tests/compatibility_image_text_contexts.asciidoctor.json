@@ -1,0 +1,858 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Image text contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 21
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 21
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "word",
+      "type": "attribute",
+      "value": "π (C) -> --",
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 18
+        }
+      ]
+    },
+    {
+      "name": "entry",
+      "type": "attribute",
+      "value": "alt=\"Expanded π (C) -> --\"",
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 34
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "©",
+          "location": [
+            {
+              "line": 6,
+              "col": 22
+            },
+            {
+              "line": 6,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 6,
+              "col": 25
+            },
+            {
+              "line": 6,
+              "col": 25
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "→",
+          "location": [
+            {
+              "line": 6,
+              "col": 26
+            },
+            {
+              "line": 6,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 6,
+              "col": 28
+            },
+            {
+              "line": 6,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "bird.png"
+      },
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "image",
+          "type": "inline",
+          "alt": [
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 21
+                },
+                {
+                  "line": 8,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 24
+                },
+                {
+                  "line": 8,
+                  "col": 24
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "→",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 25
+                },
+                {
+                  "line": 8,
+                  "col": 26
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " --",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 27
+                },
+                {
+                  "line": 8,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "tooltip": [
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 39
+                },
+                {
+                  "line": 8,
+                  "col": 41
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " ",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 42
+                },
+                {
+                  "line": 8,
+                  "col": 42
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "→",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 43
+                },
+                {
+                  "line": 8,
+                  "col": 44
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " --",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 45
+                },
+                {
+                  "line": 8,
+                  "col": 47
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "path",
+            "value": "bird.png"
+          },
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 49
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 8,
+              "col": 50
+            },
+            {
+              "line": 8,
+              "col": 50
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 50
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "*Literal* footnote:unused[Note] & <tag>",
+          "location": [
+            {
+              "line": 10,
+              "col": 22
+            },
+            {
+              "line": 10,
+              "col": 60
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 10,
+              "col": 61
+            },
+            {
+              "line": 10,
+              "col": 63
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "bird.png"
+      },
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 65
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Formatted",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 8
+                },
+                {
+                  "line": 12,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 12,
+              "col": 7
+            },
+            {
+              "line": 12,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 12,
+              "col": 18
+            },
+            {
+              "line": 12,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "→",
+          "location": [
+            {
+              "line": 12,
+              "col": 19
+            },
+            {
+              "line": 12,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 12,
+              "col": 21
+            },
+            {
+              "line": 12,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "bird.png"
+      },
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "π ] ",
+          "location": [
+            {
+              "line": 15,
+              "col": 22
+            },
+            {
+              "line": 15,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "©",
+          "location": [
+            {
+              "line": 15,
+              "col": 27
+            },
+            {
+              "line": 15,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 15,
+              "col": 30
+            },
+            {
+              "line": 15,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "→",
+          "location": [
+            {
+              "line": 15,
+              "col": 31
+            },
+            {
+              "line": 15,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 15,
+              "col": 33
+            },
+            {
+              "line": 15,
+              "col": 35
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "bird.png"
+      },
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 37
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Expanded π ",
+          "location": [
+            {
+              "line": 17,
+              "col": 2
+            },
+            {
+              "line": 17,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "©",
+          "location": [
+            {
+              "line": 17,
+              "col": 2
+            },
+            {
+              "line": 17,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 17,
+              "col": 2
+            },
+            {
+              "line": 17,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "→",
+          "location": [
+            {
+              "line": 17,
+              "col": 2
+            },
+            {
+              "line": 17,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 17,
+              "col": 2
+            },
+            {
+              "line": 17,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "bird.png"
+      },
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "π ",
+          "location": [
+            {
+              "line": 20,
+              "col": 22
+            },
+            {
+              "line": 20,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "©",
+          "location": [
+            {
+              "line": 20,
+              "col": 22
+            },
+            {
+              "line": 20,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 20,
+              "col": 22
+            },
+            {
+              "line": 20,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "→",
+          "location": [
+            {
+              "line": 20,
+              "col": 22
+            },
+            {
+              "line": 20,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 20,
+              "col": 22
+            },
+            {
+              "line": 20,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "bird.png"
+      },
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 29
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "image",
+          "type": "inline",
+          "alt": [],
+          "tooltip": [],
+          "target": {
+            "type": "path",
+            "value": "bird.png"
+          },
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 22,
+              "col": 32
+            },
+            {
+              "line": 22,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "source": {
+        "type": "path",
+        "value": "bird.png"
+      },
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [],
+      "source": {
+        "type": "path",
+        "value": "bird.png"
+      },
+      "location": [
+        {
+          "line": 26,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 23
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 26,
+      "col": 23
+    }
+  ]
+}

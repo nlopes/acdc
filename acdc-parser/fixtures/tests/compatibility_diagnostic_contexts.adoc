@@ -1,0 +1,21 @@
+= Diagnostic contexts
+
+Earlier.
+
+include::includes/compatibility_diagnostic_selected.adoc[tag=selected,indent=0]
+
+[title="Before {counter:title} after."]
+Paragraph.
+
+[title="pass:q,c[*Selected*]"]
+Paragraph.
+
+[title="{counter:discarded}",title="Selected"]
+Paragraph.
+
+// Deliberately malformed attribute/macro text stays literal.
+image:incomplete[ and link:incomplete[ and {counter:}.
+
+. literal numbered text
+
+* ordinary list item

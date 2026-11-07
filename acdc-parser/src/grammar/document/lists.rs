@@ -1,11 +1,72 @@
 //! List item locations and description-list nesting.
 
 use crate::{
-    Block, BlockMetadata, DescriptionList, DescriptionListItem, Location, Title,
-    grammar::ParserState,
+    Block, BlockMetadata, DescriptionList, DescriptionListDefinition, DescriptionListItem,
+    Location, Title, grammar::ParserState,
 };
 use bumpalo::collections::String as BumpString;
 use std::collections::VecDeque;
+
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct OrdinaryListScope<'a> {
+    pub(crate) offset: usize,
+    pub(crate) unordered: Option<&'a str>,
+    pub(crate) ordered: Option<&'a str>,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct DescriptionListScope<'a> {
+    pub(crate) offset: usize,
+    // Each of the four delimiter spellings can start one active level.
+    markers: [&'a str; 4],
+}
+
+impl<'a> DescriptionListScope<'a> {
+    pub(crate) fn new(offset: usize) -> Self {
+        Self {
+            offset,
+            ..Self::default()
+        }
+    }
+
+    pub(crate) fn select(&mut self, marker: &'a str) {
+        let mut remaining = self.markers.iter_mut();
+        if let Some(current) = remaining.find(|old| old.is_empty() || **old == marker) {
+            *current = marker;
+            for child in remaining {
+                *child = "";
+            }
+        }
+    }
+
+    pub(crate) fn contains(self, marker: &str) -> bool {
+        self.markers.contains(&marker)
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(super) enum ListMarker<'a> {
+    Unordered(&'a str),
+    Ordered(&'a str),
+    Description(&'a str),
+}
+
+impl ListMarker<'_> {
+    pub(super) fn is_sibling_or_ancestor(self, next: Self) -> bool {
+        match (self, next) {
+            (Self::Unordered(parent), Self::Unordered(candidate))
+            | (Self::Description(parent), Self::Description(candidate)) => {
+                parent.starts_with(candidate)
+            }
+            (Self::Ordered(parent), Self::Ordered(candidate)) => {
+                parent.starts_with('.') == candidate.starts_with('.')
+                    && candidate.bytes().filter(|byte| *byte == b'.').count()
+                        <= parent.bytes().filter(|byte| *byte == b'.').count()
+            }
+            _ => false,
+        }
+    }
+}
 
 /// Join a list item's first line and continuation lines with newlines.
 /// Return `first_line` unchanged when there are no continuation lines.
@@ -42,21 +103,14 @@ pub(super) const fn calculate_item_end(
     }
 }
 
-/// Find a description-list marker after at least one term character.
-/// A marker must be followed by a space, a newline, or (if `allow_eoi` is set) end of input.
-///
-/// Stop at the next newline unless `scan_across_eol` is set. In that case, stop
-/// at the next blank line. This scan avoids a PEG rule call at each byte.
+/// Find a description-list marker after at least one term character on this line.
+/// A marker must be followed by a space, a newline, or end of input.
+/// This scan avoids a PEG rule call at each byte.
 #[inline]
-pub(super) fn find_dlist_marker(
-    bytes: &[u8],
-    pos: usize,
-    scan_across_eol: bool,
-    allow_eoi: bool,
-) -> bool {
+pub(super) fn find_dlist_marker(bytes: &[u8], pos: usize) -> bool {
     let mut i = pos;
     while let Some(&b) = bytes.get(i) {
-        if b == b'\n' && (!scan_across_eol || bytes.get(i + 1) == Some(&b'\n')) {
+        if b == b'\n' {
             return false;
         }
         if i > pos && (b == b':' || b == b';') {
@@ -73,7 +127,7 @@ pub(super) fn find_dlist_marker(
             };
             if marker_len > 0 {
                 let after = bytes.get(i + marker_len).copied();
-                if matches!(after, Some(b'\n' | b' ')) || (allow_eoi && after.is_none()) {
+                if matches!(after, None | Some(b'\n' | b' ')) {
                     return true;
                 }
             }
@@ -81,6 +135,27 @@ pub(super) fn find_dlist_marker(
         i += 1;
     }
     false
+}
+
+fn item_delimiter<'a>(item: &DescriptionListItem<'a>) -> &'a str {
+    item.terms.first().map_or("", |term| term.delimiter)
+}
+
+fn group_description_terms(items: Vec<DescriptionListItem<'_>>) -> Vec<DescriptionListItem<'_>> {
+    let mut groups: Vec<DescriptionListItem<'_>> = Vec::with_capacity(items.len());
+    for item in items {
+        if let Some(previous) = groups.last_mut()
+            && previous.definition.is_none()
+        {
+            previous.terms.extend(item.terms);
+            previous.definition = item.definition;
+            previous.location.absolute_end = item.location.absolute_end;
+            previous.location.end = item.location.end;
+        } else {
+            groups.push(item);
+        }
+    }
+    groups
 }
 
 fn description_list_location(items: &[DescriptionListItem<'_>]) -> Location {
@@ -105,13 +180,13 @@ fn nest_description_list_items<'input>(
 
     while items
         .front()
-        .is_some_and(|item| item.delimiter == delimiter)
+        .is_some_and(|item| item_delimiter(item) == delimiter)
     {
         let Some(mut item) = items.pop_front() else {
             break;
         };
 
-        if let Some(child_delimiter) = items.front().map(|child| child.delimiter)
+        if let Some(child_delimiter) = items.front().map(item_delimiter)
             && child_delimiter != delimiter
             && !ancestors.contains(&child_delimiter)
         {
@@ -122,7 +197,13 @@ fn nest_description_list_items<'input>(
             let location = description_list_location(&children);
             item.location.absolute_end = location.absolute_end;
             item.location.end = location.end.clone();
-            item.description
+            let definition = item.definition.get_or_insert_with(|| {
+                DescriptionListDefinition::new(None, Vec::new(), location.clone())
+            });
+            definition.location.absolute_end = location.absolute_end;
+            definition.location.end = location.end.clone();
+            definition
+                .blocks
                 .push(Block::DescriptionList(DescriptionList {
                     title: Title::default(),
                     metadata: BlockMetadata::default(),
@@ -134,20 +215,21 @@ fn nest_description_list_items<'input>(
         nested.push(item);
     }
 
-    nested
+    group_description_terms(nested)
 }
 
 pub(super) fn build_description_list_topology(
     items: Vec<DescriptionListItem<'_>>,
 ) -> Vec<DescriptionListItem<'_>> {
-    if items
-        .first()
-        .is_none_or(|first| items.iter().all(|item| item.delimiter == first.delimiter))
-    {
-        return items;
+    if items.first().is_none_or(|first| {
+        items
+            .iter()
+            .all(|item| item_delimiter(item) == item_delimiter(first))
+    }) {
+        return group_description_terms(items);
     }
 
     let mut items = VecDeque::from(items);
-    let delimiter = items.front().map_or("", |item| item.delimiter);
+    let delimiter = items.front().map_or("", item_delimiter);
     nest_description_list_items(&mut items, delimiter, &mut Vec::new())
 }

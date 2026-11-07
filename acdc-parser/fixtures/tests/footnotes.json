@@ -259,7 +259,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "naff",
-          "inlines": [],
           "location": [
             {
               "line": 7,

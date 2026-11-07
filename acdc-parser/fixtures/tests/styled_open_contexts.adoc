@@ -1,0 +1,47 @@
+= Styled open contexts
+:kind: pass
+:value: expanded
+
+[{kind}]
+--
+include::includes/styled_open_body.adoc[tag=selected]
+--
+
+include::includes/styled_open_start.adoc[tag=selected]
+Caller continuation.
+// Caller slash line
+--
+
+* List item
++
+[sidebar]
+--
+Sidebar continuation.
+--
+
+[cols="a"]
+|===
+|
+[quote,Cell Author,Cell Citation]
+--
+Cell *quote*.
+--
+|===
+
+[example]
+--
+[verse]
+____
+Nested verse.
+// Nested slash line
+____
+--
+
+[quote]
+--
+End of quote.
+[pass]
+--
+
+Outside paragraph.
+// An adjacent comment must be removed.

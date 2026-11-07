@@ -1,0 +1,100 @@
+'\" t
+.\"     Title: reference-labels
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-01-01
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "REFERENCE\-LABELS" "1" "2026-01-01" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+reference\-labels \- resolved references in display text
+.SH "DESCRIPTION"
+.SH "HEADING ©"
+.sp
+P01 Code \f(CR&\fR and \f(CR\(co\fR and \f(CR&amp;\fR\&.
+.sp
+P02 Buffered ^(Label\(co) and _(Low\(co)\&.
+.sp
+\fBAudio \(co and &#169;\fR
+.br
+.URL "sample.ogg" "[Audio: Audio \(co and &#169;]" ""
+.sp
+\fBVideo \(co and &#169;\fR
+.br
+.URL "sample.mp4" "[Video: Video \(co and &#169;]" ""
+.sp
+\fBPrefix &#169; Image caption\fR
+.br
+[Alt \(co and &#169;]
+.sp
+P03 Inline image: [Alt \(co and &#169;]\&.
+.TS
+allbox tab(:);
+ltx ltx.
+T{
+.sp
+Interpreted \(co
+
+T}:T{
+.nf
+Literal &#169;.
+.fi
+T}
+.TE
+.RS 0
+.TP
+\fBTerm \(co\fR
+Description.
+.TP
+\fBTerm \&.\fR
+Description with a full stop.
+.RE
+P04 Passthrough © and &#169;.
+.EX
+P05 \fBNested \(co\fR and &#169;\&.
+.EE
+.sp
+P06 Zebra and Alpha and \(co and &copy;\&.
+.sp
+P07 [Alt] and \c
+.URL "https://example.org" "Label" "\fR\c"
+\&.
+.SH "INDEX"
+.SS "@"
+.RS 4
+&copy;
+.br
+\(co
+.br
+.RE
+.SS "A"
+.RS 4
+Alpha
+.br
+.RE
+.SS "Z"
+.RS 4
+Zebra
+.br
+.RE

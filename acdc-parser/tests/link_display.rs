@@ -1,4 +1,8 @@
-use acdc_parser::{Block, InlineMacro, InlineNode, Options, parse, parse_inline};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, ContentRef, InlineKind, InlineRef},
+    parse, parse_inline,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -6,13 +10,13 @@ fn unexpected(message: &str, actual: impl std::fmt::Debug) -> Error {
     std::io::Error::other(format!("{message}, got {actual:?}")).into()
 }
 
-fn plain_text(inlines: &[InlineNode<'_>]) -> Result<String, Error> {
+fn plain_text(inlines: ContentRef<'_>) -> Result<String, Error> {
     let mut text = String::new();
-    for inline in inlines {
-        if let InlineNode::PlainText(plain) = inline {
-            text.push_str(plain.content);
-        } else if let InlineNode::RawText(raw) = inline {
-            text.push_str(raw.content);
+    for inline in inlines.inlines() {
+        if let InlineKind::Plain(plain) = inline.kind() {
+            text.push_str(plain.text());
+        } else if let InlineKind::Raw(raw) = inline.kind() {
+            text.push_str(raw.text());
         } else {
             return Err(unexpected("expected unformatted text", inlines));
         }
@@ -29,32 +33,20 @@ fn hide_uri_scheme_is_resolved_at_each_links_source_position() -> Result<(), Err
 
     let actual = parsed
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .filter_map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return None;
             };
-            paragraph.content.iter().find_map(|inline| {
-                let InlineNode::Macro(inline) = inline else {
-                    return None;
-                };
-                match inline {
-                    InlineMacro::Url(url) => Some(url.hides_uri_scheme()),
-                    InlineMacro::Link(link) => Some(link.hides_uri_scheme()),
-                    InlineMacro::Autolink(autolink) => Some(autolink.hides_uri_scheme()),
-                    InlineMacro::Footnote(_)
-                    | InlineMacro::Icon(_)
-                    | InlineMacro::Image(_)
-                    | InlineMacro::Keyboard(_)
-                    | InlineMacro::Button(_)
-                    | InlineMacro::Menu(_)
-                    | InlineMacro::Mailto(_)
-                    | InlineMacro::CrossReference(_)
-                    | InlineMacro::Pass(_)
-                    | InlineMacro::Stem(_)
-                    | InlineMacro::IndexTerm(_)
-                    | _ => None,
+            paragraph.content().inlines().find_map(|inline| {
+                if let InlineKind::Url(url) = inline.kind() {
+                    Some(url.hides_uri_scheme())
+                } else if let InlineKind::Link(link) = inline.kind() {
+                    Some(link.hides_uri_scheme())
+                } else if let InlineKind::Autolink(link) = inline.kind() {
+                    Some(link.hides_uri_scheme())
+                } else {
+                    None
                 }
             })
         })
@@ -71,60 +63,64 @@ fn xref_text_accepts_a_nested_link_macro() -> Result<(), Error> {
         "<<target,Own *bold* _italic_ `mono` link:https://example.com[link] tail>>",
     ] {
         let parsed = parse_inline(input, &Options::default())?;
-        let [InlineNode::Macro(InlineMacro::CrossReference(xref))] = parsed.inlines() else {
+        let [InlineKind::CrossReference(xref)] = &*parsed
+            .content()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err(unexpected(
                 "expected one cross-reference macro",
-                parsed.inlines(),
+                parsed.content(),
             ));
         };
 
         assert!(
-            xref.text
-                .iter()
-                .any(|inline| matches!(inline, InlineNode::BoldText(_))),
+            xref.text()
+                .inlines()
+                .any(|inline| matches!(inline.kind(), InlineKind::Bold(_))),
             "expected formatted cross-reference text in {input:?}"
         );
         assert!(
-            xref.text
-                .iter()
-                .any(|inline| matches!(inline, InlineNode::ItalicText(_))),
+            xref.text()
+                .inlines()
+                .any(|inline| matches!(inline.kind(), InlineKind::Italic(_))),
             "expected italic cross-reference text in {input:?}"
         );
         assert!(
-            xref.text
-                .iter()
-                .any(|inline| matches!(inline, InlineNode::MonospaceText(_))),
+            xref.text()
+                .inlines()
+                .any(|inline| matches!(inline.kind(), InlineKind::Monospace(_))),
             "expected monospace cross-reference text in {input:?}"
         );
-        let Some(link) = xref.text.iter().find_map(|inline| {
-            let InlineNode::Macro(inline) = inline else {
-                return None;
-            };
-            if let InlineMacro::Link(link) = inline {
-                Some((link.target.to_string(), link.text.as_slice()))
-            } else if let InlineMacro::Url(url) = inline {
-                Some((url.target.to_string(), url.text.as_slice()))
+        let Some(link) = xref.text().inlines().find_map(|inline| {
+            if let InlineKind::Link(link) = inline.kind() {
+                Some((link.target().to_string(), link.text()))
+            } else if let InlineKind::Url(url) = inline.kind() {
+                Some((url.target().to_string(), url.text()))
             } else {
                 None
             }
         }) else {
             return Err(unexpected(
                 "expected a nested link or URL macro",
-                &xref.text,
+                xref.text(),
             ));
         };
         assert_eq!(link.0, "https://example.com");
-        let [InlineNode::PlainText(text)] = link.1 else {
+        let [InlineKind::Plain(text)] = &*link.1.inlines().map(InlineRef::kind).collect::<Vec<_>>()
+        else {
             return Err(unexpected("expected plain nested link text", link.1));
         };
-        assert_eq!(text.content, "link");
-        let Some(InlineNode::PlainText(tail)) = xref.text.last() else {
+        assert_eq!(text.text(), "link");
+        let Some(InlineKind::Plain(tail)) = xref.text().inlines().next_back().map(InlineRef::kind)
+        else {
             return Err(unexpected(
                 "expected trailing cross-reference text",
-                &xref.text,
+                xref.text(),
             ));
         };
-        assert_eq!(tail.content, " tail");
+        assert_eq!(tail.text(), " tail");
     }
 
     Ok(())
@@ -151,41 +147,46 @@ fn xref_text_accepts_protected_inline_macro_forms() -> Result<(), Error> {
     ] {
         let input = format!("xref:target[before {nested} after]");
         let parsed = parse_inline(&input, &options)?;
-        let [InlineNode::Macro(InlineMacro::CrossReference(xref))] = parsed.inlines() else {
+        let [InlineKind::CrossReference(xref)] = &*parsed
+            .content()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err(unexpected(
                 "expected one cross-reference macro",
-                parsed.inlines(),
+                parsed.content(),
             ));
         };
         assert!(
-            matches!(xref.text.first(), Some(InlineNode::PlainText(text)) if text.content == "before "),
+            matches!(xref.text().inlines().next().map(InlineRef::kind), Some(InlineKind::Plain(text)) if text.text() == "before "),
             "expected leading text around {nested:?}, got {:?}",
-            xref.text
+            xref.text()
         );
         assert!(
-            matches!(xref.text.last(), Some(InlineNode::PlainText(text)) if text.content == " after"),
+            matches!(xref.text().inlines().next_back().map(InlineRef::kind), Some(InlineKind::Plain(text)) if text.text() == " after"),
             "expected trailing text around {nested:?}, got {:?}",
-            xref.text
+            xref.text()
         );
         assert!(
-            xref.text.iter().any(|inline| {
+            xref.text().inlines().any(|inline| {
                 matches!(
-                    (expected_kind, inline),
-                    ("anchor", InlineNode::InlineAnchor(_))
-                        | ("footnote", InlineNode::Macro(InlineMacro::Footnote(_)))
-                        | ("raw", InlineNode::RawText(_))
-                        | ("mailto", InlineNode::Macro(InlineMacro::Mailto(_)))
-                        | ("image", InlineNode::Macro(InlineMacro::Image(_)))
-                        | ("icon", InlineNode::Macro(InlineMacro::Icon(_)))
-                        | ("indexterm", InlineNode::Macro(InlineMacro::IndexTerm(_)))
-                        | ("stem", InlineNode::Macro(InlineMacro::Stem(_)))
-                        | ("keyboard", InlineNode::Macro(InlineMacro::Keyboard(_)))
-                        | ("button", InlineNode::Macro(InlineMacro::Button(_)))
-                        | ("menu", InlineNode::Macro(InlineMacro::Menu(_)))
+                    (expected_kind, inline.kind()),
+                    ("anchor", InlineKind::Anchor(_))
+                        | ("footnote", InlineKind::Footnote(_))
+                        | ("raw", InlineKind::Raw(_))
+                        | ("mailto", InlineKind::Mailto(_))
+                        | ("image", InlineKind::Image(_))
+                        | ("icon", InlineKind::Icon(_))
+                        | ("indexterm", InlineKind::IndexTerm(_))
+                        | ("stem", InlineKind::Stem(_))
+                        | ("keyboard", InlineKind::Keyboard(_))
+                        | ("button", InlineKind::Button(_))
+                        | ("menu", InlineKind::Menu(_))
                 )
             }),
             "expected a nested {expected_kind} macro in {:?}",
-            xref.text
+            xref.text()
         );
     }
     Ok(())
@@ -194,13 +195,18 @@ fn xref_text_accepts_protected_inline_macro_forms() -> Result<(), Error> {
 #[test]
 fn xref_macro_honors_closing_bracket_boundaries() -> Result<(), Error> {
     let parsed = parse_inline(r"xref:target[literal \] tail]", &Options::default())?;
-    let [InlineNode::Macro(InlineMacro::CrossReference(xref))] = parsed.inlines() else {
+    let [InlineKind::CrossReference(xref)] = &*parsed
+        .content()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err(unexpected(
             "expected one cross-reference macro",
-            parsed.inlines(),
+            parsed.content(),
         ));
     };
-    assert_eq!(plain_text(&xref.text)?, "literal ] tail");
+    assert_eq!(plain_text(xref.text())?, "literal ] tail");
 
     for (nested, expected_xref_text) in [
         ("[bracket]", "literal [bracket"),
@@ -208,18 +214,19 @@ fn xref_macro_honors_closing_bracket_boundaries() -> Result<(), Error> {
     ] {
         let input = format!("xref:target[literal {nested} tail]");
         let parsed = parse_inline(&input, &Options::default())?;
-        let [
-            InlineNode::Macro(InlineMacro::CrossReference(xref)),
-            InlineNode::PlainText(tail),
-        ] = parsed.inlines()
+        let [InlineKind::CrossReference(xref), InlineKind::Plain(tail)] = &*parsed
+            .content()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
         else {
             return Err(unexpected(
                 "expected one cross-reference and trailing text",
-                parsed.inlines(),
+                parsed.content(),
             ));
         };
-        assert_eq!(plain_text(&xref.text)?, expected_xref_text);
-        assert_eq!(tail.content, " tail]");
+        assert_eq!(plain_text(xref.text())?, expected_xref_text);
+        assert_eq!(tail.text(), " tail]");
     }
     Ok(())
 }

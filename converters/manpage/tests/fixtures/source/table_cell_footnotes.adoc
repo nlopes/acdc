@@ -1,0 +1,39 @@
+= cell-notes(1)
+:doctype: manpage
+:docdate: 2026-11-07
+:revdate: 2026-11-07
+
+== NAME
+
+cell-notes - cell footnotes
+
+== DESCRIPTION
+
+Outer footnote:same[Outernote.] and footnote:same[].
+
+[cols=a,options=noheader]
+|===
+|
+First footnote:same[Firstnote.] and footnote:same[].
+
+[cols=a,options=noheader]
+!===
+!
+Nested footnote:same[Nestednote.] and footnote:same[].
+!===
+
+Parent again footnote:same[].
+
+|
+Second footnote:same[Secondnote.] and footnote:same[].
+
+|===
+
+Outer again footnote:same[] and footnote:after[Afternote.].
+
+[cols="1,1",options=noheader]
+|===
+|Normal footnote:same[] |Normal footnote:normal[Normalnote.]
+|===
+
+Normal again footnote:normal[].

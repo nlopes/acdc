@@ -48,8 +48,8 @@ use crate::{
         rename, selection_range, semantic_tokens, signature_help, symbols,
     },
     config::{
-        AnalysisConfiguration, BackendUpdate, RootConfiguration, ServerOptions, WorkspaceSettings,
-        parse_backend_update,
+        AnalysisConfiguration, RootConfiguration, ServerOptions, SettingsUpdate, WorkspaceSettings,
+        parse_settings_update,
     },
     state::Workspace,
 };
@@ -214,7 +214,7 @@ impl Backend {
 
         if let Some(value) = values.first() {
             match parse_workspace_settings(value) {
-                Ok(settings) => configuration.set_unscoped(settings.backend),
+                Ok(settings) => configuration.set_unscoped(settings),
                 Err(error) => self.client.log_message(MessageType::WARNING, error).await,
             }
         } else {
@@ -228,10 +228,10 @@ impl Backend {
 
         let mut root_configurations = Vec::with_capacity(roots.len());
         for (index, uri) in roots.into_iter().enumerate() {
-            let previous = configuration.root_backend(&uri);
-            let backend = if let Some(value) = values.get(index + 1) {
+            let previous = configuration.root_settings(&uri);
+            let settings = if let Some(value) = values.get(index + 1) {
                 match parse_workspace_settings(value) {
-                    Ok(settings) => settings.backend,
+                    Ok(settings) => settings,
                     Err(error) => {
                         self.client
                             .log_message(
@@ -254,7 +254,7 @@ impl Backend {
                     .await;
                 previous
             };
-            root_configurations.push(RootConfiguration { uri, backend });
+            root_configurations.push(RootConfiguration { uri, settings });
         }
         configuration.replace_roots(root_configurations);
         Some(configuration)
@@ -331,7 +331,7 @@ impl LanguageServer for Backend {
             .transpose()
             .map_err(|error| Error::invalid_params(error.to_string()))?
             .unwrap_or_default();
-        tracing::info!(backend = ?options.backend, "configured analysis backend");
+        tracing::info!(backend = ?options.backend, mode = ?options.compatibility_mode, "configured analysis settings");
 
         // Capture workspace roots for cross-file resolution
         let mut roots = Vec::new();
@@ -342,7 +342,7 @@ impl LanguageServer for Backend {
         } else if let Some(root_uri) = params.root_uri {
             roots.push(root_uri);
         }
-        self.workspace.initialize_analysis(options.backend, roots);
+        self.workspace.initialize_analysis(options, roots);
 
         let file_renames = FileOperationRegistrationOptions {
             filters: vec![FileOperationFilter {
@@ -357,6 +357,7 @@ impl LanguageServer for Backend {
 
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
+                position_encoding: Some(tower_lsp_server::ls_types::PositionEncodingKind::UTF16),
                 #[cfg(feature = "preview")]
                 execute_command_provider: self.features().show_document.then(|| ExecuteCommandOptions {
                     commands: vec![crate::preview::COMMAND.into(), crate::preview::HTML_COMMAND.into()],
@@ -547,8 +548,16 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let version = params.text_document.version;
 
-        // With FULL sync, we get the complete new text
-        if let Some(change) = params.content_changes.into_iter().next() {
+        // FULL sync supplies snapshots. A ranged fragment cannot replace the document.
+        if params
+            .content_changes
+            .iter()
+            .any(|change| change.range.is_some())
+        {
+            tracing::warn!("ignoring ranged changes: acdc-lsp uses full document sync");
+            return;
+        }
+        if let Some(change) = params.content_changes.into_iter().last() {
             let affected = self
                 .with_workspace(move |workspace| {
                     workspace.update_document(uri, change.text, version)
@@ -603,7 +612,7 @@ impl LanguageServer for Backend {
             return;
         }
 
-        let update = match parse_backend_update(&params.settings) {
+        let update = match parse_settings_update(&params.settings) {
             Ok(update) => update,
             Err(error) => {
                 self.client.log_message(MessageType::WARNING, error).await;
@@ -611,11 +620,10 @@ impl LanguageServer for Backend {
             }
         };
         let mut configuration = self.workspace.analysis_configuration();
-        match update {
-            BackendUpdate::Unchanged => return,
-            BackendUpdate::Set(backend) => configuration.set_unscoped(Some(backend)),
-            BackendUpdate::Reset => configuration.set_unscoped(None),
+        if update == SettingsUpdate::default() {
+            return;
         }
+        configuration.apply_update(update);
         self.apply_configuration(configuration).await;
     }
 
@@ -633,7 +641,7 @@ impl LanguageServer for Backend {
             .into_iter()
             .filter(|root| !removed.contains(root))
             .map(|uri| RootConfiguration {
-                backend: configuration.root_backend(&uri),
+                settings: configuration.root_settings(&uri),
                 uri,
             })
             .collect();
@@ -641,7 +649,10 @@ impl LanguageServer for Backend {
             if !roots.iter().any(|root| root.uri == folder.uri) {
                 roots.push(RootConfiguration {
                     uri: folder.uri,
-                    backend: None,
+                    settings: crate::config::WorkspaceSettings {
+                        backend: None,
+                        ..Default::default()
+                    },
                 });
             }
         }
@@ -669,7 +680,10 @@ impl LanguageServer for Backend {
         // Get document and extract symbols while the guard is held
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             doc.ast().map(|ast| {
-                DocumentSymbolResponse::Nested(symbols::document_symbols(ast.document()))
+                DocumentSymbolResponse::Nested(symbols::document_symbols(
+                    ast.document(),
+                    doc.text(),
+                ))
             })
         } else {
             None
@@ -689,16 +703,16 @@ impl LanguageServer for Backend {
 
         let symbols: Vec<SymbolInformation> = results
             .into_iter()
-            .map(|(uri, symbol)| SymbolInformation {
-                name: symbol.name,
-                kind: symbol.kind,
-                location: Location {
-                    uri,
-                    range: crate::convert::location_to_range(&symbol.location),
-                },
-                tags: None,
-                deprecated: None,
-                container_name: symbol.detail,
+            .filter_map(|(uri, symbol)| {
+                let location = self.workspace.lsp_location(&uri, &symbol.location)?;
+                Some(SymbolInformation {
+                    name: symbol.name,
+                    kind: symbol.kind,
+                    location,
+                    tags: None,
+                    deprecated: None,
+                    container_name: symbol.detail,
+                })
             })
             .collect();
 
@@ -721,16 +735,15 @@ impl LanguageServer for Backend {
             let result =
                 definition::find_definition_at_position(&doc, &uri, &self.workspace, position);
             tracing::info!(found = result.is_some(), "goto_definition result");
-            result.map(|(target_uri, loc)| {
+            result.and_then(|(target_uri, loc)| {
                 tracing::info!(
                     target_uri = target_uri.as_str(),
                     ?loc,
                     "goto_definition resolved to"
                 );
-                GotoDefinitionResponse::Scalar(Location {
-                    uri: target_uri,
-                    range: crate::convert::location_to_range(&loc),
-                })
+                self.workspace
+                    .lsp_location(&target_uri, &loc)
+                    .map(GotoDefinitionResponse::Scalar)
             })
         } else {
             tracing::warn!(uri = uri.as_str(), "document not found in workspace");
@@ -822,7 +835,7 @@ impl LanguageServer for Backend {
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             doc.ast()
-                .map(|ast| folding::compute_folding_ranges(ast.document()))
+                .map(|ast| folding::compute_folding_ranges(ast.document(), doc.text()))
         } else {
             None
         };
@@ -1091,7 +1104,7 @@ impl LanguageServer for Backend {
         let position = params.text_document_position_params.position;
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
-            call_hierarchy::prepare_call_hierarchy(&doc, &uri, position)
+            call_hierarchy::prepare_call_hierarchy(&doc, &uri, position, &self.workspace)
         } else {
             None
         };

@@ -1,0 +1,46 @@
+NOTE: A paragraph note.
+
+[IMPORTANT]
+    An indented note.
+
+.A titled tip
+[TIP#bounded.notice]
+======
+A *delimited* tip.
+======
+
+[WARNING]
+--
+An open warning.
+--
+
+[sidebar]
+A styled sidebar.
+
+[sidebar]
+    An indented sidebar.
+
+[example]
+A styled example.
+
+[quote,Author,Book]
+A styled quotation.
+
+[abstract]
+A styled abstract.
+
+[partintro]
+A styled part introduction.
+
+"A quoted paragraph."
+-- Quoted Author, Quoted Book
+
+> A marked quotation.
+> -- Marked Author, Marked Book
+
+--
+NOTE: A nested note.
+
+[sidebar]
+A nested sidebar.
+--

@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -122,17 +123,17 @@
 
 #text("P17 ")#strong[#text("©")]
 
-#text("P18 ")#strong[#text("©")]
+#text("P18 ")#text("pass:q,c,r[*&#169;*]")
 
 #text("P19 ")#link("https://example.org")[#text("https://example.org")]#text("[")#text("©")#text("]")
 
-#text("P20 ")#link("https://example.org")[#text("https://example.org")]#text("[")#text("©")#text("]")
+#text("P20 ")#text("pass:m,c,r[https://example.org[&#169;]")#text("]")
 
 #text("P21 ")#text("café ")#text("©")#text("Ω ")#text("©")#text("©")
 
-#text("P22 ")#text("©")#text(" — tail")
+#text("P22 ")#text("©")#text(" — ")#text("tail")
 
-#text("P23 ")#text("head — ")#text("©")
+#text("P23 ")#text("head")#text(" — ")#text("©")
 
 #text("P24 ")#text("&amp;#169;")#text(" ")#text("&amp;")
 

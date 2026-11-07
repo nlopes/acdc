@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Sentence checks visit a shared description-list definition once and keep term
+  punctuation separate from definition prose.
+
+- Expanded regression coverage for diagnostics in both compatibility modes, including formatted labels, nested lists, source blocks, delimiter safety, and image-directory scopes.
+
+- Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+
+- Image checks retain literal quotes in `imagesdir`. Quoted document text that is not a URL no longer triggers URL-prefix advice.
+
 ### Changed
 
 - Library linting now defaults to Secure and does not read include targets.
@@ -17,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   invalid, and rejected entries are not treated as semantic values.
 
 ### Added
+
+- `LintOptions::with_compatibility_mode()` selects Asciidoctor or Draft parsing
+  rules for file and string inputs. Asciidoctor remains the default, with the
+  existing Secure include policy.
 
 - `LintOptions::with_max_total_include_bytes()` sets the total selected include
   text allowed per parse, in bytes. The default is 64 MiB. Safe modes and the
@@ -51,6 +64,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   references inside the page link to the corresponding lint sections.
 
 ### Fixed
+
+- Escaped counter references no longer trigger the counter-syntax lint. Active
+  counter diagnostics now stop at the closing brace.
+
+- Image-alt checks read parsed alternative content, including formatted labels.
+  Resource checks also traverse media alternatives, tooltips, and UI labels.
+
+- Inline images retain alt-text lint behavior with the explicit `alt` AST
+  field, including positional alt text and empty values.
 
 - The `one-sentence-per-line` lint now checks description-list values on the
   term's line or immediately below it, including wrapped sentences.

@@ -1,0 +1,737 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Neighbor contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 19
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 19
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Earlier.",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 8
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "α🚀 ",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 3
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "unconstrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Sam",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 6
+                },
+                {
+                  "line": 5,
+                  "col": 8
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "’",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 9
+                },
+                {
+                  "line": 5,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "anchor",
+              "type": "inline",
+              "id": "unicode",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 10
+                },
+                {
+                  "line": 5,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "s",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 26
+                },
+                {
+                  "line": 5,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 4
+            },
+            {
+              "line": 5,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 5,
+              "col": 29
+            },
+            {
+              "line": 5,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "path",
+            "value": "guide.html"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Sa",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 50
+                },
+                {
+                  "line": 5,
+                  "col": 51
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "m",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 64
+                    },
+                    {
+                      "line": 5,
+                      "col": 64
+                    }
+                  ]
+                }
+              ],
+              "visible": true,
+              "location": [
+                {
+                  "line": 5,
+                  "col": 52
+                },
+                {
+                  "line": 5,
+                  "col": 65
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "’",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 66
+                },
+                {
+                  "line": 5,
+                  "col": 66
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "s",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 67
+                },
+                {
+                  "line": 5,
+                  "col": 67
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 34
+            },
+            {
+              "line": 5,
+              "col": 68
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 5,
+              "col": 69
+            },
+            {
+              "line": 5,
+              "col": 69
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 69
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Cell Sam",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 2
+                          },
+                          {
+                            "line": 9,
+                            "col": 9
+                          }
+                        ]
+                      },
+                      {
+                        "name": "symbol",
+                        "type": "string",
+                        "value": "’",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 10
+                          },
+                          {
+                            "line": 9,
+                            "col": 10
+                          }
+                        ]
+                      },
+                      {
+                        "name": "anchor",
+                        "type": "inline",
+                        "id": "cell",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 11
+                          },
+                          {
+                            "line": 9,
+                            "col": 23
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "s and left",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 24
+                          },
+                          {
+                            "line": 9,
+                            "col": 33
+                          }
+                        ]
+                      },
+                      {
+                        "name": "indexterm",
+                        "type": "inline",
+                        "term": [
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "—​",
+                            "location": [
+                              {
+                                "line": 9,
+                                "col": 46
+                              },
+                              {
+                                "line": 9,
+                                "col": 47
+                              }
+                            ]
+                          }
+                        ],
+                        "catalog": {
+                          "kind": {
+                            "Flow": [
+                              {
+                                "name": "symbol",
+                                "type": "string",
+                                "value": " — ",
+                                "location": [
+                                  {
+                                    "line": 9,
+                                    "col": 46
+                                  },
+                                  {
+                                    "line": 9,
+                                    "col": 47
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          "location": [
+                            {
+                              "line": 9,
+                              "col": 34
+                            },
+                            {
+                              "line": 9,
+                              "col": 48
+                            }
+                          ]
+                        },
+                        "visible": true,
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 34
+                          },
+                          {
+                            "line": 9,
+                            "col": 48
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "right.",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 49
+                          },
+                          {
+                            "line": 9,
+                            "col": 54
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 9,
+                        "col": 2
+                      },
+                      {
+                        "line": 9,
+                        "col": 54
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 8,
+            "col": 1
+          },
+          {
+            "line": 10,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "α🚀 Sam",
+          "location": [
+            {
+              "line": 2,
+              "col": 5,
+              "file": [
+                "includes/compatibility_typography_neighbors.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 10,
+              "file": [
+                "includes/compatibility_typography_neighbors.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "’",
+          "location": [
+            {
+              "line": 2,
+              "col": 11,
+              "file": [
+                "includes/compatibility_typography_neighbors.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 11,
+              "file": [
+                "includes/compatibility_typography_neighbors.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "anchor",
+          "type": "inline",
+          "id": "included",
+          "location": [
+            {
+              "line": 2,
+              "col": 12,
+              "file": [
+                "includes/compatibility_typography_neighbors.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 28,
+              "file": [
+                "includes/compatibility_typography_neighbors.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s.\nContinued left",
+          "location": [
+            {
+              "line": 2,
+              "col": 29,
+              "file": [
+                "includes/compatibility_typography_neighbors.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 18,
+              "file": [
+                "includes/compatibility_typography_neighbors.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "—​",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 31,
+                  "file": [
+                    "includes/compatibility_typography_neighbors.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 32,
+                  "file": [
+                    "includes/compatibility_typography_neighbors.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": " — ",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 31,
+                      "file": [
+                        "includes/compatibility_typography_neighbors.adoc"
+                      ]
+                    },
+                    {
+                      "line": 3,
+                      "col": 32,
+                      "file": [
+                        "includes/compatibility_typography_neighbors.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 3,
+                "col": 19,
+                "file": [
+                  "includes/compatibility_typography_neighbors.adoc"
+                ]
+              },
+              {
+                "line": 3,
+                "col": 33,
+                "file": [
+                  "includes/compatibility_typography_neighbors.adoc"
+                ]
+              }
+            ]
+          },
+          "visible": true,
+          "location": [
+            {
+              "line": 3,
+              "col": 19,
+              "file": [
+                "includes/compatibility_typography_neighbors.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 33,
+              "file": [
+                "includes/compatibility_typography_neighbors.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "right.",
+          "location": [
+            {
+              "line": 3,
+              "col": 34,
+              "file": [
+                "includes/compatibility_typography_neighbors.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 39,
+              "file": [
+                "includes/compatibility_typography_neighbors.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 5,
+          "file": [
+            "includes/compatibility_typography_neighbors.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 39,
+          "file": [
+            "includes/compatibility_typography_neighbors.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 39,
+      "file": [
+        "includes/compatibility_typography_neighbors.adoc"
+      ]
+    }
+  ]
+}

@@ -1,28 +1,19 @@
 use std::{borrow::Cow, mem::take};
 
 use crate::{
-    AttributeValue, Error, Form, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode,
-    Location, PassthroughKind, Plain, ProcessedContent, Source, Substitution,
-    model::substitution::{
-        SubstitutionPlan, character_reference_end, escape_attribute_characters,
-        is_restorable_character_reference,
-    },
+    Anchor, AttributeValue, CompatibilityMode, Error, IndexTermKind, IndexTermRelationship,
+    InlineMacro, InlineNode, Location, PassthroughKind, Plain, ProcessedContent, Source,
+    Substitution,
+    model::substitution::{SubstitutionPlan, character_reference_end, escape_attribute_characters},
 };
 
 use super::{
     ParserState,
+    character_references::{body, whole},
     marked_text::map_marked_text_locations,
     passthrough_processing::replace_passthrough_placeholders,
     utf8_utils::{self, RoundDirection, snap_to_boundary},
 };
-
-/// Offset to skip the opening delimiter in constrained formatting.
-/// For `*s*`, position 1 is where 's' starts.
-const CONSTRAINED_CONTENT_START_OFFSET: usize = 1;
-
-/// End offset for single character content after opening delimiter.
-/// For `*s*`, position 2 is where 's' ends.
-const CONSTRAINED_CONTENT_END_OFFSET: usize = 2;
 
 /// Clamp a Location's byte offsets to valid bounds within the input string
 /// and ensure they fall on UTF-8 character boundaries.
@@ -70,13 +61,23 @@ impl<'a> LocationMappingContext<'_, 'a> {
         })
     }
 
-    /// Map a preprocessed location to source coordinates, preserving delimiter
-    /// handling for constrained formatting and the end bias of substitutions.
-    pub(crate) fn map_location(
-        &self,
-        loc: &Location,
-        form: Option<&Form>,
-    ) -> Result<Location, Error> {
+    fn map_symbol_location(&self, loc: &Location) -> Result<Location, Error> {
+        let mapped = self.map_location(loc)?;
+        let start = self
+            .processed
+            .source_map
+            .map_token_position(self.base_location.absolute_start + loc.absolute_start)?;
+        let start = snap_to_boundary(
+            self.state.input,
+            start.min(self.state.input.len()),
+            RoundDirection::Backward,
+        );
+        Ok(self.state.create_location(start, mapped.absolute_end))
+    }
+
+    /// Map an inclusive preprocessed span to source coordinates, preserving
+    /// the end bias of substitutions.
+    pub(crate) fn map_location(&self, loc: &Location) -> Result<Location, Error> {
         let Self {
             state,
             processed,
@@ -89,36 +90,8 @@ impl<'a> LocationMappingContext<'_, 'a> {
         );
 
         // Convert processed-relative absolute offsets into document-absolute offsets
-        let mut processed_abs_start = base_location.absolute_start + loc.absolute_start;
-        let mut processed_abs_end = base_location.absolute_start + loc.absolute_end;
-
-        // Whitespace already occupies its inclusive source position. Extending
-        // it would include a closing delimiter or the next line's first character.
-        if loc.absolute_start == loc.absolute_end
-            && !processed
-                .text
-                .get(loc.absolute_start..)
-                .is_some_and(|text| text.starts_with(char::is_whitespace))
-        {
-            if loc.absolute_start == 0 && base_location.absolute_start < base_location.absolute_end
-            {
-                // Special case: single character inside constrained formatting like "*s*"
-                // (constrained formatting has single-character delimiters).
-                if matches!(form, Some(Form::Constrained)) {
-                    // Constrained formatting: skip single-char delimiter to point at content
-                    processed_abs_start =
-                        base_location.absolute_start + CONSTRAINED_CONTENT_START_OFFSET;
-                    processed_abs_end =
-                        base_location.absolute_start + CONSTRAINED_CONTENT_END_OFFSET;
-                } else {
-                    // Advance in processed coordinates; source UTF-8 boundaries are
-                    // restored after mapping the range back to the input.
-                    processed_abs_end += 1;
-                }
-            } else {
-                processed_abs_end += 1;
-            }
-        }
+        let processed_abs_start = base_location.absolute_start + loc.absolute_start;
+        let processed_abs_end = base_location.absolute_start + loc.absolute_end;
 
         // Map those through the preprocessor source map back to original source
         let mut mapped_abs_start = processed.source_map.map_position(processed_abs_start)?;
@@ -138,18 +111,9 @@ impl<'a> LocationMappingContext<'_, 'a> {
         let start_pos = state
             .line_map
             .offset_to_position(mapped_abs_start, state.input);
-        let mut end_pos = state
+        let end_pos = state
             .line_map
             .offset_to_position(mapped_abs_end, state.input);
-
-        let is_single_char_fix = mapped_abs_end == mapped_abs_start + 1
-            && loc.absolute_start == 0
-            && base_location.absolute_start < base_location.absolute_end;
-        // For single-character content inside constrained formatting, point both
-        // start and end column at the same character.
-        if is_single_char_fix && matches!(form, Some(Form::Constrained)) {
-            end_pos.column = start_pos.column;
-        }
 
         Ok(Location {
             absolute_start: mapped_abs_start,
@@ -205,12 +169,11 @@ pub(crate) fn extend_attribute_location_if_needed(
 pub(crate) fn map_inner_content_locations<'a>(
     content: Vec<InlineNode<'a>>,
     ctx: &LocationMappingContext<'_, 'a>,
-    form: Option<&Form>,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
-    map_nodes(content, |node| {
+    let mapped = map_nodes(content, |node| {
         match node {
             InlineNode::PlainText(plain) => {
-                let expanded = map_plain_text_inline_locations(plain, ctx, form)?;
+                let expanded = map_plain_text_inline_locations(plain, ctx)?;
                 if expanded.is_none() {
                     plain.location = extend_attribute_location_if_needed(
                         ctx.state,
@@ -228,19 +191,35 @@ pub(crate) fn map_inner_content_locations<'a>(
             | InlineNode::SuperscriptText(_)
             | InlineNode::CurvedQuotationText(_)
             | InlineNode::CurvedApostropheText(_)) => map_marked_text_locations(marked_text, ctx)?,
-            InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, ctx, form)?,
+            InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, ctx)?,
+            InlineNode::InlineAnchor(anchor) => map_anchor_locations(anchor, ctx)?,
+            InlineNode::CharacterReference(reference) => {
+                reference.location = ctx.map_symbol_location(&reference.location)?;
+            }
+            InlineNode::Symbol(symbol) => {
+                symbol.location = ctx.map_symbol_location(&symbol.location)?;
+            }
+            InlineNode::RawText(raw) => {
+                raw.location = ctx.map_location(&raw.location)?;
+                if let Some(id) = raw
+                    .metadata
+                    .as_mut()
+                    .and_then(|metadata| metadata.id.as_mut())
+                {
+                    id.location = ctx.map_location(&id.location)?;
+                }
+            }
             // Invisible nodes and resolved escapes still use the enclosing text's local coordinates.
-            InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
+            InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
             | InlineNode::CalloutRef(_) => {
-                *node.location_mut() = ctx.map_location(node.location(), form)?;
+                *node.location_mut() = ctx.map_location(node.location())?;
             }
         }
         Ok(None)
-    })
+    })?;
+    Ok(resolve_profile_context(mapped, ctx, false))
 }
 
 /// Keep the original buffer unless a node expands into a replacement sequence.
@@ -292,16 +271,41 @@ pub(crate) fn map_inline_locations<'a>(
     content: Vec<InlineNode<'a>>,
     location: &Location,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
+    map_locations(state, processed, content, location, false)
+}
+
+pub(crate) fn map_paragraph_locations<'a>(
+    state: &ParserState<'a>,
+    processed: &ProcessedContent<'a>,
+    content: Vec<InlineNode<'a>>,
+    location: &Location,
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    map_locations(
+        state,
+        processed,
+        content,
+        location,
+        state.scope == super::state::ParserScope::Document,
+    )
+}
+
+fn map_locations<'a>(
+    state: &ParserState<'a>,
+    processed: &ProcessedContent<'a>,
+    content: Vec<InlineNode<'a>>,
+    location: &Location,
+    paragraph: bool,
+) -> Result<Vec<InlineNode<'a>>, Error> {
     let ctx = LocationMappingContext {
         state,
         processed,
         base_location: location,
     };
 
-    map_nodes(content, |inline| {
+    let mapped = map_nodes(content, |inline| {
         match inline {
             InlineNode::PlainText(plain) => {
-                return map_plain_text_inline_locations(plain, &ctx, None);
+                return map_plain_text_inline_locations(plain, &ctx);
             }
             marked_text @ (InlineNode::ItalicText(_)
             | InlineNode::BoldText(_)
@@ -312,42 +316,132 @@ pub(crate) fn map_inline_locations<'a>(
             | InlineNode::CurvedQuotationText(_)
             | InlineNode::CurvedApostropheText(_)) => map_marked_text_locations(marked_text, &ctx)?,
             InlineNode::StandaloneCurvedApostrophe(standalone) => {
-                standalone.location = ctx.map_location(&standalone.location, None)?;
+                standalone.location = ctx.map_location(&standalone.location)?;
             }
-            InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, &ctx, None)?,
-            InlineNode::LineBreak(lb) => lb.location = ctx.map_location(&lb.location, None)?,
-            InlineNode::RawText(raw) => raw.location = ctx.map_location(&raw.location, None)?,
-            InlineNode::VerbatimText(verbatim) => {
-                verbatim.location = ctx.map_location(&verbatim.location, None)?;
+            InlineNode::CharacterReference(reference) => {
+                reference.location = ctx.map_symbol_location(&reference.location)?;
             }
-            InlineNode::InlineAnchor(anchor) => {
-                anchor.location = ctx.map_location(&anchor.location, None)?;
-                if let Some(label) = &mut anchor.bibliography_label {
-                    label.content =
-                        map_inline_locations(state, processed, take(&mut label.content), location)?;
-                    // Citation registration uses source lines before passthrough extraction.
-                    label.source = anchor
-                        .location
-                        .absolute_start
-                        .checked_sub(1)
-                        .and_then(|start| state.input.get(start..anchor.location.absolute_end + 2))
-                        .and_then(|source| source.strip_prefix("[[["))
-                        .and_then(|source| source.split_once("]]]").map(|(label, _)| label))
-                        .and_then(|source| {
-                            source.split_once(',').map(|(_, label)| label.trim_start())
-                        })
-                        .filter(|source| !source.contains(['\n', '\r']));
+            InlineNode::Symbol(symbol) => {
+                symbol.location = ctx.map_symbol_location(&symbol.location)?;
+            }
+            InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, &ctx)?,
+            InlineNode::LineBreak(lb) => lb.location = ctx.map_location(&lb.location)?,
+            InlineNode::RawText(raw) => {
+                if contains_passthrough_placeholders(raw.content, processed) {
+                    let mut plain = Plain {
+                        content: raw.content,
+                        location: raw.location.clone(),
+                        escaped: false,
+                    };
+                    let expanded = map_plain_text_inline_locations(&mut plain, &ctx)?;
+                    return Ok(expanded.map(|mut nodes| {
+                        for node in &mut nodes {
+                            if let InlineNode::PlainText(plain) = node {
+                                *node = InlineNode::RawText(crate::Raw {
+                                    metadata: None,
+                                    content: plain.content,
+                                    location: plain.location.clone(),
+                                    subs: raw.subs.clone(),
+                                });
+                            }
+                        }
+                        nodes
+                    }));
                 }
-                anchor.xreflabel = anchor
-                    .xreflabel
-                    .map(|label| restore_reference_label_passthroughs(label, state, processed));
+                raw.location = ctx.map_location(&raw.location)?;
+                if let Some(id) = raw
+                    .metadata
+                    .as_mut()
+                    .and_then(|metadata| metadata.id.as_mut())
+                {
+                    id.location = ctx.map_location(&id.location)?;
+                }
             }
+            InlineNode::VerbatimText(verbatim) => {
+                verbatim.location = ctx.map_location(&verbatim.location)?;
+            }
+            InlineNode::InlineAnchor(anchor) => map_anchor_locations(anchor, &ctx)?,
             InlineNode::CalloutRef(callout) => {
-                callout.location = ctx.map_location(&callout.location, None)?;
+                callout.location = ctx.map_location(&callout.location)?;
             }
         }
         Ok(None)
-    })
+    })?;
+    Ok(resolve_profile_context(mapped, &ctx, paragraph))
+}
+
+fn resolve_profile_context<'a>(
+    nodes: Vec<InlineNode<'a>>,
+    ctx: &LocationMappingContext<'_, 'a>,
+    paragraph: bool,
+) -> Vec<InlineNode<'a>> {
+    let empty_profile = ctx
+        .processed
+        .passthroughs
+        .iter()
+        .any(|pass| pass.text.is_some_and(str::is_empty));
+    if !super::inlines::typography::needs_profile_context(&nodes, empty_profile) {
+        return nodes;
+    }
+    let mut inline_ctx = ctx.state.inline_ctx;
+    inline_ctx.substitutions = ctx.processed.attribute_substitutions;
+    let mut state = ParserState::for_inline_parsing(ctx.state.input, ctx.state, inline_ctx);
+    state
+        .attribute_value_ranges
+        .clone_from(&ctx.state.attribute_value_ranges);
+    state.attribute_value_ranges.extend(
+        ctx.processed
+            .source_map
+            .replacements
+            .iter()
+            .filter(|replacement| {
+                replacement.kind.is_attribute()
+                    || ctx.processed.passthroughs.iter().any(|pass| {
+                        pass.kind == PassthroughKind::AttributeRef
+                            && pass.location.absolute_start == replacement.absolute_start
+                            && pass.location.absolute_end == replacement.absolute_end
+                    })
+            })
+            .map(|replacement| replacement.absolute_start..replacement.absolute_end),
+    );
+    state
+        .attribute_value_ranges
+        .sort_unstable_by_key(|range| range.start);
+    super::inlines::typography::resolve_plain(nodes, &state, paragraph && empty_profile)
+}
+
+fn map_anchor_locations<'a>(
+    anchor: &mut Anchor<'a>,
+    ctx: &LocationMappingContext<'_, 'a>,
+) -> Result<(), Error> {
+    let LocationMappingContext {
+        state,
+        processed,
+        base_location: location,
+    } = *ctx;
+    anchor.location = ctx.map_location(&anchor.location)?;
+    if let Some(label) = &mut anchor.bibliography_label {
+        label.content = map_inline_locations(state, processed, take(&mut label.content), location)?;
+        // Citation registration uses source lines before passthrough extraction.
+        label.source = anchor
+            .location
+            .absolute_start
+            .checked_sub(1)
+            .and_then(|start| state.input.get(start..anchor.location.absolute_end + 2))
+            .and_then(|source| source.strip_prefix("[[["))
+            .and_then(|source| source.split_once("]]]").map(|(label, _)| label))
+            .and_then(|source| {
+                source
+                    .split_once(',')
+                    .map(|(_, label)| super::inline_processing::trim_bibliography_label(label))
+            })
+            .filter(|source| !source.contains(['\n', '\r']));
+    }
+    if let Some(content) = &mut anchor.xreflabel {
+        *content.inlines_mut() =
+            map_inline_locations(state, processed, take(content.inlines_mut()), location)?;
+    }
+    Ok(())
 }
 
 fn restore_reference_label_passthroughs<'a>(
@@ -381,6 +475,41 @@ fn restore_reference_label_passthroughs<'a>(
     }
 }
 
+fn restore_inline_metadata<'a>(
+    metadata: &mut crate::InlineMetadata<'a>,
+    attributes: &mut crate::model::MacroAttributes<'a>,
+    ctx: &LocationMappingContext<'_, 'a>,
+) {
+    let restore = |text: &str| ctx.restore_passthrough_text(text);
+    if metadata
+        .roles
+        .iter()
+        .any(|role| contains_passthrough_placeholders(role, ctx.processed))
+    {
+        metadata.roles = take(&mut metadata.roles)
+            .into_iter()
+            .flat_map(|role| restore(role).unwrap_or(role).split_whitespace())
+            .collect();
+    }
+    if attributes
+        .options
+        .iter()
+        .any(|option| contains_passthrough_placeholders(option, ctx.processed))
+    {
+        attributes.options = take(&mut attributes.options)
+            .into_iter()
+            .flat_map(|option| restore(option).unwrap_or(option).split(','))
+            .map(str::trim)
+            .filter(|option| !option.is_empty())
+            .collect();
+    }
+    if let Some(id) = &mut metadata.id
+        && let Some(restored) = restore(id.id)
+    {
+        id.id = restored;
+    }
+}
+
 fn restore_macro_attributes<'a>(
     inline_macro: &mut InlineMacro<'a>,
     ctx: &LocationMappingContext<'_, 'a>,
@@ -391,56 +520,33 @@ fn restore_macro_attributes<'a>(
 
     let restore = |text: &str| ctx.restore_passthrough_text(text);
     let attributes = match inline_macro {
-        InlineMacro::Link(link) => &mut link.attributes,
-        InlineMacro::Url(url) => &mut url.attributes,
-        InlineMacro::Mailto(mailto) => &mut mailto.attributes,
-        InlineMacro::Icon(icon) => &mut icon.attributes,
+        InlineMacro::Link(link) => {
+            restore_inline_metadata(&mut link.metadata, &mut link.macro_attributes, ctx);
+            &mut link.macro_attributes.attributes
+        }
+        InlineMacro::Url(url) => {
+            restore_inline_metadata(&mut url.metadata, &mut url.macro_attributes, ctx);
+            &mut url.macro_attributes.attributes
+        }
+        InlineMacro::Mailto(mailto) => {
+            restore_inline_metadata(&mut mailto.metadata, &mut mailto.macro_attributes, ctx);
+            &mut mailto.macro_attributes.attributes
+        }
+        InlineMacro::Icon(icon) => {
+            restore_inline_metadata(&mut icon.metadata, &mut icon.macro_attributes, ctx);
+            &mut icon.macro_attributes.attributes
+        }
         InlineMacro::CrossReference(xref) => {
-            if let Some(role) = xref.role
-                && let Some(restored) = restore(role)
-            {
-                xref.role = Some(restored);
-            }
-            return;
+            restore_inline_metadata(&mut xref.metadata, &mut xref.macro_attributes, ctx);
+            &mut xref.macro_attributes.attributes
+        }
+        InlineMacro::IndexTerm(term) => {
+            restore_inline_metadata(&mut term.metadata, &mut term.macro_attributes, ctx);
+            &mut term.macro_attributes.attributes
         }
         InlineMacro::Image(image) => {
-            if image
-                .metadata
-                .roles
-                .iter()
-                .any(|role| contains_passthrough_placeholders(role, ctx.processed))
-            {
-                image.metadata.roles = take(&mut image.metadata.roles)
-                    .into_iter()
-                    .flat_map(|role| restore(role).unwrap_or(role).split_whitespace())
-                    .collect();
-            }
-            if image
-                .metadata
-                .options
-                .iter()
-                .any(|option| contains_passthrough_placeholders(option, ctx.processed))
-            {
-                image.metadata.options = take(&mut image.metadata.options)
-                    .into_iter()
-                    .flat_map(|option| restore(option).unwrap_or(option).split(','))
-                    .map(str::trim)
-                    .filter(|option| !option.is_empty())
-                    .collect();
-            }
-            if let Some(id) = &mut image.metadata.id
-                && let Some(restored) = restore(id.id)
-            {
-                id.id = restored;
-            }
-            for node in image.title.inlines_mut() {
-                if let InlineNode::PlainText(plain) = node
-                    && let Some(restored) = restore(plain.content)
-                {
-                    plain.content = restored;
-                }
-            }
-            &mut image.metadata.attributes
+            restore_inline_metadata(&mut image.metadata, &mut image.macro_attributes, ctx);
+            &mut image.macro_attributes.attributes
         }
         InlineMacro::Footnote(_)
         | InlineMacro::Keyboard(_)
@@ -448,8 +554,7 @@ fn restore_macro_attributes<'a>(
         | InlineMacro::Menu(_)
         | InlineMacro::Autolink(_)
         | InlineMacro::Pass(_)
-        | InlineMacro::Stem(_)
-        | InlineMacro::IndexTerm(_) => return,
+        | InlineMacro::Stem(_) => return,
     };
 
     // Restore after attribute parsing so protected commas and brackets stay in the value.
@@ -511,16 +616,9 @@ fn restore_macro_passthroughs<'a>(
             None
         }
         InlineMacro::Stem(stem) => Some(&mut stem.content),
-        InlineMacro::Button(button) => Some(&mut button.label),
-        InlineMacro::Menu(menu) => {
-            for item in &mut menu.items {
-                if let Some(restored) = ctx.restore_passthrough_text(item) {
-                    *item = restored;
-                }
-            }
-            Some(&mut menu.target)
-        }
         InlineMacro::Icon(_)
+        | InlineMacro::Button(_)
+        | InlineMacro::Menu(_)
         | InlineMacro::Image(_)
         | InlineMacro::Keyboard(_)
         | InlineMacro::Url(_)
@@ -542,9 +640,12 @@ fn restore_macro_passthroughs<'a>(
 fn map_inline_macro<'a>(
     inline_macro: &mut InlineMacro<'a>,
     ctx: &LocationMappingContext<'_, 'a>,
-    form: Option<&Form>,
 ) -> Result<(), Error> {
     restore_macro_passthroughs(inline_macro, ctx)?;
+    inline_macro.try_for_each_content_attribute_mut(|nodes| -> Result<(), Error> {
+        *nodes = map_inline_locations(ctx.state, ctx.processed, take(nodes), ctx.base_location)?;
+        Ok(())
+    })?;
     let LocationMappingContext {
         state,
         processed,
@@ -552,34 +653,57 @@ fn map_inline_macro<'a>(
     } = *ctx;
     match inline_macro {
         InlineMacro::Footnote(footnote) => {
-            footnote.location = ctx.map_location(&footnote.location, form)?;
-            footnote.content =
-                map_inline_locations(state, processed, take(&mut footnote.content), location)?;
+            footnote.location = ctx.map_location(&footnote.location)?;
+            if let Some(content) = &mut footnote.content {
+                *content = map_inline_locations(state, processed, take(content), location)?;
+            }
             state.finalize_footnote(footnote);
         }
         InlineMacro::Url(url) => {
-            url.location = ctx.map_location(&url.location, form)?;
+            url.location = ctx.map_location(&url.location)?;
+            if let Some(id) = &mut url.metadata.id {
+                id.location = ctx.map_location(&id.location)?;
+            }
             url.text = map_inline_locations(state, processed, take(&mut url.text), location)?;
         }
         InlineMacro::Mailto(mailto) => {
-            mailto.location = ctx.map_location(&mailto.location, form)?;
+            mailto.location = ctx.map_location(&mailto.location)?;
+            if let Some(id) = &mut mailto.metadata.id {
+                id.location = ctx.map_location(&id.location)?;
+            }
             mailto.text = map_inline_locations(state, processed, take(&mut mailto.text), location)?;
         }
         InlineMacro::Link(link) => {
-            link.location = ctx.map_location(&link.location, form)?;
+            link.location = ctx.map_location(&link.location)?;
+            if let Some(id) = &mut link.metadata.id {
+                id.location = ctx.map_location(&id.location)?;
+            }
             link.text = map_inline_locations(state, processed, take(&mut link.text), location)?;
         }
-        InlineMacro::Icon(icon) => icon.location = ctx.map_location(&icon.location, form)?,
-        InlineMacro::Button(button) => {
-            button.location = ctx.map_location(&button.location, form)?;
+        InlineMacro::Icon(icon) => {
+            icon.location = ctx.map_location(&icon.location)?;
+            if let Some(id) = &mut icon.metadata.id {
+                id.location = ctx.map_location(&id.location)?;
+            }
         }
-        InlineMacro::Image(image) => image.location = ctx.map_location(&image.location, form)?,
-        InlineMacro::Menu(menu) => menu.location = ctx.map_location(&menu.location, form)?,
+        InlineMacro::Button(button) => {
+            button.location = ctx.map_location(&button.location)?;
+        }
+        InlineMacro::Image(image) => {
+            image.location = ctx.map_location(&image.location)?;
+            if let Some(id) = &mut image.metadata.id {
+                id.location = ctx.map_location(&id.location)?;
+            }
+        }
+        InlineMacro::Menu(menu) => menu.location = ctx.map_location(&menu.location)?,
         InlineMacro::Keyboard(keyboard) => {
-            keyboard.location = ctx.map_location(&keyboard.location, form)?;
+            keyboard.location = ctx.map_location(&keyboard.location)?;
         }
         InlineMacro::CrossReference(xref) => {
-            xref.location = ctx.map_location(&xref.location, form)?;
+            xref.location = ctx.map_location(&xref.location)?;
+            if let Some(id) = &mut xref.metadata.id {
+                id.location = ctx.map_location(&id.location)?;
+            }
             xref.text = map_inline_locations(state, processed, take(&mut xref.text), location)?;
             if !processed.passthroughs.is_empty() {
                 let restored = replace_passthrough_placeholders(xref.target, processed);
@@ -594,10 +718,10 @@ fn map_inline_macro<'a>(
             }
         }
         InlineMacro::Autolink(autolink) => {
-            autolink.location = ctx.map_location(&autolink.location, form)?;
+            autolink.location = ctx.map_location(&autolink.location)?;
         }
-        InlineMacro::Stem(stem) => stem.location = ctx.map_location(&stem.location, form)?,
-        InlineMacro::Pass(pass) => pass.location = ctx.map_location(&pass.location, form)?,
+        InlineMacro::Stem(stem) => stem.location = ctx.map_location(&stem.location)?,
+        InlineMacro::Pass(pass) => pass.location = ctx.map_location(&pass.location)?,
         InlineMacro::IndexTerm(index_term) => {
             map_index_term_locations(state, processed, index_term, location)?;
         }
@@ -616,7 +740,10 @@ fn map_index_term_locations<'a>(
         processed,
         base_location: location,
     };
-    index_term.location = ctx.map_location(&index_term.location, None)?;
+    index_term.location = ctx.map_location(&index_term.location)?;
+    if let Some(id) = &mut index_term.metadata.id {
+        id.location = ctx.map_location(&id.location)?;
+    }
     match &mut index_term.kind {
         IndexTermKind::Flow(term) => {
             *term = map_inline_locations(state, processed, take(term), location)?;
@@ -675,15 +802,20 @@ fn raw_tag_end(text: &str) -> Option<usize> {
     None
 }
 
-fn restore_attribute_character_reference(text: &str) -> Cow<'_, str> {
-    let Some((body, _)) = text
+fn restore_attribute_character_reference(text: &str, mode: CompatibilityMode) -> Cow<'_, str> {
+    let (reference, escaped) = text
+        .strip_prefix('\\')
+        .map_or((text, false), |text| (text, true));
+    if reference
         .strip_prefix("&amp;")
-        .and_then(|body| body.split_once(';'))
-    else {
-        return text.into();
-    };
-    if is_restorable_character_reference(body) {
-        format!("&{}", &text[5..]).into()
+        .and_then(|text| body(text, mode))
+        .is_some()
+    {
+        if escaped {
+            reference.to_owned().into()
+        } else {
+            format!("&{}", &reference[5..]).into()
+        }
     } else {
         text.into()
     }
@@ -692,14 +824,22 @@ fn restore_attribute_character_reference(text: &str) -> Cow<'_, str> {
 fn attribute_fragment_content(
     text: &str,
     plan: SubstitutionPlan,
+    mode: CompatibilityMode,
+    document_value: bool,
 ) -> (Cow<'_, str>, Vec<Substitution>) {
     let escape = plan.precedes(&Substitution::Attributes, &Substitution::SpecialChars);
-    let restore = text.starts_with('&')
+    let restore = text.strip_prefix('\\').unwrap_or(text).starts_with('&')
         && plan.precedes(&Substitution::Attributes, &Substitution::Replacements);
     let restore_first = restore
         && (!escape || plan.precedes(&Substitution::Replacements, &Substitution::SpecialChars));
-    let mut content = Cow::Borrowed(text);
-    if restore_first && let Cow::Owned(restored) = restore_attribute_character_reference(&content) {
+    let mut content = if document_value {
+        Cow::Owned(escape_attribute_characters(text))
+    } else {
+        Cow::Borrowed(text)
+    };
+    if restore_first
+        && let Cow::Owned(restored) = restore_attribute_character_reference(&content, mode)
+    {
         content = Cow::Owned(restored);
     }
     if escape {
@@ -707,13 +847,13 @@ fn attribute_fragment_content(
     }
     if restore
         && !restore_first
-        && let Cow::Owned(restored) = restore_attribute_character_reference(&content)
+        && let Cow::Owned(restored) = restore_attribute_character_reference(&content, mode)
     {
         content = Cow::Owned(restored);
     }
     // Prepared attribute text can contain escaped characters. Keep one
     // escaping stage on the character so every backend gets its meaning.
-    if (text.starts_with('&') || escape)
+    if (text.strip_prefix('\\').unwrap_or(text).starts_with('&') || escape)
         && (content.contains("&amp;") || content.contains("&lt;") || content.contains("&gt;"))
     {
         (
@@ -729,16 +869,66 @@ fn attribute_fragment_content(
     }
 }
 
-fn raw_attribute_fragments<'a>(
+fn attribute_fragment<'a>(
+    text: &str,
+    document_value: bool,
+    location: Location,
+    ctx: &LocationMappingContext<'_, 'a>,
+) -> InlineNode<'a> {
+    let (content, subs) = attribute_fragment_content(
+        text,
+        ctx.processed.attribute_substitutions,
+        ctx.state.options.compatibility_mode,
+        document_value,
+    );
+    let content = ctx.state.intern_str(&content);
+    let restored = subs.is_empty()
+        && ctx
+            .processed
+            .attribute_substitutions
+            .precedes(&Substitution::Attributes, &Substitution::Replacements);
+    let reference = if restored {
+        whole(
+            content,
+            ctx.state.options.compatibility_mode,
+            location.clone(),
+        )
+    } else {
+        None
+    };
+    reference.map_or_else(
+        || {
+            InlineNode::RawText(crate::Raw {
+                metadata: None,
+                content,
+                location,
+                subs,
+            })
+        },
+        InlineNode::CharacterReference,
+    )
+}
+
+fn attribute_fragments<'a>(
     plain: &Plain<'a>,
     ctx: &LocationMappingContext<'_, 'a>,
-    form: Option<&Form>,
 ) -> Result<Option<Vec<InlineNode<'a>>>, Error> {
+    if !plain.content.contains(['&', '<', '>']) {
+        return Ok(None);
+    }
+    let attribute_ranges = ctx
+        .processed
+        .source_map
+        .attribute_value_ranges(ctx.base_location.absolute_start);
+    let document_ranges = ctx
+        .processed
+        .source_map
+        .document_attribute_ranges(ctx.base_location.absolute_start);
     let raw_ranges = ctx
         .processed
         .source_map
         .raw_attribute_ranges(ctx.base_location.absolute_start);
-    if raw_ranges.is_empty() {
+    if attribute_ranges.is_empty() {
         return Ok(None);
     }
     let mut fragments = Vec::new();
@@ -748,7 +938,7 @@ fn raw_attribute_fragments<'a>(
     for (offset, character) in plain.content.char_indices() {
         if offset < cursor
             || !matches!(character, '<' | '>' | '&')
-            || !raw_ranges
+            || !attribute_ranges
                 .iter()
                 .any(|range| range.contains(&(plain.location.absolute_start + offset)))
         {
@@ -756,26 +946,43 @@ fn raw_attribute_fragments<'a>(
         }
         // Keep raw tags and character references intact. Highlighting can then
         // preserve tags, and non-HTML converters can decode character references.
+        let raw = raw_ranges
+            .iter()
+            .any(|range| range.contains(&(plain.location.absolute_start + offset)));
         let raw_end = if character == '<' {
-            raw_tag_end(&plain.content[offset..]).map(|length| offset + length)
+            raw.then(|| raw_tag_end(&plain.content[offset..]))
+                .flatten()
+                .map(|length| offset + length)
         } else if character == '&' {
             character_reference_end(&plain.content[offset..]).map(|length| offset + length)
         } else {
             None
         }
         .filter(|end| {
-            raw_ranges.iter().any(|range| {
+            attribute_ranges.iter().any(|range| {
                 range.contains(&(plain.location.absolute_start + offset))
                     && plain.location.absolute_start + end <= range.end
             })
         });
         let end = raw_end.unwrap_or(offset + 1);
+        let offset = if character == '&'
+            && offset > cursor
+            && plain.content.as_bytes().get(offset - 1) == Some(&b'\\')
+            && ctx
+                .processed
+                .attribute_substitutions
+                .precedes(&Substitution::Attributes, &Substitution::Replacements)
+        {
+            offset - 1
+        } else {
+            offset
+        };
         if cursor < offset {
             let mut fragment = plain.clone();
             fragment.content = &plain.content[cursor..offset];
             fragment.location.absolute_start += cursor;
             fragment.location.absolute_end = plain.location.absolute_start + offset - 1;
-            let expanded = map_plain_text_inline_locations(&mut fragment, ctx, form)?;
+            let expanded = map_plain_text_inline_locations(&mut fragment, ctx)?;
             fragments.extend(expanded.unwrap_or_else(|| vec![InlineNode::PlainText(fragment)]));
         }
         let position = ctx.base_location.absolute_start + plain.location.absolute_start + offset;
@@ -787,15 +994,14 @@ fn raw_attribute_fragments<'a>(
                 .source_map
                 .map_end_position(position + end - offset - 1)?,
         );
-        let (content, subs) = attribute_fragment_content(
+        fragments.push(attribute_fragment(
             &plain.content[offset..end],
-            ctx.processed.attribute_substitutions,
-        );
-        fragments.push(InlineNode::RawText(crate::Raw {
-            content: ctx.state.intern_str(&content),
+            !raw && document_ranges
+                .iter()
+                .any(|range| range.contains(&(plain.location.absolute_start + offset))),
             location,
-            subs,
-        }));
+            ctx,
+        ));
         cursor = end;
     }
     if !fragments.is_empty() {
@@ -803,7 +1009,7 @@ fn raw_attribute_fragments<'a>(
             let mut fragment = plain.clone();
             fragment.content = &plain.content[cursor..];
             fragment.location.absolute_start += cursor;
-            let expanded = map_plain_text_inline_locations(&mut fragment, ctx, form)?;
+            let expanded = map_plain_text_inline_locations(&mut fragment, ctx)?;
             fragments.extend(expanded.unwrap_or_else(|| vec![InlineNode::PlainText(fragment)]));
         }
         return Ok(Some(fragments));
@@ -814,12 +1020,11 @@ fn raw_attribute_fragments<'a>(
 fn map_plain_text_inline_locations<'a>(
     plain: &mut Plain<'a>,
     ctx: &LocationMappingContext<'_, 'a>,
-    form: Option<&Form>,
 ) -> Result<Option<Vec<InlineNode<'a>>>, Error> {
-    if let Some(fragments) = raw_attribute_fragments(plain, ctx, form)? {
+    if let Some(fragments) = attribute_fragments(plain, ctx)? {
         return Ok(Some(fragments));
     }
-    plain.location = ctx.map_location(&plain.location, form)?;
+    plain.location = ctx.map_location(&plain.location)?;
     if contains_passthrough_placeholders(plain.content, ctx.processed) {
         // Passthrough locations use the mapped document coordinates as their base.
         let mut nodes = super::passthrough_processing::process_passthrough_placeholders(
@@ -838,9 +1043,6 @@ fn map_plain_text_inline_locations<'a>(
         }
         return Ok(Some(nodes));
     }
-    if plain.content.chars().count() == 1 && !plain.content.starts_with(char::is_whitespace) {
-        plain.location.end.column = plain.location.start.column;
-    }
     Ok(None)
 }
 
@@ -856,7 +1058,7 @@ mod tests {
             &Options::default(),
         )?;
         let image = parsed
-            .document()
+            .document_storage()
             .blocks
             .iter()
             .filter_map(|block| {
@@ -876,9 +1078,8 @@ mod tests {
             })
             .ok_or("expected an inline image")?;
 
-        // Inline image metadata is omitted from the JSON fixture.
-        assert_eq!(image.metadata.roles, ["hot", "cool"]);
-        assert_eq!(image.metadata.options, ["foo", "bar"]);
+        assert_eq!(image.metadata.roles.as_slice(), ["hot", "cool"]);
+        assert_eq!(image.macro_attributes.options.as_slice(), ["foo", "bar"]);
         assert_eq!(
             image.metadata.id.as_ref().map(|anchor| anchor.id),
             Some("image-id")
@@ -889,7 +1090,7 @@ mod tests {
     fn check_monotonic(input: &str) -> Result<(), String> {
         let parsed = parse(input, &Options::default()).map_err(|e| format!("parse failed: {e}"))?;
         let first_block = parsed
-            .document()
+            .document_storage()
             .blocks
             .first()
             .ok_or("expected at least one block")?;
@@ -955,7 +1156,8 @@ mod tests {
             for character in ["a", "é", "😀"] {
                 let source = format!("{prefix}+0+\t \\#{character}");
                 let parsed = parse(&source, &Options::default())?;
-                let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.last() else {
+                let Some(Block::Paragraph(paragraph)) = parsed.document_storage().blocks.last()
+                else {
                     return Err("expected a paragraph".into());
                 };
                 let Some(InlineNode::PlainText(plain)) = paragraph.content.last() else {
@@ -964,11 +1166,8 @@ mod tests {
                 assert_eq!(plain.content, character);
                 let location = &plain.location;
                 assert_eq!(location.absolute_start, source.len() - character.len());
-                assert_eq!(location.absolute_end, source.len());
-                assert_eq!(
-                    source.get(location.absolute_start..location.absolute_end),
-                    Some(character)
-                );
+                assert_eq!(location.absolute_end, location.absolute_start);
+                assert_eq!(source.get(location.absolute_start..), Some(character));
                 assert_eq!(location.start.line, if prefix.is_empty() { 1 } else { 3 });
                 assert_eq!(location.start.column, 8);
                 assert_eq!(location.end, location.start);

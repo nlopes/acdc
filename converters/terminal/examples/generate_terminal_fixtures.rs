@@ -1,5 +1,8 @@
 //! Generate expected Terminal output files for integration tests.
 //!
+//! Optional arguments select fixture stems; omit them to generate all fixtures.
+//! Without highlighting, output filenames include `.no-highlighting`.
+//!
 //! Usage:
 //!   `cargo run --all-features --example generate_terminal_fixtures`
 
@@ -20,14 +23,34 @@ include!("../tests/fixtures/catalog.rs");
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     crossterm::style::force_color_output(true);
 
-    generate(&FixtureGenerator::new("terminal", "txt"), false)?;
+    let arguments = std::env::args().skip(1).collect::<Vec<_>>();
+    let names = arguments.iter().map(String::as_str).collect::<Vec<_>>();
+    let extension = if cfg!(feature = "highlighting") {
+        "txt"
+    } else {
+        "no-highlighting.txt"
+    };
+    let generator = FixtureGenerator::new("terminal", extension);
+    let generator = if names.is_empty() {
+        generator
+    } else {
+        generator.with_fixtures(&names)
+    };
+    generate(&generator, false)?;
 
     let osc8_fixtures = TERMINAL_FIXTURES
         .iter()
-        .filter_map(|(name, has_osc8_variant)| has_osc8_variant.then_some(*name))
+        .filter_map(|(name, has_osc8_variant)| {
+            (*has_osc8_variant && (names.is_empty() || names.contains(name))).then_some(*name)
+        })
         .collect::<Vec<_>>();
+    let extension = if cfg!(feature = "highlighting") {
+        "osc8.txt"
+    } else {
+        "no-highlighting.osc8.txt"
+    };
     let osc8_generator =
-        FixtureGenerator::new("terminal", "osc8.txt").with_fixtures(osc8_fixtures.as_slice());
+        FixtureGenerator::new("terminal", extension).with_fixtures(osc8_fixtures.as_slice());
     generate(&osc8_generator, true)
 }
 
@@ -42,7 +65,9 @@ fn generate(
                 .build(),
             acdc_parser::Options::builder()
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .with_attributes(doc.attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+                ),
         )?
         .with_terminal_width(80)
         .with_dark_mode(true)

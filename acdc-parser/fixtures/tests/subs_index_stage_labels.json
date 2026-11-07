@@ -61,11 +61,86 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Copyright (C) A -- B ...",
+              "value": "Copyright ",
               "location": [
                 {
                   "line": 6,
                   "col": 8
+                },
+                {
+                  "line": 6,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 18
+                },
+                {
+                  "line": 6,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " A",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 21
+                },
+                {
+                  "line": 6,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": " — ",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 23
+                },
+                {
+                  "line": 6,
+                  "col": 26
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B ",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 27
+                },
+                {
+                  "line": 6,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "…",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 29
                 },
                 {
                   "line": 6,
@@ -81,6 +156,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Copyright (C) A -- B ...",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 6,
@@ -177,11 +255,86 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Copyright (C) A -- B ...",
+              "value": "Copyright ",
               "location": [
                 {
                   "line": 9,
                   "col": 9
+                },
+                {
+                  "line": 9,
+                  "col": 18
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 19
+                },
+                {
+                  "line": 9,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " A",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 22
+                },
+                {
+                  "line": 9,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": " — ",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 24
+                },
+                {
+                  "line": 9,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B ",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 28
+                },
+                {
+                  "line": 9,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "…",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 30
                 },
                 {
                   "line": 9,
@@ -190,6 +343,121 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Copyright ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 9
+                    },
+                    {
+                      "line": 9,
+                      "col": 18
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "©",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 19
+                    },
+                    {
+                      "line": 9,
+                      "col": 21
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": " A",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 22
+                    },
+                    {
+                      "line": 9,
+                      "col": 23
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": " — ",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 24
+                    },
+                    {
+                      "line": 9,
+                      "col": 27
+                    }
+                  ]
+                },
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "B ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 28
+                    },
+                    {
+                      "line": 9,
+                      "col": 29
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "…",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 30
+                    },
+                    {
+                      "line": 9,
+                      "col": 32
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 9,
+                "col": 7
+              },
+              {
+                "line": 9,
+                "col": 34
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -275,11 +543,86 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Copyright (C) A -- B ...",
+              "value": "Copyright ",
               "location": [
                 {
                   "line": 13,
                   "col": 8
+                },
+                {
+                  "line": 13,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 18
+                },
+                {
+                  "line": 13,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " A",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 21
+                },
+                {
+                  "line": 13,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": " — ",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 23
+                },
+                {
+                  "line": 13,
+                  "col": 26
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "B ",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 27
+                },
+                {
+                  "line": 13,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "…",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 29
                 },
                 {
                   "line": 13,
@@ -295,6 +638,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Copyright (C) A -- B ...",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 13,
@@ -392,7 +738,7 @@
                 },
                 {
                   "line": 17,
-                  "col": 11
+                  "col": 12
                 }
               ]
             },
@@ -419,6 +765,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "\\*Literal*",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 17,
@@ -493,6 +842,9 @@
               "name": "raw",
               "type": "string",
               "value": "{name}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 17,
@@ -560,6 +912,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Start \\{name} *bold*",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 17,
@@ -1015,8 +1370,7 @@
                   "line": 26,
                   "col": 40
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "catalog": {
@@ -1026,6 +1380,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Link https://example.org[Caption]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 26,
@@ -1100,6 +1457,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -1136,6 +1494,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Cross xref:target[Target]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 26,
@@ -1254,6 +1615,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "One",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 29,
@@ -1285,6 +1649,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Note footnote:[One]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 29,
@@ -1345,6 +1712,9 @@
               "name": "raw",
               "type": "string",
               "value": "Two",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 29,
@@ -1435,6 +1805,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Note {name}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 32,
@@ -1463,6 +1836,9 @@
               "name": "raw",
               "type": "string",
               "value": " and *literal* (C)",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 32,
@@ -1563,6 +1939,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 35,
@@ -1630,6 +2009,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Start ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 35,
@@ -1645,6 +2027,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Expanded",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 35,
@@ -1660,6 +2045,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": " *bold*",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 35,
@@ -1765,6 +2153,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "bold",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 38,
@@ -1792,6 +2183,9 @@
               "name": "raw",
               "type": "string",
               "value": " ",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 38,
@@ -1811,6 +2205,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Early {name}",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 38,
@@ -2088,8 +2485,7 @@
                       "line": 43,
                       "col": 73
                     }
-                  ],
-                  "attributes": {}
+                  ]
                 }
               ],
               "catalog": {
@@ -2099,6 +2495,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "Normal https://example.org[Caption]",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 43,

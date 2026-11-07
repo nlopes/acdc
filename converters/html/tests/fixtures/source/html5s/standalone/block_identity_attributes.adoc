@@ -1,0 +1,77 @@
+[id='document"target',role='document"role']
+= Block identity attributes
+:!stylesheet:
+:icons: font
+:toc: macro
+:toc-class: toc"role
+
+toc::[]
+
+[id='paragraph"target',role='role"><svg/onload=alert(1)> amp&amp;role']
+Paragraph.
+
+[id='section"target',role='section"role amp&amp;role']
+== Heading
+
+[discrete,id='discrete"target',role='discrete"role amp&amp;role']
+=== Floating heading
+
+[id='unordered"target',role='unordered"role amp&amp;role']
+* Item.
+
+[id='ordered"target',role='ordered"role amp&amp;role']
+. Item.
+
+[id='description"target',role='description"role amp&amp;role']
+Term:: Definition.
+
+[source,text,id='source"target',role='source"role amp&amp;role']
+----
+Code <1>
+----
+
+[id='callout"target',role='callout"role amp&amp;role']
+<1> Callout.
+
+[quote,id='quote"target',role='quote"role amp&amp;role']
+____
+Quoted text.
+____
+
+[id='sidebar"target',role='sidebar"role amp&amp;role']
+****
+Sidebar.
+****
+
+[id='example"target',role='example"role amp&amp;role']
+====
+Example.
+====
+
+[id='open"target',role='open"role amp&amp;role']
+--
+Open.
+--
+
+[NOTE,id='admonition"target',role='admonition"role amp&amp;role']
+====
+Careful.
+====
+
+[id='table"target',role='table"role amp&amp;role']
+|===
+|Cell.
+|===
+
+image::image.png[Alt,id='image"target',role='image"role amp&amp;role']
+
+audio::audio.ogg[id='audio"target',role='audio"role amp&amp;role']
+
+video::video.mp4[id='video"target',role='video"role amp&amp;role']
+
+[id='break"target']
+'''
+
+See <<section"target>>.
+
+Inline image:image.png[Alt,role='inline"role amp&amp;role'], icon:heart[role='icon"role amp&amp;role'], and xref:section"target[Reference,role='xref"role amp&amp;role'].

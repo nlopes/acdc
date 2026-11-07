@@ -6,7 +6,11 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use acdc_parser::{Block, InlineNode, Options, ParseResult, parse, parse_file, parse_from_reader};
+use acdc_parser::{
+    DocumentAttributeValue, Options, ParseResult,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse, parse_file, parse_from_reader,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -35,16 +39,20 @@ impl Drop for TempDirectory {
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<&str>, Box<dyn Error>> {
     result
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return Err(format!("unexpected block: {block:?}").into());
             };
-            let [InlineNode::PlainText(text)] = paragraph.content.as_slice() else {
+            let [InlineKind::Plain(text)] = &*paragraph
+                .content()
+                .inlines()
+                .map(InlineRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err(format!("unexpected paragraph: {paragraph:?}").into());
             };
-            Ok(text.content)
+            Ok(text.text())
         })
         .collect()
 }
@@ -63,9 +71,9 @@ fn caller_option_captures_front_matter_before_parsing() -> TestResult {
     assert_eq!(
         parsed
             .document()
-            .attributes
+            .attributes()
             .get("front-matter")
-            .and_then(|value| value.text()),
+            .and_then(DocumentAttributeValue::text),
         Some("layout: default\ntags: [one, two]")
     );
     assert_eq!(
@@ -76,10 +84,15 @@ fn caller_option_captures_front_matter_before_parsing() -> TestResult {
         paragraph_texts(&parsed)?,
         ["Captured: layout: default\ntags: [one, two]"]
     );
-    let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(paragraph)] = &*parsed
+        .document()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected one paragraph".into());
     };
-    assert_eq!(paragraph.location.start.line, 7);
+    assert_eq!(paragraph.location().start().line(), 7);
     Ok(())
 }
 
@@ -94,9 +107,9 @@ fn captured_front_matter_overrides_a_caller_value() -> TestResult {
     assert_eq!(
         parsed
             .document()
-            .attributes
+            .attributes()
             .get("front-matter")
-            .and_then(|value| value.text()),
+            .and_then(DocumentAttributeValue::text),
         Some("captured")
     );
     assert_eq!(paragraph_texts(&parsed)?, ["captured"]);
@@ -126,9 +139,9 @@ fn captured_front_matter_is_available_to_conditionals_and_includes() -> TestResu
     assert_eq!(
         parsed
             .document()
-            .attributes
+            .attributes()
             .get("front-matter")
-            .and_then(|value| value.text()),
+            .and_then(DocumentAttributeValue::text),
         Some("root")
     );
     Ok(())
@@ -140,13 +153,8 @@ fn source_cannot_enable_front_matter_processing() -> TestResult {
     let parsed = parse(source, &Options::default())?;
 
     assert_eq!(parsed.source(), source.trim_end());
-    assert!(
-        !parsed
-            .document()
-            .attributes
-            .contains_key("skip-front-matter")
-    );
-    assert!(!parsed.document().attributes.contains_key("front-matter"));
+    assert!(!parsed.document().attributes().contains("skip-front-matter"));
+    assert!(!parsed.document().attributes().contains("front-matter"));
     Ok(())
 }
 
@@ -156,7 +164,7 @@ fn unterminated_front_matter_is_left_unchanged() -> TestResult {
     let parsed = parse(source, &options()?)?;
 
     assert_eq!(parsed.source(), source.trim_end());
-    assert!(!parsed.document().attributes.contains_key("front-matter"));
+    assert!(!parsed.document().attributes().contains("front-matter"));
     Ok(())
 }
 
@@ -175,9 +183,9 @@ fn string_reader_and_file_inputs_share_front_matter_behavior() -> TestResult {
         assert_eq!(
             parsed
                 .document()
-                .attributes
+                .attributes()
                 .get("front-matter")
-                .and_then(|value| value.text()),
+                .and_then(DocumentAttributeValue::text),
             Some("input: shared")
         );
         assert_eq!(paragraph_texts(parsed)?, ["input: shared"]);
@@ -207,9 +215,9 @@ fn includes_drop_front_matter_without_replacing_the_primary_value() -> TestResul
     assert_eq!(
         parsed
             .document()
-            .attributes
+            .attributes()
             .get("front-matter")
-            .and_then(|value| value.text()),
+            .and_then(DocumentAttributeValue::text),
         Some("primary: yes")
     );
     assert_eq!(
@@ -220,18 +228,19 @@ fn includes_drop_front_matter_without_replacing_the_primary_value() -> TestResul
             "After: primary: yes"
         ]
     );
-    let Some(Block::Paragraph(child_paragraph)) = parsed.document().blocks.get(1) else {
+    let Some(BlockKind::Paragraph(child_paragraph)) =
+        parsed.document().blocks().nth(1).map(BlockRef::kind)
+    else {
         return Err("expected included paragraph".into());
     };
-    assert_eq!(child_paragraph.location.start.line, 4);
+    assert_eq!(child_paragraph.location().start().line(), 4);
     assert_eq!(
         child_paragraph
-            .location
-            .start
-            .file
-            .as_ref()
-            .map(|chain| chain.as_slice()),
-        Some(["child.adoc".to_string()].as_slice())
+            .location()
+            .start()
+            .include_chain()
+            .map(Iterator::collect::<Vec<_>>),
+        Some(vec!["child.adoc"])
     );
     Ok(())
 }
@@ -255,6 +264,6 @@ fn include_front_matter_is_removed_before_indent_is_applied() -> TestResult {
     )?;
 
     assert_eq!(parsed.source(), "= Main\n\n  Child content");
-    assert!(!parsed.document().attributes.contains_key("front-matter"));
+    assert!(!parsed.document().attributes().contains("front-matter"));
     Ok(())
 }

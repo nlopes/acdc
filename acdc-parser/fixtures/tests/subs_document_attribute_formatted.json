@@ -367,6 +367,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Early",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 28,
@@ -393,7 +396,25 @@
             {
               "name": "raw",
               "type": "string",
-              "value": " (C)",
+              "value": " ",
+              "substitutions": [
+                "special_chars"
+              ],
+              "location": [
+                {
+                  "line": 28,
+                  "col": 33
+                },
+                {
+                  "line": 28,
+                  "col": 40
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
               "location": [
                 {
                   "line": 28,
@@ -454,8 +475,7 @@
                   "line": 28,
                   "col": 49
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",
@@ -476,6 +496,9 @@
               "name": "raw",
               "type": "string",
               "value": "{bold}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 29,
@@ -506,6 +529,9 @@
               "name": "raw",
               "type": "string",
               "value": "{bold}",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 29,
@@ -662,6 +688,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "Early",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 34,
@@ -688,7 +717,25 @@
             {
               "name": "raw",
               "type": "string",
-              "value": " (C)",
+              "value": " ",
+              "substitutions": [
+                "special_chars"
+              ],
+              "location": [
+                {
+                  "line": 34,
+                  "col": 30
+                },
+                {
+                  "line": 34,
+                  "col": 37
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
               "location": [
                 {
                   "line": 34,
@@ -749,8 +796,7 @@
                   "line": 34,
                   "col": 46
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -889,7 +935,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "n",
-              "inlines": [],
               "location": [
                 {
                   "line": 39,
@@ -1043,7 +1088,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "n",
-              "inlines": [],
               "location": [
                 {
                   "line": 44,
@@ -1104,8 +1148,7 @@
                   "line": 44,
                   "col": 32
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",

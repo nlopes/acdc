@@ -2,20 +2,31 @@
 
 use std::fmt;
 
-use crate::InlineTextTransform;
-use acdc_parser::{IndexTerm, InlineMacro, InlineNode};
+use acdc_parser::ast::{ContentRef, IndexTermRef, InlineKind, InlineRef};
 
-/// Visit index occurrences in source order, including terms in formatted text.
-/// Each callback receives the byte offset in plain text with `\n` line breaks.
-/// Term labels and relationship targets are not additional occurrences.
+use crate::InlineTextTransform;
+
+/// Visit index occurrences in source order, including formatted text and link labels.
+///
+/// Offsets count UTF-8 bytes in decoded plain text with `\n` line breaks. Term
+/// labels and relationship targets are not additional occurrences. The iterator
+/// need not be cloneable, and discovery does not collect or register terms.
 ///
 /// # Errors
-/// Returns the first error from `visit`.
-pub fn visit_index_terms<E>(
-    nodes: &[InlineNode<'_>],
-    visit: &mut impl FnMut(&IndexTerm<'_>, usize) -> Result<(), E>,
+///
+/// Returns the first callback error without consuming later input nodes.
+pub fn visit_index_inlines<'inline, E>(
+    nodes: impl Iterator<Item = InlineRef<'inline>>,
+    visit: &mut impl FnMut(IndexTermRef<'inline>, usize) -> Result<(), E>,
 ) -> Result<(), E> {
-    walk_terms(nodes, &mut TextOffset(0), visit)
+    let transform = InlineTextTransform::default()
+        .line_break("\n")
+        .decode_char_refs(true);
+    let mut offset = TextOffset(0);
+    for node in nodes {
+        walk_node(node, &mut offset, &transform, visit)?;
+    }
+    Ok(())
 }
 
 struct TextOffset(usize);
@@ -27,46 +38,56 @@ impl fmt::Write for TextOffset {
     }
 }
 
-fn walk_terms<E>(
-    nodes: &[InlineNode<'_>],
+fn walk_node<'inline, E>(
+    node: InlineRef<'inline>,
     offset: &mut TextOffset,
-    visit: &mut impl FnMut(&IndexTerm<'_>, usize) -> Result<(), E>,
+    transform: &InlineTextTransform<'_, '_>,
+    visit: &mut impl FnMut(IndexTermRef<'inline>, usize) -> Result<(), E>,
 ) -> Result<(), E> {
-    let transform = InlineTextTransform::default().line_break("\n");
-    for node in nodes {
-        let children = match node {
-            InlineNode::BoldText(text) => &text.content,
-            InlineNode::ItalicText(text) => &text.content,
-            InlineNode::MonospaceText(text) => &text.content,
-            InlineNode::HighlightText(text) => &text.content,
-            InlineNode::SubscriptText(text) => &text.content,
-            InlineNode::SuperscriptText(text) => &text.content,
-            InlineNode::CurvedQuotationText(text) => &text.content,
-            InlineNode::CurvedApostropheText(text) => &text.content,
-            InlineNode::Macro(InlineMacro::Url(link)) => &link.text,
-            InlineNode::Macro(InlineMacro::Link(link)) => &link.text,
-            InlineNode::Macro(InlineMacro::Mailto(link)) => &link.text,
-            InlineNode::Macro(InlineMacro::CrossReference(link)) => &link.text,
-            InlineNode::Macro(InlineMacro::Footnote(note)) => &note.content,
-            InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
-                visit(term, offset.0)?;
-                let _ = transform.write(offset, std::slice::from_ref(node));
-                continue;
-            }
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
-            | _ => {
-                let _ = transform.write(offset, std::slice::from_ref(node));
-                continue;
-            }
-        };
-        walk_terms(children, offset, visit)?;
+    if let InlineKind::IndexTerm(term) = node.kind() {
+        visit(term, offset.0)?;
+    } else if let Some(children) = index_children(node) {
+        return children
+            .inlines()
+            .try_for_each(|node| walk_node(node, offset, transform, visit));
     }
+    let _ = transform.write_inlines(offset, std::iter::once(node));
     Ok(())
+}
+
+fn index_children(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
+    Some(match node.kind() {
+        InlineKind::Bold(text) => text.content(),
+        InlineKind::Italic(text) => text.content(),
+        InlineKind::Monospace(text) => text.content(),
+        InlineKind::Highlight(text) => text.content(),
+        InlineKind::Subscript(text) => text.content(),
+        InlineKind::Superscript(text) => text.content(),
+        InlineKind::CurvedQuotation(text) => text.content(),
+        InlineKind::CurvedApostrophe(text) => text.content(),
+        InlineKind::Url(link) => link.text(),
+        InlineKind::Link(link) => link.text(),
+        InlineKind::Mailto(link) => link.text(),
+        InlineKind::CrossReference(link) => link.text(),
+        InlineKind::Footnote(footnote) => return footnote.content(),
+        InlineKind::Plain(_)
+        | InlineKind::Raw(_)
+        | InlineKind::Verbatim(_)
+        | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::CharacterReference(_)
+        | InlineKind::Symbol(_)
+        | InlineKind::LineBreak(_)
+        | InlineKind::Anchor(_)
+        | InlineKind::Callout(_)
+        | InlineKind::Icon(_)
+        | InlineKind::Image(_)
+        | InlineKind::Keyboard(_)
+        | InlineKind::Button(_)
+        | InlineKind::Menu(_)
+        | InlineKind::Autolink(_)
+        | InlineKind::Pass(_)
+        | InlineKind::Stem(_)
+        | InlineKind::IndexTerm(_)
+        | _ => return None,
+    })
 }

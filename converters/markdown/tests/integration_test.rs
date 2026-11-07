@@ -2,29 +2,117 @@ use std::path::{Path, PathBuf};
 
 use acdc_converters_core::{
     Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, TraversalContext,
-    Warning, WarningSource, visitor::Visitor,
+    Warning, WarningSource,
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::Processor as HtmlProcessor;
 use acdc_converters_markdown::{MarkdownVariant, MarkdownVisitor, Processor};
-use acdc_parser::{Options as ParserOptions, parse};
+use acdc_parser::{CompatibilityMode, Options as ParserOptions, parse};
 use pulldown_cmark::{
     Alignment, CodeBlockKind, Event, Options as MarkdownParserOptions, Parser as MarkdownParser,
     Tag, TagEnd,
 };
 
-mod support;
-
 type Error = Box<dyn std::error::Error>;
 
 #[test]
-fn fixture_paths_preserve_stems_and_ignore_unrelated_warnings() -> Result<(), Error> {
-    for input in ["Body.\n", "= T\n:value: pass:q,c[*Bold*]\n\nBody.\n"] {
-        let parsed = parse(input, &ParserOptions::default())?;
-        for stem in ["subs_case", "commonmark_subs_case", "case.v1", "café"] {
-            assert_eq!(
-                support::expected_fixture_path(Path::new("expected"), stem, parsed.warnings()),
-                Path::new("expected").join(format!("{stem}.md"))
+fn decoded_media_links_keep_literal_values_in_markdown() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/decoded_output_controls.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            input,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&WarningSource::new("markdown"), &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let events = parse_markdown(&output, variant);
+            let links = events
+                .iter()
+                .filter_map(|event| {
+                    if let Event::Start(Tag::Link { dest_url, .. }) = event {
+                        Some(dest_url.as_ref())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            for target in [
+                "'https://example.org/block'",
+                "'https://example.org/icon'",
+                "'https://example.org/inline'",
+            ] {
+                assert!(links.contains(&target), "{mode:?} {variant:?}: {output}");
+            }
+            assert!(events.iter().any(|event| matches!(event, Event::Start(Tag::Image { dest_url, .. }) if dest_url.as_ref() == "'literal.svg")), "{output}");
+            assert!(output.contains("width=\"&#39;40&#39;\""), "{output}");
+            assert!(output.contains("height=\"&#39;&#39;\""), "{output}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn literal_caption_markup_stays_text_in_both_markdown_variants() -> Result<(), Error> {
+    let input = format!(
+        "{}\nExtra <span>literal</span> and &lt;encoded&gt;.\n\npass:[<b>Raw</b>].\n",
+        include_str!("fixtures/source/caption_families.adoc")
+    );
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            &input,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&WarningSource::new("markdown"), &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let mut text = String::new();
+            let mut markup = String::new();
+            for event in parse_markdown(&output, variant) {
+                if let Event::Text(value) = event {
+                    text.push_str(&value);
+                } else if let Event::Html(value) | Event::InlineHtml(value) = event {
+                    markup.push_str(&value);
+                }
+            }
+            assert_eq!(text.matches("<tag>").count(), 8, "{output}");
+            assert!(
+                text.contains("Extra <span>literal</span> and <encoded>."),
+                "{output}"
+            );
+            assert!(
+                markup.contains("<b>") && markup.contains("</b>"),
+                "{output}"
             );
         }
     }
@@ -32,76 +120,239 @@ fn fixture_paths_preserve_stems_and_ignore_unrelated_warnings() -> Result<(), Er
 }
 
 #[test]
-fn fixture_paths_ignore_unrelated_content_recovery() -> Result<(), Error> {
-    let parsed = parse("ifdef::missing[]\nBody.\n", &ParserOptions::default())?;
-    assert!(parsed.warnings().iter().any(|warning| matches!(
-        warning.kind,
-        acdc_parser::WarningKind::ContentRecovery { .. }
-    )));
-    assert_eq!(
-        support::expected_fixture_path(Path::new("expected"), "subs_case", parsed.warnings()),
-        Path::new("expected/subs_case.md")
-    );
-    Ok(())
-}
-
-#[test]
-fn fixture_paths_follow_parser_substitution_behavior() -> Result<(), Error> {
-    let parsed = parse("[subs=\"none\"]\n*Bold*.\n", &ParserOptions::default())?;
-    let block = parsed
-        .document()
-        .blocks
-        .first()
-        .ok_or("missing paragraph")?;
-    let extension = if block
-        .metadata()
-        .ok_or("missing paragraph metadata")?
-        .uses_substitution(&acdc_parser::Substitution::Quotes, acdc_parser::NORMAL)
-    {
-        "no-subs.md"
-    } else {
-        "md"
-    };
-    for stem in ["subs_case", "commonmark_subs_case", "case.v1", "café"] {
-        assert_eq!(
-            support::expected_fixture_path(Path::new("expected"), stem, parsed.warnings()),
-            Path::new("expected").join(format!("{stem}.{extension}"))
-        );
+fn link_tooltips_preserve_parser_selected_text() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/inline_text_projections.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            input,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&WarningSource::new("markdown"), &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let events = parse_markdown(&output, variant);
+            let titles = events
+                .iter()
+                .filter_map(|event| {
+                    if let Event::Start(Tag::Link { title, .. }) = event {
+                        Some(title.as_ref())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                titles.iter().filter(|&&title| title == "© → --").count(),
+                4,
+                "{output}"
+            );
+            assert_eq!(
+                titles.iter().filter(|&&title| title.is_empty()).count(),
+                2,
+                "{output}"
+            );
+            assert!(
+                output.contains("[Empty](https://example.org \"\")"),
+                "{output}"
+            );
+            assert!(output.contains("[Absent](https://example.org)"), "{output}");
+            assert!(titles.contains(&"© ->\u{2009}—\u{2009}"), "{output}");
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
     }
     Ok(())
 }
 
 #[test]
-fn substitution_fixtures_have_both_expected_variants() -> Result<(), Error> {
+fn curved_quotes_preserve_punctuation_and_inline_identity() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/resolved_curved_quotes.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            input,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let source = WarningSource::new("markdown");
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&source, &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let events = parse_markdown(&output, variant);
+            let text: String = events
+                .iter()
+                .filter_map(|event| {
+                    if let Event::Text(text) | Event::Code(text) = event {
+                        Some(text.as_ref())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            assert!(text.contains("Q01 “double” and ‘single’ and ’."), "{text}");
+            assert!(text.contains("Q02 “bold emphasis” and ‘nested’."), "{text}");
+            assert!(text.contains("Q03 “identity” and ‘identity’."), "{text}");
+            assert!(
+                text.contains(r#"Q05 "`literal`" and '`literal`' and `'."#),
+                "{text}"
+            );
+            assert!(output.contains(r#"id="quoted""#), "{output}");
+            assert!(output.contains(r#"id="single""#), "{output}");
+            assert!(output.contains(r#"class="role""#), "{output}");
+            assert!(
+                output.contains("![“alt”](bird.svg \"“tooltip”\")"),
+                "{output}"
+            );
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn remaining_passthrough_profiles_keep_disabled_formatting_escapes() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/resolved_passthrough_profiles.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            input,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let source = WarningSource::new("markdown");
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&source, &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let events = parse_markdown(&output, variant);
+            let text = parsed_text(&events);
+            for expected in [
+                r"P03 (C) (R) (TM) ....",
+                r"P04 \*literal* \'word\' © →.",
+                r"P05 \*literal* \'word\' © ->.",
+                r"P06 \*literal* \'word\' (C) ->.",
+            ] {
+                assert!(text.contains(expected), "missing {expected}: {text}");
+            }
+            assert!(
+                output.contains(r"P02 \*literal* \_literal_ \`literal` \#literal#."),
+                "{output}"
+            );
+            assert!(output.contains(r#"<i data-label="_keep*">"#), "{output}");
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn resolved_escapes_survive_markdown_parsing_in_both_modes() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/resolved_escapes.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            input,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let source = WarningSource::new("markdown");
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&source, &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let events = parse_markdown(&output, variant);
+            let text = parsed_text(&events);
+            for expected in [
+                r"R01 X *word*.",
+                r"R03 X **word**.",
+                r"R05 X \*word* \[link] \(C) \->.",
+                r"R06 \*word*",
+                r"R07 X \*word.",
+                r"R08 X \*word.",
+                r"R09 \*writer",
+            ] {
+                assert!(text.contains(expected), "missing {expected}: {text}");
+            }
+            assert!(!output.contains('\u{e000}'), "{output}");
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn legacy_substitution_fixtures_keep_their_source_and_active_expectation() -> Result<(), Error> {
     let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let mut count = 0;
-    for entry in std::fs::read_dir(fixtures.join("source"))? {
+    for entry in std::fs::read_dir(fixtures.join("expected"))? {
         let path = entry?.path();
-        if path.extension().is_none_or(|extension| extension != "adoc") {
+        let Some(stem) = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .and_then(|name| name.strip_suffix(".no-subs.md"))
+        else {
             continue;
-        }
-        let parsed = acdc_parser::parse_file(&path, &ParserOptions::default())?;
-        if !parsed.warnings().iter().any(|warning| {
-            matches!(&warning.kind,
-                acdc_parser::WarningKind::Other(message)
-                    | acdc_parser::WarningKind::ContentRecovery { message }
-                if message.starts_with("The subs= attribute"))
-        }) {
-            continue;
-        }
-        let stem = path
-            .file_stem()
-            .and_then(|stem| stem.to_str())
-            .ok_or("invalid fixture stem")?;
-        for extension in ["md", "no-subs.md"] {
-            let expected = fixtures
-                .join("expected")
-                .join(format!("{stem}.{extension}"));
+        };
+        for expected in [
+            fixtures.join("source").join(format!("{stem}.adoc")),
+            fixtures.join("expected").join(format!("{stem}.md")),
+        ] {
             assert!(expected.is_file(), "missing {}", expected.display());
         }
         count += 1;
     }
-    assert!(count > 0, "no substitution-dependent fixtures checked");
+    assert!(count > 0, "no legacy substitution fixtures checked");
     Ok(())
 }
 
@@ -275,11 +526,7 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
         .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .build()?;
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
-    let expected_path = support::expected_fixture_path(
-        Path::new("tests/fixtures/expected"),
-        file_name,
-        parsed.warnings(),
-    );
+    let expected_path = Path::new("tests/fixtures/expected").join(format!("{file_name}.md"));
     let doc = parsed.document();
 
     // Convert to Markdown (GFM variant)
@@ -292,7 +539,7 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
         converter_options,
         ParserOptions::builder()
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .with_attributes(doc.attributes.clone().into_inputs()),
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_variant(MarkdownVariant::GitHubFlavored);
     let mut warnings = Vec::new();
@@ -330,11 +577,7 @@ fn test_commonmark_variant(
     // Parse the AsciiDoc input
     let parser_options = ParserOptions::default();
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
-    let expected_path = support::expected_fixture_path(
-        Path::new("tests/fixtures/expected"),
-        file_name,
-        parsed.warnings(),
-    );
+    let expected_path = Path::new("tests/fixtures/expected").join(format!("{file_name}.md"));
     let doc = parsed.document();
 
     // Convert to Markdown (CommonMark variant)
@@ -344,7 +587,8 @@ fn test_commonmark_variant(
         .build();
     let processor = Processor::new(
         converter_options,
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_variant(MarkdownVariant::CommonMark);
     let mut warnings = Vec::new();
@@ -383,7 +627,8 @@ fn convert_str_with_variant(
         .build();
     let processor = Processor::new(
         converter_options,
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
     .with_variant(variant);
     let mut warnings = Vec::new();
@@ -410,7 +655,8 @@ fn convert_html_str(input: &str) -> Result<(String, Vec<Warning>), Error> {
         .build();
     let processor = HtmlProcessor::new(
         converter_options,
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut warnings = Vec::new();
     let source = WarningSource::new("html");
@@ -1088,7 +1334,7 @@ fn stem_fixtures_preserve_expressions_and_structured_warnings() -> Result<(), Er
         );
         for expected in [
             "<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>",
-            "**[Save]**",
+            "<strong>[Save]</strong>",
             "File > Open > Recent",
             "[Back]",
             "`x < y`",
@@ -1203,10 +1449,11 @@ fn document_wide_fallback_warnings_are_deduplicated_across_subvisitors() -> Resu
 fn unhandled_blocks_emit_a_structured_warning_with_source_context() -> Result<(), Error> {
     let parsed = parse("Paragraph.\n", &ParserOptions::default())?;
     let doc = parsed.document();
-    let block = doc.blocks.first().ok_or("missing test block")?;
+    let block = doc.blocks().next().ok_or("missing test block")?;
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
@@ -1228,5 +1475,124 @@ fn unhandled_blocks_emit_a_structured_warning_with_source_context() -> Result<()
     );
     assert!(warning.advice().is_some(), "{warnings:?}");
     assert!(warning.source_location().is_some(), "{warnings:?}");
+    Ok(())
+}
+
+#[test]
+fn constructed_character_references_render_in_plain_and_formatted_content() -> Result<(), Error> {
+    use acdc_parser::{
+        Block, Bold, CharacterReference, CharacterReferenceKind, Document, Form, InlineNode,
+        Location, Paragraph,
+    };
+    let mut content = Vec::new();
+    for kind in [
+        CharacterReferenceKind::Numeric(169),
+        CharacterReferenceKind::Named("amp"),
+        CharacterReferenceKind::Named("unknown"),
+    ] {
+        content.push(InlineNode::CharacterReference(
+            CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
+        ));
+    }
+    let bold = InlineNode::BoldText(Bold::new(
+        content.clone(),
+        Form::Constrained,
+        Location::default(),
+    ));
+    content.push(bold);
+    let mut doc = Document::default();
+    doc.push_block(Block::Paragraph(Paragraph::new(
+        content,
+        Location::default(),
+    )));
+    let processor = Processor::new(
+        ConverterOptions::builder().embedded(true).build(),
+        ParserOptions::builder(),
+    )?;
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let warning_source = WarningSource::new("markdown");
+    processor.write_to(
+        (&doc).into(),
+        &mut output,
+        None,
+        None,
+        &mut Diagnostics::new(&warning_source, &mut warnings),
+    )?;
+    let output = String::from_utf8(output)?;
+    assert!(output.contains(r"&#169;&amp;&unknown;"), "{output}");
+    assert!(warnings.is_empty(), "{warnings:?}");
+    Ok(())
+}
+
+#[test]
+fn resolved_reference_display_text_preserves_escaped_literals() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/subs_character_reference_labels.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = ParserOptions::builder()
+            .with_compatibility_mode(mode)
+            .build()?;
+        let parsed = parse(input, &options)?;
+        for variant in [MarkdownVariant::CommonMark, MarkdownVariant::GitHubFlavored] {
+            let processor = Processor::new(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?
+            .with_variant(variant);
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            processor.write_to(
+                parsed.document(),
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&WarningSource::new("markdown"), &mut warnings),
+            )?;
+            let output = String::from_utf8(output)?;
+            let events = parse_markdown(&output, variant);
+            let text = events
+                .iter()
+                .filter_map(|event| {
+                    if let Event::Text(text) = event {
+                        Some(text.as_ref())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<String>();
+            for expected in [
+                "Audio: Audio © and &#169;",
+                "Video: Video © and &#169;",
+                "Alt © and &#169;",
+                "P04 Passthrough © and &#169;.",
+            ] {
+                assert!(
+                    text.contains(expected),
+                    "missing {expected}: {mode:?} {variant:?}: {output}"
+                );
+            }
+            for expected in ["&", "©", "&amp;"] {
+                assert!(
+                    events.iter().any(
+                        |event| matches!(event, Event::Code(text) if text.as_ref() == expected)
+                    ),
+                    "{output}"
+                );
+            }
+            let titles = events
+                .iter()
+                .filter_map(|event| {
+                    if let Event::Start(Tag::Link { title, .. } | Tag::Image { title, .. }) = event
+                    {
+                        Some(title.as_ref())
+                    } else {
+                        None
+                    }
+                })
+                .filter(|title| *title == "Tip © and &#169;")
+                .count();
+            assert_eq!(titles, 2, "{mode:?} {variant:?}: {output}");
+        }
+    }
     Ok(())
 }

@@ -1,0 +1,499 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Bracket anchor contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 25
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 25
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "café ",
+          "location": [
+            {
+              "line": 2,
+              "col": 5,
+              "file": [
+                "includes/anchor_labels_selected.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 9,
+              "file": [
+                "includes/anchor_labels_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "anchor",
+          "type": "inline",
+          "id": "included-label",
+          "xreflabel": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Included [nested] label ",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 27,
+                  "file": [
+                    "includes/anchor_labels_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 2,
+                  "col": 50,
+                  "file": [
+                    "includes/anchor_labels_selected.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "©",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 51,
+                  "file": [
+                    "includes/anchor_labels_selected.adoc"
+                  ]
+                },
+                {
+                  "line": 2,
+                  "col": 53,
+                  "file": [
+                    "includes/anchor_labels_selected.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 2,
+              "col": 10,
+              "file": [
+                "includes/anchor_labels_selected.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 55,
+              "file": [
+                "includes/anchor_labels_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " after.",
+          "location": [
+            {
+              "line": 2,
+              "col": 56,
+              "file": [
+                "includes/anchor_labels_selected.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 62,
+              "file": [
+                "includes/anchor_labels_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 5,
+          "file": [
+            "includes/anchor_labels_selected.adoc"
+          ]
+        },
+        {
+          "line": 2,
+          "col": 62,
+          "file": [
+            "includes/anchor_labels_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "See ",
+          "location": [
+            {
+              "line": 4,
+              "col": 5,
+              "file": [
+                "includes/anchor_labels_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 8,
+              "file": [
+                "includes/anchor_labels_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "included-label",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 4,
+              "col": 9,
+              "file": [
+                "includes/anchor_labels_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 26,
+              "file": [
+                "includes/anchor_labels_selected.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 4,
+              "col": 27,
+              "file": [
+                "includes/anchor_labels_selected.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 27,
+              "file": [
+                "includes/anchor_labels_selected.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 5,
+          "file": [
+            "includes/anchor_labels_selected.adoc"
+          ]
+        },
+        {
+          "line": 4,
+          "col": 27,
+          "file": [
+            "includes/anchor_labels_selected.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Cell ",
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 2
+                          },
+                          {
+                            "line": 7,
+                            "col": 6
+                          }
+                        ]
+                      },
+                      {
+                        "name": "anchor",
+                        "type": "inline",
+                        "id": "cell-label",
+                        "xreflabel": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell [nested] label ",
+                            "location": [
+                              {
+                                "line": 7,
+                                "col": 20
+                              },
+                              {
+                                "line": 7,
+                                "col": 39
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "®",
+                            "location": [
+                              {
+                                "line": 7,
+                                "col": 40
+                              },
+                              {
+                                "line": 7,
+                                "col": 42
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 7
+                          },
+                          {
+                            "line": 7,
+                            "col": 44
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": " after.",
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 45
+                          },
+                          {
+                            "line": 7,
+                            "col": 51
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 7,
+                        "col": 2
+                      },
+                      {
+                        "line": 7,
+                        "col": 51
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 6,
+            "col": 1
+          },
+          {
+            "line": 8,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "See ",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "included-label",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 10,
+              "col": 5
+            },
+            {
+              "line": 10,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 10,
+              "col": 23
+            },
+            {
+              "line": 10,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "cell-label",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 10,
+              "col": 28
+            },
+            {
+              "line": 10,
+              "col": 41
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 10,
+              "col": 42
+            },
+            {
+              "line": 10,
+              "col": 42
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 42
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 10,
+      "col": 42
+    }
+  ]
+}

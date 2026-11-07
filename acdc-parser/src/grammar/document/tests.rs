@@ -1,14 +1,12 @@
 use super::document_parser;
 use crate::{
-    Anchor, AttributeValue, Block, CommentKind, DelimitedBlock, DelimitedBlockType, Document,
-    Error, Image, InlineMacro, InlineNode, Location, Options, Plain, Position, Section, Subtitle,
-    Title, WarningKind, XrefCaptionLabel, XrefStyle,
+    Anchor, AttributeValue, Block, CommentKind, CompatibilityMode, DelimitedBlock,
+    DelimitedBlockType, Document, Error, Image, InlineMacro, InlineNode, Location, Options, Plain,
+    Position, Section, Subtitle, Title, WarningKind, XrefCaptionLabel, XrefStyle,
     grammar::ParserState,
     model::{Caption, CaptionKind, SectionKind},
     parse,
 };
-#[cfg(feature = "setext")]
-use std::rc::Rc;
 
 #[test]
 #[tracing_test::traced_test]
@@ -25,7 +23,7 @@ v2.9, 01-09-2024: Fall incarnation
     let header = result.header.expect("document has a header");
     assert_eq!(header.title.len(), 1);
     assert_eq!(
-        header.title[0],
+        header.title.as_inlines()[0],
         InlineNode::PlainText(Plain {
             content: "Document Title",
             location: Location {
@@ -279,7 +277,7 @@ fn test_document_title() -> Result<(), Error> {
     let result = document_parser::document_title(input, &mut state)?;
     assert_eq!(result.0.len(), 1);
     assert_eq!(
-        result.0[0],
+        result.0.as_inlines()[0],
         InlineNode::PlainText(Plain {
             content: "Document Title",
             location: Location {
@@ -337,7 +335,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     let result = document_parser::header(input, &mut state)??.expect("header should be present");
     assert_eq!(result.title.len(), 1);
     assert_eq!(
-        result.title[0],
+        result.title.as_inlines()[0],
         InlineNode::PlainText(Plain {
             content: "Document Title",
             location: Location {
@@ -364,7 +362,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
 }
 
 /// A document whose only content is a title (no body, no following blank
-/// line) is recognised as the doctitle, not a level-0 section. The
+/// line) is recognized as the doctitle, not a level-0 section. The
 /// preprocessor strips the trailing newline, so the title sits at EOF — the
 /// `title_authors` rule must accept end-of-input, not only a following `\n`.
 /// Matches asciidoctor, which treats a lone `= Title` as the doctitle.
@@ -378,7 +376,7 @@ fn test_title_only_document_is_doctitle() -> Result<(), Error> {
     let header = doc.header.expect("title-only doc should have a header");
     assert_eq!(header.title.len(), 1);
     assert_eq!(
-        header.title[0],
+        header.title.as_inlines()[0],
         InlineNode::PlainText(Plain {
             content: "Doc Title",
             location: Location {
@@ -403,12 +401,11 @@ fn test_title_only_document_is_doctitle() -> Result<(), Error> {
 fn test_document_empty_attribute_list() -> Result<(), Error> {
     let input = "[]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete); // Not discrete
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(metadata.id, None);
     assert_eq!(metadata.style, None);
-    assert_eq!(metadata.roles, [] as [&str; 0]);
-    assert_eq!(metadata.options, [] as [&str; 0]);
+    assert_eq!(metadata.roles.as_slice(), [] as [&str; 0]);
+    assert_eq!(metadata.options.as_slice(), [] as [&str; 0]);
     assert!(metadata.attributes.is_empty());
     Ok(())
 }
@@ -418,13 +415,12 @@ fn test_document_empty_attribute_list() -> Result<(), Error> {
 fn test_document_empty_attribute_list_with_discrete() -> Result<(), Error> {
     let input = "[discrete]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(discrete); // Should be discrete
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(metadata.id, None);
     // The `discrete` style is retained so a discrete heading renders it as a class.
     assert_eq!(metadata.style, Some("discrete"));
-    assert_eq!(metadata.roles, [] as [&str; 0]);
-    assert_eq!(metadata.options, [] as [&str; 0]);
+    assert_eq!(metadata.roles.as_slice(), [] as [&str; 0]);
+    assert_eq!(metadata.options.as_slice(), [] as [&str; 0]);
     Ok(())
 }
 
@@ -433,8 +429,7 @@ fn test_document_empty_attribute_list_with_discrete() -> Result<(), Error> {
 fn test_document_attribute_with_id() -> Result<(), Error> {
     let input = "[id=my-id,role=admin,options=read,options=write]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete); // Not discrete
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(
         metadata.id,
         Some(Anchor {
@@ -442,10 +437,11 @@ fn test_document_attribute_with_id() -> Result<(), Error> {
             xreflabel: None,
             location: Location {
                 absolute_start: 4,
-                absolute_end: 9,
+                absolute_end: 8,
                 start: Position::new(1, 5),
-                end: Position::new(1, 10),
+                end: Position::new(1, 9),
             },
+            reftext_source: None,
             bibliography_label: None,
             bibliography: false,
         })
@@ -462,8 +458,7 @@ fn test_document_attribute_with_id() -> Result<(), Error> {
 fn test_document_attribute_with_id_mixed() -> Result<(), Error> {
     let input = "[astyle#myid.admin,options=read,options=write]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete); // Not discrete
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(
         metadata.id,
         Some(Anchor {
@@ -471,10 +466,11 @@ fn test_document_attribute_with_id_mixed() -> Result<(), Error> {
             xreflabel: None,
             location: Location {
                 absolute_start: 8,
-                absolute_end: 12,
+                absolute_end: 11,
                 start: Position::new(1, 9),
-                end: Position::new(1, 13),
+                end: Position::new(1, 12),
             },
+            reftext_source: None,
             bibliography_label: None,
             bibliography: false,
         })
@@ -491,8 +487,7 @@ fn test_document_attribute_with_id_mixed() -> Result<(), Error> {
 fn test_document_attribute_with_id_mixed_with_quotes() -> Result<(), Error> {
     let input = "[astyle#myid.admin,options=\"read,write\"]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete); // Not discrete
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(
         metadata.id,
         Some(Anchor {
@@ -500,10 +495,11 @@ fn test_document_attribute_with_id_mixed_with_quotes() -> Result<(), Error> {
             xreflabel: None,
             location: Location {
                 absolute_start: 8,
-                absolute_end: 12,
+                absolute_end: 11,
                 start: Position::new(1, 9),
-                end: Position::new(1, 13),
+                end: Position::new(1, 12),
             },
+            reftext_source: None,
             bibliography_label: None,
             bibliography: false,
         })
@@ -520,8 +516,7 @@ fn test_document_attribute_with_id_mixed_with_quotes() -> Result<(), Error> {
 fn test_shorthand_id_role_combined() -> Result<(), Error> {
     let input = "[#bracket-id.some-role]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete);
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(
         metadata.id,
         Some(Anchor {
@@ -529,10 +524,11 @@ fn test_shorthand_id_role_combined() -> Result<(), Error> {
             xreflabel: None,
             location: Location {
                 absolute_start: 2,
-                absolute_end: 12,
+                absolute_end: 11,
                 start: Position::new(1, 3),
-                end: Position::new(1, 13),
+                end: Position::new(1, 12),
             },
+            reftext_source: None,
             bibliography_label: None,
             bibliography: false,
         })
@@ -547,8 +543,7 @@ fn test_shorthand_id_role_combined() -> Result<(), Error> {
 fn test_shorthand_id_role_option_combined() -> Result<(), Error> {
     let input = "[#my-id.my-role%my-option]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete);
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(
         metadata.id,
         Some(Anchor {
@@ -556,10 +551,11 @@ fn test_shorthand_id_role_option_combined() -> Result<(), Error> {
             xreflabel: None,
             location: Location {
                 absolute_start: 2,
-                absolute_end: 7,
+                absolute_end: 6,
                 start: Position::new(1, 3),
-                end: Position::new(1, 8),
+                end: Position::new(1, 7),
             },
+            reftext_source: None,
             bibliography_label: None,
             bibliography: false,
         })
@@ -575,9 +571,9 @@ fn test_shorthand_id_role_option_combined() -> Result<(), Error> {
 fn test_shorthand_multiple_roles() -> Result<(), Error> {
     let input = "[#my-id.role-one.role-two]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete);
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(metadata.id.as_ref().map(|a| a.id), Some("my-id"));
+    assert_eq!(metadata.style, None);
     assert!(metadata.roles.contains(&"role-one"));
     assert!(metadata.roles.contains(&"role-two"));
     Ok(())
@@ -588,8 +584,7 @@ fn test_shorthand_multiple_roles() -> Result<(), Error> {
 fn test_shorthand_style_id_role() -> Result<(), Error> {
     let input = "[quote#my-id.my-role]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete);
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(metadata.id.as_ref().map(|a| a.id), Some("my-id"));
     assert_eq!(metadata.style, Some("quote"));
     assert!(metadata.roles.contains(&"my-role"));
@@ -601,9 +596,9 @@ fn test_shorthand_style_id_role() -> Result<(), Error> {
 fn test_shorthand_just_roles() -> Result<(), Error> {
     let input = "[.role-one.role-two]";
     let mut state = ParserState::new_for_test(input);
-    let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
-    assert!(!discrete);
+    let metadata = document_parser::attributes(input, &mut state)?.metadata;
     assert_eq!(metadata.id, None);
+    assert_eq!(metadata.style, None);
     assert!(metadata.roles.contains(&"role-one"));
     assert!(metadata.roles.contains(&"role-two"));
     Ok(())
@@ -695,7 +690,6 @@ fn test_toc_empty_document() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_document_title() -> Result<(), Error> {
@@ -705,17 +699,15 @@ fn test_setext_document_title() -> Result<(), Error> {
 Some content.
 ";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
     let header = result.header.expect("document has a header");
     assert_eq!(header.title.len(), 1);
     assert!(
-        matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
+        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
     );
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_section() -> Result<(), Error> {
@@ -727,7 +719,6 @@ Section One
 Content.
 ";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
 
     let section = result.blocks.iter().find_map(|b| {
@@ -740,34 +731,23 @@ Content.
     let section = section.expect("should have a section");
     assert_eq!(section.level, 1);
     assert!(
-        matches!(&section.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section One")
+        matches!(&section.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section One")
     );
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
-fn test_setext_disabled_by_default() {
-    let input = "Document Title
-==============
-
-Some content.
-";
-    let mut state = ParserState::new_for_test(input);
-    // setext is disabled by default
-    assert!(!state.options.setext);
-    // Should not parse as setext title when disabled
-    let result = document_parser::document(input, &mut state);
-    // The document will be parsed but without recognizing the setext title
-    // The title line will be parsed as a paragraph or similar
-    if let Ok(Ok(doc)) = result {
-        // No header should be found when setext is disabled
-        assert!(doc.header.is_none());
-    }
+fn test_setext_disabled_in_draft() -> Result<(), Error> {
+    let input = "Document Title\n==============\n\nSome content.\n";
+    let options = Options::builder()
+        .with_compatibility_mode(CompatibilityMode::Draft)
+        .build()?;
+    let parsed = parse(input, &options)?;
+    assert!(parsed.document_storage().header.is_none());
+    Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_single_section_per_level() -> Result<(), Error> {
@@ -780,12 +760,11 @@ Section One
 Content here.
 ";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
 
     let header = result.header.expect("document has a header");
     assert!(
-        matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
+        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
     );
 
     let section = result
@@ -802,13 +781,12 @@ Content here.
 
     assert_eq!(section.level, 1);
     assert!(
-        matches!(&section.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section One")
+        matches!(&section.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section One")
     );
 
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_sibling_sections() -> Result<(), Error> {
@@ -832,12 +810,11 @@ Section C
 Content C.
 ";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
 
     let header = result.header.expect("document has a header");
     assert!(
-        matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
+        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
     );
 
     // All three sections should be at the top level (siblings, not nested)
@@ -864,19 +841,18 @@ Content C.
     }
 
     assert!(
-        matches!(&sections[0].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section A")
+        matches!(&sections[0].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section A")
     );
     assert!(
-        matches!(&sections[1].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section B")
+        matches!(&sections[1].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section B")
     );
     assert!(
-        matches!(&sections[2].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section C")
+        matches!(&sections[2].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section C")
     );
 
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_all_underline_characters() -> Result<(), Error> {
@@ -890,7 +866,6 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     // Test level 1 with -
     let input = "= Doc\n\nLevel One\n---------\n\nContent.\n";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
     let section = result
         .blocks
@@ -908,7 +883,6 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     // Test level 2 with ~
     let input = "= Doc\n\nLevel Two\n~~~~~~~~~\n\nContent.\n";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
     let section = result
         .blocks
@@ -926,7 +900,6 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     // Test level 3 with ^
     let input = "= Doc\n\nLevel Three\n^^^^^^^^^^^\n\nContent.\n";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
     let section = result
         .blocks
@@ -944,7 +917,6 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     // Test level 4 with +
     let input = "= Doc\n\nLevel Four\n++++++++++\n\nContent.\n";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
     let section = result
         .blocks
@@ -962,18 +934,16 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_manpage_style_document() -> Result<(), Error> {
     let input = "gitdatamodel(7)\n===============\n\nNAME\n----\ngitdatamodel - Git's core data model\n\nSYNOPSIS\n--------\ngitdatamodel\n";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let result = document_parser::document(input, &mut state)??;
 
     let header = result.header.expect("document has a header");
     assert!(
-        matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
+        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
     );
 
     // Verify NAME and SYNOPSIS are level-1 sections
@@ -997,16 +967,15 @@ fn test_setext_manpage_style_document() -> Result<(), Error> {
     assert_eq!(sections[0].level, 1);
     assert_eq!(sections[1].level, 1);
     assert!(
-        matches!(&sections[0].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "NAME")
+        matches!(&sections[0].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "NAME")
     );
     assert!(
-        matches!(&sections[1].title[0], InlineNode::PlainText(Plain { content, .. }) if *content == "SYNOPSIS")
+        matches!(&sections[1].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "SYNOPSIS")
     );
 
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 #[tracing_test::traced_test]
 fn test_setext_with_description_lists() -> Result<(), Error> {
@@ -1036,13 +1005,13 @@ REFERENCES
 
 References.
 ";
-    let options = Options::builder().with_setext().build()?;
+    let options = Options::builder().build()?;
     let parsed = parse(input, &options)?;
-    let result = parsed.document();
+    let result = parsed.document_storage();
 
     let header = result.header.as_ref().expect("document has a header");
     assert!(
-        matches!(&header.title[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
+        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
     );
 
     let sections: Vec<&Section> = result
@@ -1174,10 +1143,15 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
     let result = document_parser::document(input, &mut state)??;
     let img = get_image(&result);
     assert_eq!(
-        img.metadata.attributes.get("alt"),
-        Some(&AttributeValue::String(
-            "Diablo 4 picture of Lilith.".into()
-        )),
+        img.alt
+            .as_ref()
+            .and_then(|content| content.as_inlines().first())
+            .and_then(|node| if let InlineNode::PlainText(text) = node {
+                Some(text.content)
+            } else {
+                None
+            }),
+        Some("Diablo 4 picture of Lilith."),
         "Trailing period should be preserved in alt text"
     );
 
@@ -1187,8 +1161,15 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
     let result = document_parser::document(input, &mut state)??;
     let img = get_image(&result);
     assert_eq!(
-        img.metadata.attributes.get("alt"),
-        Some(&AttributeValue::String(".role".into())),
+        img.alt
+            .as_ref()
+            .and_then(|content| content.as_inlines().first())
+            .and_then(|node| if let InlineNode::PlainText(text) = node {
+                Some(text.content)
+            } else {
+                None
+            }),
+        Some(".role"),
         ".role should be literal alt text, not a CSS class"
     );
     assert!(
@@ -1202,8 +1183,15 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
     let result = document_parser::document(input, &mut state)??;
     let img = get_image(&result);
     assert_eq!(
-        img.metadata.attributes.get("alt"),
-        Some(&AttributeValue::String("Issue #42".into())),
+        img.alt
+            .as_ref()
+            .and_then(|content| content.as_inlines().first())
+            .and_then(|node| if let InlineNode::PlainText(text) = node {
+                Some(text.content)
+            } else {
+                None
+            }),
+        Some("Issue #42"),
         "#42 should be preserved as literal text"
     );
     assert!(
@@ -1216,8 +1204,8 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
     let result = document_parser::document(input, &mut state)??;
     let img = get_image(&result);
     assert_eq!(
-        img.metadata.roles,
-        vec![std::borrow::Cow::Borrowed("thumbnail")],
+        img.metadata.roles.as_slice(),
+        ["thumbnail"],
         "Named role= attribute should work"
     );
 
@@ -1240,7 +1228,7 @@ fn test_block_macro_uses_last_closing_bracket() -> Result<(), Error> {
     });
     assert!(image.is_some(), "document should contain an image block");
     if let Some(image) = image {
-        assert_eq!(image.metadata.roles, ["inline][100"]);
+        assert_eq!(image.metadata.roles.as_slice(), ["inline][100"]);
         assert_eq!(
             image.metadata.attributes.get("width"),
             Some(&AttributeValue::String("100".into()))
@@ -1257,10 +1245,9 @@ fn test_block_macro_uses_last_closing_bracket() -> Result<(), Error> {
     Ok(())
 }
 
-/// When `source_ranges` are set, `warn_trailing_macro_content` should resolve
-/// the correct file name and line number from the included file.
+/// Grammar warnings use the included file and its original line number.
 #[test]
-fn test_trailing_content_warning_resolves_source_range() {
+fn test_grammar_warning_resolves_source_range() {
     use crate::model::SourceRange;
     use std::path::PathBuf;
 
@@ -1280,7 +1267,7 @@ fn test_trailing_content_warning_resolves_source_range() {
 
     // Trigger warning at byte offset 40 (inside the included range)
     // 40 - 28 = 12 bytes into the included content = 3 newlines = line 4
-    state.warn_trailing_macro_content("image", "[100,100]", 40, 0);
+    state.add_generic_warning_at("example warning".into(), state.create_location(40, 47));
 
     let warnings = state.warnings.borrow();
     assert_eq!(warnings.len(), 1);
@@ -1300,10 +1287,9 @@ fn test_trailing_content_warning_resolves_source_range() {
     );
 }
 
-/// When offset is outside any `source_range`, `warn_trailing_macro_content`
-/// should fall back to the entry-point file.
+/// Warnings outside included ranges use the entry-point file.
 #[test]
-fn test_trailing_content_warning_falls_back_to_entry_file() {
+fn test_grammar_warning_falls_back_to_entry_file() {
     use crate::model::SourceRange;
     use std::path::PathBuf;
 
@@ -1320,7 +1306,7 @@ fn test_trailing_content_warning_falls_back_to_entry_file() {
         column_shift: 0,
     }];
 
-    state.warn_trailing_macro_content("image", "extra", 17, 0);
+    state.add_generic_warning_at("example warning".into(), state.create_location(17, 21));
 
     let warnings = state.warnings.borrow();
     assert_eq!(warnings.len(), 1);
@@ -1684,7 +1670,7 @@ link:https://example.net[Text,positional-id]
     assert_eq!(
         doc.references
             .get("duplicate")
-            .expect("the first link ID must be catalogued")
+            .expect("the first link ID must be cataloged")
             .location
             .start
             .line,
@@ -1694,7 +1680,7 @@ link:https://example.net[Text,positional-id]
     Ok(())
 }
 
-/// An inline `[[id]]` anchor inside a callout-list item's text is catalogued
+/// An inline `[[id]]` anchor inside a callout-list item's text is cataloged
 /// (callout lists are walked like other list containers), so a reference to
 /// it resolves.
 #[test]
@@ -1754,7 +1740,7 @@ fn test_titled_block_collected_in_references() -> Result<(), Error> {
         .as_ref()
         .expect("titled block has reference text");
     assert!(
-        matches!(&title[..], [InlineNode::PlainText(text)] if text.content == "Important Data")
+        matches!(title.as_inlines(), [InlineNode::PlainText(text)] if text.content == "Important Data")
     );
     // The location points at the anchor on line 1 (for LSP navigation).
     assert_eq!(entry.location.start.line, 1);
@@ -1817,26 +1803,24 @@ fn named_section_reftext_populates_catalog_toc_and_warnings()
     let reference = doc.references.get("id").ok_or("missing id reference")?;
     assert!(
         matches!(
-            reference.xreflabel.as_deref(),
+            reference.xreflabel.as_ref().map(crate::ContentAttribute::as_inlines),
             Some([InlineNode::PlainText(text)]) if text.content == "Custom Label"
         ),
         "{:?}",
         reference.xreflabel
     );
-    assert_eq!(
-        doc.toc_entries
-            .iter()
-            .find(|entry| entry.id == "id")
-            .and_then(|entry| entry.xreflabel),
-        Some("Custom Label")
-    );
+    assert!(matches!(
+        doc.toc_entries.iter().find(|entry| entry.id == "id")
+            .and_then(|entry| entry.xreflabel.as_ref().map(crate::ContentAttribute::as_inlines)),
+        Some([InlineNode::PlainText(text)]) if text.content == "Custom Label"
+    ));
     let formatted = doc
         .references
         .get("formatted")
         .ok_or("missing formatted reference")?;
     assert!(
         matches!(
-            formatted.xreflabel.as_deref(),
+            formatted.xreflabel.as_ref().map(crate::ContentAttribute::as_inlines),
             Some([
                 InlineNode::PlainText(prefix),
                 InlineNode::BoldText(bold),
@@ -2016,12 +2000,10 @@ fn interdocument_xref_macro_targets_are_not_naturally_resolved() -> Result<(), E
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 fn natural_title_cross_references_resolve_setext_section_ids() -> Result<(), Error> {
     let input = "See <<Setext Title>>.\n\nSetext Title\n------------\n";
     let mut state = ParserState::new_for_test(input);
-    Rc::make_mut(&mut state.options).setext = true;
     let doc = document_parser::document(input, &mut state)??;
     let xrefs = doc
         .blocks
@@ -2129,7 +2111,7 @@ fn test_titled_single_line_admonition_keeps_reference_title() -> Result<(), Erro
 
     assert!(
         matches!(
-            &title[..],
+            title.as_inlines(),
             [InlineNode::PlainText(prefix), InlineNode::BoldText(bold)]
                 if prefix.content == "Admonition "
                     && matches!(
@@ -2187,7 +2169,7 @@ fn test_duplicate_id_keeps_first_reference_text() -> Result<(), Error> {
         .expect("the first registration keeps its reference text");
     assert!(
         matches!(
-            &title[..],
+            title.as_inlines(),
             [InlineNode::PlainText(text)] if text.content == "Titled Block"
         ),
         "{title:?}"
@@ -2211,7 +2193,7 @@ fn test_reference_label_is_parsed_as_inlines() -> Result<(), Error> {
         .expect("the anchor has a label");
     assert!(
         matches!(
-            &label[..],
+            label.as_inlines(),
             [InlineNode::BoldText(bold), InlineNode::PlainText(rest)]
                 if rest.content == " label"
                     && matches!(
@@ -2238,7 +2220,7 @@ fn test_reference_label_restores_passthrough_syntax() -> Result<(), Error> {
         .expect("the anchor has a label");
     assert!(
         matches!(
-            &label[..],
+            label.as_inlines(),
             [InlineNode::PlainText(text)]
                 if text.content == "+++<mark>Label</mark>+++"
         ),
@@ -2545,7 +2527,7 @@ fn test_unterminated_pipe_table_with_no_content_emits_warning() -> Result<(), Er
 
 /// Same as above but exercised through the public `parse` entry point
 /// (which runs the preprocessor first). Catches the case where the
-/// preprocessor normalises the input in a way that breaks the
+/// preprocessor normalizes the input in a way that breaks the
 /// unterminated fallback.
 #[test]
 fn test_unterminated_pipe_table_empty_through_parse_entry() {

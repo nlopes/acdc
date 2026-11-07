@@ -7,33 +7,34 @@
 //! `Section 1.1` and `Chapter 2, _Title_` from exactly these parts.
 
 use acdc_parser::{
-    Block, CrossReference, Document, InlineMacro, InlineNode, Options, Reference, XrefSignifier,
-    XrefStyle, parse,
+    Options, XrefSignifier, XrefStyle,
+    ast::{BlockKind, BlockRef, CrossReferenceRef, InlineKind, ReferenceRef, ReferencesRef},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
 
 /// Every cross-reference in the document's paragraphs, in source order.
-fn cross_references<'d, 'a>(blocks: &'d [Block<'a>]) -> Vec<&'d CrossReference<'a>> {
+fn cross_references<'a>(blocks: impl Iterator<Item = BlockRef<'a>>) -> Vec<CrossReferenceRef<'a>> {
     let mut found = Vec::new();
     for block in blocks {
-        if let Block::Paragraph(paragraph) = block {
-            for node in &paragraph.content {
-                if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = node {
+        if let BlockKind::Paragraph(paragraph) = block.kind() {
+            for node in paragraph.content().inlines() {
+                if let InlineKind::CrossReference(xref) = node.kind() {
                     found.push(xref);
                 }
             }
-        } else if let Block::Section(section) = block {
-            found.extend(cross_references(&section.content));
+        } else if let BlockKind::Section(section) = block.kind() {
+            found.extend(cross_references(section.blocks()));
         }
     }
     found
 }
 
-fn section_reference<'d, 'a>(
-    references: &'d std::collections::HashMap<&str, Reference<'a>>,
+fn section_reference<'a>(
+    references: ReferencesRef<'a>,
     id: &str,
-) -> Result<&'d Reference<'a>, Error> {
+) -> Result<ReferenceRef<'a>, Error> {
     references
         .get(id)
         .filter(|reference| reference.section_name().is_some())
@@ -46,7 +47,7 @@ fn a_section_reference_carries_its_name_and_number() -> Result<(), Error> {
                   [[p1]]\n= Part One\n\n[[ch1]]\n== Chapter\n\n[[s11]]\n=== Section\n\nx\n\n\
                   [appendix]\n[[app]]\n== Appendix\n\n[[appsub]]\n=== Appendix Sub\n\nx\n";
     let parsed = parse(source, &Options::default())?;
-    let references = &parsed.document().references;
+    let references = parsed.document().references();
 
     for (id, name, number) in [
         ("p1", "part", "I"),
@@ -68,7 +69,7 @@ fn an_article_level_one_section_is_a_section_not_a_chapter() -> Result<(), Error
         "= A\n:sectnums:\n\n[[s1]]\n== One\n\nx\n",
         &Options::default(),
     )?;
-    let section = section_reference(&parsed.document().references, "s1")?;
+    let section = section_reference(parsed.document().references(), "s1")?;
     assert_eq!(section.section_name(), Some("section"));
     Ok(())
 }
@@ -80,7 +81,7 @@ fn an_unnumbered_section_has_no_reference_number() -> Result<(), Error> {
     let source = "= A\n\n[[plain]]\n== Plain\n\nx\n\n:sectnums:\n\n[[numbered]]\n== Numbered\n\nx\n\n\
                   :sectnums!:\n\n[[off]]\n== Off Again\n\nx\n";
     let parsed = parse(source, &Options::default())?;
-    let references = &parsed.document().references;
+    let references = parsed.document().references();
     assert_eq!(
         section_reference(references, "plain")?.section_number(),
         None
@@ -98,7 +99,7 @@ fn a_part_is_numbered_only_with_partnums() -> Result<(), Error> {
     let source = "= B\n:doctype: book\n:sectnums:\n\n[preface]\n== P\n\n[[p1]]\n= Part One\n\n\
                   [[c1]]\n== C1\n\nx\n";
     let parsed = parse(source, &Options::default())?;
-    let references = &parsed.document().references;
+    let references = parsed.document().references();
     assert_eq!(section_reference(references, "p1")?.section_number(), None);
     assert_eq!(
         section_reference(references, "c1")?.section_number(),
@@ -116,13 +117,12 @@ fn a_reference_is_numbered_past_sectnumlevels_though_the_heading_is_not() -> Res
     let document = parsed.document();
 
     assert_eq!(
-        section_reference(&document.references, "s11")?.section_number(),
+        section_reference(document.references(), "s11")?.section_number(),
         Some("1.1")
     );
     let toc_entry = document
-        .toc_entries
-        .iter()
-        .find(|entry| entry.id == "s11")
+        .toc_entries()
+        .find(|entry| entry.id() == "s11")
         .ok_or("no TOC entry for s11")?;
     assert_eq!(toc_entry.number(), None);
     Ok(())
@@ -133,7 +133,7 @@ fn a_numbered_special_section_takes_its_style_as_its_name() -> Result<(), Error>
     let source = "= B\n:doctype: book\n:sectnums: all\n\n[preface]\n[[pre]]\n== Preface\n\nx\n\n\
                   [[ch]]\n== Chapter\n\nx\n";
     let parsed = parse(source, &Options::default())?;
-    let preface = section_reference(&parsed.document().references, "pre")?;
+    let preface = section_reference(parsed.document().references(), "pre")?;
     assert_eq!(preface.section_name(), Some("preface"));
     assert_eq!(preface.section_number(), Some("1"));
     Ok(())
@@ -145,9 +145,9 @@ fn the_signifier_is_read_where_the_reference_is_written() -> Result<(), Error> {
                   Changed: <<s1>>\n\n:section-refsig:\n\nEmpty: <<s1>>\n\n:section-refsig!:\n\n\
                   Unset: <<s1>>\n\n[[s1]]\n== S1\n\nx\n";
     let parsed = parse(source, &Options::default())?;
-    let signifiers: Vec<_> = cross_references(&parsed.document().blocks)
+    let signifiers: Vec<_> = cross_references(parsed.document().blocks())
         .into_iter()
-        .map(CrossReference::signifier)
+        .map(CrossReferenceRef::signifier)
         .collect();
     assert_eq!(
         signifiers,
@@ -157,43 +157,6 @@ fn the_signifier_is_read_where_the_reference_is_written() -> Result<(), Error> {
             XrefSignifier::AtReference(""),
             XrefSignifier::Omitted,
         ]
-    );
-    Ok(())
-}
-
-#[test]
-fn renumbering_the_sections_refreshes_the_catalog() -> Result<(), Error> {
-    let source = "= A\n:sectnums:\n\n[[first]]\n== First\n\nx\n\n[[second]]\n== Second\n\nx\n";
-    let parsed = parse(source, &Options::default())?;
-    let mut document = Document::default();
-    document.attributes = parsed.document().attributes.clone();
-    document.blocks = parsed.document().blocks.clone();
-    document.toc_entries = parsed.document().toc_entries.clone();
-    document.references = parsed.document().references.clone();
-    assert_eq!(
-        section_reference(&document.references, "second")?.section_number(),
-        Some("2")
-    );
-
-    // Drop the first section, with its table of contents entry. `[[first]]`
-    // is one of the section's anchors rather than its `id`, so it is found by
-    // position.
-    if let Some(first) = document
-        .blocks
-        .iter()
-        .position(|block| matches!(block, Block::Section(_)))
-    {
-        document.blocks.remove(first);
-    }
-    document.toc_entries.retain(|entry| entry.id != "first");
-    assert_eq!(document.toc_entries.len(), 1);
-    document.renumber_sections();
-
-    // The catalog follows the tree, so a `<<second>>` no longer quotes the
-    // number the section had when it was parsed.
-    assert_eq!(
-        section_reference(&document.references, "second")?.section_number(),
-        Some("1")
     );
     Ok(())
 }
@@ -213,22 +176,26 @@ fn the_xref_macro_reads_its_brackets_as_an_attribute_list() -> Result<(), Error>
                   <<fig,role=r>>\n\n\
                   [[fig]]\n.A figure\nimage::f.png[]\n";
     let parsed = parse(source, &Options::default())?;
-    let xrefs = cross_references(&parsed.document().blocks);
+    let xrefs = cross_references(parsed.document().blocks());
     let seen: Vec<_> = xrefs
         .iter()
         .map(|xref| {
             let text: String = xref
-                .text
-                .iter()
+                .text()
+                .inlines()
                 .map(|node| {
-                    if let InlineNode::PlainText(plain) = node {
-                        plain.content
+                    if let InlineKind::Plain(plain) = node.kind() {
+                        plain.text()
                     } else {
                         "?"
                     }
                 })
                 .collect();
-            (text, xref.xrefstyle, xref.role)
+            (
+                text,
+                xref.xrefstyle(),
+                xref.roles().iter().collect::<Vec<_>>(),
+            )
         })
         .collect();
 
@@ -236,22 +203,22 @@ fn the_xref_macro_reads_its_brackets_as_an_attribute_list() -> Result<(), Error>
         seen,
         [
             // A named attribute alone leaves the text automatic.
-            (String::new(), XrefStyle::Short, None),
+            (String::new(), XrefStyle::Short, vec![]),
             // The first positional attribute is the link text.
-            ("Custom".to_string(), XrefStyle::Full, None),
+            ("Custom".to_string(), XrefStyle::Full, vec![]),
             // Text after a named attribute is not the first positional one.
-            (String::new(), XrefStyle::Short, None),
-            ("Quoted, text".to_string(), XrefStyle::Short, None),
+            (String::new(), XrefStyle::Short, vec![]),
+            ("Quoted, text".to_string(), XrefStyle::Short, vec![]),
             // Without an `=`, the brackets are the text as written.
-            ("text, with comma".to_string(), XrefStyle::Default, None),
+            ("text, with comma".to_string(), XrefStyle::Default, vec![]),
             // `1+1` is no attribute name, so this is text too.
-            ("1+1=2".to_string(), XrefStyle::Default, None),
+            ("1+1=2".to_string(), XrefStyle::Default, vec![]),
             // `role=` is kept for the link, unquoted, and the last one wins.
-            (String::new(), XrefStyle::Default, Some("r")),
-            ("Text".to_string(), XrefStyle::Short, Some("a b")),
-            (String::new(), XrefStyle::Default, Some("s")),
+            (String::new(), XrefStyle::Default, vec!["r"]),
+            ("Text".to_string(), XrefStyle::Short, vec!["a", "b"]),
+            (String::new(), XrefStyle::Default, vec!["s"]),
             // The shorthand has no attribute list, so this is its text.
-            ("role=r".to_string(), XrefStyle::Default, None),
+            ("role=r".to_string(), XrefStyle::Default, vec![]),
         ]
     );
     Ok(())

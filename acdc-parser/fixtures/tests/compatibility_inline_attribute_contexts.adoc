@@ -1,0 +1,25 @@
+= Inline ordering contexts
+:strong: *Strong*
+:alias: {strong}
+
+.Title {alias}
+Paragraph {alias}.
+
+* Item {alias}.
+
+[id=target,reftext='{alias}']
+Reference target.
+
+Links: link:https://example.org[{alias}] / xref:target[{alias}].
+
+[title='{alias}']
+Named title control.
+
+image::scalar.png["{alias}"]
+
+[cols=a]
+|===
+|Cell {alias}.
+|===
+
+include::includes/compatibility_inline_attribute_contexts.adoc[tag=selected,indent=0]

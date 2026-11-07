@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: Verse tests
 :mansource: acdc
+:docdate: 2026-10-05
 :revdate: 2026-10-05
 :value: expanded
 :acdc-index:

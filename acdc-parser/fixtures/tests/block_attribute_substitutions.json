@@ -41,9 +41,12 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Ada *Lovelace*",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 3,
@@ -51,16 +54,19 @@
               },
               {
                 "line": 3,
-                "col": 23
+                "col": 22
               }
             ]
           }
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "`Notes`",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 3,
@@ -68,7 +74,7 @@
               },
               {
                 "line": 3,
-                "col": 32
+                "col": 31
               }
             ]
           }
@@ -127,9 +133,12 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Grace *Hopper*",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 8,
@@ -137,16 +146,19 @@
               },
               {
                 "line": 8,
-                "col": 24
+                "col": 23
               }
             ]
           }
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "`Compiler`",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 8,
@@ -154,7 +166,7 @@
               },
               {
                 "line": 8,
-                "col": 38
+                "col": 37
               }
             ]
           }
@@ -352,7 +364,7 @@
           {
             "name": "text",
             "type": "string",
-            "value": "A'B",
+            "value": "A",
             "location": [
               {
                 "line": 18,
@@ -360,16 +372,49 @@
               },
               {
                 "line": 18,
+                "col": 10
+              }
+            ]
+          },
+          {
+            "name": "symbol",
+            "type": "string",
+            "value": "’",
+            "location": [
+              {
+                "line": 18,
+                "col": 11
+              },
+              {
+                "line": 18,
                 "col": 12
+              }
+            ]
+          },
+          {
+            "name": "text",
+            "type": "string",
+            "value": "B",
+            "location": [
+              {
+                "line": 18,
+                "col": 13
+              },
+              {
+                "line": 18,
+                "col": 13
               }
             ]
           }
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Notes",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 18,
@@ -377,7 +422,7 @@
               },
               {
                 "line": 18,
-                "col": 22
+                "col": 21
               }
             ]
           }
@@ -436,9 +481,12 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "https://example.com[Literal Author]",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 23,
@@ -446,16 +494,19 @@
               },
               {
                 "line": 23,
-                "col": 44
+                "col": 43
               }
             ]
           }
         ],
         "citetitle": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "https://example.org[Literal Work]",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 23,
@@ -463,7 +514,7 @@
               },
               {
                 "line": 23,
-                "col": 79
+                "col": 78
               }
             ]
           }
@@ -555,8 +606,7 @@
                 "line": 28,
                 "col": 43
               }
-            ],
-            "attributes": {}
+            ]
           }
         ],
         "citetitle": [
@@ -594,8 +644,7 @@
                 "line": 28,
                 "col": 79
               }
-            ],
-            "attributes": {}
+            ]
           }
         ]
       },

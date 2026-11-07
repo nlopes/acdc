@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -113,7 +114,7 @@
 
 #text("N13 ")#metadata(none)<__indexterm-13>#text("Before ")#strong[\[ #text("Save") \]]#text(" after")#text(" end.")
 
-#text("N14 ")#metadata(none)<__indexterm-14>#text("Before ")#box(baseline: 15%, fill: rgb("#f3f4f6"), stroke: 0.5pt + rgb("#e5e7eb"), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[#raw("Ctrl")]#text(" + ")#box(baseline: 15%, fill: rgb("#f3f4f6"), stroke: 0.5pt + rgb("#e5e7eb"), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[#raw("C")]#text(" after")#text(" end.")
+#text("N14 ")#metadata(none)<__indexterm-14>#text("Before ")#box(baseline: 15%, fill: rgb("#f3f4f6"), stroke: 0.5pt + rgb("#e5e7eb"), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[#text("Ctrl")]#text(" + ")#box(baseline: 15%, fill: rgb("#f3f4f6"), stroke: 0.5pt + rgb("#e5e7eb"), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[#text("C")]#text(" after")#text(" end.")
 
 #text("N15 ")#metadata(none)<__indexterm-15>#text("Before ")#strong[#text("File")#text(" ")#text(size: 1.15em, fill: rgb("#374151"))[›]#text(" ")#text("Open")#text(" ")#text(size: 1.15em, fill: rgb("#374151"))[›]#text(" ")#text("Recent")]#text(" after")#text(" end.")
 
@@ -193,7 +194,7 @@
 #par(hanging-indent: 1em)[#text("Before [literal")#text("]")#text(" after")#_acdc_index_pages((<__indexterm-7>,), "term")]
 #par(hanging-indent: 1em)[#text("Before \\https://example.org/inactive[Link] after")#_acdc_index_pages((<__indexterm-10>,), "term")]
 #par(hanging-indent: 1em)[#text("Before anchor:inner[Ref] after")#_acdc_index_pages((<__indexterm-12>,), "term")]
-#par(hanging-indent: 1em)[#text("Before ")#box(baseline: 15%, fill: rgb("#f3f4f6"), stroke: 0.5pt + rgb("#e5e7eb"), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[#raw("Ctrl")]#text(" + ")#box(baseline: 15%, fill: rgb("#f3f4f6"), stroke: 0.5pt + rgb("#e5e7eb"), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[#raw("C")]#text(" after")#_acdc_index_pages((<__indexterm-14>,), "term")]
+#par(hanging-indent: 1em)[#text("Before ")#box(baseline: 15%, fill: rgb("#f3f4f6"), stroke: 0.5pt + rgb("#e5e7eb"), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[#text("Ctrl")]#text(" + ")#box(baseline: 15%, fill: rgb("#f3f4f6"), stroke: 0.5pt + rgb("#e5e7eb"), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[#text("C")]#text(" after")#_acdc_index_pages((<__indexterm-14>,), "term")]
 #par(hanging-indent: 1em)[#text("Before ")#strong[#text("File")#text(" ")#text(size: 1.15em, fill: rgb("#374151"))[›]#text(" ")#text("Open")#text(" ")#text(size: 1.15em, fill: rgb("#374151"))[›]#text(" ")#text("Recent")]#text(" after")#_acdc_index_pages((<__indexterm-15>,), "term")]
 #par(hanging-indent: 1em)[#text("Before footnote:one[] after")#_acdc_index_pages((<__indexterm-20>,), "term")]
 #par(hanging-indent: 1em)[#text("Before footnote:one[Only note.] after")#_acdc_index_pages((<__indexterm-5>,), "term")]

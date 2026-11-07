@@ -1,0 +1,88 @@
+<p>Forward: <a href="#custom"><strong>First</strong></a> / <a href="#custom"><strong>First</strong>, &#8220;An <em>example</em>&#8221;</a> / <a href="#custom">An <em>example</em></a>.</p>
+<figure class="example-block" id="custom">
+<figcaption><strong>First</strong>. An <em>example</em></figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<p>Backward: <a href="#custom"><strong>First</strong></a> / <a href="#custom"><strong>First</strong>, &#8220;An <em>example</em>&#8221;</a>.</p>
+<div class="table-block">
+<table id="table" class="frame-all grid-all stretch">
+<caption class="title"><strong>Table prefix</strong>. A table</caption>
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top">Cell</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Table: <a href="#table"><strong>Table prefix</strong></a> / <a href="#table"><strong>Table prefix</strong>, &#8220;A table&#8221;</a>.</p>
+<figure class="listing-block" id="listing">
+<figcaption><strong>Code prefix</strong>. A listing</figcaption>
+<pre>code</pre>
+</figure>
+<p>Listing: <a href="#listing"><strong>Code prefix</strong></a> / <a href="#listing"><strong>Code prefix</strong>, &#8220;A listing&#8221;</a>.</p>
+<figure class="example-block" id="punctuation">
+<figcaption><strong>Keep.</strong> Styled period</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<p>Punctuation: <a href="#punctuation"><strong>Keep.</strong> </a> / <a href="#punctuation"><strong>Keep.</strong> , &#8220;Styled period&#8221;</a>.</p>
+<figure class="example-block" id="raw">
+<figcaption><strong>Raw</strong> . Separate suffix</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<p>Raw suffix: <a href="#raw"><strong>Raw</strong> </a> / <a href="#raw"><strong>Raw</strong> , &#8220;Separate suffix&#8221;</a>.</p>
+<figure class="example-block" id="raw-role">
+<figcaption><span class="underline">Keep. </span>Attributed raw suffix</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<p>Raw role: <a href="#raw-role"><span class="underline">Keep. </span></a> / <a href="#raw-role"><span class="underline">Keep. </span>, &#8220;Attributed raw suffix&#8221;</a>.</p>
+<figure class="example-block" id="labelled">
+<figcaption><strong>Unused</strong>. A title</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<p>Label: <a href="#labelled">Chosen <em>label</em></a> / <a href="#labelled">Chosen <em>label</em></a>.</p>
+<figure class="example-block" id="nested">
+<figcaption><strong>See</strong> <a href="#custom">An <em>example</em></a>. Nested reference</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<p>Nested: <a href="#nested"><strong>See</strong> [custom]</a> / <a href="#nested"><strong>See</strong> [custom], &#8220;Nested reference&#8221;</a>.</p>
+<figure class="example-block" id="linked">
+<figcaption><strong>Visit</strong> <a href="https://example.org">site</a>. External link</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<p>Linked: <a href="#linked"><strong>Visit</strong> </a><a href="https://example.org">site</a> / <a href="#linked"><strong>Visit</strong> </a><a href="https://example.org">site</a><a href="#linked">, &#8220;External link&#8221;</a>.</p>
+<figure class="example-block" id="registered">
+<figcaption><strong id="caption-mark">Mark</strong> <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup>. Registered content</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<p>Registered: <a href="#registered"><strong>Mark</strong> </a><sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> / <a href="#registered"><strong>Mark</strong> </a><sup class="footnote-ref">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup><a href="#registered">, &#8220;Registered content&#8221;</a>.</p>
+<p>Buffered: <sup><a href="#custom"><strong>First</strong></a></sup>.</p>
+<div class="listing-block">
+<pre><a href="#custom"><strong>First</strong></a> / <a href="#custom"><strong>First</strong>, &#8220;An <em>example</em>&#8221;</a>
+<a href="#punctuation"><strong>Keep.</strong> </a> / <a href="#punctuation"><strong>Keep.</strong> , &#8220;Styled period&#8221;</a></pre>
+</div>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+One note <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

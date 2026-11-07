@@ -1,0 +1,55 @@
+= literal-document-text(1)
+:doctype: manpage
+:docdate: 2026-11-04
+:revdate: 2026-11-04
+:manmanual: "Attribute text"
+:mansource: acdc
+:toc:
+:toc-title: "Contents π"
+:sectnums:
+:section-refsig: 'Part π'
+:figure-caption: "Reference figure π"
+:table-caption: ''
+:example-caption: 'Example π'
+:listing-caption: "Listing π"tail
+:imagesdir: 'assets'
+
+== NAME
+
+literal-document-text - preserve document attribute text
+
+== DESCRIPTION
+
+See xref:bird[xrefstyle=short], xref:table[xrefstyle=short], and xref:section[xrefstyle=short].
+
+:figure-caption: "Target figure π"
+
+[[bird]]
+.A bird
+image::bird.svg[Bird]
+
+[[table]]
+.A table
+|===
+|Cell
+|===
+
+.A sample
+[source,text]
+----
+sample
+----
+
+.An example
+====
+Body.
+====
+
+[[section]]
+== One
+
+Body.
+
+:xrefstyle: "short"
+
+Later see <<section>>, xref:section[], xref:section[xrefstyle=short], and xref:section[xrefstyle="'short'"].

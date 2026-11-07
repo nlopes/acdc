@@ -1,0 +1,730 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Dash source contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 22
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 7
+      }
+    ]
+  },
+  "attributes": {
+    "empty": true
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Earlier paragraph.",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 18
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "title": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "left -- right",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 48
+            },
+            {
+              "line": 7,
+              "col": 60
+            }
+          ]
+        }
+      ],
+      "alt": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "α left--right",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 19
+            },
+            {
+              "line": 7,
+              "col": 38
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 62
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "π left",
+          "location": [
+            {
+              "line": 9,
+              "col": 4
+            },
+            {
+              "line": 9,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "—​",
+          "location": [
+            {
+              "line": 9,
+              "col": 10
+            },
+            {
+              "line": 9,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "right",
+          "location": [
+            {
+              "line": 9,
+              "col": 12
+            },
+            {
+              "line": 9,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "π ",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 1
+                },
+                {
+                  "line": 11,
+                  "col": 2
+                }
+              ]
+            },
+            {
+              "name": "footnote",
+              "type": "inline",
+              "id": "n",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Note left",
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 14
+                    },
+                    {
+                      "line": 11,
+                      "col": 22
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": " — ",
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 23
+                    },
+                    {
+                      "line": 11,
+                      "col": 26
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "right.",
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 27
+                    },
+                    {
+                      "line": 11,
+                      "col": 32
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 11,
+                  "col": 3
+                },
+                {
+                  "line": 11,
+                  "col": 33
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " and ",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 34
+                },
+                {
+                  "line": 11,
+                  "col": 38
+                }
+              ]
+            },
+            {
+              "name": "footnote",
+              "type": "inline",
+              "id": "n",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 39
+                },
+                {
+                  "line": 11,
+                  "col": 50
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 51
+                },
+                {
+                  "line": 11,
+                  "col": 51
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 51
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "1a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "footnote_scope": true,
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "α left",
+                            "location": [
+                              {
+                                "line": 15,
+                                "col": 2
+                              },
+                              {
+                                "line": 15,
+                                "col": 7
+                              }
+                            ]
+                          },
+                          {
+                            "name": "symbol",
+                            "type": "string",
+                            "value": "—​",
+                            "location": [
+                              {
+                                "line": 15,
+                                "col": 15
+                              },
+                              {
+                                "line": 15,
+                                "col": 16
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "right; ",
+                            "location": [
+                              {
+                                "line": 15,
+                                "col": 17
+                              },
+                              {
+                                "line": 15,
+                                "col": 23
+                              }
+                            ]
+                          },
+                          {
+                            "name": "span",
+                            "type": "inline",
+                            "variant": "strong",
+                            "form": "constrained",
+                            "inlines": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "left",
+                                "location": [
+                                  {
+                                    "line": 15,
+                                    "col": 25
+                                  },
+                                  {
+                                    "line": 15,
+                                    "col": 28
+                                  }
+                                ]
+                              },
+                              {
+                                "name": "symbol",
+                                "type": "string",
+                                "value": " — ",
+                                "location": [
+                                  {
+                                    "line": 15,
+                                    "col": 29
+                                  },
+                                  {
+                                    "line": 15,
+                                    "col": 32
+                                  }
+                                ]
+                              },
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "right",
+                                "location": [
+                                  {
+                                    "line": 15,
+                                    "col": 33
+                                  },
+                                  {
+                                    "line": 15,
+                                    "col": 37
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 15,
+                                "col": 24
+                              },
+                              {
+                                "line": 15,
+                                "col": 38
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".",
+                            "location": [
+                              {
+                                "line": 15,
+                                "col": 39
+                              },
+                              {
+                                "line": 15,
+                                "col": 39
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 15,
+                            "col": 2
+                          },
+                          {
+                            "line": 15,
+                            "col": 39
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 14,
+                "col": 1
+              },
+              {
+                "line": 16,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "α left",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 3,
+                  "file": [
+                    "includes/compatibility_typography_dashes.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 8,
+                  "file": [
+                    "includes/compatibility_typography_dashes.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "—​",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 9,
+                  "file": [
+                    "includes/compatibility_typography_dashes.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 10,
+                  "file": [
+                    "includes/compatibility_typography_dashes.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "right; ",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 11,
+                  "file": [
+                    "includes/compatibility_typography_dashes.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 17,
+                  "file": [
+                    "includes/compatibility_typography_dashes.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "left",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 19,
+                      "file": [
+                        "includes/compatibility_typography_dashes.adoc"
+                      ]
+                    },
+                    {
+                      "line": 3,
+                      "col": 22,
+                      "file": [
+                        "includes/compatibility_typography_dashes.adoc"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": " — ",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 23,
+                      "file": [
+                        "includes/compatibility_typography_dashes.adoc"
+                      ]
+                    },
+                    {
+                      "line": 3,
+                      "col": 26,
+                      "file": [
+                        "includes/compatibility_typography_dashes.adoc"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "right",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 27,
+                      "file": [
+                        "includes/compatibility_typography_dashes.adoc"
+                      ]
+                    },
+                    {
+                      "line": 3,
+                      "col": 31,
+                      "file": [
+                        "includes/compatibility_typography_dashes.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 3,
+                  "col": 18,
+                  "file": [
+                    "includes/compatibility_typography_dashes.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 32,
+                  "file": [
+                    "includes/compatibility_typography_dashes.adoc"
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 33,
+                  "file": [
+                    "includes/compatibility_typography_dashes.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 33,
+                  "file": [
+                    "includes/compatibility_typography_dashes.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 3,
+              "file": [
+                "includes/compatibility_typography_dashes.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 33,
+              "file": [
+                "includes/compatibility_typography_dashes.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 33,
+          "file": [
+            "includes/compatibility_typography_dashes.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 33,
+      "file": [
+        "includes/compatibility_typography_dashes.adoc"
+      ]
+    }
+  ]
+}

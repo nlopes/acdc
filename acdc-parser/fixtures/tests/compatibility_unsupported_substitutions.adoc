@@ -1,0 +1,13 @@
+= Unsupported Substitutions
+:value: expanded
+
+[subs="header,+quotes,typo"]
+*Supported formatting* {value}.
+
+[subs="unknown,+attributes"]
+*Literal formatting* {value}.
+
+[stem,subs="attributes,quotes,macros"]
+++++
+{value} *x* footnote:[keep the source]
+++++

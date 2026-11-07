@@ -1,0 +1,43 @@
+<figure class="image-block">
+<img src="sample.svg" alt="Alt"><figcaption><strong>Image</strong> &lt;tag&gt; &copy; "quoted": Image title</figcaption>
+</figure>
+<figure class="listing-block">
+<figcaption><strong>Listing</strong> &lt;tag&gt; &copy;: Listing title</figcaption>
+<pre>*Body stays literal.*</pre>
+</figure>
+<figure class="example-block">
+<figcaption><strong>Example</strong> &lt;tag&gt;: Example title</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<div class="open-block">
+<div class="content">
+<div class="table-block">
+<table class="frame-all grid-all stretch">
+<caption class="title"><strong>Table</strong> &lt;tag&gt;: Table title</caption>
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top">Cell</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<figure class="image-block">
+<img src="sample.svg" alt="Alt"><figcaption><em>Allowed</em> Passthrough prefix</figcaption>
+</figure>
+<figure class="listing-block">
+<figcaption>*Literal* &lt;tag&gt; &amp;copy;: Literal prefix</figcaption>
+<pre>Body.</pre>
+</figure>
+<figure class="image-block">
+<img src="sample.svg" alt="Alt"><figcaption>Empty prefix</figcaption>
+</figure>
+<figure class="image-block">
+<img src="sample.svg" alt="Alt"><figcaption>Figure 1. Numbered after custom prefixes</figcaption>
+</figure>

@@ -1,0 +1,11 @@
+// omitted
+// tag::keep[]
+    π stem:[α \in [0,1\]].
+
+    stem:attributes[{value} footnote:include[Discarded.]].
+
+    [stem,subs="+attributes",title="*Selected*"]
+    ++++
+    {value} α < β
+    ++++
+// end::keep[]

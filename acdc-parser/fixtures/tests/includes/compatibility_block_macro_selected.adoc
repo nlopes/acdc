@@ -1,0 +1,14 @@
+// tag::selected[]
+    image::diagram.png[] preserved λ
+
+    [cols="a"]
+    |===
+    |Earlier.
+
+    audio::sound.wav[] preserved λ
+
+    video::movie.mp4[] preserved λ
+
+    toc::[] preserved λ
+    |===
+// end::selected[]

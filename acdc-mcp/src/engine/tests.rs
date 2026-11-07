@@ -1,5 +1,6 @@
 use std::{
     ffi::OsString,
+    fmt::Write as _,
     fs,
     path::{Path, PathBuf},
     sync::Arc,
@@ -13,7 +14,7 @@ use tokio_util::sync::CancellationToken;
 
 use crate::{
     config::{Cli, Config},
-    engine::{Engine, FileRequest, FindRequest, ReadRequest, ResolveRequest},
+    engine::{Common, Engine, FileRequest, FindRequest, ReadRequest, ResolveRequest},
 };
 
 fn write(root: &Path, name: &str, text: &str) {
@@ -89,7 +90,7 @@ fn inline_images_preserve_alt_text_in_both_formats() {
 }
 
 #[test]
-fn setext_headings_follow_the_server_feature() {
+fn setext_headings_follow_the_default_compatibility_mode() {
     let root = TempDir::new().unwrap();
     write(
         root.path(),
@@ -98,7 +99,7 @@ fn setext_headings_follow_the_server_feature() {
     );
     let tree = records(&engine(root.path()).tree(&file("setext.adoc")).unwrap());
     let has_installation = tree.iter().any(|item| item["title"] == "Installation");
-    assert_eq!(has_installation, cfg!(feature = "setext"), "{tree:?}");
+    assert!(has_installation, "{tree:?}");
 }
 
 #[test]
@@ -757,4 +758,192 @@ fn relative_links_in_includes_resolve_from_their_original_source() {
     request.target = "../other.html#end".into();
     let resolved = records(&engine.resolve(&request).unwrap());
     assert!(resolved.iter().any(|item| item["id"] == "end"));
+}
+
+fn engine_with_compatibility_mode(root: &Path, mode: &str) -> Engine {
+    let config = Cli::try_parse_from([
+        OsString::from("acdc-mcp"),
+        "--strictly-root-folders".into(),
+        "--root".into(),
+        root.as_os_str().to_owned(),
+        "--compatibility-mode".into(),
+        mode.into(),
+    ])
+    .unwrap()
+    .into_config()
+    .unwrap();
+    Engine::new(Arc::new(config), CancellationToken::new())
+}
+
+#[test]
+fn compatibility_mode_reaches_includes_cells_and_request_attributes_cannot_override_it() {
+    let root = TempDir::new().unwrap();
+    write(
+        root.path(),
+        "book.adoc",
+        "= Guide\n:word: *Selected*\n:compatibility-mode: draft\n\ninclude::part.adoc[]\n",
+    );
+    write(
+        root.path(),
+        "part.adoc",
+        "== {word}\n\n[cols=\"a\"]\n|===\n|\n=== {word} Cell\n|===\n",
+    );
+    for (mode, label) in [("asciidoctor", "*Selected*"), ("draft", "Selected")] {
+        let engine = engine_with_compatibility_mode(root.path(), mode);
+        let mut request = file("book.adoc");
+        request.common.attributes.insert(
+            "compatibility-mode".into(),
+            AttributeValue::from(if mode == "draft" {
+                "asciidoctor"
+            } else {
+                "draft"
+            }),
+        );
+        let items = records(&engine.tree(&request).unwrap());
+        assert!(items.iter().any(|item| item["title"] == label), "{items:?}");
+        let mut request = read("book.adoc", "@document");
+        request.format = crate::render::Format::Plain;
+        let text = content(&engine.read(&request, true).unwrap());
+        assert!(text.contains(&format!("{label} Cell")), "{text}");
+    }
+}
+
+#[test]
+fn compatibility_mode_is_part_of_continuation_identity_even_for_identical_content() {
+    let root = TempDir::new().unwrap();
+    write(
+        root.path(),
+        "guide.adoc",
+        &format!("= Guide\n\n== Read\n\n{}\n", "Long paragraph. ".repeat(300)),
+    );
+    let default = engine_with_compatibility_mode(root.path(), "asciidoctor");
+    let draft = engine_with_compatibility_mode(root.path(), "draft");
+    let mut request = read("guide.adoc", "Read");
+    request.common.max_tokens = Some(256);
+    let first: Value = serde_json::from_str(&default.read(&request, true).unwrap()).unwrap();
+    let other: Value = serde_json::from_str(&draft.read(&request, true).unwrap()).unwrap();
+    assert_eq!(first["items"], other["items"]);
+    request.common.cursor = first["next_cursor"].as_str().map(str::to_owned);
+    assert!(request.common.cursor.is_some());
+    assert!(default.read(&request, true).is_ok());
+    assert!(draft.read(&request, true).is_err());
+}
+
+#[test]
+fn tree_and_exact_selectors_share_all_retained_block_ids() {
+    let root = TempDir::new().unwrap();
+    write(
+        root.path(),
+        "identity.adoc",
+        "= Identity\n\n[[anchored,Label]]\nAnchored paragraph.\n\n[#break]\n'''\n\n[#dedicated]\nDedicated paragraph.\n",
+    );
+    let engine = engine(root.path());
+    let tree = records(&engine.tree(&file("identity.adoc")).unwrap());
+    for id in ["anchored", "break", "dedicated"] {
+        let entry = tree
+            .iter()
+            .find(|entry| entry["id"] == id)
+            .unwrap_or_else(|| panic!("missing {id}: {tree:?}"));
+        let selector = entry["selector"].as_str().unwrap();
+        let exact = records(
+            &engine
+                .read(&read("identity.adoc", &format!("#{id}")), false)
+                .unwrap(),
+        );
+        assert!(exact.iter().any(|entry| entry["selector"] == selector));
+        let resolved = records(
+            &engine
+                .resolve(&ResolveRequest {
+                    path: "identity.adoc".into(),
+                    target: format!("#{id}"),
+                    source_path: None,
+                    common: Common::default(),
+                })
+                .unwrap(),
+        );
+        assert!(
+            resolved
+                .iter()
+                .any(|entry| entry["kind"] == "resolved" && entry["selector"] == selector)
+        );
+    }
+}
+
+#[test]
+fn links_include_inline_media_controls_and_complete_owned_content_once() {
+    let root = TempDir::new().unwrap();
+    write(
+        root.path(),
+        "links.adoc",
+        "= link:https://example.org/header[Header]\n:experimental:\n\n.Title link:https://example.org/title[Title]\n[caption='link:https://example.org/caption[Caption]']\n====\nBody link:https://example.org/body[Body].\n====\n\n[quote,attribution='link:https://example.org/credit[Credit]',citetitle='link:https://example.org/citation[Citation]']\n____\nfootnote:n[link:https://example.org/note[Note]] footnote:n[]\n____\n\nimage::block.png[Block,link=https://example.org/block]\n\nimage:inline.png[alt='link:https://example.org/alt[Alt]',title='link:https://example.org/tip[Tip]',link=https://example.org/inline,extension=https://example.org/ignored]\n\nicon:heart[link=https://example.org/icon]\n\n[#reference,reftext='link:https://example.org/reference[Reference]']\nReferenced paragraph.\n\nSee <<reference>>. mailto:team@example.org[Team]\n\n[cols=\"a\"]\n|===\n|link:https://example.org/cell[Cell]\n|===\n",
+    );
+    for mode in ["asciidoctor", "draft"] {
+        let engine = engine_with_compatibility_mode(root.path(), mode);
+        let links = records(&engine.links(&file("links.adoc")).unwrap());
+        let targets = links
+            .iter()
+            .filter_map(|item| item["target"].as_str())
+            .collect::<Vec<_>>();
+        for suffix in [
+            "header", "title", "caption", "body", "credit", "citation", "note", "block", "alt",
+            "tip", "inline", "icon", "cell",
+        ] {
+            let target = format!("https://example.org/{suffix}");
+            assert_eq!(
+                targets.iter().filter(|value| **value == target).count(),
+                1,
+                "{mode}: {target}: {targets:?}"
+            );
+        }
+        assert!(targets.contains(&"#reference"), "{targets:?}");
+        assert!(targets.contains(&"mailto:team@example.org"), "{targets:?}");
+        let reference_links = usize::from(mode == "draft");
+        assert_eq!(
+            targets
+                .iter()
+                .filter(|value| **value == "https://example.org/reference")
+                .count(),
+            reference_links,
+            "{mode}: {targets:?}"
+        );
+        assert_eq!(targets.len(), 15 + reference_links, "{mode}: {targets:?}");
+    }
+}
+
+#[test]
+fn link_continuation_preserves_occurrence_order_and_include_origins() {
+    let root = TempDir::new().unwrap();
+    write(
+        root.path(),
+        "book.adoc",
+        "= Book\n\ninclude::parts/links.adoc[]\n",
+    );
+    let mut source = String::new();
+    for index in 0..30 {
+        writeln!(source, "image:bird.png[Bird,link=../target-{index}.adoc]\n").unwrap();
+    }
+    write(root.path(), "parts/links.adoc", &source);
+    let included = root.path().join("parts/links.adoc").canonicalize().unwrap();
+    for mode in ["asciidoctor", "draft"] {
+        let engine = engine_with_compatibility_mode(root.path(), mode);
+        let mut request = file("book.adoc");
+        request.common.max_tokens = Some(256);
+        let mut links = Vec::new();
+        loop {
+            let response = engine.links(&request).unwrap();
+            assert!(response.len() <= 1024, "{response}");
+            let page: Value = serde_json::from_str(&response).unwrap();
+            links.extend(page["items"].as_array().unwrap().iter().cloned());
+            request.common.cursor = page["next_cursor"].as_str().map(str::to_owned);
+            if request.common.cursor.is_none() {
+                break;
+            }
+        }
+        assert_eq!(links.len(), 30, "{mode}: {links:?}");
+        for (index, link) in links.iter().enumerate() {
+            assert_eq!(link["target"], format!("../target-{index}.adoc"));
+            assert_eq!(link["source"]["file"], json!(included));
+            assert_eq!(link["source"]["line"], index * 2 + 1);
+        }
+    }
 }

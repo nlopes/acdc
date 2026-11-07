@@ -1,0 +1,41 @@
+= Media escapes and registration
+:replacement: *Expanded*
+
+image:photo.png[alt="\*Literal* \] & < >",title="A \"quote\"",role=first,role=last]
+
+icon:heart[2x,alt="A \"quote\"",title="",opts="nofollow,noopener"]
+
+image:photo.png[alt="footnote:[Discarded.]",alt="*Selected* footnote:[Selected.]",title="_Tip_"]
+
+image:photo.png[alt=pass:[a,b],title="{replacement}"]
+
+link:https://example.org[Label,title="footnote:[Discarded link.]",title="Selected link"]
+
+[alt='*Ignored* footnote:[Discarded block.]']
+[alt='*Selected* footnote:[Selected block.]']
+image::photo.png[]
+
+[alt='*Ignored* footnote:[Discarded override.]']
+image::photo.png[Selected macro]
+
+image:photo.png[alt="footnote:[Escaped.\]",title="A &amp; B &#169;"]
+
+[caption='footnote:[Discarded prefix.]']
+.Caption
+image::photo.png[,caption="Literal -- prefix "]
+
+[alt="A \"quote\""]
+image::photo.png[]
+
+["A \"quote\""]
+image::photo.png[]
+
+[alt=Named]
+[custom.role]
+image::photo.png[]
+
+[custom.role,alt=Named]
+image::photo.png[]
+
+['*Formatted*']
+image::photo.png[]

@@ -1,0 +1,957 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Before: ",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "keyboard",
+          "type": "inline",
+          "keys": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Ctrl",
+                "location": [
+                  {
+                    "line": 1,
+                    "col": 14
+                  },
+                  {
+                    "line": 1,
+                    "col": 17
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "C",
+                "location": [
+                  {
+                    "line": 1,
+                    "col": 19
+                  },
+                  {
+                    "line": 1,
+                    "col": 19
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 9
+            },
+            {
+              "line": 1,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 1,
+              "col": 21
+            },
+            {
+              "line": 1,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "button",
+          "type": "inline",
+          "label": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Save",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 28
+                },
+                {
+                  "line": 1,
+                  "col": 31
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 23
+            },
+            {
+              "line": 1,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 1,
+              "col": 33
+            },
+            {
+              "line": 1,
+              "col": 34
+            }
+          ]
+        },
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 40
+                },
+                {
+                  "line": 1,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open",
+                "location": [
+                  {
+                    "line": 1,
+                    "col": 45
+                  },
+                  {
+                    "line": 1,
+                    "col": 48
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Recent",
+                "location": [
+                  {
+                    "line": 1,
+                    "col": 52
+                  },
+                  {
+                    "line": 1,
+                    "col": 57
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 35
+            },
+            {
+              "line": 1,
+              "col": 58
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 1,
+              "col": 59
+            },
+            {
+              "line": 1,
+              "col": 59
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 59
+        }
+      ]
+    },
+    {
+      "name": "experimental",
+      "type": "attribute",
+      "value": true,
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Enabled: ",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "keyboard",
+          "type": "inline",
+          "keys": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Ctrl",
+                "location": [
+                  {
+                    "line": 5,
+                    "col": 15
+                  },
+                  {
+                    "line": 5,
+                    "col": 18
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "C",
+                "location": [
+                  {
+                    "line": 5,
+                    "col": 20
+                  },
+                  {
+                    "line": 5,
+                    "col": 20
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 10
+            },
+            {
+              "line": 5,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 5,
+              "col": 22
+            },
+            {
+              "line": 5,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "button",
+          "type": "inline",
+          "label": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Save",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 29
+                },
+                {
+                  "line": 5,
+                  "col": 32
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 24
+            },
+            {
+              "line": 5,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 5,
+              "col": 34
+            },
+            {
+              "line": 5,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 41
+                },
+                {
+                  "line": 5,
+                  "col": 44
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open",
+                "location": [
+                  {
+                    "line": 5,
+                    "col": 46
+                  },
+                  {
+                    "line": 5,
+                    "col": 49
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Recent",
+                "location": [
+                  {
+                    "line": 5,
+                    "col": 53
+                  },
+                  {
+                    "line": 5,
+                    "col": 58
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 36
+            },
+            {
+              "line": 5,
+              "col": 59
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 5,
+              "col": 60
+            },
+            {
+              "line": 5,
+              "col": 60
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 60
+        }
+      ]
+    },
+    {
+      "name": "experimental",
+      "type": "attribute",
+      "value": "false",
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 20
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "False value: ",
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "keyboard",
+          "type": "inline",
+          "keys": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Ctrl",
+                "location": [
+                  {
+                    "line": 9,
+                    "col": 19
+                  },
+                  {
+                    "line": 9,
+                    "col": 22
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "C",
+                "location": [
+                  {
+                    "line": 9,
+                    "col": 24
+                  },
+                  {
+                    "line": 9,
+                    "col": 24
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 14
+            },
+            {
+              "line": 9,
+              "col": 25
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 9,
+              "col": 26
+            },
+            {
+              "line": 9,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "button",
+          "type": "inline",
+          "label": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Save",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 33
+                },
+                {
+                  "line": 9,
+                  "col": 36
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 28
+            },
+            {
+              "line": 9,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 9,
+              "col": 38
+            },
+            {
+              "line": 9,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 45
+                },
+                {
+                  "line": 9,
+                  "col": 48
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open",
+                "location": [
+                  {
+                    "line": 9,
+                    "col": 50
+                  },
+                  {
+                    "line": 9,
+                    "col": 53
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Recent",
+                "location": [
+                  {
+                    "line": 9,
+                    "col": 57
+                  },
+                  {
+                    "line": 9,
+                    "col": 62
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 40
+            },
+            {
+              "line": 9,
+              "col": 63
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 9,
+              "col": 64
+            },
+            {
+              "line": 9,
+              "col": 64
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 64
+        }
+      ]
+    },
+    {
+      "name": "experimental",
+      "type": "attribute",
+      "value": false,
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 15
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "After: ",
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "keyboard",
+          "type": "inline",
+          "keys": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Ctrl",
+                "location": [
+                  {
+                    "line": 13,
+                    "col": 13
+                  },
+                  {
+                    "line": 13,
+                    "col": 16
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "C",
+                "location": [
+                  {
+                    "line": 13,
+                    "col": 18
+                  },
+                  {
+                    "line": 13,
+                    "col": 18
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 8
+            },
+            {
+              "line": 13,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 13,
+              "col": 20
+            },
+            {
+              "line": 13,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "button",
+          "type": "inline",
+          "label": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Save",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 27
+                },
+                {
+                  "line": 13,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 22
+            },
+            {
+              "line": 13,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 13,
+              "col": 32
+            },
+            {
+              "line": 13,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "File",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 39
+                },
+                {
+                  "line": 13,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "items": [
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Open",
+                "location": [
+                  {
+                    "line": 13,
+                    "col": 44
+                  },
+                  {
+                    "line": 13,
+                    "col": 47
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Recent",
+                "location": [
+                  {
+                    "line": 13,
+                    "col": 51
+                  },
+                  {
+                    "line": 13,
+                    "col": 56
+                  }
+                ]
+              }
+            ]
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 34
+            },
+            {
+              "line": 13,
+              "col": 57
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 13,
+              "col": 58
+            },
+            {
+              "line": 13,
+              "col": 58
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 58
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 13,
+      "col": 58
+    }
+  ]
+}

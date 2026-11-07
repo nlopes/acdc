@@ -1,0 +1,7 @@
+// tag::body[]
+[pass]
+<span>é *Included raw*</span>
+
+[sidebar#included-side]
+Included *Sidebar*.
+// end::body[]

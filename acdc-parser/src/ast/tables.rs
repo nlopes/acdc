@@ -1,0 +1,336 @@
+use crate::{
+    ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock, DocumentAttributeAssignment,
+    HorizontalAlignment, Table, TableColumn, TablePresentation, TableRow, VerticalAlignment,
+};
+
+use super::{
+    AttributeValueRef, AttributesRef, BlockRef, ContentRef, DocumentAttributesRef, ElementIdRef,
+    FootnoteDefinitionRef, LocationRef, TokensRef,
+};
+
+/// A table block, including its title and local declarations.
+#[derive(Clone, Copy, Debug)]
+pub struct TableRef<'doc> {
+    pub(super) block: &'doc DelimitedBlock<'doc>,
+    pub(super) table: &'doc Table<'doc>,
+}
+
+impl<'doc> TableRef<'doc> {
+    /// Read this element's attributes.
+    #[must_use]
+    pub fn attributes(self) -> AttributesRef<'doc> {
+        AttributesRef::delimited(self.block)
+    }
+
+    /// Role tokens in their retained order.
+    #[must_use]
+    pub fn roles(self) -> TokensRef<'doc> {
+        self.attributes().roles()
+    }
+
+    /// Option tokens in their retained order.
+    #[must_use]
+    pub fn options(self) -> TokensRef<'doc> {
+        self.attributes().options()
+    }
+
+    /// The retained block style, including an explicitly empty style.
+    #[must_use]
+    pub fn style(self) -> Option<&'doc str> {
+        self.attributes().style()
+    }
+
+    pub(super) fn new(block: &'doc DelimitedBlock<'doc>, table: &'doc Table<'doc>) -> Self {
+        Self { block, table }
+    }
+
+    /// The table's caption title, including an explicitly empty title.
+    #[must_use]
+    pub fn title(self) -> Option<ContentRef<'doc>> {
+        self.block.title.content()
+    }
+
+    /// The primary ID, if present.
+    #[must_use]
+    pub fn id(self) -> Option<ElementIdRef<'doc>> {
+        self.attributes().id()
+    }
+
+    /// The source span of the complete table block.
+    #[must_use]
+    pub fn location(self) -> LocationRef<'doc> {
+        LocationRef::from(&self.block.location)
+    }
+
+    /// The span from the opening table delimiter through its end, excluding metadata and title.
+    #[must_use]
+    pub fn delimited_location(self) -> LocationRef<'doc> {
+        LocationRef::from(&self.table.location)
+    }
+
+    /// The retained table delimiter, such as `|===` or `!===`.
+    #[must_use]
+    pub fn delimiter(self) -> &'doc str {
+        self.block.delimiter
+    }
+
+    /// The opening delimiter's source span, if retained.
+    #[must_use]
+    pub fn open_delimiter_location(self) -> Option<LocationRef<'doc>> {
+        self.block
+            .open_delimiter_location
+            .as_ref()
+            .map(LocationRef::from)
+    }
+
+    /// The closing delimiter's source span, if retained.
+    #[must_use]
+    pub fn close_delimiter_location(self) -> Option<LocationRef<'doc>> {
+        self.block
+            .close_delimiter_location
+            .as_ref()
+            .map(LocationRef::from)
+    }
+
+    /// The header row, including a present empty row.
+    #[must_use]
+    pub fn header(self) -> Option<TableRowRef<'doc>> {
+        self.table.header.as_ref().map(TableRowRef::from)
+    }
+
+    /// Body rows in source order, excluding the header and footer.
+    pub fn rows(self) -> impl Iterator<Item = TableRowRef<'doc>> + Send + Sync + 'doc {
+        self.table.rows.iter().map(TableRowRef::from)
+    }
+
+    /// The footer row, including a present empty row.
+    #[must_use]
+    pub fn footer(self) -> Option<TableRowRef<'doc>> {
+        self.table.footer.as_ref().map(TableRowRef::from)
+    }
+
+    /// Column formats in table order.
+    pub fn columns(
+        self,
+    ) -> impl Iterator<Item = ColumnFormatRef<'doc>> + Clone + Send + Sync + 'doc {
+        self.table.columns.iter().map(ColumnFormatRef::from)
+    }
+
+    /// Decoration resolved at this table's source position; absent on unresolved constructed tables.
+    #[must_use]
+    pub fn presentation(self) -> Option<TablePresentation> {
+        self.table.presentation()
+    }
+
+    /// The local `frame` value, without document defaults or interpretation.
+    #[must_use]
+    pub fn declared_frame(self) -> Option<AttributeValueRef<'doc>> {
+        self.attributes().get("frame")
+    }
+
+    /// The local `grid` value, without document defaults or interpretation.
+    #[must_use]
+    pub fn declared_grid(self) -> Option<AttributeValueRef<'doc>> {
+        self.attributes().get("grid")
+    }
+
+    /// The local `stripes` value, without document defaults or interpretation.
+    #[must_use]
+    pub fn declared_stripes(self) -> Option<AttributeValueRef<'doc>> {
+        self.attributes().get("stripes")
+    }
+}
+
+/// A table row.
+#[derive(Clone, Copy, Debug)]
+pub struct TableRowRef<'doc> {
+    pub(super) row: &'doc TableRow<'doc>,
+}
+
+impl<'doc> TableRowRef<'doc> {
+    /// Cells in row order. Spanning cells occur once, without synthetic placeholders.
+    pub fn cells(self) -> impl Iterator<Item = TableCellRef<'doc>> + Send + Sync + 'doc {
+        self.row.columns.iter().map(TableCellRef::from)
+    }
+}
+
+impl<'doc> From<&'doc TableRow<'doc>> for TableRowRef<'doc> {
+    fn from(row: &'doc TableRow<'doc>) -> Self {
+        Self { row }
+    }
+}
+
+/// A table cell and its parsed formatting.
+#[derive(Clone, Copy, Debug)]
+pub struct TableCellRef<'doc> {
+    pub(super) cell: &'doc TableColumn<'doc>,
+}
+
+impl<'doc> TableCellRef<'doc> {
+    /// Whether this cell owns a footnote catalog, including an empty catalog.
+    /// Prepared style edits do not change this boundary.
+    #[must_use]
+    pub fn owns_footnotes(self) -> bool {
+        self.cell.footnotes.is_some()
+    }
+
+    /// Definitions owned by this cell, in retained catalog order.
+    /// Cells without an independent owner yield no definitions.
+    pub fn footnotes(
+        self,
+    ) -> impl Iterator<Item = FootnoteDefinitionRef<'doc>> + Send + Sync + 'doc {
+        self.cell
+            .footnotes
+            .iter()
+            .flatten()
+            .map(FootnoteDefinitionRef::from)
+    }
+
+    /// Assignments applied before this `AsciiDoc` cell's blocks, in application order.
+    ///
+    /// They initialize the cell's scope without changing its parent document.
+    pub fn initial_attributes(
+        self,
+    ) -> impl Iterator<Item = (&'doc str, &'doc DocumentAttributeAssignment<'doc>)> + Send + Sync + 'doc
+    {
+        self.cell.initial_attributes()
+    }
+
+    /// Direct blocks in cell order; their locations retain the original source coordinates.
+    pub fn blocks(self) -> impl Iterator<Item = BlockRef<'doc>> + Send + Sync + 'doc {
+        self.cell.content.iter().map(BlockRef::from)
+    }
+
+    /// The number of columns covered by this cell.
+    #[must_use]
+    pub fn colspan(self) -> usize {
+        self.cell.colspan
+    }
+
+    /// The number of rows covered by this cell.
+    #[must_use]
+    pub fn rowspan(self) -> usize {
+        self.cell.rowspan
+    }
+
+    /// The retained cell-level horizontal alignment.
+    #[must_use]
+    pub fn halign(self) -> Option<HorizontalAlignment> {
+        self.cell.halign
+    }
+
+    /// The retained cell-level vertical alignment.
+    #[must_use]
+    pub fn valign(self) -> Option<VerticalAlignment> {
+        self.cell.valign
+    }
+
+    /// The cell's resolved content style, when present.
+    #[must_use]
+    pub fn style(self) -> Option<ColumnStyle> {
+        self.cell.style
+    }
+}
+
+impl<'doc> From<&'doc TableColumn<'doc>> for TableCellRef<'doc> {
+    fn from(cell: &'doc TableColumn<'doc>) -> Self {
+        Self { cell }
+    }
+}
+
+/// A table column's format.
+#[derive(Clone, Copy, Debug)]
+pub struct ColumnFormatRef<'doc> {
+    format: &'doc ColumnFormat,
+}
+
+impl ColumnFormatRef<'_> {
+    /// The column's horizontal alignment.
+    #[must_use]
+    pub fn halign(self) -> HorizontalAlignment {
+        self.format.halign
+    }
+
+    /// The column's vertical alignment.
+    #[must_use]
+    pub fn valign(self) -> VerticalAlignment {
+        self.format.valign
+    }
+
+    /// The column's relative, percentage or automatic width.
+    #[must_use]
+    pub fn width(self) -> ColumnWidth {
+        self.format.width
+    }
+
+    /// The column's content style.
+    #[must_use]
+    pub fn style(self) -> ColumnStyle {
+        self.format.style
+    }
+}
+
+impl<'doc> From<&'doc ColumnFormat> for ColumnFormatRef<'doc> {
+    fn from(format: &'doc ColumnFormat) -> Self {
+        Self { format }
+    }
+}
+
+impl TablePresentation {
+    /// Resolve table decoration from local declarations and a document snapshot.
+    ///
+    /// Absent local declarations use document defaults. A present false or
+    /// valueless declaration masks the document value and uses the built-in
+    /// default. This does not update a table's stored presentation.
+    #[must_use]
+    pub fn resolve(
+        attributes: Option<AttributesRef<'_>>,
+        document_attributes: DocumentAttributesRef<'_>,
+    ) -> Self {
+        Self::resolve_with(attributes, |name| document_attributes.get(name))
+    }
+
+    /// Resolve table decoration using the document values active at this position.
+    ///
+    /// Local declarations follow the same masking rules as [`Self::resolve`].
+    /// The lookup supplies document defaults, including body changes or nested
+    /// scopes. This does not update a table's stored presentation.
+    #[must_use]
+    pub fn resolve_with<'value>(
+        attributes: Option<AttributesRef<'value>>,
+        lookup: impl FnMut(&str) -> Option<&'value crate::DocumentAttributeValue<'value>>,
+    ) -> Self {
+        Self::from_attribute_values(
+            |name| attributes.and_then(|attributes| attributes.get(name)),
+            lookup,
+        )
+    }
+}
+
+impl<'doc> From<TableRef<'doc>> for Table<'doc> {
+    /// Copy the table body and retained scope/presentation, excluding enclosing block attributes.
+    fn from(table: TableRef<'doc>) -> Self {
+        table.table.clone()
+    }
+}
+
+impl<'doc> From<TableRowRef<'doc>> for TableRow<'doc> {
+    /// Copy this row and its cells without copying sibling rows.
+    fn from(row: TableRowRef<'doc>) -> Self {
+        row.row.clone()
+    }
+}
+
+impl<'doc> From<TableCellRef<'doc>> for TableColumn<'doc> {
+    /// Copy this cell's prepared content, formatting and initial scope snapshot.
+    fn from(cell: TableCellRef<'doc>) -> Self {
+        cell.cell.clone()
+    }
+}
+
+impl From<ColumnFormatRef<'_>> for ColumnFormat {
+    /// Copy a column format without copying any cell content.
+    fn from(format: ColumnFormatRef<'_>) -> Self {
+        format.format.clone()
+    }
+}

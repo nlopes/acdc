@@ -1,0 +1,295 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Anchor with Spaces Test",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 25
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 25
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Double-bracket anchor syntax with spaces stays literal. A shorthand-looking\nvalue with spaces is a block style, not an ID.",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 46
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 46
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Section with Space in Anchor",
+          "location": [
+            {
+              "line": 7,
+              "col": 4
+            },
+            {
+              "line": 7,
+              "col": 31
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "style": "[my section id]"
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "The invalid double-bracket anchor above stays literal.",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 54
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 54
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 54
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Section with Space in Shorthand",
+          "location": [
+            {
+              "line": 12,
+              "col": 4
+            },
+            {
+              "line": 12,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "style": "#another space id"
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "The shorthand-looking value above is a style, not an ID.",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 1
+                },
+                {
+                  "line": 14,
+                  "col": 56
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 56
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 56
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Valid ID Section",
+          "location": [
+            {
+              "line": 17,
+              "col": 4
+            },
+            {
+              "line": 17,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "anchors": [
+          {
+            "id": "valid-id",
+            "location": [
+              {
+                "line": 16,
+                "col": 1
+              },
+              {
+                "line": 16,
+                "col": 13
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "This section has a valid ID without spaces.",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 1
+                },
+                {
+                  "line": 19,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 43
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 19,
+      "col": 43
+    }
+  ]
+}

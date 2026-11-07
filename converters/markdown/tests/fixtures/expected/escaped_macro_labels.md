@@ -26,7 +26,7 @@ E08 anchor:target\[Anchor \\\] text\]
 
 E09 indexterm2:\[Open \\\[ text\]
 
-E10 indexterm2:\[**Bold** -- Attribute \\\] text\]
+E10 indexterm2:\[**Bold** — Attribute \\\] text\]
 
 E11 indexterm2:\[Repeated \\\\\\\] term\]
 
@@ -46,7 +46,7 @@ E18 [Repeated \\\] label](https://example.org)
 
 E19 [<a id="_indexterm_2"></a>Nested active \] term](https://example.org)
 
-E20 \[\[escaped-target\]\] and <<escaped-target>>.
+E20 \[\[escaped-target\]\] and \<\<escaped-target\>\>.
 
 E21 \*literal\* \\\] text and <em>raw HTML</em>.
 

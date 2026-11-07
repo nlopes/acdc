@@ -5,160 +5,26 @@
 
 use std::borrow::Cow;
 
-use acdc_parser::{InlineMacro, InlineNode, NORMAL, Substitution, VERBATIM};
+use acdc_parser::{
+    InlineNode, NORMAL, Substitution, SymbolKind, VERBATIM,
+    ast::{InlineKind, InlineRef, SubstitutionSpecRef},
+};
 
-use crate::TraversalContext;
-
-#[cfg(feature = "pre-spec-subs")]
-use acdc_parser::SubstitutionSpec;
-
-#[cfg(feature = "pre-spec-subs")]
-use bitflags::bitflags;
-
-/// Expand known attribute references, leaving unresolved references unchanged.
+/// Resolve optional block settings against normal or verbatim defaults.
 ///
-/// The result borrows `text` when no reference is replaced or escape removed.
+/// Absence keeps the defaults. An empty explicit list disables substitutions;
+/// an empty modifier list keeps the defaults. Source entries retain the parser's
+/// group, ordering, and modifier rules.
 #[must_use]
-pub fn substitute_attributes<'text>(
-    text: &'text str,
-    attributes: &TraversalContext<'_>,
-) -> Cow<'text, str> {
-    attributes.substitute_attributes(text)
-}
-
-#[cfg(feature = "pre-spec-subs")]
-bitflags! {
-    /// Compact representation of the substitutions active for the block a
-    /// converter is currently rendering.
-    ///
-    /// Returned by [`effective_subs_flags`] and stored on the per-converter
-    /// `Processor` so that the inline-rendering hot path can ask
-    /// "is `X` substitution enabled?" in O(1) without traversing a
-    /// `Vec<Substitution>` or paying for runtime borrow tracking.
-    ///
-    /// This is the converter-side counterpart to the parser's internal
-    /// parse-time flags; both types are tiny `u8` bitsets that happen to
-    /// share variant names. The parser only ever needs the parse-time
-    /// subset, so its version stays crate-private.
-    ///
-    /// Only available when the `pre-spec-subs` feature is enabled — when
-    /// it's off, `[subs="…"]` block attributes are silently ignored at the
-    /// parser layer, so this bitset would always be `all()` and is omitted.
-    ///
-    /// The grouping variants `Normal` and `Verbatim` expand during
-    /// resolution and never appear in the bitset.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub struct SubsFlags: u8 {
-        /// Macros are recognised in the inline grammar.
-        const MACROS = 1 << 0;
-        /// `{attr}` attribute references are expanded.
-        const ATTRIBUTES = 1 << 1;
-        /// Trailing-`+` hard line breaks produce `LineBreak` nodes.
-        const POST_REPLACEMENTS = 1 << 2;
-        /// Inline formatting (`*bold*`, `_italic_`, etc.) is recognised.
-        const QUOTES = 1 << 3;
-        /// `<1>` / `<.>` callout markers are recognised inside verbatim content.
-        const CALLOUTS = 1 << 4;
-        /// HTML-style escaping of `<`, `>`, `&` to entities. Only the HTML
-        /// converter acts on this; other backends ignore it.
-        const SPECIAL_CHARS = 1 << 5;
-        /// Typography substitutions (em-dashes, arrows, ellipses, ©, ™, ®).
-        /// HTML emits entities; terminal/manpage emit Unicode characters.
-        const REPLACEMENTS = 1 << 6;
-    }
-}
-
-#[cfg(feature = "pre-spec-subs")]
-impl Default for SubsFlags {
-    /// All substitutions enabled — matches the asciidoctor default when no
-    /// `[subs="…"]` attribute is present.
-    fn default() -> Self {
-        Self::all()
-    }
-}
-
-#[cfg(feature = "pre-spec-subs")]
-impl SubsFlags {
-    /// Mapping between flag bits and their corresponding
-    /// [`Substitution`] variants. Used by [`Self::from_resolved`] and by
-    /// callers that need to round-trip between the two representations.
-    pub const FLAG_SUBSTITUTIONS: &'static [(SubsFlags, Substitution)] = &[
-        (SubsFlags::MACROS, Substitution::Macros),
-        (SubsFlags::ATTRIBUTES, Substitution::Attributes),
-        (SubsFlags::POST_REPLACEMENTS, Substitution::PostReplacements),
-        (SubsFlags::QUOTES, Substitution::Quotes),
-        (SubsFlags::CALLOUTS, Substitution::Callouts),
-        (SubsFlags::SPECIAL_CHARS, Substitution::SpecialChars),
-        (SubsFlags::REPLACEMENTS, Substitution::Replacements),
-    ];
-
-    /// Project a resolved substitution list (as returned by
-    /// [`SubstitutionSpec::resolve`]) into a [`SubsFlags`] bitset.
-    #[must_use]
-    pub(crate) fn from_resolved(subs: &[Substitution]) -> Self {
-        let mut flags = Self::empty();
-        for sub in subs {
-            for (flag, variant) in Self::FLAG_SUBSTITUTIONS {
-                if sub == variant {
-                    flags |= *flag;
-                    break;
-                }
-            }
-        }
-        flags
-    }
-}
-
-/// Resolve a [`SubstitutionSpec`] against the baseline for the block kind.
-///
-/// Verbatim blocks (listing, literal) use [`VERBATIM`] as the baseline;
-/// every other block uses [`NORMAL`]. Returns the concrete list of
-/// substitutions a converter should apply to the block's text.
-///
-/// Converters call this once per block (typically right before walking the
-/// inlines) and then query the returned list with `subs.contains(...)`.
-///
-/// # Behaviour
-///
-/// - `spec = None` — returns the baseline as-is (block has no `[subs="…"]`).
-/// - `spec = Some(Source(...))` — resolves the authored list against the baseline.
-/// - `spec = Some(Explicit(...))` — returns the explicit list verbatim.
-/// - `spec = Some(Modifiers(...))` — applies the `+`/`-` modifiers to the
-///   baseline.
-///
-/// Only available when the `pre-spec-subs` feature is enabled. When the
-/// feature is off, callers should use the baseline directly via
-/// [`baseline_subs`].
-#[cfg(feature = "pre-spec-subs")]
-#[must_use]
-pub fn effective_subs(spec: Option<&SubstitutionSpec>, is_verbatim: bool) -> Vec<Substitution> {
+pub fn effective_subs(
+    spec: Option<SubstitutionSpecRef<'_>>,
+    is_verbatim: bool,
+) -> Vec<Substitution> {
     let baseline = if is_verbatim { VERBATIM } else { NORMAL };
     match spec {
         Some(s) => s.resolve(baseline),
         None => baseline.to_vec(),
     }
-}
-
-/// Return the block-kind baseline substitution list, ignoring any `[subs="…"]`
-/// override. Always available — when `pre-spec-subs` is on, callers usually
-/// prefer [`effective_subs`] which folds the override in.
-#[must_use]
-pub fn baseline_subs(is_verbatim: bool) -> Vec<Substitution> {
-    let baseline = if is_verbatim { VERBATIM } else { NORMAL };
-    baseline.to_vec()
-}
-
-/// Like [`effective_subs`] but returns a compact [`SubsFlags`] bitset.
-///
-/// Preferred over [`effective_subs`] when the converter only ever queries
-/// membership: the result is a single `u8`, contains-checks become a single
-/// AND, and there's no per-block heap allocation.
-///
-/// Only available when the `pre-spec-subs` feature is enabled.
-#[cfg(feature = "pre-spec-subs")]
-#[must_use]
-pub fn effective_subs_flags(spec: Option<&SubstitutionSpec>, is_verbatim: bool) -> SubsFlags {
-    SubsFlags::from_resolved(&effective_subs(spec, is_verbatim))
 }
 
 /// Paragraph boundaries and neighboring text represented by one fragment.
@@ -241,38 +107,53 @@ impl TextBoundaries {
     /// barriers. Consumed characters and generated text retain their source owners.
     #[must_use]
     pub fn for_inline(self, nodes: &[InlineNode<'_>], index: usize) -> Self {
+        self.for_inline_refs(
+            nodes.get(index).map(InlineRef::from),
+            nodes.iter().take(index).rev().map(InlineRef::from),
+            nodes
+                .iter()
+                .skip(index.saturating_add(1))
+                .map(InlineRef::from),
+        )
+    }
+
+    /// Retain word context around a typed inline fragment.
+    ///
+    /// `before` starts with the preceding sibling and runs backward; `after`
+    /// starts with the following sibling and runs forward. Each iterator is
+    /// read only as far as needed, using the same text and barrier rules as
+    /// [`Self::for_inline`].
+    #[must_use]
+    pub fn for_inline_refs<'doc>(
+        self,
+        node: Option<InlineRef<'doc>>,
+        before: impl Iterator<Item = InlineRef<'doc>>,
+        after: impl Iterator<Item = InlineRef<'doc>>,
+    ) -> Self {
         // Invisible nodes need no typography context. Skipping their scans
         // keeps consecutive hidden terms from causing quadratic work.
-        if matches!(nodes.get(index), Some(InlineNode::InlineAnchor(anchor)) if !anchor.is_bibliography())
-            || matches!(nodes.get(index), Some(InlineNode::Macro(InlineMacro::IndexTerm(term))) if !term.is_visible())
+        if matches!(node.map(InlineRef::kind), Some(InlineKind::Anchor(anchor)) if !anchor.is_bibliography())
+            || matches!(node.map(InlineRef::kind), Some(InlineKind::IndexTerm(term)) if !term.is_visible())
         {
             return Self::NONE.with_ordinary_replacements(self.ordinary_replacements);
         }
-        let mut before = TextNeighbors::from_nodes(
-            nodes.iter().take(index).rev(),
-            false,
-            self.previous,
-            self.ordinary_replacements,
-        );
-        let mut after = TextNeighbors::from_nodes(
-            nodes.iter().skip(index.saturating_add(1)),
-            true,
-            self.next,
-            self.ordinary_replacements,
-        );
+        let mut before =
+            TextNeighbors::from_nodes(before, false, self.previous, self.ordinary_replacements);
+        let mut after =
+            TextNeighbors::from_nodes(after, true, self.next, self.ordinary_replacements);
         // Raw fragments own a separate substitution profile. They may borrow
         // word context, but cannot consume another profile's source text.
-        if matches!(nodes.get(index), Some(InlineNode::RawText(_))) {
+        if matches!(node.map(InlineRef::kind), Some(InlineKind::Raw(_))) {
             before.replaceable = 0;
             after.replaceable = 0;
         }
         let continuous = matches!(
-            nodes.get(index),
+            node.map(InlineRef::kind),
             Some(
-                InlineNode::PlainText(_)
-                    | InlineNode::VerbatimText(_)
-                    | InlineNode::RawText(_)
-                    | InlineNode::Macro(InlineMacro::IndexTerm(_))
+                InlineKind::Plain(_)
+                    | InlineKind::Verbatim(_)
+                    | InlineKind::Raw(_)
+                    | InlineKind::IndexTerm(_)
             )
         );
         let at_paragraph_start = before.touches_boundary();
@@ -351,8 +232,8 @@ impl TextNeighbors {
         true
     }
 
-    fn from_nodes<'n, 's: 'n>(
-        nodes: impl Iterator<Item = &'n InlineNode<'s>>,
+    fn from_nodes<'doc>(
+        nodes: impl Iterator<Item = InlineRef<'doc>>,
         start: bool,
         outer: Self,
         ordinary_replacements: bool,
@@ -434,29 +315,35 @@ impl TextNeighbors {
         self
     }
 
-    fn collect<'n, 's: 'n>(
+    fn collect<'doc>(
         &mut self,
-        nodes: impl Iterator<Item = &'n InlineNode<'s>>,
+        nodes: impl Iterator<Item = InlineRef<'doc>>,
         start: bool,
         ordinary_replacements: bool,
         preceding: &mut Vec<(char, bool)>,
     ) -> NeighborStop {
         for node in nodes {
-            let (text, replaceable) = match node {
-                InlineNode::PlainText(text) => {
-                    (text.content, ordinary_replacements && !text.escaped)
+            let (text, replaceable) = match node.kind() {
+                InlineKind::Plain(text) => {
+                    (text.text(), ordinary_replacements && !text.is_escaped())
                 }
-                InlineNode::VerbatimText(text) => (text.content, ordinary_replacements),
-                InlineNode::RawText(text) => (text.content, false),
-                InlineNode::LineBreak(_) => return NeighborStop::LineBreak,
-                InlineNode::InlineAnchor(anchor) if !anchor.is_bibliography() => continue,
-                InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
+                InlineKind::Verbatim(text) => (text.text(), ordinary_replacements),
+                InlineKind::Raw(text) => (text.text(), false),
+                InlineKind::Symbol(symbol) => (symbol.text(), false),
+                InlineKind::LineBreak(_) => return NeighborStop::LineBreak,
+                InlineKind::Anchor(anchor) if !anchor.is_bibliography() => continue,
+                InlineKind::IndexTerm(term) => {
                     if term.is_visible() {
                         let stop = if start {
-                            self.collect(term.term().iter(), true, ordinary_replacements, preceding)
+                            self.collect(
+                                term.term().inlines(),
+                                true,
+                                ordinary_replacements,
+                                preceding,
+                            )
                         } else {
                             self.collect(
-                                term.term().iter().rev(),
+                                term.term().inlines().rev(),
                                 false,
                                 ordinary_replacements,
                                 preceding,
@@ -468,18 +355,31 @@ impl TextNeighbors {
                     }
                     continue;
                 }
-                InlineNode::BoldText(_)
-                | InlineNode::ItalicText(_)
-                | InlineNode::MonospaceText(_)
-                | InlineNode::HighlightText(_)
-                | InlineNode::SubscriptText(_)
-                | InlineNode::SuperscriptText(_)
-                | InlineNode::CurvedQuotationText(_)
-                | InlineNode::CurvedApostropheText(_)
-                | InlineNode::StandaloneCurvedApostrophe(_)
-                | InlineNode::InlineAnchor(_)
-                | InlineNode::Macro(_)
-                | InlineNode::CalloutRef(_)
+                InlineKind::CharacterReference(_)
+                | InlineKind::Bold(_)
+                | InlineKind::Italic(_)
+                | InlineKind::Monospace(_)
+                | InlineKind::Highlight(_)
+                | InlineKind::Subscript(_)
+                | InlineKind::Superscript(_)
+                | InlineKind::CurvedQuotation(_)
+                | InlineKind::CurvedApostrophe(_)
+                | InlineKind::StandaloneCurvedApostrophe(_)
+                | InlineKind::Anchor(_)
+                | InlineKind::Callout(_)
+                | InlineKind::Footnote(_)
+                | InlineKind::Icon(_)
+                | InlineKind::Image(_)
+                | InlineKind::Keyboard(_)
+                | InlineKind::Button(_)
+                | InlineKind::Menu(_)
+                | InlineKind::Url(_)
+                | InlineKind::Link(_)
+                | InlineKind::Mailto(_)
+                | InlineKind::Autolink(_)
+                | InlineKind::CrossReference(_)
+                | InlineKind::Pass(_)
+                | InlineKind::Stem(_)
                 | _ => return NeighborStop::Barrier,
             };
             if start {
@@ -537,40 +437,6 @@ enum NeighborStop {
     Full,
     Barrier,
     LineBreak,
-}
-
-/// Apply typography [`Replacements`] to `text` only when `subs` includes
-/// [`SubsFlags::REPLACEMENTS`]; otherwise borrow `text` unchanged.
-///
-/// `text_boundaries` records which ends of the fragment touch the surrounding
-/// paragraph boundaries.
-///
-/// Used by the non-HTML converters (terminal, manpage) where typography is
-/// applied at deeply-nested `PlainText` leaves. HTML applies typography at
-/// shallow block-rendering sites and queries `subs` inline instead.
-///
-/// Only available when the `pre-spec-subs` feature is enabled. When the
-/// feature is off, converters fall back to applying typography
-/// unconditionally (the asciidoctor default).
-#[cfg(feature = "pre-spec-subs")]
-#[must_use]
-pub fn apply_replacements<'a>(
-    text: &'a str,
-    subs: SubsFlags,
-    replacements: &Replacements<'_>,
-    text_boundaries: TextBoundaries,
-) -> Cow<'a, str> {
-    if subs.contains(SubsFlags::REPLACEMENTS) {
-        // Quote substitutions own formatting escapes. Replacements in code or
-        // quotes-disabled prose must leave those escapes intact.
-        Cow::Owned(if subs.contains(SubsFlags::QUOTES) {
-            replacements.transform(text, text_boundaries)
-        } else {
-            replacements.transform_verbatim(text, text_boundaries)
-        })
-    } else {
-        Cow::Borrowed(text)
-    }
 }
 
 // Private Use Area placeholders for escaped patterns.
@@ -632,21 +498,45 @@ pub fn apply_passthrough_replacements<'a>(
     replacements: &Replacements<'_>,
     text_boundaries: TextBoundaries,
 ) -> Cow<'a, str> {
-    if !subs.contains(&Substitution::Replacements) {
+    apply_passthrough_replacements_iter(text, subs.iter().cloned(), replacements, text_boundaries)
+}
+
+/// Apply [`apply_passthrough_replacements`] using an ordered substitution iterator.
+///
+/// Consumes the profile once. Without a replacement stage, returns the original
+/// text without copying it.
+#[must_use]
+pub fn apply_passthrough_replacements_iter<'a>(
+    text: &'a str,
+    subs: impl Iterator<Item = Substitution>,
+    replacements: &Replacements<'_>,
+    text_boundaries: TextBoundaries,
+) -> Cow<'a, str> {
+    let mut replace = false;
+    let mut arrows = false;
+    let mut escape_after = false;
+    for substitution in subs {
+        match substitution {
+            Substitution::Replacements => replace = true,
+            Substitution::SpecialChars if replace => escape_after = true,
+            Substitution::SpecialChars => arrows = true,
+            Substitution::Attributes
+            | Substitution::Macros
+            | Substitution::PostReplacements
+            | Substitution::Normal
+            | Substitution::Verbatim
+            | Substitution::Quotes
+            | Substitution::Callouts
+            | _ => {}
+        }
+    }
+    if !replace {
         return Cow::Borrowed(text);
     }
-    let arrows = subs
-        .iter()
-        .take_while(|sub| **sub != Substitution::Replacements)
-        .any(|sub| *sub == Substitution::SpecialChars);
     let mut text = Cow::Borrowed(text);
     if !arrows && text.contains('&') {
         // A later escape stage sees the authored entity spelling. Without it,
         // an escaped arrow contributes literal characters to every backend.
-        let escape_after = subs
-            .iter()
-            .skip_while(|sub| **sub != Substitution::Replacements)
-            .any(|sub| *sub == Substitution::SpecialChars);
         for (pattern, replacement, literal) in [
             ("=&gt;", replacements.double_arrow_right, "=>"),
             ("-&gt;", replacements.arrow_right, "->"),
@@ -912,6 +802,25 @@ impl Replacements<'static> {
 }
 
 impl Replacements<'_> {
+    /// Encode an already resolved symbol using this output's replacement values.
+    #[must_use]
+    pub fn symbol(&self, kind: SymbolKind) -> &str {
+        match kind {
+            SymbolKind::SpacedEmDash => self.em_dash_spaced,
+            SymbolKind::WordBoundedEmDash => self.em_dash_word_bounded,
+            SymbolKind::Ellipsis => self.ellipsis,
+            SymbolKind::Copyright => self.copyright,
+            SymbolKind::RegisteredTrademark => self.registered,
+            SymbolKind::Trademark => self.trademark,
+            SymbolKind::CurvedApostrophe => self.apostrophe,
+            SymbolKind::RightArrow => self.arrow_right,
+            SymbolKind::LeftArrow => self.arrow_left,
+            SymbolKind::RightDoubleArrow => self.double_arrow_right,
+            SymbolKind::LeftDoubleArrow => self.double_arrow_left,
+            _ => kind.text(),
+        }
+    }
+
     /// Full typography pipeline: strip escapes, apply replacements, restore escaped patterns.
     #[must_use]
     pub fn transform(&self, text: &str, text_boundaries: TextBoundaries) -> String {
@@ -1216,6 +1125,30 @@ mod tests {
     use super::*;
 
     #[test]
+    fn typed_block_settings_keep_defaults_and_empty_values() {
+        use acdc_parser::SubstitutionSpec;
+
+        for is_verbatim in [false, true] {
+            let defaults = if is_verbatim { VERBATIM } else { NORMAL };
+            assert_eq!(effective_subs(None, is_verbatim), defaults);
+            for (spec, expected) in [
+                (SubstitutionSpec::Explicit(Vec::new()), Vec::new()),
+                (SubstitutionSpec::Modifiers(Vec::new()), defaults.to_vec()),
+                (
+                    SubstitutionSpec::Source(vec!["verbatim".into(), "+quotes".into()]),
+                    vec![
+                        Substitution::SpecialChars,
+                        Substitution::Callouts,
+                        Substitution::Quotes,
+                    ],
+                ),
+            ] {
+                assert_eq!(effective_subs(Some((&spec).into()), is_verbatim), expected);
+            }
+        }
+    }
+
+    #[test]
     fn passthrough_arrows_follow_character_escaping_order() {
         let source = r"-> => <- <= | \-> \=> \<- \<= | (C)";
         for (subs, expected) in [
@@ -1366,31 +1299,6 @@ mod tests {
         assert_eq!(
             restore_escaped_patterns(&strip_backslash_escapes(r"\<- back")),
             "<- back"
-        );
-    }
-
-    // --- apply_replacements tests ---
-
-    #[cfg(feature = "pre-spec-subs")]
-    #[test]
-    fn replacements_leave_formatting_escapes_to_quotes() {
-        assert_eq!(
-            apply_replacements(
-                r"(C) \*literal\*",
-                SubsFlags::REPLACEMENTS,
-                &UNICODE,
-                TextBoundaries::BOTH
-            ),
-            r"© \*literal\*"
-        );
-        assert_eq!(
-            apply_replacements(
-                r"(C) \*literal\*",
-                SubsFlags::REPLACEMENTS | SubsFlags::QUOTES,
-                &UNICODE,
-                TextBoundaries::BOTH
-            ),
-            "© *literal*"
         );
     }
 

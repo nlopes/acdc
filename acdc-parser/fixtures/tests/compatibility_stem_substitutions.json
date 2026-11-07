@@ -1,0 +1,320 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Unsupported STEM substitutions",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 32
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {
+    "stem": true,
+    "value": "expanded"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "stem:attributes[{value} footnote:discarded[Discarded.] pass:q[*Raw*]]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 69
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and expanded.",
+          "location": [
+            {
+              "line": 5,
+              "col": 70
+            },
+            {
+              "line": 5,
+              "col": 83
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 82
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "latexmath:quotes[*x*]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 7,
+              "col": 22
+            },
+            {
+              "line": 7,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "asciimath:+attributes[{value}]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 27
+            },
+            {
+              "line": 7,
+              "col": 56
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 7,
+              "col": 57
+            },
+            {
+              "line": 7,
+              "col": 57
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 57
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "stem:quotes,attributes[α \\[x\\] *x*]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 9,
+              "col": 36
+            },
+            {
+              "line": 9,
+              "col": 36
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 36
+        }
+      ]
+    },
+    {
+      "name": "stem",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "++++",
+      "metadata": {
+        "substitutions": [
+          "quotes",
+          "attributes"
+        ]
+      },
+      "content": "expanded *x* --",
+      "notation": "asciimath",
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "stem:attributes[expanded].",
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "attributes"
+        ]
+      },
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 25
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Escaped: \\stem:attributes[expanded].",
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 35
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 35
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 19,
+      "col": 35
+    }
+  ]
+}

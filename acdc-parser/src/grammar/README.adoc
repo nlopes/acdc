@@ -8,7 +8,7 @@ The public entry point for inline fragments is `acdc_parser::parse_inline`; full
 
 The design uses https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc[SDR-5] as a reference for separating parsing from conversion.
 The parser creates inline structure; converters render it and apply output escaping.
-The default-on `pre-spec-subs` feature also supports experimental ordered substitutions for compatibility with Asciidoctor.
+Both compatibility modes support explicit ordered block substitutions; Draft treats these controls as an acdc extension.
 This is not a claim of complete SDR-5 conformance.
 
 Two stages share the work:
@@ -26,6 +26,10 @@ See link:../../README.md#parsing-and-conversion[the parser README] for the suppo
 Formatting nodes can contain other inline nodes.
 Links, cross-references, footnotes, and visible index terms can also contain inline labels.
 Keep these labels nested; do not flatten them into generated markup and parse that markup again.
+Bracketed labels share quote-context and location handling.
+Media and tooltip attribute lists consume one closing-bracket escape before their values are parsed; link labels keep those escapes until label parsing.
+Preserve that boundary so an escaped bracket can still close a nested macro inside an attribute value.
+
 Unmatched formatting marks normally remain plain text.
 Malformed or incomplete macros follow their own literal-text or recovery rules.
 

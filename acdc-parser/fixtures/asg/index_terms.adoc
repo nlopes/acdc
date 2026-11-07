@@ -1,0 +1,18 @@
+= Index entries
+:label: Expanded
+
+Visible ((Visible *bold*)).
+
+Concealed (((Primary,Secondary,Tertiary))).
+
+indexterm2:[Visible,see=*Target*,id=entry,role="one two",opts="a,b",custom=kept].
+
+indexterm:[Primary,"",Tertiary,see-also="One, _Two_"].
+
+indexterm2:["",see=""].
+
+[subs="specialcharacters,macros,attributes,quotes"]
+indexterm2:[{label} *label*].
+
+[subs="specialcharacters,macros,replacements"]
+indexterm2:[Copyright (C)].

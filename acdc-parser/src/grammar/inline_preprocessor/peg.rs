@@ -4,8 +4,9 @@ use std::{borrow::Cow, mem::take};
 
 use crate::{
     DocumentAttributes, Pass, PassthroughKind, Position, Substitution, Warning, WarningKind,
-    grammar::inline_boundaries::check_constrained_opening_boundary,
-    model::substitution::parse_substitution,
+    grammar::{
+        brackets::escaped_bracket_end, inline_boundaries::check_constrained_opening_boundary,
+    },
 };
 
 use super::{
@@ -58,6 +59,7 @@ peg::parser! {
 
         rule inlines() -> String = quiet!{
             inherited_attribute()
+            / unsupported_stem_macro()
             / stem_macro()
             /
             // Keyboard macros can contain plus signs that would otherwise start passthroughs.
@@ -118,10 +120,22 @@ peg::parser! {
             }
 
         rule kbd_macro() -> String
-            = text:$("kbd:[" (!"]" [_])* "]") {
-                state.advance(text);
-                text.into()
+            = source:$(kbd_macro_pattern()) {?
+                state.preprocess_keyboard(source, document_attributes)
             }
+
+        rule unsupported_stem_macro() -> String
+            = start:position() source:$(unsupported_stem_macro_pattern()) {
+                state.recover_stem_substitutions(source, start)
+            }
+
+        rule unsupported_stem_macro_pattern()
+            = check_macros() (start:position!()
+              {? (!state.input.borrow()[..start].ends_with('\\'))
+                  .then_some(()).ok_or("escaped STEM macro") })
+              ("latexmath" / "asciimath" / "stem") ":"
+              ['a'..='z' | 'A'..='Z' | ',' | '+' | '-' | '_']+
+              "[" balanced_bracket_content() "]"
 
         rule stem_macro() -> String
             = source:$(stem_macro_pattern()) {?
@@ -139,9 +153,9 @@ peg::parser! {
                 let end_offset = start_offset + end - start;
                 let source_location = state.source_location_for(start_offset, end_offset);
                 state.add_warning(Warning::new(
-                    WarningKind::Other(Cow::Owned(format!(
-                        "Counters ({{{counter_type}:{name}}}) are not supported and will be removed from output"
-                    ))),
+                    WarningKind::UnsupportedCounter {
+                        reference: format!("{{{counter_type}:{name}}}"),
+                    },
                     Some(source_location),
                 ));
 
@@ -185,8 +199,8 @@ peg::parser! {
         // Escape recognition and the text lookahead must consume the same span.
         // Opening escapes also stay literal when attribute substitutions are disabled.
         rule escaped_attribute_reference_pattern()
-            = "\\{" attribute_name_pattern() "}"
-            / "\\"? "{" attribute_name_pattern() "\\}"
+            = "\\{" (counter_body_pattern() / attribute_name_pattern()) "}"
+            / "\\"? "{" (counter_body_pattern() / attribute_name_pattern()) "\\}"
                 {? state.attributes_enabled.get().then_some(()).ok_or("attribute substitutions disabled") }
 
         rule attribute_reference() -> String
@@ -295,55 +309,23 @@ peg::parser! {
 
         rule pass_macro() -> String
         = start:position() full:$(pass_macro_pattern()) {
-            let (subs_str, content, substitutions) =
-                InlinePreprocessorParserState::parse_pass_macro_parts(full);
-
-            // For pass macro: "pass:" (5) + substitutions + "[" (1) + "]" (1)
-            let padding = 5 + subs_str.len() + 1 + 1; // "pass:" + subs + "[" + "]"
-            let location = state.calculate_location(start, content, padding);
-                state.passthroughs.borrow_mut().push(Pass {
-                attribute_fragments: Box::default(),
-                    text: Some(content),
-                    substitutions: substitutions.clone(),
-                    location: location.clone(),
-                    kind: PassthroughKind::Macro,
-                });
-                let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-                state.source_map.borrow_mut().add_replacement(
-                    location.absolute_start,
-                    location.absolute_end,
-                    new_content.len(),
-                    ProcessedKind::Passthrough,
-                );
-                state.pass_found_count.set(state.pass_found_count.get() + 1);
-                new_content
-            }
-
-        rule substitutions() -> Vec<Substitution>
-            = subs:$(substitution_value() ** ",") {
-                if subs.is_empty() {
-                    Vec::new()
-                } else {
-                    subs.split(',')
-                        .filter_map(|s| parse_substitution(s.trim()))
-                        .collect()
-                }
+            state.extract_pass_macro(full, start)
             }
 
         // An escaped closing bracket belongs to the content, even after another
         // backslash. Share this boundary with extraction and its lookaheads.
         rule pass_macro_pattern()
-            = "pass:" substitutions() "[" ("\\]" / [^']'])* "]"
+            = "pass:" (substitution_value() ** ",") "[" ("\\]" / [^']'])* "]"
 
         rule substitution_value() -> &'input str
-            = $(['a'..='z' | 'A'..='Z' | '0'..='9']+)
+            = $(['a'..='z' | 'A'..='Z' | '0'..='9' | '_']+)
 
         rule unprocessed_text() -> String
             = text:$((
                 stem_literal_pattern()
                 / [^'{' | '+' | '`' | 'k' | 'p' | 's' | 'a' | 'l' | '\\']+
                 /
-                !(stem_macro_pattern() / escaped_passthrough_pattern() / escaped_attribute_reference_pattern() / passthrough_pattern(false) / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
+                !(unsupported_stem_macro_pattern() / stem_macro_pattern() / escaped_passthrough_pattern() / escaped_attribute_reference_pattern() / passthrough_pattern(false) / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
             )+) {
                 state.advance(text);
                 text.to_string()
@@ -368,14 +350,24 @@ peg::parser! {
 
         /// Pattern for counter references: {counter:name} or {counter:name:initial} or {counter2:...}
         rule counter_reference_pattern()
-            = "{" ("counter2" / "counter") ":" ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+ (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)? "}"
+            = "{" counter_body_pattern() "}"
               {? state.attributes_enabled.get().then_some(()).ok_or("attribute substitutions disabled") }
+
+        rule counter_body_pattern()
+            = ("counter2" / "counter") ":" ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+
+              (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)?
 
         rule attribute_reference_pattern() = "{" attribute_name_pattern() "}"
 
         rule attribute_name_pattern() = ['a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_']+
 
-        rule kbd_macro_pattern() = "kbd:[" (!"]" [_])* "]"
+        rule kbd_macro_pattern() = "kbd:[" balanced_bracket_content() "]"
+
+        rule balanced_bracket_content()
+            = #{|input, start| match escaped_bracket_end(input, start) {
+                Some(end) => peg::RuleResult::Matched(end, ()),
+                None => peg::RuleResult::Failed,
+            }}
 
         rule monospace_pattern()
             = ({? (!state.defer_monospace).then_some(()).ok_or("attributes precede quotes") })

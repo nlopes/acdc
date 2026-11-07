@@ -1,0 +1,459 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Asciidoctor mode does not map preceding quote positions to dimensions.",
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 74
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 3,
+              "col": 19
+            },
+            {
+              "line": 3,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "sample.png"
+      },
+      "location": [
+        {
+          "line": 2,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 22
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Asciidoctor mode does not map preceding positions to dimensions.",
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 68
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 7,
+              "col": 19
+            },
+            {
+              "line": 7,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "sample.png"
+      },
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 22
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Named macro dimensions override preceding positional attributes.",
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 68
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "400",
+          "width": "300"
+        }
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 11,
+              "col": 19
+            },
+            {
+              "line": 11,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "sample.png"
+      },
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 43
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Positional dimensions come from the macro.",
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 46
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "400",
+          "width": "300"
+        }
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 15,
+              "col": 19
+            },
+            {
+              "line": 15,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "sample.png"
+      },
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 30
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " An empty width slot inherits the preceding value only in Draft mode.",
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 72
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "400"
+        }
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 19,
+              "col": 19
+            },
+            {
+              "line": 19,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "sample.png"
+      },
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 27
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Named macro dimensions override positional macro dimensions.",
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 21,
+          "col": 64
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "600",
+          "width": "500"
+        }
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 23,
+              "col": 19
+            },
+            {
+              "line": 23,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "sample.png"
+      },
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 51
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Named block dimensions provide defaults.",
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 44
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "200",
+          "width": "100"
+        }
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 27,
+              "col": 19
+            },
+            {
+              "line": 27,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "sample.png"
+      },
+      "location": [
+        {
+          "line": 26,
+          "col": 1
+        },
+        {
+          "line": 27,
+          "col": 22
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " Positional macro dimensions override named block defaults.",
+      "location": [
+        {
+          "line": 29,
+          "col": 1
+        },
+        {
+          "line": 29,
+          "col": 62
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "400",
+          "width": "300"
+        }
+      },
+      "alt": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alt",
+          "location": [
+            {
+              "line": 31,
+              "col": 19
+            },
+            {
+              "line": 31,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "sample.png"
+      },
+      "location": [
+        {
+          "line": 30,
+          "col": 1
+        },
+        {
+          "line": 31,
+          "col": 30
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 31,
+      "col": 30
+    }
+  ]
+}

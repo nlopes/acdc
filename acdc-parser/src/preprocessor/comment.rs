@@ -1,8 +1,8 @@
 //! Comment context tracking for the preprocessor.
 //!
-//! `////` block comments bypass preprocessing on both paths. Other verbatim
-//! blocks and explicitly styled verbatim paragraphs keep slash lines literal
-//! while still processing directives.
+//! Comment blocks bypass preprocessing on both paths. Verbatim and raw
+//! blocks keep slash lines literal while still processing directives.
+//! Asciidoctor mode extends this rule to explicitly styled verbatim paragraphs.
 //! Tables are buffered before their cell styles are parsed, so their slash
 //! lines do not start comment blocks during outer preprocessing.
 //!
@@ -23,21 +23,10 @@
 //! whether that rebuild would change anything (and so can be skipped).
 
 use super::Preprocessor;
-use crate::{DocumentAttributes, Options, grammar::verbatim_paragraph_style};
-
-/// Whether Setext (two-line, underlined) titles are active: the `setext` feature
-/// is compiled in *and* the runtime option is set. Mirrors
-/// [`crate::grammar::setext::is_enabled`], but reads the flag from [`Options`]
-/// (the preprocessor runs before a `ParserState` exists).
-#[cfg(feature = "setext")]
-pub(super) fn setext_enabled(options: &Options) -> bool {
-    options.setext
-}
-
-#[cfg(not(feature = "setext"))]
-pub(super) fn setext_enabled(_options: &Options) -> bool {
-    false
-}
+use crate::{
+    CompatibilityMode, DocumentAttributes,
+    grammar::{block_attribute_line, block_attribute_style, style_overrides_block_form},
+};
 
 /// A `//`-prefixed line comment, but not `///` (literal text) or `////` (a
 /// block-comment delimiter). Un-trimmed on purpose: an indented `  //` is a
@@ -48,8 +37,7 @@ fn is_line_comment(line: &str) -> bool {
 
 /// A Setext underline: a uniform run of a single Setext underline character
 /// (`=`, `-`, `~`, `^`, `+`). The char set comes from
-/// [`crate::grammar::setext::char_to_level`], which yields `None` (so this is
-/// always `false`) when the `setext` feature is not compiled in.
+/// [`crate::grammar::setext::char_to_level`].
 fn is_setext_underline(line: &str) -> bool {
     let mut chars = line.chars();
     match chars.next() {
@@ -106,6 +94,7 @@ pub(super) struct BlockContext {
     block_comment: Option<(u8, usize)>,
     compound: Vec<(u8, usize)>,
     paragraph: ParagraphContext,
+    pending_style: Option<String>,
     title_width: Option<usize>,
 }
 
@@ -115,17 +104,23 @@ pub(super) struct CommentScanner {
     /// Whether the previous emitted line is content a comment would merge into.
     prev_attaches: bool,
     /// Whether Setext titles are active, so their underlines count as a heading
-    /// boundary (see [`setext_enabled`]).
+    /// boundary (see [`crate::grammar::setext::is_enabled`]).
     setext: bool,
+    compatibility_mode: CompatibilityMode,
 }
 
 impl CommentScanner {
     /// Start as if at a blank boundary so a leading comment is preserved.
-    pub(super) fn new(setext: bool, blocks: BlockContext) -> Self {
+    pub(super) fn new(
+        setext: bool,
+        blocks: BlockContext,
+        compatibility_mode: CompatibilityMode,
+    ) -> Self {
         Self {
             blocks,
             prev_attaches: false,
             setext,
+            compatibility_mode,
         }
     }
 
@@ -140,12 +135,28 @@ impl CommentScanner {
         {
             return false;
         }
-        match Preprocessor::is_verbatim_delimiter(line).and_then(delimiter_key) {
+        let open = (b'-', 2);
+        let delimiter = if line == "--"
+            && (self.blocks.verbatim == Some(open)
+                || self.blocks.verbatim.is_none()
+                    && self.blocks.compound.last() != Some(&open)
+                    && matches!(
+                        self.blocks.pending_style.as_deref(),
+                        Some("source" | "listing" | "literal" | "verse" | "pass")
+                    )) {
+            Some(open)
+        } else {
+            Preprocessor::is_verbatim_delimiter(line).and_then(delimiter_key)
+        };
+        match delimiter {
             Some(delimiter) if self.blocks.verbatim == Some(delimiter) => {
                 self.blocks.verbatim = None;
                 true
             }
             Some(delimiter) if self.blocks.verbatim.is_none() => {
+                if delimiter == open {
+                    self.blocks.compound.push(delimiter);
+                }
                 self.blocks.verbatim = Some(delimiter);
                 true
             }
@@ -184,7 +195,9 @@ impl CommentScanner {
     /// contents, where include and conditional directives still apply.
     pub(super) fn preserves_comment_line(&mut self, line: &str) -> bool {
         if let Some(delimiter) = self.blocks.block_comment {
-            if delimiter_key(line) == Some(delimiter) && line.bytes().all(|byte| byte == b'/') {
+            if delimiter_key(line) == Some(delimiter)
+                && line.bytes().all(|byte| byte == delimiter.0)
+            {
                 self.blocks.block_comment = None;
             }
             return true;
@@ -192,10 +205,15 @@ impl CommentScanner {
         if self.blocks.verbatim.is_none()
             && self.blocks.table.is_none()
             && self.blocks.paragraph != ParagraphContext::Active
-            && line.len() >= 4
-            && line.bytes().all(|byte| byte == b'/')
+            && (line.len() >= 4 && line.bytes().all(|byte| byte == b'/')
+                || line == "--"
+                    && self.blocks.pending_style.as_deref() == Some("comment")
+                    && self.blocks.compound.last() != Some(&(b'-', 2)))
         {
             self.blocks.block_comment = delimiter_key(line);
+            if line == "--" {
+                self.blocks.compound.push((b'-', 2));
+            }
             return true;
         }
         false
@@ -241,7 +259,7 @@ impl CommentScanner {
             || self.blocks.paragraph == ParagraphContext::None && !self.prev_attaches;
         self.blocks.title_width = (self.setext
             && first_content
-            && !line.is_empty()
+            && crate::grammar::setext::is_title(line)
             && !line.starts_with(['[', ':', '.', '/', '=', '#'])
             && !crate::grammar::helpers::title_looks_like_description_list(line))
         .then(|| line.trim().chars().count());
@@ -251,10 +269,12 @@ impl CommentScanner {
             || self.blocks.block_comment.is_some()
         {
             self.blocks.paragraph = ParagraphContext::None;
+            self.blocks.pending_style = None;
             return;
         }
 
         if heading {
+            self.blocks.pending_style = None;
             self.blocks.paragraph = ParagraphContext::None;
             self.blocks.title_width = None;
             return;
@@ -265,6 +285,7 @@ impl CommentScanner {
         });
         if compound.is_some() && compound.as_ref() == self.blocks.compound.last() {
             self.blocks.compound.pop();
+            self.blocks.pending_style = None;
             self.blocks.paragraph = ParagraphContext::None;
         } else if self.blocks.paragraph == ParagraphContext::Active {
             // Only a real paragraph or enclosing-block boundary ends code;
@@ -274,29 +295,33 @@ impl CommentScanner {
             }
         } else if let Some(compound) = compound {
             self.blocks.compound.push(compound);
+            self.blocks.pending_style = None;
             self.blocks.paragraph = ParagraphContext::None;
         } else if Preprocessor::is_verbatim_delimiter(line).is_some() || is_title_line(line, false)
         {
+            self.blocks.pending_style = None;
             self.blocks.paragraph = ParagraphContext::None;
-        } else if line.starts_with('[') && line.ends_with(']') {
-            if let Some(verbatim) = verbatim_paragraph_style(line, attributes) {
-                self.blocks.paragraph = if verbatim {
-                    ParagraphContext::Pending
-                } else {
-                    ParagraphContext::None
-                };
+        } else if let Some(list) = block_attribute_line(line, attributes, self.compatibility_mode) {
+            if let Some(style) = block_attribute_style(list, attributes, self.compatibility_mode) {
+                self.blocks.paragraph =
+                    if style_overrides_block_form(self.compatibility_mode, Some(&style)) {
+                        ParagraphContext::Pending
+                    } else {
+                        ParagraphContext::None
+                    };
+                self.blocks.pending_style = Some(style);
             }
-        } else if self.blocks.paragraph == ParagraphContext::Pending
-            && !line.is_empty()
+        } else if !line.is_empty()
             && !is_line_comment(line)
             && !super::attribute::is_declaration(line)
             && !line
                 .strip_prefix('.')
                 .is_some_and(|title| !title.is_empty() && !title.starts_with([' ', '\t', '.']))
         {
-            // Leading comments and metadata do not start the paragraph. Once
-            // content starts, slash lines must survive until inline parsing.
-            self.blocks.paragraph = ParagraphContext::Active;
+            if self.blocks.paragraph == ParagraphContext::Pending {
+                self.blocks.paragraph = ParagraphContext::Active;
+            }
+            self.blocks.pending_style = None;
         }
     }
 

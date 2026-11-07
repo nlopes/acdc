@@ -1,4 +1,8 @@
-use acdc_parser::{Block, InlineNode, Options, parse};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, BlockRef, InlineKind},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -25,27 +29,32 @@ fn constrained_monospace_boundaries_preserve_separate_source_spans() -> Result<(
                 let source =
                     format!(":blank:{newline}{newline}α {prefix}{quoted}{suffix} ω.{newline}");
                 let parsed = parse(&source, &Options::default())?;
-                let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+                let [BlockKind::Paragraph(paragraph)] = &*parsed
+                    .document()
+                    .blocks()
+                    .map(BlockRef::kind)
+                    .collect::<Vec<_>>()
+                else {
                     return Err("expected one paragraph".into());
                 };
                 let mono = paragraph
-                    .content
-                    .iter()
-                    .find(|node| matches!(node, InlineNode::MonospaceText(_)))
+                    .content()
+                    .inlines()
+                    .find(|node| matches!(node.kind(), InlineKind::Monospace(_)))
                     .ok_or_else(|| format!("missing monospace span: {source:?}"))?;
                 let span = mono.location();
                 assert_eq!(
-                    &parsed.source()[span.absolute_start..=span.absolute_end],
+                    &parsed.source()[span.absolute_start()..=span.absolute_end()],
                     quoted,
                     "{source:?}"
                 );
                 for sibling in [prefix, suffix].into_iter().filter(|text| !text.is_empty()) {
                     assert!(
-                        paragraph.content.iter().any(|node| {
-                            matches!(node, InlineNode::BoldText(_) | InlineNode::HighlightText(_))
+                        paragraph.content().inlines().any(|node| {
+                            matches!(node.kind(), InlineKind::Bold(_) | InlineKind::Highlight(_))
                                 && {
                                     let span = node.location();
-                                    &parsed.source()[span.absolute_start..=span.absolute_end]
+                                    &parsed.source()[span.absolute_start()..=span.absolute_end()]
                                         == sibling
                                 }
                         }),

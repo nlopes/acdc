@@ -1,7 +1,11 @@
 use std::{
     borrow::Cow,
+    fmt,
     path::{Path, PathBuf},
+    str::FromStr,
 };
+
+use serde::{Deserialize, Serialize};
 
 pub use crate::safe_mode::SafeMode;
 
@@ -12,6 +16,61 @@ use crate::{
 };
 
 const DEFAULT_MAX_TOTAL_INCLUDE_BYTES: usize = 64 * 1024 * 1024;
+
+/// Selects the supported Asciidoctor or draft language rules for one parse.
+///
+/// Both modes use the same AST. Reviewed differences cover named block titles,
+/// attribute lists and shorthand, anchor escapes, repeated roles and options,
+/// ordinary inline attribute ordering, and legacy underlined headings.
+/// Neither mode promises complete conformance. The choice does not change safe
+/// mode or output format.
+/// Explicit block `subs=` controls are shared; Draft supports them as an acdc extension.
+/// String parsing, display, and Serde use `asciidoctor` and `draft`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum CompatibilityMode {
+    /// Aim for maximum compatibility with Asciidoctor, with documented exceptions
+    /// for bug fixes and deliberate improvements to the user experience.
+    #[default]
+    Asciidoctor,
+    /// Resolve attribute references before ordinary inline syntax and apply
+    /// other supported draft rules while retaining shared acdc behavior.
+    Draft,
+}
+
+impl fmt::Display for CompatibilityMode {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Asciidoctor => "asciidoctor",
+            Self::Draft => "draft",
+        })
+    }
+}
+
+impl FromStr for CompatibilityMode {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "asciidoctor" => Ok(Self::Asciidoctor),
+            "draft" => Ok(Self::Draft),
+            _ => Err(format!(
+                "invalid compatibility mode: '{value}', expected asciidoctor or draft"
+            )),
+        }
+    }
+}
+
+impl CompatibilityMode {
+    pub(crate) fn legacy_controls_enabled(self, attributes: &DocumentAttributes<'_>) -> bool {
+        self == Self::Asciidoctor && attributes.contains_key("compat-mode")
+    }
+
+    pub(crate) fn ui_macros_enabled(self, attributes: &DocumentAttributes<'_>) -> bool {
+        self == Self::Draft || attributes.contains_key("experimental")
+    }
+}
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) enum FileXrefMode {
@@ -24,6 +83,8 @@ pub(crate) enum FileXrefMode {
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct Options<'a> {
+    /// Defaults to [`CompatibilityMode::Asciidoctor`]. Independent of ASG export.
+    pub compatibility_mode: CompatibilityMode,
     /// Defaults to [`SafeMode::Secure`], which prevents include reads.
     pub safe_mode: SafeMode,
     pub timings: bool,
@@ -47,15 +108,6 @@ pub struct Options<'a> {
     /// [`crate::ParseResult::source_recovery`] to detect recovered content.
     pub strict: bool,
     pub(crate) file_xref_mode: FileXrefMode,
-    /// Enable Setext-style (underlined) header parsing.
-    ///
-    /// When enabled, headers can use the legacy two-line syntax:
-    /// ```text
-    /// Document Title
-    /// ==============
-    /// ```
-    #[cfg(feature = "setext")]
-    pub setext: bool,
 }
 
 impl<'a> Options<'a> {
@@ -141,6 +193,7 @@ impl<'a> Options<'a> {
     pub fn into_builder(self) -> OptionsBuilder<'a> {
         let (attributes, defaults) = self.document_attributes.into_configuration();
         OptionsBuilder {
+            compatibility_mode: self.compatibility_mode,
             attributes,
             defaults,
             safe_mode: self.safe_mode,
@@ -150,8 +203,6 @@ impl<'a> Options<'a> {
             base_dir: self.base_dir,
             strict: self.strict,
             file_xref_mode: self.file_xref_mode,
-            #[cfg(feature = "setext")]
-            setext: self.setext,
         }
     }
 
@@ -164,6 +215,7 @@ impl<'a> Options<'a> {
     #[must_use]
     pub fn into_static(self) -> Options<'static> {
         Options {
+            compatibility_mode: self.compatibility_mode,
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes: self.document_attributes.into_static(),
@@ -172,8 +224,6 @@ impl<'a> Options<'a> {
             base_dir: self.base_dir,
             strict: self.strict,
             file_xref_mode: self.file_xref_mode,
-            #[cfg(feature = "setext")]
-            setext: self.setext,
         }
     }
 }
@@ -198,6 +248,7 @@ impl<'a> Options<'a> {
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct OptionsBuilder<'a> {
+    compatibility_mode: CompatibilityMode,
     safe_mode: SafeMode,
     timings: bool,
     attributes: RawAttributes<'a>,
@@ -207,11 +258,16 @@ pub struct OptionsBuilder<'a> {
     base_dir: Option<PathBuf>,
     strict: bool,
     file_xref_mode: FileXrefMode,
-    #[cfg(feature = "setext")]
-    setext: bool,
 }
 
 impl<'a> OptionsBuilder<'a> {
+    /// Select the language rules for this parse. Defaults to Asciidoctor.
+    #[must_use]
+    pub fn with_compatibility_mode(mut self, mode: CompatibilityMode) -> Self {
+        self.compatibility_mode = mode;
+        self
+    }
+
     /// Set the safe mode for parsing.
     ///
     /// # Example
@@ -444,28 +500,6 @@ impl<'a> OptionsBuilder<'a> {
             .or_else(|| self.defaults.get(name))
     }
 
-    /// Enable Setext-style (underlined) header parsing.
-    ///
-    /// When enabled, headers can use the legacy two-line syntax where
-    /// the title is underlined with `=`, `-`, `~`, `^`, or `+` characters.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use acdc_parser::Options;
-    ///
-    /// let options = Options::builder()
-    ///     .with_setext()
-    ///     .build()?;
-    /// # Ok::<(), acdc_parser::Error>(())
-    /// ```
-    #[cfg(feature = "setext")]
-    #[must_use]
-    pub fn with_setext(mut self) -> Self {
-        self.setext = true;
-        self
-    }
-
     /// Build the `Options` from this builder.
     ///
     /// # Example
@@ -485,6 +519,7 @@ impl<'a> OptionsBuilder<'a> {
     pub fn build(self) -> Result<Options<'a>, Error> {
         let document_attributes = initialize_configuration(self.attributes, self.defaults)?;
         Ok(Options {
+            compatibility_mode: self.compatibility_mode,
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes,
@@ -493,8 +528,6 @@ impl<'a> OptionsBuilder<'a> {
             base_dir: self.base_dir,
             strict: self.strict,
             file_xref_mode: self.file_xref_mode,
-            #[cfg(feature = "setext")]
-            setext: self.setext,
         })
     }
 }

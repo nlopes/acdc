@@ -1,0 +1,27 @@
+= Explicit link targets
+
+Short link:a:x[] and link:a::x[Double].
+
+link:urn:example:target[*URN*,role=marked,title=Tip,id=urn]
+
+link:custom+v1:value[Custom] and link:file:///tmp/manual.pdf[File].
+
+link:\file:///tmp/manual.pdf[Escaped file] and link:\urn:example:target[Escaped scheme].
+
+link:C:\docs\manual.pdf[Windows] and link:dir/a:b.html[Path].
+
+α link:urn:é:東京[Unicode] and link:file.html#part:one[Fragment].
+
+link:https://example.org/a?x=a:b[HTTPS] and link:mailto:person@example.org[Mail].
+
+\link:a:x[Escaped] and link::x[Leading colon] and link:a:x y[Space].
+
+link:a:x[Unfinished
+
+[cols=a]
+|===
+|
+link:urn:cell:target[*Cell*]
+|===
+
+include::includes/link_colon_targets.adoc[lines=2..2,indent=0]

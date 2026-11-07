@@ -1,0 +1,12 @@
+= Inline ordering effects
+:note: footnote:n[Named note.]
+:wrapped: *{note}*
+:unused: *footnote:u[Unused note.]*
+:term: ((Visible term))
+:term-wrapped: *{term}*
+
+Before. {wrapped} After. {wrapped}
+
+{term-wrapped}
+
+Protected: pass:[{wrapped}].

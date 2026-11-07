@@ -5,7 +5,11 @@
 //! containers are still visited so their entry-file children can be highlighted.
 
 use acdc_parser::{
-    AdmonitionVariant, Block, DelimitedBlockType, Document, Form, InlineMacro, InlineNode, Location,
+    AdmonitionVariant, Form,
+    ast::{
+        AttributesRef, BlockKind, BlockRef, ContentRef, DocumentRef, InlineKind, InlineRef,
+        ListItemRef, LocationRef, SectionRef, StructuralRef,
+    },
 };
 
 /// A span of source text that should receive a CSS class.
@@ -20,11 +24,11 @@ struct Span {
 
 /// Highlight entry text using the parsed document's source locations.
 /// Skip included-file spans, but still visit their entry-file children.
-pub fn highlight_from_ast(input: &str, doc: &Document) -> String {
+pub fn highlight_from_ast(input: &str, doc: DocumentRef<'_>) -> String {
     let mut spans = Vec::new();
 
-    if let Some(header) = &doc.header {
-        if let Some(start) = primary_start(input, &header.location) {
+    if let Some(header) = doc.header() {
+        if let Some(start) = primary_start(input, header.location()) {
             spans.push(Span {
                 start,
                 end: find_line_end(input, start),
@@ -34,19 +38,21 @@ pub fn highlight_from_ast(input: &str, doc: &Document) -> String {
         }
 
         // Highlight inline content in the title
-        collect_inline_spans(input, &header.title, &mut spans);
+        if let Some(title) = header.title() {
+            collect_inline_spans(input, title, &mut spans);
+        }
 
         // Highlight subtitle if present
-        if let Some(subtitle) = &header.subtitle {
+        if let Some(subtitle) = header.subtitle() {
             collect_inline_spans(input, subtitle, &mut spans);
         }
 
-        if let Some((start, end)) = primary_range(input, &header.location) {
+        if let Some((start, end)) = primary_range(input, header.location()) {
             collect_header_attributes(input, start, end, &mut spans);
         }
     }
 
-    for block in &doc.blocks {
+    for block in doc.blocks() {
         collect_block_spans(input, block, &mut spans);
     }
 
@@ -79,154 +85,176 @@ fn collect_header_attributes(input: &str, start: usize, end: usize, spans: &mut 
 // Block-level span collection
 // ---------------------------------------------------------------------------
 
-#[allow(clippy::too_many_lines)]
-fn collect_block_spans(input: &str, block: &Block, spans: &mut Vec<Span>) {
-    match block {
-        Block::Section(section) => {
-            if let Some(start) = primary_start(input, &section.location) {
-                let heading_end = find_line_end(input, start);
-                spans.push(Span {
-                    start,
-                    end: heading_end,
-                    class: "adoc-heading",
-                    priority: 1,
-                });
-
-                let next_line_start = heading_end + 1; // Skip newline
-                if primary_range(input, &section.location)
-                    .is_some_and(|(_, end)| next_line_start < end)
-                {
-                    let next_line_end = find_line_end(input, next_line_start);
-
-                    if let Some(next_line) = input.get(next_line_start..next_line_end) {
-                        let trimmed = next_line.trim();
-                        if !trimmed.is_empty()
-                            && trimmed.chars().all(|c| matches!(c, '-' | '~' | '^' | '+'))
-                        {
-                            spans.push(Span {
-                                start: next_line_start,
-                                end: next_line_end,
-                                class: "adoc-heading",
-                                priority: 1,
-                            });
-                        }
-                    }
-                }
-            }
-            // Highlight inline content in the section title
-            collect_inline_spans(input, &section.title, spans);
-
-            for child in &section.content {
-                collect_block_spans(input, child, spans);
-            }
+fn collect_block_spans(input: &str, block: BlockRef<'_>, spans: &mut Vec<Span>) {
+    match block.kind() {
+        BlockKind::Section(section) => {
+            collect_section_spans(input, section, spans);
+            collect_children(input, block.into(), spans);
         }
-        Block::DocumentAttribute(attr) => {
-            push_block_span(input, spans, &attr.location, "adoc-attribute");
+        BlockKind::DocumentAttribute(_) => {
+            push_block_span(input, spans, block.location(), "adoc-attribute");
         }
-        Block::Comment(comment) => {
-            push_block_span(input, spans, &comment.location, "adoc-comment");
+        BlockKind::Comment(_) => push_block_span(input, spans, block.location(), "adoc-comment"),
+        BlockKind::ThematicBreak(_) => {
+            push_block_span(input, spans, block.location(), "adoc-thematic-break");
+            collect_block_title_spans(input, block.title(), spans);
         }
-        Block::ThematicBreak(tb) => {
-            push_block_span(input, spans, &tb.location, "adoc-thematic-break");
-            collect_block_title_spans(input, &tb.title, spans);
+        BlockKind::PageBreak(_) => {
+            push_block_span(input, spans, block.location(), "adoc-page-break");
+            collect_block_title_spans(input, block.title(), spans);
         }
-        Block::PageBreak(pb) => {
-            push_block_span(input, spans, &pb.location, "adoc-page-break");
-            collect_block_title_spans(input, &pb.title, spans);
+        BlockKind::Admonition(admonition) => {
+            collect_block_metadata_spans(input, block, spans);
+            collect_admonition_label(input, &admonition.variant(), admonition.location(), spans);
+            collect_block_title_spans(input, block.title(), spans);
+            collect_children(input, block.into(), spans);
         }
-        Block::Admonition(adm) => {
-            collect_block_metadata_spans(input, &adm.metadata, spans);
-            let label_len = admonition_label_len(&adm.variant);
-            // Only highlight the label if the text actually starts with it (handles NOTE: vs [NOTE])
-            // The label length includes the colon and space, so we check for that prefix
-            let expected_label_prefix = format!("{}:", adm.variant).to_uppercase();
-            if let Some(start) = primary_start(input, &adm.location)
-                && let Some(text) = input.get(start..)
-                && text.starts_with(&expected_label_prefix)
-                && start + label_len <= input.len()
-            {
-                spans.push(Span {
-                    start,
-                    end: start + label_len,
-                    class: "adoc-admonition",
-                    priority: 1,
-                });
-            }
-
-            // Highlight title if present
-            collect_block_title_spans(input, &adm.title, spans);
-
-            for child in &adm.blocks {
-                collect_block_spans(input, child, spans);
+        BlockKind::UnorderedList(_)
+        | BlockKind::OrderedList(_)
+        | BlockKind::CalloutList(_)
+        | BlockKind::DescriptionList(_) => {
+            collect_block_title_spans(input, block.title(), spans);
+            collect_children(input, block.into(), spans);
+        }
+        BlockKind::Example(_)
+        | BlockKind::Open(_)
+        | BlockKind::Sidebar(_)
+        | BlockKind::Quote(_)
+        | BlockKind::Listing(_)
+        | BlockKind::Literal(_)
+        | BlockKind::Passthrough(_)
+        | BlockKind::Verse(_)
+        | BlockKind::DelimitedComment(_)
+        | BlockKind::Table(_)
+        | BlockKind::Stem(_) => {
+            collect_delimited_block_spans(input, block, spans);
+            collect_block_title_spans(input, block.title(), spans);
+        }
+        BlockKind::Paragraph(paragraph) => {
+            collect_block_metadata_spans(input, block, spans);
+            collect_block_title_spans(input, block.title(), spans);
+            collect_inline_spans(input, paragraph.content(), spans);
+        }
+        BlockKind::Image(_) | BlockKind::Audio(_) | BlockKind::Video(_) => {
+            collect_block_macro_spans(input, block.location(), spans);
+        }
+        BlockKind::DiscreteHeader(heading) => {
+            push_block_span(input, spans, heading.location(), "adoc-heading");
+            if let Some(title) = heading.title() {
+                collect_inline_spans(input, title, spans);
             }
         }
-        Block::UnorderedList(list) => {
-            // Highlight list title
-            collect_block_title_spans(input, &list.title, spans);
-            for item in &list.items {
-                collect_list_item_spans(input, item, spans);
-            }
+        BlockKind::TableOfContents(_) => {
+            push_block_span(input, spans, block.location(), "adoc-macro");
         }
-        Block::OrderedList(list) => {
-            // Highlight list title
-            collect_block_title_spans(input, &list.title, spans);
-            for item in &list.items {
-                collect_list_item_spans(input, item, spans);
-            }
-        }
-        Block::CalloutList(list) => {
-            // Highlight list title
-            collect_block_title_spans(input, &list.title, spans);
-            for item in &list.items {
-                push_inline_span(input, spans, &item.callout.location, "adoc-callout");
-                collect_inline_spans(input, &item.principal, spans);
-                for child in &item.blocks {
-                    collect_block_spans(input, child, spans);
-                }
-            }
-        }
-        Block::DescriptionList(list) => {
-            // Highlight list title
-            collect_block_title_spans(input, &list.title, spans);
-            collect_description_list_spans(input, list, spans);
-        }
-        Block::DelimitedBlock(db) => {
-            collect_delimited_block_spans(input, db, spans);
-            // Highlight title if present
-            collect_block_title_spans(input, &db.title, spans);
-        }
-        Block::Paragraph(para) => {
-            collect_block_metadata_spans(input, &para.metadata, spans);
-            // Highlight title if present
-            collect_block_title_spans(input, &para.title, spans);
-            collect_inline_spans(input, &para.content, spans);
-        }
-        Block::Image(img) => {
-            collect_block_macro_spans(input, &img.location, spans);
-        }
-        Block::Audio(audio) => {
-            collect_block_macro_spans(input, &audio.location, spans);
-        }
-        Block::Video(video) => {
-            collect_block_macro_spans(input, &video.location, spans);
-        }
-        Block::DiscreteHeader(dh) => {
-            push_block_span(input, spans, &dh.location, "adoc-heading");
-            collect_inline_spans(input, &dh.title, spans);
-        }
-        Block::TableOfContents(toc) => push_block_span(input, spans, &toc.location, "adoc-macro"),
         _ => {}
     }
 }
 
-fn collect_block_macro_spans(input: &str, location: &Location, spans: &mut Vec<Span>) {
+fn collect_section_spans(input: &str, section: SectionRef<'_>, spans: &mut Vec<Span>) {
+    if let Some(start) = primary_start(input, section.location()) {
+        let heading_end = find_line_end(input, start);
+        spans.push(Span {
+            start,
+            end: heading_end,
+            class: "adoc-heading",
+            priority: 1,
+        });
+        let next_line_start = heading_end + 1;
+        if primary_range(input, section.location()).is_some_and(|(_, end)| next_line_start < end) {
+            let next_line_end = find_line_end(input, next_line_start);
+            if let Some(next_line) = input.get(next_line_start..next_line_end) {
+                let trimmed = next_line.trim();
+                if !trimmed.is_empty()
+                    && trimmed.chars().all(|c| matches!(c, '-' | '~' | '^' | '+'))
+                {
+                    spans.push(Span {
+                        start: next_line_start,
+                        end: next_line_end,
+                        class: "adoc-heading",
+                        priority: 1,
+                    });
+                }
+            }
+        }
+    }
+    if let Some(title) = section.title() {
+        collect_inline_spans(input, title, spans);
+    }
+}
+
+fn collect_admonition_label(
+    input: &str,
+    variant: &AdmonitionVariant,
+    location: LocationRef<'_>,
+    spans: &mut Vec<Span>,
+) {
+    let label_len = admonition_label_len(variant);
+    let expected_label_prefix = format!("{variant}:").to_uppercase();
+    if let Some(start) = primary_start(input, location)
+        && let Some(text) = input.get(start..)
+        && text.starts_with(&expected_label_prefix)
+        && start + label_len <= input.len()
+    {
+        spans.push(Span {
+            start,
+            end: start + label_len,
+            class: "adoc-admonition",
+            priority: 1,
+        });
+    }
+}
+
+fn collect_children(input: &str, node: StructuralRef<'_>, spans: &mut Vec<Span>) {
+    for child in node.children() {
+        match child {
+            StructuralRef::Block(block) => {
+                collect_block_spans(input, block, spans);
+                continue;
+            }
+            StructuralRef::ListItem(item) => {
+                if let Some(start) = primary_start(input, item.location()) {
+                    collect_list_marker_spans(input, item, start, spans);
+                }
+                collect_inline_spans(input, item.principal(), spans);
+            }
+            StructuralRef::DescriptionListTerm(term) => {
+                if let Some(location) = term.delimiter_location() {
+                    push_block_span(input, spans, location, "adoc-description-marker");
+                }
+                collect_inline_spans(input, term.content(), spans);
+            }
+            StructuralRef::DescriptionListDefinition(definition) => {
+                if let Some(principal) = definition.principal() {
+                    collect_inline_spans(input, principal, spans);
+                }
+            }
+            StructuralRef::CalloutListItem(item) => {
+                push_inline_span(input, spans, item.callout().location(), "adoc-callout");
+                collect_inline_spans(input, item.principal(), spans);
+            }
+            StructuralRef::DescriptionListItem(_)
+            | StructuralRef::TableRow(_)
+            | StructuralRef::TableCell(_) => {}
+            StructuralRef::Document(_) | StructuralRef::Header(_) | _ => continue,
+        }
+        collect_children(input, child, spans);
+    }
+}
+
+fn collect_block_macro_spans(input: &str, location: LocationRef<'_>, spans: &mut Vec<Span>) {
     push_block_span(input, spans, location, "adoc-macro");
     if let Some((start, end)) = primary_range(input, location) {
         collect_macro_target_spans(input, start, end, 1, spans);
     }
 }
 
-fn push_block_span(input: &str, spans: &mut Vec<Span>, location: &Location, class: &'static str) {
+fn push_block_span(
+    input: &str,
+    spans: &mut Vec<Span>,
+    location: LocationRef<'_>,
+    class: &'static str,
+) {
     let Some((start, end)) = primary_range(input, location) else {
         return;
     };
@@ -238,7 +266,12 @@ fn push_block_span(input: &str, spans: &mut Vec<Span>, location: &Location, clas
     });
 }
 
-fn push_inline_span(input: &str, spans: &mut Vec<Span>, location: &Location, class: &'static str) {
+fn push_inline_span(
+    input: &str,
+    spans: &mut Vec<Span>,
+    location: LocationRef<'_>,
+    class: &'static str,
+) {
     let Some((start, end)) = primary_range(input, location) else {
         return;
     };
@@ -252,10 +285,10 @@ fn push_inline_span(input: &str, spans: &mut Vec<Span>, location: &Location, cla
 
 fn collect_formatted_inline(
     input: &str,
-    location: &Location,
+    location: LocationRef<'_>,
     delimiter_len: usize,
     class: &'static str,
-    content: &[InlineNode],
+    content: ContentRef<'_>,
     spans: &mut Vec<Span>,
 ) {
     if let Some((start, end)) = primary_range(input, location)
@@ -283,48 +316,13 @@ fn collect_formatted_inline(
     collect_inline_spans(input, content, spans);
 }
 
-fn collect_description_list_spans(
-    input: &str,
-    list: &acdc_parser::DescriptionList,
-    spans: &mut Vec<Span>,
-) {
-    for item in &list.items {
-        if let Some(loc) = &item.delimiter_location
-            && let Some((start, end)) = primary_range(input, loc)
-        {
-            spans.push(Span {
-                start,
-                end,
-                class: "adoc-description-marker",
-                priority: 1,
-            });
-        }
-        collect_inline_spans(input, &item.term, spans);
-        collect_inline_spans(input, &item.principal_text, spans);
-        for child in &item.description {
-            collect_block_spans(input, child, spans);
-        }
-    }
-}
-
-fn collect_list_item_spans(input: &str, item: &acdc_parser::ListItem, spans: &mut Vec<Span>) {
-    if let Some(start) = primary_start(input, &item.location) {
-        collect_list_marker_spans(input, item, start, spans);
-    }
-
-    collect_inline_spans(input, &item.principal, spans);
-    for child in &item.blocks {
-        collect_block_spans(input, child, spans);
-    }
-}
-
 fn collect_list_marker_spans(
     input: &str,
-    item: &acdc_parser::ListItem,
+    item: ListItemRef<'_>,
     start: usize,
     spans: &mut Vec<Span>,
 ) {
-    let marker_len = item.marker.len();
+    let marker_len = item.marker().len();
     let marker_end = start + marker_len;
 
     if marker_end <= input.len() {
@@ -341,7 +339,7 @@ fn collect_list_marker_spans(
         });
     }
 
-    if let Some(checked) = &item.checked {
+    if let Some(checked) = item.checked() {
         let check_text = match checked {
             acdc_parser::ListItemCheckedStatus::Checked => "[x] ",
             acdc_parser::ListItemCheckedStatus::Unchecked => "[ ] ",
@@ -365,67 +363,28 @@ fn collect_list_marker_spans(
 // Delimited blocks
 // ---------------------------------------------------------------------------
 
-fn collect_delimited_block_spans(
-    input: &str,
-    db: &acdc_parser::DelimitedBlock,
-    spans: &mut Vec<Span>,
-) {
-    collect_block_metadata_spans(input, &db.metadata, spans);
-    collect_delimiter_lines(input, db, spans);
-    collect_delimited_content(input, &db.inner, primary_range(input, &db.location), spans);
-}
-
-/// Highlight opening and closing delimiter lines of a delimited block.
-fn collect_delimiter_lines(input: &str, db: &acdc_parser::DelimitedBlock, spans: &mut Vec<Span>) {
-    if db.delimiter.is_empty() {
-        return;
-    }
-
-    let cls = delimiter_class(&db.inner);
-
-    for loc in db
-        .open_delimiter_location
-        .iter()
-        .chain(db.close_delimiter_location.iter())
-    {
-        push_block_span(input, spans, loc, cls);
-    }
-}
-
-fn collect_delimited_content(
-    input: &str,
-    inner: &DelimitedBlockType,
-    block_range: Option<(usize, usize)>,
-    spans: &mut Vec<Span>,
-) {
-    match inner {
-        DelimitedBlockType::DelimitedComment(inlines) => {
-            push_verbatim_spans(input, inlines, "adoc-comment", spans);
+fn collect_delimited_block_spans(input: &str, block: BlockRef<'_>, spans: &mut Vec<Span>) {
+    collect_block_metadata_spans(input, block, spans);
+    collect_delimiter_lines(input, block.kind(), spans);
+    let block_range = primary_range(input, block.location());
+    match block.kind() {
+        BlockKind::DelimitedComment(node) => {
+            push_verbatim_spans(input, node.content(), "adoc-comment", spans);
         }
-        DelimitedBlockType::DelimitedListing(inlines) => {
-            collect_listing_content(input, inlines, spans);
+        BlockKind::Listing(node) => collect_listing_content(input, node.content(), spans),
+        BlockKind::Literal(node) => {
+            push_verbatim_spans(input, node.content(), "adoc-literal-content", spans);
         }
-        DelimitedBlockType::DelimitedLiteral(inlines) => {
-            push_verbatim_spans(input, inlines, "adoc-literal-content", spans);
+        BlockKind::Passthrough(node) => {
+            push_verbatim_spans(input, node.content(), "adoc-passthrough-content", spans);
         }
-        DelimitedBlockType::DelimitedPass(inlines) => {
-            push_verbatim_spans(input, inlines, "adoc-passthrough-content", spans);
-        }
-        DelimitedBlockType::DelimitedVerse(inlines) => {
-            collect_inline_spans(input, inlines, spans);
-        }
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            for child in blocks {
-                collect_block_spans(input, child, spans);
-            }
-        }
-        DelimitedBlockType::DelimitedTable(table) => {
-            collect_table_spans(input, table, block_range, spans);
-        }
-        DelimitedBlockType::DelimitedStem(_) => {
+        BlockKind::Verse(node) => collect_inline_spans(input, node.content(), spans),
+        BlockKind::Example(_)
+        | BlockKind::Open(_)
+        | BlockKind::Sidebar(_)
+        | BlockKind::Quote(_) => collect_children(input, block.into(), spans),
+        BlockKind::Table(_) => collect_table_spans(input, block, block_range, spans),
+        BlockKind::Stem(_) => {
             let Some((block_start, block_end)) = block_range else {
                 return;
             };
@@ -444,13 +403,117 @@ fn collect_delimited_content(
                 });
             }
         }
-        _ => {}
+        BlockKind::TableOfContents(_)
+        | BlockKind::Admonition(_)
+        | BlockKind::DiscreteHeader(_)
+        | BlockKind::DocumentAttribute(_)
+        | BlockKind::ThematicBreak(_)
+        | BlockKind::PageBreak(_)
+        | BlockKind::UnorderedList(_)
+        | BlockKind::OrderedList(_)
+        | BlockKind::CalloutList(_)
+        | BlockKind::DescriptionList(_)
+        | BlockKind::Section(_)
+        | BlockKind::Paragraph(_)
+        | BlockKind::Image(_)
+        | BlockKind::Audio(_)
+        | BlockKind::Video(_)
+        | BlockKind::Comment(_)
+        | _ => {}
     }
 }
 
-fn collect_listing_content(input: &str, inlines: &[InlineNode], spans: &mut Vec<Span>) {
-    for node in inlines {
-        if matches!(node, InlineNode::CalloutRef(..)) {
+fn collect_delimiter_lines(input: &str, kind: BlockKind<'_>, spans: &mut Vec<Span>) {
+    let (delimiter, open, close) = match kind {
+        BlockKind::Example(node) => (
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        ),
+        BlockKind::Open(node) => (
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        ),
+        BlockKind::Sidebar(node) => (
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        ),
+        BlockKind::Quote(node) => (
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        ),
+        BlockKind::Listing(node) => (
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        ),
+        BlockKind::Literal(node) => (
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        ),
+        BlockKind::Passthrough(node) => (
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        ),
+        BlockKind::Verse(node) => (
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        ),
+        BlockKind::DelimitedComment(node) => (
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        ),
+        BlockKind::Table(node) => (
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        ),
+        BlockKind::Stem(node) => (
+            node.delimiter(),
+            node.open_delimiter_location(),
+            node.close_delimiter_location(),
+        ),
+        BlockKind::TableOfContents(_)
+        | BlockKind::Admonition(_)
+        | BlockKind::DiscreteHeader(_)
+        | BlockKind::DocumentAttribute(_)
+        | BlockKind::ThematicBreak(_)
+        | BlockKind::PageBreak(_)
+        | BlockKind::UnorderedList(_)
+        | BlockKind::OrderedList(_)
+        | BlockKind::CalloutList(_)
+        | BlockKind::DescriptionList(_)
+        | BlockKind::Section(_)
+        | BlockKind::Paragraph(_)
+        | BlockKind::Image(_)
+        | BlockKind::Audio(_)
+        | BlockKind::Video(_)
+        | BlockKind::Comment(_)
+        | _ => return,
+    };
+    if delimiter.is_empty() {
+        return;
+    }
+    let class = if matches!(kind, BlockKind::Table(_)) {
+        "adoc-table-delimiter"
+    } else {
+        "adoc-delimiter"
+    };
+    for location in [open, close].into_iter().flatten() {
+        push_block_span(input, spans, location, class);
+    }
+}
+
+fn collect_listing_content(input: &str, inlines: ContentRef<'_>, spans: &mut Vec<Span>) {
+    for node in inlines.inlines() {
+        if matches!(node.kind(), InlineKind::Callout(_)) {
             push_inline_span(input, spans, node.location(), "adoc-callout");
         } else {
             push_block_span(input, spans, node.location(), "adoc-code-content");
@@ -460,18 +523,18 @@ fn collect_listing_content(input: &str, inlines: &[InlineNode], spans: &mut Vec<
 
 fn push_verbatim_spans(
     input: &str,
-    inlines: &[InlineNode],
+    inlines: ContentRef<'_>,
     class: &'static str,
     spans: &mut Vec<Span>,
 ) {
-    for node in inlines {
+    for node in inlines.inlines() {
         push_block_span(input, spans, node.location(), class);
     }
 }
 
 fn collect_table_spans(
     input: &str,
-    table: &acdc_parser::Table,
+    table: BlockRef<'_>,
     block_range: Option<(usize, usize)>,
     spans: &mut Vec<Span>,
 ) {
@@ -498,43 +561,16 @@ fn collect_table_spans(
         }
     }
 
-    collect_table_row_block_spans(input, table.header.as_ref(), spans);
-    for row in &table.rows {
-        collect_table_row_block_spans(input, Some(row), spans);
-    }
-    collect_table_row_block_spans(input, table.footer.as_ref(), spans);
-}
-
-fn collect_table_row_block_spans(
-    input: &str,
-    row: Option<&acdc_parser::TableRow>,
-    spans: &mut Vec<Span>,
-) {
-    if let Some(r) = row {
-        for col in &r.columns {
-            for block in &col.content {
-                collect_block_spans(input, block, spans);
-            }
-        }
-    }
+    collect_children(input, table.into(), spans);
 }
 
 /// Highlight entry-file block attributes and anchors.
-fn collect_block_metadata_spans(
-    input: &str,
-    metadata: &acdc_parser::BlockMetadata,
-    spans: &mut Vec<Span>,
-) {
-    if let Some(anchor) = &metadata.id {
-        push_block_span(input, spans, &anchor.location, "adoc-anchor");
+fn collect_block_metadata_spans(input: &str, block: BlockRef<'_>, spans: &mut Vec<Span>) {
+    for anchor in block.anchors() {
+        push_block_span(input, spans, anchor.location(), "adoc-anchor");
     }
-
-    for anchor in &metadata.anchors {
-        push_block_span(input, spans, &anchor.location, "adoc-anchor");
-    }
-
-    if let Some(loc) = &metadata.location {
-        push_block_span(input, spans, loc, "adoc-attribute");
+    if let Some(location) = block.attributes().and_then(AttributesRef::location) {
+        push_block_span(input, spans, location, "adoc-attribute");
     }
 }
 
@@ -631,150 +667,191 @@ fn collect_url_display_spans(input: &str, start: usize, end: usize, spans: &mut 
 // Inline-level span collection
 // ---------------------------------------------------------------------------
 
-fn collect_inline_spans(input: &str, nodes: &[InlineNode], spans: &mut Vec<Span>) {
-    for node in nodes {
+fn collect_inline_spans(input: &str, nodes: ContentRef<'_>, spans: &mut Vec<Span>) {
+    for node in nodes.inlines() {
         collect_single_inline_span(input, node, spans);
     }
 }
 
 /// Highlight a block title line (`.Title text`) with `adoc-block-title`, then
 /// recurse into its inline content.
-fn collect_block_title_spans(input: &str, title: &[InlineNode], spans: &mut Vec<Span>) {
-    if title.is_empty() {
+fn collect_block_title_spans(input: &str, title: Option<ContentRef<'_>>, spans: &mut Vec<Span>) {
+    let Some(title) = title else {
         return;
-    }
-    if let Some(first) = title.first()
-        && let Some(last) = title.last()
+    };
+    let mut nodes = title.inlines();
+    let Some(first) = nodes.next() else {
+        return;
+    };
+    let last = nodes.next_back().unwrap_or(first);
+    if let Some(start) = primary_start(input, first.location())
+        && let Some(end) = primary_end(input, last.location())
+        && input.get(start..end).is_some()
+        && let Some(dot_start) = start.checked_sub(1)
+        && input.as_bytes().get(dot_start) == Some(&b'.')
     {
-        let mut location = first.location().clone();
-        location.end = last.location().end.clone();
-        location.absolute_end = last.location().absolute_end;
-        if let Some((start, end)) = primary_range(input, &location)
-            && let Some(dot_start) = start.checked_sub(1)
-            && input.as_bytes().get(dot_start) == Some(&b'.')
-        {
-            spans.push(Span {
-                start: dot_start,
-                end,
-                class: "adoc-block-title",
-                priority: 1,
-            });
-        }
+        spans.push(Span {
+            start: dot_start,
+            end,
+            class: "adoc-block-title",
+            priority: 1,
+        });
     }
     collect_inline_spans(input, title, spans);
 }
 
-#[allow(clippy::too_many_lines)]
-fn collect_single_inline_span(input: &str, node: &InlineNode, spans: &mut Vec<Span>) {
-    match node {
-        InlineNode::BoldText(b) => {
-            let dlen = match b.form {
-                Form::Constrained => 1,
-                Form::Unconstrained => 2,
-            };
-            collect_formatted_inline(input, &b.location, dlen, "adoc-bold", &b.content, spans);
-        }
-        InlineNode::ItalicText(i) => {
-            let dlen = match i.form {
-                Form::Constrained => 1,
-                Form::Unconstrained => 2,
-            };
-            collect_formatted_inline(input, &i.location, dlen, "adoc-italic", &i.content, spans);
-        }
-        InlineNode::MonospaceText(m) => {
-            let dlen = match m.form {
-                Form::Constrained => 1,
-                Form::Unconstrained => 2,
-            };
-            collect_formatted_inline(
-                input,
-                &m.location,
-                dlen,
-                "adoc-monospace",
-                &m.content,
-                spans,
-            );
-        }
-        InlineNode::HighlightText(h) => {
-            let dlen = match h.form {
-                Form::Constrained => 1,
-                Form::Unconstrained => 2,
-            };
-            collect_formatted_inline(
-                input,
-                &h.location,
-                dlen,
-                "adoc-highlight",
-                &h.content,
-                spans,
-            );
-        }
-        InlineNode::SuperscriptText(s) => {
-            collect_formatted_inline(input, &s.location, 1, "adoc-superscript", &s.content, spans);
-        }
-        InlineNode::SubscriptText(s) => {
-            collect_formatted_inline(input, &s.location, 1, "adoc-subscript", &s.content, spans);
-        }
-        InlineNode::CurvedQuotationText(q) => {
-            collect_formatted_inline(input, &q.location, 2, "adoc-bold", &q.content, spans);
-        }
-        InlineNode::InlineAnchor(a) => {
-            push_inline_span(input, spans, &a.location, "adoc-anchor");
-        }
-        InlineNode::CalloutRef(cr) => {
-            push_inline_span(input, spans, &cr.location, "adoc-callout");
-        }
-        InlineNode::Macro(m) => {
-            collect_macro_span(input, m, spans);
-        }
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::CurvedApostropheText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | _ => {}
+fn delimiter_len(form: &Form) -> usize {
+    match form {
+        Form::Constrained => 1,
+        Form::Unconstrained => 2,
     }
 }
 
-fn collect_macro_span(input: &str, mac: &InlineMacro, spans: &mut Vec<Span>) {
-    // Macros where the colon is part of the content (URLs), not a name:target separator.
-    // These get only the base span with no granular target/attrs highlighting.
-    let (class, location, granular) = match mac {
-        InlineMacro::Url(u) => ("adoc-link", &u.location, false),
-        InlineMacro::Mailto(m) => ("adoc-link", &m.location, false),
-        InlineMacro::Autolink(a) => ("adoc-link", &a.location, false),
-        InlineMacro::Link(l) => ("adoc-link", &l.location, true),
-        InlineMacro::CrossReference(xr) => ("adoc-xref", &xr.location, true),
-        InlineMacro::IndexTerm(it) => ("adoc-index-term", &it.location, false),
-        InlineMacro::Pass(p) => ("adoc-passthrough-inline", &p.location, true),
-        InlineMacro::Footnote(f) => ("adoc-footnote", &f.location, true),
-        InlineMacro::Icon(i) => ("adoc-inline-macro", &i.location, true),
-        InlineMacro::Image(img) => ("adoc-inline-macro", &img.location, true),
-        InlineMacro::Keyboard(k) => ("adoc-inline-macro", &k.location, true),
-        InlineMacro::Button(b) => ("adoc-inline-macro", &b.location, true),
-        InlineMacro::Menu(m) => ("adoc-inline-macro", &m.location, true),
-        InlineMacro::Stem(s) => ("adoc-inline-macro", &s.location, true),
-        _ => return,
-    };
+fn collect_single_inline_span(input: &str, node: InlineRef<'_>, spans: &mut Vec<Span>) {
+    match node.kind() {
+        InlineKind::Bold(span) => {
+            let delimiter_len = delimiter_len(&span.form());
+            collect_formatted_inline(
+                input,
+                span.location(),
+                delimiter_len,
+                "adoc-bold",
+                span.content(),
+                spans,
+            );
+        }
+        InlineKind::Italic(span) => {
+            let delimiter_len = delimiter_len(&span.form());
+            collect_formatted_inline(
+                input,
+                span.location(),
+                delimiter_len,
+                "adoc-italic",
+                span.content(),
+                spans,
+            );
+        }
+        InlineKind::Monospace(span) => {
+            let delimiter_len = delimiter_len(&span.form());
+            collect_formatted_inline(
+                input,
+                span.location(),
+                delimiter_len,
+                "adoc-monospace",
+                span.content(),
+                spans,
+            );
+        }
+        InlineKind::Highlight(span) => {
+            let delimiter_len = delimiter_len(&span.form());
+            collect_formatted_inline(
+                input,
+                span.location(),
+                delimiter_len,
+                "adoc-highlight",
+                span.content(),
+                spans,
+            );
+        }
+        InlineKind::Superscript(span) => collect_formatted_inline(
+            input,
+            span.location(),
+            1,
+            "adoc-superscript",
+            span.content(),
+            spans,
+        ),
+        InlineKind::Subscript(span) => collect_formatted_inline(
+            input,
+            span.location(),
+            1,
+            "adoc-subscript",
+            span.content(),
+            spans,
+        ),
+        InlineKind::CurvedQuotation(span) => collect_formatted_inline(
+            input,
+            span.location(),
+            2,
+            "adoc-bold",
+            span.content(),
+            spans,
+        ),
+        InlineKind::Anchor(_) => push_inline_span(input, spans, node.location(), "adoc-anchor"),
+        InlineKind::Callout(_) => push_inline_span(input, spans, node.location(), "adoc-callout"),
+        InlineKind::Plain(_)
+        | InlineKind::Symbol(_)
+        | InlineKind::CharacterReference(_)
+        | InlineKind::Raw(_)
+        | InlineKind::Verbatim(_)
+        | InlineKind::CurvedApostrophe(_)
+        | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::LineBreak(_)
+        | InlineKind::Footnote(_)
+        | InlineKind::Icon(_)
+        | InlineKind::Image(_)
+        | InlineKind::Keyboard(_)
+        | InlineKind::Button(_)
+        | InlineKind::Menu(_)
+        | InlineKind::Url(_)
+        | InlineKind::Link(_)
+        | InlineKind::Mailto(_)
+        | InlineKind::Autolink(_)
+        | InlineKind::CrossReference(_)
+        | InlineKind::Pass(_)
+        | InlineKind::Stem(_)
+        | InlineKind::IndexTerm(_)
+        | _ => collect_macro_span(input, node, spans),
+    }
+}
 
-    let Some((start, end)) = primary_range(input, location) else {
+fn collect_macro_span(input: &str, node: InlineRef<'_>, spans: &mut Vec<Span>) {
+    let (class, granular) = match node.kind() {
+        InlineKind::Url(_) | InlineKind::Mailto(_) | InlineKind::Autolink(_) => {
+            ("adoc-link", false)
+        }
+        InlineKind::Link(_) => ("adoc-link", true),
+        InlineKind::CrossReference(_) => ("adoc-xref", true),
+        InlineKind::IndexTerm(_) => ("adoc-index-term", false),
+        InlineKind::Pass(_) => ("adoc-passthrough-inline", true),
+        InlineKind::Footnote(_) => ("adoc-footnote", true),
+        InlineKind::Icon(_)
+        | InlineKind::Image(_)
+        | InlineKind::Keyboard(_)
+        | InlineKind::Button(_)
+        | InlineKind::Menu(_)
+        | InlineKind::Stem(_) => ("adoc-inline-macro", true),
+        InlineKind::Plain(_)
+        | InlineKind::Symbol(_)
+        | InlineKind::CharacterReference(_)
+        | InlineKind::Raw(_)
+        | InlineKind::Verbatim(_)
+        | InlineKind::Bold(_)
+        | InlineKind::Italic(_)
+        | InlineKind::Monospace(_)
+        | InlineKind::Highlight(_)
+        | InlineKind::Subscript(_)
+        | InlineKind::Superscript(_)
+        | InlineKind::CurvedQuotation(_)
+        | InlineKind::CurvedApostrophe(_)
+        | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::LineBreak(_)
+        | InlineKind::Anchor(_)
+        | InlineKind::Callout(_)
+        | _ => return,
+    };
+    let Some((start, end)) = primary_range(input, node.location()) else {
         return;
     };
-
-    // Base span for the whole macro
     spans.push(Span {
         start,
         end,
         class,
         priority: 2,
     });
-
-    // Granular highlighting: target in green, bracket content in dark pink
     if granular {
         collect_macro_target_spans(input, start, end, 2, spans);
     } else {
-        // For URL-type macros, still highlight bracket content (display text)
         collect_url_display_spans(input, start, end, spans);
     }
 }
@@ -896,60 +973,49 @@ fn admonition_label_len(variant: &AdmonitionVariant) -> usize {
     }
 }
 
-fn delimiter_class(inner: &DelimitedBlockType) -> &'static str {
-    match inner {
-        DelimitedBlockType::DelimitedTable(_) => "adoc-table-delimiter",
-        DelimitedBlockType::DelimitedComment(_)
-        | DelimitedBlockType::DelimitedExample(_)
-        | DelimitedBlockType::DelimitedListing(_)
-        | DelimitedBlockType::DelimitedLiteral(_)
-        | DelimitedBlockType::DelimitedOpen(_)
-        | DelimitedBlockType::DelimitedSidebar(_)
-        | DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedQuote(_)
-        | DelimitedBlockType::DelimitedVerse(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        | _ => "adoc-delimiter",
-    }
-}
-
 /// A container can start in the entry file and end in an include. Its first
 /// line can still be highlighted without using the included endpoint.
-fn primary_start(input: &str, location: &Location) -> Option<usize> {
+fn primary_start<'doc>(input: &str, location: impl Into<LocationRef<'doc>>) -> Option<usize> {
+    let location = location.into();
     if location
-        .start
-        .file
-        .as_ref()
-        .is_some_and(|chain| !chain.is_empty())
+        .start()
+        .include_chain()
+        .is_some_and(|mut chain| chain.next().is_some())
     {
         return None;
     }
     input
-        .is_char_boundary(location.absolute_start)
-        .then_some(location.absolute_start)
+        .is_char_boundary(location.absolute_start())
+        .then_some(location.absolute_start())
 }
 
 /// Only entry-file ranges can index `input`. Highlight spans use an exclusive
 /// end on a UTF-8 boundary. A parser end can point to the first byte of its final
 /// character, or to EOF.
-fn primary_range(input: &str, location: &Location) -> Option<(usize, usize)> {
+fn primary_range<'doc>(
+    input: &str,
+    location: impl Into<LocationRef<'doc>>,
+) -> Option<(usize, usize)> {
+    let location = location.into();
     let start = primary_start(input, location)?;
+    let end = primary_end(input, location)?;
+    input.get(start..end).map(|_| (start, end))
+}
+
+fn primary_end(input: &str, location: LocationRef<'_>) -> Option<usize> {
     if location
-        .end
-        .file
-        .as_ref()
-        .is_some_and(|chain| !chain.is_empty())
+        .end()
+        .include_chain()
+        .is_some_and(|mut chain| chain.next().is_some())
+        || location.absolute_end() > input.len()
     {
         return None;
     }
-    if location.absolute_end > input.len() {
-        return None;
-    }
-    let mut end = location.absolute_end.checked_add(1)?.min(input.len());
+    let mut end = location.absolute_end().checked_add(1)?.min(input.len());
     while !input.is_char_boundary(end) {
         end += 1;
     }
-    input.get(start..end).map(|_| (start, end))
+    Some(end)
 }
 
 /// Find the end of the line containing `pos` (offset of the newline, or EOF).
@@ -1015,6 +1081,7 @@ fn close_span(out: &mut String) {
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
+    use acdc_parser::Location;
 
     fn included_highlight(
         input: &str,
@@ -1118,11 +1185,12 @@ mod tests {
             input,
             &crate::test_sources::options(&[("part.adoc", "_included italic_\n")])?,
         )?;
-        let [Block::Section(section)] = parsed.document().blocks.as_slice() else {
+        let block = parsed.document().blocks().next().ok_or("missing block")?;
+        let BlockKind::Section(section) = block.kind() else {
             return Err("missing section".into());
         };
-        assert!(section.location.start.file.is_none());
-        assert!(section.location.end.file.is_some());
+        assert!(section.location().start().include_chain().is_none());
+        assert!(section.location().end().include_chain().is_some());
         let html = highlight_from_ast(input, parsed.document());
         assert!(html.contains("adoc-heading"), "{html}");
         assert!(!html.contains("adoc-italic"), "{html}");
@@ -1150,7 +1218,7 @@ mod tests {
 
     #[test]
     fn test_title_highlight() {
-        // A bare `= Title` is recognised as the document title (doctitle)
+        // A bare `= Title` is recognized as the document title (doctitle)
         let result = highlight("= Document title");
         assert!(result.contains("adoc-title"), "result: {result}");
     }
@@ -1227,7 +1295,7 @@ mod tests {
 
     #[test]
     fn test_comment_block_content() {
-        // The parser recognises comment blocks inside a document with content
+        // The parser recognizes comment blocks inside a document with content
         let input = "Some text\n\n////\nthis is hidden\n////";
         let result = highlight(input);
         assert!(
@@ -1324,7 +1392,7 @@ mod tests {
 
     #[test]
     fn test_page_break() {
-        // Page break is recognised when embedded in a document
+        // Page break is recognized when embedded in a document
         let input = "Some text\n\n<<<\n\nMore text";
         let result = highlight(input);
         assert!(
@@ -1524,12 +1592,10 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "setext")]
     fn test_setext_header_highlight() -> Result<(), Box<dyn std::error::Error>> {
         // Setext header: title line + underline line
         let input = "Setext Header\n-------------";
-        // Enable setext in options for this test
-        let options = acdc_parser::Options::builder().with_setext().build()?;
+        let options = acdc_parser::Options::builder().build()?;
         let parsed = acdc_parser::parse(input, &options).expect("failed to parse setext");
         let result = highlight_from_ast(input, parsed.document());
 

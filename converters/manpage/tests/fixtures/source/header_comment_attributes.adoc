@@ -19,6 +19,7 @@ Correct Author
 v1.0, 2026-10-04
 //
 :doctype: manpage
+:docdate: 2026-10-04
 :kept: original
 :manname: header-comments
 :manpurpose: check comment isolation

@@ -10,7 +10,7 @@ This is the preamble with an introduction paragraph.
 
 This section contains **bold**, *italic*, and `monospace` text.
 
-Here's a link to [Rust](https://rust-lang.org) and an email [contact](mailto:info@example.com).
+Here’s a link to [Rust](https://rust-lang.org) and an email [contact](mailto:info@example.com).
 
 <a id="_code_example"></a>
 ### Code Example
@@ -59,7 +59,7 @@ Simple table:
 <a id="_blockquote"></a>
 ### Blockquote
 
-> Don't Panic.
+> Don’t Panic.
 > — Douglas Adams, <cite>The Hitchhiker's Guide to the Galaxy</cite>
 
 <a id="_admonition"></a>

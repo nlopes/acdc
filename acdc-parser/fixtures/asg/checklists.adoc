@@ -1,0 +1,12 @@
+[%interactive]
+* Ordinary item
+* [ ] Pending *work*
+** [x] Nested done
+* [x] Done
++
+--
+Attached paragraph.
+--
+* [*] Alternate check
+* [X] Uppercase check
+* \[x] Literal marker

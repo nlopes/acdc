@@ -12,11 +12,26 @@
       },
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Term A",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Term A",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 1
+                    },
+                    {
+                      "line": 2,
+                      "col": 6
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 2,
@@ -24,30 +39,41 @@
                 },
                 {
                   "line": 2,
-                  "col": 6
+                  "col": 8
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Definition A",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 10
-                },
-                {
-                  "line": 2,
-                  "col": 21
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Definition A",
+                "location": [
+                  {
+                    "line": 2,
+                    "col": 10
+                  },
+                  {
+                    "line": 2,
+                    "col": 21
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 2,
+                "col": 10
+              },
+              {
+                "line": 2,
+                "col": 21
+              }
+            ]
+          },
           "location": [
             {
               "line": 2,
@@ -55,7 +81,7 @@
             },
             {
               "line": 2,
-              "col": 22
+              "col": 21
             }
           ]
         }
@@ -67,7 +93,7 @@
         },
         {
           "line": 2,
-          "col": 22
+          "col": 21
         }
       ]
     },
@@ -81,11 +107,26 @@
       },
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Term B",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Term B",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 1
+                    },
+                    {
+                      "line": 5,
+                      "col": 6
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 5,
@@ -93,30 +134,41 @@
                 },
                 {
                   "line": 5,
-                  "col": 6
+                  "col": 8
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Definition B",
-              "location": [
-                {
-                  "line": 5,
-                  "col": 10
-                },
-                {
-                  "line": 5,
-                  "col": 21
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Definition B",
+                "location": [
+                  {
+                    "line": 5,
+                    "col": 10
+                  },
+                  {
+                    "line": 5,
+                    "col": 21
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 5,
+                "col": 10
+              },
+              {
+                "line": 5,
+                "col": 21
+              }
+            ]
+          },
           "location": [
             {
               "line": 5,
@@ -124,7 +176,7 @@
             },
             {
               "line": 5,
-              "col": 22
+              "col": 21
             }
           ]
         }
@@ -136,7 +188,7 @@
         },
         {
           "line": 5,
-          "col": 22
+          "col": 21
         }
       ]
     }

@@ -1,14 +1,12 @@
 use std::io::{BufWriter, IntoInnerError, Write};
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::{SubsFlags, effective_subs_flags};
 use acdc_converters_core::{
     InlineTextTransform, TraversalContext,
-    code::{SourceLineOptions, default_line_comment, detect_language},
-    visitor::{Visitor, WritableVisitor},
+    code::{SourceLineOptions, default_line_comment, source_language},
 };
 use acdc_parser::{
-    Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType, InlineNode,
+    CaptionKind, InlineNode, Location,
+    ast::{AttributesRef, BlockKind, BlockRef, ContentRef, InlineKind, InlineRef},
 };
 use crossterm::{
     QueueableCommand,
@@ -19,7 +17,7 @@ use crossterm::{
 };
 
 use crate::{
-    Error, Processor, TerminalVisitor, extract_heading_text,
+    Error, Processor, TerminalVisitor, extract_heading_content,
     wrap::{pad_to_width, wrap_ansi_text},
 };
 
@@ -51,8 +49,8 @@ const SQUARE_BOX: BoxChars = BoxChars {
 };
 
 /// Render content inside a box with specified corner/border characters.
-fn render_boxed_content<'a, V: WritableVisitor<'a, Error = Error>>(
-    visitor: &mut V,
+fn render_boxed_content<W: Write + ?Sized>(
+    w: &mut W,
     label: &str,
     content: &str,
     terminal_width: usize,
@@ -63,7 +61,6 @@ fn render_boxed_content<'a, V: WritableVisitor<'a, Error = Error>>(
     let horiz = chars.horiz;
 
     // Top border with label
-    let w = visitor.writer_mut();
     let label_part = if label.is_empty() {
         horiz.repeat(inner_width + 2)
     } else {
@@ -96,101 +93,104 @@ fn render_boxed_content<'a, V: WritableVisitor<'a, Error = Error>>(
 }
 
 impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
-    /// Visit a delimited block in terminal format.
     pub(crate) fn render_delimited_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        block: &'a DelimitedBlock<'a>,
+        block: BlockRef<'a>,
     ) -> Result<(), Error> {
-        #[cfg(feature = "pre-spec-subs")]
-        let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-            block.metadata.substitutions.as_ref(),
-            matches!(
-                block.inner,
-                DelimitedBlockType::DelimitedListing(_)
-                    | DelimitedBlockType::DelimitedLiteral(_)
-                    | DelimitedBlockType::DelimitedPass(_)
-                    | DelimitedBlockType::DelimitedVerse(_)
-            ),
-        ));
-
-        let caption_kind = CaptionKind::for_delimited(&block.inner, block.metadata.style);
-        let result = match &block.inner {
-            DelimitedBlockType::DelimitedTable(t) => {
+        let caption_kind = CaptionKind::for_block(block);
+        match block.kind() {
+            BlockKind::Table(table) => {
                 self.render_captioned_title_with_wrapper(
                     traversal,
-                    &block.title,
-                    &block.metadata,
+                    table.title(),
+                    table.attributes(),
                     caption_kind,
                     "  ",
                     "\n",
                 )?;
                 let processor = self.processor;
-                crate::table::visit_table(traversal, t, &block.metadata, self, processor)
+                crate::table::visit_table(traversal, table, self, processor)
             }
-            DelimitedBlockType::DelimitedListing(inlines)
-            | DelimitedBlockType::DelimitedLiteral(inlines) => self.render_preformatted_block(
+            BlockKind::Listing(node) => self.render_preformatted_block(
                 traversal,
-                &block.title,
-                inlines,
-                &block.metadata,
+                node.title(),
+                node.content(),
+                node.attributes(),
                 caption_kind,
             ),
-            DelimitedBlockType::DelimitedExample(blocks) => {
-                self.render_example_block(traversal, &block.title, blocks, &block.metadata)
+            BlockKind::Literal(node) => self.render_preformatted_block(
+                traversal,
+                node.title(),
+                node.content(),
+                node.attributes(),
+                caption_kind,
+            ),
+            BlockKind::Example(node) => {
+                self.render_example_block(traversal, node.title(), node.blocks(), node.attributes())
             }
-            DelimitedBlockType::DelimitedQuote(blocks) => {
-                self.render_quote_block(traversal, &block.title, blocks, &block.metadata)
+            BlockKind::Quote(node) => {
+                self.render_quote_block(traversal, node.title(), node.blocks(), node.attributes())
             }
-            DelimitedBlockType::DelimitedSidebar(blocks) => {
-                self.render_sidebar_block(traversal, &block.title, blocks)
+            BlockKind::Sidebar(node) => {
+                self.render_sidebar_block(traversal, node.title(), node.blocks())
             }
-            DelimitedBlockType::DelimitedOpen(blocks) => {
-                self.render_open_block(traversal, &block.title, blocks)
+            BlockKind::Open(node) => self.render_open_block(traversal, node.title(), node.blocks()),
+            BlockKind::Verse(node) => {
+                self.render_verse_block(traversal, node.title(), node.content(), node.attributes())
             }
-            DelimitedBlockType::DelimitedVerse(inlines) => {
-                self.render_verse_block(traversal, &block.title, inlines, &block.metadata)
-            }
-            DelimitedBlockType::DelimitedPass(inlines) => {
-                self.visit_inline_nodes(traversal, inlines)?;
-                let w = self.writer_mut();
-                writeln!(w)?;
+            BlockKind::Passthrough(node) => {
+                self.write_content(traversal, node.content())?;
+                writeln!(self.writer_mut())?;
                 Ok(())
             }
-            DelimitedBlockType::DelimitedStem(stem) => {
-                let notation = stem.notation.to_string();
-                self.render_stem_block(traversal, &block.title, &notation, stem.content)
-            }
-            DelimitedBlockType::DelimitedComment(_) => {
-                // Comments are not rendered
-                Ok(())
-            }
-            _ => {
+            BlockKind::Stem(node) => self.render_stem_block(
+                traversal,
+                node.title(),
+                &node.notation().to_string(),
+                node.text(),
+            ),
+            BlockKind::DelimitedComment(_) => Ok(()),
+            BlockKind::Section(_)
+            | BlockKind::Paragraph(_)
+            | BlockKind::OrderedList(_)
+            | BlockKind::UnorderedList(_)
+            | BlockKind::DescriptionList(_)
+            | BlockKind::CalloutList(_)
+            | BlockKind::Admonition(_)
+            | BlockKind::Image(_)
+            | BlockKind::Audio(_)
+            | BlockKind::Video(_)
+            | BlockKind::DiscreteHeader(_)
+            | BlockKind::TableOfContents(_)
+            | BlockKind::DocumentAttribute(_)
+            | BlockKind::Comment(_)
+            | BlockKind::ThematicBreak(_)
+            | BlockKind::PageBreak(_)
+            | _ => {
                 self.warn_unsupported_parser_variant("delimited block");
                 Ok(())
             }
-        };
-
-        #[cfg(feature = "pre-spec-subs")]
-        self.processor.current_subs.set(previous_subs);
-        result
+        }
     }
 
     /// Render a listing, literal, or source block with its terminal source options.
     fn render_preformatted_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
-        inlines: &[InlineNode],
-        metadata: &BlockMetadata,
+        title: Option<ContentRef<'_>>,
+        inlines: ContentRef<'_>,
+        attributes: AttributesRef<'_>,
         caption_kind: Option<CaptionKind>,
     ) -> Result<(), Error> {
         // Detect language for syntax highlighting
-        let language = detect_language(metadata);
+        let language = source_language(attributes);
 
-        if metadata.style == Some("source")
-            && language == Some("php")
-            && metadata.options.contains(&"mixed")
+        if matches!(
+            attributes.get("style"),
+            Some(acdc_parser::ast::AttributeValueRef::Text("source"))
+        ) && language == Some("php")
+            && super::terminal_visitor::has_token(attributes, "opts", "mixed")
             && self.processor.mark_fallback("php-mixed-highlighting")
         {
             self.diagnostics.warn_with_advice(
@@ -202,7 +202,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         self.render_captioned_title_with_wrapper(
             traversal,
             title,
-            metadata,
+            attributes,
             caption_kind,
             "\n",
             "\n",
@@ -227,11 +227,11 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let w = self.writer_mut();
         writeln!(w, "{}", top_sep.clone().with(color))?;
 
-        acdc_converters_core::index::visit_index_terms(inlines, &mut |term, _| {
+        acdc_converters_core::index::visit_index_inlines(inlines.inlines(), &mut |term, _| {
             crate::inlines::register_index_term(term, processor, traversal)
         })?;
         // Render code content directly (no left border)
-        let content = render_preformatted_content(inlines, metadata, processor)?;
+        let content = render_preformatted_content(inlines, attributes, processor)?;
         let w = self.writer_mut();
         write!(w, "{content}")?;
         if !content.ends_with('\n') {
@@ -248,19 +248,19 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_example_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
-        blocks: &'a [Block<'a>],
-        metadata: &BlockMetadata,
+        title: Option<ContentRef<'_>>,
+        blocks: impl Iterator<Item = BlockRef<'a>>,
+        attributes: AttributesRef<'_>,
     ) -> Result<(), Error> {
         let processor = self.processor;
-        let label = if title.is_empty() {
-            String::new()
-        } else {
+        let label = if title.is_some() {
             let caption = processor
-                .caption_prefix(metadata, Some(CaptionKind::Example))
+                .caption_prefix(attributes, Some(CaptionKind::Example))
                 .unwrap_or_default();
-            let title_text = extract_heading_text(title, &processor.references);
+            let title_text = extract_heading_content(title, &processor.references);
             format!("{caption}{title_text}")
+        } else {
+            String::new()
         };
 
         // Render content to buffer
@@ -278,7 +278,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
         let color = Color::Cyan;
         render_boxed_content(
-            self,
+            self.writer_mut(),
             &label,
             content.trim_end(),
             processor.terminal_width,
@@ -293,9 +293,9 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_quote_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
-        blocks: &'a [Block<'a>],
-        metadata: &BlockMetadata<'_>,
+        title: Option<ContentRef<'_>>,
+        blocks: impl Iterator<Item = BlockRef<'a>>,
+        attributes: AttributesRef<'_>,
     ) -> Result<(), Error> {
         let processor = self.processor;
 
@@ -338,7 +338,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             writeln!(w)?;
         }
 
-        self.render_attribution(metadata)?;
+        self.render_attribution(attributes)?;
 
         Ok(())
     }
@@ -346,11 +346,11 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_open_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
-        blocks: &'a [Block<'a>],
+        title: Option<ContentRef<'_>>,
+        blocks: impl Iterator<Item = BlockRef<'a>>,
     ) -> Result<(), Error> {
         let processor = self.processor;
-        let label = extract_heading_text(title, &processor.references);
+        let label = extract_heading_content(title, &processor.references);
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
@@ -363,7 +363,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             .map_err(IntoInnerError::into_error)?;
         let content = String::from_utf8_lossy(&buffer);
         render_boxed_content(
-            self,
+            self.writer_mut(),
             &label,
             content.trim_end(),
             processor.terminal_width,
@@ -376,24 +376,36 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_sidebar_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
-        blocks: &'a [Block<'a>],
+        title: Option<ContentRef<'_>>,
+        blocks: impl Iterator<Item = BlockRef<'a>>,
+    ) -> Result<(), Error> {
+        self.render_sidebar_content(traversal, title, |visitor, traversal| {
+            traversal.visit_blocks(visitor, blocks)
+        })
+    }
+
+    pub(crate) fn render_sidebar_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        title: Option<ContentRef<'_>>,
+        body: impl FnOnce(
+            &mut TerminalVisitor<'a, '_, BufWriter<Vec<u8>>>,
+            &mut TraversalContext<'a>,
+        ) -> Result<(), Error>,
     ) -> Result<(), Error> {
         let processor = self.processor;
 
-        let label = if title.is_empty() {
-            String::new()
+        let label = if title.is_some() {
+            extract_heading_content(title, &processor.references)
         } else {
-            extract_heading_text(title, &processor.references)
+            String::new()
         };
 
         // Render content to buffer
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
-        for nested_block in blocks {
-            traversal.visit_block(&mut temp_visitor, nested_block)?;
-        }
+        body(&mut temp_visitor, traversal)?;
         let buffer = temp_visitor
             .into_writer()
             .into_inner()
@@ -402,7 +414,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
         let color = Color::Blue;
         render_boxed_content(
-            self,
+            self.writer_mut(),
             &label,
             content.trim_end(),
             processor.terminal_width,
@@ -417,9 +429,9 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_verse_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
-        inlines: &[InlineNode],
-        metadata: &BlockMetadata<'_>,
+        title: Option<ContentRef<'_>>,
+        inlines: ContentRef<'_>,
+        attributes: AttributesRef<'_>,
     ) -> Result<(), Error> {
         let processor = self.processor;
 
@@ -429,7 +441,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
-        temp_visitor.visit_inline_nodes(traversal, inlines)?;
+        temp_visitor.write_content(traversal, inlines)?;
         let buffer = temp_visitor
             .into_writer()
             .into_inner()
@@ -448,7 +460,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         w.queue(PrintStyledContent("┊".with(color)))?;
         writeln!(w)?;
 
-        self.render_attribution(metadata)?;
+        self.render_attribution(attributes)?;
 
         Ok(())
     }
@@ -457,7 +469,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     fn render_stem_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: Option<ContentRef<'_>>,
         notation: &str,
         content: &str,
     ) -> Result<(), Error> {
@@ -484,26 +496,39 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         Ok(())
     }
 
-    /// Helper to render title if present.
+    /// Render an authored block title, including an explicitly empty title.
     fn render_title_if_present(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        title: &[InlineNode],
+        title: Option<ContentRef<'_>>,
     ) -> Result<(), Error> {
         self.render_title_with_wrapper(traversal, title, "  ", "\n")
     }
 }
 
 pub(crate) fn render_preformatted_content(
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    inlines: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
     processor: &Processor<'_>,
 ) -> Result<String, Error> {
-    let language = detect_language(metadata);
-    let (source, callouts, formatted) =
-        source_with_callout_placeholders(inlines, language, processor);
+    render_preformatted_inlines(
+        inlines.inlines(),
+        source_language(attributes),
+        processor,
+        |source| SourceLineOptions::from_attributes(attributes, source),
+    )
+}
+
+pub(crate) fn render_preformatted_inlines<'inline>(
+    inlines: impl Iterator<Item = InlineRef<'inline>>,
+    language: Option<&str>,
+    processor: &Processor<'_>,
+    line_options: impl FnOnce(&str) -> SourceLineOptions,
+) -> Result<String, Error> {
+    let inlines = inlines.collect::<Vec<_>>();
+    let (source, callouts, formatted) = source_with_callout_placeholders(&inlines, language);
     let mut output = Vec::new();
-    // Explicit quote formatting takes precedence over syntax colours. Sending
+    // Explicit quote formatting takes precedence over syntax colors. Sending
     // its terminal escapes through the highlighter would display or corrupt them.
     if let Some(language) = language.filter(|_| !formatted) {
         crate::syntax::highlight_text(&mut output, &source, language, processor)?;
@@ -521,52 +546,42 @@ pub(crate) fn render_preformatted_content(
         );
         output = output.replace(&placeholder, &marker);
     }
-    let options = SourceLineOptions::resolve(metadata, &source);
+    let options = line_options(&source);
     Ok(apply_source_line_options(&output, &options))
 }
 
-pub(crate) fn code_text_transform(
-    processor: &Processor<'_>,
-) -> InlineTextTransform<'static, 'static> {
-    #[cfg(feature = "pre-spec-subs")]
-    let replacements = processor
-        .current_subs
-        .get()
-        .contains(SubsFlags::REPLACEMENTS);
-    #[cfg(not(feature = "pre-spec-subs"))]
-    let replacements = {
-        let _ = processor;
-        false
-    };
+pub(crate) fn code_text_transform() -> InlineTextTransform<'static, 'static> {
     InlineTextTransform::default()
         .line_break("\n")
-        .rendered_replacements(replacements)
+        .rendered()
+        .decode_char_refs(true)
 }
 
 fn source_with_callout_placeholders(
-    nodes: &[InlineNode<'_>],
+    nodes: &[InlineRef<'_>],
     language: Option<&str>,
-    processor: &Processor<'_>,
 ) -> (String, Vec<(String, usize)>, bool) {
     let mut source = String::new();
     let mut callouts = Vec::new();
     let mut formatted = false;
-    let transform = code_text_transform(processor);
+    let transform = code_text_transform();
     let comment_prefix = default_line_comment(language);
 
-    for (index, node) in nodes.iter().enumerate() {
-        if let InlineNode::VerbatimText(verbatim) = node {
-            let mut content = verbatim.content.to_string();
+    for (index, node) in nodes.iter().copied().enumerate() {
+        if let InlineKind::Verbatim(verbatim) = node.kind() {
+            let mut content = verbatim.text().to_string();
             if index
                 .checked_sub(1)
                 .is_some_and(|previous| is_xml_callout(nodes, previous))
             {
                 content = content.strip_prefix("-->").unwrap_or(&content).to_string();
             }
-            if index
-                .checked_add(1)
-                .is_some_and(|next| matches!(nodes.get(next), Some(InlineNode::CalloutRef(_))))
-            {
+            if index.checked_add(1).is_some_and(|next| {
+                matches!(
+                    nodes.get(next).map(|node| node.kind()),
+                    Some(InlineKind::Callout(_))
+                )
+            }) {
                 if index
                     .checked_add(1)
                     .is_some_and(|next| is_xml_callout(nodes, next))
@@ -576,51 +591,53 @@ fn source_with_callout_placeholders(
                     content = strip_callout_guard(&content, comment_prefix);
                 }
             }
-            source.push_str(&transform.to_string(&[InlineNode::VerbatimText(
-                acdc_parser::Verbatim {
-                    content: &content,
-                    location: verbatim.location.clone(),
-                },
-            )]));
-        } else if let InlineNode::CalloutRef(callout) = node {
+            let text = InlineNode::VerbatimText(acdc_parser::Verbatim::new(
+                &content,
+                Location::from(verbatim.location()),
+            ));
+            let _ = transform.write_inlines(&mut source, std::iter::once((&text).into()));
+        } else if let InlineKind::Callout(callout) = node.kind() {
             let offset = u32::try_from(callouts.len()).unwrap_or(0xFFFD).min(0xFFFD);
             let placeholder = char::from_u32(0xF0000 + offset)
                 .unwrap_or('\u{F0000}')
                 .to_string();
             source.push_str(&placeholder);
-            callouts.push((placeholder, callout.number));
-        } else if let Some(text) = formatted_code_text(node, processor) {
+            callouts.push((placeholder, callout.number()));
+        } else if let Some(text) = formatted_code_text(node) {
             source.push_str(&text);
             formatted = true;
         } else {
-            let _ = transform.write(&mut source, std::slice::from_ref(node));
+            let _ = transform.write_inlines(&mut source, std::iter::once(node));
         }
     }
     (source, callouts, formatted)
 }
 
-fn formatted_code_text(node: &InlineNode<'_>, processor: &Processor<'_>) -> Option<String> {
-    let children = acdc_converters_core::code::code_inline_children(node)?;
-    let transform = code_text_transform(processor);
+fn formatted_code_text(node: InlineRef<'_>) -> Option<String> {
+    let children = acdc_converters_core::code::code_inline_content(node)?;
+    let transform = code_text_transform();
     let text = children
-        .iter()
+        .inlines()
         .map(|child| {
-            formatted_code_text(child, processor)
-                .unwrap_or_else(|| transform.to_string(std::slice::from_ref(child)))
+            formatted_code_text(child).unwrap_or_else(|| {
+                let mut text = String::new();
+                let _ = transform.write_inlines(&mut text, std::iter::once(child));
+                text
+            })
         })
         .collect::<String>();
-    Some(match node {
-        InlineNode::BoldText(_) => wrap_code_style(
+    Some(match node.kind() {
+        InlineKind::Bold(_) => wrap_code_style(
             &text,
             SetAttribute(Attribute::Bold),
             SetAttribute(Attribute::NormalIntensity),
         ),
-        InlineNode::ItalicText(_) => wrap_code_style(
+        InlineKind::Italic(_) => wrap_code_style(
             &text,
             SetAttribute(Attribute::Italic),
             SetAttribute(Attribute::NoItalic),
         ),
-        InlineNode::HighlightText(highlight) => match highlight.role {
+        InlineKind::Highlight(highlight) => match highlight.role() {
             Some("underline") => wrap_code_style(
                 &text,
                 SetAttribute(Attribute::Underlined),
@@ -637,19 +654,32 @@ fn formatted_code_text(node: &InlineNode<'_>, processor: &Processor<'_>) -> Opti
                 SetBackgroundColor(Color::Reset),
             ),
         },
-        InlineNode::MonospaceText(_)
-        | InlineNode::SuperscriptText(_)
-        | InlineNode::SubscriptText(_) => text,
-        InlineNode::CurvedQuotationText(_) => format!("“{text}”"),
-        InlineNode::CurvedApostropheText(_) => format!("‘{text}’"),
-        InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
+        InlineKind::Monospace(_) | InlineKind::Superscript(_) | InlineKind::Subscript(_) => text,
+        InlineKind::CurvedQuotation(_) => format!("“{text}”"),
+        InlineKind::CurvedApostrophe(_) => format!("‘{text}’"),
+        InlineKind::Plain(_)
+        | InlineKind::Raw(_)
+        | InlineKind::Verbatim(_)
+        | InlineKind::StandaloneCurvedApostrophe(_)
+        | InlineKind::CharacterReference(_)
+        | InlineKind::Symbol(_)
+        | InlineKind::LineBreak(_)
+        | InlineKind::Anchor(_)
+        | InlineKind::Footnote(_)
+        | InlineKind::Icon(_)
+        | InlineKind::Image(_)
+        | InlineKind::Keyboard(_)
+        | InlineKind::Button(_)
+        | InlineKind::Menu(_)
+        | InlineKind::Url(_)
+        | InlineKind::Link(_)
+        | InlineKind::Mailto(_)
+        | InlineKind::Autolink(_)
+        | InlineKind::CrossReference(_)
+        | InlineKind::Pass(_)
+        | InlineKind::Stem(_)
+        | InlineKind::IndexTerm(_)
+        | InlineKind::Callout(_)
         | _ => return None,
     })
 }
@@ -666,20 +696,21 @@ fn wrap_code_style(
         .join("\n")
 }
 
-fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {
-    matches!(nodes.get(index), Some(InlineNode::CalloutRef(_)))
-        && index.checked_sub(1).is_some_and(|previous| {
-            matches!(
-                nodes.get(previous),
-                Some(InlineNode::VerbatimText(text)) if text.content.ends_with("<!--")
-            )
-        })
-        && index.checked_add(1).is_some_and(|next| {
-            matches!(
-                nodes.get(next),
-                Some(InlineNode::VerbatimText(text)) if text.content.starts_with("-->")
-            )
-        })
+fn is_xml_callout(nodes: &[InlineRef<'_>], index: usize) -> bool {
+    matches!(
+        nodes.get(index).map(|node| node.kind()),
+        Some(InlineKind::Callout(_))
+    ) && index.checked_sub(1).is_some_and(|previous| {
+        matches!(
+            nodes.get(previous).map(|node| node.kind()),
+            Some(InlineKind::Verbatim(text)) if text.text().ends_with("<!--")
+        )
+    }) && index.checked_add(1).is_some_and(|next| {
+        matches!(
+            nodes.get(next).map(|node| node.kind()),
+            Some(InlineKind::Verbatim(text)) if text.text().starts_with("-->")
+        )
+    })
 }
 
 fn strip_callout_guard(text: &str, language_prefix: Option<&str>) -> String {
@@ -751,26 +782,25 @@ fn apply_source_line_options(content: &str, options: &SourceLineOptions) -> Stri
 mod tests {
     use super::*;
     use crate::{TerminalVisitor, create_test_processor};
+    use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType};
 
-    use acdc_converters_core::{Converter, Diagnostics, WarningSource, visitor::Visitor};
+    use acdc_converters_core::{Converter, Diagnostics, WarningSource};
     use acdc_parser::{Location, Paragraph, Plain, Title};
 
     /// Create simple plain text inline nodes for testing
     fn create_test_inlines(content: &str) -> Vec<InlineNode<'_>> {
-        vec![InlineNode::PlainText(Plain {
+        vec![InlineNode::PlainText(Plain::new(
             content,
-            location: Location::default(),
-            escaped: false,
-        })]
+            Location::default(),
+        ))]
     }
 
     /// Create simple plain text title for testing
     fn create_test_title(content: &str) -> Title<'_> {
-        Title::new(vec![InlineNode::PlainText(Plain {
+        Title::new(vec![InlineNode::PlainText(Plain::new(
             content,
-            location: Location::default(),
-            escaped: false,
-        })])
+            Location::default(),
+        ))])
     }
 
     #[test]
@@ -789,7 +819,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -822,7 +852,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -855,7 +885,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -888,7 +918,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -929,7 +959,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -969,7 +999,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1008,7 +1038,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1043,7 +1073,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1083,7 +1113,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1120,7 +1150,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1159,7 +1189,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1200,7 +1230,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1237,7 +1267,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1271,7 +1301,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1305,7 +1335,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1335,7 +1365,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1364,7 +1394,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1396,7 +1426,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1426,7 +1456,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1454,7 +1484,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1482,7 +1512,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1513,7 +1543,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1547,7 +1577,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&mut traversal, &block)?;
+        visitor.render_delimited_block(&mut traversal, (&block).into())?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1604,7 +1634,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor1 = TerminalVisitor::new(&mut buffer1, &processor, diagnostics.reborrow());
-        visitor1.visit_delimited_block(&mut traversal, &block1)?;
+        visitor1.render_delimited_block(&mut traversal, (&block1).into())?;
 
         let mut buffer2 = Vec::new();
         let mut warnings = Vec::new();
@@ -1613,7 +1643,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor2 = TerminalVisitor::new(&mut buffer2, &processor, diagnostics.reborrow());
-        visitor2.visit_delimited_block(&mut traversal, &block2)?;
+        visitor2.render_delimited_block(&mut traversal, (&block2).into())?;
 
         let mut buffer3 = Vec::new();
         let mut warnings = Vec::new();
@@ -1622,7 +1652,7 @@ mod tests {
         let attribute_header = Converter::document_attributes(&processor).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor3 = TerminalVisitor::new(&mut buffer3, &processor, diagnostics.reborrow());
-        visitor3.visit_delimited_block(&mut traversal, &block3)?;
+        visitor3.render_delimited_block(&mut traversal, (&block3).into())?;
 
         let output1 = String::from_utf8_lossy(&buffer1);
         let output2 = String::from_utf8_lossy(&buffer2);

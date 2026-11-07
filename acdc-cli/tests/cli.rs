@@ -7,6 +7,7 @@ use std::{
     feature = "html",
     feature = "terminal",
     feature = "inspect",
+    feature = "manpage",
     feature = "pdf"
 ))]
 use tempfile::tempdir;
@@ -17,6 +18,7 @@ use tempfile::tempdir;
     feature = "inspect",
     feature = "execute",
     feature = "lint",
+    feature = "manpage",
     feature = "pdf"
 ))]
 use std::fs;
@@ -212,13 +214,12 @@ fn include_budget_resets_for_each_file_in_a_conversion_batch() -> Result<(), Box
     feature = "tck",
 )))]
 #[test]
-fn no_command_features_return_a_clear_diagnostic() -> Result<(), Box<dyn Error>> {
+fn minimal_build_still_exposes_native_json_parsing() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(&[], None)?;
     let stderr = output_text(&output.stderr);
 
     assert_eq!(output.status.code(), Some(2));
-    assert!(stderr.contains("built without any subcommand features"));
-    assert!(stderr.contains("pdf"));
+    assert!(stderr.contains("parse"));
     Ok(())
 }
 
@@ -495,6 +496,70 @@ fn invalid_tck_type_returns_a_failure() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[cfg(feature = "tck")]
+#[test]
+fn tck_rejects_unsupported_content_without_partial_json() -> Result<(), Box<dyn Error>> {
+    for (kind, contents) in [
+        ("block", "Before.\n\nInline image:photo.png[Alt]."),
+        ("inline", "Before image:photo.png[Alt]."),
+    ] {
+        let input = serde_json::json!({"contents": contents, "path": "test.adoc", "type": kind})
+            .to_string();
+        let output = run_acdc(&["tck"], Some(&input))?;
+        assert!(!output.status.success());
+        assert_eq!(output.stdout, [] as [u8; 0]);
+        let diagnostic: serde_json::Value = serde_json::from_slice(&output.stderr)?;
+        assert_eq!(
+            diagnostic.get("kind"),
+            Some(&serde_json::json!("unsupported-asg"))
+        );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "tck")]
+#[test]
+fn tck_uses_draft_attributes_and_checked_media_targets() -> Result<(), Box<dyn Error>> {
+    let input = serde_json::json!({
+        "contents": "[#photo]\n[role=one,role=two]\naudio::photo.ogg[title=\"*Literal*\"]",
+        "path": "test.adoc", "type": "block",
+    })
+    .to_string();
+    let output = run_acdc(&["tck"], Some(&input))?;
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    let image = &json
+        .pointer("/blocks/0")
+        .cloned()
+        .ok_or("missing JSON value")?;
+    assert_eq!(
+        image
+            .pointer("/target")
+            .cloned()
+            .ok_or("missing JSON value")?,
+        "photo.ogg"
+    );
+    assert_eq!(
+        image.pointer("/id").cloned().ok_or("missing JSON value")?,
+        "photo"
+    );
+    assert_eq!(
+        image
+            .pointer("/metadata/roles")
+            .cloned()
+            .ok_or("missing JSON value")?,
+        serde_json::json!(["one", "two"])
+    );
+    assert_eq!(
+        image
+            .pointer("/title/0/value")
+            .cloned()
+            .ok_or("missing JSON value")?,
+        "*Literal*"
+    );
+    Ok(())
+}
+
 #[cfg(feature = "html")]
 #[test]
 fn converts_stdin_to_stdout() -> Result<(), Box<dyn Error>> {
@@ -557,6 +622,60 @@ fn fail_on_warnings_allows_clean_conversion() -> Result<(), Box<dyn Error>> {
         assert!(output.status.success(), "{}", output_text(&output.stderr));
         assert!(output_text(&output.stdout).contains("Clean conversion body."));
         assert!(output.stderr.is_empty(), "{}", output_text(&output.stderr));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "manpage")]
+#[test]
+fn fail_on_warnings_accepts_literal_name_with_custom_manname_title() -> Result<(), Box<dyn Error>> {
+    for mode in ["asciidoctor", "draft"] {
+        for embedded in [false, true] {
+            for (setting, heading, fails) in [
+                ("manname-title=NOMS", "NAME", false),
+                ("manname-title=", "NAME", false),
+                ("manname-title!", "NAME", false),
+                ("manname-title=NOMS", "NOMS", false),
+                ("manname-title=NOMS", "OTHER", true),
+            ] {
+                let source = format!(
+                    "= names(1)\n:doctype: manpage\n:revdate: 2026-11-06\n\n== {heading}\n\nnames - purpose\n\n== SYNOPSIS\n\nnames\n"
+                );
+                let mut args = vec![
+                    "convert",
+                    "--stdin",
+                    "-b",
+                    "manpage",
+                    "--out-file",
+                    "-",
+                    "--fail-on-warnings",
+                    "--compatibility-mode",
+                    mode,
+                    "-a",
+                    setting,
+                    "-a",
+                    "manname=names",
+                    "-a",
+                    "manpurpose=purpose",
+                ];
+                if embedded {
+                    args.push("--embedded");
+                }
+                let output = run_acdc(&args, Some(&source))?;
+                let stderr = output_text(&output.stderr);
+                assert_eq!(
+                    output.status.code(),
+                    Some(i32::from(fails)),
+                    "{setting}, {heading}: {stderr}"
+                );
+                assert_eq!(
+                    stderr.contains("name section should be first"),
+                    fails,
+                    "{stderr}"
+                );
+                assert!(output_text(&output.stdout).contains(".SH \"SYNOPSIS\""));
+            }
+        }
     }
     Ok(())
 }
@@ -1543,7 +1662,6 @@ mod execution {
         Ok(())
     }
 
-    #[cfg(feature = "pre-spec-subs")]
     #[test]
     fn execute_dry_run_and_interpreter_use_the_same_attribute_substitutions()
     -> Result<(), Box<dyn Error>> {
@@ -1579,7 +1697,6 @@ mod execution {
         Ok(())
     }
 
-    #[cfg(feature = "pre-spec-subs")]
     #[test]
     fn execute_keeps_disabled_attribute_substitutions_literal() -> Result<(), Box<dyn Error>> {
         for substitutions in ["none", "-attributes"] {
@@ -1600,7 +1717,6 @@ mod execution {
         Ok(())
     }
 
-    #[cfg(feature = "pre-spec-subs")]
     #[test]
     fn execute_rejects_missing_attributes_in_unselected_commands_before_starting()
     -> Result<(), Box<dyn Error>> {
@@ -1626,7 +1742,6 @@ mod execution {
         Ok(())
     }
 
-    #[cfg(feature = "pre-spec-subs")]
     #[test]
     fn execute_attribute_substitutions_follow_source_order() -> Result<(), Box<dyn Error>> {
         let directory = tempfile::tempdir()?;
@@ -1648,26 +1763,6 @@ mod execution {
         let output = run_document(directory.path(), source, &[])?;
         assert!(output.status.success(), "{}", output_text(&output.stderr));
         assert_eq!(output.stdout, b"first\nsecond\n");
-        Ok(())
-    }
-
-    #[cfg(not(feature = "pre-spec-subs"))]
-    #[test]
-    fn execute_without_substitution_support_rejects_explicit_subs_before_starting()
-    -> Result<(), Box<dyn Error>> {
-        for substitutions in ["attributes", "none"] {
-            let directory = tempfile::tempdir()?;
-            let source = format!(
-                "[.command,id=first]\n----\nprintf ran > marker\n----\n\n\
-                 [.command,id=unsupported,subs={substitutions}]\n----\nprintf '%s' '{{value}}'\n----\n"
-            );
-            let output = run_document(directory.path(), &source, &["--id", "first"])?;
-            assert_eq!(output.status.code(), Some(1));
-            let stderr = output_text(&output.stderr);
-            assert!(stderr.contains("subs"), "{stderr}");
-            assert!(stderr.contains("commands.adoc"), "{stderr}");
-            assert!(!directory.path().join("marker").exists());
-        }
         Ok(())
     }
 
@@ -2324,6 +2419,274 @@ fn asciidoctor_theme_cli_rejects_missing_theme_and_invalid_format() -> Result<()
         )?;
         assert_eq!(output.status.code(), Some(1));
         assert!(output_text(&output.stderr).contains("PDF-only"));
+    }
+    Ok(())
+}
+
+#[test]
+#[cfg(feature = "html")]
+fn legacy_underlined_headings_need_no_conversion_flag() -> Result<(), Box<dyn Error>> {
+    let output = run_acdc(
+        &["convert", "--stdin", "--embedded", "--out-file", "-"],
+        Some("Guide\n=====\n\nInstallation\n------------\n\nBody.\n"),
+    )?;
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    assert!(output_text(&output.stdout).contains("<h2 id=\"_installation\">Installation</h2>"));
+    let help = run_acdc(&["convert", "--help"], None)?;
+    assert!(help.status.success());
+    assert!(!output_text(&help.stdout).contains("--setext"));
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn compatibility_mode_reaches_conversion_files_stdin_includes_and_cells()
+-> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("main.adoc");
+    let source = ":word: *Bold*\n:compatibility-mode: asciidoctor\n\ninclude::part.adoc[]\n\n[cols=a]\n|===\n|Cell {word}.\n|===\n";
+    fs::write(&path, source)?;
+    fs::write(directory.path().join("part.adoc"), "Included {word}.\n")?;
+    for mode in [None, Some("asciidoctor"), Some("draft")] {
+        for stdin in [false, true] {
+            let mut args = vec![
+                "convert",
+                "--backend",
+                "html",
+                "--embedded",
+                "--out-file",
+                "-",
+            ];
+            if let Some(mode) = mode {
+                args.extend(["--compatibility-mode", mode]);
+            }
+            let path_text = path.to_string_lossy();
+            if stdin {
+                args.push("--stdin");
+            } else {
+                args.push(&path_text);
+            }
+            let output = run_acdc_in(directory.path(), &args, stdin.then_some(source))?;
+            assert!(output.status.success(), "{}", output_text(&output.stderr));
+            assert!(output.stderr.is_empty(), "{}", output_text(&output.stderr));
+            let text = output_text(&output.stdout);
+            for prefix in ["Included", "Cell"] {
+                let word = if mode == Some("draft") {
+                    "<strong>Bold</strong>"
+                } else {
+                    "*Bold*"
+                };
+                assert!(text.contains(&format!("{prefix} {word}.")), "{text}");
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "inspect")]
+#[test]
+fn compatibility_mode_reaches_inspect() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("main.adoc");
+    fs::write(&path, "= Tool\n:word: *Task*\n\n== {word}\n\nBody.\n")?;
+    for mode in ["asciidoctor", "draft"] {
+        let output = run_acdc(
+            &[
+                "inspect",
+                "--compatibility-mode",
+                mode,
+                &path.to_string_lossy(),
+            ],
+            None,
+        )?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        let text = output_text(&output.stdout);
+        assert!(text.contains("Task"), "{text}");
+        assert_eq!(text.contains("*Task*"), mode == "asciidoctor", "{text}");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "execute")]
+#[test]
+fn compatibility_mode_reaches_execute_without_running_commands() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("main.adoc");
+    fs::write(
+        &path,
+        "= Tool\n:word: *Task*\n\n== {word}\n\n[.command,id=selected]\n----\ntouch marker\n----\n",
+    )?;
+    for mode in ["asciidoctor", "draft"] {
+        let output = spawn_acdc(
+            Some(directory.path()),
+            &[
+                "execute",
+                "--list",
+                "--compatibility-mode",
+                mode,
+                &path.to_string_lossy(),
+            ],
+            None,
+        )?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        let text = output_text(&output.stdout);
+        let title = if mode == "draft" { "Task" } else { "*Task*" };
+        assert!(text.contains(&format!("section=\"{title}\"")), "{text}");
+        assert!(!directory.path().join("marker").exists());
+    }
+    Ok(())
+}
+
+#[cfg(feature = "lint")]
+#[test]
+fn compatibility_mode_reaches_lint_files_and_stdin() -> Result<(), Box<dyn Error>> {
+    let directory = tempfile::tempdir()?;
+    let path = directory.path().join("main.adoc");
+    let source = "Legacy\n------\n\nBody.\n";
+    fs::write(&path, source)?;
+    for mode in ["asciidoctor", "draft"] {
+        for stdin in [false, true] {
+            let mut args = vec![
+                "lint",
+                "--output-style",
+                "compact",
+                "--deny",
+                "unterminated-delimited-block",
+                "--compatibility-mode",
+                mode,
+            ];
+            let path_text = path.to_string_lossy();
+            if stdin {
+                args.push("--stdin");
+            } else {
+                args.push(&path_text);
+            }
+            let output = run_acdc(&args, stdin.then_some(source))?;
+            assert_eq!(
+                output.status.success(),
+                mode == "asciidoctor",
+                "{}",
+                output_text(&output.stderr)
+            );
+            assert_eq!(
+                output_text(&output.stderr).contains("unterminated-delimited-block"),
+                mode == "draft"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[cfg(any(
+    feature = "html",
+    feature = "lint",
+    feature = "inspect",
+    feature = "execute"
+))]
+#[test]
+fn compatibility_mode_rejects_unknown_names_before_reading_input() -> Result<(), Box<dyn Error>> {
+    for command in include_budget_commands() {
+        let mut args = command.to_vec();
+        args.extend(["--compatibility-mode", "spec-only", "does-not-exist.adoc"]);
+        let output = run_acdc(&args, None)?;
+        assert_eq!(output.status.code(), Some(2));
+        let error = output_text(&output.stderr);
+        assert!(error.contains("expected asciidoctor or draft"), "{error}");
+        assert_eq!(output.stdout.as_slice(), b"");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "manpage")]
+#[test]
+fn manpage_dates_use_docdate_and_reproducible_source_metadata() -> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    for (name, header, attributes, expected, comment) in [
+        (
+            "epoch",
+            ":revdate: 2004-05-06\n",
+            vec![],
+            "2000-01-01",
+            true,
+        ),
+        (
+            "header",
+            ":docdate: 2001-02-03\n:revdate: 2004-05-06\n",
+            vec![],
+            "2001-02-03",
+            true,
+        ),
+        (
+            "caller",
+            ":docdate: 2001-02-03\n",
+            vec!["docdate=2010-11-12"],
+            "2010-11-12",
+            true,
+        ),
+        (
+            "soft",
+            ":docdate: 2001-02-03\n",
+            vec!["docdate=2010-11-12@"],
+            "2001-02-03",
+            true,
+        ),
+        (
+            "caller_empty",
+            ":docdate: 2001-02-03\n",
+            vec!["docdate="],
+            "",
+            true,
+        ),
+        (
+            "caller_unset",
+            ":docdate: 2001-02-03\n",
+            vec!["docdate!"],
+            "",
+            false,
+        ),
+        ("header_unset", ":docdate!:\n", vec![], "", false),
+        (
+            "reproducible",
+            ":docdate: 2001-02-03\n:reproducible:\n",
+            vec![],
+            "",
+            false,
+        ),
+    ] {
+        let path = directory.path().join(format!("{name}.adoc"));
+        fs::write(
+            &path,
+            format!(
+                "= dates(1)\n:doctype: manpage\n{header}\n== NAME\n\ndates - date controls\n\n== SYNOPSIS\n\ndates\n"
+            ),
+        )?;
+        for mode in ["asciidoctor", "draft"] {
+            let mut command = Command::new(env!("CARGO_BIN_EXE_acdc"));
+            command
+                .args([
+                    "convert",
+                    "-b",
+                    "manpage",
+                    "--out-file",
+                    "-",
+                    "--fail-on-warnings",
+                    "--compatibility-mode",
+                    mode,
+                ])
+                .env("SOURCE_DATE_EPOCH", "946684800")
+                .env_remove("ACDC_LOG");
+            for attribute in &attributes {
+                command.args(["-a", attribute]);
+            }
+            let output = command.arg(&path).output()?;
+            assert!(output.status.success(), "{}", output_text(&output.stderr));
+            let output = output_text(&output.stdout);
+            assert!(
+                output.contains(&format!(".TH \"DATES\" \"1\" \"{expected}\"")),
+                "{name}: {output}"
+            );
+            assert_eq!(output.contains("Date:"), comment, "{name}: {output}");
+        }
     }
     Ok(())
 }

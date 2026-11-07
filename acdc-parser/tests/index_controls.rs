@@ -1,0 +1,161 @@
+use acdc_parser::{
+    CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, Options,
+    ast::{ContentRef, IndexTermRef, InlineKind},
+    parse, parse_inline,
+};
+
+type Error = Box<dyn std::error::Error>;
+
+fn index<'a>(nodes: &'a [InlineNode<'a>]) -> Result<IndexTermRef<'a>, Error> {
+    match nodes {
+        [InlineNode::Macro(InlineMacro::IndexTerm(term))] => Ok(IndexTermRef::from(term.as_ref())),
+        _ => Err(format!("expected one index term: {nodes:?}").into()),
+    }
+}
+
+fn text(nodes: ContentRef<'_>) -> Result<String, Error> {
+    nodes
+        .inlines()
+        .map(|node| {
+            let InlineKind::Plain(text) = node.kind() else {
+                return Err(format!("expected plain label: {node:?}").into());
+            };
+            Ok(text.text())
+        })
+        .collect()
+}
+
+#[rstest::rstest]
+#[case("indexterm2:[Visible,custom=kept]", "Visible")]
+#[case("indexterm2:[,custom=kept]", ",custom=kept")]
+#[case("indexterm2:[\"Visible, quoted\",custom=\"a,b\"]", "Visible, quoted")]
+#[case("indexterm2:[Visible,role=red,id=entry,opts=\"a,b\"]", "Visible")]
+#[case("indexterm2:[Visible,Secondary]", "Visible,Secondary")]
+#[case("indexterm2:[custom=kept,Visible]", "custom=kept,Visible")]
+#[case("((Visible,custom=literal))", "Visible,custom=literal")]
+fn named_index_controls_stay_out_of_visible_labels(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[case] source: &str,
+    #[case] expected: &str,
+) -> Result<(), Error> {
+    let parsed = parse_inline(
+        source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let term = index(parsed_inlines.as_slice())?;
+    assert!(term.is_visible());
+    assert_eq!(text(term.term())?, expected);
+    assert_eq!(text(term.catalog().term())?, expected);
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case("indexterm:[Primary,custom=kept,Secondary,Tertiary]", None, None)]
+#[case("indexterm:[Primary,,Tertiary,custom=kept]", None, None)]
+#[case(
+    "indexterm:[Primary,Secondary,Tertiary,custom=kept]",
+    Some("Secondary"),
+    Some("Tertiary")
+)]
+#[case(
+    "indexterm:[Primary,\"\",Tertiary,custom=kept]",
+    Some(""),
+    Some("Tertiary")
+)]
+#[case("(((Primary,custom=literal)))", Some("custom=literal"), None)]
+fn index_hierarchy_uses_physical_slots(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[case] source: &str,
+    #[case] secondary: Option<&str>,
+    #[case] tertiary: Option<&str>,
+) -> Result<(), Error> {
+    let parsed = parse_inline(
+        source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let term = index(parsed_inlines.as_slice())?;
+    assert!(!term.is_visible());
+    assert_eq!(text(term.term())?, "Primary");
+    assert_eq!(
+        term.secondary().map(text).transpose()?.as_deref(),
+        secondary
+    );
+    assert_eq!(term.tertiary().map(text).transpose()?.as_deref(), tertiary);
+    Ok(())
+}
+
+#[test]
+fn discarded_index_controls_and_relationships_do_not_register_footnotes() -> Result<(), Error> {
+    let parsed = parse(
+        "indexterm2:[Visible,custom=footnote:discarded[Unused]]\n\n\
+         indexterm2:[Visible,see=Target,see-also=\"footnote:ignored[Unused]\"]\n\n\
+         indexterm2:[Selected footnote:used[Only note.],custom=kept]",
+        &Options::default(),
+    )?;
+    let mut definitions = parsed.document().footnotes();
+    let (Some(note), None) = (definitions.next(), definitions.next()) else {
+        return Err(format!(
+            "expected one selected note: {:?}",
+            parsed.document().footnotes().collect::<Vec<_>>()
+        )
+        .into());
+    };
+    assert_eq!(note.id(), Some("used"));
+    let content = note
+        .content()
+        .inlines()
+        .map(|node| {
+            if let InlineKind::Plain(text) = node.kind() {
+                Ok(text.text())
+            } else {
+                Err(Error::from("expected plain note"))
+            }
+        })
+        .collect::<Result<String, Error>>()?;
+    assert_eq!(content, "Only note.");
+    Ok(())
+}
+
+#[test]
+fn named_index_controls_preserve_complete_child_labels() -> Result<(), Error> {
+    let source = "indexterm2:[Before link:guide.adoc[Child,role=child] after,custom=outer]";
+    let parsed = parse_inline(source, &Options::default())?;
+    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let term = index(parsed_inlines.as_slice())?;
+    let content = ContentAttribute::from(term.term()).into_inlines();
+    let [
+        InlineNode::PlainText(before),
+        InlineNode::Macro(InlineMacro::Link(link)),
+        InlineNode::PlainText(after),
+    ] = content.as_slice()
+    else {
+        return Err(format!("expected complete child link: {:?}", term.term()).into());
+    };
+    assert_eq!(acdc_parser::ast::PlainRef::from(before).text(), "Before ");
+    assert_eq!(
+        text(ContentRef::from(&ContentAttribute::new(
+            link.clone().take_text()
+        )))?,
+        "Child"
+    );
+    assert_eq!(
+        link.clone_metadata()
+            .roles
+            .into_tokens()
+            .unwrap_or_default(),
+        ["child"]
+    );
+    assert_eq!(acdc_parser::ast::PlainRef::from(after).text(), " after");
+    assert_eq!(
+        &source[acdc_parser::ast::LinkRef::from(link.as_ref())
+            .location()
+            .absolute_start()
+            ..=acdc_parser::ast::LinkRef::from(link.as_ref())
+                .location()
+                .absolute_end()],
+        "link:guide.adoc[Child,role=child]"
+    );
+    Ok(())
+}

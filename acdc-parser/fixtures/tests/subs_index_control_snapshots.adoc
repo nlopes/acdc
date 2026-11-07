@@ -1,0 +1,25 @@
+= Index control snapshots
+:label: Expanded
+:control: kept
+:introduced: Visible,custom=introduced
+
+[subs="specialcharacters,macros,attributes,quotes"]
+indexterm2:[{label} *label*,custom={control}].
+
+[subs="specialcharacters,attributes,quotes,macros"]
+indexterm2:[{label} *label*,custom={control}].
+
+[subs="specialcharacters,macros,attributes,quotes"]
+indexterm2:[{introduced}].
+
+[subs="specialcharacters,attributes,quotes,macros"]
+indexterm2:[{introduced}].
+
+[subs="specialcharacters,macros,attributes,quotes"]
+indexterm:[{label},Secondary,see-also="{label},Other",custom={control}].
+
+[subs="specialcharacters,macros,replacements"]
+indexterm2:[Copyright (C),custom=kept].
+
+[subs="specialcharacters,replacements,macros"]
+indexterm2:[Copyright (C),custom=kept].

@@ -1,0 +1,38 @@
+= Caption content locations
+:prefix: *λ*
+:caption-entry: caption='*Expanded*: '
+
+.Single character
+[caption='λ']
+====
+Body.
+====
+
+.Expanded content
+[caption='Préfixe {prefix}: ']
+====
+Body.
+====
+
+.Decoded content
+[caption='*a \'quote\' b*: ']
+====
+Body.
+====
+
+.Introduced attribute
+[{caption-entry}]
+====
+Body.
+====
+
+include::includes/compatibility_caption_locations.adoc[tag=selected]
+
+[cols=a]
+|===
+|.Nested caption
+[caption='{prefix} footnote:cell[Cell note]: ']
+====
+Body.
+====
+|===

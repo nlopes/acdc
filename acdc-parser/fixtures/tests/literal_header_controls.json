@@ -1,0 +1,224 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Literal header controls",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 25
+          }
+        ]
+      }
+    ],
+    "authors": [
+      {
+        "firstname": "\"Jane",
+        "lastname": "Doe\"",
+        "initials": "\"D",
+        "address": "\"jane@example.org\""
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 6,
+        "col": 10
+      }
+    ]
+  },
+  "attributes": {
+    "author": "\"Jane Doe\"",
+    "authorcount": "1",
+    "authorinitials": "\"D",
+    "authors": "\"Jane Doe\"",
+    "email": "\"jane@example.org\"",
+    "firstname": "\"Jane",
+    "lastname": "Doe\"",
+    "leveloffset": "\"+1\"",
+    "nofooter": true
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "One",
+          "location": [
+            {
+              "line": 8,
+              "col": 4
+            },
+            {
+              "line": 8,
+              "col": 6
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body.",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 1
+                },
+                {
+                  "line": 10,
+                  "col": 5
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 5
+            }
+          ]
+        },
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Included",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 4,
+                  "file": [
+                    "includes/literal_offset_heading.adoc"
+                  ]
+                },
+                {
+                  "line": 1,
+                  "col": 11,
+                  "file": [
+                    "includes/literal_offset_heading.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Included body.",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 1,
+                      "file": [
+                        "includes/literal_offset_heading.adoc"
+                      ]
+                    },
+                    {
+                      "line": 3,
+                      "col": 14,
+                      "file": [
+                        "includes/literal_offset_heading.adoc"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 3,
+                  "col": 1,
+                  "file": [
+                    "includes/literal_offset_heading.adoc"
+                  ]
+                },
+                {
+                  "line": 3,
+                  "col": 14,
+                  "file": [
+                    "includes/literal_offset_heading.adoc"
+                  ]
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 1,
+              "file": [
+                "includes/literal_offset_heading.adoc"
+              ]
+            },
+            {
+              "line": 3,
+              "col": 14,
+              "file": [
+                "includes/literal_offset_heading.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 14,
+          "file": [
+            "includes/literal_offset_heading.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 14,
+      "file": [
+        "includes/literal_offset_heading.adoc"
+      ]
+    }
+  ]
+}

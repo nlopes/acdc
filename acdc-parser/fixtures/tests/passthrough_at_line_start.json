@@ -25,6 +25,9 @@
           "name": "raw",
           "type": "string",
           "value": "&",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 1,
@@ -55,6 +58,9 @@
           "name": "raw",
           "type": "string",
           "value": "<",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 1,
@@ -85,6 +91,9 @@
           "name": "raw",
           "type": "string",
           "value": ">",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 2,

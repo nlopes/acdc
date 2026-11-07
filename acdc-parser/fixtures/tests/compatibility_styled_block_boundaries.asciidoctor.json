@@ -1,0 +1,188 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Styled block boundaries",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 25
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 25
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Ordinary paragraph before a delimiter\n----\nseparate listing body\n----",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "language": "text"
+        },
+        "style": "source"
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Ordinary paragraph before metadata\n[quote]\nNext paragraph",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "verse"
+      },
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": " indented content before a delimiter\n----\nseparate listing body\n----",
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "language": "text"
+        },
+        "style": "source"
+      },
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Ordinary paragraph before a heading\n== Section title\nsection body",
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "literal"
+      },
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 12
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 23,
+      "col": 12
+    }
+  ]
+}

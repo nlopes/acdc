@@ -1,0 +1,23 @@
+{
+  "recovery": null,
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 183,
+        "absolute_start": 168,
+        "file": "compatibility_legacy_controls.adoc",
+        "location": [
+          {
+            "col": 9,
+            "line": 7
+          },
+          {
+            "col": 24,
+            "line": 7
+          }
+        ]
+      },
+      "message": "invalid reference: Installation"
+    }
+  ]
+}

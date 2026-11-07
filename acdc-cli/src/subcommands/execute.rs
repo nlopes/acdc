@@ -22,6 +22,10 @@ use crate::error::{LocatedError, SourceCache, WarningReport, WarningReportContex
 /// Execute command blocks defined in an `AsciiDoc` file
 #[derive(ClapArgs, Debug)]
 pub struct Args {
+    /// Language rules: asciidoctor or draft
+    #[arg(long, value_name = "MODE", default_value_t = acdc_parser::CompatibilityMode::default())]
+    pub compatibility_mode: acdc_parser::CompatibilityMode,
+
     /// Input `AsciiDoc` file
     pub file: PathBuf,
 
@@ -79,6 +83,7 @@ fn parse_environment(value: &str) -> Result<(OsString, OsString), String> {
 pub fn run(args: &Args) -> miette::Result<()> {
     let parser_options = acdc_parser::Options::builder()
         .with_safe_mode(args.safe_mode)
+        .with_compatibility_mode(args.compatibility_mode)
         .with_max_total_include_bytes(args.max_total_include_bytes)
         .build()
         .map_err(parser_report)?;
@@ -301,7 +306,7 @@ fn report_execution(report: ExecutionReport<'_>) -> miette::Result<()> {
 mod tests {
     use std::path::PathBuf;
 
-    use acdc_parser::{Block, DelimitedBlockType, Options, SafeMode};
+    use acdc_parser::{Options, SafeMode};
     use clap::Parser;
     use regex::Regex;
 
@@ -393,19 +398,20 @@ mod tests {
         let input = "[.command, id=build]\n----\necho hello\n----\n";
         let parsed = acdc_parser::parse(input, &Options::default())
             .map_err(|error| miette::miette!(error.to_string()))?;
-        let Some(Block::DelimitedBlock(block)) = parsed.document().blocks.first() else {
+        let Some(acdc_parser::ast::BlockKind::Listing(block)) = parsed
+            .document()
+            .blocks()
+            .next()
+            .map(acdc_parser::ast::BlockRef::kind)
+        else {
             return Err(miette::miette!(
                 "expected command markup to parse as a delimited block"
             ));
         };
 
-        assert!(matches!(
-            block.inner,
-            DelimitedBlockType::DelimitedListing(_)
-        ));
-        assert_eq!(block.metadata.roles, ["command"]);
+        assert_eq!(block.roles().iter().collect::<Vec<_>>(), ["command"]);
         assert_eq!(
-            block.metadata.id.as_ref().map(|anchor| anchor.id),
+            block.id().map(acdc_parser::ast::ElementIdRef::as_str),
             Some("build")
         );
 

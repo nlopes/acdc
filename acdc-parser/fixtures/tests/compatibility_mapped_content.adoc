@@ -1,0 +1,25 @@
+= Mapped Content
+:author: Ada
+
+[quote,'Positional footnote:[Positional author.]','Positional footnote:[Positional book.]']
+[attribution='Named footnote:[Named author.]',citetitle='Named footnote:[Named book.]']
+____
+Body footnote:[Quote body.]
+____
+
+[quote,attribution='Discarded footnote:[Discarded author.]']
+[quote,'{author} footnote:[Selected author.]']
+____
+Only the selected attribution is interpreted.
+____
+
+include::includes/compatibility_mapped_content.adoc[]
+
+[cols=a]
+|===
+|[quote,Old,OldBook]
+[attribution='{author}',citetitle='NewBook']
+____
+Nested selection preserves locations.
+____
+|===

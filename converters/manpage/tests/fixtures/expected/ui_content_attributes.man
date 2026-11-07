@@ -1,0 +1,34 @@
+'\" t
+.\"     Title: ui-content-attributes
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-10-22
+.\"    Manual: Media content tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "UI\-CONTENT\-ATTRIBUTES" "1" "2026-10-22" "acdc" "Media content tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+ui\-content\-attributes \- media content rendering
+.SH "DESCRIPTION"
+.sp
+[\fB\fBSave\fB\fR] \fBFile\fR \(ra \fB\fBOpen\fB\fR \(ra \fB\fIRecent\fB\fR \fB\fBCtrl\fB\fR+\fBS\fR

@@ -1,0 +1,438 @@
+{
+  "attributes": {
+    "flag": "header",
+    "imagesdir": "header"
+  },
+  "blocks": [
+    {
+      "caption": {
+        "counter": "figure",
+        "kind": "numbered",
+        "label": "Figure"
+      },
+      "form": "macro",
+      "location": [
+        {
+          "col": 1,
+          "line": 5
+        },
+        {
+          "col": 19,
+          "line": 5
+        }
+      ],
+      "name": "image",
+      "target": "before.png",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "set",
+        "value": "body"
+      },
+      "attribute": "imagesdir",
+      "location": [
+        {
+          "col": 1,
+          "line": 7
+        },
+        {
+          "col": 16,
+          "line": 7
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "caption": {
+        "counter": "figure",
+        "kind": "numbered",
+        "label": "Figure"
+      },
+      "form": "macro",
+      "location": [
+        {
+          "col": 1,
+          "line": 8
+        },
+        {
+          "col": 19,
+          "line": 8
+        }
+      ],
+      "name": "image",
+      "target": "middle.png",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "unset"
+      },
+      "attribute": "imagesdir",
+      "location": [
+        {
+          "col": 1,
+          "line": 10
+        },
+        {
+          "col": 12,
+          "line": 10
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "caption": {
+        "counter": "figure",
+        "kind": "numbered",
+        "label": "Figure"
+      },
+      "form": "macro",
+      "location": [
+        {
+          "col": 1,
+          "line": 11
+        },
+        {
+          "col": 18,
+          "line": 11
+        }
+      ],
+      "name": "image",
+      "target": "after.png",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "set",
+        "value": "false"
+      },
+      "attribute": "flag",
+      "location": [
+        {
+          "col": 1,
+          "line": 13
+        },
+        {
+          "col": 12,
+          "line": 13
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "set",
+        "value": ""
+      },
+      "attribute": "presence",
+      "location": [
+        {
+          "col": 1,
+          "line": 14
+        },
+        {
+          "col": 10,
+          "line": 14
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "set",
+        "value": "03"
+      },
+      "attribute": "toclevels",
+      "location": [
+        {
+          "col": 1,
+          "line": 15
+        },
+        {
+          "col": 14,
+          "line": 15
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "set",
+        "value": "selected"
+      },
+      "attribute": "label",
+      "location": [
+        {
+          "col": 1,
+          "line": 18
+        },
+        {
+          "col": 16,
+          "line": 18
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "inlines": [
+        {
+          "location": [
+            {
+              "col": 1,
+              "line": 20
+            },
+            {
+              "col": 12,
+              "line": 20
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "A paragraph."
+        }
+      ],
+      "location": [
+        {
+          "col": 1,
+          "line": 17
+        },
+        {
+          "col": 12,
+          "line": 20
+        }
+      ],
+      "metadata": {
+        "location": [
+          {
+            "col": 1,
+            "line": 17
+          },
+          {
+            "col": 17,
+            "line": 18
+          }
+        ]
+      },
+      "name": "paragraph",
+      "title": [
+        {
+          "location": [
+            {
+              "col": 2,
+              "line": 17
+            },
+            {
+              "col": 6,
+              "line": 17
+            }
+          ],
+          "name": "text",
+          "type": "string",
+          "value": "Title"
+        }
+      ],
+      "type": "block"
+    },
+    {
+      "blocks": [
+        {
+          "assignment": {
+            "kind": "set",
+            "value": "nested"
+          },
+          "attribute": "imagesdir",
+          "location": [
+            {
+              "col": 1,
+              "line": 23
+            },
+            {
+              "col": 18,
+              "line": 23
+            }
+          ],
+          "name": "attribute",
+          "type": "block"
+        },
+        {
+          "caption": {
+            "counter": "figure",
+            "kind": "numbered",
+            "label": "Figure"
+          },
+          "form": "macro",
+          "location": [
+            {
+              "col": 1,
+              "line": 24
+            },
+            {
+              "col": 19,
+              "line": 24
+            }
+          ],
+          "name": "image",
+          "target": "nested.png",
+          "type": "block"
+        }
+      ],
+      "delimiter": "--",
+      "form": "delimited",
+      "location": [
+        {
+          "col": 1,
+          "line": 22
+        },
+        {
+          "col": 2,
+          "line": 26
+        }
+      ],
+      "name": "open",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "unset"
+      },
+      "attribute": "imagesdir",
+      "location": [
+        {
+          "col": 1,
+          "line": 28
+        },
+        {
+          "col": 12,
+          "line": 28
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "unset"
+      },
+      "attribute": "flag",
+      "location": [
+        {
+          "col": 1,
+          "line": 30
+        },
+        {
+          "col": 7,
+          "line": 30
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "unset"
+      },
+      "attribute": "presence",
+      "location": [
+        {
+          "col": 1,
+          "line": 31
+        },
+        {
+          "col": 11,
+          "line": 31
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "assignment": {
+        "kind": "set",
+        "value": "attribute"
+      },
+      "attribute": "name",
+      "location": [
+        {
+          "col": 1,
+          "line": 32
+        },
+        {
+          "col": 16,
+          "line": 32
+        }
+      ],
+      "name": "attribute",
+      "type": "block"
+    },
+    {
+      "caption": {
+        "counter": "figure",
+        "kind": "numbered",
+        "label": "Figure"
+      },
+      "form": "macro",
+      "location": [
+        {
+          "col": 1,
+          "line": 34
+        },
+        {
+          "col": 17,
+          "line": 34
+        }
+      ],
+      "name": "image",
+      "target": "last.png",
+      "type": "block"
+    }
+  ],
+  "header": {
+    "location": [
+      {
+        "col": 1,
+        "line": 1
+      },
+      {
+        "col": 13,
+        "line": 3
+      }
+    ],
+    "title": [
+      {
+        "location": [
+          {
+            "col": 3,
+            "line": 1
+          },
+          {
+            "col": 26,
+            "line": 1
+          }
+        ],
+        "name": "text",
+        "type": "string",
+        "value": "Ordered attribute events"
+      }
+    ]
+  },
+  "location": [
+    {
+      "col": 1,
+      "line": 1
+    },
+    {
+      "col": 17,
+      "line": 34
+    }
+  ],
+  "name": "document",
+  "profile": "urn:acdc:asg:1",
+  "type": "block"
+}

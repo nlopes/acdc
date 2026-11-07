@@ -1,0 +1,20 @@
+R01 X \*word*.
+
+R03 X \\**word**.
+
+[subs=none]
+R05 X \*word* \[link] \(C) \->.
+
+:value: \*word*
+
+[subs=attributes]
+R06 {value}
+
+[quote,subs=none]
+R07 X \*word.
+
+[verse,subs=none]
+R08 X \*word.
+
+[quote,"R09 \*writer"]
+Quoted body.

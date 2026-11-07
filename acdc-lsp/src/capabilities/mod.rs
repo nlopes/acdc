@@ -1,5 +1,6 @@
 //! LSP capability implementations
 
+mod body_occurrences;
 pub(crate) mod call_hierarchy;
 pub(crate) mod code_actions;
 pub(crate) mod code_lens;
@@ -11,7 +12,10 @@ pub(crate) mod file_rename;
 pub(crate) mod folding;
 pub(crate) mod formatting;
 pub(crate) mod hover;
+pub(crate) mod identity;
 pub(crate) mod inlay_hints;
+mod link_occurrences;
+pub(crate) mod media;
 pub(crate) mod on_type_formatting;
 pub(crate) mod references;
 pub(crate) mod rename;

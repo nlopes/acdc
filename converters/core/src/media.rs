@@ -1,5 +1,11 @@
 //! Media target resolution for URI-producing converters.
 
+use std::{borrow::Cow, path::Path};
+
+use acdc_parser::{
+    ContentAttribute, Source,
+    ast::{AttributeValueRef, AttributesRef, ContentRef, SourceRef},
+};
 use relative_path::RelativePath;
 
 use crate::TraversalContext;
@@ -76,7 +82,6 @@ pub fn resolve_target(target: &str, attributes: &TraversalContext<'_>) -> String
     } else if let Some(images_dir) = attributes
         .get("imagesdir")
         .and_then(|value| value.text())
-        .map(acdc_parser::strip_quotes)
         .filter(|images_dir| !images_dir.is_empty())
     {
         let images_dir = images_dir.replace('\\', "/");
@@ -85,6 +90,65 @@ pub fn resolve_target(target: &str, attributes: &TraversalContext<'_>) -> String
         normalize_target(&target)
     };
     encode_spaces(&target)
+}
+
+/// Use explicit alternative text, including an empty value, or the filename.
+#[must_use]
+pub fn image_alt<'a>(source: &Source<'_>, alt: Option<&ContentAttribute<'_>>) -> Cow<'a, str> {
+    Cow::Owned(image_alt_from_content(
+        source.into(),
+        alt.map(ContentRef::from),
+    ))
+}
+
+/// Use typed alternative content, including an empty value, or the filename.
+///
+/// Explicit content becomes plain text. Otherwise, the filename stem is used,
+/// with hyphens and underscores replaced by spaces. The result is always owned.
+#[must_use]
+pub fn image_alt_from_content(source: SourceRef<'_>, alt: Option<ContentRef<'_>>) -> String {
+    if let Some(alt) = alt {
+        return crate::inline_text::InlineTextTransform::default()
+            .rendered()
+            .decode_char_refs(true)
+            .content_to_string(alt);
+    }
+    source
+        .file_name()
+        .and_then(|filename| Path::new(filename).file_stem())
+        .and_then(std::ffi::OsStr::to_str)
+        .unwrap_or_default()
+        .replace(['-', '_'], " ")
+}
+
+/// Append the authored start/end playback range to a media URI.
+#[must_use]
+pub fn with_time_range(target: &str, attributes: &acdc_parser::ElementAttributes<'_>) -> String {
+    let start = attributes.get_string("start");
+    let end = attributes.get_string("end");
+    append_time_range(target, start.as_deref(), end.as_deref())
+}
+
+/// Append a playback range from typed `start` and `end` attributes.
+///
+/// Text values are preserved, including literal quotes and empty values.
+/// Nontext values are ignored. The target and any existing fragment stay intact.
+#[must_use]
+pub fn with_time_range_from_attributes(target: &str, attributes: AttributesRef<'_>) -> String {
+    let time = |name| match attributes.get(name) {
+        Some(AttributeValueRef::Text(value)) => Some(value),
+        _ => None,
+    };
+    append_time_range(target, time("start"), time("end"))
+}
+
+fn append_time_range(target: &str, start: Option<&str>, end: Option<&str>) -> String {
+    match (start, end) {
+        (Some(start), Some(end)) => format!("{target}#t={start},{end}"),
+        (Some(start), None) => format!("{target}#t={start}"),
+        (None, Some(end)) => format!("{target}#t=,{end}"),
+        (None, None) => target.to_owned(),
+    }
 }
 
 #[cfg(test)]
@@ -123,6 +187,8 @@ mod tests {
                 "media/library/demo%20file.mp4",
             ),
             ("./demo.mp4", Some("."), "./demo.mp4"),
+            ("demo.mp4", Some("'assets π'"), "'assets%20π'/demo.mp4"),
+            ("demo.mp4", Some("\"assets"), "\"assets/demo.mp4"),
             ("demo.mp4", Some("./assets"), "./assets/demo.mp4"),
             (
                 "../clips/./demo.mp4",

@@ -1,0 +1,959 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Passthrough identity",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 22
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 24
+      }
+    ]
+  },
+  "attributes": {
+    "identifier": "expanded-id",
+    "role-name": "expanded"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "P01 ",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<b>*protected*</b>",
+          "metadata": {
+            "roles": [
+              "red"
+            ]
+          },
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 5
+            },
+            {
+              "line": 5,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 5,
+              "col": 33
+            },
+            {
+              "line": 5,
+              "col": 33
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 33
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "P02 ",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<em>raw</em>",
+          "metadata": {
+            "roles": [
+              "red",
+              "blue"
+            ],
+            "id": {
+              "id": "raw",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 7
+                },
+                {
+                  "line": 7,
+                  "col": 9
+                }
+              ]
+            }
+          },
+          "location": [
+            {
+              "line": 7,
+              "col": 5
+            },
+            {
+              "line": 7,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 7,
+              "col": 38
+            },
+            {
+              "line": 7,
+              "col": 38
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 38
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "P03 ",
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "*protected*",
+          "metadata": {
+            "roles": [
+              "red"
+            ]
+          },
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 5
+            },
+            {
+              "line": 9,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 9,
+              "col": 24
+            },
+            {
+              "line": 9,
+              "col": 24
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 24
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "P04 [.red]",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<i>macro</i>",
+          "location": [
+            {
+              "line": 11,
+              "col": 17
+            },
+            {
+              "line": 11,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 11,
+              "col": 30
+            },
+            {
+              "line": 11,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 30
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "P05 ",
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "[.red]",
+          "location": [
+            {
+              "line": 13,
+              "col": 5
+            },
+            {
+              "line": 13,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "protected",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 14
+            },
+            {
+              "line": 13,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 13,
+              "col": 25
+            },
+            {
+              "line": 13,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 25
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "P06 x[.red]+word+y.",
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 19
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "P07 ",
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "Ω protected",
+          "metadata": {
+            "roles": [
+              "expanded"
+            ],
+            "id": {
+              "id": "expanded-id",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 7
+                },
+                {
+                  "line": 17,
+                  "col": 18
+                }
+              ]
+            }
+          },
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 5
+            },
+            {
+              "line": 17,
+              "col": 46
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 17,
+              "col": 47
+            },
+            {
+              "line": 17,
+              "col": 47
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 47
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "P08 ",
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "nested",
+              "metadata": {
+                "roles": [
+                  "red"
+                ],
+                "id": {
+                  "id": "nested",
+                  "location": [
+                    {
+                      "line": 19,
+                      "col": 8
+                    },
+                    {
+                      "line": 19,
+                      "col": 13
+                    }
+                  ]
+                }
+              },
+              "substitutions": [
+                "special_chars"
+              ],
+              "location": [
+                {
+                  "line": 19,
+                  "col": 6
+                },
+                {
+                  "line": 19,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 19,
+              "col": 5
+            },
+            {
+              "line": 19,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 19,
+              "col": 30
+            },
+            {
+              "line": 19,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 30
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "P09 ",
+                        "location": [
+                          {
+                            "line": 23,
+                            "col": 3
+                          },
+                          {
+                            "line": 23,
+                            "col": 6
+                          }
+                        ]
+                      },
+                      {
+                        "name": "raw",
+                        "type": "string",
+                        "value": "cell",
+                        "metadata": {
+                          "roles": [
+                            "blue"
+                          ],
+                          "id": {
+                            "id": "cell",
+                            "location": [
+                              {
+                                "line": 23,
+                                "col": 9
+                              },
+                              {
+                                "line": 23,
+                                "col": 12
+                              }
+                            ]
+                          }
+                        },
+                        "substitutions": [
+                          "special_chars"
+                        ],
+                        "location": [
+                          {
+                            "line": 23,
+                            "col": 7
+                          },
+                          {
+                            "line": 23,
+                            "col": 26
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": ".",
+                        "location": [
+                          {
+                            "line": 23,
+                            "col": 27
+                          },
+                          {
+                            "line": 23,
+                            "col": 27
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 23,
+                        "col": 3
+                      },
+                      {
+                        "line": 23,
+                        "col": 27
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 22,
+            "col": 1
+          },
+          {
+            "line": 24,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "P10 ",
+          "location": [
+            {
+              "line": 2,
+              "col": 3,
+              "file": [
+                "includes/passthrough_metadata.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 6,
+              "file": [
+                "includes/passthrough_metadata.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "included Ω",
+          "metadata": {
+            "roles": [
+              "green"
+            ],
+            "id": {
+              "id": "included",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 9,
+                  "file": [
+                    "includes/passthrough_metadata.adoc"
+                  ]
+                },
+                {
+                  "line": 2,
+                  "col": 16,
+                  "file": [
+                    "includes/passthrough_metadata.adoc"
+                  ]
+                }
+              ]
+            }
+          },
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 2,
+              "col": 7,
+              "file": [
+                "includes/passthrough_metadata.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 37,
+              "file": [
+                "includes/passthrough_metadata.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 2,
+              "col": 38,
+              "file": [
+                "includes/passthrough_metadata.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 38,
+              "file": [
+                "includes/passthrough_metadata.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 3,
+          "file": [
+            "includes/passthrough_metadata.adoc"
+          ]
+        },
+        {
+          "line": 2,
+          "col": 38,
+          "file": [
+            "includes/passthrough_metadata.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "P11 ",
+          "location": [
+            {
+              "line": 28,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "raw",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 28,
+              "col": 5
+            },
+            {
+              "line": 28,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 28,
+              "col": 12
+            },
+            {
+              "line": 28,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "cell",
+          "target_is_local": true,
+          "location": [
+            {
+              "line": 28,
+              "col": 17
+            },
+            {
+              "line": 28,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 28,
+              "col": 25
+            },
+            {
+              "line": 28,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 28,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 25
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 28,
+      "col": 25
+    }
+  ]
+}

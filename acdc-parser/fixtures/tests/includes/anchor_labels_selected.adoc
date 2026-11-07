@@ -1,0 +1,5 @@
+Excluded source.
+    café [[included-label,Included [nested] label (C)]] after.
+
+    See <<included-label>>.
+Excluded source.

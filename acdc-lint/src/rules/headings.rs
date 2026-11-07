@@ -1,5 +1,5 @@
-use acdc_parser::{
-    Block, DelimitedBlock, DelimitedBlockType, Document, InlineMacro, InlineNode, Location,
+use acdc_parser::ast::{
+    BlockKind, BlockRef, ContentRef, DocumentRef, InlineKind, LocationRef, StructuralRef,
 };
 
 use crate::LintId;
@@ -11,96 +11,41 @@ use super::{
 
 pub(crate) fn lint_section_title_symmetric_marker(
     emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
+    document: DocumentRef<'_>,
     lines: &[SourceLine<'_>],
 ) {
-    if let Some(header) = &document.header {
-        lint_symmetric_title_line(emitter, lines, &header.location);
+    if let Some(header) = document.header() {
+        lint_symmetric_title_line(emitter, lines, header.location());
     }
-    lint_section_title_blocks(emitter, &document.blocks, lines);
+    for_each_heading(StructuralRef::Document(document), &mut |block| {
+        lint_symmetric_title_line(emitter, lines, block.location());
+    });
 }
 
-fn lint_section_title_blocks(
-    emitter: &mut LintEmitter<'_>,
-    blocks: &[Block<'_>],
-    lines: &[SourceLine<'_>],
-) {
-    for block in blocks {
-        match block {
-            Block::Admonition(block) => lint_section_title_blocks(emitter, &block.blocks, lines),
-            Block::CalloutList(list) => {
-                for item in &list.items {
-                    lint_section_title_blocks(emitter, &item.blocks, lines);
-                }
-            }
-            Block::DescriptionList(list) => {
-                for item in &list.items {
-                    lint_section_title_blocks(emitter, &item.description, lines);
-                }
-            }
-            Block::DelimitedBlock(block) => {
-                lint_section_title_delimited_block(emitter, block, lines);
-            }
-            Block::DiscreteHeader(header) => {
-                lint_symmetric_title_line(emitter, lines, &header.location);
-            }
-            Block::OrderedList(list) => {
-                for item in &list.items {
-                    lint_section_title_blocks(emitter, &item.blocks, lines);
-                }
-            }
-            Block::Section(section) => {
-                lint_symmetric_title_line(emitter, lines, &section.location);
-                lint_section_title_blocks(emitter, &section.content, lines);
-            }
-            Block::UnorderedList(list) => {
-                for item in &list.items {
-                    lint_section_title_blocks(emitter, &item.blocks, lines);
-                }
-            }
-            Block::Audio(_)
-            | Block::Comment(_)
-            | Block::DocumentAttribute(_)
-            | Block::Image(_)
-            | Block::PageBreak(_)
-            | Block::Paragraph(_)
-            | Block::TableOfContents(_)
-            | Block::ThematicBreak(_)
-            | Block::Video(_)
-            | _ => {}
+fn for_each_heading<'doc>(node: StructuralRef<'doc>, visit: &mut impl FnMut(BlockRef<'doc>)) {
+    if let StructuralRef::Block(block) = node {
+        // Heading advice excludes table-cell content.
+        if matches!(block.kind(), BlockKind::Table(_)) {
+            return;
+        }
+        if matches!(
+            block.kind(),
+            BlockKind::Section(_) | BlockKind::DiscreteHeader(_)
+        ) {
+            visit(block);
         }
     }
-}
-
-fn lint_section_title_delimited_block(
-    emitter: &mut LintEmitter<'_>,
-    block: &DelimitedBlock<'_>,
-    lines: &[SourceLine<'_>],
-) {
-    match &block.inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks) => {
-            lint_section_title_blocks(emitter, blocks, lines);
-        }
-        DelimitedBlockType::DelimitedComment(_)
-        | DelimitedBlockType::DelimitedListing(_)
-        | DelimitedBlockType::DelimitedLiteral(_)
-        | DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        | DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedVerse(_)
-        | _ => {}
+    for child in node.children() {
+        for_each_heading(child, visit);
     }
 }
 
 fn lint_symmetric_title_line(
     emitter: &mut LintEmitter<'_>,
     lines: &[SourceLine<'_>],
-    location: &Location,
+    location: LocationRef<'_>,
 ) {
-    let Some(line) = source_line_at(lines, location.start.line) else {
+    let Some(line) = source_line_at(lines, location.start().line()) else {
         return;
     };
     if is_symmetric_atx_title(line.text.trim()) {
@@ -189,89 +134,29 @@ fn bad_heading_marker_len(trimmed: &str) -> Option<usize> {
 
 pub(crate) fn lint_section_title_capitalization(
     emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
+    document: DocumentRef<'_>,
 ) {
-    if let Some(header) = &document.header {
-        lint_title_capitalization(emitter, header.title.as_ref(), "document title");
+    if let Some(header) = document.header()
+        && let Some(title) = header.title()
+    {
+        lint_title_capitalization(emitter, title, "document title");
     }
-    lint_section_title_capitalization_blocks(emitter, &document.blocks);
-}
-
-fn lint_section_title_capitalization_blocks(emitter: &mut LintEmitter<'_>, blocks: &[Block<'_>]) {
-    for block in blocks {
-        match block {
-            Block::Admonition(block) => {
-                lint_section_title_capitalization_blocks(emitter, &block.blocks);
-            }
-            Block::CalloutList(list) => {
-                for item in &list.items {
-                    lint_section_title_capitalization_blocks(emitter, &item.blocks);
-                }
-            }
-            Block::DescriptionList(list) => {
-                for item in &list.items {
-                    lint_section_title_capitalization_blocks(emitter, &item.description);
-                }
-            }
-            Block::DelimitedBlock(block) => {
-                lint_section_title_capitalization_delimited_block(emitter, block);
-            }
-            Block::DiscreteHeader(header) => {
-                lint_title_capitalization(emitter, header.title.as_ref(), "discrete heading");
-            }
-            Block::OrderedList(list) => {
-                for item in &list.items {
-                    lint_section_title_capitalization_blocks(emitter, &item.blocks);
-                }
-            }
-            Block::Section(section) => {
-                lint_title_capitalization(emitter, section.title.as_ref(), "section title");
-                lint_section_title_capitalization_blocks(emitter, &section.content);
-            }
-            Block::UnorderedList(list) => {
-                for item in &list.items {
-                    lint_section_title_capitalization_blocks(emitter, &item.blocks);
-                }
-            }
-            Block::Audio(_)
-            | Block::Comment(_)
-            | Block::DocumentAttribute(_)
-            | Block::Image(_)
-            | Block::PageBreak(_)
-            | Block::Paragraph(_)
-            | Block::TableOfContents(_)
-            | Block::ThematicBreak(_)
-            | Block::Video(_)
-            | _ => {}
+    for_each_heading(StructuralRef::Document(document), &mut |block| {
+        if let BlockKind::Section(section) = block.kind()
+            && let Some(title) = section.title()
+        {
+            lint_title_capitalization(emitter, title, "section title");
+        } else if let BlockKind::DiscreteHeader(header) = block.kind()
+            && let Some(title) = header.title()
+        {
+            lint_title_capitalization(emitter, title, "discrete heading");
         }
-    }
-}
-
-fn lint_section_title_capitalization_delimited_block(
-    emitter: &mut LintEmitter<'_>,
-    block: &DelimitedBlock<'_>,
-) {
-    match &block.inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks) => {
-            lint_section_title_capitalization_blocks(emitter, blocks);
-        }
-        DelimitedBlockType::DelimitedComment(_)
-        | DelimitedBlockType::DelimitedListing(_)
-        | DelimitedBlockType::DelimitedLiteral(_)
-        | DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        | DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedVerse(_)
-        | _ => {}
-    }
+    });
 }
 
 fn lint_title_capitalization(
     emitter: &mut LintEmitter<'_>,
-    title: &[InlineNode<'_>],
+    title: ContentRef<'_>,
     title_kind: &str,
 ) {
     let Some(first) = first_alphabetic_inlines(title) else {
@@ -299,35 +184,50 @@ fn lint_title_capitalization(
 }
 
 #[derive(Clone, Copy)]
-struct FirstAlphabetic<'a> {
+struct FirstAlphabetic<'doc> {
     character: char,
-    location: &'a Location,
+    location: LocationRef<'doc>,
     in_monospace: bool,
 }
 
-fn first_alphabetic_inlines<'nodes>(
-    nodes: &'nodes [InlineNode<'_>],
-) -> Option<FirstAlphabetic<'nodes>> {
-    for node in nodes {
-        let found = match node {
-            InlineNode::PlainText(text) => first_alphabetic_text(text.content, &text.location),
-            InlineNode::RawText(text) => first_alphabetic_text(text.content, &text.location),
-            InlineNode::VerbatimText(text) => first_alphabetic_text(text.content, &text.location),
-            InlineNode::BoldText(text) => first_alphabetic_inlines(&text.content),
-            InlineNode::CurvedApostropheText(text) => first_alphabetic_inlines(&text.content),
-            InlineNode::CurvedQuotationText(text) => first_alphabetic_inlines(&text.content),
-            InlineNode::HighlightText(text) => first_alphabetic_inlines(&text.content),
-            InlineNode::ItalicText(text) => first_alphabetic_inlines(&text.content),
-            InlineNode::MonospaceText(text) => {
-                first_alphabetic_inlines(&text.content).map(FirstAlphabetic::with_monospace)
+fn first_alphabetic_inlines(content: ContentRef<'_>) -> Option<FirstAlphabetic<'_>> {
+    for node in content.inlines() {
+        let found = match node.kind() {
+            InlineKind::Plain(text) => first_alphabetic_text(text.text(), text.location()),
+            InlineKind::Raw(text) => first_alphabetic_text(text.text(), text.location()),
+            InlineKind::Verbatim(text) => first_alphabetic_text(text.text(), text.location()),
+            InlineKind::Bold(text) => first_alphabetic_inlines(text.content()),
+            InlineKind::CurvedApostrophe(text) => first_alphabetic_inlines(text.content()),
+            InlineKind::CurvedQuotation(text) => first_alphabetic_inlines(text.content()),
+            InlineKind::Highlight(text) => first_alphabetic_inlines(text.content()),
+            InlineKind::Italic(text) => first_alphabetic_inlines(text.content()),
+            InlineKind::Monospace(text) => {
+                first_alphabetic_inlines(text.content()).map(FirstAlphabetic::with_monospace)
             }
-            InlineNode::SubscriptText(text) => first_alphabetic_inlines(&text.content),
-            InlineNode::SuperscriptText(text) => first_alphabetic_inlines(&text.content),
-            InlineNode::Macro(macro_node) => first_alphabetic_macro(macro_node),
-            InlineNode::CalloutRef(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
+            InlineKind::Subscript(text) => first_alphabetic_inlines(text.content()),
+            InlineKind::Superscript(text) => first_alphabetic_inlines(text.content()),
+            InlineKind::Button(button) => first_alphabetic_inlines(button.label()),
+            InlineKind::CrossReference(reference) => first_alphabetic_inlines(reference.text()),
+            InlineKind::Footnote(footnote) => footnote.content().and_then(first_alphabetic_inlines),
+            InlineKind::Link(link) => first_alphabetic_inlines(link.text()),
+            InlineKind::Mailto(mailto) => first_alphabetic_inlines(mailto.text()),
+            InlineKind::Menu(menu) => first_alphabetic_inlines(menu.target()),
+            InlineKind::Pass(pass) => pass
+                .text()
+                .and_then(|text| first_alphabetic_text(text, pass.location())),
+            InlineKind::Url(url) => first_alphabetic_inlines(url.text()),
+            InlineKind::Autolink(_)
+            | InlineKind::Icon(_)
+            | InlineKind::Image(_)
+            | InlineKind::IndexTerm(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Stem(_)
+            | InlineKind::Callout(_)
+            | InlineKind::Anchor(_)
+            | InlineKind::LineBreak(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::Symbol(_)
+            | InlineKind::CharacterReference(_)
             | _ => None,
         };
         if found.is_some() {
@@ -335,30 +235,6 @@ fn first_alphabetic_inlines<'nodes>(
         }
     }
     None
-}
-
-fn first_alphabetic_macro<'nodes>(
-    macro_node: &'nodes InlineMacro<'_>,
-) -> Option<FirstAlphabetic<'nodes>> {
-    match macro_node {
-        InlineMacro::Button(button) => first_alphabetic_text(button.label, &button.location),
-        InlineMacro::CrossReference(reference) => first_alphabetic_inlines(&reference.text),
-        InlineMacro::Footnote(footnote) => first_alphabetic_inlines(&footnote.content),
-        InlineMacro::Link(link) => first_alphabetic_inlines(&link.text),
-        InlineMacro::Mailto(mailto) => first_alphabetic_inlines(&mailto.text),
-        InlineMacro::Menu(menu) => first_alphabetic_text(menu.target, &menu.location),
-        InlineMacro::Pass(pass) => pass
-            .text
-            .and_then(|text| first_alphabetic_text(text, &pass.location)),
-        InlineMacro::Url(url) => first_alphabetic_inlines(&url.text),
-        InlineMacro::Autolink(_)
-        | InlineMacro::Icon(_)
-        | InlineMacro::Image(_)
-        | InlineMacro::IndexTerm(_)
-        | InlineMacro::Keyboard(_)
-        | InlineMacro::Stem(_)
-        | _ => None,
-    }
 }
 
 impl FirstAlphabetic<'_> {
@@ -370,7 +246,10 @@ impl FirstAlphabetic<'_> {
     }
 }
 
-fn first_alphabetic_text<'a>(text: &str, location: &'a Location) -> Option<FirstAlphabetic<'a>> {
+fn first_alphabetic_text<'doc>(
+    text: &str,
+    location: LocationRef<'doc>,
+) -> Option<FirstAlphabetic<'doc>> {
     text.chars()
         .find(|ch| ch.is_alphabetic())
         .map(|character| FirstAlphabetic {
@@ -382,17 +261,17 @@ fn first_alphabetic_text<'a>(text: &str, location: &'a Location) -> Option<First
 
 pub(crate) fn lint_document_title_author(
     emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
+    document: DocumentRef<'_>,
     lines: &[SourceLine<'_>],
 ) {
-    let Some(header) = document.header.as_ref() else {
+    let Some(header) = document.header() else {
         return;
     };
     let header_lines = collect_header_lines(lines);
 
-    if header.authors.is_empty() {
+    if header.authors().next().is_none() {
         let line = header_lines.title.map_or_else(
-            || line_after(header.location.end.line),
+            || line_after(header.location().end().line()),
             |line| line.saturating_add(1),
         );
         emitter.emit(
@@ -406,27 +285,27 @@ pub(crate) fn lint_document_title_author(
 
 pub(crate) fn lint_document_title_revision(
     emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
+    document: DocumentRef<'_>,
     lines: &[SourceLine<'_>],
 ) {
-    let Some(header) = document.header.as_ref() else {
+    let Some(header) = document.header() else {
         return;
     };
-    if header.authors.is_empty() {
+    if header.authors().next().is_none() {
         return;
     }
 
     let header_lines = collect_header_lines(lines);
 
-    let has_revision_attribute = document.attributes.get("revnumber").is_some()
-        || document.attributes.get("revdate").is_some()
-        || document.attributes.get("revremark").is_some();
+    let has_revision_attribute = document.attributes().get("revnumber").is_some()
+        || document.attributes().get("revdate").is_some()
+        || document.attributes().get("revremark").is_some();
     if has_revision_attribute || header_lines.revision.is_some() {
         return;
     }
 
     let line = header_lines.author.map_or_else(
-        || line_after(header.location.end.line),
+        || line_after(header.location().end().line()),
         |line| line.saturating_add(1),
     );
     emitter.emit(

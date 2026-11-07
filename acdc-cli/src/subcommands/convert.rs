@@ -39,6 +39,10 @@ type RawAttributes<'a> = std::collections::HashMap<Cow<'a, str>, AttributeValue<
 #[cfg_attr(feature = "pdf", command(group(clap::ArgGroup::new("theme_or_export").args(["theme", "emit_theme_config"]).multiple(true))))]
 #[allow(clippy::struct_excessive_bools)] // CLI flags are naturally booleans
 pub struct Args {
+    /// Language rules: asciidoctor or draft
+    #[arg(long, value_name = "MODE", default_value_t = acdc_parser::CompatibilityMode::default())]
+    pub compatibility_mode: acdc_parser::CompatibilityMode,
+
     /// Input from stdin
     #[arg(long, conflicts_with = "files")]
     pub stdin: bool,
@@ -184,14 +188,6 @@ pub struct Args {
         action = ArgAction::Append
     )]
     pub attributes: Vec<String>,
-
-    /// Enable Setext-style (underlined) header parsing
-    ///
-    /// When enabled, headers can use the legacy two-line syntax where
-    /// the title is underlined with `=`, `-`, `~`, `^`, or `+` characters.
-    #[cfg(feature = "setext")]
-    #[arg(long = "setext", alias = "enable-setext-compatibility")]
-    pub enable_setext_compatibility: bool,
 
     /// Force file-qualified cross-references to resolve within this document
     ///
@@ -819,6 +815,7 @@ mod tests {
     fn parse_pdf_args<const N: usize>(raw: [&str; N]) -> MietteResult<Args> {
         let cli = crate::Cli::try_parse_from(raw).map_err(|error| miette::miette!(error))?;
         match cli.command {
+            Commands::Parse(_) => Err(miette::miette!("test command selected parse")),
             Commands::Convert(args) => Ok(args),
             #[cfg(feature = "execute")]
             Commands::Execute(_) => Err(miette::miette!("test command selected execute")),
@@ -1086,7 +1083,7 @@ mod tests {
             assert_eq!(
                 parsed
                     .document()
-                    .attributes
+                    .attributes()
                     .get("probe")
                     .and_then(|value| value.text()),
                 Some("document")
@@ -1396,7 +1393,7 @@ fn run_terminal_with_pager(
 ///
 /// Each arm is feature-gated so disabling a converter cleanly removes
 /// it from the parser, the resolver, and the dispatch match. `Html5s`
-/// stays in this enum (rather than being normalised to `Html`) so the
+/// stays in this enum (rather than being normalized to `Html`) so the
 /// resolver can reject the contradictory `--backend html5s --variant
 /// <anything>` form before lowering it to the typed [`Backend`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -1577,7 +1574,7 @@ fn require_no_variant(backend: &'static str, variant: Option<VariantArg>) -> Mie
 impl BackendArg {
     /// Combine the CLI's separate `--backend` / `--variant` flags into a
     /// fully-typed [`Backend`], rejecting any combination the
-    /// converter layer can't honour: the `html5s` alias paired with any
+    /// converter layer can't honor: the `html5s` alias paired with any
     /// variant, a markdown variant on the html backend (or vice versa),
     /// or any variant on a backend that has none.
     #[cfg(any(feature = "html", feature = "markdown"))]
@@ -1722,6 +1719,7 @@ fn parse_attribute(raw_attr: &str) -> ParsedAttribute {
 fn build_parser_options(args: &Args, base_options: &Options) -> OptionsBuilder<'static> {
     let mut builder = ParserOptions::builder()
         .with_safe_mode(base_options.safe_mode())
+        .with_compatibility_mode(args.compatibility_mode)
         .with_max_total_include_bytes(args.max_total_include_bytes)
         .with_attributes(build_attribute_overrides(&args.attributes))
         .with_defaults(build_attributes_map(&args.attributes));
@@ -1736,11 +1734,6 @@ fn build_parser_options(args: &Args, base_options: &Options) -> OptionsBuilder<'
 
     if args.force_local_file_xrefs {
         builder = builder.with_force_local_file_xrefs();
-    }
-
-    #[cfg(feature = "setext")]
-    if args.enable_setext_compatibility {
-        builder = builder.with_setext();
     }
 
     builder

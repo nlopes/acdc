@@ -143,6 +143,9 @@ impl SourceRange {
 /// A span can cross files. [`Self::byte_len`] returns `None` in that case because the
 /// offsets use different coordinate spaces. JSON contains line, column, and include
 /// chain only; it omits byte offsets.
+///
+/// The default value represents unavailable source coordinates. Its zeroes do not
+/// identify a source line.
 #[derive(Debug, Default, Clone, Hash, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Location {
@@ -158,6 +161,13 @@ pub struct Location {
 }
 
 impl Location {
+    /// Whether this is the default value with no recorded source coordinates.
+    /// Partially supplied coordinates remain visible for validation.
+    #[must_use]
+    pub fn is_unknown(&self) -> bool {
+        self == &Self::default()
+    }
+
     /// A zero-width location at a single `position` (`start == end`), used for
     /// point diagnostics that only know a line/column. Byte offsets are `0`.
     #[must_use]

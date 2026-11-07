@@ -67,11 +67,11 @@ N11  end.
 .sp
 N12 Before  after end. See Inner\&.
 .sp
-N13 Before [\fBSave\fP] after end.
+N13 Before [\fBSave\fR] after end.
 .sp
-N14 Before \fBCtrl+C\fP after end.
+N14 Before \fBCtrl\fR+\fBC\fR after end.
 .sp
-N15 Before \fBFile\fP \(ra \fBOpen\fP \(ra \fBRecent\fP after end.
+N15 Before \fBFile\fR \(ra \fBOpen\fR \(ra \fBRecent\fR after end.
 .sp
 N16 Before Target] text after end.
 .sp
@@ -131,13 +131,13 @@ Second\&.
 .RS 4
 Before <<target,Target] text>> after
 .br
-Before \fBCtrl+C\fP after
+Before \fBCtrl\fR+\fBC\fR after
 .br
-Before \fBFile\fP \(ra \fBOpen\fP \(ra \fBRecent\fP after
+Before \fBFile\fR \(ra \fBOpen\fR \(ra \fBRecent\fR after
 .br
 Before \fBProtected\fR after
 .br
-Before [\fBSave\fP] after
+Before [\fBSave\fR] after
 .br
 Before [literal
 .br

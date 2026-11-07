@@ -534,7 +534,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "named",
-              "inlines": [],
               "location": [
                 {
                   "line": 23,
@@ -596,7 +595,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "named",
-              "inlines": [],
               "location": [
                 {
                   "line": 25,
@@ -660,7 +658,6 @@
               "name": "footnote",
               "type": "inline",
               "id": "named",
-              "inlines": [],
               "location": [
                 {
                   "line": 28,
@@ -754,8 +751,7 @@
                   "line": 31,
                   "col": 53
                 }
-              ],
-              "attributes": {}
+              ]
             },
             {
               "name": "text",
@@ -776,7 +772,23 @@
               "name": "anchor",
               "type": "inline",
               "id": "title-anchor",
-              "xreflabel": "Title anchor",
+              "xreflabel": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Title anchor",
+                  "location": [
+                    {
+                      "line": 31,
+                      "col": 75
+                    },
+                    {
+                      "line": 31,
+                      "col": 86
+                    }
+                  ]
+                }
+              ],
               "location": [
                 {
                   "line": 31,
@@ -952,6 +964,7 @@
               "name": "xref",
               "type": "inline",
               "target": "named-target",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 40,
@@ -982,6 +995,7 @@
               "name": "xref",
               "type": "inline",
               "target": "anonymous-target",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 40,
@@ -1012,6 +1026,7 @@
               "name": "xref",
               "type": "inline",
               "target": "title-anchor",
+              "target_is_local": true,
               "location": [
                 {
                   "line": 40,

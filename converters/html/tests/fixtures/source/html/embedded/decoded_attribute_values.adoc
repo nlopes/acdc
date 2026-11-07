@@ -1,0 +1,20 @@
+link:https://example.org[Quoted link,id="'link-id'",role="'link-role'",window="'review'"]
+
+https://example.org[Quoted URL,id="'url-id'",role="'url-role'",window="'url-pane'"]
+
+mailto:team@example.org[Quoted mail,id="'mail-id'",role="'mail-role'",window="'mail-pane'"]
+
+link:https://example.org[Literal quote pair,window="''"]
+
+link:https://example.org[Empty window,window=""]
+
+image::bird.png[Bird,link=https://example.org,window="'review'",align="'center'"]
+
+Inline image:bird.png[Bird,link=https://example.org,window="'_blank'"].
+
+image::bird.png[Bird,link=https://example.org,window="''"]
+
+[width='"75%"',float="'right'"]
+|===
+|Literal width.
+|===

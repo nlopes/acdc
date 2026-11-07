@@ -5,7 +5,13 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use acdc_parser::{AttributeValue, Block, InlineMacro, InlineNode};
+use acdc_parser::{
+    AttributeValue,
+    ast::{
+        AttributeValueRef, AuthorRef, BlockKind, BlockRef, ContentRef, HeaderRef, InlineKind,
+        InlineRef, PositionRef, StructuralRef,
+    },
+};
 use ignore::WalkBuilder;
 use nucleo_matcher::{
     Matcher, Utf32Str,
@@ -162,7 +168,7 @@ impl Engine {
             object.remove("max_tokens");
         }
         let mut identity = serde_json::to_vec(
-            &json!({"tool":tool,"request":identity,"roots":self.config.roots(),"attributes":self.config.attributes()}),
+            &json!({"tool":tool,"request":identity,"roots":self.config.roots(),"attributes":self.config.attributes(),"compatibilityMode":self.config.compatibility_mode()}),
         )?;
         identity.extend_from_slice(revision);
         identity.extend_from_slice(&self.timestamp(common)?.to_be_bytes());
@@ -201,16 +207,16 @@ impl Engine {
     pub(super) fn metadata(&self, request: &FileRequest) -> Result<String> {
         let document = self.load(&request.path, &request.common)?;
         let mut items = document.warnings();
-        let header = document.parsed().document().header.as_ref();
+        let header = document.parsed().document().header();
         items.push(json!({
             "kind":"document", "path":document.path(), "title":document.title(),
-            "subtitle":header.and_then(|h| h.subtitle.as_ref()).map(|s| render::inline_text(s, Format::Plain)),
-            "authors":header.map(|h| &h.authors),
+            "subtitle":header.and_then(HeaderRef::subtitle).map(|s| render::inline_text(s, Format::Plain)),
+            "authors":header.map(|h| h.authors().map(author).collect::<Vec<_>>()),
         }));
         let mut attributes = document
             .parsed()
             .document()
-            .attributes
+            .attributes()
             .iter()
             .collect::<Vec<_>>();
         attributes.sort_by_key(|(name, _)| *name);
@@ -250,11 +256,12 @@ impl Engine {
                 };
                 items.push(json!({"kind":"content", "format":request.format, "text":format!("{heading}\n\n")}));
             }
-            for block in &document.parsed().document().blocks {
-                if request.selector == "@preamble" && matches!(block, Block::Section(_)) {
+            for block in document.parsed().document().blocks() {
+                if request.selector == "@preamble" && matches!(block.kind(), BlockKind::Section(_))
+                {
                     break;
                 }
-                if request.include_subsections || !matches!(block, Block::Section(_)) {
+                if request.include_subsections || !matches!(block.kind(), BlockKind::Section(_)) {
                     emit_content(
                         block,
                         request.format,
@@ -366,7 +373,7 @@ impl Engine {
             };
             revision.extend_from_slice(document.revision());
             warnings.extend(document.warnings());
-            let attributes = &document.parsed().document().attributes;
+            let attributes = document.parsed().document().attributes();
             let tags = ["tags", "keywords", "description"]
                 .iter()
                 .filter_map(|name| attributes.get(name).and_then(|v| v.as_str()))
@@ -414,22 +421,18 @@ impl Engine {
 
     pub(super) fn links(&self, request: &FileRequest) -> Result<String> {
         let document = self.load(&request.path, &request.common)?;
-        let entries = document.entries()?;
+        // Apply the same depth and block limits as the other navigation tools.
+        document.entries()?;
         let mut items = document.warnings();
-        if let Some(header) = &document.parsed().document().header {
-            collect_links(&document, &header.title, &mut items);
-            if let Some(subtitle) = &header.subtitle {
-                collect_links(&document, subtitle, &mut items);
-            }
-        }
-        for entry in &entries {
-            if let Some(metadata) = entry.block().metadata()
-                && let Some(link) = metadata.attributes.get_string("link")
+        for node in document.parsed().document().descendants() {
+            if let StructuralRef::Block(block) = node
+                && let Some(attributes) = block.attributes()
+                && let Some(AttributeValueRef::Text(link)) = attributes.get("link")
             {
-                items.push(json!({"kind":"link", "link_type":"link", "target":link,"path":document.path(),"source":document.source(entry.block().location())}));
+                items.push(json!({"kind":"link", "link_type":"link", "target":link,"path":document.path(),"source":document.source(block.location())}));
             }
-            for nodes in own_inlines(entry.block()) {
-                collect_links(&document, nodes, &mut items);
+            for field in node.content_fields() {
+                collect_links(&document, field.content(), &mut items);
             }
         }
         self.page(
@@ -457,7 +460,7 @@ impl Engine {
         {
             items.push(json!({"kind":"external", "target":target}));
         } else if target.starts_with('#')
-            || document.parsed().document().references.contains_key(target)
+            || document.parsed().document().references().contains(target)
         {
             resolve_anchor(&document, target.trim_start_matches('#'), &mut items)?;
         } else {
@@ -505,25 +508,30 @@ impl Engine {
 }
 
 fn emit_content(
-    block: &Block<'_>,
+    block: BlockRef<'_>,
     format: Format,
     include_subsections: bool,
     items: &mut Vec<Value>,
 ) {
-    if let Block::Section(section) = block {
-        let title = render::inline_text(&section.title, format);
+    if let BlockKind::Section(section) = block.kind() {
+        let title = section
+            .title()
+            .map(|title| render::inline_text(title, format))
+            .unwrap_or_default();
         let heading = if format == Format::Asciidoc {
+            let anchor = section
+                .id()
+                .map_or_else(String::new, |id| format!("[#{}]\n", id.as_str()));
             format!(
-                "[#{}]\n{} {title}",
-                section.id(),
-                "=".repeat(usize::from(section.level) + 1)
+                "{anchor}{} {title}",
+                "=".repeat(usize::from(section.level()) + 1)
             )
         } else {
             title
         };
         items.push(json!({"kind":"content","format":format,"text":format!("{heading}\n\n")}));
-        for block in &section.content {
-            if include_subsections || !matches!(block, Block::Section(_)) {
+        for block in section.blocks() {
+            if include_subsections || !matches!(block.kind(), BlockKind::Section(_)) {
                 emit_content(block, format, include_subsections, items);
             }
         }
@@ -536,7 +544,7 @@ fn emit_content(
 }
 
 fn resolve_anchor(document: &Document, id: &str, items: &mut Vec<Value>) -> Result<()> {
-    if let Some(reference) = document.parsed().document().references.get(id) {
+    if let Some(reference) = document.parsed().document().references().get(id) {
         let entries = document.entries()?;
         let matching = entries
             .iter()
@@ -546,16 +554,16 @@ fn resolve_anchor(document: &Document, id: &str, items: &mut Vec<Value>) -> Resu
             items.push(json!({"kind":"ambiguous", "target":id}));
             items.extend(matching.iter().map(|entry| document.describe(entry)));
         } else {
-            let location = &reference.location;
+            let location = reference.location();
             let owner = matching.first().copied().or_else(|| {
                 entries.iter().rev().find(|entry| {
                     let candidate = entry.block().location();
-                    candidate.start.file == location.start.file
-                        && candidate.end.file == location.end.file
-                        && (candidate.start.line, candidate.start.column)
-                            <= (location.start.line, location.start.column)
-                        && (candidate.end.line, candidate.end.column)
-                            >= (location.end.line, location.end.column)
+                    same_origin(candidate.start(), location.start())
+                        && same_origin(candidate.end(), location.end())
+                        && (candidate.start().line(), candidate.start().column())
+                            <= (location.start().line(), location.start().column())
+                        && (candidate.end().line(), candidate.end().column())
+                            >= (location.end().line(), location.end().column())
                 })
             });
             let selector = if id.is_empty() {
@@ -565,8 +573,8 @@ fn resolve_anchor(document: &Document, id: &str, items: &mut Vec<Value>) -> Resu
             };
             items.push(json!({"kind":"resolved", "path":document.path(), "id":id,
                 "selector":selector, "target_kind":owner.map(|entry| render::kind(entry.block())),
-                "title":reference.title.as_ref().map(|title| render::inline_text(title, Format::Plain)),
-                "source":document.source(&reference.location),
+                "title":reference.title().map(|title| render::inline_text(title, Format::Plain)),
+                "source":document.source(reference.location()),
             }));
         }
     } else {
@@ -575,95 +583,67 @@ fn resolve_anchor(document: &Document, id: &str, items: &mut Vec<Value>) -> Resu
     Ok(())
 }
 
-fn own_inlines<'a>(block: &'a Block<'a>) -> Vec<&'a [InlineNode<'a>]> {
-    let mut groups = Vec::new();
-    if let Some(title) = render::title(block) {
-        groups.push(title.as_ref());
-    }
-    if let Some(metadata) = block.metadata() {
-        if let Some(attribution) = &metadata.attribution {
-            groups.push(attribution.as_ref());
-        }
-        if let Some(citetitle) = &metadata.citetitle {
-            groups.push(citetitle.as_ref());
-        }
-    }
-    match block {
-        Block::Paragraph(p) => groups.push(&p.content),
-        Block::UnorderedList(l) => groups.extend(l.items.iter().map(|i| i.principal.as_slice())),
-        Block::OrderedList(l) => groups.extend(l.items.iter().map(|i| i.principal.as_slice())),
-        Block::CalloutList(l) => groups.extend(l.items.iter().map(|i| i.principal.as_slice())),
-        Block::DescriptionList(l) => {
-            for item in &l.items {
-                groups.push(&item.term);
-                groups.push(&item.principal_text);
+fn collect_links(document: &Document, nodes: ContentRef<'_>, items: &mut Vec<Value>) {
+    for node in nodes.inlines() {
+        collect_link(document, node, items);
+        for field in node.content_occurrences() {
+            for child in field.content().inlines() {
+                collect_link(document, child, items);
             }
         }
-        Block::DelimitedBlock(d) => match &d.inner {
-            acdc_parser::DelimitedBlockType::DelimitedListing(nodes)
-            | acdc_parser::DelimitedBlockType::DelimitedLiteral(nodes)
-            | acdc_parser::DelimitedBlockType::DelimitedVerse(nodes)
-            | acdc_parser::DelimitedBlockType::DelimitedPass(nodes) => groups.push(nodes),
-            _ => {}
-        },
-        _ => {}
     }
-    groups
 }
 
-fn collect_links(document: &Document, nodes: &[InlineNode<'_>], items: &mut Vec<Value>) {
-    for node in nodes {
-        let mut link = None;
-        let children = match node {
-            InlineNode::BoldText(n) => Some(n.content.as_slice()),
-            InlineNode::ItalicText(n) => Some(n.content.as_slice()),
-            InlineNode::MonospaceText(n) => Some(n.content.as_slice()),
-            InlineNode::HighlightText(n) => Some(n.content.as_slice()),
-            InlineNode::SubscriptText(n) => Some(n.content.as_slice()),
-            InlineNode::SuperscriptText(n) => Some(n.content.as_slice()),
-            InlineNode::CurvedQuotationText(n) => Some(n.content.as_slice()),
-            InlineNode::CurvedApostropheText(n) => Some(n.content.as_slice()),
-            InlineNode::Macro(m) => match m {
-                InlineMacro::Link(l) => {
-                    link = Some(("link", l.target.to_string()));
-                    Some(l.text.as_slice())
-                }
-                InlineMacro::Url(l) => {
-                    link = Some(("url", l.target.to_string()));
-                    Some(l.text.as_slice())
-                }
-                InlineMacro::Mailto(l) => {
-                    link = Some(("mailto", format!("mailto:{}", l.target)));
-                    Some(l.text.as_slice())
-                }
-                InlineMacro::Autolink(l) => {
-                    link = Some(("url", l.url.to_string()));
-                    None
-                }
-                InlineMacro::CrossReference(l) => {
-                    link = Some((
-                        "xref",
-                        if l.target_is_local {
-                            format!("#{}", l.target)
-                        } else {
-                            l.target.to_owned()
-                        },
-                    ));
-                    Some(l.text.as_slice())
-                }
-                InlineMacro::Footnote(f) => Some(f.content.as_slice()),
-                _ => None,
+fn collect_link(document: &Document, node: InlineRef<'_>, items: &mut Vec<Value>) {
+    let link = match node.kind() {
+        InlineKind::Link(link) => Some(("link", link.target().to_string())),
+        InlineKind::Url(link) => Some(("url", link.target().to_string())),
+        InlineKind::Mailto(link) => Some(("mailto", link.target().to_string())),
+        InlineKind::Autolink(link) => Some(("url", link.target().to_string())),
+        InlineKind::CrossReference(link) => Some((
+            "xref",
+            if link.target_is_local() {
+                format!("#{}", link.target())
+            } else {
+                link.target().to_owned()
             },
+        )),
+        InlineKind::Image(image) => image
+            .attributes()
+            .get("link")
+            .and_then(|value| match value {
+                AttributeValueRef::Text(target) => Some(("link", target.to_owned())),
+                _ => None,
+            }),
+        InlineKind::Icon(icon) => icon.attributes().get("link").and_then(|value| match value {
+            AttributeValueRef::Text(target) => Some(("link", target.to_owned())),
             _ => None,
-        };
-        if let Some((kind, target)) = link {
-            items.push(json!({"kind":"link", "link_type":kind,"target":target,"path":document.path(),"source":document.source(node.location())}));
-        }
-        if let Some(children) = children {
-            collect_links(document, children, items);
-        }
+        }),
+        _ => None,
+    };
+    if let Some((kind, target)) = link {
+        items.push(json!({"kind":"link", "link_type":kind,"target":target,"path":document.path(),"source":document.source(node.location())}));
     }
 }
 
 #[cfg(test)]
 mod tests;
+
+fn author(value: AuthorRef<'_>) -> Value {
+    let mut author = json!({"firstname":value.first_name(), "lastname":value.last_name(), "initials":value.initials()});
+    if let Some(name) = value.middle_name() {
+        author["middlename"] = json!(name);
+    }
+    if let Some(address) = value.email() {
+        author["address"] = json!(address);
+    }
+    author
+}
+
+fn same_origin(left: PositionRef<'_>, right: PositionRef<'_>) -> bool {
+    match (left.include_chain(), right.include_chain()) {
+        (Some(left), Some(right)) => left.eq(right),
+        (None, None) => true,
+        _ => false,
+    }
+}

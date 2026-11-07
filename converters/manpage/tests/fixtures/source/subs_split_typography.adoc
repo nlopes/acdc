@@ -1,0 +1,37 @@
+= split(1)
+:doctype: manpage
+:revdate: 2026-01-01
+:docdate: 2026-01-01
+:dash: -
+:empty:
+:tail: right
+
+== Name
+split - verify split typography
+
+== Synopsis
+split
+
+== Description
+
+Earlier paragraph.
+
+α🚀 prefix-indexterm2:[-]tail; left-[[between]]-right; left-indexterm:[hidden]-right.
+
+α🚀 left indexterm2:[--] right; left indexterm2:[-]indexterm2:[-] right.
+
+indexterm2:[--] right
+
+left indexterm2:[--]
+
+-- indexterm2:[--] --
+
+left indexterm2:[--] -- indexterm2:[--] right
+
+Protected: left-[[protected-context]]-pass:[right]; left-pass:[-]right; left indexterm2:[pass:r[--]] right; left-indexterm2:[*two*]-right.
+
+[subs="attributes,replacements,macros"]
+Early: left-{empty}indexterm2:[-]right; left-indexterm2:[{dash}]right; left-indexterm2:[-]{tail}.
+
+[subs="replacements,attributes,macros"]
+Late: left-{empty}indexterm2:[-]right; left-indexterm2:[{dash}]right; left-indexterm2:[-]{tail}.

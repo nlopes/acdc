@@ -2,15 +2,57 @@ use std::path::{Path, PathBuf};
 
 use acdc_converters_core::{
     Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, TraversalContext,
-    WarningSource, visitor::Visitor,
+    WarningSource,
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_manpage::{ManpageVisitor, Processor};
-use acdc_parser::{Options as ParserOptions, parse, parse_file};
+use acdc_parser::{CompatibilityMode, Options as ParserOptions, parse, parse_file};
 
 type Error = Box<dyn std::error::Error>;
 
-#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn resolved_text_and_substitution_profiles_work_in_every_build() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/subs_resolved_text.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &ParserOptions::builder()
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        let processor = Processor::new(
+            ConverterOptions::builder().embedded(true).build(),
+            ParserOptions::builder().with_compatibility_mode(mode),
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let warning_source = WarningSource::new("manpage");
+        processor.write_to(
+            parsed.document(),
+            &mut output,
+            None,
+            None,
+            &mut Diagnostics::new(&warning_source, &mut warnings),
+        )?;
+        let output = String::from_utf8(output)?;
+        for expected in [
+            r"R02 X \e*word* (C) \-> *literal*.",
+            r"R03 X \e*word* (C) \-> *literal*.",
+            r"R04 tail \(co \(-> \(em",
+            r"R05 X \e*word* (C) \->",
+            r"R07 Body (C) *literal*.",
+            r"Title \(co",
+            r"R08 Normal \(co \(-> \(em end.",
+            r"R09 \e*literal* \e\(aqword\e\(aq \(co \(->",
+        ] {
+            assert!(output.contains(expected), "missing {expected}: {output}");
+        }
+        assert!(!output.contains('\u{e000}'), "{output}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+    Ok(())
+}
+
 #[rstest::rstest]
 fn styled_titles_keep_substitutions_separate_from_the_body(
     #[values("quote", "verse")] style: &str,
@@ -20,7 +62,7 @@ fn styled_titles_keep_substitutions_separate_from_the_body(
         "= title-subs(1)\n:doctype: manpage\n:revdate: 2026-10-04\n\n== Name\n\ntitle-subs - title substitutions\n\n== Synopsis\n\n.Title (C) *Bold* footnote:named[Title note.]\n[{style},subs=\"none\"]\nBody (C) *Bold* footnote:[Inactive note.].\n\nAfter (C).\n"
     );
     let parsed = parse(&source, &ParserOptions::default())?;
-    assert_eq!(parsed.document().footnotes.len(), 1);
+    assert_eq!(parsed.document().footnotes().count(), 1);
     let processor = Processor::new(
         ConverterOptions::builder().embedded(embedded).build(),
         ParserOptions::builder(),
@@ -37,7 +79,7 @@ fn styled_titles_keep_substitutions_separate_from_the_body(
         output.contains("Body (C) *Bold* footnote:[Inactive note.]."),
         "{style}: {output}"
     );
-    assert!(output.contains("After \\(co."), "{style}: {output}");
+    assert!(output.contains("After \\(co\\&."), "{style}: {output}");
     assert_eq!(
         output.matches("Title note.").count(),
         usize::from(!embedded),
@@ -46,7 +88,6 @@ fn styled_titles_keep_substitutions_separate_from_the_body(
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn code_typography_omits_generated_trailing_space() -> Result<(), Error> {
     for (subs, input, expected) in [
@@ -78,7 +119,6 @@ fn code_typography_omits_generated_trailing_space() -> Result<(), Error> {
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 #[test]
 fn verbatim_links_keep_roff_commands_outside_arguments() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -86,8 +126,9 @@ fn verbatim_links_keep_roff_commands_outside_arguments() -> Result<(), Error> {
     let parsed = parse_file(&path, &ParserOptions::default())?;
     let processor = Processor::new(
         ConverterOptions::builder().embedded(true).build(),
-        ParserOptions::builder()
-            .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        ParserOptions::builder().with_attributes(
+            acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+        ),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
@@ -175,10 +216,11 @@ fn temp_output_path(name: &str, extension: &str) -> PathBuf {
 fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
     let parsed = parse("Paragraph.\n", &ParserOptions::default())?;
     let doc = parsed.document();
-    let block = doc.blocks.first().ok_or("missing test block")?;
+    let block = doc.blocks().next().ok_or("missing test block")?;
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
@@ -206,15 +248,6 @@ fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Resu
         .and_then(|s| s.to_str())
         .ok_or("Invalid fixture file name")?;
 
-    // Fixtures whose name contains `subs` test `[subs="…"]` behaviour, which
-    // only takes effect under the `pre-spec-subs` feature. When the feature
-    // is off, skip — the expected output captures the feature-on behaviour
-    // and cannot match.
-    #[cfg(not(feature = "pre-spec-subs"))]
-    if file_name.contains("subs") {
-        return Ok(());
-    }
-
     let expected_path = expected_dir.join(file_name).with_extension("man");
 
     // Parse the `AsciiDoc` input with rendering defaults
@@ -235,7 +268,7 @@ fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Resu
         converter_options,
         ParserOptions::builder()
             .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .with_attributes(doc.attributes.clone().into_inputs()),
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
@@ -285,7 +318,8 @@ fn section_order_warning_is_returned_in_conversion_result() -> Result<(), Error>
     let doc = parsed.document();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let output_path = temp_output_path("manpage-warning", "1");
 
@@ -309,7 +343,8 @@ fn custom_name_section_title_is_not_out_of_order() -> Result<(), Error> {
     let doc = parsed.document();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let output_path = temp_output_path("manpage-custom-name-section", "1");
 
@@ -327,7 +362,8 @@ fn static_media_playback_warning_is_deduplicated() -> Result<(), Error> {
     let doc = parsed.document();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
@@ -382,7 +418,8 @@ table-warnings
     let doc = parsed.document();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
@@ -413,7 +450,8 @@ fn inline_role_fallback_warning_is_deduplicated() -> Result<(), Error> {
     let doc = parsed.document();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
@@ -492,7 +530,8 @@ Backward full: <<figure-target>> and <<table-target>>.
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
@@ -518,15 +557,23 @@ Backward full: <<figure-target>> and <<table-target>>.
     Ok(())
 }
 
-#[test]
-fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Error> {
+#[rstest::rstest]
+fn interdocument_xref_macros_use_file_keys_before_natural_titles(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
     let input = "= xref-targets(1)\n:doctype: manpage\n\n== NAME\n\nxref-targets - verify xref targets\n\n== SYNOPSIS\n\nEmpty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n";
-    let parsed = parse(input, &ParserOptions::default())?;
+    let parsed = parse(
+        input,
+        &ParserOptions::builder()
+            .with_compatibility_mode(mode)
+            .build()?,
+    )?;
     let doc = parsed.document();
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
@@ -535,7 +582,7 @@ fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Er
     let output = String::from_utf8(output)?;
 
     for expected in [
-        "Empty: [Other.adoc]\\&.",
+        "Empty: [Other]\\&.",
         "Explicit: Other\\&.",
         "Shorthand: OTHER.ADOC\\&.",
         "Fragment: [Foo#Bar]\\&.",
@@ -556,7 +603,8 @@ fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Erro
     let mut output = Vec::new();
     let processor = Processor::new(
         ConverterOptions::default(),
-        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        ParserOptions::builder()
+            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?;
     let mut warnings = Vec::new();
     let source = WarningSource::new("manpage");
@@ -599,7 +647,9 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
         let converter_options = ConverterOptions::builder().embedded(true).build();
         let processor = Processor::new(
             converter_options,
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let mut warnings = Vec::new();
         let source = WarningSource::new("manpage");
@@ -613,5 +663,52 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
             );
         }
     }
+    Ok(())
+}
+
+#[test]
+fn constructed_character_references_render_in_plain_and_formatted_content() -> Result<(), Error> {
+    use acdc_parser::{
+        Block, Bold, CharacterReference, CharacterReferenceKind, Document, Form, InlineNode,
+        Location, Paragraph,
+    };
+    let mut content = Vec::new();
+    for kind in [
+        CharacterReferenceKind::Numeric(169),
+        CharacterReferenceKind::Named("amp"),
+        CharacterReferenceKind::Named("unknown"),
+    ] {
+        content.push(InlineNode::CharacterReference(
+            CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
+        ));
+    }
+    let bold = InlineNode::BoldText(Bold::new(
+        content.clone(),
+        Form::Constrained,
+        Location::default(),
+    ));
+    content.push(bold);
+    let mut doc = Document::default();
+    doc.push_block(Block::Paragraph(Paragraph::new(
+        content,
+        Location::default(),
+    )));
+    let processor = Processor::new(
+        ConverterOptions::builder().embedded(true).build(),
+        ParserOptions::builder(),
+    )?;
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let warning_source = WarningSource::new("manpage");
+    processor.write_to(
+        (&doc).into(),
+        &mut output,
+        None,
+        None,
+        &mut Diagnostics::new(&warning_source, &mut warnings),
+    )?;
+    let output = String::from_utf8(output)?;
+    assert!(output.contains(r"\(co&&unknown;"), "{output}");
+    assert!(warnings.is_empty(), "{warnings:?}");
     Ok(())
 }

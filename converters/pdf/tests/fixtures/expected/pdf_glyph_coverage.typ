@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -92,7 +93,7 @@
 
 #text("G04 Literal ⇒ ⇐ ⇔ → ← ↔.")
 
-#text("G11 Replacements ⇒ ⇐ → ←.")
+#text("G11 Replacements ")#text("⇒")#text(" ")#text("⇐")#text(" ")#text("→")#text(" ")#text("←")#text(".")
 
 #text("G05 Missing 中 日 한.")
 

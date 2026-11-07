@@ -1,23 +1,31 @@
-use acdc_parser::{Block, InlineMacro, InlineNode, Location, Options, WarningKind, parse};
+use acdc_parser::{
+    Options, WarningKind,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef, LocationRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
-fn source_span<'s>(source: &'s str, location: &Location) -> Result<&'s str, Error> {
+fn source_span<'s, 'doc>(
+    source: &'s str,
+    location: impl Into<LocationRef<'doc>>,
+) -> Result<&'s str, Error> {
+    let location = location.into();
     let end_char = source
-        .get(location.absolute_end..)
+        .get(location.absolute_end()..)
         .and_then(|tail| tail.chars().next())
         .ok_or("invalid inclusive end")?;
     for (offset, position) in [
-        (location.absolute_start, &location.start),
-        (location.absolute_end, &location.end),
+        (location.absolute_start(), location.start()),
+        (location.absolute_end(), location.end()),
     ] {
         let prefix = source.get(..offset).ok_or("invalid UTF-8 boundary")?;
         assert_eq!(
-            position.line as usize,
+            position.line() as usize,
             prefix.bytes().filter(|&b| b == b'\n').count() + 1
         );
         assert_eq!(
-            position.column as usize,
+            position.column() as usize,
             prefix
                 .rsplit('\n')
                 .next()
@@ -28,7 +36,7 @@ fn source_span<'s>(source: &'s str, location: &Location) -> Result<&'s str, Erro
         );
     }
     source
-        .get(location.absolute_start..location.absolute_end + end_char.len_utf8())
+        .get(location.absolute_start()..location.absolute_end() + end_char.len_utf8())
         .ok_or_else(|| "invalid source span".into())
 }
 
@@ -40,19 +48,24 @@ fn passthrough_brackets_preserve_nested_macro_locations() -> Result<(), Error> {
         );
         let parsed = parse(&source, &Options::default())?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
-        let [Block::Paragraph(paragraph), _] = parsed.document().blocks.as_slice() else {
+        let [BlockKind::Paragraph(paragraph), _] = &*parsed
+            .document()
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected paragraph".into());
         };
-        for node in &paragraph.content {
-            if let InlineNode::PlainText(text) = node {
-                assert_eq!(source_span(&source, &text.location)?, text.content);
+        for node in paragraph.content().inlines() {
+            if let InlineKind::Plain(text) = node.kind() {
+                assert_eq!(source_span(&source, text.location())?, text.text());
             }
         }
         let link = paragraph
-            .content
-            .iter()
+            .content()
+            .inlines()
             .find_map(|node| {
-                if let InlineNode::Macro(InlineMacro::Link(link)) = node {
+                if let InlineKind::Link(link) = node.kind() {
                     Some(link)
                 } else {
                     None
@@ -60,29 +73,34 @@ fn passthrough_brackets_preserve_nested_macro_locations() -> Result<(), Error> {
             })
             .ok_or("missing nested link")?;
         assert_eq!(
-            source_span(&source, &link.location)?,
+            source_span(&source, link.location())?,
             r"link:https://example.org[é\]"
         );
-        let [InlineNode::RawText(label)] = link.text.as_slice() else {
+        let [InlineKind::Raw(label)] = &*link
+            .text()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected link label".into());
         };
-        assert_eq!(label.content, "é");
-        assert_eq!(source_span(&source, &label.location)?, "é");
+        assert_eq!(label.text(), "é");
+        assert_eq!(source_span(&source, label.location())?, "é");
         let target = parsed
             .document()
-            .references
+            .references()
             .get("target")
             .ok_or("missing anchor")?;
         assert_eq!(
-            source_span(&source, &target.location)?,
+            source_span(&source, target.location())?,
             r"anchor:target[Target\]"
         );
         let tail = paragraph
-            .content
-            .iter()
+            .content()
+            .inlines()
             .find_map(|node| {
-                if let InlineNode::RawText(raw) = node
-                    && raw.content == "tail"
+                if let InlineKind::Raw(raw) = node.kind()
+                    && raw.text() == "tail"
                 {
                     Some(raw)
                 } else {
@@ -90,7 +108,7 @@ fn passthrough_brackets_preserve_nested_macro_locations() -> Result<(), Error> {
                 }
             })
             .ok_or("missing passthrough tail")?;
-        assert_eq!(source_span(&source, &tail.location)?, "tail");
+        assert_eq!(source_span(&source, tail.location())?, "tail");
     }
     Ok(())
 }
@@ -102,15 +120,20 @@ fn passthrough_brackets_register_footnotes_once() -> Result<(), Error> {
         let source = format!("α {wrapped} ω.\n\nReuse footnote:note[].\n");
         let parsed = parse(&source, &Options::default())?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
-        let [note] = parsed.document().footnotes.as_slice() else {
+        let [note] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
             return Err("expected one footnote".into());
         };
-        assert_eq!(source_span(&source, &note.location)?, r"footnote:note[é\]");
-        let [InlineNode::RawText(body)] = note.content.as_slice() else {
+        assert_eq!(source_span(&source, note.location())?, r"footnote:note[é\]");
+        let [InlineKind::Raw(body)] = &*note
+            .content()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
+        else {
             return Err("expected footnote text".into());
         };
-        assert_eq!(body.content, "é");
-        assert_eq!(source_span(&source, &body.location)?, "é");
+        assert_eq!(body.text(), "é");
+        assert_eq!(source_span(&source, body.location())?, "é");
     }
     Ok(())
 }
@@ -142,24 +165,34 @@ fn passthrough_brackets_report_conflicting_footnote_source_spans() -> Result<(),
 fn passthrough_brackets_keep_later_attribute_source_spans() -> Result<(), Error> {
     let source = ":name: Expanded\n\nα pass:a,m[one\\]two (({name}))] ω.\n";
     let parsed = parse(source, &Options::default())?;
-    let [Block::Paragraph(paragraph)] = parsed.document().blocks.as_slice() else {
+    let [BlockKind::Paragraph(paragraph)] = &*parsed
+        .document()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected paragraph".into());
     };
     let term = paragraph
-        .content
-        .iter()
+        .content()
+        .inlines()
         .find_map(|node| {
-            if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+            if let InlineKind::IndexTerm(term) = node.kind() {
                 Some(term)
             } else {
                 None
             }
         })
         .ok_or("missing index term")?;
-    let [InlineNode::RawText(label)] = term.term() else {
+    let [InlineKind::Raw(label)] = &*term
+        .term()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected index label".into());
     };
-    assert_eq!(label.content, "Expanded");
-    assert_eq!(source_span(source, &label.location)?, "{name}");
+    assert_eq!(label.text(), "Expanded");
+    assert_eq!(source_span(source, label.location())?, "{name}");
     Ok(())
 }

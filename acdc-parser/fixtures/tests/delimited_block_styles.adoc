@@ -1,0 +1,44 @@
+:word: expanded
+
+.Listing as literal
+[literal]
+----
+*literal* {word} footnote:unselected[Not registered]
+----
+
+.Literal as listing
+[listing]
+....
+*listing* {word}
+....
+
+.Literal as source
+[source,rust]
+....
+fn main() {} // <1>
+....
+<1> Callout text.
+
+.Open as source
+[source,text]
+--
+*source* {word}
+--
+
+.Open as literal
+[literal]
+--
+*literal* {word}
+--
+
+.Formatted literal
+[literal,subs="+quotes,+attributes,+macros"]
+----
+*bold* {word} footnote:literal[Selected literal note]
+----
+
+.Formatted source
+[source,text,subs="+quotes,+attributes,+macros"]
+....
+*bold* {word} footnote:source[Selected source note]
+....

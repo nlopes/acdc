@@ -1,0 +1,50 @@
+= Heading boundaries
+
+Short
+----
+
+Minus one.
+
+Long
+-----
+
+Plus one.
+
+Outside
+-----
+
+Minus two is not a heading.
+-----
+
+Outside
+---------
+
+Plus two is not a heading.
+---------
+
+....
+----
+Punctuation is not a heading.
+----
+....
+
+.Title
+====
+Metadata is not a heading.
+====
+
+Term:: Description.
+----
+Listing body.
+----
+
+----
+Literal title
+-------------
+----
+
+// A title may contain Unicode.
+Résumé
+------
+
+Unicode body.

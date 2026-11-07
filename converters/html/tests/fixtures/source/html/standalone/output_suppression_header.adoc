@@ -1,0 +1,13 @@
+= Visible title
+Author Name
+v1.0, 2026-11-06
+:stylesheet!:
+:webfonts!:
+:toc:
+:noheader:
+
+Body footnote:[A note.].
+
+== Section
+
+Content.

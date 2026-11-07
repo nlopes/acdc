@@ -1,36 +1,38 @@
-use acdc_parser::{Block, DelimitedBlockType, InlineNode, Options, Paragraph, TableColumn, parse};
+use acdc_parser::{
+    Options,
+    ast::{BlockKind, ContentRef, DocumentRef, InlineKind, ParagraphRef, TableCellRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
-fn first_cell<'a>(blocks: &'a [Block<'a>]) -> Result<&'a TableColumn<'a>, Error> {
-    let table = blocks
-        .iter()
+fn first_cell(document: DocumentRef<'_>) -> Result<TableCellRef<'_>, Error> {
+    let table = document
+        .blocks()
         .find_map(|block| {
-            let Block::DelimitedBlock(block) = block else {
-                return None;
-            };
-            let DelimitedBlockType::DelimitedTable(table) = &block.inner else {
-                return None;
-            };
-            Some(table)
+            if let BlockKind::Table(table) = block.kind() {
+                Some(table)
+            } else {
+                None
+            }
         })
         .ok_or("missing table")?;
     table
-        .rows
-        .first()
+        .rows()
+        .next()
         .ok_or("missing table row")?
-        .columns
-        .first()
+        .cells()
+        .next()
         .ok_or_else(|| "missing table cell".into())
 }
 
-fn plain_text(paragraph: &Paragraph<'_>) -> String {
+fn plain_text(paragraph: ParagraphRef<'_>) -> String {
     paragraph
-        .content
-        .iter()
+        .content()
+        .inlines()
         .filter_map(|inline| {
-            if let InlineNode::PlainText(text) = inline {
-                Some(text.content)
+            if let InlineKind::Plain(text) = inline.kind() {
+                Some(text.text())
             } else {
                 None
             }
@@ -44,10 +46,15 @@ fn plain_table_paragraphs_keep_block_syntax_as_text() -> Result<(), Error> {
     for style in ["1", "1d", "1e", "1s", "1m", "1h"] {
         let source = format!("[cols=\"{style}\"]\n|===\n|{first}\n\nSecond paragraph.\n|===\n");
         let parsed = parse(&source, &Options::default())?;
-        let cell = first_cell(&parsed.document().blocks)?;
-        assert_eq!(cell.content.len(), 2, "{style}: {:?}", cell.content);
-        for (block, expected) in cell.content.iter().zip([first, "Second paragraph."]) {
-            let Block::Paragraph(paragraph) = block else {
+        let cell = first_cell(parsed.document())?;
+        assert_eq!(
+            cell.blocks().count(),
+            2,
+            "{style}: {:?}",
+            cell.blocks().collect::<Vec<_>>()
+        );
+        for (block, expected) in cell.blocks().zip([first, "Second paragraph."]) {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return Err(format!("unexpected cell block: {block:?}").into());
             };
             assert_eq!(plain_text(paragraph), expected, "{style}");
@@ -70,15 +77,18 @@ fn plain_table_paragraphs_do_not_apply_block_metadata() -> Result<(), Error> {
     ] {
         let source = format!("[cols=\"1\"]\n|===\n|{content}\n|===\n");
         let parsed = parse(&source, &Options::default())?;
-        let cell = first_cell(&parsed.document().blocks)?;
+        let cell = first_cell(parsed.document())?;
         let expected = content.split("\n\n").collect::<Vec<_>>();
-        assert_eq!(cell.content.len(), expected.len(), "{content}");
-        for (block, expected) in cell.content.iter().zip(expected) {
-            let Block::Paragraph(paragraph) = block else {
+        assert_eq!(cell.blocks().count(), expected.len(), "{content}");
+        for (block, expected) in cell.blocks().zip(expected) {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return Err(format!("unexpected cell block for {content}: {block:?}").into());
             };
-            assert!(paragraph.metadata.style.is_none(), "{content}");
-            assert!(paragraph.title.is_empty(), "{content}");
+            assert!(paragraph.style().is_none(), "{content}");
+            assert!(
+                paragraph.title().is_none_or(ContentRef::is_empty),
+                "{content}"
+            );
             assert_eq!(plain_text(paragraph), expected, "{content}");
         }
     }
@@ -92,18 +102,18 @@ fn plain_table_paragraphs_retain_source_spans() -> Result<(), Error> {
             "[cols=\"1\"]{newline}|==={newline}|Élodie.{newline}////{newline}José.{newline}////{newline}{newline}Last.{newline}|==={newline}"
         );
         let parsed = parse(&source, &Options::default())?;
-        let cell = first_cell(&parsed.document().blocks)?;
-        assert_eq!(cell.content.len(), 2);
+        let cell = first_cell(parsed.document())?;
+        assert_eq!(cell.blocks().count(), 2);
         for (block, (line, column, end_line, end_column)) in
-            cell.content.iter().zip([(3, 2, 6, 4), (8, 1, 8, 5)])
+            cell.blocks().zip([(3, 2, 6, 4), (8, 1, 8, 5)])
         {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return Err("missing paragraph".into());
             };
-            assert_eq!(paragraph.location.start.line, line);
-            assert_eq!(paragraph.location.start.column, column);
-            assert_eq!(paragraph.location.end.line, end_line);
-            assert_eq!(paragraph.location.end.column, end_column);
+            assert_eq!(paragraph.location().start().line(), line);
+            assert_eq!(paragraph.location().start().column(), column);
+            assert_eq!(paragraph.location().end().line(), end_line);
+            assert_eq!(paragraph.location().end().column(), end_column);
         }
     }
     Ok(())
@@ -116,14 +126,14 @@ fn plain_table_paragraphs_register_inline_effects_once() -> Result<(), Error> {
     let document = parsed.document();
     assert_eq!(
         document
-            .attributes
+            .attributes()
             .get("value")
             .and_then(|value| value.text()),
         Some("outer")
     );
-    assert_eq!(document.footnotes.len(), 1);
-    assert!(document.references.contains_key("plain-target"));
-    assert_eq!(first_cell(&document.blocks)?.content.len(), 2);
+    assert_eq!(document.footnotes().count(), 1);
+    assert!(document.references().contains("plain-target"));
+    assert_eq!(first_cell(document)?.blocks().count(), 2);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }

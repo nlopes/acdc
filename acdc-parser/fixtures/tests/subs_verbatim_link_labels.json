@@ -57,6 +57,7 @@
           "name": "xref",
           "type": "inline",
           "target": "outer",
+          "target_is_local": true,
           "location": [
             {
               "line": 9,
@@ -135,8 +136,7 @@
               "line": 10,
               "col": 42
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -193,8 +193,7 @@
                   "line": 11,
                   "col": 40
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "location": [
@@ -261,8 +260,7 @@
                   "line": 12,
                   "col": 44
                 }
-              ],
-              "attributes": {}
+              ]
             }
           ],
           "catalog": {
@@ -272,6 +270,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "link:https://example.org/index[Index link]",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 12,
@@ -327,6 +328,7 @@
           "name": "xref",
           "type": "inline",
           "target": "",
+          "target_is_local": true,
           "inlines": [
             {
               "name": "text",
@@ -374,6 +376,7 @@
           "name": "xref",
           "type": "inline",
           "target": "other.adoc#target",
+          "target_is_local": false,
           "location": [
             {
               "line": 13,
@@ -404,6 +407,27 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "attributes": {
+              "window": "_blank"
+            },
+            "roles": [
+              "custom"
+            ],
+            "id": {
+              "id": "code-link",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 41
+                },
+                {
+                  "line": 14,
+                  "col": 49
+                }
+              ]
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.org/id"
@@ -434,12 +458,7 @@
               "line": 14,
               "col": 76
             }
-          ],
-          "attributes": {
-            "id": "code-link",
-            "role": "custom",
-            "window": "_blank"
-          }
+          ]
         },
         {
           "name": "text",
@@ -473,8 +492,7 @@
               "line": 15,
               "col": 28
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",
@@ -499,6 +517,7 @@
             "type": "url",
             "value": "mailto:dev@example.org"
           },
+          "bracketed": true,
           "location": [
             {
               "line": 15,
@@ -530,6 +549,7 @@
           "name": "xref",
           "type": "inline",
           "target": "code-link",
+          "target_is_local": true,
           "location": [
             {
               "line": 18,
@@ -572,6 +592,21 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "id": {
+              "id": "empty-code",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 54
+                },
+                {
+                  "line": 22,
+                  "col": 63
+                }
+              ]
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.org/empty"
@@ -619,10 +654,7 @@
               "line": 22,
               "col": 64
             }
-          ],
-          "attributes": {
-            "id": "empty-code"
-          }
+          ]
         },
         {
           "name": "text",
@@ -670,6 +702,21 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "id": {
+              "id": "empty-block",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 60
+                },
+                {
+                  "line": 27,
+                  "col": 70
+                }
+              ]
+            }
+          },
           "target": {
             "type": "url",
             "value": "https://example.org/empty-block"
@@ -717,10 +764,7 @@
               "line": 27,
               "col": 71
             }
-          ],
-          "attributes": {
-            "id": "empty-block"
-          }
+          ]
         }
       ],
       "location": [
@@ -742,6 +786,7 @@
           "name": "xref",
           "type": "inline",
           "target": "empty-code",
+          "target_is_local": true,
           "location": [
             {
               "line": 30,
@@ -772,6 +817,7 @@
           "name": "xref",
           "type": "inline",
           "target": "empty-block",
+          "target_is_local": true,
           "location": [
             {
               "line": 30,
@@ -833,6 +879,7 @@
           "name": "xref",
           "type": "inline",
           "target": "destination",
+          "target_is_local": true,
           "location": [
             {
               "line": 33,

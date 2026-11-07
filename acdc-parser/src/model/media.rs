@@ -7,11 +7,16 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
-use crate::{Error, SourceLocation};
+use crate::{ContentAttribute, Error, SourceLocation};
 
-use super::location::{Location, Position};
-use super::metadata::BlockMetadata;
-use super::title::Title;
+use super::{
+    attributes::{AttributeName, AttributeValue, ElementAttributes},
+    location::{Location, Position},
+    metadata::{
+        BlockMetadata, InlineMetadata, InlineMetadataView, MacroAttributes, ReservedAttribute,
+    },
+    title::Title,
+};
 
 /// The source location for media content (images, audio, video).
 ///
@@ -79,6 +84,10 @@ impl<'a> SourceUrl<'a> {
         Ok(Self { url, original })
     }
 
+    pub(crate) fn original(&self) -> &str {
+        self.original
+    }
+
     /// Get the underlying `url::Url`.
     #[must_use]
     pub fn url(&self) -> &url::Url {
@@ -135,7 +144,7 @@ impl<'a> Source<'a> {
     ///
     /// # Errors
     /// Returns [`Error::Parse`] when `value` looks like a URL (starts with a
-    /// recognised scheme) but fails URL parsing.
+    /// recognized scheme) but fails URL parsing.
     pub fn from_str_borrowed(value: &'a str) -> Result<Self, Error> {
         // Try to parse as URL first
         if value.starts_with("http://")
@@ -201,10 +210,10 @@ impl Serialize for Source<'_> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Audio<'a> {
-    pub title: Title<'a>,
-    pub source: Source<'a>,
-    pub metadata: BlockMetadata<'a>,
-    pub location: Location,
+    pub(crate) title: Title<'a>,
+    pub(crate) source: Source<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) location: Location,
 }
 
 impl<'a> Audio<'a> {
@@ -222,15 +231,20 @@ impl<'a> Audio<'a> {
     /// Set the title.
     #[must_use]
     pub fn with_title(mut self, title: Title<'a>) -> Self {
-        self.title = title;
+        self.set_title(title);
         self
     }
 
-    /// Set the metadata.
-    #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
-        self.metadata = metadata;
-        self
+    /// Replace metadata without shadowing dedicated fields.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated metadata or title fields.
+    pub fn with_metadata(
+        mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<Self, crate::ReservedAttribute> {
+        self.set_metadata(metadata)?;
+        Ok(self)
     }
 }
 
@@ -238,51 +252,14 @@ impl<'a> Audio<'a> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Video<'a> {
-    pub title: Title<'a>,
-    pub sources: Vec<Source<'a>>,
-    pub metadata: BlockMetadata<'a>,
-    pub location: Location,
+    pub(crate) title: Title<'a>,
+    pub(crate) source: Source<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) location: Location,
 }
 
 impl<'a> Video<'a> {
-    /// Create a new video with the given sources and location.
-    #[must_use]
-    pub fn new(sources: Vec<Source<'a>>, location: Location) -> Self {
-        Self {
-            title: Title::default(),
-            sources,
-            metadata: BlockMetadata::default(),
-            location,
-        }
-    }
-
-    /// Set the title.
-    #[must_use]
-    pub fn with_title(mut self, title: Title<'a>) -> Self {
-        self.title = title;
-        self
-    }
-
-    /// Set the metadata.
-    #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
-        self.metadata = metadata;
-        self
-    }
-}
-
-/// An `Image` represents an image block in a document.
-#[derive(Clone, Debug, PartialEq)]
-#[non_exhaustive]
-pub struct Image<'a> {
-    pub title: Title<'a>,
-    pub source: Source<'a>,
-    pub metadata: BlockMetadata<'a>,
-    pub location: Location,
-}
-
-impl<'a> Image<'a> {
-    /// Create a new image with the given source and location.
+    /// Create a new video with the given source and location.
     #[must_use]
     pub fn new(source: Source<'a>, location: Location) -> Self {
         Self {
@@ -296,15 +273,324 @@ impl<'a> Image<'a> {
     /// Set the title.
     #[must_use]
     pub fn with_title(mut self, title: Title<'a>) -> Self {
-        self.title = title;
+        self.set_title(title);
         self
     }
 
-    /// Set the metadata.
+    /// Replace metadata without shadowing dedicated fields.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated metadata or title fields.
+    pub fn with_metadata(
+        mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<Self, crate::ReservedAttribute> {
+        self.set_metadata(metadata)?;
+        Ok(self)
+    }
+}
+
+/// A block image with an optional caption title.
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct Image<'a> {
+    /// Explicit alternative content. `None` selects the filename fallback.
+    pub(crate) alt: Option<ContentAttribute<'a>>,
+    /// The block caption title, independent of alternative text.
+    pub(crate) title: Title<'a>,
+    pub(crate) source: Source<'a>,
+    pub(crate) metadata: BlockMetadata<'a>,
+    pub(crate) location: Location,
+}
+
+impl<'a> Image<'a> {
+    /// Create a new image with the given source and location.
     #[must_use]
-    pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
-        self.metadata = metadata;
+    pub fn new(source: Source<'a>, location: Location) -> Self {
+        Self {
+            title: Title::default(),
+            alt: None,
+            source,
+            metadata: BlockMetadata::default(),
+            location,
+        }
+    }
+
+    /// Set the title.
+    #[must_use]
+    pub fn with_title(mut self, title: Title<'a>) -> Self {
+        self.set_title(title);
         self
+    }
+
+    /// Replace metadata without shadowing dedicated fields.
+    ///
+    /// # Errors
+    /// Rejects scalar attributes for dedicated metadata, title, or alt fields.
+    pub fn with_metadata(
+        mut self,
+        metadata: BlockMetadata<'a>,
+    ) -> Result<Self, crate::ReservedAttribute> {
+        self.set_metadata(metadata)?;
+        Ok(self)
+    }
+
+    /// Replace explicit alternative content. `None` selects the filename fallback.
+    pub fn set_alt(&mut self, alt: Option<ContentAttribute<'a>>) {
+        self.alt = alt;
+    }
+
+    /// Remove and return explicit alternative content without realizing its fallback.
+    #[must_use]
+    pub fn take_alt(&mut self) -> Option<ContentAttribute<'a>> {
+        self.alt.take()
+    }
+}
+
+macro_rules! block_media_edits {
+    ($($name:ident => [$($dedicated:literal),*]),+ $(,)?) => {
+        $(
+            impl<'a> $name<'a> {
+                /// Replace metadata without shadowing dedicated fields.
+                ///
+                /// # Errors
+                /// Rejects scalar keys for dedicated metadata or content fields,
+                /// leaving the media block unchanged.
+                pub fn set_metadata(&mut self, metadata: BlockMetadata<'a>) -> Result<(), ReservedAttribute> {
+                    metadata.validate_attributes(&[$($dedicated),*])?;
+                    self.metadata = metadata;
+                    Ok(())
+                }
+
+                /// Copy metadata to prepare a checked replacement, retaining its source lifetime.
+                #[must_use]
+                pub fn clone_metadata(&self) -> BlockMetadata<'a> {
+                    self.metadata.clone()
+                }
+
+                /// Remove metadata without changing the target or prepared content.
+                #[must_use]
+                pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
+                    std::mem::take(&mut self.metadata)
+                }
+
+                /// Replace prepared title content without rebuilding captions or registrations.
+                pub fn set_title(&mut self, title: Title<'a>) {
+                    self.title = title;
+                }
+
+                /// Remove the title, leaving it absent.
+                #[must_use]
+                pub fn take_title(&mut self) -> Title<'a> {
+                    std::mem::take(&mut self.title)
+                }
+
+                /// Replace the complete target and return its previous prepared value.
+                ///
+                /// Does not resolve paths, split playlists or update document registrations.
+                pub fn replace_source(&mut self, source: Source<'a>) -> Source<'a> {
+                    std::mem::replace(&mut self.source, source)
+                }
+
+                /// Replace the media span without relocating content or metadata.
+                pub fn set_location(&mut self, location: Location) {
+                    self.location = location;
+                }
+            }
+        )+
+    };
+}
+
+block_media_edits!(Audio => ["title"], Video => ["title"], Image => ["title", "alt"]);
+
+/// An inline image with distinct alternative text and hover text.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{InlineImage, Location, Source};
+/// let mut node = InlineImage::new(Source::Name("target"), Location::default());
+/// node.alt = None;
+/// ```
+///
+/// ```compile_fail,E0624
+/// use acdc_parser::{InlineImage, Location, Source};
+/// let node = InlineImage::new(Source::Name("target"), Location::default());
+/// let _ = node.attributes();
+/// ```
+///
+/// ```compile_fail,E0599
+/// use acdc_parser::{InlineImage, Location, Source};
+/// let mut node = InlineImage::new(Source::Name("target"), Location::default());
+/// node.options_mut().push("first");
+/// ```
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct InlineImage<'a> {
+    /// Explicit alternative text. `None` selects the converter's filename fallback.
+    pub(crate) alt: Option<ContentAttribute<'a>>,
+    /// Hover text supplied by the inline macro's `title=` attribute.
+    pub(crate) tooltip: Option<ContentAttribute<'a>>,
+    pub(crate) source: Source<'a>,
+    pub(crate) metadata: InlineMetadata<'a>,
+    pub(crate) macro_attributes: MacroAttributes<'a>,
+    pub(crate) location: Location,
+}
+
+impl<'a> InlineImage<'a> {
+    /// Construct an image with no explicit alternative or hover text.
+    #[must_use]
+    pub fn new(source: Source<'a>, location: Location) -> Self {
+        Self {
+            alt: None,
+            tooltip: None,
+            source,
+            metadata: InlineMetadata::default(),
+            macro_attributes: MacroAttributes::default(),
+            location,
+        }
+    }
+
+    /// Read scalar macro controls, such as width and link.
+    ///
+    /// This map excludes alt, tooltip, identity, roles, and options. Read those
+    /// values through their dedicated fields or methods.
+    #[must_use]
+    pub(crate) fn attributes(&self) -> &ElementAttributes<'a> {
+        &self.macro_attributes.attributes
+    }
+
+    /// Set an attribute without a dedicated field.
+    ///
+    /// # Errors
+    /// Rejects `alt`, `title`, `id`, `role`/`roles`, and `opts`/`options`.
+    /// Use prepared content, metadata, or option edits instead.
+    pub fn set_attribute(
+        &mut self,
+        name: AttributeName<'a>,
+        value: AttributeValue<'a>,
+    ) -> Result<(), ReservedAttribute> {
+        self.macro_attributes.set(name, value, &["alt", "title"])
+    }
+
+    /// Remove an attribute without a dedicated field and return its previous value.
+    ///
+    /// # Errors
+    /// Rejects the dedicated names listed by [`Self::set_attribute`].
+    pub fn remove_attribute(
+        &mut self,
+        name: &str,
+    ) -> Result<Option<AttributeValue<'a>>, ReservedAttribute> {
+        self.macro_attributes.remove(name, &["alt", "title"])
+    }
+
+    /// Read the macro's option names in their stored order.
+    #[must_use]
+    pub(crate) fn options(&self) -> &crate::TokenAssignment<'a> {
+        &self.macro_attributes.options
+    }
+
+    /// Replace scalar controls after validating the complete map.
+    ///
+    /// # Errors
+    /// Rejects dedicated content, identity, role and option names, including aliases.
+    /// On error, this node stays unchanged.
+    pub fn set_attributes(
+        &mut self,
+        attributes: ElementAttributes<'a>,
+    ) -> Result<(), ReservedAttribute> {
+        self.macro_attributes.replace(attributes, &["alt", "title"])
+    }
+
+    /// Copy scalar controls without copying content, identity, roles or options.
+    #[must_use]
+    pub fn clone_attributes(&self) -> ElementAttributes<'a> {
+        self.macro_attributes.attributes.clone()
+    }
+
+    /// Transfer scalar controls, leaving none.
+    #[must_use]
+    pub fn take_attributes(&mut self) -> ElementAttributes<'a> {
+        std::mem::take(&mut self.macro_attributes.attributes)
+    }
+
+    /// Replace prepared options, retaining presence, order and source lifetimes.
+    /// An empty vector is an explicit assignment; the default value is absent.
+    pub fn replace_options(
+        &mut self,
+        options: impl Into<crate::TokenAssignment<'a>>,
+    ) -> crate::TokenAssignment<'a> {
+        std::mem::replace(&mut self.macro_attributes.options, options.into())
+    }
+
+    /// Transfer the option assignment, leaving it absent.
+    pub fn take_options(&mut self) -> crate::TokenAssignment<'a> {
+        std::mem::take(&mut self.macro_attributes.options)
+    }
+
+    /// Append a prepared option name without interpreting or splitting it.
+    pub fn push_option(&mut self, option: &'a str) {
+        self.macro_attributes.options.push(option);
+    }
+
+    /// Set prepared identity and roles without registering them in a document.
+    pub fn set_metadata(&mut self, metadata: InlineMetadata<'a>) {
+        self.metadata = metadata;
+    }
+
+    /// Copy identity and roles, keeping scalar controls and content separate.
+    #[must_use]
+    pub fn clone_metadata(&self) -> InlineMetadata<'a> {
+        self.metadata.clone()
+    }
+
+    /// Transfer identity and roles, leaving them absent.
+    #[must_use]
+    pub fn take_metadata(&mut self) -> InlineMetadata<'a> {
+        std::mem::take(&mut self.metadata)
+    }
+
+    /// Set prepared alternative content; absence selects the converter's fallback.
+    pub fn set_alt(&mut self, alt: Option<ContentAttribute<'a>>) {
+        self.alt = alt;
+    }
+
+    /// Transfer alternative content, leaving it absent.
+    #[must_use]
+    pub fn take_alt(&mut self) -> Option<ContentAttribute<'a>> {
+        self.alt.take()
+    }
+
+    /// Set prepared hover content, retaining absent versus explicitly empty values.
+    pub fn set_tooltip(&mut self, tooltip: Option<ContentAttribute<'a>>) {
+        self.tooltip = tooltip;
+    }
+
+    /// Transfer hover content, leaving it absent.
+    #[must_use]
+    pub fn take_tooltip(&mut self) -> Option<ContentAttribute<'a>> {
+        self.tooltip.take()
+    }
+
+    /// Replace the prepared target without resolving paths, fetching or registration.
+    pub fn replace_source(&mut self, source: Source<'a>) -> Source<'a> {
+        std::mem::replace(&mut self.source, source)
+    }
+
+    /// Replace the node span, keeping the separate ID and content locations.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+
+    pub(crate) fn has_metadata(&self) -> bool {
+        !self.metadata.is_empty() || !self.macro_attributes.is_empty()
+    }
+
+    pub(crate) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
+        InlineMetadataView {
+            attributes: &self.macro_attributes.attributes,
+            roles: &self.metadata.roles,
+            options: &self.macro_attributes.options,
+            id: &self.metadata.id,
+        }
     }
 }
 
@@ -320,7 +606,7 @@ impl Serialize for Audio<'_> {
         if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("source", &self.source)?;
@@ -334,6 +620,9 @@ impl Serialize for Image<'_> {
     where
         S: Serializer,
     {
+        self.metadata
+            .validate_attributes(&["alt"])
+            .map_err(serde::ser::Error::custom)?;
         let mut state = serializer.serialize_map(None)?;
         state.serialize_entry("name", "image")?;
         state.serialize_entry("type", "block")?;
@@ -341,8 +630,11 @@ impl Serialize for Image<'_> {
         if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
+        }
+        if let Some(alt) = &self.alt {
+            state.serialize_entry("alt", alt)?;
         }
         state.serialize_entry("source", &self.source)?;
         state.serialize_entry("location", &self.location)?;
@@ -362,12 +654,10 @@ impl Serialize for Video<'_> {
         if !self.metadata.is_default() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
-        if !self.title.is_empty() {
+        if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
-        if !self.sources.is_empty() {
-            state.serialize_entry("sources", &self.sources)?;
-        }
+        state.serialize_entry("source", &self.source)?;
         state.serialize_entry("location", &self.location)?;
         state.end()
     }

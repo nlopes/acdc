@@ -14,7 +14,11 @@ use std::{
     time::Duration,
 };
 
-use acdc_parser::{Block, InlineNode, Options, ParseResult, SafeMode, parse_file};
+use acdc_parser::{
+    Options, ParseResult, SafeMode,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    parse_file,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -71,6 +75,10 @@ impl NestedServer {
             loop {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
+                        // Accepted streams can inherit the listener's nonblocking mode.
+                        stream.set_nonblocking(false)?;
+                        stream.set_read_timeout(Some(Duration::from_secs(3)))?;
+                        stream.set_write_timeout(Some(Duration::from_secs(3)))?;
                         let path = read_request_path(&mut stream)?;
                         let body = if path == "/base/parent.adoc" {
                             parent_body.clone()
@@ -165,19 +173,50 @@ fn options() -> Result<Options<'static>, acdc_parser::Error> {
         .build()
 }
 
+#[test]
+fn server_accepts_headers_sent_after_connection() -> TestResult {
+    let server = NestedServer::start("child.adoc")?;
+    let address = server
+        .uri
+        .strip_prefix("http://")
+        .and_then(|uri| uri.split_once('/'))
+        .map(|(address, _)| address)
+        .ok_or("test server address")?;
+    let mut stream = TcpStream::connect(address)?;
+    stream.set_read_timeout(Some(Duration::from_secs(3)))?;
+    stream.set_write_timeout(Some(Duration::from_secs(3)))?;
+    thread::sleep(Duration::from_millis(50));
+    let mut response = String::new();
+    let read = stream
+        .write_all(
+            b"GET /base/parent.adoc HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n",
+        )
+        .and_then(|()| stream.read_to_string(&mut response));
+    let paths = server.finish()?;
+    read?;
+    assert_eq!(paths, ["/base/parent.adoc"]);
+    assert!(response.starts_with("HTTP/1.1 200 OK\r\n"));
+    assert!(response.ends_with("Parent root end"));
+    Ok(())
+}
+
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<&str>, Box<dyn Error>> {
     result
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return Err(format!("expected paragraph, got {block:?}").into());
             };
-            let [InlineNode::PlainText(text)] = paragraph.content.as_slice() else {
+            let [InlineKind::Plain(text)] = &*paragraph
+                .content()
+                .inlines()
+                .map(InlineRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err(format!("expected plain paragraph text, got {paragraph:?}").into());
             };
-            Ok(text.content)
+            Ok(text.text())
         })
         .collect()
 }
@@ -193,8 +232,10 @@ fn assert_nested_include(
     let parent_uri = server.uri.clone();
 
     let result = parse_file(&document.path, &options()?)?;
+    let paths = server.finish()?;
     let expected_nested = format!("Nested response for {expected_path}");
 
+    assert_eq!(result.warnings(), []);
     assert_eq!(
         paragraph_texts(&result)?,
         [
@@ -203,17 +244,30 @@ fn assert_nested_include(
             "Parent root end",
         ]
     );
-    assert_eq!(result.warnings(), []);
-    assert_eq!(
-        server.finish()?,
-        ["/base/parent.adoc".to_string(), expected_path]
-    );
+    assert_eq!(paths, ["/base/parent.adoc".to_string(), expected_path]);
 
-    let [_, Block::Paragraph(nested), _] = result.document().blocks.as_slice() else {
+    let [_, BlockKind::Paragraph(nested), _] = &*result
+        .document()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
         return Err("expected three paragraphs".into());
     };
-    let expected_chain = vec![parent_uri, nested_target];
-    assert_eq!(nested.location.start.file.as_deref(), Some(&expected_chain));
+    let expected_chain = [parent_uri, nested_target];
+    assert_eq!(
+        nested
+            .location()
+            .start()
+            .include_chain()
+            .map(Iterator::collect::<Vec<_>>),
+        Some(
+            expected_chain
+                .iter()
+                .map(String::as_str)
+                .collect::<Vec<_>>()
+        )
+    );
 
     Ok(())
 }

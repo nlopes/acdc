@@ -219,13 +219,13 @@ mod tests {
         assert_eq!(
             parsed
                 .document()
-                .attributes
+                .attributes()
                 .get("backend")
                 .and_then(|value| value.text()),
             Some("pdf")
         );
-        assert!(parsed.document().attributes.contains_key("backend-pdf"));
-        assert!(!parsed.document().attributes.contains_key("backend-spoofed"));
+        assert!(parsed.document().attributes().contains("backend-pdf"));
+        assert!(!parsed.document().attributes().contains("backend-spoofed"));
         Ok(())
     }
 

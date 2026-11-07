@@ -7,34 +7,284 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Keyboard macros with deeply nested brackets no longer abort parsing with a
+  stack overflow when `:experimental:` is enabled. Both compatibility modes
+  preserve nested labels and escaped brackets.
+
+- AsciiDoc table cells now keep separate footnote names and definitions in both
+  modes, matching Asciidoctor's scope. Ordinary cells share their containing
+  owner. Numbers remain unique across the document. Use `TableCellRef::footnotes()`
+  for cell definitions; `DocumentRef::footnotes()` now returns only outer definitions.
+  Native JSON adds `footnote_scope`; named ASG stores canonical bodies in each
+  owner's `footnotes` array. Prepared repair keeps these owners separate.
+
+- Document references in both modes use the `reftext` active at their source
+  position. Empty and unset body values select the title. Labels retain the
+  winning declaration's source location; caller values have no source location.
+  Prepared edits retain captured labels. Natural aliases keep their header
+  binding, unlike Asciidoctor's lookup-order-dependent alias cache.
+  `CrossReferenceRef::document_reftext()` reads the body context; native JSON
+  and named ASG expose `document_reftext` separately from explicit link text.
+
+- Description lists now nest under ordered and unordered items in both modes.
+  Outer siblings remain in their list, and a blank line before `+` attaches the
+  next block to the ordinary parent. Same-line description markers stay literal.
+
+- Description lists now group consecutive terms with one shared definition in both
+  modes. An authored principal that expands to empty remains present. The read API
+  uses `item.terms()` and `item.definition()`; term content, anchors, and delimiters
+  belong to `DescriptionListTerm`, and principal/blocks belong to
+  `DescriptionListDefinition`. Native JSON follows these owners. Named ASG adds
+  term metadata and definition presence; upstream ASG keeps its existing shape.
+
+- `ParseResult::conditionals()` exposes preprocessing decisions in source order,
+  with original source files and line numbers. Tools can use the selected branches
+  without evaluating conditions against the end-of-header attribute snapshot.
+
+- Documented that accepted assignments immediately before an open block closes
+  still affect later content in both modes. Asciidoctor defines attribute entries
+  inside delimited blocks as undefined behavior.
+
+- Local image and block audio filenames now accept literal single and double
+  quotes. Quoted alt and title values remain separate from the target. Inline
+  filenames keep ASCII apostrophes; Asciidoctor can replace them with typographic
+  apostrophes.
+
+- Explicit overrides of character-replacement attributes now follow the same
+  substitution order as ordinary attributes. For example, `:quot: ->` produces
+  an arrow under normal substitutions in both modes. Built-in values remain literal.
+  Raw `->` values from caller options or `pass:[]` also follow this rule;
+  Asciidoctor keeps them literal.
+
+- Documented the shared formatting boundary after a literal `&`. With quotes
+  enabled, `&_a_;` formats its inner letter in both modes; Asciidoctor's default
+  substitutions leave the markers literal.
+
+- Explicit `link:` macros now accept custom schemes and paths with colons,
+  such as `link:urn:example:target[Read]`, in both modes. Labels, metadata,
+  and source locations are preserved.
+
+- Document `reftext` now overrides the authored header label for references to
+  its explicit ID in both modes, as it does for document-top references.
+  Empty and unset header values select the document title. Authored labels
+  remain separate, and prepared reference repair keeps the document label.
+
+- Thematic breaks keep named IDs and reference labels and select the last
+  authored ID in both compatibility modes. Stacked anchors no longer lose the
+  selected label. Earlier declarations remain available without becoming
+  registered aliases. Draft reports unresolved references inside these labels.
+
+- Blocks with metadata now select the last authored ID, including stacked
+  anchors and named IDs, in both compatibility modes. Cross-reference labels,
+  typed identity reads, and named ASG output agree with that selection, matching
+  Asciidoctor. Earlier bracket anchors remain declarations, not link aliases.
+
+- Empty inline formulas, buttons, and keyboard sequences remain shared acdc
+  extensions in both compatibility modes. Asciidoctor leaves isolated empty
+  forms literal. Empty and whitespace-only menu item lists remain distinct.
+
+- Table column widths above 4,294,967,295 now return a located parse error
+  instead of silently selecting a default width. This bound differs from
+  Asciidoctor, which accepts larger integers.
+
+- Checked ASG export no longer confuses document attributes named `name`, `type`
+  or `id` with node identities. It also rejects dangling footnotes retained only
+  in index or reference labels, while keeping canonical note bodies unchanged.
+
+
+- The named ASG profile preserves icon targets, alt text, tooltips, roles and
+  controls across font, image and text fallback modes without resolving assets.
+
+
+### Breaking changes
+
+- Role and option metadata uses `TokenAssignment`. Convert prepared vectors with
+  `.into()`; use the default value for absence and an empty vector for explicit
+  emptiness. `TokensRef::is_present()` exposes the distinction. Native JSON and
+  supported ASG metadata retain empty arrays instead of omitting them. Strict
+  ASG export rejects explicit empty inline assignments where no mapping exists.
+
+- ID source locations are optional. Generated section IDs and caller-built IDs
+  without recorded coordinates return `None` from `ElementIdRef::location()`.
+  Native JSON omits unknown anchor and inline-ID locations instead of writing
+  line-zero coordinates; known source ranges remain unchanged.
+
+- Admonition JSON distinguishes paragraph, indented, and delimited forms, retaining
+  the actual opening delimiter. Read source form with `AdmonitionRef::form()`;
+  library-built compound admonitions need `with_form` to supply known provenance.
+
+- Read parsed trees through `ParseResult::document()` and concrete `ast::*Ref`
+  handles. Match `BlockKind` / `InlineKind` and use lazy child/content iterators
+  instead of public fields or backing slices. Use constructors, checked setters,
+  and prepared transfers to edit owned values; `From` copies a selected read.
+  Text can still borrow from the parse result. See the README's 0.11 migration.
+- `ContentAttribute` and `Title` no longer expose borrowed slices or `Deref`.
+  Use `ContentRef::from(&content)` or `title.content()`, then `inlines()`.
+  Standalone inline results use `content()`. `Title::default()` is absent;
+  `Title::new(Vec::new())` is present and empty.
+- Images, tooltips, UI labels, credits, custom captions, and reference labels
+  retain parsed inline content. Inline images use `InlineImage`; block images
+  use `Image`. Alt, tooltip, and caption title are independent. Content is stored
+  once, outside scalar controls; checked scalar setters reject reserved names.
+- Native JSON writes content as dedicated inline arrays, omitting absent values
+  and retaining `[]` for explicit emptiness. Inline macro owners serialize like
+  their enclosing nodes, with consistent metadata and unencoded mail subject/body.
+  Bibliography display labels remain separate from citation text; index catalog
+  labels remain separate from display labels. Footnote references omit `inlines`,
+  while definitions retain it, including `[]`.
+- Enabled typography replacements now produce semantic symbol nodes. Character
+  references use `InlineNode::CharacterReference` and native `charref` nodes;
+  numeric references use decimal spelling. Locations retain the authored source.
+  Render these resolved nodes without applying language replacements again.
+- `Video::source` replaces `sources` in Rust and native JSON. It preserves the
+  complete provider target, including playlist commas and empty slots. Read the
+  provider from `poster`, rather than synthetic `youtube`/`vimeo` booleans.
+- Select language behavior with `CompatibilityMode::Asciidoctor` (default) or
+  `Draft`. Both modes use the same AST in every build and apply to includes and
+  nested content. Remove the `pre-spec-subs` and `setext` dependency features;
+  block `subs=` now works in every build. Draft uses attribute expansion before
+  ordinary formatting, its attribute-list rules, and literal unquoted/double-quoted
+  named content. Underlined headings remain an Asciidoctor-mode feature.
+- Removed `strip_quotes`: attribute-list delimiters are already removed, and
+  remaining quote characters are literal. Document presence/unsets serialize as
+  `true`/`false`; validated integers are JSON numbers with their written text
+  available through typed reads. Header snapshots and ordered body events remain
+  separate. Scalar metadata cannot shadow dedicated fields.
+- With `asg`, checked document and inline export accept `DocumentRef` and
+  `ContentRef`. Native JSON remains independent of ASG; callers must choose an
+  export profile and handle unsupported meaning explicitly.
+
 ### Added
 
-- `OptionsBuilder::with_force_local_file_xrefs()` resolves file-qualified
-  references by their local anchors in combined or partially included documents.
-  It preserves URLs and custom text and requires a nonempty fragment. This
-  opt-in override can redirect genuine external file references. It does not
-  scope duplicate IDs, resolve Antora resource IDs, or change page-only
-  references. It deliberately differs from Asciidoctor for files that are not
-  fully included.
+- The acdc ASG profile preserves keyboard keys, button labels and menu paths as
+  structured inline content, including empty labels and ordered steps. acdc
+  recognizes empty `btn:[]` and `kbd:[]`; Asciidoctor leaves those sources literal.
 
-- Explicit `toc2` settings now produce one deprecation warning per parse.
-  Use `:toc: left` or supply `toc=left` through the API or CLI. TOC behavior is
-  unchanged. Unsets, ignored assignments, and the `toc2` CSS class do not warn.
-  Asciidoctor accepts the deprecated alias without this warning.
+- The acdc ASG profile preserves inline STEM notation and literal formulas,
+  including mathematics nested in formatting, footnotes and content attributes.
+  acdc keeps empty `stem:[]` as mathematics; Asciidoctor leaves that source literal.
+
+- The acdc ASG profile preserves block STEM formulas with their resolved LaTeX
+  or AsciiMath notation, actual delimiters, metadata and output-escaping policy.
+
+- The acdc ASG profile retains subscript, superscript and nested typographic
+  quotations, including their resolved quotation characters and inline metadata.
+
+- The acdc ASG profile preserves hard line breaks as semantic inline breaks,
+  including configured hard wrapping and breaks inside content attributes.
+
+- The acdc ASG profile retains inline callout markers, resolved list numbers and
+  marker locations, including repeated and unmatched markers. Explicit and
+  automatic markers remain distinct without changing code text.
+
+- The acdc ASG profile records registered cross-reference targets separately from
+  retained anchor declarations. Aliases keep independent reference text, and
+  document-top references preserve resolved document labels and section fallbacks.
+
+- The named ASG profile retains ordinary inline anchors, extra block anchor
+  declarations and known primary-ID locations. It preserves acdc's primary-ID
+  selection: ordinary blocks use the first anchor, headings use the last.
+  Asciidoctor also uses the last anchor for ordinary stacked block anchors.
+
+- The named ASG profile retains visible/hidden index terms, hierarchy,
+  see/see-also relationships, and distinct registration-time labels when later
+  substitutions or prepared edits change the displayed text.
+
+- The named ASG profile exports registered footnote bodies once, with linked
+  definition/reference occurrences, including unresolved references and notes
+  in selected titles. Stale registrations report an error without renumbering.
+
+- The named ASG profile exports basic tables with header/body/footer sections,
+  cell content, widths, alignment, styles, and captured frame/grid/stripe settings.
+  Positive row/column spans retain cell order; inconsistent grids report errors.
+  AsciiDoc cells retain nested blocks and ordered initial attribute assignments,
+  so cell-local settings stay separate from sibling cells and outer content.
+
+- The named ASG profile preserves ordinary, unchecked, and checked list items
+  distinctly, including nested checklists and item continuations.
+
+- The named ASG profile retains header subtitles and title metadata separately,
+  including empty subtitles, formatting, and document-title references.
+
+- ASG export supports actual delimited admonitions. The named acdc profile also
+  preserves paragraph/indented admonitions, styled parent paragraphs, and marked
+  quotes without invented delimiters or body wrappers.
+
+- Checked ASG export now accepts resolved block `subs=` settings in both profiles.
+  Text/raw nodes preserve output escaping alongside parsed formatting and
+  expansions. Unknown instructions and unresolved raw processing still fail.
+
+- The acdc ASG profile now retains IDs and roles on supported formatted spans,
+  plus link/reference options, scalar attributes and formatted tooltips. Generic
+  highlighted spans stay distinct from marks. Strict upstream export is unchanged;
+  nondefault cross-reference policies still report an unsupported property.
+- The acdc ASG profile preserves ordered body attribute set/unset events separately
+  from header attributes, including settings that affect later media. Strict
+  upstream export continues to reject body assignments.
+
+- Typed reads cover every block and inline family, retained attributes, structural
+  children, owned content fields, source coordinates, and derived catalogs. Walks
+  support early stopping; direct and flat walks allocate no memory. Dedicated
+  content keeps missing and empty values distinct. `AttributeValueRef::as_str()`
+  reads scalar text without rendering or allocating.
+- Prepared documents can explicitly rebuild references/TOC, captions, footnotes,
+  and author-derived attributes. These operations preserve declaration snapshots
+  and have separate scopes. Reference, caption, and footnote errors leave the tree
+  unchanged. Ordinary reads, copies, and setters do not rebuild registrations.
+- The `asg` feature provides all-or-error export to a pinned upstream subset.
+  The explicit `Profile::Acdc` extension preserves supported formatted content
+  attributes and images under `urn:acdc:asg:1`. Unsupported owners or properties
+  report typed errors with property paths and known source coordinates. Offline
+  schema validation, a support inventory, and semantic regressions document the
+  limits; schema validity alone is not a conformance claim.
+- `OptionsBuilder::with_force_local_file_xrefs()` resolves file-qualified anchors
+  locally in combined documents. It can redirect genuine external references;
+  it does not scope duplicate IDs or resolve Antora resources.
 
 ### Fixed
 
-- Errors and warnings in reindented includes report columns in the original
-  source, including nested and selected includes.
+- Named titles, image alt/tooltips, custom captions, quote credits, reference
+  labels, and UI labels preserve formatting, escapes, declaration-time attributes,
+  explicit emptiness, and authored source ranges. Only selected content registers
+  footnotes. Inline image `title=` supplies a tooltip without replacing alt;
+  block image `title=` supplies a caption. Named/macro precedence follows the
+  selected mode. Draft block-image alt remains literal.
+- Block attributes, anchors, and titles before comments apply to the next
+  visible block, including headings and list continuations. Comment nodes keep
+  their own ranges. Unused end-of-input titles do not register footnotes. Discrete
+  headings, stacked attributes, positional gaps, and mapped media/quote values
+  follow the selected mode without changing the native tree shape.
+- Lists, description terms, styled/indented paragraphs, open blocks, and matched
+  listing/literal delimiters retain their correct boundaries and attached blocks.
+  Draft recognizes structure before applying verbatim styles; Asciidoctor mode
+  preserves its style-dependent behavior. Page-break markers work at end of file.
+- Explicit block and inline substitution order is preserved, including formatted
+  document attributes and passthroughs. Later expansion cannot create tokens for
+  an earlier stage. Unsupported passthrough/STEM settings preserve their complete
+  source and warn instead of silently producing incorrect content. acdc keeps
+  semantic text rather than generated backend markup; documented word-context
+  and repeated-expansion differences from Asciidoctor remain.
+- Keyboard/menu/button labels preserve rich content, separator keys, quoted menu
+  sequences, escaped closing brackets, and substitution-dependent boundaries.
+  Named index controls stay outside labels; bibliography labels retain empty and
+  whitespace-only values. Inline anchors accept closing brackets in labels.
+- Image/audio/video/TOC macros with trailing nonwhitespace stay paragraph text.
+  Complete video playlists and provider posters are preserved, including in
+  checked ASG export. Table column
+  declarations are validated completely, and metadata/body edits refresh stored
+  frame/grid/stripe decoration against the table's original defaults.
+- Generated section IDs honor declaration-time `idprefix`/`idseparator`, empty
+  values, and collision suffixes. References and TOC entries use those same IDs.
+  Prepared index edits preserve registration labels until explicitly restored.
+- Source spans and warnings retain original Unicode, attribute-reference, include,
+  selection, and table-cell context. Unresolved notes report each authored use;
+  active unsupported counters mark source recovery, while escaped counters stay
+  literal. `toc2` reports a deprecation warning; use `toc=left`.
+- STEM defaults to AsciiMath for absent/empty/unknown notation, accepts LaTeX
+  aliases, and preserves formula text. Explicit block attribute expansion works
+  without putting formatting tags into formulas. Literal document/manpage text,
+  quoted offsets, and cross-reference controls retain meaningful quotes.
 
-- STEM notation now uses AsciiMath when `:stem:` is absent, empty, or unknown.
-  The `latex` and `tex` aliases select LaTeX. Explicit `[latexmath]` and
-  `[asciimath]` blocks and positional notation override the document value,
-  matching Asciidoctor.
-- Inline STEM keeps attribute references as formula text by default.
-  LaTeX removes one enclosing dollar pair. With `pre-spec-subs`,
-  `[stem,subs="+attributes"]` expands block attributes while retaining the
-  original source text and locations.
 
 ## [0.11.0] - 2026-10-10
 
@@ -53,6 +303,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   caller attribute policy, and source recovery also apply to custom providers.
 
 ### Changed
+
+- Clarified the shared inline escape, Unicode boundary, and balanced index-label
+  rules, including the intentional differences from Asciidoctor in both modes.
+
+- Documented shared block extensions in both compatibility modes: nestable tilde
+  open blocks, longer backtick fences, and uppercase checklist markers. The
+  `paragraph` style on indented text remains specific to Draft mode.
+
+- Draft mode recognizes keyboard, button, and menu macros without
+  `experimental`. This is an acdc choice inspired by the unfinished draft
+  outline. Asciidoctor mode still requires explicit activation.
+- Draft preserves `compat-mode` and warns that it has no legacy language
+  effects. Reference labels, natural targets, and URI include fallback roles
+  follow Draft rules. Asciidoctor mode keeps the supported legacy behavior.
+  Neither attribute can change the caller's selected compatibility mode.
+
+- `[pass]` paragraphs retain raw content without interpreting inline macros.
+  Simple admonitions own their title and attributes once; native JSON marks
+  their source form with `form: "paragraph"`. Use `Admonition::from_paragraph`
+  to construct that form and `AdmonitionRef::simple_paragraph()` to read it.
+  `Admonition::new` constructs a compound block.
 
 - All includes in one parse now share a budget, with a default of 64 MiB. Each include counts
   its selected UTF-8 text after `indent=`, plus a separating newline for nonempty

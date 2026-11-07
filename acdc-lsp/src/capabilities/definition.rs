@@ -2,518 +2,43 @@
 
 use std::collections::HashMap;
 
-use acdc_converters_core::{TraversalContext, visitor::Visitor};
 use acdc_parser::{
-    Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location, Section,
+    Location,
+    ast::{CrossReferenceRef, DocumentRef, InlineKind},
 };
 use tower_lsp_server::ls_types::{Position, Uri};
 
-use crate::state::{DocumentState, Workspace, XrefTarget, document::OwnedSource};
+use crate::state::{DocumentState, Workspace, XrefTarget};
 
-/// Collect all anchor definitions from document AST
+/// Index retained IDs for navigation, including IDs outside the reference catalog.
 #[must_use]
-pub(crate) fn collect_anchors(doc: &Document) -> HashMap<String, Location> {
-    let mut anchors = HashMap::new();
-
-    // Collect from all blocks
-    for block in &doc.blocks {
-        collect_block_anchors(block, &mut anchors);
-    }
-
-    anchors
+pub(crate) fn collect_anchors(doc: DocumentRef<'_>) -> HashMap<String, Location> {
+    super::identity::occurrences(doc)
+        .map(|occurrence| (occurrence.id.to_owned(), occurrence.location))
+        .collect()
 }
 
-fn collect_block_anchors(block: &Block, anchors: &mut HashMap<String, Location>) {
-    match block {
-        Block::Section(section) => {
-            collect_section_anchors(section, anchors);
-        }
-        Block::Paragraph(para) => {
-            // Collect from paragraph metadata
-            collect_metadata_anchors(&para.metadata, &para.location, anchors);
-            // Collect inline anchors
-            collect_inline_anchors(&para.content, anchors);
-        }
-        Block::DelimitedBlock(delimited) => {
-            // Collect from block metadata
-            collect_metadata_anchors(&delimited.metadata, &delimited.location, anchors);
-            // Recurse into block content
-            collect_delimited_block_anchors(&delimited.inner, anchors);
-        }
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                collect_inline_anchors(&item.principal, anchors);
-                for b in &item.blocks {
-                    collect_block_anchors(b, anchors);
-                }
+/// Cross-references in retained content, excluding derived catalog copies.
+pub(super) fn xref_occurrences(
+    doc: DocumentRef<'_>,
+) -> impl Iterator<Item = CrossReferenceRef<'_>> {
+    doc.content_occurrences()
+        .flat_map(|field| field.content().inlines())
+        .filter_map(|inline| {
+            if let InlineKind::CrossReference(xref) = inline.kind() {
+                Some(xref)
+            } else {
+                None
             }
-        }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                collect_inline_anchors(&item.principal, anchors);
-                for b in &item.blocks {
-                    collect_block_anchors(b, anchors);
-                }
-            }
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                collect_inline_anchors(&item.principal_text, anchors);
-                for b in &item.description {
-                    collect_block_anchors(b, anchors);
-                }
-            }
-        }
-        Block::Admonition(adm) => {
-            for b in &adm.blocks {
-                collect_block_anchors(b, anchors);
-            }
-        }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive: silently ignore future variants
-        | _ => {}
-    }
+        })
 }
 
-/// Build a location covering just the section heading line (from section start
-/// to the end of the title text), rather than the full section span.
-pub(super) fn heading_line_location(section: &Section) -> Location {
-    let mut loc = section.location.clone();
-    if let Some(last_inline) = section.title.last() {
-        let title_loc = last_inline.location();
-        loc.absolute_end = title_loc.absolute_end;
-        loc.end = title_loc.end.clone();
-    }
-    loc
-}
-
-fn collect_section_anchors(section: &Section, anchors: &mut HashMap<String, Location>) {
-    // Get the section ID (explicit or generated)
-    // Title implements Deref<Target = [InlineNode]>
-    let id = section.id().into_owned();
-    // Use heading-line location (section start to title end), not the full
-    // section span. The full span covers all content blocks, which would make
-    // the anchor match on hover anywhere inside the section body.
-    let heading_loc = heading_line_location(section);
-    anchors.insert(id, heading_loc);
-
-    // Also collect any explicit anchors from metadata
-    for anchor in &section.metadata.anchors {
-        anchors.insert(anchor.id.to_string(), anchor.location.clone());
-    }
-
-    // Recurse into section content
-    for child in &section.content {
-        collect_block_anchors(child, anchors);
-    }
-}
-
-fn collect_metadata_anchors(
-    metadata: &acdc_parser::BlockMetadata,
-    block_location: &Location,
-    anchors: &mut HashMap<String, Location>,
-) {
-    // Collect anchors from metadata (from [[id]] or [#id] syntax)
-    for anchor in &metadata.anchors {
-        anchors.insert(anchor.id.to_string(), anchor.location.clone());
-    }
-    // Also check explicit id attribute
-    if let Some(id_anchor) = &metadata.id {
-        anchors.insert(id_anchor.id.to_string(), block_location.clone());
-    }
-}
-
-fn collect_delimited_block_anchors(
-    inner: &DelimitedBlockType,
-    anchors: &mut HashMap<String, Location>,
-) {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            for block in blocks {
-                collect_block_anchors(block, anchors);
-            }
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedPass(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines)
-        | DelimitedBlockType::DelimitedComment(inlines) => {
-            collect_inline_anchors(inlines, anchors);
-        }
-        DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_inline_anchors(inlines: &[InlineNode], anchors: &mut HashMap<String, Location>) {
-    for inline in inlines {
-        // Explicit arms for compile-time check when variants added
-        match inline {
-            InlineNode::InlineAnchor(anchor) => {
-                anchors.insert(anchor.id.to_string(), anchor.location.clone());
-            }
-            // Recurse into formatted text to find nested anchors
-            InlineNode::BoldText(b) => collect_inline_anchors(&b.content, anchors),
-            InlineNode::ItalicText(i) => collect_inline_anchors(&i.content, anchors),
-            InlineNode::MonospaceText(m) => collect_inline_anchors(&m.content, anchors),
-            InlineNode::HighlightText(h) => collect_inline_anchors(&h.content, anchors),
-            InlineNode::SubscriptText(s) => collect_inline_anchors(&s.content, anchors),
-            InlineNode::SuperscriptText(s) => collect_inline_anchors(&s.content, anchors),
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
-            // non_exhaustive
-            | _ => {}
-        }
-    }
-}
-
-/// Collect all xref targets from document
+/// Collect cross-reference targets and source spans for the workspace index.
 #[must_use]
-pub(crate) fn collect_xrefs(doc: &Document) -> Vec<(String, Location)> {
-    let mut xrefs = vec![];
-
-    for block in &doc.blocks {
-        collect_block_xrefs(block, &mut xrefs);
-    }
-
-    xrefs
-}
-
-fn collect_block_xrefs(block: &Block, xrefs: &mut Vec<(String, Location)>) {
-    match block {
-        Block::Section(section) => {
-            for child in &section.content {
-                collect_block_xrefs(child, xrefs);
-            }
-        }
-        Block::Paragraph(para) => {
-            collect_inline_xrefs(&para.content, xrefs);
-        }
-        Block::DelimitedBlock(delimited) => {
-            collect_delimited_block_xrefs(&delimited.inner, xrefs);
-        }
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                collect_inline_xrefs(&item.principal, xrefs);
-                for b in &item.blocks {
-                    collect_block_xrefs(b, xrefs);
-                }
-            }
-        }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                collect_inline_xrefs(&item.principal, xrefs);
-                for b in &item.blocks {
-                    collect_block_xrefs(b, xrefs);
-                }
-            }
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                collect_inline_xrefs(&item.principal_text, xrefs);
-                for b in &item.description {
-                    collect_block_xrefs(b, xrefs);
-                }
-            }
-        }
-        Block::Admonition(adm) => {
-            for b in &adm.blocks {
-                collect_block_xrefs(b, xrefs);
-            }
-        }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_delimited_block_xrefs(inner: &DelimitedBlockType, xrefs: &mut Vec<(String, Location)>) {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            for block in blocks {
-                collect_block_xrefs(block, xrefs);
-            }
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedPass(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines)
-        | DelimitedBlockType::DelimitedComment(inlines) => {
-            collect_inline_xrefs(inlines, xrefs);
-        }
-        DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_inline_xrefs(inlines: &[InlineNode], xrefs: &mut Vec<(String, Location)>) {
-    for inline in inlines {
-        // Explicit arms for compile-time check when variants added
-        match inline {
-            InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-                xrefs.push((xref.target.to_string(), xref.location.clone()));
-            }
-            // Recurse into formatted text to find nested xrefs
-            InlineNode::BoldText(b) => collect_inline_xrefs(&b.content, xrefs),
-            InlineNode::ItalicText(i) => collect_inline_xrefs(&i.content, xrefs),
-            InlineNode::MonospaceText(m) => collect_inline_xrefs(&m.content, xrefs),
-            InlineNode::HighlightText(h) => collect_inline_xrefs(&h.content, xrefs),
-            InlineNode::SubscriptText(s) => collect_inline_xrefs(&s.content, xrefs),
-            InlineNode::SuperscriptText(s) => collect_inline_xrefs(&s.content, xrefs),
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
-            // non_exhaustive
-            | _ => {}
-        }
-    }
-}
-
-/// Collect all media sources (images, audio, video) from document AST
-#[must_use]
-pub(crate) fn collect_media_sources(doc: &Document) -> Vec<(OwnedSource, Location)> {
-    let mut visitor = MediaVisitor {
-        sources: Vec::new(),
-    };
-    let mut traversal = TraversalContext::new(&doc.attributes);
-    let Ok(()) = traversal.visit_blocks(&mut visitor, &doc.blocks);
-    visitor.sources
-}
-
-struct MediaVisitor {
-    sources: Vec<(OwnedSource, Location)>,
-}
-
-impl<'doc> Visitor<'doc> for MediaVisitor {
-    type Error = std::convert::Infallible;
-
-    fn before_block(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        block: &'doc Block<'doc>,
-    ) -> Result<(), Self::Error> {
-        match block {
-            Block::Image(image) => self.sources.push((
-                resolve_media_source(&image.source, traversal),
-                image.location.clone(),
-            )),
-            Block::Audio(audio) => self.sources.push((
-                resolve_media_source(&audio.source, traversal),
-                audio.location.clone(),
-            )),
-            Block::Video(video) => {
-                for source in &video.sources {
-                    self.sources.push((
-                        resolve_media_source(source, traversal),
-                        video.location.clone(),
-                    ));
-                }
-            }
-            Block::DelimitedBlock(block) => match &block.inner {
-                DelimitedBlockType::DelimitedListing(inlines)
-                | DelimitedBlockType::DelimitedLiteral(inlines)
-                | DelimitedBlockType::DelimitedPass(inlines)
-                | DelimitedBlockType::DelimitedVerse(inlines)
-                | DelimitedBlockType::DelimitedComment(inlines) => {
-                    collect_inline_media(inlines, &mut self.sources, traversal);
-                }
-                DelimitedBlockType::DelimitedExample(_)
-                | DelimitedBlockType::DelimitedOpen(_)
-                | DelimitedBlockType::DelimitedQuote(_)
-                | DelimitedBlockType::DelimitedSidebar(_)
-                | DelimitedBlockType::DelimitedStem(_)
-                | DelimitedBlockType::DelimitedTable(_)
-                | _ => {}
-            },
-            Block::Section(_)
-            | Block::Paragraph(_)
-            | Block::OrderedList(_)
-            | Block::UnorderedList(_)
-            | Block::DescriptionList(_)
-            | Block::CalloutList(_)
-            | Block::Admonition(_)
-            | Block::DiscreteHeader(_)
-            | Block::DocumentAttribute(_)
-            | Block::TableOfContents(_)
-            | Block::ThematicBreak(_)
-            | Block::PageBreak(_)
-            | Block::Comment(_)
-            | _ => {}
-        }
-        Ok(())
-    }
-
-    fn visit_section(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        section: &'doc acdc_parser::Section<'doc>,
-    ) -> Result<(), Self::Error> {
-        traversal.visit_blocks(self, &section.content)
-    }
-
-    fn visit_paragraph(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        paragraph: &acdc_parser::Paragraph<'_>,
-    ) -> Result<(), Self::Error> {
-        self.visit_inline_nodes(traversal, &paragraph.content)
-    }
-
-    fn visit_description_list(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        list: &'doc acdc_parser::DescriptionList<'doc>,
-    ) -> Result<(), Self::Error> {
-        for item in &list.items {
-            self.visit_inline_nodes(traversal, &item.principal_text)?;
-            traversal.visit_blocks(self, &item.description)?;
-        }
-        Ok(())
-    }
-
-    fn visit_ordered_list(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        list: &'doc acdc_parser::OrderedList<'doc>,
-    ) -> Result<(), Self::Error> {
-        for item in &list.items {
-            self.visit_list_item(traversal, item)?;
-        }
-        Ok(())
-    }
-
-    fn visit_unordered_list(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        list: &'doc acdc_parser::UnorderedList<'doc>,
-    ) -> Result<(), Self::Error> {
-        for item in &list.items {
-            self.visit_list_item(traversal, item)?;
-        }
-        Ok(())
-    }
-
-    fn visit_discrete_header(
-        &mut self,
-        _traversal: &mut TraversalContext<'doc>,
-        _header: &acdc_parser::DiscreteHeader<'_>,
-    ) -> Result<(), Self::Error> {
-        Ok(())
-    }
-
-    fn visit_inline_nodes(
-        &mut self,
-        traversal: &mut TraversalContext<'doc>,
-        nodes: &[InlineNode<'_>],
-    ) -> Result<(), Self::Error> {
-        collect_inline_media(nodes, &mut self.sources, traversal);
-        Ok(())
-    }
-}
-
-fn collect_inline_media(
-    inlines: &[InlineNode],
-    sources: &mut Vec<(OwnedSource, Location)>,
-    attributes: &mut TraversalContext<'_>,
-) {
-    for inline in inlines {
-        match inline {
-            InlineNode::Macro(InlineMacro::Image(img)) => {
-                sources.push((resolve_media_source(&img.source, attributes), img.location.clone()));
-            }
-            // Recurse into formatted text to find nested images
-            InlineNode::BoldText(b) => collect_inline_media(&b.content, sources, attributes),
-            InlineNode::ItalicText(i) => collect_inline_media(&i.content, sources, attributes),
-            InlineNode::MonospaceText(m) => collect_inline_media(&m.content, sources, attributes),
-            InlineNode::HighlightText(h) => collect_inline_media(&h.content, sources, attributes),
-            InlineNode::SubscriptText(s) => collect_inline_media(&s.content, sources, attributes),
-            InlineNode::SuperscriptText(s) => collect_inline_media(&s.content, sources, attributes),
-            InlineNode::PlainText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
-            // non_exhaustive
-            | _ => {}
-        }
-    }
-}
-
-fn resolve_media_source(
-    source: &acdc_parser::Source<'_>,
-    attributes: &TraversalContext<'_>,
-) -> OwnedSource {
-    let source = OwnedSource::from_borrowed(source);
-    let OwnedSource::Path(path) = &source else {
-        return source;
-    };
-    if path.is_absolute() {
-        return source;
-    }
-    let Some(directory) = attributes
-        .get("imagesdir")
-        .and_then(|value| value.text())
-        .map(acdc_parser::strip_quotes)
-        .filter(|directory| !directory.is_empty())
-    else {
-        return source;
-    };
-    if directory.contains("://") || directory.starts_with("//") {
-        OwnedSource::Url(format!(
-            "{}/{}",
-            directory.trim_end_matches('/'),
-            path.display()
-        ))
-    } else {
-        OwnedSource::Path(std::path::Path::new(directory).join(path))
-    }
+pub(crate) fn collect_xrefs(doc: DocumentRef<'_>) -> Vec<(String, Location)> {
+    xref_occurrences(doc)
+        .map(|xref| (xref.target().to_owned(), xref.location().into()))
+        .collect()
 }
 
 /// Find definition at cursor position, with cross-file resolution
@@ -524,28 +49,32 @@ pub(crate) fn find_definition_at_position(
     workspace: &Workspace,
     position: Position,
 ) -> Option<(Uri, Location)> {
-    let offset = crate::convert::position_to_offset(doc_state.text(), position)?;
+    let source_position = crate::convert::position_to_scalar_position(doc_state.text(), position)?;
     let ast_guard = doc_state.ast()?;
     let ast = ast_guard.document();
     tracing::info!(
         ?position,
-        offset,
+        ?source_position,
         text_len = doc_state.text().len(),
         "find_definition_at_position"
     );
 
     // Check if cursor is on an xref
-    if let Some((target, _)) = crate::capabilities::hover::find_xref_at_offset(ast, offset) {
-        tracing::info!(target, "found xref at offset");
+    if let Some((target, _)) =
+        crate::capabilities::hover::find_xref_at_position(ast, &source_position)
+    {
+        tracing::info!(target, "found xref at source position");
         return resolve_xref_target(&target, doc_state, doc_uri, workspace);
     }
 
     // Check if cursor is on a link macro
-    if let Some((target, _)) = crate::capabilities::hover::find_link_at_offset(ast, offset) {
+    if let Some((target, _)) =
+        crate::capabilities::hover::find_link_at_position(ast, &source_position)
+    {
         return resolve_link_target(&target, doc_uri);
     }
 
-    tracing::info!("no xref or link found at offset");
+    tracing::info!("no xref or link found at source position");
     None
 }
 
@@ -644,7 +173,10 @@ fn resolve_link_target(target: &str, doc_uri: &Uri) -> Option<(Uri, Location)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state::Workspace;
+    use crate::{
+        capabilities::media::collect_media_sources,
+        state::{Workspace, document::OwnedSource},
+    };
     use acdc_parser::{Error, Options, parse};
     use std::error::Error as StdError;
 
@@ -724,21 +256,20 @@ Content.
             .ok_or("a.adoc should be indexed")?;
         assert!(!a_doc.xrefs.is_empty(), "a.adoc should have xrefs");
 
-        // Verify the AST has the xref findable at offset. The guard holds the
-        // `ParsedDocument` mutex, so it must drop before the call below — which
-        // re-enters `doc_state.ast()` and would deadlock on a non-reentrant
-        // `std::sync::Mutex`.
+        // Drop the AST guard before go-to-definition acquires it again.
         {
             let ast_guard = a_doc.ast().ok_or("a.adoc should have AST")?;
             let ast = ast_guard.document();
-            let xref_offset = a_content
-                .find("xref:")
-                .ok_or("xref: not found in content")?;
-            let found = crate::capabilities::hover::find_xref_at_offset(ast, xref_offset + 10);
-            assert!(found.is_some(), "xref should be findable at offset");
+            let source_position =
+                crate::convert::position_to_scalar_position(a_content, Position::new(4, 20))
+                    .ok_or("source position")?;
+            let found = crate::capabilities::hover::find_xref_at_position(ast, &source_position);
+            assert!(
+                found.is_some(),
+                "xref should be findable at its source position"
+            );
         }
 
-        // Use position_to_offset round-trip like the real code path
         let position = tower_lsp_server::ls_types::Position {
             line: 4,       // 0-indexed: line 5 of the document
             character: 20, // middle of the xref
@@ -907,6 +438,27 @@ Content.
     }
 
     #[test]
+    fn content_attributes_participate_in_definition_lookup() -> Result<(), Error> {
+        let source = "[alt='image:nested.svg[] <<target>>']\nimage::outer.svg[]\n\nimage:other.svg[title=\"anchor:target[Target]\"]";
+        let parsed = parse(source, &Options::default())?;
+        let document = parsed.document();
+        assert!(collect_anchors(document).contains_key("target"));
+        assert_eq!(
+            collect_xrefs(document)
+                .first()
+                .map(|reference| reference.0.as_str()),
+            Some("target")
+        );
+        let sources = collect_media_sources(document);
+        assert_eq!(sources.len(), 3);
+        assert!(sources.iter().any(|(_, location)| {
+            source.get(location.absolute_start..=location.absolute_end)
+                == Some("image:nested.svg[]")
+        }));
+        Ok(())
+    }
+
+    #[test]
     fn test_collect_media_sources_multiple() -> Result<(), Error> {
         let content = "= Document\n\nimage::a.png[]\n\n== Section\n\nimage::b.jpg[]\n\nText with image:c.svg[] inline.\n";
         let parsed = parse(content, &Options::default())?;
@@ -941,6 +493,65 @@ Content.
                 .collect::<Vec<_>>();
             assert_eq!(actual, expected.map(std::path::PathBuf::from));
         }
+        Ok(())
+    }
+    #[test]
+    fn media_sources_preserve_selected_field_order() -> Result<(), Box<dyn StdError>> {
+        let source = "[caption='image:caption.svg[]',alt='image:alt.svg[]']\n.Image title image:title.svg[]\nimage::outer.svg[]\n\nimage:host.svg[alt='image:inline-alt.svg[]',title='image:tooltip.svg[]']\n\nfootnote:[image:footnote.svg[]]\n\n\"`image:curved.svg[]`\"\n";
+        let parsed = parse(source, &Options::default())?;
+        let media = collect_media_sources(parsed.document());
+        let paths = media
+            .iter()
+            .filter_map(|(source, _)| {
+                if let OwnedSource::Path(path) = source {
+                    Some(path.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            paths,
+            [
+                "caption.svg",
+                "alt.svg",
+                "outer.svg",
+                "inline-alt.svg",
+                "tooltip.svg",
+                "host.svg"
+            ]
+            .map(std::path::PathBuf::from)
+        );
+        for (target, location) in media {
+            let spelling = source
+                .get(location.absolute_start..=location.absolute_end)
+                .ok_or("media span")?;
+            if let OwnedSource::Path(path) = target {
+                assert!(spelling.contains(&path.display().to_string()), "{spelling}");
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn media_sources_keep_cell_assignments_local_and_replay_later_directories() -> Result<(), Error>
+    {
+        let source = "= Doc\n\n[cols=\"a,a\"]\n|===\n|\n:imagesdir: one\n\nimage::first.svg[]\n|\n:imagesdir: two\n\nimage::second.svg[]\n|===\n\nimage::after.svg[]\n\n:imagesdir: https://cdn.example.org/assets\n\nimage::remote.svg[]\n\n:imagesdir!:\n\nimage::last.svg[]\n";
+        let parsed = parse(source, &Options::default())?;
+        let sources = collect_media_sources(parsed.document())
+            .into_iter()
+            .map(|(source, _)| source)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            sources,
+            [
+                OwnedSource::Path("one/first.svg".into()),
+                OwnedSource::Path("two/second.svg".into()),
+                OwnedSource::Path("after.svg".into()),
+                OwnedSource::Url("https://cdn.example.org/assets/remote.svg".into()),
+                OwnedSource::Path("last.svg".into()),
+            ]
+        );
         Ok(())
     }
 }

@@ -2,153 +2,130 @@
 //!
 //! Handles listing, literal, example, sidebar, quote, and other delimited blocks.
 
-use std::{borrow::Cow, io::Write};
+use std::io::Write;
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::{SubsFlags, effective_subs_flags};
-use acdc_converters_core::{
-    InlineTextTransform, TraversalContext, shows_block_title, visitor::WritableVisitor,
-};
+use acdc_converters_core::{InlineTextTransform, TraversalContext};
 use acdc_parser::{
-    Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineMacro, InlineNode,
+    SymbolKind,
+    ast::{
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, InlineKind, InlineRef,
+    },
 };
 
 use crate::{
     Error, ManpageVisitor,
     document::extract_verbatim_text,
     escape::{EscapeMode, manify},
-    inlines::contains_link,
+    inlines::{contains_link, replacements},
     manpage_visitor::IndexCollection,
 };
 
 impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
-    /// Visit a delimited block.
     pub(crate) fn render_delimited_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        block: &'a DelimitedBlock<'a>,
+        block: BlockRef<'a>,
     ) -> Result<(), Error> {
-        if shows_block_title(&block.inner) && !block.title.is_empty() {
-            let w = self.writer_mut();
-            writeln!(w, ".sp")?;
-            self.render_captioned_title(traversal, &block.title, &block.metadata)?;
+        if !matches!(block.kind(), BlockKind::Passthrough(_))
+            && block.title().is_some()
+            && let Some(attributes) = block.attributes()
+        {
+            writeln!(self.writer_mut(), ".sp")?;
+            self.render_captioned_title(traversal, block.title(), attributes)?;
         }
 
-        match &block.inner {
-            DelimitedBlockType::DelimitedListing(inlines) => {
-                self.collect_index_terms_from_inlines(traversal, inlines)?;
-                self.render_listing_block(traversal, inlines, &block.metadata)
+        match block.kind() {
+            BlockKind::Listing(node) => {
+                self.collect_index_terms_from_inlines(traversal, node.content())?;
+                self.render_listing_block(traversal, node.content(), node.attributes())
             }
-            DelimitedBlockType::DelimitedLiteral(inlines) => {
-                self.collect_index_terms_from_inlines(traversal, inlines)?;
-                let content = self.verbatim_content(traversal, inlines, &block.metadata)?;
+            BlockKind::Literal(node) => {
+                self.collect_index_terms_from_inlines(traversal, node.content())?;
+                let content =
+                    self.verbatim_content(traversal, node.content(), node.attributes())?;
                 self.render_literal_block(&content)
             }
-            DelimitedBlockType::DelimitedExample(blocks)
-            | DelimitedBlockType::DelimitedSidebar(blocks) => {
-                self.render_indented_blocks(traversal, blocks, 4)
+            BlockKind::Example(node) => self.render_indented_blocks(traversal, node.blocks(), 4),
+            BlockKind::Sidebar(node) => self.render_indented_blocks(traversal, node.blocks(), 4),
+            BlockKind::Open(node) => traversal.visit_blocks(self, node.blocks()),
+            BlockKind::Quote(node) => {
+                self.render_indented_blocks(traversal, node.blocks(), 4)?;
+                self.render_attribution(
+                    traversal,
+                    node.attributes(),
+                    &[".RS 5", ".ll -.10i"],
+                    &[".RE", ".ll"],
+                )
             }
-            DelimitedBlockType::DelimitedOpen(blocks) => {
-                for nested_block in blocks {
-                    traversal.visit_block(self, nested_block)?;
-                }
-                Ok(())
+            BlockKind::Verse(node) => {
+                self.render_verse_content(traversal, node.content())?;
+                self.render_attribution(
+                    traversal,
+                    node.attributes(),
+                    &[".br", ".in +.5i", ".ll -.5i"],
+                    &[".in", ".ll"],
+                )
             }
-            DelimitedBlockType::DelimitedQuote(blocks) => {
-                self.render_quote_delimited_block(traversal, block, blocks)
-            }
-            DelimitedBlockType::DelimitedVerse(inlines) => {
-                self.render_verse_delimited_block(traversal, block, inlines)
-            }
-            DelimitedBlockType::DelimitedPass(inlines) => {
+            BlockKind::Passthrough(node) => {
                 // Passthrough blocks contain backend-native roff by definition.
-                let w = self.writer_mut();
-                let content = extract_verbatim_text(inlines);
-                writeln!(w, "{content}")?;
+                writeln!(
+                    self.writer_mut(),
+                    "{}",
+                    extract_verbatim_text(node.content())
+                )?;
                 Ok(())
             }
-            DelimitedBlockType::DelimitedTable(table) => {
-                crate::table::visit_table(traversal, table, block, self)
-            }
-            DelimitedBlockType::DelimitedStem(stem) => {
+            BlockKind::Table(table) => crate::table::visit_table(traversal, table, self),
+            BlockKind::Stem(node) => {
                 let w = self.writer_mut();
                 writeln!(w, ".sp")?;
-                writeln!(w, "{}", manify(stem.content, EscapeMode::Preserve))?;
+                writeln!(w, "{}", manify(node.text(), EscapeMode::Preserve))?;
                 Ok(())
             }
-            DelimitedBlockType::DelimitedComment(_) => Ok(()),
-            _ => {
+            BlockKind::DelimitedComment(_) => Ok(()),
+            BlockKind::TableOfContents(_)
+            | BlockKind::Admonition(_)
+            | BlockKind::DiscreteHeader(_)
+            | BlockKind::DocumentAttribute(_)
+            | BlockKind::ThematicBreak(_)
+            | BlockKind::PageBreak(_)
+            | BlockKind::UnorderedList(_)
+            | BlockKind::OrderedList(_)
+            | BlockKind::CalloutList(_)
+            | BlockKind::DescriptionList(_)
+            | BlockKind::Section(_)
+            | BlockKind::Paragraph(_)
+            | BlockKind::Image(_)
+            | BlockKind::Audio(_)
+            | BlockKind::Video(_)
+            | BlockKind::Comment(_)
+            | _ => {
                 self.warn_unsupported_parser_variant("delimited block");
                 Ok(())
             }
         }
     }
 
-    /// Render blocks indented with RS/RE.
     fn render_indented_blocks(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        blocks: &'a [Block<'a>],
+        blocks: impl Iterator<Item = BlockRef<'a>>,
         indent: usize,
     ) -> Result<(), Error> {
-        let w = self.writer_mut();
-        writeln!(w, ".RS {indent}")?;
-        for nested_block in blocks {
-            traversal.visit_block(self, nested_block)?;
-        }
-        let w = self.writer_mut();
-        writeln!(w, ".RE")?;
+        writeln!(self.writer_mut(), ".RS {indent}")?;
+        traversal.visit_blocks(self, blocks)?;
+        writeln!(self.writer_mut(), ".RE")?;
         Ok(())
-    }
-
-    /// Render a quote delimited block with optional attribution.
-    fn render_quote_delimited_block(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        block: &'a DelimitedBlock<'a>,
-        blocks: &'a [Block<'a>],
-    ) -> Result<(), Error> {
-        let w = self.writer_mut();
-        writeln!(w, ".RS 4")?;
-        for nested_block in blocks {
-            traversal.visit_block(self, nested_block)?;
-        }
-        let w = self.writer_mut();
-        writeln!(w, ".RE")?;
-
-        self.render_attribution(
-            traversal,
-            &block.metadata,
-            &[".RS 5", ".ll -.10i"],
-            &[".RE", ".ll"],
-        )
-    }
-
-    /// Render a verse delimited block with optional attribution.
-    fn render_verse_delimited_block(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        block: &'a DelimitedBlock<'a>,
-        inlines: &[acdc_parser::InlineNode],
-    ) -> Result<(), Error> {
-        self.render_verse_content(traversal, inlines, &block.metadata)?;
-
-        self.render_attribution(
-            traversal,
-            &block.metadata,
-            &[".br", ".in +.5i", ".ll -.5i"],
-            &[".in", ".ll"],
-        )
     }
 
     /// Render a listing (code) block.
     fn render_listing_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        inlines: &[InlineNode<'_>],
-        metadata: &BlockMetadata<'_>,
+        inlines: ContentRef<'_>,
+        attributes: AttributesRef<'_>,
     ) -> Result<(), Error> {
-        let content = self.verbatim_content(traversal, inlines, metadata)?;
+        let content = self.verbatim_content(traversal, inlines, attributes)?;
         let w = self.writer_mut();
         writeln!(w, ".EX")?;
         for line in content.lines() {
@@ -172,53 +149,43 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     pub(crate) fn verbatim_content(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode<'_>],
-        metadata: &BlockMetadata<'_>,
+        nodes: ContentRef<'_>,
+        attributes: AttributesRef<'_>,
     ) -> Result<String, Error> {
-        // Link labels inherit the verbatim block's substitution settings.
-        #[cfg(feature = "pre-spec-subs")]
-        let previous_subs = self
-            .processor
-            .current_subs
-            .replace(effective_subs_flags(metadata.substitutions.as_ref(), true));
         let mut output = Vec::new();
         let mut visitor = self.nested_visitor(&mut output);
         // Block callers already collected terms; rendering link labels must not add them again.
         visitor.index_collection = IndexCollection::Disabled;
-        let result = visitor.write_verbatim_nodes(traversal, nodes, Some(metadata));
-        #[cfg(feature = "pre-spec-subs")]
-        visitor.processor.current_subs.set(previous_subs);
-        result?;
+        visitor.write_verbatim_nodes(traversal, nodes, Some(attributes))?;
         Ok(String::from_utf8_lossy(&output).into_owned())
     }
 
     fn write_verbatim_nodes(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        nodes: &[InlineNode<'_>],
-        metadata: Option<&BlockMetadata<'_>>,
+        nodes: ContentRef<'_>,
+        attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
-        let comment_prefix =
-            metadata.and_then(|metadata| metadata.attributes.get_string("line-comment"));
+        let comment_prefix = attributes.and_then(|attributes| {
+            attributes
+                .get("line-comment")
+                .and_then(AttributeValueRef::as_str)
+        });
         let previous_boundaries = self.text_boundaries;
-        #[cfg(feature = "pre-spec-subs")]
-        let replacements = self
-            .processor
-            .current_subs
-            .get()
-            .contains(SubsFlags::REPLACEMENTS);
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let replacements = false;
-
         let result = (|| {
-            for (index, node) in nodes.iter().enumerate() {
+            let siblings = nodes.inlines();
+            for (index, node) in nodes.inlines().enumerate() {
                 self.text_boundaries = previous_boundaries
-                    .with_ordinary_replacements(replacements)
-                    .for_inline(nodes, index);
-                if metadata.is_some()
-                    && let InlineNode::VerbatimText(verbatim) = node
+                    .with_ordinary_replacements(false)
+                    .for_inline_refs(
+                        Some(node),
+                        siblings.clone().take(index).rev(),
+                        siblings.clone().skip(index + 1),
+                    );
+                if attributes.is_some()
+                    && let InlineKind::Verbatim(verbatim) = node.kind()
                 {
-                    let mut content = verbatim.content;
+                    let mut content = verbatim.text();
                     if index
                         .checked_sub(1)
                         .is_some_and(|previous| is_xml_callout(nodes, previous))
@@ -226,7 +193,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                         content = content.strip_prefix("-->").unwrap_or(content);
                     }
                     if index.checked_add(1).is_some_and(|next| {
-                        matches!(nodes.get(next), Some(InlineNode::CalloutRef(_)))
+                        matches!(
+                            nodes.inlines().nth(next).map(InlineRef::kind),
+                            Some(InlineKind::Callout(_))
+                        )
                     }) {
                         if index
                             .checked_add(1)
@@ -234,7 +204,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                         {
                             content = content.strip_suffix("<!--").unwrap_or(content);
                         }
-                        content = strip_callout_guard(content, comment_prefix.as_deref());
+                        content = strip_callout_guard(content, comment_prefix);
                     }
                     self.write_verbatim_text(content)?;
                 } else {
@@ -248,78 +218,88 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     }
 
     fn write_verbatim_text(&mut self, text: &str) -> Result<(), Error> {
-        #[cfg(feature = "pre-spec-subs")]
-        let text = if self
-            .processor
-            .current_subs
-            .get()
-            .contains(SubsFlags::REPLACEMENTS)
-        {
-            let mut replaced =
-                crate::inlines::replacements().transform_verbatim(text, self.text_boundaries);
-            // Like prose, omit the space generated after a final em dash while
-            // retaining authored trailing whitespace in verbatim content.
-            if self.text_boundaries.at_paragraph_end()
-                && text.ends_with("--")
-                && replaced.ends_with(' ')
-            {
-                replaced.pop();
-            }
-            Cow::Owned(replaced)
-        } else {
-            Cow::Borrowed(text)
-        };
-        write!(self.writer_mut(), "{}", manify(&text, EscapeMode::Preserve))?;
+        write!(self.writer_mut(), "{}", manify(text, EscapeMode::Preserve))?;
         Ok(())
     }
 
     fn write_verbatim_node(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        node: &InlineNode<'_>,
+        node: InlineRef<'_>,
     ) -> Result<(), Error> {
-        let (prefix, content, suffix) = match node {
-            InlineNode::PlainText(text) => return self.write_verbatim_text(text.content),
-            InlineNode::VerbatimText(text) => return self.write_verbatim_text(text.content),
-            InlineNode::CalloutRef(callout) => {
-                write!(self.writer_mut(), "\\fB({})\\fP", callout.number)?;
+        let (prefix, content, suffix) = match node.kind() {
+            InlineKind::Plain(text) => return self.write_verbatim_text(text.text()),
+            InlineKind::CharacterReference(reference) => {
+                return self.write_verbatim_text(&acdc_converters_core::character_reference_text(
+                    reference.kind(),
+                ));
+            }
+            InlineKind::Verbatim(text) => return self.write_verbatim_text(text.text()),
+            InlineKind::Symbol(symbol) => {
+                let replacements = replacements();
+                let text = replacements.symbol(symbol.kind());
+                let text = if symbol.kind() == SymbolKind::SpacedEmDash
+                    && self.text_boundaries.at_paragraph_end()
+                {
+                    text.strip_suffix(' ').unwrap_or(text)
+                } else {
+                    text
+                };
+                self.write_verbatim_text(text)?;
                 return Ok(());
             }
-            InlineNode::BoldText(text) => ("\\fB", text.content.as_slice(), "\\fP"),
-            InlineNode::ItalicText(text) => ("\\fI", text.content.as_slice(), "\\fP"),
-            InlineNode::MonospaceText(text) => ("\\f(CR", text.content.as_slice(), "\\fP"),
-            InlineNode::HighlightText(text) => ("", text.content.as_slice(), ""),
-            InlineNode::SuperscriptText(text) => ("", text.content.as_slice(), ""),
-            InlineNode::SubscriptText(text) => ("", text.content.as_slice(), ""),
-            InlineNode::CurvedQuotationText(text) => ("\\(lq", text.content.as_slice(), "\\(rq"),
-            InlineNode::CurvedApostropheText(text) => ("\\(oq", text.content.as_slice(), "\\(cq"),
-            InlineNode::Macro(InlineMacro::IndexTerm(term)) if term.is_visible() => {
-                ("", term.term(), "")
+            InlineKind::Callout(callout) => {
+                write!(self.writer_mut(), "\\fB({})\\fP", callout.number())?;
+                return Ok(());
             }
-            InlineNode::Macro(_) if contains_link(node) => {
+            InlineKind::Bold(text) => ("\\fB", text.content(), "\\fP"),
+            InlineKind::Italic(text) => ("\\fI", text.content(), "\\fP"),
+            InlineKind::Monospace(text) => ("\\f(CR", text.content(), "\\fP"),
+            InlineKind::Highlight(text) => ("", text.content(), ""),
+            InlineKind::Superscript(text) => ("", text.content(), ""),
+            InlineKind::Subscript(text) => ("", text.content(), ""),
+            InlineKind::CurvedQuotation(text) => ("\\(lq", text.content(), "\\(rq"),
+            InlineKind::CurvedApostrophe(text) => ("\\(oq", text.content(), "\\(cq"),
+            InlineKind::IndexTerm(term) if term.is_visible() => ("", term.term(), ""),
+            _ if contains_link(node) => {
                 // Link commands need their renderer; flattening keeps only the label.
                 return self.render_inline_node(traversal, node);
             }
-            InlineNode::RawText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
+            InlineKind::Raw(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::LineBreak(_)
+            | InlineKind::Anchor(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::Icon(_)
+            | InlineKind::Image(_)
+            | InlineKind::Keyboard(_)
+            | InlineKind::Button(_)
+            | InlineKind::Menu(_)
+            | InlineKind::Url(_)
+            | InlineKind::Link(_)
+            | InlineKind::Mailto(_)
+            | InlineKind::Autolink(_)
+            | InlineKind::CrossReference(_)
+            | InlineKind::Pass(_)
+            | InlineKind::Stem(_)
+            | InlineKind::IndexTerm(_)
             | _ => {
-                let text = InlineTextTransform::default()
+                let mut text = String::new();
+                // Writing into a String cannot fail.
+                let _ = InlineTextTransform::default()
                     .line_break("\n")
                     .decode_char_refs(true)
-                    .rendered_replacements(false)
+                    .rendered()
                     .text_boundaries(self.text_boundaries)
-                    .to_string(std::slice::from_ref(node));
+                    .write_inlines(&mut text, std::iter::once(node));
                 write!(self.writer_mut(), "{}", manify(&text, EscapeMode::Preserve))?;
                 return Ok(());
             }
         };
         let render = |visitor: &mut Self| visitor.write_verbatim_nodes(traversal, content, None);
         if matches!(
-            node,
-            InlineNode::BoldText(_) | InlineNode::ItalicText(_) | InlineNode::MonospaceText(_)
+            node.kind(),
+            InlineKind::Bold(_) | InlineKind::Italic(_) | InlineKind::Monospace(_)
         ) {
             self.render_font(prefix, false, render)
         } else {
@@ -328,19 +308,13 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     }
 }
 
-fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {
-    matches!(nodes.get(index), Some(InlineNode::CalloutRef(_)))
+fn is_xml_callout(nodes: ContentRef<'_>, index: usize) -> bool {
+    matches!(nodes.inlines().nth(index).map(InlineRef::kind), Some(InlineKind::Callout(_)))
         && index.checked_sub(1).is_some_and(|previous| {
-            matches!(
-                nodes.get(previous),
-                Some(InlineNode::VerbatimText(text)) if text.content.ends_with("<!--")
-            )
+            matches!(nodes.inlines().nth(previous).map(InlineRef::kind), Some(InlineKind::Verbatim(text)) if text.text().ends_with("<!--"))
         })
         && index.checked_add(1).is_some_and(|next| {
-            matches!(
-                nodes.get(next),
-                Some(InlineNode::VerbatimText(text)) if text.content.starts_with("-->")
-            )
+            matches!(nodes.inlines().nth(next).map(InlineRef::kind), Some(InlineKind::Verbatim(text)) if text.text().starts_with("-->"))
         })
 }
 

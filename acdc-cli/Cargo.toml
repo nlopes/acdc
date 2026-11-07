@@ -43,20 +43,7 @@ tempfile.workspace = true
 
 [features]
 # Default features - HTML converter is always included as the primary output format
-default = ["html", "lint", "pre-spec-subs", "setext"]
-
-# Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
-# Forwarded to every converter dependency that honours subs=.
-pre-spec-subs = [
-    "acdc-parser/pre-spec-subs",
-    "acdc-converters-core/pre-spec-subs",
-    "acdc-converters-html?/pre-spec-subs",
-    "acdc-converters-manpage?/pre-spec-subs",
-    "acdc-converters-pdf?/pre-spec-subs",
-    "acdc-converters-terminal?/pre-spec-subs",
-    "acdc-execute?/pre-spec-subs",
-    "acdc-lint?/pre-spec-subs",
-]
+default = ["html", "lint"]
 
 # Output converters
 html = ["dep:acdc-converters-html"]            # HTML5 converter with Asciidoctor-compatible styling
@@ -86,11 +73,11 @@ terminal-emulator = [
 # Development tools
 execute = ["dep:acdc-execute", "dep:regex"]  # Run command blocks from AsciiDoc documents
 inspect = []  # AST inspection tool for debugging parser output
-tck = []      # Technology Compatibility Kit for spec compliance testing
+asg = ["acdc-parser/asg"]                  # Checked upstream and acdc ASG export
+tck = ["asg"]                             # AsciiDoc Test Compatibility Kit adapter
 
-# Compatibility features
-setext = ["acdc-parser/setext", "acdc-execute?/setext", "acdc-lint?/setext"]  # Enable Setext-style (underlined) header parsing
-network = ["acdc-parser/network", "acdc-execute?/network", "acdc-lint?/network", "acdc-converters-pdf?/network"]  # Enable remote include parsing and remote PDF images
+# Network access
+network = ["acdc-parser/network", "acdc-execute?/network", "acdc-lint?/network", "acdc-converters-pdf?/network", "acdc-converters-html?/network"]  # Enable remote includes and embedded HTML/PDF images
 
 # Feature groups for convenience
 all-backends = ["html", "manpage", "markdown", "pdf", "terminal"]  # Enable all output converters

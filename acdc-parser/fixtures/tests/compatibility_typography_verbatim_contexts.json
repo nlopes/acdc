@@ -1,0 +1,535 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Verbatim contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 19
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 19
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Earlier.",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 8
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "listing",
+                    "type": "block",
+                    "form": "delimited",
+                    "delimiter": "----",
+                    "metadata": {
+                      "substitutions": [
+                        "+replacements"
+                      ]
+                    },
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "α🚀 ",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 1
+                          },
+                          {
+                            "line": 9,
+                            "col": 3
+                          }
+                        ]
+                      },
+                      {
+                        "name": "symbol",
+                        "type": "string",
+                        "value": "©",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 4
+                          },
+                          {
+                            "line": 9,
+                            "col": 6
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": " ",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 7
+                          },
+                          {
+                            "line": 9,
+                            "col": 7
+                          }
+                        ]
+                      },
+                      {
+                        "name": "symbol",
+                        "type": "string",
+                        "value": "…",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 8
+                          },
+                          {
+                            "line": 9,
+                            "col": 10
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": " Sam",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 11
+                          },
+                          {
+                            "line": 9,
+                            "col": 14
+                          }
+                        ]
+                      },
+                      {
+                        "name": "symbol",
+                        "type": "string",
+                        "value": "’",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 15
+                          },
+                          {
+                            "line": 9,
+                            "col": 15
+                          }
+                        ]
+                      },
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "s ",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 16
+                          },
+                          {
+                            "line": 9,
+                            "col": 17
+                          }
+                        ]
+                      },
+                      {
+                        "name": "symbol",
+                        "type": "string",
+                        "value": "→",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 18
+                          },
+                          {
+                            "line": 9,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 7,
+                        "col": 2
+                      },
+                      {
+                        "line": 10,
+                        "col": 4
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 6,
+            "col": 1
+          },
+          {
+            "line": 11,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "substitutions": [
+          "+replacements"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "α🚀 Included ",
+          "location": [
+            {
+              "line": 4,
+              "col": 5,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 16,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "©",
+          "location": [
+            {
+              "line": 4,
+              "col": 17,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 19,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 4,
+              "col": 20,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 20,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "…",
+          "location": [
+            {
+              "line": 4,
+              "col": 21,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 23,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " Sam",
+          "location": [
+            {
+              "line": 4,
+              "col": 24,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 27,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "’",
+          "location": [
+            {
+              "line": 4,
+              "col": 28,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 28,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s ",
+          "location": [
+            {
+              "line": 4,
+              "col": 29,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 30,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "→",
+          "location": [
+            {
+              "line": 4,
+              "col": 31,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            },
+            {
+              "line": 4,
+              "col": 32,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".\nContinued left",
+          "location": [
+            {
+              "line": 4,
+              "col": 33,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            },
+            {
+              "line": 5,
+              "col": 18,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "—​",
+          "location": [
+            {
+              "line": 5,
+              "col": 19,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            },
+            {
+              "line": 5,
+              "col": 20,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "right.",
+          "location": [
+            {
+              "line": 5,
+              "col": 21,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            },
+            {
+              "line": 5,
+              "col": 26,
+              "file": [
+                "includes/compatibility_typography_verbatim.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 5,
+          "file": [
+            "includes/compatibility_typography_verbatim.adoc"
+          ]
+        },
+        {
+          "line": 6,
+          "col": 8,
+          "file": [
+            "includes/compatibility_typography_verbatim.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 6,
+      "col": 8,
+      "file": [
+        "includes/compatibility_typography_verbatim.adoc"
+      ]
+    }
+  ]
+}

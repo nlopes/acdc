@@ -8,15 +8,25 @@ use std::{
 };
 
 #[cfg(feature = "highlighting")]
-use acdc_converters_core::substitutions::{Replacements, TextBoundaries};
+use acdc_converters_core::substitutions::TextBoundaries;
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, Options, TraversalContext, WarningSource,
-    visitor::Visitor, xref::XrefGuard,
+    section::contains_index_section, xref::XrefGuard,
 };
 
 use acdc_parser::{
-    AttributeValue, BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, InlineNode,
-    Options as ParserOptions, Reference, Substitution, TocEntry,
+    AttributeValue, CaptionKind, DocumentAttributes, Options as ParserOptions, Reference,
+    Substitution, TocEntry,
+    ast::{
+        AttributeValueRef, AttributesRef, ContentRef, DocumentAttributesRef, DocumentRef,
+        ElementIdRef,
+    },
+};
+
+#[cfg(feature = "highlighting")]
+use acdc_parser::{
+    InlineNode,
+    ast::{InlineKind, InlineRef},
 };
 
 mod admonition;
@@ -31,12 +41,14 @@ mod error;
 mod html_visitor;
 mod icon;
 mod image;
+mod image_assets;
 mod image_helpers;
 mod index;
 mod inlines;
 mod list;
 mod paragraph;
 mod section;
+mod source;
 mod source_indent;
 mod syntax;
 mod table;
@@ -45,7 +57,6 @@ mod terminal;
 mod toc;
 mod video;
 
-pub(crate) use acdc_converters_core::section::has_index_section;
 pub(crate) use csp::CspFeatures;
 pub use error::Error;
 pub use html_visitor::{HtmlVisitor, uses_stem};
@@ -217,34 +228,6 @@ impl<'a> Processor<'a> {
         Ok(self)
     }
 
-    /// Return the caption prefix for a titled block.
-    pub(crate) fn caption_prefix(
-        &self,
-        metadata: &BlockMetadata<'_>,
-        fallback: Option<CaptionKind>,
-    ) -> Option<String> {
-        let resolved = match (&metadata.caption, fallback) {
-            (Some(caption), _) => caption.clone(),
-            (None, Some(kind)) => {
-                Caption::resolve_owned(metadata, self.parser_options.document_attributes(), kind)
-            }
-            (None, None) => return None,
-        };
-        match resolved {
-            Caption::Numbered {
-                label,
-                number,
-                kind,
-            } => {
-                let number = number
-                    .map_or_else(|| self.next_caption_number(kind), std::num::NonZeroU32::get);
-                Some(format!("{label} {number}. "))
-            }
-            Caption::Custom(prefix) => Some(prefix.into_owned()),
-            Caption::Unnumbered | _ => None,
-        }
-    }
-
     fn next_caption_number(&self, kind: CaptionKind) -> u32 {
         let counter = match kind {
             CaptionKind::Figure => &self.figure_counter,
@@ -289,41 +272,52 @@ impl<'a> Processor<'a> {
     /// # Errors
     ///
     /// Returns an error if document conversion or writing fails.
-    pub fn convert_to_writer<'doc, W: Write>(
+    pub fn convert_to_writer<W: Write>(
         &self,
-        doc: &Document<'doc>,
+        doc: DocumentRef<'_>,
         writer: W,
         options: &RenderOptions,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
-        // The per-conversion processor borrows from `doc`; its `'a` is `'doc`,
-        // independent of `self`'s stored-attribute lifetime.
-        let processor: Processor<'doc> = Processor {
-            toc_entries: doc.toc_entries.clone(),
-            references: doc.references.clone(),
+        let document = doc;
+        let processor = Processor {
+            toc_entries: document.toc_entries().map(TocEntry::from).collect(),
+            references: document.references().into(),
             xref_guard: XrefGuard::default(),
             parser_options: ParserOptions::default()
-                .with_document_attributes(doc.attributes.clone()),
-            generate_index: index_generation_enabled(&doc.attributes)
-                && has_index_section(&doc.blocks),
+                .with_document_attributes(document.attributes().into()),
+            generate_index: index_generation_enabled(document.attributes())
+                && contains_index_section(document.blocks()),
             options: self.options.clone(),
-            example_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Example))),
-            table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),
-            figure_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Figure))),
-            listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
+            example_counter: Rc::new(Cell::new(
+                document.highest_caption_number(CaptionKind::Example),
+            )),
+            table_counter: Rc::new(Cell::new(
+                document.highest_caption_number(CaptionKind::Table),
+            )),
+            figure_counter: Rc::new(Cell::new(
+                document.highest_caption_number(CaptionKind::Figure),
+            )),
+            listing_counter: Rc::new(Cell::new(
+                document.highest_caption_number(CaptionKind::Listing),
+            )),
             index_term_counter: self.index_term_counter.clone(),
             index_catalog_counter: self.index_catalog_counter.clone(),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             variant: self.variant,
         };
-        let mut traversal = TraversalContext::new(&doc.attributes);
+        let mut traversal = TraversalContext::new(document.attributes());
         let mut visitor = HtmlVisitor::new(
             writer,
             Rc::new(processor),
             options.clone(),
             diagnostics.reborrow(),
         );
-        visitor.visit_document(&mut traversal, doc)
+        acdc_converters_core::visitor::DocumentVisitor::visit_document(
+            &mut visitor,
+            &mut traversal,
+            document,
+        )
     }
 
     /// Convert a document to an HTML string.
@@ -340,7 +334,7 @@ impl<'a> Processor<'a> {
     /// Returns an error if document conversion fails.
     pub fn convert_to_string(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         options: &RenderOptions,
     ) -> Result<String, Error> {
         let mut output = Vec::new();
@@ -371,7 +365,7 @@ pub struct RenderOptions {
     /// Em-dash boundary replacement at string start/end is suppressed inside spans,
     /// matching asciidoctor's behavior where quotes runs before replacements.
     pub in_inline_span: bool,
-    /// Directory of the source document, used to resolve relative `stylesdir` paths.
+    /// Directory of the source document, used to resolve stylesheets and image assets.
     pub source_dir: Option<PathBuf>,
     /// Stem of the source document filename (e.g., `"mydoc"` for `mydoc.adoc`),
     /// used to locate private docinfo files like `mydoc-docinfo.html`.
@@ -404,8 +398,10 @@ pub(crate) const STYLESHEET_ADVICE: &str =
 /// html5 backend (see `crate::index`), so it is off unless the author asks for
 /// it. Treated as a boolean attribute: present and not soft-unset (`:!acdc-index:`)
 /// turns it on.
-pub(crate) fn index_generation_enabled(attributes: &DocumentAttributes<'_>) -> bool {
-    attributes.get("acdc-index").is_some()
+pub(crate) fn index_generation_enabled<'doc>(
+    attributes: impl Into<DocumentAttributesRef<'doc>>,
+) -> bool {
+    attributes.into().get("acdc-index").is_some()
 }
 
 pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
@@ -425,9 +421,9 @@ pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
 ///   An explicit primary assignment, including an unset, takes precedence.
 #[cfg(feature = "highlighting")]
 pub(crate) fn resolve_highlight_settings(
-    document_attributes: &DocumentAttributes<'_>,
+    document_attributes: acdc_parser::ast::DocumentAttributesRef<'_>,
 ) -> (String, syntax::HighlightMode) {
-    let dark_mode = document_attributes.get("dark-mode").is_some();
+    let dark_mode = document_attributes.contains("dark-mode");
 
     let setting = |primary, alias| {
         let value = document_attributes.get(primary);
@@ -508,7 +504,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn derive_output_path(
         &self,
         input: &Path,
-        _doc: &Document<'_>,
+        _doc: DocumentRef<'_>,
     ) -> Result<Option<PathBuf>, Error> {
         let html_path = input.with_extension("html");
         // Avoid overwriting the input file
@@ -520,7 +516,7 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document<'_>,
+        doc: DocumentRef<'_>,
         writer: W,
         source_file: Option<&Path>,
         output_path: Option<&Path>,
@@ -547,8 +543,8 @@ impl<'a> Converter<'a> for Processor<'a> {
         if let Some(output_path) = output_path
             && !self.options.embedded()
         {
-            self.handle_copycss(doc, output_path, diagnostics);
-            Self::handle_copy_syntax_css(doc, output_path, diagnostics);
+            self.handle_copycss(doc.attributes(), output_path, diagnostics);
+            Self::handle_copy_syntax_css(doc.attributes(), output_path, diagnostics);
         }
         Ok(())
     }
@@ -627,41 +623,39 @@ impl<'a> Processor<'a> {
     /// from), decoupling the source location from the output reference.
     fn handle_copycss(
         &self,
-        doc: &acdc_parser::Document<'_>,
+        attributes: acdc_parser::ast::DocumentAttributesRef<'_>,
         html_path: &Path,
         diagnostics: &mut Diagnostics<'_>,
     ) {
         // No-stylesheet mode — nothing to copy
         let stylesheet_disabled =
-            !doc.attributes.contains_key("stylesheet") && doc.attributes.is_explicit("stylesheet");
+            !attributes.contains("stylesheet") && attributes.is_explicit("stylesheet");
         if stylesheet_disabled {
             return;
         }
 
-        let linkcss = doc.attributes.get("linkcss").is_some();
+        let linkcss = attributes.get("linkcss").is_some();
         if !linkcss {
             return;
         }
 
-        let should_copy = doc.attributes.get("copycss").is_some();
+        let should_copy = attributes.get("copycss").is_some();
         tracing::debug!("linkcss={linkcss}, copycss exists={should_copy}");
 
         if !should_copy {
             return;
         }
 
-        let is_dark = doc.attributes.get("dark-mode").is_some();
+        let is_dark = attributes.get("dark-mode").is_some();
         let default_filename = self.default_stylesheet_name(is_dark);
 
         // Determine whether the default (built-in) stylesheet is in use
-        let using_default = doc
-            .attributes
+        let using_default = attributes
             .get("stylesheet")
             .and_then(|value| value.text())
             .is_none_or(str::is_empty);
 
-        let stylesheet = doc
-            .attributes
+        let stylesheet = attributes
             .get("stylesheet")
             .and_then(|value| value.text())
             .filter(|value| !value.is_empty())
@@ -671,8 +665,7 @@ impl<'a> Processor<'a> {
         let dest_path = output_dir.join(&stylesheet);
 
         // Check if copycss has a non-empty value (source path override)
-        let copycss_source = doc
-            .attributes
+        let copycss_source = attributes
             .get("copycss")
             .and_then(|value| value.text())
             .map(str::to_owned)
@@ -694,8 +687,7 @@ impl<'a> Processor<'a> {
             }
         } else {
             // Custom stylesheet or copycss source override — copy file
-            let stylesdir = doc
-                .attributes
+            let stylesdir = attributes
                 .get("stylesdir")
                 .and_then(|value| value.text())
                 .map_or_else(|| STYLESDIR_DEFAULT.into(), str::to_owned);
@@ -736,22 +728,21 @@ impl<'a> Processor<'a> {
     /// `asciidoctor-pygments.css` alongside the output.
     #[cfg(feature = "highlighting")]
     fn handle_copy_syntax_css(
-        doc: &Document<'_>,
+        attributes: acdc_parser::ast::DocumentAttributesRef<'_>,
         html_path: &Path,
         diagnostics: &mut Diagnostics<'_>,
     ) {
-        let linkcss = doc.attributes.get("linkcss").is_some();
+        let linkcss = attributes.get("linkcss").is_some();
         if !linkcss {
             return;
         }
 
-        let processor_attrs = &doc.attributes;
-        let source_highlighter_set = processor_attrs.get("source-highlighter").is_some();
+        let source_highlighter_set = attributes.get("source-highlighter").is_some();
         if !source_highlighter_set {
             return;
         }
 
-        let (theme_name, mode) = crate::resolve_highlight_settings(&doc.attributes);
+        let (theme_name, mode) = crate::resolve_highlight_settings(attributes);
 
         if mode != syntax::HighlightMode::Class {
             return;
@@ -763,8 +754,7 @@ impl<'a> Processor<'a> {
 
         let output_dir = html_path.parent().unwrap_or_else(|| Path::new("."));
 
-        let stylesdir = doc
-            .attributes
+        let stylesdir = attributes
             .get("stylesdir")
             .and_then(|value| value.text())
             .map_or_else(|| STYLESDIR_DEFAULT.to_string(), str::to_owned);
@@ -808,88 +798,112 @@ impl<'a> Processor<'a> {
 
     #[cfg(not(feature = "highlighting"))]
     fn handle_copy_syntax_css(
-        _doc: &Document<'_>,
+        _attributes: acdc_parser::ast::DocumentAttributesRef<'_>,
         _html_path: &Path,
         _diagnostics: &mut Diagnostics<'_>,
     ) {
     }
 }
 
-/// Write the `id` attribute from metadata (explicit id or first anchor).
-pub(crate) fn write_id<W: std::io::Write + ?Sized>(
-    w: &mut W,
-    metadata: &BlockMetadata,
+pub(crate) fn write_element_id<W: std::io::Write + ?Sized>(
+    writer: &mut W,
+    id: Option<ElementIdRef<'_>>,
 ) -> Result<(), std::io::Error> {
-    if let Some(id) = &metadata.id {
-        write!(w, " id=\"{}\"", id.id)?;
-    } else if let Some(anchor) = metadata.anchors.first() {
-        write!(w, " id=\"{}\"", anchor.id)?;
+    write_id(writer, id.map(ElementIdRef::as_str))
+}
+
+pub(crate) fn write_id<W: Write + ?Sized>(
+    writer: &mut W,
+    id: Option<&str>,
+) -> Result<(), std::io::Error> {
+    if let Some(id) = id {
+        write!(writer, " id=\"{}\"", inlines::escape_attribute(id))?;
     }
     Ok(())
 }
 
-/// Build a class string from a base class and optional roles
-pub(crate) fn build_class(base: &str, roles: &[&str]) -> String {
-    if roles.is_empty() {
-        base.to_string()
-    } else {
-        format!("{base} {}", roles.join(" "))
+/// Build an escaped HTML class value.
+pub(crate) fn build_class(base: &str, roles: impl IntoIterator<Item = impl AsRef<str>>) -> String {
+    let mut class = base.to_owned();
+    let mut separator = if base.is_empty() { "" } else { " " };
+    for role in roles {
+        class.push_str(separator);
+        class.push_str(role.as_ref());
+        separator = " ";
     }
+    if class.contains(['&', '<', '>', '"']) {
+        inlines::escape_role(&class)
+    } else {
+        class
+    }
+}
+
+#[cfg(feature = "highlighting")]
+fn is_formatted_code_inline(node: InlineRef<'_>) -> bool {
+    matches!(
+        node.kind(),
+        InlineKind::Bold(_)
+            | InlineKind::Italic(_)
+            | InlineKind::Monospace(_)
+            | InlineKind::Highlight(_)
+            | InlineKind::Subscript(_)
+            | InlineKind::Superscript(_)
+            | InlineKind::CurvedQuotation(_)
+            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::StandaloneCurvedApostrophe(_)
+            | InlineKind::CharacterReference(_)
+            | InlineKind::Symbol(_)
+    )
 }
 
 /// Preserve parsed formatting and macros while the surrounding code is highlighted.
 #[cfg(feature = "highlighting")]
 fn capture_code_inlines<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
-    highlight_inlines: &[InlineNode<'_>],
-    text_context: &[InlineNode<'_>],
+    highlight_inlines: &[InlineRef<'_>],
+    text_context: &[InlineRef<'_>],
     visitor: &mut HtmlVisitor<'a, '_, W>,
     subs: &[Substitution],
 ) -> Result<(Vec<Option<String>>, Vec<syntax::HighlightedLink>), Error> {
+    let text_boundaries = TextBoundaries::BOTH.with_ordinary_replacements(false);
+    let boundaries = |index| {
+        text_boundaries.for_inline_refs(
+            text_context.get(index).copied(),
+            text_context.iter().copied().take(index).rev(),
+            text_context.iter().copied().skip(index + 1),
+        )
+    };
     let labels = highlight_inlines
         .iter()
+        .copied()
         .enumerate()
         .map(|(index, node)| {
             let (mut text, linked) = acdc_converters_core::code::code_inline_text(
-                std::slice::from_ref(node),
-                &visitor.processor.references,
+                std::iter::once(node),
+                (&visitor.processor.references).into(),
                 "html",
             );
-            let formatted = matches!(
-                node,
-                InlineNode::BoldText(_)
-                    | InlineNode::ItalicText(_)
-                    | InlineNode::MonospaceText(_)
-                    | InlineNode::HighlightText(_)
-                    | InlineNode::SubscriptText(_)
-                    | InlineNode::SuperscriptText(_)
-                    | InlineNode::CurvedQuotationText(_)
-                    | InlineNode::CurvedApostropheText(_)
-                    | InlineNode::StandaloneCurvedApostrophe(_)
-            );
+            let formatted = is_formatted_code_inline(node);
             // Render a raw fragment's typography before highlighting discards its
             // profile. A lone bracket still uses escaping to avoid broken tags.
-            let raw = matches!(node, InlineNode::RawText(raw)
-                if raw.subs.contains(&Substitution::Replacements)
-                    || (raw.subs.is_empty() && raw.content.contains(['<', '>', '&'])
-                        && !matches!(raw.content, "<" | ">")));
+            let raw = matches!(node.kind(), InlineKind::Raw(raw)
+                if raw.substitutions().any(|sub| sub == Substitution::Replacements)
+                    || (raw.substitutions().next().is_none() && raw.text().contains(['<', '>', '&'])
+                        && !matches!(raw.text(), "<" | ">")));
             if raw {
-                text = acdc_converters_core::InlineTextTransform::default()
+                text.clear();
+                let _ = acdc_converters_core::InlineTextTransform::default()
                     .line_break("\n")
-                    .rendered_replacements(false)
-                    .text_boundaries(
-                        TextBoundaries::BOTH
-                            .with_ordinary_replacements(subs.contains(&Substitution::Replacements))
-                            .for_inline(text_context, index),
-                    )
-                    .to_string(std::slice::from_ref(node));
+                    .rendered()
+                    .text_boundaries(boundaries(index))
+                    .write_inlines(&mut text, std::iter::once(node));
             }
             (linked || formatted || raw).then_some(text)
         })
         .collect::<Vec<_>>();
     let mut links = Vec::new();
     let mut offset = 0;
-    for (index, (node, label)) in highlight_inlines.iter().zip(&labels).enumerate() {
+    for (index, (node, label)) in highlight_inlines.iter().copied().zip(&labels).enumerate() {
         if let Some(label) = label {
             let mut options = visitor.render_options.clone();
             options.embedded = true;
@@ -901,27 +915,23 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                 visitor.diagnostics.reborrow(),
             );
             capture.current_subs = subs.to_vec();
-            capture.text_boundaries = TextBoundaries::BOTH
-                .with_ordinary_replacements(subs.contains(&Substitution::Replacements))
-                .for_inline(text_context, index);
+            capture.text_boundaries = boundaries(index);
             capture
                 .current_section_title
                 .clone_from(&visitor.current_section_title);
-            capture.visit_inline_nodes(traversal, std::slice::from_ref(node))?;
+            capture.visit_inline_refs(traversal, std::iter::once(node))?;
             links.push(syntax::HighlightedLink {
                 range: offset..offset + label.len(),
                 html: String::from_utf8_lossy(&capture.into_writer()).into_owned(),
-                outside_spans: matches!(node, InlineNode::RawText(raw) if raw.subs.is_empty()),
+                outside_spans: matches!(node.kind(), InlineKind::Raw(raw) if raw.substitutions().next().is_none()),
             });
             offset += label.len();
         } else {
+            let inline = node;
             let text = syntax::extract_text_and_callouts(
-                std::slice::from_ref(node),
-                subs.contains(&Substitution::Replacements),
-                TextBoundaries::BOTH
-                    .with_ordinary_replacements(subs.contains(&Substitution::Replacements))
-                    .for_inline(text_context, index),
-                None,
+                std::iter::once(inline),
+                boundaries(index),
+                &std::iter::once(inline),
                 None,
             )
             .0;
@@ -929,8 +939,8 @@ fn capture_code_inlines<'a, W: std::io::Write>(
             // ordinary terms in the same pass, at their displayed byte offsets;
             // inserting anchors after line decoration can target the line gutter
             // or split a multiline link.
-            acdc_converters_core::index::visit_index_terms(
-                std::slice::from_ref(node),
+            acdc_converters_core::index::visit_index_inlines(
+                std::iter::once(node),
                 &mut |term, term_offset| {
                     if let Some(id) = visitor.register_indexterm(
                         traversal,
@@ -941,7 +951,7 @@ fn capture_code_inlines<'a, W: std::io::Write>(
                         let start = offset + term_offset;
                         links.push(syntax::HighlightedLink {
                             range: start..start,
-                            html: format!("<a id=\"{id}\"></a>"),
+                            html: format!("<a id=\"{}\"></a>", inlines::escape_attribute(&id)),
                             outside_spans: false,
                         });
                     }
@@ -955,23 +965,20 @@ fn capture_code_inlines<'a, W: std::io::Write>(
 }
 
 #[cfg(feature = "highlighting")]
-fn code_nodes_with_text<'a>(
-    inlines: &[InlineNode<'a>],
-    text: &'a [Option<String>],
-) -> Vec<InlineNode<'a>> {
+fn code_nodes_with_text<'inline>(
+    inlines: &[InlineRef<'inline>],
+    text: &'inline [Option<String>],
+) -> Vec<Option<InlineNode<'inline>>> {
     inlines
         .iter()
         .zip(text)
         .map(|(node, text)| {
-            text.as_ref().map_or_else(
-                || node.clone(),
-                |text| {
-                    InlineNode::VerbatimText(acdc_parser::Verbatim {
-                        content: text,
-                        location: node.location().clone(),
-                    })
-                },
-            )
+            text.as_ref().map(|text| {
+                InlineNode::VerbatimText(acdc_parser::Verbatim::new(
+                    text,
+                    acdc_parser::Location::from(node.location()),
+                ))
+            })
         })
         .collect()
 }
@@ -979,69 +986,29 @@ fn code_nodes_with_text<'a>(
 #[cfg(feature = "highlighting")]
 fn render_highlighted_code<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
-    highlight_inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    highlight_inlines: &[InlineRef<'_>],
+    attributes: Option<AttributesRef<'_>>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
     subs: &[Substitution],
     options: syntax::HighlightOptions<'_>,
 ) -> Result<(), Error> {
-    // Replace ordinary text before highlighting, so token colors and captured
-    // macro offsets both refer to the text that will be displayed. Raw fragments
-    // and formatted labels retain their own rendering path in the capture step.
-    let typography = subs.contains(&Substitution::Replacements).then(|| {
-        highlight_inlines
-            .iter()
-            .enumerate()
-            .map(|(index, node)| {
-                let text = match node {
-                    InlineNode::PlainText(text) => text.content,
-                    InlineNode::VerbatimText(text) => text.content,
-                    InlineNode::RawText(_)
-                    | InlineNode::BoldText(_)
-                    | InlineNode::ItalicText(_)
-                    | InlineNode::MonospaceText(_)
-                    | InlineNode::HighlightText(_)
-                    | InlineNode::SubscriptText(_)
-                    | InlineNode::SuperscriptText(_)
-                    | InlineNode::CurvedQuotationText(_)
-                    | InlineNode::CurvedApostropheText(_)
-                    | InlineNode::StandaloneCurvedApostrophe(_)
-                    | InlineNode::LineBreak(_)
-                    | InlineNode::InlineAnchor(_)
-                    | InlineNode::Macro(_)
-                    | InlineNode::CalloutRef(_)
-                    | _ => return None,
-                };
-                Some(Replacements::unicode().transform_verbatim(
-                    text,
-                    TextBoundaries::BOTH.for_inline(highlight_inlines, index),
-                ))
-            })
-            .collect::<Vec<_>>()
-    });
-    let prepared = typography
-        .as_ref()
-        .map(|text| code_nodes_with_text(highlight_inlines, text));
-    // All fragments use the original source context. Earlier replacements
-    // must not hide spaces or dash halves from another fragment's owner.
     let text_context = highlight_inlines;
-    let highlight_inlines = prepared.as_deref().unwrap_or(highlight_inlines);
     let (labels, links) =
         capture_code_inlines(traversal, highlight_inlines, text_context, visitor, subs)?;
     let resolved = code_nodes_with_text(highlight_inlines, &labels);
-    let highlight_inlines = &resolved;
+    let projected = source::replaced_inlines(highlight_inlines, &resolved).collect::<Vec<_>>();
+    let highlight_inlines = &projected;
     // Split-borrow writer and diagnostics so highlight_code can have both
     // without overlapping &mut self calls on the visitor.
     syntax::highlight_code(
         &mut visitor.writer,
         highlight_inlines,
-        metadata,
+        attributes,
         syntax::HighlightOptions {
             text_context: Some(text_context),
             ..options
         },
         &links,
-        subs.contains(&Substitution::Replacements),
         Some(&mut visitor.diagnostics),
     )
 }
@@ -1052,111 +1019,122 @@ fn render_highlighted_code<'a, W: std::io::Write>(
 /// decoration. Otherwise it visits the inlines directly.
 pub(crate) fn render_pre_code<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    content: ContentRef<'_>,
+    attributes: Option<AttributesRef<'_>>,
     language: Option<&str>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
     subs: &[Substitution],
     source_indent: Option<u16>,
 ) -> Result<(), Error> {
-    let guarded = callouts::strip_guards(inlines, metadata, callouts::font_icons(traversal));
-    let inlines = guarded.as_ref();
-    let indentation = source_indent::IndentedSource::new(inlines, source_indent);
-    let indented = indentation.as_ref().map(|source| source.inlines(inlines));
-    let inlines = indented.as_deref().unwrap_or(inlines);
-    #[cfg(feature = "highlighting")]
-    let highlighting_enabled = visitor
-        .processor
-        .document_attributes()
-        .get("source-highlighter")
-        .is_some();
-    let nowrap = metadata.options.contains(&"nowrap");
-    let nowrap_class = if nowrap { " nowrap" } else { "" };
+    source::with_source_inlines(
+        content,
+        attributes,
+        callouts::font_icons(traversal),
+        source_indent,
+        |inlines| {
+            #[cfg(feature = "highlighting")]
+            let highlighting_enabled = visitor
+                .processor
+                .document_attributes()
+                .get("source-highlighter")
+                .is_some();
+            let nowrap = matches!(attributes.and_then(|attributes| attributes.get("options")), Some(AttributeValueRef::Tokens(tokens)) if tokens.contains("nowrap"));
+            let nowrap_class = if nowrap { " nowrap" } else { "" };
 
-    #[cfg(feature = "highlighting")]
-    if highlighting_enabled {
-        let lang = language.unwrap_or("text");
-        if let Some(language) = language {
-            write!(
-                visitor.writer,
-                "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{language}\" data-lang=\"{language}\">"
-            )?;
-        } else {
-            write!(
-                visitor.writer,
-                "<pre class=\"highlight{nowrap_class}\"><code>"
-            )?;
-        }
-        let processor = visitor.processor.clone();
-        let (theme_name, mode) = resolve_highlight_settings(processor.document_attributes());
-        let highlight_inlines = inlines;
-        render_highlighted_code(
-            traversal,
-            highlight_inlines,
-            metadata,
-            visitor,
-            subs,
-            syntax::HighlightOptions {
-                language: lang,
-                theme_name: &theme_name,
-                mode,
-                font_icons: callouts::font_icons(traversal),
-                text_context: None,
-            },
-        )?;
-        writeln!(visitor.writer, "</code></pre>")?;
-    } else if let Some(lang) = language {
-        write!(
-            visitor.writer,
-            "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-        )?;
-        visitor.visit_inline_nodes(traversal, inlines)?;
-        writeln!(visitor.writer, "</code></pre>")?;
-    } else {
-        if nowrap {
-            write!(visitor.writer, "<pre class=\"nowrap\">")?;
-        } else {
-            write!(visitor.writer, "<pre>")?;
-        }
-        visitor.visit_inline_nodes(traversal, inlines)?;
-        writeln!(visitor.writer, "</pre>")?;
-    }
-
-    #[cfg(not(feature = "highlighting"))]
-    {
-        let _ = subs;
-        if let Some(lang) = language {
-            write!(
-                visitor.writer,
-                "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
-            )?;
-            visitor.visit_inline_nodes(traversal, inlines)?;
-            writeln!(visitor.writer, "</code></pre>")?;
-        } else {
-            if nowrap {
-                write!(visitor.writer, "<pre class=\"nowrap\">")?;
+            #[cfg(feature = "highlighting")]
+            if highlighting_enabled {
+                let lang = language.unwrap_or("text");
+                if let Some(language) = language {
+                    write!(
+                        visitor.writer,
+                        "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{language}\" data-lang=\"{language}\">"
+                    )?;
+                } else {
+                    write!(
+                        visitor.writer,
+                        "<pre class=\"highlight{nowrap_class}\"><code>"
+                    )?;
+                }
+                let processor = visitor.processor.clone();
+                let (theme_name, mode) =
+                    resolve_highlight_settings(processor.document_attributes().into());
+                let highlight_inlines = inlines;
+                render_highlighted_code(
+                    traversal,
+                    highlight_inlines,
+                    attributes,
+                    visitor,
+                    subs,
+                    syntax::HighlightOptions {
+                        language: lang,
+                        theme_name: &theme_name,
+                        mode,
+                        font_icons: callouts::font_icons(traversal),
+                        text_context: None,
+                    },
+                )?;
+                writeln!(visitor.writer, "</code></pre>")?;
+            } else if let Some(lang) = language {
+                write!(
+                    visitor.writer,
+                    "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+                )?;
+                visitor.visit_inline_refs(traversal, inlines.iter().copied())?;
+                writeln!(visitor.writer, "</code></pre>")?;
             } else {
-                write!(visitor.writer, "<pre>")?;
+                if nowrap {
+                    write!(visitor.writer, "<pre class=\"nowrap\">")?;
+                } else {
+                    write!(visitor.writer, "<pre>")?;
+                }
+                visitor.visit_inline_refs(traversal, inlines.iter().copied())?;
+                writeln!(visitor.writer, "</pre>")?;
             }
-            visitor.visit_inline_nodes(traversal, inlines)?;
-            writeln!(visitor.writer, "</pre>")?;
-        }
-    }
 
-    Ok(())
+            #[cfg(not(feature = "highlighting"))]
+            {
+                let _ = subs;
+                if let Some(lang) = language {
+                    write!(
+                        visitor.writer,
+                        "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+                    )?;
+                    visitor.visit_inline_refs(traversal, inlines.iter().copied())?;
+                    writeln!(visitor.writer, "</code></pre>")?;
+                } else {
+                    if nowrap {
+                        write!(visitor.writer, "<pre class=\"nowrap\">")?;
+                    } else {
+                        write!(visitor.writer, "<pre>")?;
+                    }
+                    visitor.visit_inline_refs(traversal, inlines.iter().copied())?;
+                    writeln!(visitor.writer, "</pre>")?;
+                }
+            }
+
+            Ok(())
+        },
+    )
+}
+
+fn attribute_content<'doc>(
+    attributes: Option<AttributesRef<'doc>>,
+    name: &str,
+) -> Option<ContentRef<'doc>> {
+    match attributes?.get(name) {
+        Some(AttributeValueRef::Content(content)) => Some(content),
+        _ => None,
+    }
 }
 
 /// Write attribution div for quote/verse blocks if author or citation present
-pub(crate) fn write_attribution<
-    'a,
-    V: acdc_converters_core::visitor::WritableVisitor<'a, Error = Error>,
->(
+pub(crate) fn write_attribution<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    visitor: &mut V,
-    metadata: &BlockMetadata,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
+    attributes: Option<AttributesRef<'_>>,
 ) -> Result<(), Error> {
-    let attribution = metadata.attribution.as_ref().filter(|a| !a.is_empty());
-    let citetitle = metadata.citetitle.as_ref().filter(|c| !c.is_empty());
+    let attribution = attribute_content(attributes, "attribution");
+    let citetitle = attribute_content(attributes, "citetitle");
 
     if attribution.is_some() || citetitle.is_some() {
         let w = visitor.writer_mut();
@@ -1164,24 +1142,24 @@ pub(crate) fn write_attribution<
         if let (Some(attr), Some(cite)) = (attribution, citetitle) {
             write!(w, "&#8212; ")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, attr)?;
+            visitor.visit_content(traversal, attr)?;
             let w = visitor.writer_mut();
             writeln!(w, "<br>")?;
             write!(w, "<cite>")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, cite)?;
+            visitor.visit_content(traversal, cite)?;
             let w = visitor.writer_mut();
             writeln!(w, "</cite>")?;
         } else if let Some(attr) = attribution {
             write!(w, "&#8212; ")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, attr)?;
+            visitor.visit_content(traversal, attr)?;
             let w = visitor.writer_mut();
             writeln!(w)?;
         } else if let Some(cite) = citetitle {
             write!(w, "<cite>")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, cite)?;
+            visitor.visit_content(traversal, cite)?;
             let w = visitor.writer_mut();
             writeln!(w, "</cite>")?;
         }
@@ -1192,16 +1170,13 @@ pub(crate) fn write_attribution<
 }
 
 /// Write quote or verse attribution in a semantic `<footer>`.
-pub(crate) fn write_semantic_attribution<
-    'a,
-    V: acdc_converters_core::visitor::WritableVisitor<'a, Error = Error>,
->(
+pub(crate) fn write_semantic_attribution<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    visitor: &mut V,
-    metadata: &BlockMetadata,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
+    attributes: Option<AttributesRef<'_>>,
 ) -> Result<(), Error> {
-    let attribution = metadata.attribution.as_ref().filter(|a| !a.is_empty());
-    let citetitle = metadata.citetitle.as_ref().filter(|c| !c.is_empty());
+    let attribution = attribute_content(attributes, "attribution");
+    let citetitle = attribute_content(attributes, "citetitle");
 
     if attribution.is_some() || citetitle.is_some() {
         let w = visitor.writer_mut();
@@ -1209,21 +1184,21 @@ pub(crate) fn write_semantic_attribution<
         if let (Some(attr), Some(cite)) = (attribution, citetitle) {
             write!(w, "&#8212; ")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, attr)?;
+            visitor.visit_content(traversal, attr)?;
             let w = visitor.writer_mut();
             write!(w, "<br><cite>")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, cite)?;
+            visitor.visit_content(traversal, cite)?;
             let w = visitor.writer_mut();
             write!(w, "</cite>")?;
         } else if let Some(attr) = attribution {
             write!(w, "&#8212; ")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, attr)?;
+            visitor.visit_content(traversal, attr)?;
         } else if let Some(cite) = citetitle {
             write!(w, "<cite>")?;
             let _ = w;
-            visitor.visit_inline_nodes(traversal, cite)?;
+            visitor.visit_content(traversal, cite)?;
             let w = visitor.writer_mut();
             write!(w, "</cite>")?;
         }
@@ -1305,8 +1280,10 @@ mod tests {
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
             let processor = Processor::new(
                 Options::default(),
-                ParserOptions::builder()
-                    .with_attributes(parsed.document().attributes.clone().into_inputs()),
+                ParserOptions::builder().with_attributes(
+                    acdc_parser::DocumentAttributes::from(parsed.document().attributes())
+                        .into_inputs(),
+                ),
             )?
             .with_variant(variant)?;
             let html = processor.convert_to_string(
@@ -1343,8 +1320,9 @@ mod tests {
         )?;
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder()
-                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(parsed.document(), &RenderOptions::default())?;
 
@@ -1374,7 +1352,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let render_options = RenderOptions {
             embedded: true,
@@ -1449,7 +1429,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1477,7 +1459,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1517,7 +1501,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1562,7 +1548,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1600,7 +1588,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1640,7 +1630,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1672,7 +1664,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1711,7 +1705,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1751,7 +1747,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1783,7 +1781,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1811,7 +1811,9 @@ This is a paragraph.
         let doc = parsed.document();
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let render_options = RenderOptions {
             embedded,
@@ -1896,7 +1898,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1924,7 +1928,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1948,7 +1954,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1968,7 +1976,9 @@ This is a paragraph.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1996,7 +2006,9 @@ Content.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -2039,7 +2051,9 @@ Content.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -2076,7 +2090,9 @@ Content.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -2117,7 +2133,9 @@ More appendix content.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -2178,7 +2196,9 @@ Content.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -2230,7 +2250,9 @@ Content.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -2284,7 +2306,9 @@ Content.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -2313,7 +2337,9 @@ Content.
 
         let processor = Processor::new(
             Options::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
         )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 

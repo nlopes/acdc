@@ -8,12 +8,15 @@ use std::io::Write;
 
 use acdc_converters_core::{
     Diagnostics, TraversalContext,
-    table::{CellKind, GridRow, build_grid, calculate_column_widths, determine_column_count},
-    visitor::{Visitor, WritableVisitor},
+    table::{CellKind, GridRow, column_count, column_widths, grid_rows},
 };
 use acdc_parser::{
-    BlockMetadata, ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock, HorizontalAlignment,
-    Table, TableColumn, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
+    ColumnStyle, ColumnWidth, HorizontalAlignment, TableFrame, TableGrid, TablePresentation,
+    TableStripes, VerticalAlignment,
+    ast::{
+        AttributeValueRef, AttributesRef, BlockKind, ColumnFormatRef, TableCellRef, TableRef,
+        TableRowRef,
+    },
 };
 
 use crate::{Error, ManpageVisitor, Processor};
@@ -35,59 +38,42 @@ fn vertical_alignment_modifier(valign: VerticalAlignment) -> &'static str {
     }
 }
 
-fn effective_halign<'a>(
-    cell: &'a TableColumn<'a>,
-    column_index: usize,
-    columns: &[ColumnFormat],
+fn effective_halign(
+    cell: TableCellRef<'_>,
+    column: Option<ColumnFormatRef<'_>>,
 ) -> HorizontalAlignment {
-    cell.halign.unwrap_or_else(|| {
-        columns
-            .get(column_index)
-            .map_or(HorizontalAlignment::Left, |c| c.halign)
-    })
+    cell.halign()
+        .unwrap_or_else(|| column.map_or(HorizontalAlignment::Left, ColumnFormatRef::halign))
 }
 
-fn effective_valign<'a>(
-    cell: &'a TableColumn<'a>,
-    column_index: usize,
-    columns: &[ColumnFormat],
+fn effective_valign(
+    cell: TableCellRef<'_>,
+    column: Option<ColumnFormatRef<'_>>,
 ) -> VerticalAlignment {
-    cell.valign.unwrap_or_else(|| {
-        columns
-            .get(column_index)
-            .map_or(VerticalAlignment::Top, |c| c.valign)
-    })
+    cell.valign()
+        .unwrap_or_else(|| column.map_or(VerticalAlignment::Top, ColumnFormatRef::valign))
 }
 
-fn effective_style<'a>(
-    cell: &'a TableColumn<'a>,
-    column_index: usize,
-    columns: &[ColumnFormat],
-) -> ColumnStyle {
-    cell.style.unwrap_or_else(|| {
-        columns
-            .get(column_index)
-            .map_or(ColumnStyle::Default, |column| column.style)
-    })
+fn effective_style(cell: TableCellRef<'_>, column: Option<ColumnFormatRef<'_>>) -> ColumnStyle {
+    cell.style()
+        .unwrap_or_else(|| column.map_or(ColumnStyle::Default, ColumnFormatRef::style))
 }
 
-/// Generate a tbl format entry for a single cell position.
 fn format_entry(
     kind: &CellKind,
-    row: &GridRow<'_>,
-    column_index: usize,
-    columns: &[ColumnFormat],
-    width_modifiers: &[String],
+    cell: Option<TableCellRef<'_>>,
+    column: Option<ColumnFormatRef<'_>>,
+    width: &str,
+    is_header: bool,
 ) -> String {
     match kind {
-        CellKind::Content { cell_index } => {
-            let Some(cell) = row.ast_row.columns.get(*cell_index) else {
+        CellKind::Content { .. } => {
+            let Some(cell) = cell else {
                 return "l".to_string();
             };
-            let align = alignment_prefix(effective_halign(cell, column_index, columns));
-            let valign = vertical_alignment_modifier(effective_valign(cell, column_index, columns));
-            let width = width_modifiers.get(column_index).map_or("", String::as_str);
-            if row.is_header {
+            let align = alignment_prefix(effective_halign(cell, column));
+            let valign = vertical_alignment_modifier(effective_valign(cell, column));
+            if is_header {
                 format!("{align}{valign}B{width}")
             } else {
                 format!("{align}{valign}{width}")
@@ -98,7 +84,11 @@ fn format_entry(
     }
 }
 
-fn has_hspan_origin(grid: &[GridRow<'_>], row_index: usize, column_index: usize) -> bool {
+fn has_hspan_origin(
+    grid: &[GridRow<TableRowRef<'_>>],
+    row_index: usize,
+    column_index: usize,
+) -> bool {
     let mut row_index = row_index;
     while row_index > 0 {
         row_index -= 1;
@@ -115,9 +105,9 @@ fn has_hspan_origin(grid: &[GridRow<'_>], row_index: usize, column_index: usize)
 }
 
 fn format_row(
-    grid: &[GridRow<'_>],
+    grid: &[GridRow<TableRowRef<'_>>],
     row_index: usize,
-    columns: &[ColumnFormat],
+    table: TableRef<'_>,
     width_modifiers: &[String],
     presentation: TablePresentation,
     allbox: bool,
@@ -133,6 +123,8 @@ fn format_row(
     if side_frame {
         output.push_str("| ");
     }
+    let mut cells = row.ast_row.cells().enumerate();
+    let mut columns = table.columns();
     for (column_index, kind) in row.cells.iter().enumerate() {
         if column_index > 0 {
             let spans_boundary = matches!(kind, CellKind::HSpan)
@@ -142,12 +134,20 @@ fn format_row(
                 output.push_str("| ");
             }
         }
+        let column = columns.next();
+        let cell = if let CellKind::Content { cell_index } = kind {
+            cells
+                .find(|(index, _)| index == cell_index)
+                .map(|(_, cell)| cell)
+        } else {
+            None
+        };
         output.push_str(&format_entry(
             kind,
-            row,
-            column_index,
-            columns,
-            width_modifiers,
+            cell,
+            column,
+            width_modifiers.get(column_index).map_or("", String::as_str),
+            row.is_header,
         ));
         if column_index + 1 < row.cells.len() {
             output.push(' ');
@@ -170,10 +170,12 @@ fn warn_once(diagnostics: &mut Diagnostics<'_>, message: &'static str, advice: &
 }
 
 fn parse_table_width(
-    metadata: &BlockMetadata<'_>,
+    attributes: AttributesRef<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<u32> {
-    let width = metadata.attributes.get_string("width")?;
+    let width = attributes
+        .get("width")
+        .and_then(AttributeValueRef::as_str)?;
     let value = width.trim().trim_end_matches('%');
     match value.parse::<u32>() {
         Ok(width) if width > 0 => Some(width.min(100)),
@@ -193,23 +195,22 @@ struct WidthPlan {
     expand: bool,
 }
 
-fn width_plan<'a>(
-    table: &'a Table<'a>,
+fn width_plan(
+    table: TableRef<'_>,
     num_cols: usize,
-    metadata: &BlockMetadata<'_>,
+    attributes: AttributesRef<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> WidthPlan {
-    let has_width_attribute = metadata.attributes.get("width").is_some();
-    let requested_width = parse_table_width(metadata, diagnostics);
-    let autowidth = metadata.options.contains(&"autowidth")
-        && !metadata.roles.contains(&"stretch")
+    let has_width_attribute = attributes.contains("width");
+    let requested_width = parse_table_width(attributes, diagnostics);
+    let autowidth = matches!(attributes.get("opts"), Some(acdc_parser::ast::AttributeValueRef::Tokens(tokens)) if tokens.iter().any(|value| value == "autowidth"))
+        && !matches!(attributes.get("role"), Some(acdc_parser::ast::AttributeValueRef::Tokens(tokens)) if tokens.iter().any(|value| value == "stretch"))
         && !has_width_attribute;
-    let stretches = metadata.roles.contains(&"stretch")
+    let stretches = matches!(attributes.get("role"), Some(acdc_parser::ast::AttributeValueRef::Tokens(tokens)) if tokens.iter().any(|value| value == "stretch"))
         || !autowidth && (!has_width_attribute || requested_width == Some(100));
     let has_nondefault_column_width = table
-        .columns
-        .iter()
-        .any(|column| column.width != ColumnWidth::default());
+        .columns()
+        .any(|column| column.width() != ColumnWidth::default());
 
     if autowidth && !has_nondefault_column_width {
         return WidthPlan {
@@ -230,22 +231,22 @@ fn width_plan<'a>(
         };
     }
 
-    let widths = if table.columns.is_empty() {
+    let widths = if table.columns().next().is_none() {
         let divisor = f64::from(u32::try_from(num_cols.max(1)).unwrap_or(u32::MAX));
-        vec![100.0 / divisor; num_cols]
+        vec![Some(100.0 / divisor); num_cols]
     } else {
-        calculate_column_widths(&table.columns)
+        column_widths(table.columns())
     };
     let nominal_width = 60.0 * f64::from(requested_width.unwrap_or(100)) / 100.0;
     let modifiers = (0..num_cols)
         .map(|index| {
-            widths.get(index).map_or_else(String::new, |width| {
-                if *width > 0.0 {
+            widths
+                .get(index)
+                .copied()
+                .flatten()
+                .map_or_else(String::new, |width| {
                     format!("w({:.0}n)", (nominal_width * width / 100.0).max(1.0))
-                } else {
-                    String::new()
-                }
-            })
+                })
         })
         .collect();
 
@@ -255,10 +256,10 @@ fn width_plan<'a>(
     }
 }
 
-fn table_is_centered(metadata: &BlockMetadata<'_>, diagnostics: &mut Diagnostics<'_>) -> bool {
-    let alignment = metadata.attributes.get_string("align");
-    let float = metadata.attributes.get_string("float");
-    if metadata.attributes.get("float").is_some() {
+fn table_is_centered(attributes: AttributesRef<'_>, diagnostics: &mut Diagnostics<'_>) -> bool {
+    let alignment = attributes.get("align").and_then(AttributeValueRef::as_str);
+    let float = attributes.get("float").and_then(AttributeValueRef::as_str);
+    if attributes.contains("float") {
         warn_once(
             diagnostics,
             "table floats are not supported by portable roff; preserving table alignment without text wrapping",
@@ -266,10 +267,10 @@ fn table_is_centered(metadata: &BlockMetadata<'_>, diagnostics: &mut Diagnostics
         );
     }
 
-    let Some(value) = alignment.as_ref().or(float.as_ref()) else {
+    let Some(value) = alignment.or(float) else {
         return false;
     };
-    match value.as_ref() {
+    match value {
         "left" => false,
         "center" => true,
         "right" if alignment.is_none() => false,
@@ -292,34 +293,39 @@ fn table_is_centered(metadata: &BlockMetadata<'_>, diagnostics: &mut Diagnostics
     }
 }
 
-fn has_rowspans<'a>(table: &'a Table<'a>) -> bool {
+fn has_rowspans(table: TableRef<'_>) -> bool {
     table
-        .header
-        .iter()
-        .chain(&table.rows)
-        .chain(&table.footer)
-        .flat_map(|row| &row.columns)
-        .any(|cell| cell.rowspan > 1)
+        .header()
+        .into_iter()
+        .chain(table.rows())
+        .chain(table.footer())
+        .flat_map(TableRowRef::cells)
+        .any(|cell| cell.rowspan() > 1)
 }
 
 /// Render a data row from the grid, producing a colon-separated string.
 fn render_grid_row<'a>(
-    grid_row: &GridRow<'a>,
-    columns: &[ColumnFormat],
+    grid_row: &GridRow<TableRowRef<'a>>,
+    table: TableRef<'_>,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<String, Error> {
     let mut data_cells = Vec::with_capacity(grid_row.cells.len());
 
-    for (column_index, kind) in grid_row.cells.iter().enumerate() {
+    let mut cells = grid_row.ast_row.cells().enumerate();
+    let mut columns = table.columns();
+    for kind in &grid_row.cells {
+        let column = columns.next();
         match kind {
             CellKind::Content { cell_index } => {
-                if let Some(cell) = grid_row.ast_row.columns.get(*cell_index) {
+                if let Some(cell) = cells
+                    .find(|(index, _)| index == cell_index)
+                    .map(|(_, cell)| cell)
+                {
                     data_cells.push(format_cell_with_inlines(
                         cell,
-                        column_index,
-                        columns,
+                        column,
                         grid_row.is_header,
                         processor,
                         traversal,
@@ -344,15 +350,14 @@ fn render_grid_row<'a>(
 
 pub(crate) fn visit_table<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    table: &'a Table<'a>,
-    block: &'a DelimitedBlock<'a>,
+    table: TableRef<'a>,
     visitor: &mut ManpageVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
     let processor = visitor.processor;
-    let num_cols = determine_column_count(table);
-    let grid = build_grid(table, num_cols);
+    let num_cols = column_count(table);
+    let grid = grid_rows(table, num_cols);
     let presentation = table.presentation().unwrap_or_else(|| {
-        TablePresentation::from_attributes(&block.metadata, |name| {
+        TablePresentation::resolve_with(Some(table.attributes()), |name| {
             (processor.parser_options.document_attributes()).get(name)
         })
     });
@@ -372,8 +377,13 @@ pub(crate) fn visit_table<'a, W: Write>(
             "Use `grid=cols` or avoid row spans when uninterrupted spanning cells are required.",
         );
     }
-    let centered = table_is_centered(&block.metadata, &mut visitor.diagnostics);
-    let width_plan = width_plan(table, num_cols, &block.metadata, &mut visitor.diagnostics);
+    let centered = table_is_centered(table.attributes(), &mut visitor.diagnostics);
+    let width_plan = width_plan(
+        table,
+        num_cols,
+        table.attributes(),
+        &mut visitor.diagnostics,
+    );
 
     let format_lines: Vec<String> = grid
         .iter()
@@ -382,7 +392,7 @@ pub(crate) fn visit_table<'a, W: Write>(
             format_row(
                 &grid,
                 row_index,
-                &table.columns,
+                table,
                 &width_plan.modifiers,
                 presentation,
                 allbox,
@@ -392,15 +402,7 @@ pub(crate) fn visit_table<'a, W: Write>(
 
     let data_rows: Vec<String> = grid
         .iter()
-        .map(|row| {
-            render_grid_row(
-                row,
-                &table.columns,
-                processor,
-                traversal,
-                &mut visitor.diagnostics,
-            )
-        })
+        .map(|row| render_grid_row(row, table, processor, traversal, &mut visitor.diagnostics))
         .collect::<Result<Vec<_>, _>>()?;
 
     let w = visitor.writer_mut();
@@ -448,9 +450,8 @@ pub(crate) fn visit_table<'a, W: Write>(
 
 /// Format a table cell with inline formatting preserved.
 fn format_cell_with_inlines<'a>(
-    cell: &'a TableColumn<'a>,
-    column_index: usize,
-    columns: &[ColumnFormat],
+    cell: TableCellRef<'a>,
+    column: Option<ColumnFormatRef<'_>>,
     is_header: bool,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
@@ -462,7 +463,7 @@ fn format_cell_with_inlines<'a>(
         // tbl selects bold for the header before it renders the cell's inlines.
         cell_visitor.current_font = "\\fB";
     }
-    let style = effective_style(cell, column_index, columns);
+    let style = effective_style(cell, column);
     let scoped = style == ColumnStyle::AsciiDoc;
     let font = match style {
         ColumnStyle::Strong => Some("\\fB"),
@@ -476,23 +477,26 @@ fn format_cell_with_inlines<'a>(
     };
     let mut render = |traversal: &mut TraversalContext<'a>| {
         let mut content = |visitor: &mut ManpageVisitor<'a, '_, _>| {
-            cell.content
-                .iter()
-                .enumerate()
-                .try_for_each(|(index, block)| {
-                    if let acdc_parser::Block::Paragraph(para) = block
-                        && !scoped
-                    {
-                        // tbl needs an explicit break between normal cell paragraphs;
-                        // concatenating inline output would join their boundary words.
-                        if index > 0 {
-                            visitor.writer_mut().write_all(b"\n.sp\n")?;
-                        }
-                        visitor.visit_inline_nodes(traversal, &para.content)
-                    } else {
-                        traversal.visit_block(visitor, block)
+            cell.blocks().enumerate().try_for_each(|(index, block)| {
+                if let BlockKind::Paragraph(para) = block.kind()
+                    && !scoped
+                {
+                    // tbl needs an explicit break between normal cell paragraphs;
+                    // concatenating inline output would join their boundary words.
+                    if index > 0 {
+                        visitor.writer_mut().write_all(b"\n.sp\n")?;
                     }
-                })
+                    visitor.write_content(traversal, para.content())
+                } else {
+                    traversal.visit_block(visitor, block)
+                }
+            })?;
+            for note in cell.footnotes() {
+                writeln!(visitor.writer_mut(), ".sp\n.IP [{}] 4", note.number())?;
+                visitor.write_content(traversal, note.content())?;
+                writeln!(visitor.writer_mut())?;
+            }
+            Ok(())
         };
         if let Some(font) = font {
             cell_visitor.render_font(font, false, content)

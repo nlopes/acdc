@@ -1,0 +1,32 @@
+= Reference content
+:label: *Expanded*
+
+[id=single,reftext='*Single* _label_']
+== Single title
+
+[id=double,reftext="*Double* label"]
+== Double title
+
+[id=unquoted,reftext=*Unquoted*]
+== Unquoted title
+
+[id=expanded,reftext='{label}']
+== Expanded title
+
+[id=empty,reftext=""]
+== Empty label fallback
+
+[[anchor,Anchor *label*]]
+== Anchor title
+
+[[short,Short *label*]note#short-target]
+A shorthand anchor in Draft mode.
+
+.Caption title
+[id=figure,reftext='Figure *label*',caption='Custom: ']
+image::photo.png[Photo]
+
+See <<single>>, <<double>>, <<unquoted>>, <<expanded>>, <<empty>>, <<anchor>>, and <<figure>>.
+
+An inline [[inline,Inline *label*]] target and anchor:macro[Macro _label_].
+See <<inline>> and <<macro>>.

@@ -7,7 +7,8 @@ use std::{
 };
 
 use acdc_parser::{
-    Document, DocumentAttributes, Location, ParseResult, Position, Source, SourceLocation,
+    Location, ParseResult, Position, SourceLocation,
+    ast::{DocumentAttributesRef, DocumentRef},
 };
 use tower_lsp_server::ls_types::{Diagnostic, Uri};
 
@@ -18,16 +19,6 @@ pub(crate) enum OwnedSource {
     Path(PathBuf),
     Url(String),
     Name(String),
-}
-
-impl OwnedSource {
-    pub(crate) fn from_borrowed(source: &Source<'_>) -> Self {
-        match source {
-            Source::Path(p) => Self::Path(p.clone()),
-            Source::Url(u) => Self::Url(u.to_string()),
-            Source::Name(n) => Self::Name((*n).to_string()),
-        }
-    }
 }
 
 /// Editor text and the optional parser result.
@@ -46,16 +37,13 @@ pub(crate) struct ParsedText {
     parsed: Option<Mutex<ParseResult>>,
 }
 
-/// RAII guard that keeps a parsed document locked for the duration of read
-/// access. Use [`Self::document`] to obtain a reference to the AST.
+/// Keeps the parsed result locked while its document is read.
 pub(crate) struct AstGuard<'a> {
     guard: MutexGuard<'a, ParseResult>,
 }
 
 impl AstGuard<'_> {
-    /// Borrow the parsed document. The underlying mutex remains locked until
-    /// this guard is dropped.
-    pub(crate) fn document(&self) -> &Document<'_> {
+    pub(crate) fn document(&self) -> DocumentRef<'_> {
         self.guard.document()
     }
 
@@ -97,10 +85,7 @@ impl ParsedText {
         Arc::clone(&self.source)
     }
 
-    /// Obtain a locked handle to the parsed AST if parsing succeeded.
-    ///
-    /// Dereference the returned guard to get `&Document<'_>`. Drops the
-    /// underlying mutex when the guard is dropped.
+    /// Obtain a guard for a successful parse. The guard holds the mutex until dropped.
     pub(crate) fn ast(&self) -> Option<AstGuard<'_>> {
         let parsed = self.parsed.as_ref()?;
         let guard = parsed
@@ -155,7 +140,10 @@ pub(crate) struct DocumentState {
     /// Diagnostics from included files, owned by this document's analysis.
     pub(super) included_diagnostics: HashMap<Uri, Vec<Diagnostic>>,
     /// Retain parser diagnostics when workspace references are checked again.
-    pub(super) parse_diagnostics: Vec<(Option<SourceLocation>, Diagnostic)>,
+    pub(super) parse_diagnostics: Vec<(
+        Option<SourceLocation>,
+        crate::capabilities::diagnostics::DiagnosticMessage,
+    )>,
     pub(super) check_raw_includes: bool,
     /// Anchor definitions with their original source files and positions.
     pub(crate) anchors: HashMap<String, SourceLocation>,
@@ -174,36 +162,6 @@ pub(crate) struct DocumentState {
 }
 
 impl DocumentState {
-    pub(super) fn push_diagnostic(
-        &mut self,
-        document_uri: &Uri,
-        source: Option<SourceLocation>,
-        mut diagnostic: Diagnostic,
-    ) {
-        let uri = if let Some(mut source) = source {
-            // A diagnostic can mark the start of a span that crosses files.
-            // Its end cannot be used as a position in that same file.
-            if source.location.start.file != source.location.end.file {
-                diagnostic.range.end = diagnostic.range.start;
-                source.location.end = source.location.start.clone();
-            }
-            let Some(uri) = crate::convert::source_uri(document_uri, &source) else {
-                return;
-            };
-            uri
-        } else {
-            document_uri.clone()
-        };
-        if &uri == document_uri {
-            self.diagnostics.push(diagnostic);
-        } else {
-            self.included_diagnostics
-                .entry(uri)
-                .or_default()
-                .push(diagnostic);
-        }
-    }
-
     pub(super) fn diagnostic_uris(&self, document_uri: &Uri) -> Vec<Uri> {
         std::iter::once(document_uri.clone())
             .chain(self.included_diagnostics.keys().cloned())
@@ -231,24 +189,23 @@ impl DocumentState {
     /// where it shares the [`ParsedText`] cell with the success path.
     #[cfg(test)]
     #[must_use]
-    pub(crate) fn new_failure(text: String, version: i32, diagnostics: Vec<Diagnostic>) -> Self {
+    pub(crate) fn new_failure(text: String, version: i32) -> Self {
         let parsed = ParsedText::from_source(text.into_boxed_str());
         let raw_text = parsed.text();
         let definitions = extract_attribute_defs(raw_text);
         let references = extract_attribute_refs(raw_text);
         let raw_includes = extract_includes(raw_text);
-        let raw_conditionals = extract_conditionals(raw_text, &DocumentAttributes::default());
+        let raw_conditionals = extract_conditionals(
+            raw_text,
+            (&acdc_parser::DocumentAttributes::default()).into(),
+        );
 
         Self {
             parsed,
             version,
-            parse_diagnostics: diagnostics
-                .iter()
-                .cloned()
-                .map(|item| (None, item))
-                .collect(),
+            parse_diagnostics: Vec::new(),
             check_raw_includes: true,
-            diagnostics,
+            diagnostics: Vec::new(),
             included_diagnostics: HashMap::new(),
             anchors: HashMap::new(),
             xrefs: vec![],
@@ -266,9 +223,10 @@ pub(crate) fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
     let mut defs = Vec::new();
     let mut line_start = 0usize;
 
-    for (line_idx, line) in text.lines().enumerate() {
+    for (line_idx, raw_line) in text.split_inclusive('\n').enumerate() {
+        let line = raw_line.trim_end_matches(['\r', '\n']);
         let this_line_start = line_start;
-        line_start += line.len() + 1;
+        line_start += raw_line.len();
 
         let trimmed = line.trim();
         let after_colon = if let Some(rest) = trimmed.strip_prefix(":!") {
@@ -292,10 +250,11 @@ pub(crate) fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
             let line_end = line.len();
 
             let mut location = Location::default();
-            location.start = Position::from_line_col(line_idx + 1, col_offset + 1);
-            location.end = Position::from_line_col(line_idx + 1, line_end);
+            location.start =
+                Position::from_line_col(line_idx + 1, line[..col_offset].chars().count() + 1);
+            location.end = Position::from_line_col(line_idx + 1, line.chars().count());
             location.absolute_start = this_line_start + col_offset;
-            location.absolute_end = this_line_start + line_end;
+            location.absolute_end = this_line_start + line_end - 1;
 
             defs.push((name_candidate.to_string(), location));
         }
@@ -306,15 +265,15 @@ pub(crate) fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
 
 /// Extract attribute references (`{name}`) from raw text.
 ///
-/// Scans for `{name}` patterns, skipping escaped references (`\{name}`)
-/// and attribute definition lines (`:name:`).
+/// Skips escaped references (`\{name}`) and includes references in attribute values.
 pub(crate) fn extract_attribute_refs(text: &str) -> Vec<(String, Location)> {
     let mut refs = Vec::new();
     let mut line_start = 0usize;
 
-    for (line_idx, line) in text.lines().enumerate() {
+    for (line_idx, raw_line) in text.split_inclusive('\n').enumerate() {
+        let line = raw_line.trim_end_matches(['\r', '\n']);
         let this_line_start = line_start;
-        line_start += line.len() + 1;
+        line_start += raw_line.len();
 
         let trimmed = line.trim();
         // Check if this is an attribute definition: :name: value
@@ -373,10 +332,11 @@ fn extract_refs_from_line(
             let col_end = segment_offset_in_line + close + 1;
 
             let mut location = Location::default();
-            location.start = Position::from_line_col(line_idx + 1, col_in_line + 1);
-            location.end = Position::from_line_col(line_idx + 1, col_end);
+            location.start =
+                Position::from_line_col(line_idx + 1, line[..col_in_line].chars().count() + 1);
+            location.end = Position::from_line_col(line_idx + 1, line[..col_end].chars().count());
             location.absolute_start = line_start + col_in_line;
-            location.absolute_end = line_start + col_end;
+            location.absolute_end = line_start + col_end - 1;
 
             refs.push((name.to_string(), location));
         }
@@ -416,7 +376,7 @@ fn evaluate_condition(
     attributes: &[String],
     operation: Option<&ConditionalOperation>,
     is_ifndef: bool,
-    doc_attrs: &DocumentAttributes,
+    doc_attrs: DocumentAttributesRef<'_>,
 ) -> bool {
     let result = match operation {
         Some(ConditionalOperation::Or) => {
@@ -427,13 +387,47 @@ fn evaluate_condition(
     if is_ifndef { !result } else { result }
 }
 
+/// Recover primary-source spellings with the decisions made by preprocessing.
+pub(crate) fn evaluated_conditionals(text: &str, parsed: &ParseResult) -> Vec<ConditionalBlock> {
+    let lines: Vec<_> = text.lines().collect();
+    parsed
+        .conditionals()
+        .filter_map(|evaluation| {
+            if evaluation.source_file().is_some()
+                || (!evaluation.is_inline() && evaluation.end_line().is_none())
+            {
+                return None;
+            }
+            let start_line = evaluation.start_line().checked_sub(1)?;
+            let line = lines.get(start_line)?.trim();
+            let (rest, kind) = if let Some(rest) = line.strip_prefix("ifdef::") {
+                (rest, ConditionalDirectiveKind::Ifdef)
+            } else {
+                (
+                    line.strip_prefix("ifndef::")?,
+                    ConditionalDirectiveKind::Ifndef,
+                )
+            };
+            let (attributes, operation) = parse_conditional_attributes(rest.split_once('[')?.0);
+            Some(ConditionalBlock {
+                kind,
+                attributes,
+                operation,
+                is_active: evaluation.is_active(),
+                start_line,
+                end_line: evaluation.end_line().and_then(|line| line.checked_sub(1)),
+            })
+        })
+        .collect()
+}
+
 /// Extract conditional directive blocks (ifdef/ifndef/endif) from raw text.
 ///
-/// The preprocessor flattens these before the AST is built. We scan raw text
-/// to recover them for graying out inactive branches in the editor.
+/// Used when parsing failed or was skipped. Successful parses use the recorded
+/// preprocessing decisions, which include source-ordered attribute changes.
 pub(crate) fn extract_conditionals(
     text: &str,
-    attrs: &DocumentAttributes,
+    attrs: DocumentAttributesRef<'_>,
 ) -> Vec<ConditionalBlock> {
     let mut blocks = Vec::new();
     let mut pending: Vec<PendingConditional> = Vec::new();
@@ -529,9 +523,10 @@ pub(crate) fn extract_includes(text: &str) -> Vec<(String, Location)> {
     let mut includes = Vec::new();
     let mut line_start = 0usize;
 
-    for (line_idx, line) in text.lines().enumerate() {
+    for (line_idx, raw_line) in text.split_inclusive('\n').enumerate() {
+        let line = raw_line.trim_end_matches(['\r', '\n']);
         let this_line_start = line_start;
-        line_start += line.len() + 1;
+        line_start += raw_line.len();
 
         let trimmed = line.trim();
         if let Some(rest) = trimmed.strip_prefix("include::")
@@ -544,10 +539,12 @@ pub(crate) fn extract_includes(text: &str) -> Vec<(String, Location)> {
                 let target_end = target_start + target.len();
 
                 let mut location = Location::default();
-                location.start = Position::from_line_col(line_idx + 1, target_start + 1);
-                location.end = Position::from_line_col(line_idx + 1, target_end);
+                location.start =
+                    Position::from_line_col(line_idx + 1, line[..target_start].chars().count() + 1);
+                location.end =
+                    Position::from_line_col(line_idx + 1, line[..target_end].chars().count());
                 location.absolute_start = this_line_start + target_start;
-                location.absolute_end = this_line_start + target_end;
+                location.absolute_end = this_line_start + target_end - 1;
 
                 includes.push((target.to_string(), location));
             }
@@ -560,7 +557,7 @@ pub(crate) fn extract_includes(text: &str) -> Vec<(String, Location)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::{AttributeValue, Options};
+    use acdc_parser::{AttributeValue, DocumentAttributes, Options};
     use std::{borrow::Cow, error::Error};
 
     #[test]
@@ -702,7 +699,7 @@ mod tests {
             .build()?
             .into_document_attributes();
         let text = ":backend-html:\n\nifdef::backend-html[]\nHTML content\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         assert_eq!(
             conds.first().map(|c| &c.kind),
@@ -722,7 +719,7 @@ mod tests {
     fn test_extract_conditionals_ifdef_inactive() {
         let attrs = DocumentAttributes::default();
         let text = "ifdef::backend-html[]\nHTML content\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         assert_eq!(conds.first().map(|c| c.is_active), Some(false));
         assert_eq!(conds.first().map(|c| c.start_line), Some(0));
@@ -733,7 +730,7 @@ mod tests {
     fn test_extract_conditionals_ifndef() {
         let attrs = DocumentAttributes::default();
         let text = "ifndef::draft[]\nPublished content\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         assert_eq!(
             conds.first().map(|c| &c.kind),
@@ -753,7 +750,7 @@ mod tests {
             .build()?
             .into_document_attributes();
         let text = "ifndef::draft[]\nDraft content\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         // draft IS defined, so ifndef is inactive
         assert_eq!(conds.first().map(|c| c.is_active), Some(false));
@@ -770,7 +767,7 @@ mod tests {
             .build()?
             .into_document_attributes();
         let text = "ifdef::a,b[]\ncontent\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         assert_eq!(
             conds.first().map(|c| &c.operation),
@@ -791,7 +788,7 @@ mod tests {
             .build()?
             .into_document_attributes();
         let text = "ifdef::a+b[]\ncontent\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         assert_eq!(
             conds.first().map(|c| &c.operation),
@@ -806,7 +803,7 @@ mod tests {
     fn test_extract_conditionals_single_line() {
         let attrs = DocumentAttributes::default();
         let text = "ifdef::attr[inline content]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 1);
         assert_eq!(conds.first().map(|c| c.is_active), Some(false));
         assert_eq!(conds.first().map(|c| c.start_line), Some(0));
@@ -817,7 +814,7 @@ mod tests {
     fn test_extract_conditionals_escaped() {
         let attrs = DocumentAttributes::default();
         let text = "\\ifdef::attr[]\ncontent\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert!(conds.is_empty());
     }
 
@@ -831,7 +828,7 @@ mod tests {
             .build()?
             .into_document_attributes();
         let text = "ifdef::html[]\nHTML\nendif::[]\nifdef::pdf[]\nPDF\nendif::[]";
-        let conds = extract_conditionals(text, &attrs);
+        let conds = extract_conditionals(text, (&attrs).into());
         assert_eq!(conds.len(), 2);
         assert_eq!(conds.first().map(|c| c.is_active), Some(true)); // html defined
         assert_eq!(conds.get(1).map(|c| c.is_active), Some(false)); // pdf not defined

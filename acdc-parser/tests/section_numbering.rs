@@ -1,15 +1,19 @@
-use acdc_parser::{Block, Document, Location, Options, Section, Title, parse};
+use acdc_parser::{
+    Block, Document, Location, Options, Section, Title,
+    ast::{BlockKind, BlockRef, DocumentRef, SectionRef, TocEntryRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
-fn section<'block, 'a>(block: &'block Block<'a>) -> Result<&'block Section<'a>, Error> {
-    let Block::Section(section) = block else {
+fn section<'doc>(block: impl Into<BlockRef<'doc>>) -> Result<SectionRef<'doc>, Error> {
+    let BlockKind::Section(section) = block.into().kind() else {
         return Err("expected a section".into());
     };
     Ok(section)
 }
 
-fn number<'section>(section: &'section Section<'_>) -> Option<&'section str> {
+fn number(section: SectionRef<'_>) -> Option<&str> {
     section.number()
 }
 
@@ -19,22 +23,21 @@ fn source_order_controls_section_numbers() -> Result<(), Error> {
         "= T\n\n== Before\n\n:sectnums:\n\n== First numbered\n\n=== Child\n\n:sectnums!:\n\n== Disabled\n\n:sectnums:\n\n== Second numbered\n",
         &Options::default(),
     )?;
-    let blocks = &parsed.document().blocks;
-    let before = section(blocks.first().ok_or("expected Before")?)?;
-    let first = section(blocks.get(1).ok_or("expected First numbered")?)?;
+    let blocks = parsed.document().blocks().collect::<Vec<_>>();
+    let before = section(blocks.first().copied().ok_or("expected Before")?)?;
+    let first = section(blocks.get(1).copied().ok_or("expected First numbered")?)?;
     let child = first
-        .content
-        .iter()
+        .blocks()
         .find_map(|block| {
-            if let Block::Section(section) = block {
+            if let BlockKind::Section(section) = block.kind() {
                 Some(section)
             } else {
                 None
             }
         })
         .ok_or("expected Child")?;
-    let disabled = section(blocks.get(2).ok_or("expected Disabled")?)?;
-    let second = section(blocks.get(3).ok_or("expected Second numbered")?)?;
+    let disabled = section(blocks.get(2).copied().ok_or("expected Disabled")?)?;
+    let second = section(blocks.get(3).copied().ok_or("expected Second numbered")?)?;
 
     assert_eq!(number(before), None);
     assert_eq!(number(first), Some("1"));
@@ -50,12 +53,11 @@ fn hidden_depths_still_consume_their_structural_ordinal() -> Result<(), Error> {
         "= T\n:sectnums:\n:sectnumlevels: 1\n\n== Parent\n\n=== Hidden\n\n:sectnumlevels: 2\n\n=== Visible\n",
         &Options::default(),
     )?;
-    let parent = section(parsed.document().blocks.first().ok_or("expected Parent")?)?;
+    let parent = section(parsed.document().blocks().next().ok_or("expected Parent")?)?;
     let children: Vec<_> = parent
-        .content
-        .iter()
+        .blocks()
         .filter_map(|block| {
-            if let Block::Section(section) = block {
+            if let BlockKind::Section(section) = block.kind() {
                 Some(section)
             } else {
                 None
@@ -66,8 +68,8 @@ fn hidden_depths_still_consume_their_structural_ordinal() -> Result<(), Error> {
     let visible = children.get(1).ok_or("expected Visible")?;
 
     assert_eq!(number(parent), Some("1"));
-    assert_eq!(number(hidden), None);
-    assert_eq!(number(visible), Some("1.2"));
+    assert_eq!(number(*hidden), None);
+    assert_eq!(number(*visible), Some("1.2"));
     Ok(())
 }
 
@@ -79,9 +81,8 @@ fn toc_entries_use_the_sections_semantic_numbers() -> Result<(), Error> {
     )?;
     let numbers: Vec<_> = parsed
         .document()
-        .toc_entries
-        .iter()
-        .map(acdc_parser::TocEntry::number)
+        .toc_entries()
+        .map(TocEntryRef::number)
         .collect();
     assert_eq!(numbers, [Some("1"), Some("1.1"), Some("2")]);
     Ok(())
@@ -95,12 +96,11 @@ fn default_section_numbering_depth_is_three_without_defining_attribute() -> Resu
     )?;
     let numbers: Vec<_> = parsed
         .document()
-        .toc_entries
-        .iter()
-        .map(acdc_parser::TocEntry::number)
+        .toc_entries()
+        .map(TocEntryRef::number)
         .collect();
 
-    assert_eq!(parsed.document().attributes.get("sectnumlevels"), None);
+    assert_eq!(parsed.document().attributes().get("sectnumlevels"), None);
     assert_eq!(numbers, [Some("1"), Some("1.1"), Some("1.1.1"), None]);
     Ok(())
 }
@@ -113,9 +113,8 @@ fn duplicate_generated_ids_keep_their_own_toc_numbers() -> Result<(), Error> {
     )?;
     let numbers: Vec<_> = parsed
         .document()
-        .toc_entries
-        .iter()
-        .map(acdc_parser::TocEntry::number)
+        .toc_entries()
+        .map(TocEntryRef::number)
         .collect();
 
     assert_eq!(numbers, [Some("1"), Some("2")]);
@@ -128,12 +127,12 @@ fn books_use_independent_part_chapter_and_appendix_sequences() -> Result<(), Err
         "= T\n:doctype: book\n:sectnums:\n:partnums:\n\n= Part\n\n== Chapter one\n\n[appendix]\n== Appendix\n\n=== Appendix child\n\n== Chapter two\n",
         &Options::default(),
     )?;
-    let blocks = &parsed.document().blocks;
-    let part = section(blocks.first().ok_or("expected Part")?)?;
-    let chapter_one = section(part.content.first().ok_or("expected Chapter one")?)?;
-    let appendix = section(part.content.get(1).ok_or("expected Appendix")?)?;
-    let appendix_child = section(appendix.content.first().ok_or("expected Appendix child")?)?;
-    let chapter_two = section(part.content.get(2).ok_or("expected Chapter two")?)?;
+    let blocks = parsed.document().blocks().collect::<Vec<_>>();
+    let part = section(blocks.first().copied().ok_or("expected Part")?)?;
+    let chapter_one = section(part.blocks().next().ok_or("expected Chapter one")?)?;
+    let appendix = section(part.blocks().nth(1).ok_or("expected Appendix")?)?;
+    let appendix_child = section(appendix.blocks().next().ok_or("expected Appendix child")?)?;
+    let chapter_two = section(part.blocks().nth(2).ok_or("expected Chapter two")?)?;
 
     assert_eq!(number(part), Some("I"));
     assert_eq!(number(chapter_one), Some("1"));
@@ -149,15 +148,15 @@ fn special_sections_follow_the_numbering_mode() -> Result<(), Error> {
         "= T\n:sectnums:\n\n[preface]\n== Preface\n\n=== Hidden child\n\n== Section\n\n:sectnums: all\n\n[preface]\n== Numbered preface\n\n=== Numbered child\n",
         &Options::default(),
     )?;
-    let blocks = &parsed.document().blocks;
-    let preface = section(blocks.first().ok_or("expected Preface")?)?;
-    let hidden_child = section(preface.content.first().ok_or("expected Hidden child")?)?;
-    let normal = section(blocks.get(1).ok_or("expected Section")?)?;
-    let numbered_preface = section(blocks.get(2).ok_or("expected Numbered preface")?)?;
+    let blocks = parsed.document().blocks().collect::<Vec<_>>();
+    let preface = section(blocks.first().copied().ok_or("expected Preface")?)?;
+    let hidden_child = section(preface.blocks().next().ok_or("expected Hidden child")?)?;
+    let normal = section(blocks.get(1).copied().ok_or("expected Section")?)?;
+    let numbered_preface = section(blocks.get(2).copied().ok_or("expected Numbered preface")?)?;
     let numbered_child = section(
         numbered_preface
-            .content
-            .first()
+            .blocks()
+            .next()
             .ok_or("expected Numbered child")?,
     )?;
 
@@ -172,7 +171,7 @@ fn special_sections_follow_the_numbering_mode() -> Result<(), Error> {
 #[test]
 fn caller_created_sections_are_explicit_and_renumberable() -> Result<(), Error> {
     let mut document = Document::default();
-    document.blocks = vec![
+    document.set_blocks(vec![
         Block::Section(Section::new(
             Title::default(),
             1,
@@ -182,21 +181,38 @@ fn caller_created_sections_are_explicit_and_renumberable() -> Result<(), Error> 
         Block::Section(
             Section::new(Title::default(), 1, Vec::new(), Location::default()).with_numbering(true),
         ),
-    ];
+    ]);
 
     document.renumber_sections();
-    let first = section(document.blocks.first().ok_or("expected first section")?)?;
-    let second = section(document.blocks.get(1).ok_or("expected second section")?)?;
+    let first = section(
+        DocumentRef::from(&document)
+            .blocks()
+            .next()
+            .ok_or("expected first section")?,
+    )?;
+    let second = section(
+        DocumentRef::from(&document)
+            .blocks()
+            .nth(1)
+            .ok_or("expected second section")?,
+    )?;
     assert_eq!(number(first), None);
     assert_eq!(number(second), Some("1"));
 
-    document.blocks.swap(0, 1);
+    let mut blocks: Vec<_> = document.take_blocks().collect();
+    blocks.swap(0, 1);
+    document.set_blocks(blocks);
     document.renumber_sections();
-    let numbered = section(document.blocks.first().ok_or("expected numbered section")?)?;
+    let numbered = section(
+        DocumentRef::from(&document)
+            .blocks()
+            .next()
+            .ok_or("expected numbered section")?,
+    )?;
     let unnumbered = section(
-        document
-            .blocks
-            .get(1)
+        DocumentRef::from(&document)
+            .blocks()
+            .nth(1)
             .ok_or("expected unnumbered section")?,
     )?;
     assert_eq!(number(numbered), Some("1"));

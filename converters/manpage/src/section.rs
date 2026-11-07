@@ -4,8 +4,8 @@
 
 use std::io::Write;
 
-use acdc_converters_core::{TraversalContext, document_attribute_text, visitor::WritableVisitor};
-use acdc_parser::{Section, SectionKind};
+use acdc_converters_core::{TraversalContext, document_attribute_text};
+use acdc_parser::{SectionKind, ast::SectionRef};
 
 use crate::{
     Error, ManpageVisitor,
@@ -18,46 +18,48 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     pub(crate) fn render_section(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        section: &'a Section<'a>,
+        section: SectionRef<'a>,
     ) -> Result<(), Error> {
-        self.collect_index_terms_from_inlines(traversal, &section.title)?;
-        let title_text = extract_heading_text(&section.title, &self.processor.references);
+        if let Some(title) = section.title() {
+            self.collect_index_terms_from_inlines(traversal, title)?;
+        }
+        let title_text = extract_heading_text(section.title(), &self.processor.references);
 
         // Track level-1 section titles for convention validation
-        if section.level == 1 {
+        if section.level() == 1 {
             self.record_section_title(&title_text);
         }
 
         let name_section_title =
             document_attribute_text((traversal).get("manname-title")).unwrap_or("Name");
         let is_name_section =
-            section.level == 1 && title_text.eq_ignore_ascii_case(name_section_title);
+            section.level() == 1 && title_text.eq_ignore_ascii_case(name_section_title);
 
         // In embedded mode, skip the name section (matches asciidoctor --embedded).
         if self.processor.options.embedded() && is_name_section {
             return Ok(());
         }
 
-        if !section.metadata.options.contains(&"notitle") {
+        if !section.options().iter().any(|option| option == "notitle") {
             // Level 1 sections use .SH, level 2+ use .SS
             // Manpage convention: uppercase section titles for level 1
             let w = self.writer_mut();
 
-            if section.level == 1 {
+            if section.level() == 1 {
                 // Main section - .SH with uppercase title
                 writeln!(
                     w,
                     ".SH \"{}\"",
                     escape_quoted(&uppercase_title(&title_text))
                 )?;
-            } else if section.level <= 2 {
+            } else if section.level() <= 2 {
                 // Subsection - .SS (preserve original case, matching asciidoctor)
                 writeln!(w, ".SS \"{}\"", escape_quoted(&title_text))?;
             } else {
                 // Levels 3+ - no roff section macro exists; render as bold paragraph heading
                 writeln!(w, ".sp")?;
                 self.render_font("\\fB", false, |visitor| {
-                    visitor.render_title_inlines(traversal, &section.title)
+                    visitor.render_title_inlines(traversal, section.title())
                 })?;
                 writeln!(self.writer_mut())?;
             }
@@ -68,10 +70,10 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         }
 
         // Keep authored content before the generated catalog.
-        for block in &section.content {
+        for block in section.blocks() {
             traversal.visit_block(self, block)?;
         }
-        if section.kind == SectionKind::Index && self.processor.has_valid_index_section {
+        if section.kind() == SectionKind::Index && self.processor.has_valid_index_section {
             self.render_index_catalog()?;
         }
 

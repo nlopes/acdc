@@ -9,8 +9,8 @@ use acdc_converters_core::{Converter, Options};
 use acdc_converters_dev::generate_fixtures::FixtureGenerator;
 use acdc_converters_pdf::{PdfOptions, Processor};
 
-fn fixture_theme(doc: &acdc_parser::Document<'_>) -> Option<std::path::PathBuf> {
-    doc.attributes
+fn fixture_theme(doc: acdc_parser::ast::DocumentRef<'_>) -> Option<std::path::PathBuf> {
+    doc.attributes()
         .get("acdc-pdf-test-theme")
         .and_then(|value| value.text())
         .map(|name| {
@@ -41,7 +41,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .build(),
             acdc_parser::Options::builder()
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .with_attributes(doc.attributes.clone().into_inputs()),
+                .with_attributes(
+                    acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+                ),
         )?
         .with_pdf_options(PdfOptions {
             emit_typst: Some(typst_path.clone()),

@@ -1,0 +1,128 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "π ",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 2
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "pass:q,c[*literal*]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 3
+            },
+            {
+              "line": 1,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 1,
+              "col": 22
+            },
+            {
+              "line": 1,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "pass:m,c[footnote:unused[Note]",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 27
+            },
+            {
+              "line": 1,
+              "col": 56
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "]",
+          "location": [
+            {
+              "line": 1,
+              "col": 57
+            },
+            {
+              "line": 1,
+              "col": 57
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": " — ",
+          "location": [
+            {
+              "line": 1,
+              "col": 58
+            },
+            {
+              "line": 1,
+              "col": 60
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 60
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 1,
+      "col": 60
+    }
+  ]
+}

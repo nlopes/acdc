@@ -36,6 +36,7 @@
       "name": "admonition",
       "type": "block",
       "variant": "note",
+      "form": "paragraph",
       "blocks": [
         {
           "name": "paragraph",
@@ -302,9 +303,12 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Author",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 25,
@@ -312,7 +316,7 @@
               },
               {
                 "line": 25,
-                "col": 15
+                "col": 14
               }
             ]
           }
@@ -371,9 +375,12 @@
         "style": "verse",
         "attribution": [
           {
-            "name": "text",
+            "name": "raw",
             "type": "string",
             "value": "Poet",
+            "substitutions": [
+              "special_chars"
+            ],
             "location": [
               {
                 "line": 30,
@@ -381,7 +388,7 @@
               },
               {
                 "line": 30,
-                "col": 13
+                "col": 12
               }
             ]
           }
@@ -656,14 +663,180 @@
                                       ]
                                     }
                                   ],
+                                  "blocks": [
+                                    {
+                                      "name": "dlist",
+                                      "type": "block",
+                                      "items": [
+                                        {
+                                          "terms": [
+                                            {
+                                              "content": [
+                                                {
+                                                  "name": "text",
+                                                  "type": "string",
+                                                  "value": "Term",
+                                                  "location": [
+                                                    {
+                                                      "line": 51,
+                                                      "col": 1
+                                                    },
+                                                    {
+                                                      "line": 51,
+                                                      "col": 4
+                                                    }
+                                                  ]
+                                                }
+                                              ],
+                                              "delimiter": "::",
+                                              "location": [
+                                                {
+                                                  "line": 51,
+                                                  "col": 1
+                                                },
+                                                {
+                                                  "line": 51,
+                                                  "col": 6
+                                                }
+                                              ]
+                                            }
+                                          ],
+                                          "definition": {
+                                            "principal": [
+                                              {
+                                                "name": "text",
+                                                "type": "string",
+                                                "value": "Description",
+                                                "location": [
+                                                  {
+                                                    "line": 51,
+                                                    "col": 8
+                                                  },
+                                                  {
+                                                    "line": 51,
+                                                    "col": 18
+                                                  }
+                                                ]
+                                              }
+                                            ],
+                                            "blocks": [],
+                                            "location": [
+                                              {
+                                                "line": 51,
+                                                "col": 8
+                                              },
+                                              {
+                                                "line": 51,
+                                                "col": 18
+                                              }
+                                            ]
+                                          },
+                                          "location": [
+                                            {
+                                              "line": 51,
+                                              "col": 1
+                                            },
+                                            {
+                                              "line": 51,
+                                              "col": 18
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "terms": [
+                                            {
+                                              "content": [
+                                                {
+                                                  "name": "text",
+                                                  "type": "string",
+                                                  "value": "Another term",
+                                                  "location": [
+                                                    {
+                                                      "line": 52,
+                                                      "col": 1
+                                                    },
+                                                    {
+                                                      "line": 52,
+                                                      "col": 12
+                                                    }
+                                                  ]
+                                                }
+                                              ],
+                                              "delimiter": "::",
+                                              "location": [
+                                                {
+                                                  "line": 52,
+                                                  "col": 1
+                                                },
+                                                {
+                                                  "line": 52,
+                                                  "col": 14
+                                                }
+                                              ]
+                                            }
+                                          ],
+                                          "definition": {
+                                            "principal": [
+                                              {
+                                                "name": "text",
+                                                "type": "string",
+                                                "value": "Another description",
+                                                "location": [
+                                                  {
+                                                    "line": 52,
+                                                    "col": 16
+                                                  },
+                                                  {
+                                                    "line": 52,
+                                                    "col": 34
+                                                  }
+                                                ]
+                                              }
+                                            ],
+                                            "blocks": [],
+                                            "location": [
+                                              {
+                                                "line": 52,
+                                                "col": 16
+                                              },
+                                              {
+                                                "line": 52,
+                                                "col": 34
+                                              }
+                                            ]
+                                          },
+                                          "location": [
+                                            {
+                                              "line": 52,
+                                              "col": 1
+                                            },
+                                            {
+                                              "line": 52,
+                                              "col": 34
+                                            }
+                                          ]
+                                        }
+                                      ],
+                                      "location": [
+                                        {
+                                          "line": 51,
+                                          "col": 1
+                                        },
+                                        {
+                                          "line": 52,
+                                          "col": 34
+                                        }
+                                      ]
+                                    }
+                                  ],
                                   "location": [
                                     {
                                       "line": 49,
                                       "col": 1
                                     },
                                     {
-                                      "line": 49,
-                                      "col": 17
+                                      "line": 52,
+                                      "col": 34
                                     }
                                   ]
                                 }
@@ -674,8 +847,8 @@
                                   "col": 1
                                 },
                                 {
-                                  "line": 49,
-                                  "col": 17
+                                  "line": 52,
+                                  "col": 34
                                 }
                               ]
                             }
@@ -686,8 +859,8 @@
                               "col": 1
                             },
                             {
-                              "line": 49,
-                              "col": 17
+                              "line": 52,
+                              "col": 34
                             }
                           ]
                         }
@@ -698,8 +871,8 @@
                           "col": 1
                         },
                         {
-                          "line": 49,
-                          "col": 17
+                          "line": 52,
+                          "col": 34
                         }
                       ]
                     }
@@ -710,8 +883,8 @@
                       "col": 1
                     },
                     {
-                      "line": 49,
-                      "col": 17
+                      "line": 52,
+                      "col": 34
                     }
                   ]
                 }
@@ -722,8 +895,8 @@
                   "col": 1
                 },
                 {
-                  "line": 49,
-                  "col": 17
+                  "line": 52,
+                  "col": 34
                 }
               ]
             }
@@ -734,8 +907,8 @@
               "col": 1
             },
             {
-              "line": 49,
-              "col": 17
+              "line": 52,
+              "col": 34
             }
           ]
         }
@@ -746,120 +919,8 @@
           "col": 1
         },
         {
-          "line": 49,
-          "col": 17
-        }
-      ]
-    },
-    {
-      "name": "dlist",
-      "type": "block",
-      "items": [
-        {
-          "term": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Term",
-              "location": [
-                {
-                  "line": 51,
-                  "col": 1
-                },
-                {
-                  "line": 51,
-                  "col": 4
-                }
-              ]
-            }
-          ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Description",
-              "location": [
-                {
-                  "line": 51,
-                  "col": 8
-                },
-                {
-                  "line": 51,
-                  "col": 18
-                }
-              ]
-            }
-          ],
-          "description": [],
-          "location": [
-            {
-              "line": 51,
-              "col": 1
-            },
-            {
-              "line": 51,
-              "col": 19
-            }
-          ]
-        },
-        {
-          "term": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Another term",
-              "location": [
-                {
-                  "line": 52,
-                  "col": 1
-                },
-                {
-                  "line": 52,
-                  "col": 12
-                }
-              ]
-            }
-          ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Another description",
-              "location": [
-                {
-                  "line": 52,
-                  "col": 16
-                },
-                {
-                  "line": 52,
-                  "col": 34
-                }
-              ]
-            }
-          ],
-          "description": [],
-          "location": [
-            {
-              "line": 52,
-              "col": 1
-            },
-            {
-              "line": 52,
-              "col": 35
-            }
-          ]
-        }
-      ],
-      "location": [
-        {
-          "line": 51,
-          "col": 1
-        },
-        {
           "line": 52,
-          "col": 35
+          "col": 34
         }
       ]
     },
@@ -1120,12 +1181,10 @@
       "name": "video",
       "type": "block",
       "form": "macro",
-      "sources": [
-        {
-          "type": "path",
-          "value": "video.mp4"
-        }
-      ],
+      "source": {
+        "type": "path",
+        "value": "video.mp4"
+      },
       "location": [
         {
           "line": 66,
@@ -1163,7 +1222,7 @@
         },
         {
           "line": 70,
-          "col": 4
+          "col": 3
         }
       ]
     },

@@ -303,11 +303,71 @@
         {
           "name": "text",
           "type": "string",
-          "value": "R03 <safe> ",
+          "value": "R03 ",
           "location": [
             {
               "line": 15,
               "col": 1
+            },
+            {
+              "line": 15,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "charref",
+          "type": "string",
+          "value": "&lt;",
+          "location": [
+            {
+              "line": 15,
+              "col": 5
+            },
+            {
+              "line": 15,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "safe",
+          "location": [
+            {
+              "line": 15,
+              "col": 5
+            },
+            {
+              "line": 15,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "charref",
+          "type": "string",
+          "value": "&gt;",
+          "location": [
+            {
+              "line": 15,
+              "col": 5
+            },
+            {
+              "line": 15,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 15,
+              "col": 5
             },
             {
               "line": 15,
@@ -393,7 +453,40 @@
         {
           "name": "text",
           "type": "string",
-          "value": " {name} & end",
+          "value": " {name} ",
+          "location": [
+            {
+              "line": 15,
+              "col": 5
+            },
+            {
+              "line": 15,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "&",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 15,
+              "col": 5
+            },
+            {
+              "line": 15,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " end",
           "location": [
             {
               "line": 15,
@@ -684,8 +777,7 @@
               "line": 19,
               "col": 35
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -804,10 +896,70 @@
         {
           "name": "text",
           "type": "string",
-          "value": " {name}\nR07 <safe> ",
+          "value": " {name}\nR07 ",
           "location": [
             {
               "line": 23,
+              "col": 5
+            },
+            {
+              "line": 24,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "&lt;",
+          "location": [
+            {
+              "line": 24,
+              "col": 5
+            },
+            {
+              "line": 24,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "safe",
+          "location": [
+            {
+              "line": 24,
+              "col": 5
+            },
+            {
+              "line": 24,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "&gt;",
+          "location": [
+            {
+              "line": 24,
+              "col": 5
+            },
+            {
+              "line": 24,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 24,
               "col": 5
             },
             {
@@ -894,7 +1046,40 @@
         {
           "name": "text",
           "type": "string",
-          "value": " {name} & end\nR08 *Strong* | https://example.org[Site]",
+          "value": " {name} ",
+          "location": [
+            {
+              "line": 24,
+              "col": 5
+            },
+            {
+              "line": 24,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "&",
+          "substitutions": [
+            "special_chars"
+          ],
+          "location": [
+            {
+              "line": 24,
+              "col": 5
+            },
+            {
+              "line": 24,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " end\nR08 *Strong* | https://example.org[Site]",
           "location": [
             {
               "line": 24,
@@ -949,6 +1134,9 @@
           "name": "raw",
           "type": "string",
           "value": "<em>",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 30,
@@ -979,6 +1167,9 @@
           "name": "raw",
           "type": "string",
           "value": "</em>",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 30,
@@ -1009,6 +1200,9 @@
           "name": "raw",
           "type": "string",
           "value": "&",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 30,
@@ -1158,8 +1352,7 @@
               "line": 35,
               "col": 21
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -1356,6 +1549,7 @@
           {
             "columns": [
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "paragraph",

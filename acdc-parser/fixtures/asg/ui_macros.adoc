@@ -1,0 +1,22 @@
+= Interface labels
+:experimental:
+:save: Save
+
+Press kbd:[Ctrl+C], kbd:[Ctrl++] and kbd:[Alt,Enter].
+
+Click btn:[{save}] and btn:[*Save*].
+
+Choose menu:File[New > Project] or "File > Save".
+
+Empty button btn:[].
+
+Empty keyboard kbd:[].
+
+Empty menu menu:File[].
+
+Nested *kbd:[Ctrl+C]*.
+
+[cols="a"]
+|===
+|Cell btn:[Apply] and menu:Edit[Copy].
+|===

@@ -1,0 +1,94 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Unused metadata",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 17
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 17
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "comment",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "////",
+      "blocks": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Hidden.",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "after",
+      "type": "attribute",
+      "value": "retained",
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 16
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 8,
+      "col": 16
+    }
+  ]
+}

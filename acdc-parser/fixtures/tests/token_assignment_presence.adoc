@@ -1,0 +1,17 @@
+Absent.
+
+[role="",opts=""]
+Empty.
+
+[roles="one two",options="first,second"]
+Populated.
+
+[.earlier%first]
+[role="",opts=""]
+Stacked.
+
+image:bird.png[role="",opts=""]
+
+link:page.html[Label,role="",opts=""]
+
+icon:star[role="",opts=""]

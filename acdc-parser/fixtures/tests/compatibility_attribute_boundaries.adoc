@@ -1,0 +1,53 @@
+= Attribute Boundaries
+
+[quote, "Ada"Notes, Book]
+____
+An adjacent character does not terminate a quoted Draft value.
+____
+
+[quote, "Ada" Notes, Book]
+____
+Whitespace can separate a quoted value from the next entry.
+____
+
+[quote, attribution = "café, λ", citetitle = 'Book']
+____
+Quoted commas and spaces around an equals sign stay inside the list.
+____
+
+[data="α"tail,role=after]
+An adjacent suffix belongs to the unquoted Draft value.
+
+[data="α,role=after]
+An unmatched quote falls back to an unquoted value.
+
+[data=""tail,role=after]
+An empty enclosure also needs a separator.
+
+[data="α",,other=λ,]
+Empty slots do not move named entries.
+
+image::diagram.svg["café"tail, width="25"height="15"]
+
+image:diagram.svg["café"tail, width="25"height="15"]
+
+audio::clip.ogg["α"tail,role=media]
+
+video::clip.webm["α"tail,width="25"height="15"]
+
+[data="α]β",role=brackets]
+Closing brackets remain inside the confined block attribute list.
+
+[data="not closed
+The next line is ordinary content.
+
+["source"suffix,rust]
+printf 'café'
+// This comment belongs to source only in Asciidoctor mode.
+
+[source,role=tail ]
+printf 'λ'
+// Draft does not recognize an attribute list with trailing whitespace.
+
+[data='α,β',title='*café*']
+Quoted Unicode content retains its authored location.

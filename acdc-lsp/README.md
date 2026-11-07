@@ -45,7 +45,7 @@ cargo build --release -p acdc-lsp
 
 The server communicates over stdio (standard input/output) using JSON-RPC, which is the standard LSP transport. You don't run it directly - your editor starts it automatically.
 
-### Analysis backend
+### Analysis backend and compatibility mode
 
 The language server analyzes documents using the `html5` backend by default, matching
 Asciidoctor. Clients that support `workspace/configuration` can set the `backend` key in
@@ -54,13 +54,14 @@ the `acdc-lsp` settings section:
 ```json
 {
   "acdc-lsp": {
-    "backend": "pdf"
+    "backend": "pdf",
+    "compatibilityMode": "draft"
   }
 }
 ```
 
 These settings are resource-scoped. In a multi-root workspace, each folder can therefore
-select a different backend; the setting for the most specific containing workspace folder
+select a different backend and compatibility mode; the settings for the most specific containing workspace folder
 wins. Changes made while the server is running take effect immediately and refresh parsed
 documents, diagnostics, semantic tokens, code lenses, inlay hints, and workspace symbols.
 
@@ -70,7 +71,8 @@ settings are loaded, use the LSP initialization options:
 ```json
 {
   "initializationOptions": {
-    "backend": "pdf"
+    "backend": "pdf",
+    "compatibilityMode": "draft"
   }
 }
 ```
@@ -80,7 +82,16 @@ Supported values are `html5`, `html5s`, `docbook5`, `manpage`, `markdown`, `pdf`
 backend controls intrinsic attributes such as `backend`, `backend-pdf`, `basebackend`,
 `filetype`, and `outfilesuffix`, so conditional blocks and attribute references are
 analyzed in the same context as conversion. A workspace setting overrides the initialization
-fallback; setting the workspace `backend` to `null` restores that fallback.
+fallback for each key. The default `compatibilityMode` is `asciidoctor`; `draft` selects
+the supported draft rules. Backend and mode are independent. Omitting a key in a pushed
+update keeps its current value; setting it to `null` restores the initialization fallback.
+Invalid values leave the settings unchanged and produce a warning. Previews use the
+same mode, including the explicit HTML5 preview. Include access limits stay unchanged.
+
+Inactive `ifdef` and `ifndef` overlays follow attribute assignments and unsets in
+source order, including selected nested includes. They use the parser's decisions
+for the configured backend and enclosing conditions. If parsing fails, the server
+keeps its best-effort raw-source conditional scan.
 
 For debugging, you can enable trace logging:
 
@@ -113,6 +124,10 @@ Save and file-rename notifications also refresh parents. For changes made outsid
 the editor, the server requests file-change notifications when the client supports
 them. These notifications cover file creation and deletion too. Without client
 file watching, an external change takes effect when the parent is parsed again.
+
+References and go-to-definition use UTF-16 character positions. Included targets
+use the original file's text, including unsaved editor buffers. A location without
+available source text is omitted instead of guessing columns.
 
 ## Editor setup
 
@@ -164,13 +179,13 @@ PDF converters directly into `acdc-lsp`. Release binaries include both. No separ
 `acdc` executable or Node.js runtime is required. To build with HTML preview only:
 
 ```bash
-cargo build -p acdc-lsp --no-default-features --features pre-spec-subs,preview
+cargo build -p acdc-lsp --no-default-features --features preview
 ```
 
-To build without preview while retaining default parser compatibility:
+To build without preview:
 
 ```bash
-cargo build -p acdc-lsp --no-default-features --features pre-spec-subs
+cargo build -p acdc-lsp --no-default-features
 ```
 
 Clients may also call `workspace/executeCommand` with command `acdc.preview`
@@ -259,7 +274,7 @@ For a project that targets PDF, put this in `.zed/settings.json`:
 ```
 
 The adapter supplies these settings through `workspace/configuration` and
-forwards `initialization_options` as a fallback. See [Analysis backend](#analysis-backend).
+forwards `initialization_options` as a fallback. See [Analysis settings](#analysis-backend-and-compatibility-mode).
 
 Tree-sitter highlighting, snippets, and editing rules remain available. These
 optional language settings enable the corresponding LSP features:

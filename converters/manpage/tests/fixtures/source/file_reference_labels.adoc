@@ -1,0 +1,45 @@
+= targets(1)
+:doctype: manpage
+:docdate: 2001-02-03
+:revdate: 2001-02-03
+
+== NAME
+
+targets - file-like anchors
+
+== SYNOPSIS
+
+targets
+
+== DESCRIPTION
+
+[#external.adoc,reftext="A *local* file label"]
+Local target.
+
+[#empty.adoc,reftext=""]
+Empty label target.
+
+[#titled,reftext=""]
+.A target title
+Titled target.
+
+[#manual.pdf,reftext="A _PDF_ label"]
+PDF target.
+
+[[external.adoc,Exact file ID]]
+Exact filename target.
+
+xref:external.adoc[]; <<external.adoc>>; xref:external.adoc[Explicit *label*]; xref:empty.adoc[]; xref:titled.adoc[]; xref:manual.pdf[]; xref:missing.adoc[]; xref:external.adoc#part[].
+
+:force-local-file-xrefs:
+
+xref:external.adoc[]; xref:missing.adoc[].
+
+:force-local-file-xrefs!:
+
+xref:external.adoc[]; xref:missing.adoc[].
+
+[#guide]
+== Guide title
+
+xref:guide.adoc[].

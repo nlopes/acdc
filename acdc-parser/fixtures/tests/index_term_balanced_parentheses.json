@@ -58,11 +58,26 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Term (R)",
+              "value": "Term ",
               "location": [
                 {
                   "line": 3,
                   "col": 7
+                },
+                {
+                  "line": 3,
+                  "col": 11
+                }
+              ]
+            },
+            {
+              "name": "symbol",
+              "type": "string",
+              "value": "®",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 12
                 },
                 {
                   "line": 3,
@@ -71,6 +86,55 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Term ",
+                  "substitutions": [
+                    "special_chars"
+                  ],
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 7
+                    },
+                    {
+                      "line": 3,
+                      "col": 11
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 12
+                    },
+                    {
+                      "line": 3,
+                      "col": 14
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 3,
+                "col": 5
+              },
+              {
+                "line": 3,
+                "col": 16
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -1387,7 +1451,7 @@
             },
             {
               "line": 35,
-              "col": 5
+              "col": 6
             }
           ]
         },
@@ -2120,11 +2184,26 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Linked (R)",
+                  "value": "Linked ",
                   "location": [
                     {
                       "line": 52,
                       "col": 32
+                    },
+                    {
+                      "line": 52,
+                      "col": 38
+                    }
+                  ]
+                },
+                {
+                  "name": "symbol",
+                  "type": "string",
+                  "value": "®",
+                  "location": [
+                    {
+                      "line": 52,
+                      "col": 39
                     },
                     {
                       "line": 52,
@@ -2133,6 +2212,55 @@
                   ]
                 }
               ],
+              "catalog": {
+                "kind": {
+                  "Flow": [
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "Linked ",
+                      "substitutions": [
+                        "special_chars"
+                      ],
+                      "location": [
+                        {
+                          "line": 52,
+                          "col": 32
+                        },
+                        {
+                          "line": 52,
+                          "col": 38
+                        }
+                      ]
+                    },
+                    {
+                      "name": "symbol",
+                      "type": "string",
+                      "value": "®",
+                      "location": [
+                        {
+                          "line": 52,
+                          "col": 39
+                        },
+                        {
+                          "line": 52,
+                          "col": 41
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "location": [
+                  {
+                    "line": 52,
+                    "col": 30
+                  },
+                  {
+                    "line": 52,
+                    "col": 43
+                  }
+                ]
+              },
               "visible": true,
               "location": [
                 {
@@ -2170,8 +2298,7 @@
               "line": 52,
               "col": 50
             }
-          ],
-          "attributes": {}
+          ]
         },
         {
           "name": "text",

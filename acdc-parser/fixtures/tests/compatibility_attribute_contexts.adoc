@@ -1,0 +1,10 @@
+= Attribute Contexts
+
+include::includes/compatibility_attribute_boundaries.adoc[lines=2..8]
+
+[cols=a]
+|===
+|["source"suffix,rust]
+printf 'λ'
+// The selected mode also controls the table cell's style.
+|===

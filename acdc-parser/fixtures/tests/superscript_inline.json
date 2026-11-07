@@ -57,11 +57,41 @@
         {
           "name": "text",
           "type": "string",
-          "value": " is Einstein's formula.",
+          "value": " is Einstein",
           "location": [
             {
               "line": 1,
               "col": 10
+            },
+            {
+              "line": 1,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "symbol",
+          "type": "string",
+          "value": "’",
+          "location": [
+            {
+              "line": 1,
+              "col": 22
+            },
+            {
+              "line": 1,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "s formula.",
+          "location": [
+            {
+              "line": 1,
+              "col": 23
             },
             {
               "line": 1,

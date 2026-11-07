@@ -1,0 +1,135 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Diagnostic primary offsets",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 28
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 28
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included body.",
+          "location": [
+            {
+              "line": 1,
+              "col": 1,
+              "file": [
+                "includes/diagnostic_plain_offsets.adoc"
+              ]
+            },
+            {
+              "line": 1,
+              "col": 14,
+              "file": [
+                "includes/diagnostic_plain_offsets.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1,
+          "file": [
+            "includes/diagnostic_plain_offsets.adoc"
+          ]
+        },
+        {
+          "line": 1,
+          "col": 14,
+          "file": [
+            "includes/diagnostic_plain_offsets.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "compat-mode",
+      "type": "attribute",
+      "value": "λ",
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 15
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "After.",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 6
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 6
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 7,
+      "col": 6
+    }
+  ]
+}

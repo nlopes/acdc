@@ -7,6 +7,8 @@
 
 use std::{borrow::Cow, num::NonZeroU32};
 
+use crate::ast::{BlockKind, BlockRef, CaptionRef};
+
 use super::{AttributeValue, Block, BlockMetadata, DelimitedBlockType, DocumentAttributes, Table};
 
 /// The caption a titled block takes.
@@ -31,6 +33,8 @@ pub enum Caption<'a> {
     },
     /// An explicit prefix, which takes no ordinal.
     Custom(Cow<'a, str>),
+    /// An explicitly authored caption prefix with parsed inline content.
+    CustomContent(super::ContentAttribute<'a>),
     /// Caption-capable, but no prefix applies.
     Unnumbered,
 }
@@ -59,33 +63,41 @@ impl CaptionKind {
         }
     }
 
-    /// The caption category for a parsed block, or `None` when the block takes no caption.
+    /// The caption category for the block's current form and style.
     ///
-    /// Classification follows the block's effective context rather than its AST variant alone,
-    /// matching asciidoctor: a delimiter that carries a caption context of its own keeps it, so
-    /// `[listing]` on `====` is still an example. A style only changes the context of the
-    /// verbatim delimiters and of the open block, which carry none.
-    pub(crate) fn for_block(block: &Block<'_>) -> Option<Self> {
-        match block {
-            Block::DelimitedBlock(delimited) => {
-                Self::for_delimited(&delimited.inner, delimited.metadata.style)
-            }
-            Block::Paragraph(paragraph) => Self::for_style(paragraph.metadata.style),
-            Block::Image(_) => Some(Self::Figure),
-            Block::Section(_)
-            | Block::Admonition(_)
-            | Block::DiscreteHeader(_)
-            | Block::PageBreak(_)
-            | Block::ThematicBreak(_)
-            | Block::TableOfContents(_)
-            | Block::UnorderedList(_)
-            | Block::OrderedList(_)
-            | Block::CalloutList(_)
-            | Block::DescriptionList(_)
-            | Block::Audio(_)
-            | Block::Video(_)
-            | Block::DocumentAttribute(_)
-            | Block::Comment(_) => None,
+    /// A delimiter with its own caption context keeps it: `[listing]` on `====`
+    /// still selects [`Self::Example`]. Read resolved labels and ordinals with
+    /// [`CaptionRef::resolve`].
+    #[must_use]
+    pub fn for_block(block: BlockRef<'_>) -> Option<Self> {
+        match block.kind() {
+            BlockKind::Paragraph(paragraph) => Self::for_style(paragraph.style()),
+            BlockKind::Image(_) => Some(Self::Figure),
+            BlockKind::Example(_) => Some(Self::Example),
+            BlockKind::Table(_) => Some(Self::Table),
+            BlockKind::Listing(listing) => Self::for_verbatim(listing.style(), Some(Self::Listing)),
+            BlockKind::Literal(literal) => Self::for_verbatim(literal.style(), None),
+            BlockKind::Open(open) => Self::for_style(open.style()),
+            BlockKind::Section(_)
+            | BlockKind::Admonition(_)
+            | BlockKind::DiscreteHeader(_)
+            | BlockKind::PageBreak(_)
+            | BlockKind::ThematicBreak(_)
+            | BlockKind::TableOfContents(_)
+            | BlockKind::UnorderedList(_)
+            | BlockKind::OrderedList(_)
+            | BlockKind::CalloutList(_)
+            | BlockKind::DescriptionList(_)
+            | BlockKind::Audio(_)
+            | BlockKind::Video(_)
+            | BlockKind::Comment(_)
+            | BlockKind::DocumentAttribute(_)
+            | BlockKind::DelimitedComment(_)
+            | BlockKind::Sidebar(_)
+            | BlockKind::Passthrough(_)
+            | BlockKind::Quote(_)
+            | BlockKind::Verse(_)
+            | BlockKind::Stem(_) => None,
         }
     }
 
@@ -206,6 +218,12 @@ impl<'a> Caption<'a> {
         attributes: &DocumentAttributes<'a>,
         kind: CaptionKind,
     ) -> Self {
+        if let Some(caption @ Self::CustomContent(_)) = &metadata.caption {
+            if kind == CaptionKind::Example && metadata.options.contains(&"collapsible") {
+                return Self::Custom(Cow::Borrowed(""));
+            }
+            return caption.clone();
+        }
         match caption_source(metadata, attributes, kind) {
             CaptionSource::Custom(value) => Self::Custom(borrowed_label(value)),
             CaptionSource::Numbered(value) => Self::Numbered {
@@ -219,6 +237,26 @@ impl<'a> Caption<'a> {
 }
 
 impl Caption<'static> {
+    pub(crate) fn resolve_ref<'value>(
+        metadata: &'value BlockMetadata<'value>,
+        attributes: &'value DocumentAttributes<'value>,
+        fallback: Option<CaptionKind>,
+    ) -> Option<CaptionRef<'value>> {
+        if let Some(caption) = metadata.caption.as_ref() {
+            return Some(CaptionRef::from(caption));
+        }
+        let kind = fallback?;
+        Some(match caption_source(metadata, attributes, kind) {
+            CaptionSource::Custom(value) => CaptionRef::Custom(value.map_or("", AsRef::as_ref)),
+            CaptionSource::Numbered(value) => CaptionRef::Numbered {
+                kind,
+                label: value.map_or("", AsRef::as_ref),
+                number: None,
+            },
+            CaptionSource::None => CaptionRef::Unnumbered,
+        })
+    }
+
     /// [`Caption::resolve`] for metadata and attributes whose lifetimes are unrelated, as a
     /// converter's are: its stored attributes are independent of the borrowed document. Owns its
     /// strings, and sets no ordinal.
@@ -320,7 +358,9 @@ fn visit_captions(blocks: &[Block<'_>], visit: &mut impl FnMut(&Caption<'_>)) {
             }
             Block::DescriptionList(list) => {
                 for item in &list.items {
-                    visit_captions(&item.description, visit);
+                    if let Some(definition) = &item.definition {
+                        visit_captions(&definition.blocks, visit);
+                    }
                 }
             }
             Block::DelimitedBlock(delimited) => match &delimited.inner {
@@ -402,7 +442,9 @@ fn renumber_children(block: &mut Block<'_>, counters: &mut CaptionCounters) {
         }
         Block::DescriptionList(list) => {
             for item in &mut list.items {
-                renumber_blocks(&mut item.description, counters);
+                if let Some(definition) = &mut item.definition {
+                    renumber_blocks(&mut definition.blocks, counters);
+                }
             }
         }
         Block::DelimitedBlock(delimited) => match &mut delimited.inner {

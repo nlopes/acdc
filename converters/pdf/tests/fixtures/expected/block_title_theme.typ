@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#b91c1c"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 1.2em, weight: 600, style: "normal", fill: rgb("#b91c1c"), body)
 }
 #let blocktitle(body) = {

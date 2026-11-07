@@ -13,7 +13,7 @@
 //! use acdc_converters_core::icon::IconMode;
 //! use acdc_parser::DocumentAttributes;
 //!
-//! let attrs = document.attributes;
+//! let attrs = DocumentAttributes::from(document.attributes());
 //! let mode = IconMode::from(&attrs);
 //! match mode {
 //!     IconMode::Font => println!("Using font or built-in glyph icons"),
@@ -24,7 +24,10 @@
 
 use std::borrow::Cow;
 
-use acdc_parser::{DocumentAttributes, ElementAttributes, Source, strip_quotes};
+use acdc_parser::{
+    ContentAttribute, DocumentAttributes, Source,
+    ast::{ContentRef, SourceKind, SourceRef},
+};
 
 use crate::TraversalContext;
 
@@ -33,16 +36,53 @@ use crate::TraversalContext;
 /// An explicit `alt` attribute takes precedence. Otherwise, hyphens and
 /// underscores in the icon target become spaces.
 #[must_use]
-pub fn alt<'a>(target: &Source<'a>, attributes: &ElementAttributes<'a>) -> Cow<'a, str> {
-    attributes
-        .get_string("alt")
-        .unwrap_or_else(|| match target {
-            Source::Name(name) if !name.contains(['-', '_']) => Cow::Borrowed(name),
-            Source::Name(name) => Cow::Owned(name.replace(['-', '_'], " ")),
-            Source::Path(_) | Source::Url(_) => {
-                Cow::Owned(target.to_string().replace(['-', '_'], " "))
-            }
-        })
+pub fn alt<'a>(target: &Source<'a>, content: Option<&ContentAttribute<'_>>) -> Cow<'a, str> {
+    resolve_alt(
+        || match target {
+            Source::Name(name) => Cow::Borrowed(*name),
+            Source::Path(_) | Source::Url(_) => Cow::Owned(target.to_string()),
+        },
+        content.map(ContentRef::from),
+    )
+}
+
+/// Resolve an icon alternative from a typed target and optional content.
+///
+/// Explicit content, including an empty value, produces owned plain text.
+/// Otherwise, a symbolic name without hyphens or underscores is borrowed;
+/// other targets produce owned text with those characters replaced by spaces.
+#[must_use]
+pub fn alt_from_content<'a>(
+    target: SourceRef<'a>,
+    content: Option<ContentRef<'_>>,
+) -> Cow<'a, str> {
+    resolve_alt(
+        || match target.kind() {
+            SourceKind::Name(name) => Cow::Borrowed(name),
+            SourceKind::Path(_) | SourceKind::Url(_) | _ => Cow::Owned(target.to_string()),
+        },
+        content,
+    )
+}
+
+fn resolve_alt<'a>(
+    target: impl FnOnce() -> Cow<'a, str>,
+    content: Option<ContentRef<'_>>,
+) -> Cow<'a, str> {
+    if let Some(content) = content {
+        return Cow::Owned(
+            crate::inline_text::InlineTextTransform::default()
+                .rendered()
+                .decode_char_refs(true)
+                .content_to_string(content),
+        );
+    }
+    let target = target();
+    if target.contains(['-', '_']) {
+        Cow::Owned(target.replace(['-', '_'], " "))
+    } else {
+        target
+    }
 }
 
 /// Build the logical image source for an icon.
@@ -50,32 +90,13 @@ pub fn alt<'a>(target: &Source<'a>, attributes: &ElementAttributes<'a>) -> Cow<'
 /// `iconsdir` defaults to `./images/icons`. An explicit `icontype` takes
 /// precedence over an image format supplied through `icons`, and the default
 /// extension is `png`.
+/// Accepts typed sources and existing source references.
 #[must_use]
-pub fn image_source(attributes: &TraversalContext<'_>, target: &Source<'_>) -> String {
-    let directory = attributes
-        .get("iconsdir")
-        .and_then(|value| value.text())
-        .map_or("./images/icons", strip_quotes);
-    let extension = attributes
-        .get("icontype")
-        .and_then(|value| value.text())
-        .map(strip_quotes)
-        .or_else(|| {
-            attributes
-                .get("icons")
-                .and_then(|value| value.text())
-                .map(strip_quotes)
-                .filter(|value| !value.is_empty() && *value != "image" && *value != "font")
-        })
-        .unwrap_or("png");
-    let directory = directory.trim_end_matches(['/', '\\']);
-    let extension = extension.trim_start_matches('.');
-
-    if directory.is_empty() {
-        format!("{target}.{extension}")
-    } else {
-        format!("{directory}/{target}.{extension}")
-    }
+pub fn image_source<'doc>(
+    attributes: &TraversalContext<'_>,
+    target: impl Into<SourceRef<'doc>>,
+) -> String {
+    custom_image_source(attributes, &target.into().to_string())
 }
 
 /// Icon rendering mode.
@@ -116,6 +137,43 @@ impl IconMode {
     }
 }
 
+/// Resolve an `icon=` override relative to `iconsdir`, adding the configured
+/// extension when the override has none. Absolute targets retain their directory.
+#[must_use]
+pub fn custom_image_source(attributes: &TraversalContext<'_>, target: &str) -> String {
+    let target = if std::path::Path::new(target.split(['?', '#']).next().unwrap_or(target))
+        .extension()
+        .is_some()
+    {
+        Cow::Borrowed(target)
+    } else {
+        let extension = crate::document_attribute_text((attributes).get("icontype"))
+            .or_else(|| {
+                crate::document_attribute_text((attributes).get("icons"))
+                    .filter(|value| !value.is_empty() && *value != "image" && *value != "font")
+            })
+            .unwrap_or("png");
+        Cow::Owned(format!("{target}.{}", extension.trim_start_matches('.')))
+    };
+    if target.starts_with('/') || target.contains("://") {
+        return target.into_owned();
+    }
+    let directory = crate::document_attribute_text((attributes).get("iconsdir")).map_or_else(
+        || {
+            crate::document_attribute_text((attributes).get("imagesdir")).map_or_else(
+                || "./images/icons".to_string(),
+                |imagesdir| format!("{}/icons", imagesdir.trim_end_matches(['/', '\\'])),
+            )
+        },
+        |iconsdir| iconsdir.trim_end_matches(['/', '\\']).to_string(),
+    );
+    if directory.is_empty() {
+        target.into_owned()
+    } else {
+        format!("{directory}/{target}")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::borrow::Cow;
@@ -123,6 +181,15 @@ mod tests {
     use acdc_parser::{AttributeValue, Options};
 
     use super::*;
+
+    #[test]
+    fn default_alt_can_outlive_the_source_wrapper() {
+        let text = {
+            let target = Source::Name("arrow");
+            alt(&target, None)
+        };
+        assert!(matches!(text, Cow::Borrowed("arrow")));
+    }
 
     #[test]
     fn mode_matches_asciidoctor_attribute_semantics() -> Result<(), Box<dyn std::error::Error>> {
@@ -209,12 +276,11 @@ mod tests {
     #[test]
     fn alt_prefers_explicit_text_then_normalizes_the_target() {
         let target = Source::Name("arrow-left");
-        let mut attributes = ElementAttributes::default();
-
-        assert_eq!(alt(&target, &attributes), "arrow left");
-
-        attributes.set("alt".into(), AttributeValue::String(Cow::Borrowed("Back")));
-        assert_eq!(alt(&target, &attributes), "Back");
+        assert_eq!(alt(&target, None), "arrow left");
+        let content = ContentAttribute::new(vec![acdc_parser::InlineNode::PlainText(
+            acdc_parser::Plain::new("Back", acdc_parser::Location::default()),
+        )]);
+        assert_eq!(alt(&target, Some(&content)), "Back");
     }
 
     #[test]

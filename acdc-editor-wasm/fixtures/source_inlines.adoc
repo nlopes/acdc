@@ -1,0 +1,22 @@
+= Source *title*: _Subtitle_
+:experimental:
+:rich: *Expanded*
+
+[#section]
+== Inline source
+
+π 😀 *bold* **unconstrained** _italic_ __unconstrained__ `code` ``unconstrained`` #marked# ##unconstrained## ~subscript~ ^superscript^.
+
+"`*Quotation*`" and '`_apostrophe_`' with (C), ... and &amp;.
+
+{rich} beside authored *formatting*.
+
+image:bird.svg[*Alternative*,title='Tooltip',link=https://example.org/image] icon:heart[title=Heart]
+
+link:https://example.org[Link] https://example.org[Website] mailto:team@example.org[Team] <<section,Section>>
+
+btn:[*Save*] kbd:[Ctrl+S] menu:File[Open > *Recent*]
+
+footnote:note[A *formatted* note] footnote:note[] indexterm:[Primary,Secondary] ((Visible))
+
+pass:[<b>Raw</b>] +protected <text>+ stem:[x^2] [[inline]]Anchor.

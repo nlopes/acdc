@@ -15,20 +15,18 @@ use crate::{
     },
 };
 
+pub(crate) fn canonical_attribute_name(name: &str) -> &str {
+    match name {
+        "roles" => "role",
+        "options" => "opts",
+        name => name,
+    }
+}
+
 pub(crate) type RawAttributes<'a> = FxHashMap<AttributeName<'a>, AttributeValue<'a>>;
 
 pub const MAX_TOC_LEVELS: u8 = 5;
 pub const MAX_SECTION_LEVELS: u8 = 5;
-
-/// Strip surrounding single or double quotes from a string.
-///
-/// Attribute values in `AsciiDoc` can be quoted with either single or double quotes.
-/// This function strips the outermost matching quotes from both ends.
-#[must_use]
-pub fn strip_quotes(s: &str) -> &str {
-    s.trim_start_matches(['"', '\''])
-        .trim_end_matches(['"', '\''])
-}
 
 /// A defined document attribute, including its retained text representation.
 ///
@@ -59,6 +57,15 @@ pub(crate) struct AttributeInlineFragment {
     // never store rendered markup or declaration-specific AST locations.
     pub(crate) range: Range<usize>,
     pub(crate) substitutions: Box<[crate::Substitution]>,
+    // Earlier stages see authored references; their values stay frozen.
+    pub(crate) source: Option<Arc<AttributeInlineSource>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct AttributeInlineSource {
+    pub(crate) text: Box<str>,
+    // An absent value keeps a later definition from capturing an unresolved name.
+    pub(crate) references: Box<[(Box<str>, Option<DocumentAttributeValue<'static>>)]>,
 }
 
 impl<'a> DocumentAttributeValue<'a> {
@@ -190,18 +197,13 @@ impl<'a> DocumentAttributeValue<'a> {
         }
     }
 
-    fn serialized_value(&self, presence_as_empty: bool) -> SerializedDocumentAttributeValue<'_> {
+    fn serialized_value(&self) -> SerializedDocumentAttributeValue<'_> {
         match &self.0 {
             ValueKind::Text(value) | ValueKind::Passthrough { text: value, .. } => {
                 SerializedDocumentAttributeValue::Text(value)
             }
-            ValueKind::Presence if presence_as_empty => SerializedDocumentAttributeValue::Text(""),
             ValueKind::Presence => SerializedDocumentAttributeValue::Bool(true),
-            ValueKind::Integer { value, source } => match source.as_deref() {
-                Some("") => SerializedDocumentAttributeValue::Bool(true),
-                Some(text) => SerializedDocumentAttributeValue::Text(text),
-                None => SerializedDocumentAttributeValue::Integer(*value),
-            },
+            ValueKind::Integer { value, .. } => SerializedDocumentAttributeValue::Integer(*value),
         }
     }
 
@@ -238,6 +240,7 @@ impl<'a> DocumentAttributeValue<'a> {
                     fragments.push(AttributeInlineFragment {
                         range: range.clone(),
                         substitutions: Box::default(),
+                        source: None,
                     });
                 }
             }
@@ -264,7 +267,15 @@ impl<'a> From<Cow<'a, str>> for DocumentAttributeValue<'a> {
 impl<'a> From<&'a DocumentAttributeAssignment<'_>> for AttributeValue<'a> {
     fn from(assignment: &'a DocumentAttributeAssignment<'_>) -> Self {
         match assignment {
-            DocumentAttributeAssignment::Set(value) => value.as_borrowed().into_input(),
+            DocumentAttributeAssignment::Set(value) => {
+                if let Some(text) = value.text() {
+                    Self::String(Cow::Borrowed(text))
+                } else if let Some(integer) = value.as_integer() {
+                    Self::String(Cow::Owned(integer.to_string()))
+                } else {
+                    Self::Bool(true)
+                }
+            }
             DocumentAttributeAssignment::Unset => Self::Bool(false),
         }
     }
@@ -328,12 +339,9 @@ impl<'a> DocumentAttributeAssignment<'a> {
         self.value().and_then(DocumentAttributeValue::stored_text)
     }
 
-    pub(crate) fn serialized_value(
-        &self,
-        presence_as_empty: bool,
-    ) -> SerializedDocumentAttributeValue<'_> {
+    pub(crate) fn serialized_value(&self) -> SerializedDocumentAttributeValue<'_> {
         match self {
-            Self::Set(value) => value.serialized_value(presence_as_empty),
+            Self::Set(value) => value.serialized_value(),
             Self::Unset => SerializedDocumentAttributeValue::Bool(false),
         }
     }
@@ -594,6 +602,9 @@ impl<'a> DocumentAttributes<'a> {
     ///
     /// Universal defaults remain implicit. Rebuilding options determines the new
     /// assignment precedence; parser-internal locks and origins are not exported.
+    /// Prepared substitution rules are discarded. Use
+    /// [`crate::Options::with_document_attributes`] to reuse a parsed snapshot
+    /// with those rules intact.
     pub fn into_inputs(self) -> impl Iterator<Item = (AttributeName<'a>, AttributeValue<'a>)> {
         self.into_input_map().into_iter()
     }
@@ -663,7 +674,7 @@ impl<'a> DocumentAttributes<'a> {
                 DocumentAttributeAssignment::Set(DocumentAttributeValue::from(value)),
                 None,
             ),
-            AssignmentState::PROCESSOR,
+            AssignmentState::DERIVED,
         );
     }
 
@@ -678,10 +689,15 @@ impl<'a> DocumentAttributes<'a> {
         }
     }
 
-    /// Refresh derived metadata without replacing caller overrides or document assignments.
+    /// Refresh generated text or processor defaults, retaining caller locks and source assignments.
     pub(crate) fn set_derived_text(&mut self, name: AttributeName<'a>, value: Cow<'a, str>) {
         match self.entry(&name) {
-            Some(entry) if entry.state.origin == AttributeOrigin::Processor => {
+            Some(entry)
+                if matches!(
+                    entry.state.origin,
+                    AttributeOrigin::Processor | AttributeOrigin::Derived
+                ) =>
+            {
                 self.set_text(name, value);
             }
             None => self.insert_text(name, value),
@@ -812,6 +828,15 @@ impl<'a> DocumentAttributes<'a> {
             if is_intrinsic(name) {
                 current.insert(name.clone(), value.clone());
             }
+        }
+    }
+
+    pub(crate) fn remove_derived_attributes(&mut self, matches: impl Fn(&str) -> bool) {
+        let previous_len = self.entries.len();
+        self.entries
+            .retain(|name, entry| entry.state.origin != AttributeOrigin::Derived || !matches(name));
+        if self.entries.len() != previous_len {
+            self.rebuild_entry_filter();
         }
     }
 
@@ -1114,7 +1139,7 @@ impl Serialize for DocumentAttributes<'_> {
 
         let mut state = serializer.serialize_map(Some(entries.len()))?;
         for (name, entry) in entries {
-            state.serialize_entry(name, &entry.assignment.serialized_value(name == "toc"))?;
+            state.serialize_entry(name, &entry.assignment.serialized_value())?;
         }
         state.end()
     }
@@ -1234,7 +1259,7 @@ mod document_attribute_tests {
             Some(8)
         );
         assert!(!attributes.is_empty());
-        assert_eq!(to_value(&attributes)?, json!({ "max-include-depth": "8" }));
+        assert_eq!(to_value(&attributes)?, json!({ "max-include-depth": 8 }));
         Ok(())
     }
 
@@ -1604,14 +1629,11 @@ impl<'a> ElementAttributes<'a> {
 
     /// Get a text attribute, borrowing its content when possible.
     ///
-    /// Strips surrounding quotes from the value if present.
+    /// Returns the stored value without interpreting quote characters.
     #[must_use]
     pub fn get_string(&self, name: &str) -> Option<Cow<'a, str>> {
         self.get(name).and_then(|v| match v {
-            AttributeValue::String(s) => Some(match s {
-                Cow::Borrowed(b) => Cow::Borrowed(strip_quotes(b)),
-                Cow::Owned(o) => Cow::Owned(strip_quotes(o).to_string()),
-            }),
+            AttributeValue::String(s) => Some(s.clone()),
             AttributeValue::None | AttributeValue::Bool(_) => None,
         })
     }
@@ -1627,17 +1649,7 @@ impl Serialize for ElementAttributes<'_> {
 
         let mut state = serializer.serialize_map(Some(entries.len()))?;
         for (key, value) in entries {
-            match value {
-                AttributeValue::Bool(true) if key == "toc" => {
-                    state.serialize_entry(key, "")?;
-                }
-                AttributeValue::Bool(true) => {
-                    state.serialize_entry(key, &true)?;
-                }
-                AttributeValue::Bool(false) | AttributeValue::String(_) | AttributeValue::None => {
-                    state.serialize_entry(key, value)?;
-                }
-            }
+            state.serialize_entry(key, value)?;
         }
         state.end()
     }
@@ -1647,6 +1659,31 @@ impl Serialize for ElementAttributes<'_> {
 mod element_attribute_tests {
     use super::{AttributeValue, ElementAttributes};
     use serde_json::{Error, json, to_value};
+
+    #[test]
+    fn string_reads_preserve_semantic_quotes_and_empty_values() {
+        use std::borrow::Cow;
+
+        for text in ["", "plain", "'π'", "\"π\"", "''", "\"α\"tail", "head'"] {
+            let mut attributes = ElementAttributes::default();
+            attributes.set("value".into(), text.into());
+            assert!(
+                matches!(attributes.get_string("value"), Some(Cow::Borrowed(value)) if value == text)
+            );
+            attributes.set("value".into(), text.to_owned().into());
+            assert_eq!(attributes.get_string("value").as_deref(), Some(text));
+        }
+        let mut attributes = ElementAttributes::default();
+        for value in [
+            AttributeValue::None,
+            AttributeValue::Bool(false),
+            AttributeValue::Bool(true),
+        ] {
+            attributes.set("value".into(), value);
+            assert!(attributes.get_string("value").is_none());
+        }
+        assert!(attributes.get_string("missing").is_none());
+    }
 
     #[test]
     fn insert_set_and_merge_preserve_existing_value_rules() -> Result<(), Error> {
@@ -1691,7 +1728,7 @@ mod element_attribute_tests {
         ] {
             attributes.set(name.into(), value);
         }
-        let expected = r#"{"false":false,"none":null,"present":true,"text":"value","toc":""}"#;
+        let expected = r#"{"false":false,"none":null,"present":true,"text":"value","toc":true}"#;
         assert_eq!(serde_json::to_string(&attributes)?, expected);
         assert_eq!(serde_json::to_string(&attributes.into_static())?, expected);
         Ok(())

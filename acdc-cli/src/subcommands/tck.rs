@@ -15,7 +15,10 @@
 //!
 //! ## Output format:
 //!
-//! Serialized AST as JSON to stdout, matching the spec's JSON representation.
+//! A smaller projection of the pinned ASG draft: derived caption state and
+//! unreferenced generated heading IDs are omitted. Native AST and regular ASG
+//! exports are unchanged. Unsupported constructs return an error before output.
+//! Passing the TCK does not imply full language conformance.
 //!
 //! ## Usage:
 //!
@@ -23,24 +26,16 @@
 //! echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' | acdc tck
 //! ```
 
-use std::io::{self, BufReader, Write};
+use std::{
+    io::{self, BufReader},
+    path::Path,
+};
 
 use serde::Deserialize;
 
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error(transparent)]
-    Deserialize(#[from] serde_json::Error),
+use super::json::{self, Error, Format};
 
-    #[error(transparent)]
-    Io(#[from] io::Error),
-
-    #[error("Parsing error: {0}")]
-    Parse(#[from] acdc_parser::Error),
-
-    #[error("unsupported TCK type `{0}`; expected `block` or `inline`")]
-    UnsupportedType(String),
-}
+mod projection;
 
 #[derive(Debug, Deserialize)]
 struct TckInput {
@@ -64,26 +59,25 @@ pub fn run(_args: &Args) -> Result<(), Error> {
         "processing TCK input",
     );
 
-    // Parse the AsciiDoc content based on type
     let parser_options = acdc_parser::Options::builder()
+        .with_compatibility_mode(acdc_parser::CompatibilityMode::Draft)
         .with_safe_mode(acdc_parser::SafeMode::Unsafe)
         .build()?;
 
-    let mut stdout = io::stdout();
-    match tck_input.r#type.as_str() {
+    let asg = match tck_input.r#type.as_str() {
         "block" => {
             let parsed = acdc_parser::parse(&tck_input.contents, &parser_options)?;
-            serde_json::to_writer(&stdout, parsed.document())?;
+            json::warnings(parsed.warnings())?;
+            projection::document(parsed.document())?
         }
         "inline" => {
             let parsed = acdc_parser::parse_inline(&tck_input.contents, &parser_options)?;
-            serde_json::to_writer(&stdout, parsed.inlines())?;
+            json::warnings(parsed.warnings())?;
+            json::inlines(&parsed, Format::UpstreamAsg)?
         }
         other => {
             return Err(Error::UnsupportedType(other.to_owned()));
         }
-    }
-    stdout.flush()?;
-
-    Ok(())
+    };
+    json::write(&asg, Path::new("-"))
 }

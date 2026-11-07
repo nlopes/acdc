@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -86,7 +87,7 @@
 
 #text("B01 ")#strong[#text("source")]#text(" *bold* (C) link:https://example.org[Link].")
 
-#text("B02 ")#strong[#text("source")]#text(" *bold* © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("B02 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")
 
 #text("B03 ")#strong[#text("bold")]#text(" (C) link:https://example.org[Link].")
 
@@ -94,7 +95,7 @@
 
 #text("B05 *source* *bold* (C) link:https://example.org[Link].")
 
-#text("B06 ")#strong[#text("source")]#text(" *bold* © link:https://example.org[Link].")
+#text("B06 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" link:https://example.org[Link].")
 
 #text("B07 *source* *bold* (C) link:https://example.org[Link].")
 
@@ -232,10 +233,10 @@
 }
 #raw(block: true, "B20 *source* *bold* (C) link:https://example.org[Link] <1>.")
 
-#text("B21 ")#strong[#text("source")]#text(" *bold* © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("B21 ")#strong[#text("source")]#text(" *bold* ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")
 
 #text("B22 footnote:[Literal note.] anchor:literal[] indexterm:[Literal].")
 
 #text("B23 café ")#strong[#text("accentué")]#text(" *bold*.")
 
-#text("B24 ")#strong[#text("defaults restored")]#text(" © ")#link("https://example.org")[#text("Link")]#text(".")
+#text("B24 ")#strong[#text("defaults restored")]#text(" ")#text("©")#text(" ")#link("https://example.org")[#text("Link")]#text(".")

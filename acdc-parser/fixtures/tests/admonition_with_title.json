@@ -6,6 +6,7 @@
       "name": "admonition",
       "type": "block",
       "variant": "note",
+      "form": "paragraph",
       "title": [
         {
           "name": "text",

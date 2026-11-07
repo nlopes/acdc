@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Description-list excerpts retain every term in a shared group and show its
+  definition and attached blocks once.
+
+- `adoc_links` includes inline-image and icon `link=` targets and links in retained captions, alternative text, tooltips, reference labels, and UI content. Each owned occurrence is reported once, with its original source location. Mail links no longer repeat the `mailto:` scheme.
+
+- Anchored paragraphs and thematic breaks now appear in the tree and can be selected by their retained IDs. Tree, exact selectors and reference resolution use the same primary and alias identities. Normalized block output retains the primary anchor.
+
+- Character-reference nodes retain their reference spelling in AsciiDoc responses and use character values in plain-text responses.
+
+- Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+
+### Added
+
+- Select Asciidoctor compatibility (the default) or Draft with
+  `--compatibility-mode asciidoctor|draft`. All document tools use that mode,
+  including includes and table cells. Root and include access rules stay the
+  same. Continuation cursors cannot be reused after changing the mode.
+
+### Fixed
+
+- Preserve resolved typography in extracted document text.
+
+- Legacy underlined headings are recognized in every build, following the
+  default Asciidoctor mode. The `setext` feature no longer changes document
+  structure.
+
+- Document rendering reads image alternative text and formatted UI labels from
+  the current parser API. Video playlists retain their source text.
+- The workspace manifest can be read by the parser's minimum supported Rust
+  version, 1.88.
+
 ### Changed
 
 - `adoc_find` and fuzzy title lookup now use case-insensitive Unicode fuzzy matching. Use short terms or abbreviations; all space-separated terms must match, with no English stopword or shared-prefix rules.

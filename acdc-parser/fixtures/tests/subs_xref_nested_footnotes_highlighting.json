@@ -94,6 +94,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -188,6 +189,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -208,7 +210,6 @@
                   "name": "footnote",
                   "type": "inline",
                   "id": "code",
-                  "inlines": [],
                   "location": [
                     {
                       "line": 12,
@@ -266,6 +267,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "footnote",
@@ -343,6 +345,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -445,6 +448,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -555,6 +559,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -580,6 +585,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "{name} *literal* (C).",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 28,
@@ -665,6 +673,7 @@
               "name": "xref",
               "type": "inline",
               "target": "target",
+              "target_is_local": true,
               "inlines": [
                 {
                   "name": "text",
@@ -737,11 +746,41 @@
                     {
                       "name": "text",
                       "type": "string",
-                      "value": " (C).",
+                      "value": " ",
                       "location": [
                         {
                           "line": 33,
                           "col": 43
+                        },
+                        {
+                          "line": 33,
+                          "col": 43
+                        }
+                      ]
+                    },
+                    {
+                      "name": "symbol",
+                      "type": "string",
+                      "value": "©",
+                      "location": [
+                        {
+                          "line": 33,
+                          "col": 44
+                        },
+                        {
+                          "line": 33,
+                          "col": 46
+                        }
+                      ]
+                    },
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": ".",
+                      "location": [
+                        {
+                          "line": 33,
+                          "col": 47
                         },
                         {
                           "line": 33,

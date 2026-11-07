@@ -1,0 +1,2 @@
+# Generated Markdown uses trailing spaces for hard line breaks.
+*.md whitespace=-blank-at-eol

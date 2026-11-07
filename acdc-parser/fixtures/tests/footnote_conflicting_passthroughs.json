@@ -123,7 +123,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "markup",
-          "inlines": [],
           "location": [
             {
               "line": 6,
@@ -263,7 +262,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "attribute",
-          "inlines": [],
           "location": [
             {
               "line": 12,
@@ -357,7 +355,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "same",
-          "inlines": [],
           "location": [
             {
               "line": 14,
@@ -451,7 +448,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "macro",
-          "inlines": [],
           "location": [
             {
               "line": 17,

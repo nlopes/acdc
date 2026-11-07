@@ -23,6 +23,7 @@
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  show emph: it => text(style: "italic", it.body)
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
@@ -110,7 +111,7 @@
 
 #block(width: 100%, breakable: false)[
 #docimage("/images/de454d7e4e1cfda7.svg", alt: "Block empty", width: 60pt)
-#imagecaption[#text("")#text("Empty block prefix")]
+#imagecaption[#text("Empty block prefix")]
 ]
 
 #block(width: 100%, breakable: false)[

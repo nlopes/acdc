@@ -1,0 +1,48 @@
+'\" t
+.\"     Title: empty-profiles
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-01-01
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "EMPTY\-PROFILES" "1" "2026-01-01" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+empty\-profiles \- empty profile context
+.SH "DESCRIPTION"
+.sp
+ \(em \&
+.sp
+ \(em \&
+.sp
+ \(em \&
+.sp
+ \(em \&
+.sp
+left\(emright
+.sp
+left \(em right
+.sp
+left \(em right
+.sp
+Sam\(cqs

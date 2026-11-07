@@ -1,0 +1,34 @@
+= Expanded named titles
+:word: *Bold*
+:inner: _Nested_
+:outer: \{inner}
+
+[title='{word}']
+Single quoted.
+
+[title="{word}"]
+Double quoted.
+
+[title={word}]
+Unquoted.
+
+.{word}
+Dot title.
+
+[title='{outer}']
+Nested reference.
+
+[title='\{word}']
+Escaped reference.
+
+[title='++{word}++']
+Protected after list expansion.
+
+[title='pass:q[{word}]']
+Formatting passthrough.
+
+[title='Before {word} after']
+Adjacent authored text.
+
+[title='']
+Empty title.

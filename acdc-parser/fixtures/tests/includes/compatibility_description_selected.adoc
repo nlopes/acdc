@@ -1,0 +1,4 @@
+Excluded.
+Wrapped π paragraph.
+Term:: Still included paragraph text.
+Excluded tail.

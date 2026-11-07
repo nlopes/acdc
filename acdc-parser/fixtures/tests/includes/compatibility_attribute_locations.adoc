@@ -1,0 +1,7 @@
+This line is not selected.
+[quote,"{author}","λ"]
+____
+An included attribution points into the included file.
+____
+
+This line is not selected either.

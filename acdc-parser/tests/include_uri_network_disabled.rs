@@ -7,7 +7,11 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use acdc_parser::{Block, InlineNode, Options, ParseResult, SafeMode, parse_file};
+use acdc_parser::{
+    Options, ParseResult, SafeMode,
+    ast::{BlockKind, BlockRef, InlineKind},
+    parse_file,
+};
 
 type TestResult<T = ()> = Result<T, Box<dyn Error>>;
 
@@ -41,20 +45,19 @@ impl Drop for TempDocument {
 fn paragraph_texts(result: &ParseResult) -> TestResult<Vec<String>> {
     result
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return Err(format!("expected paragraph, got {block:?}").into());
             };
             paragraph
-                .content
-                .iter()
+                .content()
+                .inlines()
                 .map(|inline| {
-                    let InlineNode::PlainText(text) = inline else {
+                    let InlineKind::Plain(text) = inline.kind() else {
                         return Err(format!("expected plain paragraph text, got {inline:?}").into());
                     };
-                    Ok(text.content)
+                    Ok(text.text())
                 })
                 .collect::<TestResult<Vec<_>>>()
                 .map(|parts| parts.concat())
@@ -96,10 +99,12 @@ fn authorized_uri_is_preserved_when_network_support_is_disabled() -> TestResult 
     );
     assert_warning(&result, uri, &document.path)?;
 
-    let Some(Block::Paragraph(fallback)) = result.document().blocks.get(1) else {
+    let Some(BlockKind::Paragraph(fallback)) =
+        result.document().blocks().nth(1).map(BlockRef::kind)
+    else {
         return Err("expected the fallback paragraph".into());
     };
-    assert_eq!(fallback.location.start.line, 3);
-    assert!(fallback.location.start.file.is_none());
+    assert_eq!(fallback.location().start().line(), 3);
+    assert!(fallback.location().start().include_chain().is_none());
     Ok(())
 }

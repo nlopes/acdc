@@ -1,6 +1,10 @@
 use acdc_parser::{
-    Block, DelimitedBlockType, Document, DocumentAttributeAssignment, DocumentAttributeValue,
-    InlineMacro, InlineNode, Options, Paragraph, Table, TableColumn, parse,
+    DocumentAttributeAssignment, DocumentAttributeValue, Options,
+    ast::{
+        BlockKind, BlockRef, ContentRef, DocumentRef, FootnoteDefinitionRef, InlineKind,
+        ParagraphRef, TableCellRef, TableRef, TocEntryRef,
+    },
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -81,31 +85,45 @@ fn nested_attribute_locks_distinguish_values_and_unset_origins() -> Result<(), E
         ),
     ];
     for (name, header, body, options, inside, outside) in cases {
-        let input = format!(
-            "= T\n{header}\n{body}\n[cols=\"2*a\"]\n|===\n|\n:value: child\n\nInside: {{value}}.\n|\nSibling: {{value}}.\n|===\n\nOutside: {{value}}.\n"
-        );
-        let parsed = parse(&input, &options)?;
-        let table = first_table(parsed.document())?;
-        let cells = &table.rows.first().ok_or("missing table row")?.columns;
-        assert_eq!(
-            cell_paragraphs(cells.first().ok_or("missing first cell")?),
-            [format!("Inside: {inside}.")],
-            "{name}"
-        );
-        assert_eq!(
-            cell_paragraphs(cells.get(1).ok_or("missing sibling cell")?),
-            [format!("Sibling: {outside}.")],
-            "{name}"
-        );
-        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.last() else {
-            return Err("missing outer paragraph".into());
-        };
-        assert_eq!(
-            paragraph_text(paragraph),
-            format!("Outside: {outside}."),
-            "{name}"
-        );
+        assert_nested_attribute_lock_case(name, header, body, &options, inside, outside)?;
     }
+    Ok(())
+}
+
+fn assert_nested_attribute_lock_case(
+    name: &str,
+    header: &str,
+    body: &str,
+    options: &Options<'_>,
+    inside: &str,
+    outside: &str,
+) -> Result<(), Error> {
+    let input = format!(
+        "= T\n{header}\n{body}\n[cols=\"2*a\"]\n|===\n|\n:value: child\n\nInside: {{value}}.\n|\nSibling: {{value}}.\n|===\n\nOutside: {{value}}.\n"
+    );
+    let parsed = parse(&input, options)?;
+    let doc = parsed.document();
+    let mut cells = first_table(doc)?
+        .rows()
+        .next()
+        .ok_or("missing table row")?
+        .cells();
+    assert_eq!(
+        cell_paragraphs(cells.next().ok_or("missing first cell")?),
+        [format!("Inside: {inside}.")],
+        "{name}"
+    );
+    assert_eq!(
+        cell_paragraphs(cells.next().ok_or("missing sibling cell")?),
+        [format!("Sibling: {outside}.")],
+        "{name}"
+    );
+    let paragraph = last_paragraph(doc)?;
+    assert_eq!(
+        paragraph_text(paragraph),
+        format!("Outside: {outside}."),
+        "{name}"
+    );
     Ok(())
 }
 
@@ -121,18 +139,18 @@ fn nested_cells_lock_inherited_universal_defaults() -> Result<(), Error> {
         let table = table(
             parsed
                 .document()
-                .blocks
-                .first()
+                .blocks()
+                .next()
                 .ok_or("missing table block")?,
         )?;
         assert_eq!(
             cell_paragraphs(
                 table
-                    .rows
-                    .first()
+                    .rows()
+                    .next()
                     .ok_or("missing table row")?
-                    .columns
-                    .first()
+                    .cells()
+                    .next()
                     .ok_or("missing table cell")?
             ),
             [value],
@@ -158,18 +176,18 @@ fn nested_cells_initialize_and_unlock_document_exceptions() -> Result<(), Error>
         let table = table(
             parsed
                 .document()
-                .blocks
-                .first()
+                .blocks()
+                .next()
                 .ok_or("missing table block")?,
         )?;
         assert_eq!(
             cell_paragraphs(
                 table
-                    .rows
-                    .first()
+                    .rows()
+                    .next()
                     .ok_or("missing table row")?
-                    .columns
-                    .first()
+                    .cells()
+                    .next()
                     .ok_or("missing table cell")?
             ),
             [child],
@@ -178,7 +196,7 @@ fn nested_cells_initialize_and_unlock_document_exceptions() -> Result<(), Error>
         assert_eq!(
             parsed
                 .document()
-                .attributes
+                .attributes()
                 .get(name)
                 .and_then(DocumentAttributeValue::as_str),
             Some(parent)
@@ -191,16 +209,16 @@ fn nested_cells_initialize_and_unlock_document_exceptions() -> Result<(), Error>
     let table = table(
         parsed
             .document()
-            .blocks
-            .first()
+            .blocks()
+            .next()
             .ok_or("missing table block")?,
     )?;
     let cell = table
-        .rows
-        .first()
+        .rows()
+        .next()
         .ok_or("missing table row")?
-        .columns
-        .first()
+        .cells()
+        .next()
         .ok_or("missing table cell")?;
     assert_eq!(
         cell_paragraphs(cell),
@@ -214,45 +232,47 @@ fn nested_cells_initialize_and_unlock_document_exceptions() -> Result<(), Error>
     Ok(())
 }
 
-fn first_table<'doc, 'a>(document: &'doc Document<'a>) -> Result<&'doc Table<'a>, Error> {
+fn last_paragraph(document: DocumentRef<'_>) -> Result<ParagraphRef<'_>, Error> {
+    let Some(BlockKind::Paragraph(paragraph)) = document.blocks().last().map(BlockRef::kind) else {
+        return Err("missing outer paragraph".into());
+    };
+    Ok(paragraph)
+}
+
+fn first_table(document: DocumentRef<'_>) -> Result<TableRef<'_>, Error> {
     document
-        .blocks
-        .iter()
+        .blocks()
         .find_map(|block| table(block).ok())
         .ok_or_else(|| "missing table".into())
 }
 
-fn table<'block, 'a>(block: &'block Block<'a>) -> Result<&'block Table<'a>, Error> {
-    let Block::DelimitedBlock(block) = block else {
-        return Err("expected a delimited block".into());
-    };
-    let DelimitedBlockType::DelimitedTable(table) = &block.inner else {
+fn table(block: BlockRef<'_>) -> Result<TableRef<'_>, Error> {
+    let BlockKind::Table(table) = block.kind() else {
         return Err("expected a table".into());
     };
     Ok(table)
 }
 
-fn inline_text(nodes: &[InlineNode<'_>]) -> String {
+fn inline_text(nodes: ContentRef<'_>) -> String {
     nodes
-        .iter()
+        .inlines()
         .filter_map(|node| {
-            let InlineNode::PlainText(text) = node else {
+            let InlineKind::Plain(text) = node.kind() else {
                 return None;
             };
-            Some(text.content)
+            Some(text.text())
         })
         .collect()
 }
 
-fn paragraph_text(paragraph: &Paragraph<'_>) -> String {
-    inline_text(&paragraph.content)
+fn paragraph_text(paragraph: ParagraphRef<'_>) -> String {
+    inline_text(paragraph.content())
 }
 
-fn cell_paragraphs(cell: &TableColumn<'_>) -> Vec<String> {
-    cell.content
-        .iter()
+fn cell_paragraphs(cell: TableCellRef<'_>) -> Vec<String> {
+    cell.blocks()
         .filter_map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return None;
             };
             Some(paragraph_text(paragraph))
@@ -260,14 +280,16 @@ fn cell_paragraphs(cell: &TableColumn<'_>) -> Vec<String> {
         .collect()
 }
 
-fn outer_table<'document, 'a>(
-    document: &'document Document<'a>,
-) -> Result<&'document Table<'a>, Error> {
-    let Block::Section(section) = document.blocks.first().ok_or("expected an outer section")?
+fn outer_table(document: DocumentRef<'_>) -> Result<TableRef<'_>, Error> {
+    let BlockKind::Section(section) = document
+        .blocks()
+        .next()
+        .ok_or("expected an outer section")?
+        .kind()
     else {
         return Err("expected an outer section".into());
     };
-    table(section.content.first().ok_or("expected a table")?)
+    table(section.blocks().next().ok_or("expected a table")?)
 }
 
 #[test]
@@ -277,9 +299,9 @@ fn attributes_in_asciidoc_cells_have_nested_document_scope() -> Result<(), Error
         &Options::default(),
     )?;
     let document = parsed.document();
-    let table = table(document.blocks.first().ok_or("expected a table")?)?;
-    let row = table.rows.first().ok_or("expected a body row")?;
-    let first_cell = row.columns.first().ok_or("expected the first cell")?;
+    let table = table(document.blocks().next().ok_or("expected a table")?)?;
+    let row = table.rows().next().ok_or("expected a body row")?;
+    let first_cell = row.cells().next().ok_or("expected the first cell")?;
 
     assert_eq!(
         cell_paragraphs(first_cell),
@@ -291,10 +313,9 @@ fn attributes_in_asciidoc_cells_have_nested_document_scope() -> Result<(), Error
         ]
     );
     let attribute_entries: Vec<_> = first_cell
-        .content
-        .iter()
+        .blocks()
         .filter_map(|block| {
-            let Block::DocumentAttribute(attribute) = block else {
+            let BlockKind::DocumentAttribute(attribute) = block.kind() else {
                 return None;
             };
             Some(attribute)
@@ -303,31 +324,36 @@ fn attributes_in_asciidoc_cells_have_nested_document_scope() -> Result<(), Error
     assert_eq!(attribute_entries.len(), 3);
     let local_set = attribute_entries.first().ok_or("expected local set")?;
     let local_unset = attribute_entries.last().ok_or("expected local unset")?;
-    assert_eq!(local_set.name.as_ref(), "cell-local");
+    assert_eq!(local_set.name(), "cell-local");
     assert_eq!(
         *local_set.assignment(),
         DocumentAttributeAssignment::Set(DocumentAttributeValue::from("local"))
     );
-    assert_eq!(local_unset.name.as_ref(), "cell-local");
+    assert_eq!(local_unset.name(), "cell-local");
     assert_eq!(
         *local_unset.assignment(),
         DocumentAttributeAssignment::Unset
     );
     assert_eq!(
-        cell_paragraphs(row.columns.get(1).ok_or("expected the second cell")?),
+        cell_paragraphs(row.cells().nth(1).ok_or("expected the second cell")?),
         ["Sibling {cell-local} and inherited."]
     );
     assert_eq!(
         document
-            .attributes
+            .attributes()
             .get("outer")
             .and_then(|value| value.text()),
         Some("inherited")
     );
-    assert!(!document.attributes.contains_key("cell-local"));
-    assert!(!document.attributes.contains_key("sectnums"));
+    assert!(!document.attributes().contains("cell-local"));
+    assert!(!document.attributes().contains("sectnums"));
 
-    let Block::Paragraph(after) = document.blocks.get(1).ok_or("expected trailing content")? else {
+    let BlockKind::Paragraph(after) = document
+        .blocks()
+        .nth(1)
+        .map(BlockRef::kind)
+        .ok_or("expected trailing content")?
+    else {
         return Err("expected a trailing paragraph".into());
     };
     assert_eq!(paragraph_text(after), "After {cell-local} and inherited.");
@@ -340,20 +366,30 @@ fn attribute_syntax_in_plain_cells_is_literal_text() -> Result<(), Error> {
         "= T\n\n|===\n|\n:cell-local: value\n\nCell sees {cell-local}.\n|===\n",
         &Options::default(),
     )?;
-    let table = table(parsed.document().blocks.first().ok_or("expected a table")?)?;
-    let content = &table
-        .rows
-        .first()
-        .and_then(|row| row.columns.first())
+    let table = table(
+        parsed
+            .document()
+            .blocks()
+            .next()
+            .ok_or("expected a table")?,
+    )?;
+    let content = table
+        .rows()
+        .next()
+        .and_then(|row| row.cells().next())
         .ok_or("expected a cell")?
-        .content;
+        .blocks();
 
-    let [Block::Paragraph(assignment), Block::Paragraph(after)] = content.as_slice() else {
+    let [
+        BlockKind::Paragraph(assignment),
+        BlockKind::Paragraph(after),
+    ] = &*content.map(BlockRef::kind).collect::<Vec<_>>()
+    else {
         return Err("expected two literal paragraphs, not an attribute event".into());
     };
-    assert_eq!(paragraph_text(assignment), ":cell-local: value");
-    assert_eq!(paragraph_text(after), "Cell sees {cell-local}.");
-    assert!(!parsed.document().attributes.contains_key("cell-local"));
+    assert_eq!(paragraph_text(*assignment), ":cell-local: value");
+    assert_eq!(paragraph_text(*after), "Cell sees {cell-local}.");
+    assert!(!parsed.document().attributes().contains("cell-local"));
     Ok(())
 }
 
@@ -364,15 +400,15 @@ fn nested_section_numbering_uses_cell_source_order() -> Result<(), Error> {
         &Options::default(),
     )?;
     let document = parsed.document();
-    let parsed_table = table(document.blocks.first().ok_or("expected a table")?)?;
-    let blocks = &parsed_table
-        .rows
-        .first()
-        .and_then(|row| row.columns.first())
+    let parsed_table = table(document.blocks().next().ok_or("expected a table")?)?;
+    let blocks = parsed_table
+        .rows()
+        .next()
+        .and_then(|row| row.cells().next())
         .ok_or("expected an AsciiDoc cell")?
-        .content;
-    let mut sections = blocks.iter().filter_map(|block| {
-        let Block::Section(section) = block else {
+        .blocks();
+    let mut sections = blocks.filter_map(|block| {
+        let BlockKind::Section(section) = block.kind() else {
             return None;
         };
         Some(section)
@@ -380,10 +416,9 @@ fn nested_section_numbering_uses_cell_source_order() -> Result<(), Error> {
     let before = sections.next().ok_or("expected the first section")?;
     let after = sections.next().ok_or("expected the second section")?;
     let child = after
-        .content
-        .iter()
+        .blocks()
         .find_map(|block| {
-            let Block::Section(section) = block else {
+            let BlockKind::Section(section) = block.kind() else {
                 return None;
             };
             Some(section)
@@ -401,17 +436,17 @@ fn nested_section_numbering_uses_cell_source_order() -> Result<(), Error> {
     let table = table(
         inherited
             .document()
-            .blocks
-            .first()
+            .blocks()
+            .next()
             .ok_or("expected a table")?,
     )?;
     let section = table
-        .rows
-        .first()
-        .and_then(|row| row.columns.first())
+        .rows()
+        .next()
+        .and_then(|row| row.cells().next())
         .and_then(|cell| {
-            cell.content.iter().find_map(|block| {
-                let Block::Section(section) = block else {
+            cell.blocks().find_map(|block| {
+                let BlockKind::Section(section) = block.kind() else {
                     return None;
                 };
                 Some(section)
@@ -429,29 +464,25 @@ fn nested_sections_are_not_outer_toc_entries_but_remain_xref_targets() -> Result
         &Options::default(),
     )?;
     let document = parsed.document();
-    let ids: Vec<_> = document.toc_entries.iter().map(|entry| entry.id).collect();
+    let ids: Vec<_> = document.toc_entries().map(TocEntryRef::id).collect();
 
     assert_eq!(ids, ["_outer", "_after"]);
     let nested = document
-        .references
+        .references()
         .get("_nested")
         .ok_or("expected a nested section reference")?;
-    assert_eq!(
-        nested
-            .title
-            .as_ref()
-            .map(|title| inline_text(title.as_ref()))
-            .as_deref(),
-        Some("Nested")
-    );
+    assert_eq!(nested.title().map(inline_text).as_deref(), Some("Nested"));
 
     let table = outer_table(document)?;
     let cell = table
-        .rows
-        .first()
-        .and_then(|row| row.columns.first())
+        .rows()
+        .next()
+        .and_then(|row| row.cells().next())
         .ok_or("expected an AsciiDoc cell")?;
-    assert!(matches!(cell.content.first(), Some(Block::Section(_))));
+    assert!(matches!(
+        cell.blocks().next().map(BlockRef::kind),
+        Some(BlockKind::Section(_))
+    ));
     Ok(())
 }
 
@@ -462,25 +493,24 @@ fn duplicated_cells_parse_footnotes_independently() -> Result<(), Error> {
         &Options::default(),
     )?;
     let row = first_table(parsed.document())?
-        .rows
-        .first()
+        .rows()
+        .next()
         .ok_or("missing duplicated row")?;
-    assert_eq!(row.columns.len(), 2);
+    assert_eq!(row.cells().count(), 2);
     let numbers: Vec<_> = row
-        .columns
-        .iter()
-        .flat_map(|column| &column.content)
+        .cells()
+        .flat_map(TableCellRef::blocks)
         .filter_map(|block| {
-            if let Block::Paragraph(paragraph) = block {
-                Some(&paragraph.content)
+            if let BlockKind::Paragraph(paragraph) = block.kind() {
+                Some(paragraph.content().inlines())
             } else {
                 None
             }
         })
         .flatten()
         .filter_map(|inline| {
-            if let InlineNode::Macro(InlineMacro::Footnote(footnote)) = inline {
-                Some(footnote.number)
+            if let InlineKind::Footnote(footnote) = inline.kind() {
+                Some(footnote.number())
             } else {
                 None
             }
@@ -489,9 +519,8 @@ fn duplicated_cells_parse_footnotes_independently() -> Result<(), Error> {
     assert_eq!(numbers, [1, 2]);
     let registered: Vec<_> = parsed
         .document()
-        .footnotes
-        .iter()
-        .map(|footnote| footnote.number)
+        .footnotes()
+        .map(FootnoteDefinitionRef::number)
         .collect();
     assert_eq!(registered, [1, 2]);
     Ok(())

@@ -59,7 +59,7 @@ Poem \(em Poet
 .in
 .ll
 .sp
-\fBQ02 expanded with "quotes" and Éva\(cqs title\fR
+\fBLead: Q02 expanded with "quotes" and Éva\(cqs title\fR
 .br
 .RS 3
 .ll -.6i

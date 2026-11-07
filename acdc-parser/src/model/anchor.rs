@@ -1,5 +1,10 @@
 //! Anchor and reference types for `AsciiDoc` documents.
 
+use std::{
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
+
 use serde::{
     Serialize,
     ser::{SerializeMap, Serializer},
@@ -7,6 +12,7 @@ use serde::{
 
 use super::{
     caption::Caption,
+    content_attribute::ContentAttribute,
     inlines::InlineNode,
     location::Location,
     section::{SectionKind, SectionNumber},
@@ -29,19 +35,57 @@ pub const UNNUMBERED_SECTION_STYLES: &[&str] = &[
     "appendix",
 ];
 
+#[derive(Clone, Debug)]
+pub(crate) struct SectionOccurrence {
+    namespace: Arc<()>,
+    ordinal: usize,
+}
+
+impl SectionOccurrence {
+    pub(crate) fn new(namespace: Arc<()>, ordinal: usize) -> Self {
+        Self { namespace, ordinal }
+    }
+}
+
+impl PartialEq for SectionOccurrence {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.namespace, &other.namespace) && self.ordinal == other.ordinal
+    }
+}
+
+impl Eq for SectionOccurrence {}
+
+impl Hash for SectionOccurrence {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Arc::as_ptr(&self.namespace).hash(state);
+        self.ordinal.hash(state);
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DocumentReferenceLabel {
+    Header,
+    Attribute,
+}
+
 /// An `Anchor` represents an anchor in a document.
 ///
 /// An anchor is a reference point in a document that can be linked to.
-#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Anchor, Location};
+/// let mut anchor = Anchor::new("entry", Location::default());
+/// anchor.id = "changed";
+/// ```
+#[derive(Clone, Debug, Default, PartialEq)]
 #[non_exhaustive]
 pub struct Anchor<'a> {
-    pub id: &'a str,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub xreflabel: Option<&'a str>,
-    pub location: Location,
-    #[serde(skip)]
+    pub(crate) id: &'a str,
+    pub(crate) xreflabel: Option<ContentAttribute<'a>>,
+    pub(crate) location: Location,
+    // Key into parser-owned input, cleared before returning the AST.
+    pub(crate) reftext_source: Option<usize>,
     pub(crate) bibliography: bool,
-    #[serde(skip)]
     pub(crate) bibliography_label: Option<Box<BibliographyLabel<'a>>>,
 }
 
@@ -51,7 +95,32 @@ pub(crate) struct BibliographyLabel<'a> {
     pub(crate) content: Vec<InlineNode<'a>>,
 }
 
+impl Serialize for Anchor<'_> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let mut map = serializer.serialize_map(None)?;
+        self.serialize_fields(&mut map)?;
+        map.end()
+    }
+}
+
 impl<'a> Anchor<'a> {
+    pub(super) fn serialize_fields<M: SerializeMap>(&self, map: &mut M) -> Result<(), M::Error> {
+        map.serialize_entry("id", &self.id)?;
+        if let Some(label) = &self.xreflabel {
+            map.serialize_entry("xreflabel", label)?;
+        }
+        if self.is_bibliography() {
+            map.serialize_entry("bibliography", &true)?;
+        }
+        if let Some(label) = self.bibliography_label() {
+            map.serialize_entry("bibliography_label", label)?;
+        }
+        if !self.location.is_unknown() {
+            map.serialize_entry("location", &self.location)?;
+        }
+        Ok(())
+    }
+
     /// Create a new anchor with the given ID and location.
     #[must_use]
     pub fn new(id: &'a str, location: Location) -> Self {
@@ -60,15 +129,64 @@ impl<'a> Anchor<'a> {
             xreflabel: None,
             location,
             bibliography: false,
+            reftext_source: None,
             bibliography_label: None,
         }
     }
 
     /// Set the cross-reference label.
     #[must_use]
-    pub fn with_xreflabel(mut self, xreflabel: Option<&'a str>) -> Self {
-        self.xreflabel = xreflabel;
+    pub fn with_xreflabel(mut self, xreflabel: Option<ContentAttribute<'a>>) -> Self {
+        self.set_reftext(xreflabel);
         self
+    }
+
+    /// Replace the ID without renaming document catalog entries or xref targets.
+    pub fn replace_id(&mut self, id: &'a str) -> &'a str {
+        std::mem::replace(&mut self.id, id)
+    }
+
+    /// Set prepared citation text without parsing it or updating the reference catalog.
+    pub fn set_reftext(&mut self, reftext: Option<ContentAttribute<'a>>) {
+        self.reftext_source = None;
+        self.xreflabel = reftext;
+    }
+
+    /// Transfer citation text, leaving it absent.
+    pub fn take_reftext(&mut self) -> Option<ContentAttribute<'a>> {
+        self.reftext_source = None;
+        self.xreflabel.take()
+    }
+
+    /// Classify this as a bibliography entry and set its prepared display label.
+    /// `None` selects the ID fallback; empty content keeps an explicitly empty label.
+    /// Citation reftext and document catalogs stay unchanged.
+    pub fn set_bibliography(&mut self, label: Option<ContentAttribute<'a>>) {
+        self.bibliography = true;
+        self.bibliography_label = label.map(|content| {
+            Box::new(BibliographyLabel {
+                source: None,
+                content: content.into_inlines(),
+            })
+        });
+    }
+
+    /// Remove bibliography classification and its display label, keeping citation text.
+    pub fn clear_bibliography(&mut self) {
+        self.bibliography = false;
+        self.bibliography_label = None;
+    }
+
+    /// Transfer the display label, keeping bibliography classification and citation text.
+    pub fn take_bibliography_label(&mut self) -> Option<ContentAttribute<'a>> {
+        self.bibliography_label
+            .take()
+            .map(|label| ContentAttribute::new(label.content))
+    }
+
+    /// Replace the anchor span, keeping the locations within its prepared labels.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 
     /// Returns whether this anchor identifies a bibliography entry.
@@ -77,12 +195,7 @@ impl<'a> Anchor<'a> {
         self.bibliography
     }
 
-    /// Return the entry label after its source-position inline substitutions.
-    ///
-    /// Citation text remains separate in [`Self::xreflabel`]. Returns `None`
-    /// for ordinary anchors and entries that use their ID as the label.
-    #[must_use]
-    pub fn bibliography_label(&self) -> Option<&[InlineNode<'a>]> {
+    pub(crate) fn bibliography_label(&self) -> Option<&[InlineNode<'a>]> {
         self.bibliography
             .then_some(self.bibliography_label.as_deref())
             .flatten()
@@ -93,23 +206,32 @@ impl<'a> Anchor<'a> {
 /// A `TocEntry` represents a table of contents entry.
 ///
 /// This is collected during parsing from Section.
+///
+/// Use [`Self::set_title`] to edit the stored title.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Location, Title, TocEntry};
+/// let mut entry = TocEntry::new("target", Title::default(), 1, Location::default());
+/// entry.title = Title::default();
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct TocEntry<'a> {
+    pub(crate) occurrence: Option<SectionOccurrence>,
     /// Unique identifier for this section (used for anchor links)
-    pub id: &'a str,
+    pub(crate) id: &'a str,
     /// Title of the section
-    pub title: Title<'a>,
+    pub(crate) title: Title<'a>,
     /// Section level (1 for top-level, 2 for subsection, etc.)
-    pub level: u8,
+    pub(crate) level: u8,
     /// Optional cross-reference label from `reftext=` or `[[id,xreflabel]]`.
-    pub xreflabel: Option<&'a str>,
+    pub(crate) xreflabel: Option<ContentAttribute<'a>>,
     /// The section's structural category (special-section style, or `Normal`).
     /// Converters use it for presentation, such as appendix labels.
-    pub kind: SectionKind,
+    pub(crate) kind: SectionKind,
     number: Option<SectionNumber>,
     /// Location of the section heading (the cross-reference target).
-    pub location: Location,
+    pub(crate) location: Location,
 }
 
 impl<'a> TocEntry<'a> {
@@ -117,11 +239,12 @@ impl<'a> TocEntry<'a> {
         id: &'a str,
         title: Title<'a>,
         level: u8,
-        xreflabel: Option<&'a str>,
+        xreflabel: Option<ContentAttribute<'a>>,
         kind: SectionKind,
         location: Location,
     ) -> Self {
         Self {
+            occurrence: None,
             id,
             title,
             level,
@@ -174,25 +297,36 @@ pub(crate) struct SectionReference {
 /// Reference metadata for a cross-reference target.
 ///
 /// Collected during parsing into the `id → Reference` map on
-/// [`Document::references`](crate::Document), so a `<<id>>` reference resolves
-/// to its target's text in O(1). The id is the map key.
+/// [`DocumentRef::references`](crate::ast::DocumentRef::references), so a `<<id>>` reference resolves
+/// to its target's text in O(1). Lookup keys can be aliases of the stored target.
+///
+/// Use [`Self::set_title`] to edit the stored title.
+///
+/// ```compile_fail,E0616
+/// use acdc_parser::{Location, Reference};
+/// let mut reference = Reference::new("target", Location::default());
+/// reference.title = None;
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Reference<'a> {
-    /// Optional cross-reference label from `reftext=` or `[[id,xreflabel]]`,
-    /// parsed as inline content. A label carries formatting, so `*Bold* label`
-    /// renders bold. When set, it is the reference text; otherwise converters
+    pub(crate) occurrence: Option<SectionOccurrence>,
+    pub(crate) document_label: Option<DocumentReferenceLabel>,
+    pub(crate) target: &'a str,
+    /// Optional prepared cross-reference label from target metadata or document
+    /// `reftext`.
+    /// When set, it is the reference text; otherwise converters
     /// use `title` and, for captioned targets, `caption`.
-    pub xreflabel: Option<Vec<InlineNode<'a>>>,
+    pub(crate) xreflabel: Option<ContentAttribute<'a>>,
     /// The target's title, when it has one. `None` for a referenceable element
     /// with no title, such as an untitled block or an inline link with an `id`
     /// attribute. A reference to such a target renders the literal `[id]`,
     /// unlike an ID that is absent from the catalog and therefore unresolved.
-    pub title: Option<Title<'a>>,
+    pub(crate) title: Option<ContentAttribute<'a>>,
     /// Location of the target element (for navigation, e.g. LSP go-to-definition).
-    pub location: Location,
+    pub(crate) location: Location,
     /// The target block's resolved caption, when it has one.
-    pub caption: Option<Caption<'a>>,
+    pub(crate) caption: Option<Caption<'a>>,
     pub(crate) section: Option<SectionReference>,
     pub(crate) bibliography: bool,
     pub(crate) automatic_citation: bool,
@@ -217,7 +351,7 @@ impl Reference<'_> {
     /// use acdc_parser::{Options, parse};
     ///
     /// let parsed = parse("= Guide\n:sectnums:\n\n[#intro]\n== Introduction\n", &Options::default())?;
-    /// let reference = parsed.document().references.get("intro").ok_or("missing section")?;
+    /// let reference = parsed.document().references().get("intro").ok_or("missing section")?;
     /// assert_eq!(reference.section_name(), Some("section"));
     /// assert_eq!(reference.section_number(), Some("1"));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -244,9 +378,155 @@ impl Reference<'_> {
     }
 }
 
+impl<'a> Reference<'a> {
+    pub(crate) fn for_anchor(
+        anchor: &Anchor<'a>,
+        label: Option<&ContentAttribute<'a>>,
+        title: Option<Title<'a>>,
+        caption: Option<Caption<'a>>,
+    ) -> Self {
+        let mut xreflabel = if anchor.is_bibliography() {
+            label.filter(|content| !content.is_empty()).cloned()
+        } else {
+            displayed_reference_label(label)
+        };
+        if anchor.is_bibliography()
+            && let Some(label) = xreflabel.as_mut()
+        {
+            label.inlines_mut().insert(
+                0,
+                InlineNode::PlainText(crate::Plain::new("[", anchor.location.clone())),
+            );
+            label
+                .inlines_mut()
+                .push(InlineNode::PlainText(crate::Plain::new(
+                    "]",
+                    anchor.location.clone(),
+                )));
+        }
+        let mut reference = Self::new(anchor.id, anchor.location.clone());
+        reference.xreflabel = xreflabel;
+        reference.title = title.map(|title| ContentAttribute::new(title.into_inlines()));
+        reference.caption = caption;
+        reference.bibliography = anchor.is_bibliography();
+        reference
+    }
+
+    /// Construct a registered target without display content or derived classifications.
+    #[must_use]
+    pub fn new(target: &'a str, location: Location) -> Self {
+        Self {
+            occurrence: None,
+            document_label: None,
+            target,
+            xreflabel: None,
+            title: None,
+            location,
+            caption: None,
+            section: None,
+            bibliography: false,
+            automatic_citation: false,
+        }
+    }
+
+    /// Replace the canonical target without renaming lookup keys or editing its owner.
+    pub fn replace_target(&mut self, target: &'a str) -> &'a str {
+        std::mem::replace(&mut self.target, target)
+    }
+
+    /// Replace prepared title content; `Some` preserves an explicitly empty title.
+    pub fn set_title(&mut self, title: Option<ContentAttribute<'a>>) {
+        self.title = title;
+    }
+
+    /// Remove the retained title, including a present empty title.
+    #[must_use]
+    pub fn take_title(&mut self) -> Option<ContentAttribute<'a>> {
+        self.title.take()
+    }
+
+    /// Replace prepared reference text without editing the target element or map key.
+    pub fn set_xreflabel(&mut self, label: Option<ContentAttribute<'a>>) {
+        self.xreflabel = label;
+    }
+
+    /// Remove reference text, retaining its original source lifetime and empty content.
+    #[must_use]
+    pub fn take_xreflabel(&mut self) -> Option<ContentAttribute<'a>> {
+        self.xreflabel.take()
+    }
+
+    /// Replace the retained caption without renumbering it or editing the target.
+    pub fn set_caption(&mut self, caption: Option<Caption<'a>>) {
+        self.caption = caption;
+    }
+
+    /// Remove the retained caption without changing other catalog records.
+    #[must_use]
+    pub fn take_caption(&mut self) -> Option<Caption<'a>> {
+        self.caption.take()
+    }
+
+    /// Replace the recorded target span without relocating the target element.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+}
+
+impl<'a> TocEntry<'a> {
+    /// Construct a normal prepared TOC entry without a reference label or assigned number.
+    #[must_use]
+    pub fn new(id: &'a str, title: Title<'a>, level: u8, location: Location) -> Self {
+        Self::for_section(id, title, level, None, SectionKind::Normal, location)
+    }
+
+    /// Replace the ID without renaming reference-map keys or editing a heading.
+    pub fn replace_id(&mut self, id: &'a str) -> &'a str {
+        std::mem::replace(&mut self.id, id)
+    }
+
+    /// Replace prepared title content without editing its heading or reference target.
+    pub fn set_title(&mut self, title: Title<'a>) {
+        self.title = title;
+    }
+
+    /// Remove the title, retaining its source lifetime and presence information.
+    #[must_use]
+    pub fn take_title(&mut self) -> Title<'a> {
+        std::mem::take(&mut self.title)
+    }
+
+    /// Replace prepared reference text without rebuilding registrations.
+    pub fn set_xreflabel(&mut self, label: Option<ContentAttribute<'a>>) {
+        self.xreflabel = label;
+    }
+
+    /// Remove reference text, retaining its original source lifetime and empty content.
+    #[must_use]
+    pub fn take_xreflabel(&mut self) -> Option<ContentAttribute<'a>> {
+        self.xreflabel.take()
+    }
+
+    /// Replace the stored level without changing order, membership or assigned numbers.
+    pub fn set_level(&mut self, level: u8) {
+        self.level = level;
+    }
+
+    /// Replace the structural category without renumbering or editing a heading.
+    pub fn set_kind(&mut self, kind: SectionKind) {
+        self.kind = kind;
+    }
+
+    /// Replace the recorded heading span without relocating its content.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn section_reference_queries_borrow_shared_numbers() -> Result<(), Box<dyn std::error::Error>> {
@@ -254,7 +534,7 @@ mod tests {
             include_str!("../../fixtures/tests/section_reference_metadata.adoc"),
             &crate::Options::default(),
         )?;
-        let document = parsed.document();
+        let document = parsed.document_storage();
         for id in ["part", "chapter", "section", "appendix"] {
             let reference = document.references.get(id).ok_or("missing reference")?;
             let cloned = reference.clone();
@@ -305,4 +585,81 @@ mod tests {
         assert!(json.get("style").is_none());
         Ok(())
     }
+    #[test]
+    fn bibliography_json_distinguishes_empty_and_automatic_labels() -> Result<(), serde_json::Error>
+    {
+        let mut anchor = Anchor::new("entry", Location::default());
+        anchor.bibliography = true;
+        let automatic = serde_json::to_value(&anchor)?;
+        assert_eq!(automatic.get("bibliography"), Some(&json!(true)));
+        assert!(automatic.get("bibliography_label").is_none());
+        anchor.bibliography_label = Some(Box::new(BibliographyLabel {
+            source: Some("unexported cache"),
+            content: Vec::new(),
+        }));
+        let direct = serde_json::to_value(&anchor)?;
+        let node = serde_json::to_value(InlineNode::InlineAnchor(anchor))?;
+        assert_eq!(direct.get("bibliography_label"), Some(&json!([])));
+        assert_eq!(node.get("bibliography_label"), Some(&json!([])));
+        assert!(!direct.to_string().contains("unexported cache"));
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod prepared_anchor_tests {
+    use super::{Anchor, BibliographyLabel};
+    use crate::{ContentAttribute, Location};
+
+    #[test]
+    fn prepared_reference_edits_discard_previous_source_hints() {
+        let mut anchor = Anchor::new("entry", Location::default());
+        anchor.reftext_source = Some(7);
+        anchor.set_reftext(Some(ContentAttribute::default()));
+        assert!(anchor.reftext_source.is_none());
+        anchor.reftext_source = Some(9);
+        assert_eq!(anchor.take_reftext(), Some(ContentAttribute::default()));
+        assert!(anchor.reftext_source.is_none());
+        anchor.reftext_source = Some(11);
+        let anchor = anchor.with_xreflabel(Some(ContentAttribute::default()));
+        assert!(anchor.reftext_source.is_none());
+    }
+
+    #[test]
+    fn prepared_display_labels_do_not_reuse_authored_source() {
+        let mut anchor = Anchor::new("entry", Location::default());
+        anchor.bibliography = true;
+        anchor.bibliography_label = Some(Box::new(BibliographyLabel {
+            source: Some("old authored label"),
+            content: Vec::new(),
+        }));
+        anchor.set_bibliography(Some(ContentAttribute::default()));
+        assert!(
+            anchor
+                .bibliography_label
+                .as_ref()
+                .is_some_and(|label| label.source.is_none())
+        );
+        anchor.clear_bibliography();
+        assert!(anchor.bibliography_label.is_none());
+        assert!(!anchor.is_bibliography());
+    }
+}
+
+pub(crate) fn displayed_reference_label<'a>(
+    label: Option<&ContentAttribute<'a>>,
+) -> Option<ContentAttribute<'a>> {
+    label
+        .filter(|content| {
+            !content.as_inlines().iter().all(|node| {
+                if let InlineNode::PlainText(text) = node {
+                    text.content.trim().is_empty()
+                } else if let InlineNode::RawText(raw) = node {
+                    raw.content.trim().is_empty()
+                } else {
+                    false
+                }
+            })
+        })
+        .cloned()
 }

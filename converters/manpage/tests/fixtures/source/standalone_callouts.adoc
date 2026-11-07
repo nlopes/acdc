@@ -1,5 +1,6 @@
 = callouts(1)
 :doctype: manpage
+:docdate: 2026-09-29
 :revdate: 2026-09-29
 :manmanual: Callout Tests
 :mansource: acdc

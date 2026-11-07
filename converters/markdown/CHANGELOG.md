@@ -7,7 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Footnotes with the same name in separate AsciiDoc table cells now keep
+  distinct reference labels and bodies. Definitions remain at the end of the
+  GitHub Flavored Markdown document, including notes from nested cells.
+  CommonMark continues to report unsupported tables and skip them.
+
+- References to the document top and header ID use body `reftext` values in
+  source order. Empty and unset values select the title; explicit link text stays intact.
+
+- Description lists retain every shared term and render their definition once,
+  including horizontal and Q&A styles.
+
+- Short and full cross-references retain formatting in parsed custom `caption=`
+  prefixes. Only a final unformatted period and space are removed; punctuation
+  inside a styled span remains visible.
+
+- Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
+
+- Render attributed plus passthroughs without leaking their ID and role prefixes into the text. Apply the supported inline roles and retain link destinations.
+
+- Audio/video links, image alternatives, and tooltips preserve escaped reference text. Code and passthrough blocks use resolved references consistently.
+
+- Parsed character references retain their meaning in prose and code. Literal ampersands are escaped so Markdown readers do not interpret them as references.
+
+- Constructed character-reference nodes render as references in prose and as character values in code fences.
+
+- Document attribute values keep literal quotes in text labels and media paths. Literal quotes in cross-reference labels and style names now follow Asciidoctor.
+
+- Linked image and icon destinations, image dimensions and video posters retain literal quotes from parsed attributes instead of interpreting them again.
+
+- Link, URL, mail, and linked-icon tooltips preserve parser-selected text and literal trailing dashes.
+
+- Inline image alternatives and tooltips preserve literal trailing dashes instead of replacing them with an em dash.
+
 ### Changed
+
+- Curved quotes and apostrophes retain their punctuation in body text, image
+  alternatives, and tooltips, including nested formatting.
+
+- Replacement-only passthroughs (`pass:r[...]`) preserve escapes for disabled
+  formatting.
+  Explicit character-escaping profiles keep those backslashes visible after
+  Markdown rendering, and raw HTML attributes stay unchanged.
+
+- Preserve parser-selected backslashes in ordinary text, quotes, and verse,
+  including `subs=none` and attribute-only content. Markdown no longer removes
+  them a second time or emits internal placeholders for escaped typography.
+
+- Replacement-only code profiles now resolve enabled typography even when
+  macros are disabled, matching the parser’s resolved text.
+
+- Source arrows honor their parser substitution order, including monospace
+  content and replacement-only passthroughs. `pass:r[->]` stays literal;
+  `pass:c,r[->]` produces an arrow.
+
+- Markdown now writes enabled copyright and trademark signs, ellipses, and
+  word-internal apostrophes, and em dashes as Unicode text. Escaped tokens remain literal.
+
+- **Breaking:** direct Markdown visitor users now use the shared typed document,
+  block, and inline callbacks. The legacy visitor traits are no longer implemented.
+  GFM and CommonMark output remain unchanged.
+
+- Email subjects and message bodies retain their encoded link destinations.
+
+- Support the parser’s revised inline-image API without changing rendered output.
 
 - **Breaking:** configure conversion with the parser options builder, then use
   the converter's validated parser options for parsing. Invalid attribute values
@@ -16,6 +79,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   context, including source-ordered and nested-cell attributes.
 
 ### Fixed
+
+- Literal angle brackets in prose and formatted captions remain visible text instead of becoming HTML tags, links, or blockquotes in Markdown. Explicit raw passthroughs keep their markup.
+
+- Generated indexes sort and combine entries by their resolved labels. Catalog
+  typography uses each label's own boundaries and registration-time substitutions.
+
+- Paragraph-style sidebars use the backend's sidebar layout. `[pass]` paragraphs
+  use the same raw-content path as delimited passthrough blocks.
+
+- Explicitly empty quote attributions keep their attribution mark, and empty
+  citations keep their `<cite></cite>` element. Absent values stay omitted.
+
+- Image and link tooltips retain their plain text. Icon alternatives, UI labels,
+  custom captions, and admonition labels retain formatting. Figure, table, listing,
+  and example captions preserve links and literal delimiters; empty or disabled
+  prefixes do not advance their numbered sequence. Custom admonition
+  labels use a blockquote in both variants because GitHub Alerts fix their labels.
+- Literal quote attribution/citation text retains dashes, and static video links
+  preserve complete local targets and provider playlists.
+
+- Caller-built empty titles retain their captions and numbering, matching
+  `title=""` in AsciiDoc source.
+
+- Images honor named and empty alt text, retain literal quotes, and keep
+  dimensions in their positional slots. Block-image `title=` supplies a caption; only inline-image titles become tooltips.
+- Audio links retain start/end playback ranges, including end-only ranges.
+  Video links resolve YouTube and Vimeo targets and retain YouTube playlists.
+- Named titles on audio, video, paragraphs, lists, tables, and delimited blocks
+  retain formatting, matching Asciidoctor's title selection.
+
+- Block image `title=` attributes now produce visible figure captions.
 
 - Visible index shorthand and catalog entries retain complete balanced internal
   parentheses, including `((function(argument)))` and `((fn((x)) tail))`.

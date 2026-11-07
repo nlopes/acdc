@@ -1,4 +1,8 @@
-use acdc_parser::{Block, InlineNode, Options, SafeMode, SectionKind, WarningKind, parse};
+use acdc_parser::{
+    Options, SafeMode, SectionKind, WarningKind,
+    ast::{BlockKind, BlockRef, ContentRef, InlineKind, InlineRef, ReferenceRef, UnorderedListRef},
+    parse,
+};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -10,17 +14,17 @@ fn bibliography_citation_keeps_attribute_escape() -> Result<(), Error> {
     )?;
     let label = parsed
         .document()
-        .references
+        .references()
         .get("ref")
-        .and_then(|reference| reference.xreflabel.as_ref())
+        .and_then(ReferenceRef::xreflabel)
         .ok_or("missing label")?;
     let text: String = label
-        .iter()
+        .inlines()
         .filter_map(|node| {
-            if let InlineNode::PlainText(plain) = node {
-                Some(plain.content)
-            } else if let InlineNode::RawText(raw) = node {
-                Some(raw.content)
+            if let InlineKind::Plain(plain) = node.kind() {
+                Some(plain.text())
+            } else if let InlineKind::Raw(raw) = node.kind() {
+                Some(raw.text())
             } else {
                 None
             }
@@ -66,26 +70,31 @@ fn bibliography_labels_keep_parent_safe_mode_and_original_citation_text() -> Res
     ] {
         let options = Options::builder().with_safe_mode(mode).build()?;
         let parsed = parse(source, &options)?;
-        let list = unordered_list(parsed.document().blocks.first().ok_or("missing list")?)?;
-        let [InlineNode::InlineAnchor(anchor), ..] = list
-            .items
-            .first()
+        let list = unordered_list(parsed.document().blocks().next().ok_or("missing list")?)?;
+        let [InlineKind::Anchor(anchor), ..] = &*list
+            .items()
+            .next()
             .ok_or("missing list item")?
-            .principal
-            .as_slice()
+            .principal()
+            .inlines()
+            .map(InlineRef::kind)
+            .collect::<Vec<_>>()
         else {
             return Err("missing bibliography anchor".into());
         };
-        assert_eq!(anchor.xreflabel, Some("pass:a[{safe-mode-name}"));
+        assert_eq!(
+            label_text(anchor.reftext()),
+            Some("pass:a[{safe-mode-name}".to_owned())
+        );
         let label = anchor.bibliography_label().ok_or("missing entry content")?;
         assert!(
-            matches!(label, [InlineNode::RawText(raw)] if raw.content == mode.name()),
+            matches!(&*label.inlines().map(InlineRef::kind).collect::<Vec<_>>(), [InlineKind::Raw(raw)] if raw.text() == mode.name()),
             "{mode:?}: {label:?}"
         );
-        assert!(label.iter().all(|inline| {
+        assert!(label.inlines().all(|inline| {
             let location = inline.location();
-            location.absolute_start >= source.find("pass:").unwrap_or_default()
-                && location.absolute_end < source.len()
+            location.absolute_start() >= source.find("pass:").unwrap_or_default()
+                && location.absolute_end() < source.len()
         }));
     }
     Ok(())
@@ -97,29 +106,36 @@ fn bibliography_attribute_values_do_not_become_new_passthroughs() -> Result<(), 
         "= T\n:raw: +++<mark>raw</mark>+++\n\n[bibliography]\n* [[[ref,{raw}]]] Entry.\n",
         &Options::default(),
     )?;
-    let list = unordered_list(parsed.document().blocks.first().ok_or("missing list")?)?;
-    let [InlineNode::InlineAnchor(anchor), ..] = list
-        .items
-        .first()
+    let list = unordered_list(parsed.document().blocks().next().ok_or("missing list")?)?;
+    let [InlineKind::Anchor(anchor), ..] = &*list
+        .items()
+        .next()
         .ok_or("missing list item")?
-        .principal
-        .as_slice()
+        .principal()
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
     else {
         return Err("missing bibliography anchor".into());
     };
-    assert_eq!(anchor.xreflabel, Some("{raw}"));
+    assert_eq!(label_text(anchor.reftext()), Some("{raw}".to_owned()));
     let label = anchor.bibliography_label().ok_or("missing entry content")?;
-    assert!(
-        matches!(label, [InlineNode::PlainText(plain)] if plain.content == "+++<mark>raw</mark>+++"),
-        "{label:?}"
-    );
+    let mut text = String::new();
+    for node in label.inlines() {
+        if let InlineKind::Plain(plain) = node.kind() {
+            text.push_str(plain.text());
+        } else if let InlineKind::CharacterReference(reference) = node.kind() {
+            text.push_str(&reference.kind().to_string());
+        } else {
+            return Err("bibliography text became markup".into());
+        }
+    }
+    assert_eq!(text, "+++&lt;mark&gt;raw&lt;/mark&gt;+++");
     Ok(())
 }
 
-fn unordered_list<'block, 'source>(
-    block: &'block Block<'source>,
-) -> Result<&'block acdc_parser::UnorderedList<'source>, Error> {
-    let Block::UnorderedList(list) = block else {
+fn unordered_list(block: BlockRef<'_>) -> Result<UnorderedListRef<'_>, Error> {
+    let BlockKind::UnorderedList(list) = block.kind() else {
         return Err("expected an unordered list".into());
     };
     Ok(list)
@@ -131,20 +147,31 @@ fn bibliography_sections_promote_only_direct_unstyled_lists() -> Result<(), Erro
         "[bibliography]\n== References\n\n* Direct\n** Nested\n\nBetween lists.\n\n[square]\n* Explicit\n\nAnother separator.\n\n* Second direct\n",
         &Options::default(),
     )?;
-    let Block::Section(section) = parsed.document().blocks.first().ok_or("missing section")? else {
+    let BlockKind::Section(section) = parsed
+        .document()
+        .blocks()
+        .next()
+        .ok_or("missing section")?
+        .kind()
+    else {
         return Err("expected a section".into());
     };
 
-    assert_eq!(section.kind, SectionKind::Bibliography);
-    let direct = unordered_list(section.content.first().ok_or("missing direct list")?)?;
-    assert_eq!(direct.metadata.style, Some("bibliography"));
-    let first_item = direct.items.first().ok_or("missing first list item")?;
-    let nested = unordered_list(first_item.blocks.first().ok_or("missing nested list")?)?;
-    assert_eq!(nested.metadata.style, None);
-    let explicit = unordered_list(section.content.get(2).ok_or("missing explicit list")?)?;
-    assert_eq!(explicit.metadata.style, Some("square"));
-    let second = unordered_list(section.content.last().ok_or("missing second direct list")?)?;
-    assert_eq!(second.metadata.style, Some("bibliography"));
+    assert_eq!(section.kind(), SectionKind::Bibliography);
+    let direct = unordered_list(section.blocks().next().ok_or("missing direct list")?)?;
+    assert_eq!(direct.style(), Some("bibliography"));
+    let first_item = direct.items().next().ok_or("missing first list item")?;
+    let nested = unordered_list(first_item.blocks().next().ok_or("missing nested list")?)?;
+    assert_eq!(nested.style(), None);
+    let explicit = unordered_list(section.blocks().nth(2).ok_or("missing explicit list")?)?;
+    assert_eq!(explicit.style(), Some("square"));
+    let second = unordered_list(
+        section
+            .blocks()
+            .last()
+            .ok_or("missing second direct list")?,
+    )?;
+    assert_eq!(second.style(), Some("bibliography"));
     Ok(())
 }
 
@@ -190,37 +217,45 @@ fn bibliography_sections_warn_for_each_direct_child_section() -> Result<(), Erro
         "bibliography sections do not support nested sections"
     );
 
-    let Block::Section(bibliography) = parsed
+    let BlockKind::Section(bibliography) = parsed
         .document()
-        .blocks
-        .first()
+        .blocks()
+        .next()
         .ok_or("missing bibliography")?
+        .kind()
     else {
         return Err("expected a bibliography section".into());
     };
-    assert_eq!(bibliography.kind, SectionKind::Bibliography);
-    assert_eq!(bibliography.content.len(), 2);
-    let Block::Section(first) = bibliography.content.first().ok_or("missing first child")? else {
+    assert_eq!(bibliography.kind(), SectionKind::Bibliography);
+    assert_eq!(bibliography.blocks().count(), 2);
+    let BlockKind::Section(first) = bibliography
+        .blocks()
+        .next()
+        .ok_or("missing first child")?
+        .kind()
+    else {
         return Err("expected first child section".into());
     };
-    assert!(matches!(first.content.first(), Some(Block::Section(_))));
     assert!(matches!(
-        bibliography.content.get(1),
-        Some(Block::Section(_))
+        first.blocks().next().map(BlockRef::kind),
+        Some(BlockKind::Section(_))
     ));
     assert!(matches!(
-        parsed.document().blocks.get(1),
-        Some(Block::Section(_))
+        bibliography.blocks().nth(1).map(BlockRef::kind),
+        Some(BlockKind::Section(_))
+    ));
+    assert!(matches!(
+        parsed.document().blocks().nth(1).map(BlockRef::kind),
+        Some(BlockKind::Section(_))
     ));
     Ok(())
 }
 
-#[cfg(feature = "setext")]
 #[test]
 fn bibliography_sections_warn_for_setext_child_sections() -> Result<(), Error> {
     let parsed = parse(
         "[bibliography]\nReferences\n----------\n\nChild\n~~~~~\n",
-        &Options::builder().with_setext().build()?,
+        &Options::builder().build()?,
     )?;
     let warning = parsed
         .warnings()
@@ -237,17 +272,21 @@ fn bibliography_sections_warn_for_setext_child_sections() -> Result<(), Error> {
             .line,
         5
     );
-    let Block::Section(bibliography) = parsed
+    let BlockKind::Section(bibliography) = parsed
         .document()
-        .blocks
-        .first()
+        .blocks()
+        .next()
         .ok_or("missing bibliography")?
+        .kind()
     else {
         return Err("expected a bibliography section".into());
     };
     assert!(matches!(
-        bibliography.content.as_slice(),
-        [Block::Section(_)]
+        &*bibliography
+            .blocks()
+            .map(BlockRef::kind)
+            .collect::<Vec<_>>(),
+        [BlockKind::Section(_)]
     ));
     Ok(())
 }
@@ -274,18 +313,22 @@ fn explicit_bibliography_lists_work_outside_bibliography_sections() -> Result<()
         "See <<ref>>.\n\n[bibliography]\n* [[[ref]]] Reference\n",
         &Options::default(),
     )?;
-    let list = unordered_list(parsed.document().blocks.last().ok_or("missing list")?)?;
-    let Some(first_item) = list.items.first() else {
+    let list = unordered_list(parsed.document().blocks().last().ok_or("missing list")?)?;
+    let Some(first_item) = list.items().next() else {
         return Err("missing bibliography item".into());
     };
-    let [InlineNode::InlineAnchor(anchor), ..] = first_item.principal.as_slice() else {
-        return Err(format!("expected a bibliography anchor: {:?}", first_item.principal).into());
+    let [InlineKind::Anchor(anchor), ..] = &*kinds(first_item.principal()) else {
+        return Err(format!(
+            "expected a bibliography anchor: {:?}",
+            first_item.principal()
+        )
+        .into());
     };
 
     assert!(anchor.is_bibliography());
     let reference = parsed
         .document()
-        .references
+        .references()
         .get("ref")
         .ok_or("missing bibliography reference")?;
     assert!(reference.is_bibliography());
@@ -299,7 +342,7 @@ fn bibliography_anchors_require_valid_leading_triple_syntax() -> Result<(), Erro
         "[bibliography]\n* [[[id.with.dot,Short label]]] Valid\n* [[[numbered,1]]] Numbered label\n* [\\[[escaped]]] Escaped\n* [[ordinary]] Ordinary\n* Before [[[late]]] Late\n* [[[9numeric]]] Numeric ID\n* [[[]]] Empty\n",
         &Options::default(),
     )?;
-    let list = unordered_list(parsed.document().blocks.first().ok_or("missing list")?)?;
+    let list = unordered_list(parsed.document().blocks().next().ok_or("missing list")?)?;
     let [
         valid_item,
         _,
@@ -308,75 +351,106 @@ fn bibliography_anchors_require_valid_leading_triple_syntax() -> Result<(), Erro
         late_item,
         numeric_item,
         empty_item,
-    ] = list.items.as_slice()
+    ] = &*list.items().collect::<Vec<_>>()
     else {
         return Err("expected seven bibliography list items".into());
     };
 
-    let [InlineNode::InlineAnchor(valid), ..] = valid_item.principal.as_slice() else {
-        return Err(format!("expected a bibliography anchor: {:?}", valid_item.principal).into());
+    let [InlineKind::Anchor(valid), ..] = &*kinds(valid_item.principal()) else {
+        return Err(format!(
+            "expected a bibliography anchor: {:?}",
+            valid_item.principal()
+        )
+        .into());
     };
-    assert_eq!(valid.id, "id.with.dot");
+    assert_eq!(valid.id(), "id.with.dot");
     assert!(valid.is_bibliography());
 
     let numbered_label = parsed
         .document()
-        .references
+        .references()
         .get("numbered")
         .ok_or("missing numbered bibliography reference")?
-        .xreflabel
-        .as_ref()
+        .xreflabel()
         .ok_or("missing numbered reference label")?;
     let [
-        InlineNode::PlainText(open),
-        InlineNode::PlainText(number),
-        InlineNode::PlainText(close),
-    ] = numbered_label.as_slice()
+        InlineKind::Plain(open),
+        InlineKind::Plain(number),
+        InlineKind::Plain(close),
+    ] = &*numbered_label
+        .inlines()
+        .map(InlineRef::kind)
+        .collect::<Vec<_>>()
     else {
         return Err("expected a three-part numbered reference label".into());
     };
-    assert_eq!(open.content, "[");
-    assert_eq!(number.content, "1");
-    assert_eq!(close.content, "]");
+    assert_eq!(open.text(), "[");
+    assert_eq!(number.text(), "1");
+    assert_eq!(close.text(), "]");
 
     assert!(
         escaped_item
-            .principal
-            .iter()
-            .all(|inline| !matches!(inline, InlineNode::InlineAnchor(_)))
+            .principal()
+            .inlines()
+            .all(|inline| !matches!(inline.kind(), InlineKind::Anchor(_)))
     );
-    assert!(!parsed.document().references.contains_key("escaped"));
+    assert!(!parsed.document().references().contains("escaped"));
 
-    let [InlineNode::InlineAnchor(ordinary), ..] = ordinary_item.principal.as_slice() else {
+    let [InlineKind::Anchor(ordinary), ..] = &*kinds(ordinary_item.principal()) else {
         return Err("expected an ordinary anchor".into());
     };
     assert!(!ordinary.is_bibliography());
 
-    assert!(late_item.principal.iter().any(
-        |inline| matches!(inline, InlineNode::InlineAnchor(anchor) if anchor.id == "late" && !anchor.is_bibliography())
+    assert!(late_item.principal().inlines().any(
+        |inline| matches!(inline.kind(), InlineKind::Anchor(anchor) if anchor.id() == "late" && !anchor.is_bibliography())
     ));
     assert!(
         numeric_item
-            .principal
-            .iter()
-            .all(|inline| !matches!(inline, InlineNode::InlineAnchor(_)))
+            .principal()
+            .inlines()
+            .all(|inline| !matches!(inline.kind(), InlineKind::Anchor(_)))
     );
     assert!(
         empty_item
-            .principal
-            .iter()
-            .all(|inline| !matches!(inline, InlineNode::InlineAnchor(_)))
+            .principal()
+            .inlines()
+            .all(|inline| !matches!(inline.kind(), InlineKind::Anchor(_)))
     );
 
     let reference = parsed
         .document()
-        .references
+        .references()
         .get("id.with.dot")
         .ok_or("missing dotted bibliography reference")?;
     assert!(reference.is_bibliography());
-    let label = reference.xreflabel.as_ref().ok_or("missing label")?;
-    assert!(matches!(label.first(), Some(InlineNode::PlainText(text)) if text.content == "["));
-    assert!(matches!(label.last(), Some(InlineNode::PlainText(text)) if text.content == "]"));
-    assert!(!parsed.document().references.contains_key("9numeric"));
+    let label = reference.xreflabel().ok_or("missing label")?;
+    assert!(
+        matches!(label.inlines().next().map(InlineRef::kind), Some(InlineKind::Plain(text)) if text.text() == "[")
+    );
+    assert!(
+        matches!(label.inlines().next_back().map(InlineRef::kind), Some(InlineKind::Plain(text)) if text.text() == "]")
+    );
+    assert!(!parsed.document().references().contains("9numeric"));
     Ok(())
+}
+
+fn kinds(content: ContentRef<'_>) -> Vec<InlineKind<'_>> {
+    content.inlines().map(InlineRef::kind).collect()
+}
+
+fn label_text(label: Option<ContentRef<'_>>) -> Option<String> {
+    label.map(|label| {
+        label
+            .inlines()
+            .filter_map(|node| {
+                if let InlineKind::Plain(plain) = node.kind() {
+                    Some(plain.text())
+                } else if let InlineKind::Raw(raw) = node.kind() {
+                    Some(raw.text())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    })
 }

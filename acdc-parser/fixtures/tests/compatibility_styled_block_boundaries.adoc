@@ -1,0 +1,23 @@
+= Styled block boundaries
+
+[source,text]
+Ordinary paragraph before a delimiter
+----
+separate listing body
+----
+
+[verse]
+Ordinary paragraph before metadata
+[quote]
+Next paragraph
+
+[source,text]
+ indented content before a delimiter
+----
+separate listing body
+----
+
+[literal]
+Ordinary paragraph before a heading
+== Section title
+section body

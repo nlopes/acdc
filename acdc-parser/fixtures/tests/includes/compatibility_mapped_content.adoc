@@ -1,0 +1,5 @@
+[quote,Old,OldBook]
+[attribution='{author}',citetitle='NewBook']
+____
+Included selection preserves locations.
+____

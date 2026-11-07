@@ -1,0 +1,9 @@
+Excluded.
+// tag::selected[]
+* Included item
++
+// Include comment.
+Included π body with footnote:[One selected note].
+* Included sibling or text
+// end::selected[]
+Excluded tail.

@@ -1,0 +1,21 @@
+= Indented contexts
+
+include::includes/styled_indented_body.adoc[tag=body]
+
+* List item
++
+[normal#list-body]
+  List *Bold* footnote:list[List note].
+
+[cols="a"]
+|===
+|
+[normal#cell-normal]
+  é *Cell* footnote:cell[Cell note].
+
+[quote,Cell Author,Cell Citation]
+  Cell quote *Bold*.
+|===
+
+[normal,subs=none]
+  *Raw* {missing} footnote:ignored[Ignored note].

@@ -1,0 +1,18 @@
+# Markdown forms
+
+## Shared heading
+
+> A *formatted* quotation.
+> -- Author, Work
+
+```rust
+let number = 1;
+```
+
+```
+Plain fenced text.
+```
+
+### Nested heading
+
+Ordinary body.

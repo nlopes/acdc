@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use acdc_parser::{Document, ParseResult, WarningKind};
+use acdc_parser::{ParseResult, WarningKind, ast::DocumentRef};
 
 use crate::LintId;
 
@@ -44,11 +44,7 @@ fn lint_for_warning(kind: &WarningKind) -> Option<LintId> {
         WarningKind::SectionLevelOutOfSequence { .. } => Some(LintId::SectionLevelSequence),
         WarningKind::UnterminatedDelimitedBlock { .. } => Some(LintId::UnterminatedDelimitedBlock),
         WarningKind::UnterminatedTable { .. } => Some(LintId::UnterminatedTable),
-        WarningKind::Other(message)
-            if message.contains("Counters (") && message.contains("not supported") =>
-        {
-            Some(LintId::CounterSyntax)
-        }
+        WarningKind::UnsupportedCounter { .. } => Some(LintId::CounterSyntax),
         WarningKind::NonStandardAuthorLine { .. }
         | WarningKind::UnresolvedReference { .. }
         | WarningKind::LegacyFloatDiscreteHeading
@@ -59,21 +55,21 @@ fn lint_for_warning(kind: &WarningKind) -> Option<LintId> {
 
 pub(crate) fn lint_multiple_document_title(
     emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
+    document: DocumentRef<'_>,
     lines: &[SourceLine<'_>],
     skipped_lines: &[bool],
 ) {
     if matches!(
-        document.attributes.get("doctype"),
+        document.attributes().get("doctype"),
         Some(value) if value.as_str() == Some("book")
     ) {
         return;
     }
 
-    let Some(header) = &document.header else {
+    let Some(header) = document.header() else {
         return;
     };
-    let header_line = usize::try_from(header.location.start.line).unwrap_or(usize::MAX);
+    let header_line = usize::try_from(header.location().start().line()).unwrap_or(usize::MAX);
 
     for line in lines.iter().filter(|line| line.number > header_line) {
         if is_skipped_line(line.number, skipped_lines) {

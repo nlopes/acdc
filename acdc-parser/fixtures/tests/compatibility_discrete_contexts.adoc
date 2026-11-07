@@ -1,0 +1,27 @@
+= Discrete heading contexts
+:heading-style: discrete
+
+== Parent
+
+=== Child
+
+[{heading-style}]
+[style=normal]
+[[selected-heading]]
+.Ignored footnote:ignored[Do not register this title]
+== Selected footnote:selected[Register this heading once]
+
+Following text stays with the child only in Asciidoctor mode.
+
+== Sibling
+
+[style=discrete]
+=== Named style
+
+Following text belongs to a subsection only in Asciidoctor mode.
+
+[float]
+[style=normal]
+== Legacy selection
+
+Final text.

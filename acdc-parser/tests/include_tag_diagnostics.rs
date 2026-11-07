@@ -1,22 +1,30 @@
 use std::{error::Error, path::Path};
 
-use acdc_parser::{Block, InlineNode, Options, ParseResult, parse_file};
+use acdc_parser::{
+    Options, ParseResult,
+    ast::{BlockKind, InlineKind, InlineRef},
+    parse_file,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 fn paragraph_texts(result: &ParseResult) -> Result<Vec<&str>, Box<dyn Error>> {
     result
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return Err(format!("expected paragraph, got {block:?}").into());
             };
-            let [InlineNode::PlainText(text)] = paragraph.content.as_slice() else {
+            let [InlineKind::Plain(text)] = &*paragraph
+                .content()
+                .inlines()
+                .map(InlineRef::kind)
+                .collect::<Vec<_>>()
+            else {
                 return Err(format!("expected plain paragraph text, got {paragraph:?}").into());
             };
-            Ok(text.content)
+            Ok(text.text())
         })
         .collect()
 }
@@ -117,34 +125,29 @@ fn tag_selection_happens_before_nested_preprocessing() -> TestResult {
 
     let inner = result
         .document()
-        .blocks
-        .iter()
+        .blocks()
         .find_map(|block| {
-            let Block::Paragraph(paragraph) = block else {
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
                 return None;
             };
             matches!(
-                paragraph.content.as_slice(),
-                [InlineNode::PlainText(text)] if text.content == "INNER SELECTED"
+                &*paragraph.content().inlines().map(InlineRef::kind).collect::<Vec<_>>(),
+                [InlineKind::Plain(text)] if text.text() == "INNER SELECTED"
             )
             .then_some(paragraph)
         })
         .ok_or("expected selected nested paragraph")?;
-    assert_eq!(inner.location.start.line, 1);
+    assert_eq!(inner.location().start().line(), 1);
     assert_eq!(
         inner
-            .location
-            .start
-            .file
-            .as_ref()
-            .map(|chain| chain.as_slice()),
-        Some(
-            [
-                "include_selection_before_processing_target.adoc".to_string(),
-                "include_selection_before_processing_inner.adoc".to_string(),
-            ]
-            .as_slice()
-        )
+            .location()
+            .start()
+            .include_chain()
+            .map(Iterator::collect::<Vec<_>>),
+        Some(vec![
+            "include_selection_before_processing_target.adoc",
+            "include_selection_before_processing_inner.adoc",
+        ])
     );
 
     Ok(())

@@ -1,0 +1,34 @@
+= Scoped cells
+
+[cols="a,a"]
+|====
+|
+:imagesdir: first
+:cell-label: first
+
+Paragraph *bold*.
+
+* Item
+** Nested item
+
+----
+literal <code>
+----
+
+image::one.svg[]
+
+:imagesdir: changed
+
+image::changed.svg[]
+
+:imagesdir!:
+
+image::plain.svg[]
+|
+:imagesdir: second
+:cell-label: second
+
+image::two.svg[]
+|====
+
+image::after.svg[]

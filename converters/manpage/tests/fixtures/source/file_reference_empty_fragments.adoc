@@ -1,0 +1,27 @@
+= fragments(1)
+:doctype: manpage
+:docdate: 2001-02-03
+
+== NAME
+
+fragments - references with empty fragments
+
+== SYNOPSIS
+
+fragments
+
+== DESCRIPTION
+
+[[guide,Guide label]]
+Source document target.
+
+[[manual.pdf,PDF label]]
+PDF target.
+
+xref:guide.adoc#[]
+
+xref:manual.pdf#[]
+
+xref:missing.adoc#[]
+
+xref:https://example.org/guide.adoc#[]

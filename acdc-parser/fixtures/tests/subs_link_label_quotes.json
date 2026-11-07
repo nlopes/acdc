@@ -44,6 +44,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -68,6 +73,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 6,
@@ -98,6 +106,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 6,
@@ -134,10 +145,7 @@
               "line": 6,
               "col": 56
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -159,6 +167,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -168,6 +181,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 8,
@@ -198,6 +214,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 8,
@@ -228,6 +247,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 8,
@@ -249,10 +271,7 @@
               "line": 8,
               "col": 66
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -274,6 +293,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -283,6 +307,9 @@
               "name": "raw",
               "type": "string",
               "value": "Expanded",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 10,
@@ -313,6 +340,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 10,
@@ -343,6 +373,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 10,
@@ -364,10 +397,7 @@
               "line": 10,
               "col": 66
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -389,6 +419,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -419,6 +454,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "\"",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 12,
@@ -449,6 +487,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "\"",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 12,
@@ -497,10 +538,7 @@
               "line": 12,
               "col": 71
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -533,6 +571,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -557,6 +600,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 16,
@@ -587,6 +633,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 16,
@@ -623,10 +672,7 @@
               "line": 16,
               "col": 56
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         },
         {
           "name": "text",
@@ -647,6 +693,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.net"
@@ -671,6 +722,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 17,
@@ -701,6 +755,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 17,
@@ -737,10 +794,7 @@
               "line": 17,
               "col": 51
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         },
         {
           "name": "text",
@@ -761,6 +815,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "mailto",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "mailto:test@example.org"
@@ -785,6 +844,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 18,
@@ -815,6 +877,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 18,
@@ -851,10 +916,7 @@
               "line": 18,
               "col": 55
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -876,6 +938,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -900,6 +967,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 22,
@@ -930,6 +1000,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 22,
@@ -960,6 +1033,9 @@
               "name": "raw",
               "type": "string",
               "value": "]",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 22,
@@ -996,10 +1072,7 @@
               "line": 22,
               "col": 59
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "metadata": {
@@ -1095,6 +1168,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1138,6 +1216,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "\"",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 31,
@@ -1168,6 +1249,9 @@
                   "name": "raw",
                   "type": "string",
                   "value": "\"",
+                  "substitutions": [
+                    "special_chars"
+                  ],
                   "location": [
                     {
                       "line": 31,
@@ -1187,6 +1271,9 @@
                       "name": "raw",
                       "type": "string",
                       "value": "One \\\"quote\\\"",
+                      "substitutions": [
+                        "special_chars"
+                      ],
                       "location": [
                         {
                           "line": 31,
@@ -1295,10 +1382,7 @@
               "line": 31,
               "col": 111
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -1335,7 +1419,6 @@
           "name": "footnote",
           "type": "inline",
           "id": "late",
-          "inlines": [],
           "location": [
             {
               "line": 33,
@@ -1412,6 +1495,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1436,6 +1524,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 38,
@@ -1451,6 +1542,9 @@
               "name": "raw",
               "type": "string",
               "value": "quote",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 38,
@@ -1466,6 +1560,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 38,
@@ -1487,10 +1584,7 @@
               "line": 38,
               "col": 62
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -1512,6 +1606,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1536,6 +1635,9 @@
               "name": "raw",
               "type": "string",
               "value": "\\\"quote\\\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 40,
@@ -1557,10 +1659,7 @@
               "line": 40,
               "col": 62
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -1582,6 +1681,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1591,6 +1695,9 @@
               "name": "raw",
               "type": "string",
               "value": "One",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 42,
@@ -1612,10 +1719,7 @@
               "line": 42,
               "col": 54
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -1637,6 +1741,11 @@
           "name": "ref",
           "type": "inline",
           "variant": "link",
+          "metadata": {
+            "roles": [
+              "green"
+            ]
+          },
           "target": {
             "type": "url",
             "value": "https://example.org"
@@ -1646,6 +1755,9 @@
               "name": "raw",
               "type": "string",
               "value": "\"One\"",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 44,
@@ -1667,10 +1779,7 @@
               "line": 44,
               "col": 54
             }
-          ],
-          "attributes": {
-            "role": "green"
-          }
+          ]
         }
       ],
       "location": [
@@ -1716,6 +1825,9 @@
               "name": "raw",
               "type": "string",
               "value": "=",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 46,
@@ -1752,8 +1864,7 @@
               "line": 46,
               "col": 48
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [
@@ -1799,6 +1910,9 @@
               "name": "raw",
               "type": "string",
               "value": "=",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 48,
@@ -1835,8 +1949,7 @@
               "line": 48,
               "col": 48
             }
-          ],
-          "attributes": {}
+          ]
         }
       ],
       "location": [

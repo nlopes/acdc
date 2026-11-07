@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: Roles
 :mansource: acdc
+:docdate: 2026-10-07
 :revdate: 2026-10-07
 :word: café
 :target: école

@@ -1,0 +1,56 @@
+= Description children
+:revdate: 2026-01-01
+
+== Automatic child and shared body
+
+[#parent]
+* Parent π
+[#nested]
+[[short]]Short::
+[[long]]Long:: One shared body footnote:once[One note] and ((one index term)).
+** Deep ordinary child.
+* Sibling:: remains ordinary text.
+
+See <<short>>, <<long>>, and <<nested>>.
+
+== Blank line and alternate delimiter
+
+. Parent
+
+Alpha;; Definition.
+. Sibling
+
+== Explicit attachment
+
+* Parent
++
+Term::: Definition.
+* Sibling
+
+== Separate attachment owners
+
+* Parent
+Term:: Definition.
++
+Attached to the definition.
+
++
+Attached to the ordinary item.
+
+* Sibling
+
+== Delimited child
+
+. Parent
+Term:: Definition.
++
+--
+. This ordinary list belongs to the open block.
+--
+. Sibling
+
+== Literal principal control
+
+* Inline:: text stays in the principal.
+* A malformed marker
+Term::word stays in the principal.
