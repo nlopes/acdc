@@ -157,3 +157,43 @@ fn body_event_schema_requires_separate_discriminators_and_exact_assignment_shape
     assert!(!validator.is_valid(&document(extra)));
     Ok(())
 }
+
+#[rstest::rstest]
+#[case(":imagesdir!:", None, "unset")]
+#[case(":imagesdir: tail", Some("tail"), "set")]
+#[case(":imagesdir:", Some(""), "set")]
+fn trailing_open_block_attributes_keep_source_order(
+    #[case] entry: &str,
+    #[case] expected: Option<&str>,
+    #[case] kind: &str,
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let source = format!(
+        "= Boundary\n:imagesdir: header\n\n--\n:imagesdir: inner\nimage::inside.png[]\n\n{entry}\n--\n\nimage::after.png[]\n"
+    );
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    let parsed = parse(&source, &options)?;
+    let native = serde_json::to_value(parsed.document())?;
+    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let blocks = value
+        .get("blocks")
+        .and_then(Value::as_array)
+        .ok_or("blocks")?;
+    let trailing = blocks
+        .first()
+        .and_then(|block| block.get("blocks"))
+        .and_then(Value::as_array)
+        .and_then(|blocks| blocks.last())
+        .ok_or("trailing event")?;
+    assert_eq!(trailing.get("attribute"), Some(&json!("imagesdir")));
+    assert_eq!(
+        trailing.pointer("/assignment/kind").and_then(Value::as_str),
+        Some(kind)
+    );
+    assert_eq!(trailing.pointer("/location/0/line"), Some(&json!(8)));
+    let mut attributes = BTreeMap::from([("imagesdir".into(), "header".into())]);
+    inspect_blocks(blocks, &mut attributes, &mut Vec::new(), &mut Vec::new())?;
+    assert_eq!(attributes.get("imagesdir").map(String::as_str), expected);
+    assert_eq!(serde_json::to_value(parsed.document())?, native);
+    Ok(())
+}

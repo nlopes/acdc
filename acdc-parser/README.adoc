@@ -1437,6 +1437,15 @@ source order and restores parent attributes after nested AsciiDoc table cells.
 Parser consumers that do not use the visitor can interpret the ordered set/unset
 events directly; the parser exposes no mutable traversal or precedence state.
 
+Both modes apply accepted assignments inside an open block in source order,
+including an assignment immediately before the closing delimiter. A trailing
+`:imagesdir!:` therefore clears the image directory for later content outside
+the block. Blank lines and comments do not discard the assignment. Asciidoctor
+2.0.26 can retain the value used by the last child block instead. Its
+https://docs.asciidoctor.org/asciidoc/latest/attributes/attribute-entries/[attribute-entry documentation]
+defines entries inside delimited blocks as undefined behavior. acdc keeps its
+ordered-event policy for this case in both modes.
+
 The header column in the Asciidoctor document-attribute reference identifies where a
 feature normally reads its setup value. It is not a general ban on later assignments.
 acdc accepts supported body assignments in source order, while setup-only consumers

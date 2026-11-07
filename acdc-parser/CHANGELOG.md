@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Documented that accepted assignments immediately before an open block closes
+  still affect later content in both modes. Asciidoctor defines attribute entries
+  inside delimited blocks as undefined behavior.
+
 - Local image and block audio filenames now accept literal single and double
   quotes. Quoted alt and title values remain separate from the target. Inline
   filenames keep ASCII apostrophes; Asciidoctor can replace them with typographic
