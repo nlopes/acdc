@@ -1,17 +1,56 @@
 //! Inline selection copies only the selected value; typed content exports native JSON.
 
-use std::{alloc::System, hint::black_box};
+use std::{alloc::System, hint::black_box, process::ExitCode};
 
 use acdc_parser::{
     self as parser, ContentAttribute, Form, InlineMacro, InlineNode, Location, Options, Plain,
     ast::{ContentRef, InlineKind, InlineRef},
 };
+use libtest_mimic::{Arguments, Trial};
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
 
 #[global_allocator]
 static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 
 type Error = Box<dyn std::error::Error>;
+
+fn main() -> ExitCode {
+    let mut args = Arguments::from_args();
+    // Run on the main thread so harness allocations cannot race measured regions.
+    args.test_threads = Some(1);
+    let mut tests = vec![
+        Trial::test(
+            "generic_selected_copy_preserves_every_concrete_kind",
+            || generic_selected_copy_preserves_every_concrete_kind().map_err(Into::into),
+        ),
+        Trial::test("selecting_an_atom_does_not_copy_unrelated_siblings", || {
+            selecting_an_atom_does_not_copy_unrelated_siblings().map_err(Into::into)
+        }),
+        Trial::test(
+            "native_content_serialization_does_not_clone_the_tree",
+            || native_content_serialization_does_not_clone_the_tree().map_err(Into::into),
+        ),
+    ];
+    for (suffix, mode) in [
+        (
+            "mode_1_parser__CompatibilityMode__Asciidoctor",
+            parser::CompatibilityMode::Asciidoctor,
+        ),
+        (
+            "mode_2_parser__CompatibilityMode__Draft",
+            parser::CompatibilityMode::Draft,
+        ),
+    ] {
+        tests.push(Trial::test(
+            format!("inline_parse_content_keeps_native_shape_and_selected_lifetimes::{suffix}"),
+            move || {
+                inline_parse_content_keeps_native_shape_and_selected_lifetimes(mode)
+                    .map_err(Into::into)
+            },
+        ));
+    }
+    libtest_mimic::run(&args, tests).exit_code()
+}
 
 fn plain(text: &str) -> InlineNode<'_> {
     InlineNode::PlainText(Plain::new(text, Location::default()).with_escaped(true))
@@ -138,7 +177,6 @@ fn macro_values(source: &str) -> Vec<InlineNode<'_>> {
     ]
 }
 
-#[test]
 fn generic_selected_copy_preserves_every_concrete_kind() -> Result<(), Error> {
     let source = String::from("λ *prepared* {entry} footnote:[literal]");
     let mut values = atoms_and_spans(&source)?;
@@ -160,7 +198,6 @@ fn generic_selected_copy_preserves_every_concrete_kind() -> Result<(), Error> {
     Ok(())
 }
 
-#[test]
 fn selecting_an_atom_does_not_copy_unrelated_siblings() -> Result<(), Error> {
     for count in [1, 1_000] {
         let content = ContentAttribute::new((0..count).map(|_| plain("*literal* λ")).collect());
@@ -182,7 +219,6 @@ fn selecting_an_atom_does_not_copy_unrelated_siblings() -> Result<(), Error> {
     Ok(())
 }
 
-#[test]
 fn native_content_serialization_does_not_clone_the_tree() -> Result<(), Error> {
     let content = ContentAttribute::new((0..1_000).map(|_| plain("λ *literal*")).collect());
     let read = ContentRef::from(&content);
@@ -198,12 +234,7 @@ fn native_content_serialization_does_not_clone_the_tree() -> Result<(), Error> {
     Ok(())
 }
 
-#[rstest::rstest]
 fn inline_parse_content_keeps_native_shape_and_selected_lifetimes(
-    #[values(
-        parser::CompatibilityMode::Asciidoctor,
-        parser::CompatibilityMode::Draft
-    )]
     mode: parser::CompatibilityMode,
 ) -> Result<(), Error> {
     let options = Options::builder().with_compatibility_mode(mode).build()?;

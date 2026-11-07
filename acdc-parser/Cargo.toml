@@ -68,6 +68,10 @@ tracing-test = { workspace = true, features = ["no-env-filter"] }
 name = "fixtures"
 harness = false
 
+[[test]]
+name = "owned_inline_selection"
+harness = false
+
 [[bench]]
 name = "parser_bench"
 harness = false
