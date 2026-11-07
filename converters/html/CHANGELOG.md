@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Explicit replacement-attribute values now resolve arrow typography using the
+  same substitution order as ordinary attributes in both variants.
+
 - Explicit links to URNs, custom schemes, and paths with colons now render
   as hyperlinks in both variants instead of literal macro text.
 

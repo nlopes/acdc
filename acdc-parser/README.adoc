@@ -831,6 +831,13 @@ passthroughs when special-character substitution precedes replacements. Reversin
 that order keeps them literal. Escapes and later attribute values cannot create
 an earlier source-arrow replacement.
 
+Explicit assignments to character-replacement names follow ordinary attribute
+substitution order in both modes. With normal substitutions, `:quot: ->`
+resolves to an arrow. Implicit built-in values remain literal syntax. Caller
+locks and declaration snapshots are preserved. With normal substitutions, acdc
+also resolves a literal `->` from caller options or a declaration's `pass:[]`
+value. Asciidoctor keeps these raw arrows literal.
+
 The parser retains inactive syntax and resolves enabled typography. Converters
 choose the output encoding for resolved symbols.
 

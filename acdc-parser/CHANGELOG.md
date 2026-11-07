@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Explicit overrides of character-replacement attributes now follow the same
+  substitution order as ordinary attributes. For example, `:quot: ->` produces
+  an arrow under normal substitutions in both modes. Built-in values remain literal.
+  Raw `->` values from caller options or `pass:[]` also follow this rule;
+  Asciidoctor keeps them literal.
+
 - Documented the shared formatting boundary after a literal `&`. With quotes
   enabled, `&_a_;` formats its inner letter in both modes; Asciidoctor's default
   substitutions leave the markers literal.

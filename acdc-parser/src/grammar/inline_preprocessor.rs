@@ -446,10 +446,10 @@ impl<'a> InlinePreprocessorParserState<'a> {
             return format!("{{{attribute_name}}}");
         }
 
-        // Character-replacement attributes must bypass the second inline parse;
-        // otherwise values such as `+` and `*` become AsciiDoc syntax.
+        // Built-in replacement values bypass inline parsing so `+` and `*` stay literal.
+        // Explicit overrides follow the ordinary attribute substitution order.
         // https://docs.asciidoctor.org/asciidoc/latest/attributes/character-replacement-ref/
-        let is_character_reference = matches!(
+        let is_builtin_replacement = matches!(
             attribute_name,
             "lt" | "gt"
                 | "amp"
@@ -469,13 +469,13 @@ impl<'a> InlinePreprocessorParserState<'a> {
                 | "two-semicolons"
                 | "apos"
                 | "quot"
-        );
+        ) && !document_attributes.is_explicit(attribute_name);
 
         let Some(resolved) = document_attributes.get(attribute_name) else {
             return format!("{{{attribute_name}}}");
         };
 
-        if (is_character_reference || !resolved.inline_fragments().is_empty())
+        if (is_builtin_replacement || !resolved.inline_fragments().is_empty())
             && let Some(value) = resolved.as_str()
         {
             let absolute_start = location.absolute_start;
