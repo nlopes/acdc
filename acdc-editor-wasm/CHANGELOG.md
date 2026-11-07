@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Restore clean strict Clippy builds for the WASM editor.
+
 - Legacy underlined headings are recognized and highlighted in builds without
   the `setext` feature, following the default Asciidoctor mode.
 

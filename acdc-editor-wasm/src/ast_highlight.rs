@@ -218,7 +218,6 @@ fn collect_children(input: &str, node: StructuralRef<'_>, spans: &mut Vec<Span>)
                 }
                 collect_inline_spans(input, item.principal(), spans);
             }
-            StructuralRef::DescriptionListItem(_) => {}
             StructuralRef::DescriptionListTerm(term) => {
                 if let Some(location) = term.delimiter_location() {
                     push_block_span(input, spans, location, "adoc-description-marker");
@@ -234,7 +233,9 @@ fn collect_children(input: &str, node: StructuralRef<'_>, spans: &mut Vec<Span>)
                 push_inline_span(input, spans, item.callout().location(), "adoc-callout");
                 collect_inline_spans(input, item.principal(), spans);
             }
-            StructuralRef::TableRow(_) | StructuralRef::TableCell(_) => {}
+            StructuralRef::DescriptionListItem(_)
+            | StructuralRef::TableRow(_)
+            | StructuralRef::TableCell(_) => {}
             StructuralRef::Document(_) | StructuralRef::Header(_) | _ => continue,
         }
         collect_children(input, child, spans);
