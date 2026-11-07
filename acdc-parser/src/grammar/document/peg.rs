@@ -177,6 +177,7 @@ peg::parser! {
             normalize_bibliography_lists(state, &mut blocks);
             let mut header = header;
             crate::grammar::reference_text::resolve_tree(state, &mut header, &mut blocks)?;
+            crate::grammar::document::table::finalize_footnotes(&mut blocks);
             caption::renumber_captions(&mut blocks);
 
             let header_has_anchor = header.as_ref().is_some_and(|header| {

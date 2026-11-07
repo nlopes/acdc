@@ -253,8 +253,9 @@ struct NamedFootnote<'a> {
 pub(crate) struct FootnoteTracker<'a> {
     /// All registered footnotes in the order they were encountered.
     pub(crate) footnotes: Vec<FootnoteDefinition<'a>>,
-    /// The last assigned footnote number (starts at 1)
-    last_footnote_position: u32,
+    next_number: u32,
+    // Ordinary documents need no shared counter allocation.
+    shared_next_number: Option<Rc<Cell<u32>>>,
     named_footnotes: HashMap<&'a str, NamedFootnote<'a>>,
     /// Footnote numbers whose stored entry has already had its location/content
     /// finalized to document-absolute coordinates (see [`Self::finalize`]). The first
@@ -267,10 +268,41 @@ impl<'a> FootnoteTracker<'a> {
     pub(crate) fn new() -> Self {
         Self {
             footnotes: Vec::new(),
-            last_footnote_position: 1,
+            next_number: 1,
+            shared_next_number: None,
             named_footnotes: HashMap::new(),
             location_finalized: HashSet::new(),
         }
+    }
+
+    pub(super) fn next_number(&self) -> u32 {
+        self.shared_next_number
+            .as_ref()
+            .map_or(self.next_number, |counter| counter.get())
+    }
+
+    pub(super) fn set_next_number(&mut self, number: u32) {
+        if let Some(counter) = &self.shared_next_number {
+            counter.set(number);
+        } else {
+            self.next_number = number;
+        }
+    }
+
+    pub(super) fn nested(&mut self) -> Self {
+        let counter = self
+            .shared_next_number
+            .get_or_insert_with(|| Rc::new(Cell::new(self.next_number)));
+        Self {
+            shared_next_number: Some(Rc::clone(counter)),
+            ..Self::new()
+        }
+    }
+
+    pub(super) fn discard_definitions(&mut self) {
+        self.footnotes.clear();
+        self.named_footnotes.clear();
+        self.location_finalized.clear();
     }
 
     /// Update the first definition after its locations become document-absolute.
@@ -287,8 +319,10 @@ impl<'a> FootnoteTracker<'a> {
             }
         });
         if self.location_finalized.insert(footnote.number)
-            && let Some(index) = footnote.number.checked_sub(1)
-            && let Some(entry) = self.footnotes.get_mut(index as usize)
+            && let Ok(index) = self
+                .footnotes
+                .binary_search_by_key(&footnote.number, |entry| entry.number)
+            && let Some(entry) = self.footnotes.get_mut(index)
         {
             entry.location = footnote.location.clone();
             if let Some(content) = &footnote.content {
@@ -318,12 +352,12 @@ impl<'a> FootnoteTracker<'a> {
         if content.is_empty() {
             return false;
         }
-        footnote.number = self.last_footnote_position;
+        footnote.number = self.next_number();
         if let Some(id) = footnote.id {
             self.named_footnotes.insert(
                 id,
                 NamedFootnote {
-                    number: self.last_footnote_position,
+                    number: footnote.number,
                     definition: None,
                 },
             );
@@ -335,7 +369,7 @@ impl<'a> FootnoteTracker<'a> {
             number: footnote.number,
             location: footnote.location.clone(),
         });
-        self.last_footnote_position += 1;
+        self.set_next_number(footnote.number + 1);
         true
     }
 }

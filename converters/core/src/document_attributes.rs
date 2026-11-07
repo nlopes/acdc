@@ -2,9 +2,12 @@ use std::borrow::Cow;
 
 use acdc_parser::{
     DocumentAttributeAssignment, DocumentAttributeValue,
-    ast::{BlockKind, BlockRef, DocumentAttributeRef, DocumentAttributesRef, TableCellRef},
+    ast::{
+        BlockKind, BlockRef, DocumentAttributeRef, DocumentAttributesRef, DocumentRef,
+        FootnoteDefinitionRef, StructuralRef, TableCellRef,
+    },
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 type Overlay<'doc> = FxHashMap<&'doc str, &'doc DocumentAttributeAssignment<'doc>>;
 
@@ -56,9 +59,62 @@ pub struct TraversalContext<'doc> {
     header: DocumentAttributesRef<'doc>,
     overlay: Overlay<'doc>,
     scopes: Vec<Overlay<'doc>>,
+    footnotes: FxHashMap<u32, (FootnoteDefinitionRef<'doc>, Cow<'doc, str>)>,
 }
 
 impl<'doc> TraversalContext<'doc> {
+    /// Provide registered footnote bodies and output labels during a document pass.
+    /// Restores the previous registrations on return, including an error return.
+    /// Custom document visitors must use this around their traversal. Prepared
+    /// documents must have unique registered numbers; use
+    /// [`acdc_parser::Document::rebuild_footnotes`] after structural edits.
+    pub fn with_document<R>(
+        &mut self,
+        document: DocumentRef<'doc>,
+        operation: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let previous = std::mem::take(&mut self.footnotes);
+        let mut labels = FxHashSet::default();
+        for note in document.footnotes() {
+            let label = note
+                .id()
+                .map_or_else(|| Cow::Owned(note.number().to_string()), Cow::Borrowed);
+            labels.insert(label.to_lowercase());
+            self.footnotes.insert(note.number(), (note, label));
+        }
+        for node in document.descendants() {
+            if let StructuralRef::TableCell(cell) = node {
+                for note in cell.footnotes() {
+                    let mut label = format!("acdc-cell-footnote-{}", note.number());
+                    while !labels.insert(label.to_lowercase()) {
+                        label.push('_');
+                    }
+                    self.footnotes
+                        .insert(note.number(), (note, Cow::Owned(label)));
+                }
+            }
+        }
+        let result = operation(self);
+        self.footnotes = previous;
+        result
+    }
+
+    /// Borrow the owning catalog's definition by its document-wide number.
+    /// Available during [`crate::visitor::DocumentVisitor::visit_document`].
+    #[must_use]
+    pub fn footnote_definition(&self, number: u32) -> Option<FootnoteDefinitionRef<'doc>> {
+        self.footnotes
+            .get(&number)
+            .map(|(definition, _)| *definition)
+    }
+
+    /// Output label for a registered note. Root labels retain their name or number.
+    /// Cell labels are qualified and avoid every registered root label.
+    #[must_use]
+    pub fn footnote_label(&self, number: u32) -> Option<&str> {
+        self.footnotes.get(&number).map(|(_, label)| label.as_ref())
+    }
+
     /// Visit blocks in source order through [`Self::visit_block`].
     ///
     /// # Errors
@@ -129,6 +185,7 @@ impl<'doc> TraversalContext<'doc> {
             header: header.into(),
             overlay: Overlay::default(),
             scopes: Vec::new(),
+            footnotes: FxHashMap::default(),
         }
     }
 
@@ -214,6 +271,30 @@ mod tests {
     use crate::{document_attribute_text, visitor::BlockVisitor};
 
     type Error = Box<dyn std::error::Error>;
+
+    #[test]
+    fn cell_footnote_labels_avoid_root_collisions_and_restore_after_errors() -> Result<(), Error> {
+        let parsed = parse(
+            "footnote:acdc-cell-footnote-2[Outer.]\n\n[cols=a,options=noheader]\n|===\n|footnote:same[Cell.]\n|===\n",
+            &Options::default(),
+        )?;
+        let document = parsed.document();
+        let mut context = TraversalContext::new(document.attributes());
+        let result = context.with_document(document, |context| {
+            assert_eq!(context.footnote_label(1), Some("acdc-cell-footnote-2"));
+            assert_eq!(context.footnote_label(2), Some("acdc-cell-footnote-2_"));
+            assert_eq!(
+                context
+                    .footnote_definition(2)
+                    .and_then(FootnoteDefinitionRef::id),
+                Some("same")
+            );
+            Err::<(), _>("visitor failed")
+        });
+        assert_eq!(result, Err("visitor failed"));
+        assert!(context.footnote_definition(2).is_none());
+        Ok(())
+    }
 
     #[test]
     fn literal_document_text_is_borrowed_without_dequoting() -> Result<(), Error> {

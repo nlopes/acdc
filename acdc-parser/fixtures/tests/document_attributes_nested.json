@@ -51,6 +51,7 @@
           {
             "columns": [
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "cell-unset",
@@ -176,6 +177,7 @@
                         {
                           "columns": [
                             {
+                              "footnote_scope": true,
                               "content": [
                                 {
                                   "name": "nested-only",
@@ -291,6 +293,7 @@
                 "style": "asciidoc"
               },
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "paragraph",

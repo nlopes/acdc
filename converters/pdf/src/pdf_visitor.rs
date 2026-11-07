@@ -26,11 +26,11 @@ use acdc_parser::{
     ast::{
         AnchorRef, AttributeValueRef, AttributesRef, AutolinkRef, BlockKind, BlockRef, CaptionRef,
         ColumnFormatRef, ContentRef, CrossReferenceRef, DescriptionListDefinitionRef,
-        DescriptionListRef, DescriptionListTermRef, DocumentRef, ElementIdRef, FootnoteRef,
-        IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef, InlineImageRef, InlineKind,
-        InlineRef, ListItemRef, LocationRef, MenuRef, PageBreakRef, ParagraphRef, RawRef,
-        ReferenceRef, SectionRef, SourceRef, TableCellRef, TableOfContentsRef, TableRef,
-        TableRowRef, TokensRef, UnorderedListRef,
+        DescriptionListRef, DescriptionListTermRef, DocumentRef, ElementIdRef,
+        FootnoteDefinitionRef, FootnoteRef, IconRef, ImageRef, IndexTermRef,
+        IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef, ListItemRef, LocationRef,
+        MenuRef, PageBreakRef, ParagraphRef, RawRef, ReferenceRef, SectionRef, SourceRef,
+        TableCellRef, TableOfContentsRef, TableRef, TableRowRef, TokensRef, UnorderedListRef,
     },
 };
 use acdc_pdf_images::ImageMap;
@@ -4137,15 +4137,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         footnote: FootnoteRef<'_>,
     ) -> Result<(), Error> {
+        let label = footnote.id().map(|id| {
+            encode_footnote_label(traversal.footnote_label(footnote.number()).unwrap_or(id))
+        });
         if self.anchors.suspended {
             // Copied titles display the parsed marker without defining
             // another native footnote or duplicating the original label.
             let _ = write!(self.writer, "#super[{}]", footnote.number());
         } else if footnote.content().is_none() {
-            let label = footnote.id().map_or_else(
-                || format!("acdc-anonymous-footnote-{}", footnote.number()),
-                encode_footnote_label,
-            );
+            let label =
+                label.unwrap_or_else(|| format!("acdc-anonymous-footnote-{}", footnote.number()));
             let _ = write!(self.writer, "#footnote(<{label}>)");
         } else {
             let _ = write!(
@@ -4154,12 +4155,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 footnote.number().saturating_sub(1)
             );
             self.writer.raw("#footnote[");
-            if let Some(content) = footnote.content() {
+            if let Some(content) = traversal
+                .footnote_definition(footnote.number())
+                .map(FootnoteDefinitionRef::content)
+                .or_else(|| footnote.content())
+            {
                 self.write_content(traversal, content)?;
             }
             self.writer.raw("]");
-            if let Some(id) = footnote.id() {
-                let _ = write!(self.writer, "<{}>", encode_footnote_label(id));
+            if let Some(label) = label {
+                let _ = write!(self.writer, "<{label}>");
             } else if self
                 .anonymous_footnote_references
                 .contains(&footnote.number())

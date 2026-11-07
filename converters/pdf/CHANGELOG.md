@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Footnotes with the same name in separate AsciiDoc table cells now have
+  distinct PDF destinations. Repeated references link to their owning note.
+  Unlike Asciidoctor PDF, repeated names across cell boundaries do not collapse
+  onto the outer definition.
+
 - References to the document top and header ID use body `reftext` values in
   source order. Empty and unset values select the title; explicit link text stays intact.
 

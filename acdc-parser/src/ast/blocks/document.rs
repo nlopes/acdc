@@ -12,7 +12,7 @@ node_ref!(HeaderRef<'doc>, crate::Header<'doc>, "A document header.");
 node_ref!(
     FootnoteDefinitionRef<'doc>,
     FootnoteDefinition<'doc>,
-    "A registered footnote definition from the document catalog, not another authored occurrence."
+    "A registered footnote definition from a document or cell catalog."
 );
 
 /// An author's retained name parts and optional email address.
@@ -44,8 +44,9 @@ impl<'doc> DocumentRef<'doc> {
         DocumentAttributesRef::from(&self.node.attributes)
     }
 
-    /// Registered definitions in numbering order, separate from occurrences in
-    /// the block tree. Reads preserve the catalog without refreshing it.
+    /// Definitions owned by the outer document, in numbering order.
+    /// Cell definitions are read through [`super::super::TableCellRef::footnotes`].
+    /// Reads preserve the catalog without refreshing it.
     pub fn footnotes(
         self,
     ) -> impl Iterator<Item = FootnoteDefinitionRef<'doc>> + Send + Sync + 'doc {

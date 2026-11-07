@@ -331,6 +331,7 @@
           {
             "columns": [
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "paragraph",
@@ -475,9 +476,9 @@
                         ]
                       },
                       {
-                        "name": "footnote",
-                        "type": "inline",
-                        "id": "n",
+                        "name": "text",
+                        "type": "string",
+                        "value": "[n]",
                         "location": [
                           {
                             "line": 13,

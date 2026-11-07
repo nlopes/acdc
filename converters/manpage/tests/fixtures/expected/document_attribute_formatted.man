@@ -51,6 +51,9 @@ ltx ltx.
 T{
 .sp
 Cell: \fBEarly\fR / \fBBold\fR / \fBEarly\fR / [5]\&.
+.sp
+.IP [5] 4
+Anonymous body.
 
 T}:T{
 .sp
@@ -75,7 +78,5 @@ Anonymous body.
 Anonymous body.
 .IP [4] 4
 Named body.
-.IP [5] 4
-Anonymous body.
 .IP [6] 4
 Anonymous body.

@@ -727,7 +727,10 @@ fn finalize_registered_inline<'a>(state: &ParserState<'a>, node: &mut InlineNode
     }
 }
 
-fn finalize_footnote_text(plan: &mut Option<SubstitutionPlan>, content: &mut [InlineNode<'_>]) {
+pub(super) fn finalize_footnote_text(
+    plan: &mut Option<SubstitutionPlan>,
+    content: &mut [InlineNode<'_>],
+) {
     if let Some(plan) = plan.take() {
         freeze_registered_text(content, plan);
     }

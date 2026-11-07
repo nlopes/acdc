@@ -19,6 +19,7 @@
           {
             "columns": [
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "table",
@@ -130,6 +131,7 @@
                 "style": "asciidoc"
               },
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "table",

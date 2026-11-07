@@ -160,7 +160,22 @@ fn registered_caption_content_preserves_include_locations(
     else {
         return Err("included caption".into());
     };
-    assert_eq!(parsed.document().footnotes().count(), 1);
+    assert_eq!(
+        parsed.document().footnotes().count(),
+        usize::from(!nested_cell)
+    );
+    let cell_notes = parsed
+        .document()
+        .descendants()
+        .filter_map(|node| {
+            if let crate::ast::StructuralRef::TableCell(cell) = node {
+                Some(cell.footnotes().count())
+            } else {
+                None
+            }
+        })
+        .sum::<usize>();
+    assert_eq!(cell_notes, usize::from(nested_cell));
     let node = content.inlines().next().ok_or("caption prefix")?;
     assert!(matches!(node.kind(), InlineKind::Bold(_)));
     let original = parsed

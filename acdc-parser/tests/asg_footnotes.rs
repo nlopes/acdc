@@ -185,7 +185,7 @@ fn selected_titles_and_nested_cells_preserve_existing_registration_order() -> Re
             .iter()
             .map(|value| value.get("id").and_then(Value::as_str))
             .collect::<Vec<_>>(),
-        [Some("keep"), Some("cell")]
+        [Some("keep")]
     );
     assert_eq!(
         value.pointer("/blocks/1/rows/0/cells/0/blocks/0/inlines/1/number"),

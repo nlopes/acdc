@@ -1,0 +1,18 @@
+= Scope
+
+footnote:same[Outer.]
+
+[cols=a,options=noheader]
+|===
+|
+footnote:same[] footnote:later[] footnote:empty[]
+
+include::includes/table_cell_footnotes.adoc[lines=2..3,indent=0]
+
+footnote:later[Later.] footnote:later[]
+
+|
+footnote:included[] footnote:same[Sibling.]
+|===
+
+footnote:included[] footnote:same[]

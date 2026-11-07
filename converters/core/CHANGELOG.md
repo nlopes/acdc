@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Document traversal now provides footnote bodies and distinct output labels
+  for notes owned by AsciiDoc table cells. Custom document visitors can use
+  `TraversalContext::with_document()` to provide the same context.
+
 - Automatic document references and plain-text extraction use body `reftext`
   values in source order. Empty and unset values fall back to the document title.
   **Breaking:** keep the occurrence alive while using `resolve_reference` or

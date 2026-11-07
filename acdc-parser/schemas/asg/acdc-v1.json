@@ -1515,6 +1515,12 @@
         "blocks": {
           "$ref": "#/$defs/sectionBody"
         },
+        "footnotes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/acdcFootnoteDefinition"
+          }
+        },
         "colspan": {
           "type": "integer",
           "minimum": 1

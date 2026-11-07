@@ -5417,6 +5417,7 @@
       "shape": {
         "kind": "struct",
         "fields": [
+          "footnotes",
           "initial_attributes",
           "content",
           "colspan",
@@ -5431,6 +5432,9 @@
         "policy": "named-basic-table-structure"
       },
       "properties": {
+        "footnotes": {
+          "policy": "named-footnote-graph"
+        },
         "initial_attributes": {
           "policy": "named-basic-table-structure"
         },
@@ -6611,7 +6615,8 @@
               "halign",
               "valign",
               "style",
-              "initial_attributes"
+              "initial_attributes",
+              "footnotes"
             ],
             "ColumnFormat": [
               "halign",
@@ -6633,7 +6638,7 @@
             "#/$defs/acdcTableWidth",
             "#/$defs/acdcTablePresentation"
           ],
-          "handling": "Preserve actual delimiter, complete/delimited spans, table sections, column formats, cell block owners and literal context. Optional resolved presentation is a source-position snapshot, distinct from explicit metadata controls. Original edit defaults are not another graph value. Empty/present parts remain distinct. Positive cell spans retain original cell order across sections; inconsistent grids reject. AsciiDoc cells retain native nested blocks and ordered initial set/unset assignments. Each cell overlays inherited state locally; body events stay nested and do not leak into siblings or outer content.",
+          "handling": "Preserve actual delimiter, complete/delimited spans, table sections, column formats, cell block owners and literal context. Optional resolved presentation is a source-position snapshot, distinct from explicit metadata controls. Original edit defaults are not another graph value. Empty/present parts remain distinct. Positive cell spans retain original cell order across sections; inconsistent grids reject. AsciiDoc cells retain native nested blocks and ordered initial set/unset assignments. Each cell overlays inherited state locally; body events stay nested and do not leak into siblings or outer content. An owning cell has a footnotes array, including an empty one. Native JSON uses footnote_scope to mark ownership without copying definition bodies. Names are local to an owner; numbers are unique across all owners.",
           "tests": [
             "asg_tables.rs::basic_tables_preserve_sections_cells_and_formatting",
             "asg_tables.rs::empty_table_parts_keep_presence_and_prepared_column_values",

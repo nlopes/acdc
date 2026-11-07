@@ -5,7 +5,7 @@ use crate::{
 
 use super::{
     AttributeValueRef, AttributesRef, BlockRef, ContentRef, DocumentAttributesRef, ElementIdRef,
-    LocationRef, TokensRef,
+    FootnoteDefinitionRef, LocationRef, TokensRef,
 };
 
 /// A table block, including its title and local declarations.
@@ -167,6 +167,25 @@ pub struct TableCellRef<'doc> {
 }
 
 impl<'doc> TableCellRef<'doc> {
+    /// Whether this cell owns a footnote catalog, including an empty catalog.
+    /// Prepared style edits do not change this boundary.
+    #[must_use]
+    pub fn owns_footnotes(self) -> bool {
+        self.cell.footnotes.is_some()
+    }
+
+    /// Definitions owned by this cell, in retained catalog order.
+    /// Cells without an independent owner yield no definitions.
+    pub fn footnotes(
+        self,
+    ) -> impl Iterator<Item = FootnoteDefinitionRef<'doc>> + Send + Sync + 'doc {
+        self.cell
+            .footnotes
+            .iter()
+            .flatten()
+            .map(FootnoteDefinitionRef::from)
+    }
+
     /// Assignments applied before this `AsciiDoc` cell's blocks, in application order.
     ///
     /// They initialize the cell's scope without changing its parent document.

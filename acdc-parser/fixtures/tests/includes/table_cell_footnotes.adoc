@@ -1,0 +1,3 @@
+Unused footnote:excluded[Excluded.]
+  é footnote:included[Included.]
+  footnote:included[]

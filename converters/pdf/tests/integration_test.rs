@@ -14,6 +14,48 @@ use acdc_converters_pdf::{PageLayout, PageMargins, PageSize, PdfOptions, Process
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn table_footnotes_keep_distinct_pdf_targets_for_each_owner() -> Result<(), Error> {
+    let source = include_str!("fixtures/source/table_cell_footnotes.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse(
+            source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let pdf = render_parsed(&parsed)?;
+        let pages = pdf.get_pages();
+        let text = pdf.extract_text(&pages.keys().copied().collect::<Vec<_>>())?;
+        for body in [
+            "Outernote.",
+            "Firstnote.",
+            "Nestednote.",
+            "Secondnote.",
+            "Afternote.",
+            "Normalnote.",
+        ] {
+            assert_eq!(text.matches(body).count(), 1, "{mode:?}: {text}");
+        }
+        let targets = named_destinations(&pdf)?;
+        let mut uses = HashMap::new();
+        for page in pages.values() {
+            for annotation in pdf.get_page_annotations(*page)? {
+                let target = annotation
+                    .get(b"Dest")
+                    .or_else(|_| annotation.get(b"A")?.as_dict()?.get(b"D"))?;
+                let destination = resolve_destination(&pdf, &targets, target)?;
+                *uses.entry(format!("{destination:?}")).or_insert(0) += 1;
+            }
+        }
+        let mut counts = uses.into_values().collect::<Vec<_>>();
+        counts.sort_unstable();
+        // Each definition also links back to its first marker.
+        let mut expected = vec![1; 6];
+        expected.extend([1, 2, 2, 2, 3, 4]);
+        assert_eq!(counts, expected, "{mode:?}");
+    }
+    Ok(())
+}
+
+#[test]
 fn shared_description_styles_keep_terms_notes_and_distinct_destinations() -> Result<(), Error> {
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         for style in ["", "horizontal", "qanda", "ordered", "unordered"] {

@@ -21,6 +21,8 @@ Order: pass:q,c[*Escaped*] / pass:m,c[https://example.org[Escaped site]]. Partia
 ╭───────────────────────────────────┬─────────────────────╮
 │ Cell: [1mEarly[22m / [1mBold[22m / [1mEarly[22m / [38;5;14m[1m[5][0m. ┆ Other: Late / [1mBody[22m.[0m │
 │                                   ┆ [1m[22m[0m                    │
+│ ─────                             ┆                     │
+│ [38;5;14m[1m[5][0m Anonymous body.               ┆                     │
 │                                   ┆                     │
 ╰───────────────────────────────────┴─────────────────────╯
 Unset: {bold} / [1mBold[22m / [1mEarly[22m / [38;5;14m[1m[6][0m.
@@ -37,5 +39,4 @@ Unset: {bold} / [1mBold[22m / [1mEarly[22m / [38;5;14m[1m[6][0m.
 [38;5;14m[1m[2][0m Anonymous body.
 [38;5;14m[1m[3][0m Anonymous body.
 [38;5;14m[1m[4][0m Named body.
-[38;5;14m[1m[5][0m Anonymous body.
 [38;5;14m[1m[6][0m Anonymous body.

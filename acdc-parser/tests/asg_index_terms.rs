@@ -137,11 +137,12 @@ fn selected_titles_and_cells_keep_index_owners_and_footnote_registration() -> Re
     );
     assert_eq!(
         value
-            .get("footnotes")
+            .pointer("/blocks/1/rows/0/cells/0/footnotes")
             .and_then(Value::as_array)
             .map(Vec::len),
         Some(1)
     );
+    assert!(value.get("footnotes").is_none());
     assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }

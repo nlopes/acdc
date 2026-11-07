@@ -62,7 +62,7 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
                     // Caller-created footnotes can use IDs outside the source grammar.
                     let mut note = note.clone();
                     note.replace_id(Some("temporary\"note"));
-                    visitor.render_footnote((&note).into(), &options)?;
+                    visitor.render_footnote(&traversal, (&note).into(), &options)?;
                     macros += 1;
                 }
             }

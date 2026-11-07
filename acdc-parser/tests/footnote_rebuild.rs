@@ -305,7 +305,7 @@ fn included_definition_provenance_survives_promotion_in_an_asciidoc_cell(
     )?;
     std::fs::write(
         &main,
-        "include::note.adoc[lines=2,indent=0]\n\n[cols=a]\n|===\n|footnote:included[] footnote:cell[Cell.]\n|===\n",
+        "[cols=a,options=noheader]\n|===\n|\ninclude::note.adoc[lines=2,indent=0]\n\nfootnote:included[] footnote:cell[Cell.]\n|===\n",
     )?;
     let parsed = acdc_parser::parse_file(
         &main,
@@ -315,20 +315,47 @@ fn included_definition_provenance_survives_promotion_in_an_asciidoc_cell(
             .build()?,
     )?;
     let mut edited = Document::from(parsed.document());
-    let blocks: Vec<_> = edited.take_blocks().skip(1).collect();
-    edited.set_blocks(blocks);
+    let cell = parsed
+        .document()
+        .descendants()
+        .find_map(|node| {
+            if let acdc_parser::ast::StructuralRef::TableCell(cell) = node {
+                Some(cell)
+            } else {
+                None
+            }
+        })
+        .ok_or("cell")?;
+    let mut cell = acdc_parser::TableColumn::from(cell);
+    let remaining = cell.take_blocks().skip(1);
+    cell.set_blocks(remaining);
+    edited.set_blocks([Block::DelimitedBlock(acdc_parser::DelimitedBlock::new(
+        acdc_parser::DelimitedBlockType::DelimitedTable(acdc_parser::Table::new(
+            vec![acdc_parser::TableRow::new(vec![cell])],
+            Location::default(),
+        )),
+        "|===",
+        Location::default(),
+    ))]);
     edited.rebuild_footnotes()?;
+    assert!(DocumentRef::from(&edited).footnotes().next().is_none());
+    let cell = DocumentRef::from(&edited)
+        .descendants()
+        .find_map(|node| {
+            if let acdc_parser::ast::StructuralRef::TableCell(cell) = node {
+                Some(cell)
+            } else {
+                None
+            }
+        })
+        .ok_or("cell")?;
     assert_eq!(
-        catalog(&edited),
-        [
-            (Some("included".to_owned()), 1),
-            (Some("cell".to_owned()), 2)
-        ]
+        cell.footnotes()
+            .map(|note| (note.id(), note.number()))
+            .collect::<Vec<_>>(),
+        [(Some("included"), 1), (Some("cell"), 2)]
     );
-    let definition = DocumentRef::from(&edited)
-        .footnotes()
-        .next()
-        .ok_or("included definition")?;
+    let definition = cell.footnotes().next().ok_or("included definition")?;
     assert_eq!(
         parsed.resolve_location(definition.location()).file,
         Some(included)

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- AsciiDoc table cells now include their local footnote text. Notes from
+  sibling and nested cells stay separate from outer document notes.
+
 - References to the document top and header ID use body `reftext` values in
   source order. Empty and unset values select the title; explicit link text stays intact.
 

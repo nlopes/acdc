@@ -116,6 +116,7 @@ fn render_cell_content<'a, W: Write>(
                 writeln!(visitor.writer_mut(), "<div class=\"content\">")?;
             }
             traversal.visit_blocks(visitor, cell.blocks())?;
+            visitor.render_footnotes(traversal, cell.footnotes(), true)?;
             if wrap_paragraph {
                 writeln!(visitor.writer_mut(), "</div>")?;
             }
@@ -182,7 +183,7 @@ fn render_cell_content<'a, W: Write>(
             traversal.visit_block(visitor, block)?;
         }
     }
-    Ok(())
+    visitor.render_footnotes(traversal, cell.footnotes(), true)
 }
 
 /// Render inline content with optional style wrappers.

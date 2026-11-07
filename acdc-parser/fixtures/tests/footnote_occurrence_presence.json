@@ -344,6 +344,7 @@
           {
             "columns": [
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "paragraph",
@@ -365,9 +366,9 @@
                         ]
                       },
                       {
-                        "name": "footnote",
-                        "type": "inline",
-                        "id": "shared",
+                        "name": "text",
+                        "type": "string",
+                        "value": "[shared]",
                         "location": [
                           {
                             "line": 11,

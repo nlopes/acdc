@@ -107,10 +107,10 @@
 ]
 
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#metadata(none) <id-63656c6c2d746172676574>
-#blocktitle[#text("Cell title ")#counter(footnote).update(6)#footnote[#text("Cell title note.")]<id-666f6f746e6f74653a63656c6c>]
+#blocktitle[#text("Cell title ")#counter(footnote).update(6)#footnote[#text("Cell title note.")]<id-666f6f746e6f74653a616364632d63656c6c2d666f6f746e6f74652d37>]
 #text("Cell paragraph.")
 
-], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Reused cell note ")#footnote(<id-666f6f746e6f74653a63656c6c>)#text(" and next ")#counter(footnote).update(7)#footnote[#text("Next cell note.")]#text(".")
+], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Reused cell note ")#text("[cell]")#text(" and next ")#counter(footnote).update(7)#footnote[#text("Next cell note.")]#text(".")
 
 ])
 

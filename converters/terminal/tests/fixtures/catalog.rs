@@ -67,6 +67,7 @@ terminal_fixture_catalog!([
     (admonition_block, false),
     (admonition_icons, false),
     (footnotes, false),
+    (table_cell_footnotes, false),
     (footnote_reuse, false),
     (subs_verbatim_footnotes, false, requires: feature = "highlighting"),
     (subs_verbatim_footnotes_order, false),

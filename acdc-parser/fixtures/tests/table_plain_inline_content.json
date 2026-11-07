@@ -454,6 +454,7 @@
                     ]
                   },
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "paragraph",
@@ -560,6 +561,7 @@
                     ]
                   },
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "paragraph",
@@ -825,6 +827,7 @@
                     ]
                   },
                   {
+                    "footnote_scope": true,
                     "content": [
                       {
                         "name": "paragraph",

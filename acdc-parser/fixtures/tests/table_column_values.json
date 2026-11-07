@@ -213,6 +213,7 @@
           {
             "columns": [
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "paragraph",
@@ -271,6 +272,7 @@
           {
             "columns": [
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "paragraph",
@@ -727,6 +729,7 @@
           {
             "columns": [
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "paragraph",
@@ -781,6 +784,7 @@
                 "style": "asciidoc"
               },
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "paragraph",
@@ -1475,6 +1479,7 @@
           {
             "columns": [
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "paragraph",
@@ -1529,6 +1534,7 @@
                 "style": "asciidoc"
               },
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "paragraph",
@@ -2500,6 +2506,7 @@
           {
             "columns": [
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "paragraph",
@@ -2554,6 +2561,7 @@
                 "style": "asciidoc"
               },
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "paragraph",

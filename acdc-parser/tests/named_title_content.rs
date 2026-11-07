@@ -229,7 +229,19 @@ fn selected_include_titles_keep_their_source_file(
     assert_eq!(origin.location.start.line, 2);
     assert_eq!(origin.location.end.line, 2);
     assert_eq!(origin.location.end.column - origin.location.start.column, 5);
-    assert_eq!(parsed.document().footnotes().count(), 2);
+    assert_eq!(parsed.document().footnotes().count(), 1);
+    let cell = parsed
+        .document()
+        .descendants()
+        .find_map(|node| {
+            if let acdc_parser::ast::StructuralRef::TableCell(cell) = node {
+                Some(cell)
+            } else {
+                None
+            }
+        })
+        .ok_or("cell")?;
+    assert_eq!(cell.footnotes().count(), 1);
     Ok(())
 }
 

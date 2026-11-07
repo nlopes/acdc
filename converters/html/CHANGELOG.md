@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- AsciiDoc table cells now render their own footnotes. Repeated names in
+  separate cells have distinct link targets in both HTML variants. Semantic
+  footnote lists retain document-wide numbers, including gaps between notes.
+  Cell containers use the `.footnotes` CSS class; the outer standard HTML
+  container keeps `#footnotes`.
+
 - References to the document top and header ID use body `reftext` values in
   source order. Empty and unset values select the title; explicit link text stays intact.
 

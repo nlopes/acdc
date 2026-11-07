@@ -64,12 +64,21 @@ fn selected_image_title_macros_register_once_with_source_locations() -> Result<(
                 "= T\n:word: expanded\n\n{container}.Discarded footnote:[Unused.]\n[title=\"Also discarded footnote:[Unused too.]\"]\nimage::{target}[Alt,title=\"Éva {{word}} footnote:[Selected.]\"]{closing}\n\nBody footnote:[Body.]\n"
             );
             let parsed = parse(&source, &Options::default())?;
-            let [selected, body] = &*parsed.document().footnotes().collect::<Vec<_>>() else {
-                return Err(format!(
-                    "expected two notes: {:?}",
-                    parsed.document().footnotes().collect::<Vec<_>>()
-                )
-                .into());
+            let mut definitions = parsed.document().footnotes().collect::<Vec<_>>();
+            let in_cell = container.starts_with("[cols");
+            assert_eq!(definitions.len(), if in_cell { 1 } else { 2 });
+            let mut cell_count = 0;
+            for node in parsed.document().descendants() {
+                if let acdc_parser::ast::StructuralRef::TableCell(cell) = node {
+                    assert_eq!(cell.footnotes().count(), 1);
+                    definitions.extend(cell.footnotes());
+                    cell_count += 1;
+                }
+            }
+            assert_eq!(cell_count, usize::from(in_cell));
+            definitions.sort_by_key(|note| note.number());
+            let [selected, body] = definitions.as_slice() else {
+                return Err("expected two notes in their own catalogs".into());
             };
             assert_eq!((selected.number(), body.number()), (1, 2));
             assert_eq!(

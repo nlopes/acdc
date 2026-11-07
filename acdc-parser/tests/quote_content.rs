@@ -183,7 +183,19 @@ fn included_expanded_attribution_retains_the_reference_and_file(
         assert_eq!(location.location.start.column, 21);
         assert_eq!(location.location.end.column, 28);
     }
-    assert_eq!(parsed.document().footnotes().count(), 2);
+    assert_eq!(parsed.document().footnotes().count(), 1);
+    let cell = parsed
+        .document()
+        .descendants()
+        .find_map(|node| {
+            if let acdc_parser::ast::StructuralRef::TableCell(cell) = node {
+                Some(cell)
+            } else {
+                None
+            }
+        })
+        .ok_or("cell")?;
+    assert_eq!(cell.footnotes().count(), 1);
     Ok(())
 }
 

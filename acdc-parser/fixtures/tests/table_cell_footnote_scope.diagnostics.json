@@ -1,0 +1,112 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 79,
+      "absolute_start": 65,
+      "file": "table_cell_footnote_scope.adoc",
+      "location": [
+        {
+          "col": 1,
+          "line": 8
+        },
+        {
+          "col": 15,
+          "line": 8
+        }
+      ]
+    },
+    "message": "invalid footnote reference: same"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 79,
+        "absolute_start": 65,
+        "file": "table_cell_footnote_scope.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 8
+          },
+          {
+            "col": 15,
+            "line": 8
+          }
+        ]
+      },
+      "message": "invalid footnote reference: same"
+    },
+    {
+      "location": {
+        "absolute_end": 96,
+        "absolute_start": 81,
+        "file": "table_cell_footnote_scope.adoc",
+        "location": [
+          {
+            "col": 17,
+            "line": 8
+          },
+          {
+            "col": 32,
+            "line": 8
+          }
+        ]
+      },
+      "message": "invalid footnote reference: later"
+    },
+    {
+      "location": {
+        "absolute_end": 113,
+        "absolute_start": 98,
+        "file": "table_cell_footnote_scope.adoc",
+        "location": [
+          {
+            "col": 34,
+            "line": 8
+          },
+          {
+            "col": 49,
+            "line": 8
+          }
+        ]
+      },
+      "message": "invalid footnote reference: empty"
+    },
+    {
+      "location": {
+        "absolute_end": 243,
+        "absolute_start": 225,
+        "file": "table_cell_footnote_scope.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 15
+          },
+          {
+            "col": 19,
+            "line": 15
+          }
+        ]
+      },
+      "message": "invalid footnote reference: included"
+    },
+    {
+      "location": {
+        "absolute_end": 293,
+        "absolute_start": 275,
+        "file": "table_cell_footnote_scope.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 18
+          },
+          {
+            "col": 19,
+            "line": 18
+          }
+        ]
+      },
+      "message": "invalid footnote reference: included"
+    }
+  ]
+}

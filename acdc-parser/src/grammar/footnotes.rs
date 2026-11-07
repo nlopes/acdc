@@ -1,13 +1,16 @@
 use std::{
+    cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
     convert::Infallible,
 };
 
 use crate::{
-    Document, Footnote, FootnoteDefinition, InlineMacro, InlineNode, Location,
+    Block, Document, Footnote, FootnoteDefinition, Header, InlineMacro, InlineNode, Location,
     grammar::location_walk::{
         try_walk_content_footnote_roots_mut, try_walk_document_inline_nodes_mut,
-        try_walk_footnote_roots_mut, try_walk_owned_inline_nodes_mut,
+        try_walk_document_reftext_inlines_mut, try_walk_footnote_roots_mut,
+        try_walk_owned_inline_nodes_mut, try_walk_scoped_footnote_roots_mut,
+        try_walk_scoped_inline_nodes_mut,
     },
 };
 
@@ -29,6 +32,12 @@ pub enum FootnoteRebuildError {
         number: u32,
         location: Location,
     },
+    #[error("footnote {id:?} (number {number}) belongs to multiple retained scopes")]
+    AmbiguousOwner {
+        id: Option<String>,
+        number: u32,
+        location: Location,
+    },
     #[error("too many footnote definitions")]
     NumberOverflow { location: Location },
 }
@@ -46,14 +55,61 @@ enum Registration {
 }
 
 #[derive(Default)]
-struct Rebuilder<'a> {
+struct Bindings<'a> {
+    numbers: HashMap<(u32, Option<&'a str>), Option<u32>>,
+}
+
+impl<'a> Bindings<'a> {
+    fn record(&mut self, old: u32, id: Option<&'a str>, new: u32) {
+        self.numbers
+            .entry((old, id))
+            .and_modify(|value| {
+                if *value != Some(new) {
+                    *value = None;
+                }
+            })
+            .or_insert(Some(new));
+    }
+
+    fn rebind(&self, node: &mut InlineNode<'a>) -> Result<(), FootnoteRebuildError> {
+        if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+            match self.numbers.get(&(note.number, note.id)) {
+                Some(Some(number)) => note.number = *number,
+                Some(None) => {
+                    return Err(FootnoteRebuildError::AmbiguousOwner {
+                        id: note.id.map(str::to_owned),
+                        number: note.number,
+                        location: note.location.clone(),
+                    });
+                }
+                None => {}
+            }
+        }
+        Ok(())
+    }
+}
+
+struct Rebuilder<'a, 'work> {
+    last_number: &'work Cell<u32>,
+    bindings: &'work RefCell<Bindings<'a>>,
     named: HashMap<&'a str, FootnoteDefinition<'a>>,
     anonymous: HashMap<u32, Vec<FootnoteDefinition<'a>>>,
     registrations: HashMap<Key<'a>, Registration>,
     definitions: Vec<FootnoteDefinition<'a>>,
 }
 
-impl<'a> Rebuilder<'a> {
+impl<'a, 'work> Rebuilder<'a, 'work> {
+    fn new(last_number: &'work Cell<u32>, bindings: &'work RefCell<Bindings<'a>>) -> Self {
+        Self {
+            last_number,
+            bindings,
+            named: HashMap::new(),
+            anonymous: HashMap::new(),
+            registrations: HashMap::new(),
+            definitions: Vec::new(),
+        }
+    }
+
     fn collect(&mut self, note: &mut Footnote<'a>, authored: bool) {
         let Some(content) = &mut note.content else {
             return;
@@ -140,6 +196,9 @@ impl<'a> Rebuilder<'a> {
         if let Some(state) = key.and_then(|key| self.registrations.get(&key)) {
             match *state {
                 Registration::Assigned(number) => {
+                    self.bindings
+                        .borrow_mut()
+                        .record(note.number, note.id, number);
                     note.number = number;
                     note.content = None;
                     return Ok(());
@@ -166,12 +225,18 @@ impl<'a> Rebuilder<'a> {
         try_walk_content_footnote_roots_mut(&mut definition.content, &mut |child| {
             self.visit(child)
         })?;
-        let number = u32::try_from(self.definitions.len())
-            .ok()
-            .and_then(|value| value.checked_add(1))
-            .ok_or_else(|| FootnoteRebuildError::NumberOverflow {
+        let number = self.last_number.get().checked_add(1).ok_or_else(|| {
+            FootnoteRebuildError::NumberOverflow {
                 location: note.location.clone(),
-            })?;
+            }
+        })?;
+        self.last_number.set(number);
+        self.bindings
+            .borrow_mut()
+            .record(definition.number, definition.id, number);
+        self.bindings
+            .borrow_mut()
+            .record(note.number, note.id, number);
         definition.number = number;
         note.number = number;
         note.content = Some(definition.content.clone());
@@ -209,9 +274,70 @@ impl<'a> Rebuilder<'a> {
     }
 }
 
+fn repair_owner<'a>(
+    header: &mut Option<Header<'a>>,
+    blocks: &mut [Block<'a>],
+    catalog: &mut Vec<FootnoteDefinition<'a>>,
+    last_number: &Cell<u32>,
+    bindings: &RefCell<Bindings<'a>>,
+) -> Result<(), FootnoteRebuildError> {
+    let mut rebuilder = Rebuilder::new(last_number, bindings);
+    try_walk_footnote_roots_mut(header, blocks, &mut |note| {
+        rebuilder.collect(note, true);
+        Ok::<_, Infallible>(())
+    })
+    .unwrap_or_else(|never| match never {});
+    let authored_anonymous = rebuilder.anonymous.keys().copied().collect();
+    for definition in catalog.iter().cloned() {
+        rebuilder.add_catalog(definition, &authored_anonymous);
+    }
+    for definition in catalog.iter() {
+        let mut content = definition.content.clone();
+        try_walk_content_footnote_roots_mut(&mut content, &mut |note| {
+            rebuilder.collect(note, false);
+            Ok::<_, Infallible>(())
+        })
+        .unwrap_or_else(|never| match never {});
+    }
+    try_walk_scoped_footnote_roots_mut(
+        header,
+        blocks,
+        &mut |note| rebuilder.visit(note),
+        &mut |cell| {
+            let mut definitions = cell.footnotes.take().unwrap_or_default();
+            repair_owner(
+                &mut None,
+                &mut cell.content,
+                &mut definitions,
+                last_number,
+                bindings,
+            )?;
+            cell.footnotes = Some(definitions);
+            Ok(())
+        },
+    )?;
+    let mut definitions = std::mem::take(&mut rebuilder.definitions);
+    try_walk_scoped_inline_nodes_mut(header, blocks, &mut definitions, &mut |node| {
+        if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node
+            && let Some(catalog) = &mut term.catalog
+        {
+            catalog.try_for_each_label_mut(|nodes| {
+                for node in nodes {
+                    try_walk_owned_inline_nodes_mut(node, &mut |node| rebuilder.rebind(node))?;
+                }
+                Ok(())
+            })?;
+        }
+        Ok(())
+    })?;
+    *catalog = definitions;
+    Ok(())
+}
+
 impl Document<'_> {
     /// Rebuild footnotes from prepared content without reparsing source.
     ///
+    /// Each cell owner is rebuilt independently. Numbers remain unique across the document.
     /// Authored definitions win over stored catalog bodies; the first named body
     /// wins. Surviving references can reuse a catalog definition after its original
     /// occurrence is removed. Anonymous references bind by their old assigned number,
@@ -225,53 +351,37 @@ impl Document<'_> {
     /// Rebuild reference/TOC and caption catalogs separately after structural edits.
     ///
     /// # Errors
-    /// Missing or ambiguous definitions, cycles and number overflow leave the document unchanged.
+    /// Missing or ambiguous definitions or owner bindings, cycles, and number
+    /// overflow leave the document unchanged.
     pub fn rebuild_footnotes(&mut self) -> Result<(), FootnoteRebuildError> {
         let mut header = self.header.clone();
         let mut blocks = self.blocks.clone();
-        let mut rebuilder = Rebuilder::default();
-        try_walk_footnote_roots_mut(&mut header, &mut blocks, &mut |note| {
-            rebuilder.collect(note, true);
-            Ok::<_, Infallible>(())
-        })
-        .unwrap_or_else(|never| match never {});
-        let authored_anonymous = rebuilder.anonymous.keys().copied().collect();
-        for definition in self.footnotes.iter().cloned() {
-            rebuilder.add_catalog(definition, &authored_anonymous);
-        }
-        for definition in &self.footnotes {
-            let mut content = definition.content.clone();
-            try_walk_content_footnote_roots_mut(&mut content, &mut |note| {
-                rebuilder.collect(note, false);
-                Ok::<_, Infallible>(())
-            })
-            .unwrap_or_else(|never| match never {});
-        }
-        try_walk_footnote_roots_mut(&mut header, &mut blocks, &mut |note| rebuilder.visit(note))?;
+        let mut footnotes = self.footnotes.clone();
+        let last_number = Cell::new(0);
+        let bindings = RefCell::new(Bindings::default());
+        repair_owner(
+            &mut header,
+            &mut blocks,
+            &mut footnotes,
+            &last_number,
+            &bindings,
+        )?;
         let mut derived = Document {
             toc_entries: self.toc_entries.clone(),
             references: self.references.clone(),
             ..Document::default()
         };
-        try_walk_document_inline_nodes_mut(&mut derived, &mut |node| rebuilder.rebind(node))?;
+        try_walk_document_inline_nodes_mut(&mut derived, &mut |node| {
+            bindings.borrow().rebind(node)
+        })?;
         let mut prepared = Document {
             header,
             blocks,
-            footnotes: std::mem::take(&mut rebuilder.definitions),
+            footnotes,
             ..Document::default()
         };
-        try_walk_document_inline_nodes_mut(&mut prepared, &mut |node| {
-            if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node
-                && let Some(catalog) = &mut term.catalog
-            {
-                catalog.try_for_each_label_mut(|nodes| {
-                    for node in nodes {
-                        try_walk_owned_inline_nodes_mut(node, &mut |node| rebuilder.rebind(node))?;
-                    }
-                    Ok(())
-                })?;
-            }
-            Ok(())
+        try_walk_document_reftext_inlines_mut(&mut prepared, &mut |node| {
+            bindings.borrow().rebind(node)
         })?;
         self.header = prepared.header;
         self.blocks = prepared.blocks;

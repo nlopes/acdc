@@ -88,6 +88,22 @@ impl<'a, 'doc> Export<'a, 'doc> {
         path: &str,
     ) -> Result<Value, Error> {
         let mut result = Node::new();
+        if let Some(notes) = &cell.footnotes {
+            let at = pointer(path, "footnotes");
+            super::super::footnotes::validate_scope(
+                crate::ast::StructuralRef::TableCell(crate::ast::TableCellRef::from(cell)),
+                notes,
+                &at,
+            )?;
+            result.insert(
+                "footnotes".into(),
+                Value::Array(super::super::footnotes::project_definitions(
+                    notes,
+                    &at,
+                    self.profile,
+                )?),
+            );
+        }
         for (name, span) in [("colspan", cell.colspan), ("rowspan", cell.rowspan)] {
             if span != 1 {
                 result.insert(name.into(), json!(span));

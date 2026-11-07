@@ -671,15 +671,24 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         Ok(())
     }
 
-    fn render_footnotes(
+    pub(crate) fn render_footnotes(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         footnotes: impl Iterator<Item = FootnoteDefinitionRef<'a>>,
+        in_cell: bool,
     ) -> Result<(), Error> {
+        let mut footnotes = footnotes.peekable();
+        if traversal.contains_key("nofootnotes") || footnotes.peek().is_none() {
+            return Ok(());
+        }
         if self.processor.variant() == HtmlVariant::Semantic {
             return self.render_footnotes_semantic(traversal, footnotes);
         }
-        writeln!(self.writer, "<div id=\"footnotes\">")?;
+        if in_cell {
+            writeln!(self.writer, "<div class=\"footnotes\">")?;
+        } else {
+            writeln!(self.writer, "<div id=\"footnotes\">")?;
+        }
         writeln!(self.writer, "<hr>")?;
         for footnote in footnotes {
             let number = footnote.number();
@@ -709,12 +718,18 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         )?;
         writeln!(self.writer, "<hr>")?;
         writeln!(self.writer, "<ol class=\"footnotes\">")?;
+        let mut next_number = 1;
         for footnote in footnotes {
             let number = footnote.number();
-            writeln!(
+            write!(
                 self.writer,
-                "<li class=\"footnote\" id=\"_footnote_{number}\" role=\"doc-endnote\">"
+                "<li class=\"footnote\" id=\"_footnote_{number}\" role=\"doc-endnote\""
             )?;
+            if number != next_number {
+                write!(self.writer, " value=\"{number}\"")?;
+            }
+            next_number = number.saturating_add(1);
+            writeln!(self.writer, ">")?;
             self.visit_content(traversal, footnote.content())?;
             write!(
                 self.writer,
@@ -922,7 +937,7 @@ impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVi
         }
         let mut footnotes = doc.footnotes().peekable();
         if !traversal.contains_key("nofootnotes") && footnotes.peek().is_some() {
-            self.render_footnotes(traversal, footnotes)?;
+            self.render_footnotes(traversal, footnotes, false)?;
         }
         // Skip footer in embedded mode
         if !self.render_options.embedded {

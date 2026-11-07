@@ -149,7 +149,19 @@ fn included_caption_nodes_keep_the_authored_reference_and_file(
             (11, 18)
         );
     }
-    assert_eq!(parsed.document().footnotes().count(), 2);
+    assert_eq!(parsed.document().footnotes().count(), 1);
+    let cell = parsed
+        .document()
+        .descendants()
+        .find_map(|node| {
+            if let acdc_parser::ast::StructuralRef::TableCell(cell) = node {
+                Some(cell)
+            } else {
+                None
+            }
+        })
+        .ok_or("cell")?;
+    assert_eq!(cell.footnotes().count(), 1);
     Ok(())
 }
 

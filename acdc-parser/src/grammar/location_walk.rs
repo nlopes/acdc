@@ -7,7 +7,7 @@ use std::{collections::HashMap, convert::Infallible, marker::PhantomData, sync::
 
 use crate::model::{
     Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlock, DelimitedBlockType, Document,
-    Header, InlineMacro, InlineNode, Location,
+    Header, InlineMacro, InlineNode, Location, TableColumn,
 };
 
 /// Visit every location in a whole document.
@@ -22,6 +22,7 @@ pub(crate) fn walk_document_locations_mut<F: FnMut(&mut Location)>(
         },
         |_| Ok(()),
         |_, _| Ok(()),
+        |_| Ok(true),
     )
     .document(doc)
     .unwrap_or_else(|never: Infallible| match never {});
@@ -39,6 +40,7 @@ pub(crate) fn walk_document_inline_nodes_mut<'a, F: FnMut(&mut InlineNode<'a>)>(
             Ok(())
         },
         |_, _| Ok(()),
+        |_| Ok(true),
     )
     .document(doc)
     .unwrap_or_else(|never: Infallible| match never {});
@@ -61,7 +63,7 @@ pub(crate) fn try_walk_inline_locations_mut<E>(
     node: &mut InlineNode<'_>,
     visit: &mut impl FnMut(&mut Location) -> Result<(), E>,
 ) -> Result<(), E> {
-    AstWalker::new(visit, |_| Ok(()), |_, _| Ok(())).inline(node)
+    AstWalker::new(visit, |_| Ok(()), |_, _| Ok(()), |_| Ok(true)).inline(node)
 }
 
 /// Visit an inline node, then recurse into its children.
@@ -76,6 +78,7 @@ pub(crate) fn walk_inline_nodes_mut<'a, F: FnMut(&mut InlineNode<'a>)>(
             Ok(())
         },
         |_, _| Ok(()),
+        |_| Ok(true),
     )
     .inline(node)
     .unwrap_or_else(|never: Infallible| match never {});
@@ -87,7 +90,7 @@ pub(super) fn walk_reference_texts_mut<'a, E>(
     blocks: &mut [Block<'a>],
     visit: &mut impl FnMut(&mut Option<ContentAttribute<'a>>, &mut Option<usize>) -> Result<(), E>,
 ) -> Result<(), E> {
-    let mut walker = AstWalker::new(|_| Ok(()), |_| Ok(()), visit);
+    let mut walker = AstWalker::new(|_| Ok(()), |_| Ok(()), visit, |_| Ok(true));
     if let Some(header) = header {
         walker.header(header)?;
     }
@@ -98,14 +101,14 @@ pub(super) fn walk_document_reference_texts_mut<'a, E>(
     document: &mut Document<'a>,
     visit: &mut impl FnMut(&mut Option<ContentAttribute<'a>>, &mut Option<usize>) -> Result<(), E>,
 ) -> Result<(), E> {
-    AstWalker::new(|_| Ok(()), |_| Ok(()), visit).document(document)
+    AstWalker::new(|_| Ok(()), |_| Ok(()), visit, |_| Ok(true)).document(document)
 }
 
 pub(crate) fn walk_inline_reference_texts_mut<'a, E>(
     inlines: &mut [InlineNode<'a>],
     visit: &mut impl FnMut(&mut Option<ContentAttribute<'a>>, &mut Option<usize>) -> Result<(), E>,
 ) -> Result<(), E> {
-    AstWalker::new(|_| Ok(()), |_| Ok(()), visit).inlines(inlines)
+    AstWalker::new(|_| Ok(()), |_| Ok(()), visit, |_| Ok(true)).inlines(inlines)
 }
 
 /// Visit selected footnote roots; the callback owns traversal into note bodies.
@@ -123,6 +126,7 @@ pub(crate) fn try_walk_footnote_roots_mut<'a, E>(
             Ok(())
         },
         |_, _| Ok(()),
+        |cell| Ok(cell.footnotes.is_none()),
     );
     walker.include_derived = false;
     walker.footnote_bodies = false;
@@ -145,10 +149,21 @@ pub(crate) fn try_walk_content_footnote_roots_mut<'a, E>(
             Ok(())
         },
         |_, _| Ok(()),
+        |_| Ok(true),
     );
     walker.include_derived = false;
     walker.footnote_bodies = false;
     walker.inlines(nodes)
+}
+
+/// Visit inline nodes inside captured document reference labels.
+pub(super) fn try_walk_document_reftext_inlines_mut<'a, E>(
+    document: &mut Document<'a>,
+    visit: &mut impl FnMut(&mut InlineNode<'a>) -> Result<(), E>,
+) -> Result<(), E> {
+    let mut walker = AstWalker::new(|_| Ok(()), visit, |_, _| Ok(()), |_| Ok(true));
+    walker.visit_inline_enabled = false;
+    walker.document(document)
 }
 
 /// Visit owned inline content without entering nested catalog copies.
@@ -156,7 +171,7 @@ pub(crate) fn try_walk_owned_inline_nodes_mut<'a, E>(
     node: &mut InlineNode<'a>,
     visit: &mut impl FnMut(&mut InlineNode<'a>) -> Result<(), E>,
 ) -> Result<(), E> {
-    let mut walker = AstWalker::new(|_| Ok(()), visit, |_, _| Ok(()));
+    let mut walker = AstWalker::new(|_| Ok(()), visit, |_, _| Ok(()), |_| Ok(true));
     walker.include_derived = false;
     walker.inline(node)
 }
@@ -165,32 +180,100 @@ pub(crate) fn try_walk_document_inline_nodes_mut<'a, E>(
     document: &mut Document<'a>,
     visit: &mut impl FnMut(&mut InlineNode<'a>) -> Result<(), E>,
 ) -> Result<(), E> {
-    AstWalker::new(|_| Ok(()), visit, |_, _| Ok(())).document(document)
+    AstWalker::new(|_| Ok(()), visit, |_, _| Ok(()), |_| Ok(true)).document(document)
 }
 
-struct AstWalker<'a, FL, FI, FR> {
+pub(super) fn try_walk_table_cells_mut<'a, E>(
+    blocks: &mut [Block<'a>],
+    visit: &mut impl FnMut(&mut TableColumn<'a>) -> Result<bool, E>,
+) -> Result<(), E> {
+    let mut walker = AstWalker::new(|_| Ok(()), |_| Ok(()), |_, _| Ok(()), visit);
+    walker.include_derived = false;
+    walker.blocks(blocks)
+}
+
+pub(super) fn try_walk_scoped_footnote_roots_mut<'a, E>(
+    header: &mut Option<Header<'a>>,
+    blocks: &mut [Block<'a>],
+    visit: &mut impl FnMut(&mut crate::Footnote<'a>) -> Result<(), E>,
+    visit_owner: &mut impl FnMut(&mut TableColumn<'a>) -> Result<(), E>,
+) -> Result<(), E> {
+    let mut walker = AstWalker::new(
+        |_| Ok(()),
+        |node| {
+            if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+                visit(note)?;
+            }
+            Ok(())
+        },
+        |_, _| Ok(()),
+        |cell| {
+            if cell.footnotes.is_some() {
+                visit_owner(cell)?;
+                Ok(false)
+            } else {
+                Ok(true)
+            }
+        },
+    );
+    walker.include_derived = false;
+    walker.footnote_bodies = false;
+    if let Some(header) = header {
+        walker.header(header)?;
+    }
+    walker.blocks(blocks)
+}
+
+pub(super) fn try_walk_scoped_inline_nodes_mut<'a, E>(
+    header: &mut Option<Header<'a>>,
+    blocks: &mut [Block<'a>],
+    footnotes: &mut [crate::FootnoteDefinition<'a>],
+    visit: &mut impl FnMut(&mut InlineNode<'a>) -> Result<(), E>,
+) -> Result<(), E> {
+    let mut walker = AstWalker::new(
+        |_| Ok(()),
+        visit,
+        |_, _| Ok(()),
+        |cell| Ok(cell.footnotes.is_none()),
+    );
+    if let Some(header) = header {
+        walker.header(header)?;
+    }
+    walker.blocks(blocks)?;
+    for definition in footnotes {
+        walker.inlines(&mut definition.content)?;
+    }
+    Ok(())
+}
+
+struct AstWalker<'a, FL, FI, FR, FC> {
     include_derived: bool,
     footnote_bodies: bool,
+    visit_inline_enabled: bool,
     visit_location: FL,
     visit_inline: FI,
     visit_reference_text: FR,
+    visit_cell: FC,
     inline_lifetime: PhantomData<fn(&mut InlineNode<'a>)>,
     document_labels: HashMap<*const ContentAttribute<'a>, Arc<ContentAttribute<'a>>>,
 }
 
-impl<'a, FL, FI, FR, E> AstWalker<'a, FL, FI, FR>
+impl<'a, FL, FI, FR, FC, E> AstWalker<'a, FL, FI, FR, FC>
 where
     FL: FnMut(&mut Location) -> Result<(), E>,
     FI: FnMut(&mut InlineNode<'a>) -> Result<(), E>,
     FR: FnMut(&mut Option<ContentAttribute<'a>>, &mut Option<usize>) -> Result<(), E>,
+    FC: FnMut(&mut TableColumn<'a>) -> Result<bool, E>,
 {
-    fn new(visit_location: FL, visit_inline: FI, visit_reference_text: FR) -> Self {
+    fn new(visit_location: FL, visit_inline: FI, visit_reference_text: FR, visit_cell: FC) -> Self {
         Self {
             include_derived: true,
             footnote_bodies: true,
+            visit_inline_enabled: true,
             visit_location,
             visit_inline,
             visit_reference_text,
+            visit_cell,
             inline_lifetime: PhantomData,
             document_labels: HashMap::new(),
         }
@@ -393,7 +476,9 @@ where
 
     fn inline(&mut self, node: &mut InlineNode<'a>) -> Result<(), E> {
         (self.visit_location)(node.location_mut())?;
-        (self.visit_inline)(node)?;
+        if self.visit_inline_enabled {
+            (self.visit_inline)(node)?;
+        }
         // The formatted-text variants are distinct struct types, so each needs its own
         // arm (they can't share an or-pattern binding).
         match node {
@@ -485,7 +570,10 @@ where
                     } else {
                         // Keep one mapped copy per declaration across all occurrences.
                         let mut mapped = Arc::clone(content);
-                        self.inlines(Arc::make_mut(&mut mapped).inlines_mut())?;
+                        let enabled = std::mem::replace(&mut self.visit_inline_enabled, true);
+                        let result = self.inlines(Arc::make_mut(&mut mapped).inlines_mut());
+                        self.visit_inline_enabled = enabled;
+                        result?;
                         self.document_labels.insert(key, Arc::clone(&mapped));
                         *content = mapped;
                     }
@@ -615,7 +703,17 @@ where
                     .chain(table.footer.iter_mut());
                 for row in rows {
                     for col in &mut row.columns {
-                        self.blocks(&mut col.content)?;
+                        if (self.visit_cell)(col)? {
+                            self.blocks(&mut col.content)?;
+                            if self.include_derived
+                                && let Some(footnotes) = &mut col.footnotes
+                            {
+                                for definition in footnotes {
+                                    (self.visit_location)(&mut definition.location)?;
+                                    self.inlines(&mut definition.content)?;
+                                }
+                            }
+                        }
                     }
                 }
             }

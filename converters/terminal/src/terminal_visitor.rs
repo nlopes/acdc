@@ -10,8 +10,8 @@ use acdc_converters_core::{
 use acdc_parser::{
     CaptionKind, SectionKind,
     ast::{
-        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, DocumentRef, HeaderRef,
-        InlineKind, InlineRef,
+        AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, DocumentRef,
+        FootnoteDefinitionRef, HeaderRef, InlineKind, InlineRef,
     },
 };
 use crossterm::{
@@ -50,6 +50,30 @@ pub struct TerminalVisitor<'a, 'd, W: Write> {
 type SpanColors = (Option<Color>, Option<Color>);
 
 impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
+    pub(crate) fn render_footnotes(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        footnotes: impl Iterator<Item = FootnoteDefinitionRef<'a>>,
+    ) -> Result<(), Error> {
+        let mut footnotes = footnotes.peekable();
+        if footnotes.peek().is_some() {
+            writeln!(self.writer)?;
+            writeln!(self.writer, "─────")?;
+            for footnote in footnotes {
+                self.writer.queue(PrintStyledContent(
+                    format!("[{}]", footnote.number())
+                        .with(self.processor.appearance.colors.footnote)
+                        .bold(),
+                ))?;
+                write!(self.writer, " ")?;
+
+                self.write_content(traversal, footnote.content())?;
+                writeln!(self.writer)?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn new(writer: W, processor: &'d Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
         Self {
             writer,
@@ -316,23 +340,7 @@ impl<'a, W: Write> DocumentVisitor<'a> for TerminalVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         doc: DocumentRef<'a>,
     ) -> Result<(), Self::Error> {
-        // Render footnotes at the end of the document if any exist
-        if doc.footnotes().next().is_some() {
-            writeln!(self.writer)?;
-            writeln!(self.writer, "─────")?; // Simple separator
-            for footnote in doc.footnotes() {
-                self.writer.queue(PrintStyledContent(
-                    format!("[{}]", footnote.number())
-                        .with(self.processor.appearance.colors.footnote)
-                        .bold(),
-                ))?;
-                write!(self.writer, " ")?;
-
-                // Render the footnote content
-                self.write_content(traversal, footnote.content())?;
-                writeln!(self.writer)?;
-            }
-        }
+        self.render_footnotes(traversal, doc.footnotes())?;
         Ok(())
     }
 }

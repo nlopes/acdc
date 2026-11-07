@@ -165,6 +165,7 @@
           {
             "columns": [
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "cell-word",
@@ -251,6 +252,7 @@
                 "style": "asciidoc"
               },
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "paragraph",

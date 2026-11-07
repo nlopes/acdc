@@ -12,7 +12,7 @@ use crate::{
         state::BlockContext,
     },
 };
-use std::{borrow::Cow, rc::Rc};
+use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
 /// The matched closing delimiter, or an unterminated table.
 /// An unterminated table ends at end of input and produces a warning.
@@ -470,6 +470,21 @@ pub(super) fn parse_table_block_impl<'input>(
     }))
 }
 
+pub(super) fn finalize_footnotes(blocks: &mut [Block<'_>]) {
+    crate::grammar::location_walk::try_walk_table_cells_mut(blocks, &mut |cell| {
+        if let Some(definitions) = &mut cell.footnotes {
+            for definition in definitions {
+                super::references::finalize_footnote_text(
+                    &mut definition.registration_substitutions,
+                    &mut definition.content,
+                );
+            }
+        }
+        Ok(true)
+    })
+    .unwrap_or_else(|never: std::convert::Infallible| match never {});
+}
+
 fn parse_table_cell<'a>(
     content: &'a str,
     state: &mut ParserState<'a>,
@@ -504,11 +519,15 @@ fn parse_table_cell<'a>(
     // Markdown blockquotes are only parsed when cell has AsciiDoc style ('a' prefix).
     // This matches asciidoctor behavior where `> text` is only a blockquote in 'a' style cells.
     let mut initial_attributes = Vec::new();
+    let mut footnotes = None;
     let blocks = if spec.style == Some(ColumnStyle::AsciiDoc) {
         // An AsciiDoc-style cell is a nested document. It inherits the outer
         // attributes, but its local attributes, section catalog, hard-break
         // state, and pending callout references do not escape into sibling cells or the
         // outer document.
+        let next_number = state.footnote_tracker.borrow().next_number();
+        let nested_tracker = Rc::new(RefCell::new(state.footnote_tracker.borrow_mut().nested()));
+        let outer_tracker = std::mem::replace(&mut state.footnote_tracker, nested_tracker);
         let outer_attributes = Rc::clone(&state.document_attributes);
         let outer_parent_attributes = state
             .nested_parent_attributes
@@ -530,6 +549,14 @@ fn parse_table_cell<'a>(
             &mut initial_attributes,
         );
 
+        if result.is_err() {
+            state.footnote_tracker.borrow_mut().discard_definitions();
+            outer_tracker.borrow_mut().set_next_number(next_number);
+        }
+        footnotes = Some(std::mem::take(
+            &mut state.footnote_tracker.borrow_mut().footnotes,
+        ));
+        state.footnote_tracker = outer_tracker;
         state.document_attributes = outer_attributes;
         state.nested_parent_attributes = outer_parent_attributes;
         state.hardbreaks = outer_hardbreaks;
@@ -560,6 +587,7 @@ fn parse_table_cell<'a>(
         spec.style,
     );
     column.initial_attributes = initial_attributes;
+    column.footnotes = footnotes;
     Ok(column)
 }
 

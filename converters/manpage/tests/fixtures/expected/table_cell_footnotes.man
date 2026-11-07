@@ -1,0 +1,85 @@
+'\" t
+.\"     Title: cell-notes
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-11-07
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "CELL\-NOTES" "1" "2026-11-07" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+cell\-notes \- cell footnotes
+.SH "DESCRIPTION"
+.sp
+Outer [1] and [1]\&.
+.TS
+allbox tab(:);
+ltx
+ltx.
+T{
+.sp
+First [2] and [2]\&.
+.TS
+allbox tab(:);
+ltx.
+T{
+.sp
+Nested [3] and [3]\&.
+.sp
+.IP [3] 4
+Nestednote.
+
+T}
+.TE
+.sp
+Parent again [2]\&.
+.sp
+.IP [2] 4
+Firstnote.
+
+T}
+T{
+.sp
+Second [4] and [4]\&.
+.sp
+.IP [4] 4
+Secondnote.
+
+T}
+.TE
+.sp
+Outer again [1] and [5]\&.
+.TS
+allbox tab(:);
+ltx ltx.
+Normal [1]:Normal [6]
+.TE
+.sp
+Normal again [6]\&.
+.SH "NOTES"
+.IP [1] 4
+Outernote.
+.IP [5] 4
+Afternote.
+.IP [6] 4
+Normalnote.

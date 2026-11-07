@@ -25,7 +25,7 @@ Order: pass:q,c\[\*Escaped\*\] / pass:m,c\[https://example.org\[Escaped site\]\]
 
 |  |  |
 | :--- | :--- |
-| Cell: **Early** / **Bold** / **Early** / [^5]. | Other: Late / **Body**. |
+| Cell: **Early** / **Bold** / **Early** / [^acdc-cell-footnote-5]. | Other: Late / **Body**. |
 
 Unset: {bold} / **Bold** / **Early** / [^6].
 
@@ -40,5 +40,5 @@ Unset: {bold} / **Bold** / **Early** / [^6].
 [^2]: Anonymous body.
 [^3]: Anonymous body.
 [^n]: Named body.
-[^5]: Anonymous body.
+[^acdc-cell-footnote-5]: Anonymous body.
 [^6]: Anonymous body.

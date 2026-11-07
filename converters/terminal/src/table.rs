@@ -40,7 +40,8 @@ fn render_cell_content<'a>(
         col.style().or_else(|| column.map(ColumnFormatRef::style)) == Some(ColumnStyle::AsciiDoc);
     let mut render = |traversal: &mut TraversalContext<'a>| {
         col.blocks()
-            .try_for_each(|block| traversal.visit_block(&mut temp_visitor, block))
+            .try_for_each(|block| traversal.visit_block(&mut temp_visitor, block))?;
+        temp_visitor.render_footnotes(traversal, col.footnotes())
     };
     if scoped {
         traversal.with_table_cell(col, render)

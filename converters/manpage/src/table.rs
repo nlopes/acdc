@@ -490,7 +490,13 @@ fn format_cell_with_inlines<'a>(
                 } else {
                     traversal.visit_block(visitor, block)
                 }
-            })
+            })?;
+            for note in cell.footnotes() {
+                writeln!(visitor.writer_mut(), ".sp\n.IP [{}] 4", note.number())?;
+                visitor.write_content(traversal, note.content())?;
+                writeln!(visitor.writer_mut())?;
+            }
+            Ok(())
         };
         if let Some(font) = font {
             cell_visitor.render_font(font, false, content)

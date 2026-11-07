@@ -823,7 +823,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             InlineKind::Pass(p) => self.render_pass(p),
             InlineKind::Url(u) => self.render_url(traversal, u, options, subs),
             InlineKind::Mailto(m) => self.render_mailto(traversal, m, options, subs),
-            InlineKind::Footnote(f) => self.render_footnote(f, options),
+            InlineKind::Footnote(f) => self.render_footnote(traversal, f, options),
             InlineKind::Button(b) => self.render_button(traversal, b),
             InlineKind::CrossReference(xref) => self.render_xref(traversal, xref, options, subs),
             InlineKind::Stem(s) => self.render_stem(traversal, s),
@@ -1105,6 +1105,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
     fn render_footnote(
         &mut self,
+        traversal: &TraversalContext<'a>,
         f: FootnoteRef<'_>,
         options: &RenderOptions,
     ) -> Result<(), Error> {
@@ -1146,6 +1147,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         write!(w, "<sup class=\"{sup_class}\"")?;
         if !is_ref && let Some(id) = f.id() {
+            let id = traversal.footnote_label(number).unwrap_or(id);
             write!(w, " id=\"_footnote_{}\"", escape_attribute(id))?;
         }
         if is_ref {

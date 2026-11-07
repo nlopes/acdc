@@ -453,11 +453,17 @@ JSON show both ordinary labels and differences introduced after registration.
 
 == Footnotes
 
-The named profile stores registered bodies once in document `footnotes`, in native
-catalog order. Each entry retains its positive `number`, optional named `id`,
+The named profile stores registered bodies once in the owning document or cell
+`footnotes` array, in native catalog order. Each entry retains its positive `number`, optional named `id`,
 parsed `inlines`, and known source location. Inline `footnote` occurrences retain
 `form` (`definition` or `reference`), assigned `number`, optional `id`, and their
 own location. Their body belongs to the registered entry, not another inline copy.
+
+An AsciiDoc cell has a `footnotes` array, including an empty array when it owns
+no definitions. Omission means the cell shares its containing owner. Names are
+unique within each owner, and numbers are unique across all owners. Export
+rejects cross-owner bindings and duplicate numbers. See
+`fixtures/asg/table_cell_footnotes.adoc` and its JSON example.
 
 For a retained prepared reference, number zero stays unresolved even if a later
 catalog entry has that name. Missing references recovered by the parser remain

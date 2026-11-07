@@ -1,10 +1,13 @@
 //! Table types for `AsciiDoc` documents.
 
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 
 use crate::ast::AttributeValueRef;
 
-use super::{AttributeName, Block, BlockMetadata, DocumentAttributeAssignment, location::Location};
+use super::{
+    AttributeName, Block, BlockMetadata, DocumentAttributeAssignment, FootnoteDefinition,
+    location::Location,
+};
 
 /// The outer border applied to a table.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -431,6 +434,13 @@ impl<'a> TableRow<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct TableColumn<'a> {
+    // Native occurrences own bodies; this marker preserves the catalog boundary.
+    #[serde(
+        rename = "footnote_scope",
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "serialize_footnote_scope"
+    )]
+    pub(crate) footnotes: Option<Vec<FootnoteDefinition<'a>>>,
     #[serde(skip)]
     pub(crate) initial_attributes: Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>,
     pub(crate) content: Vec<Block<'a>>,
@@ -454,6 +464,17 @@ pub struct TableColumn<'a> {
     /// Specified with style letter after operator (e.g., `s|` for strong/bold).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) style: Option<ColumnStyle>,
+}
+
+#[allow(
+    clippy::ref_option,
+    reason = "serde passes the original field by reference"
+)]
+fn serialize_footnote_scope<S: Serializer>(
+    scope: &Option<Vec<FootnoteDefinition<'_>>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.serialize_bool(scope.is_some())
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)]
@@ -485,6 +506,7 @@ impl<'a> TableColumn<'a> {
     ) -> Self {
         Self {
             initial_attributes: Vec::new(),
+            footnotes: None,
             content,
             colspan,
             rowspan,
@@ -573,6 +595,19 @@ impl<'a> TableRow<'a> {
 }
 
 impl<'a> TableColumn<'a> {
+    /// Replace this cell's prepared footnote catalog without registering occurrences.
+    /// `Some`, including an empty catalog, makes the cell an independent owner.
+    /// `None` uses the containing owner. Style changes do not change this boundary.
+    pub fn set_footnotes(&mut self, definitions: Option<Vec<FootnoteDefinition<'a>>>) {
+        self.footnotes = definitions;
+    }
+
+    /// Remove the cell's footnote ownership and return its retained definitions.
+    #[must_use]
+    pub fn take_footnotes(&mut self) -> Option<Vec<FootnoteDefinition<'a>>> {
+        self.footnotes.take()
+    }
+
     /// Construct an unspanned cell from prepared blocks, without a nested scope snapshot.
     #[must_use]
     pub fn new(content: Vec<Block<'a>>) -> Self {

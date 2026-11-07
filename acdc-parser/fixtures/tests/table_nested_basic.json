@@ -54,6 +54,7 @@
                 ]
               },
               {
+                "footnote_scope": true,
                 "content": [
                   {
                     "name": "table",

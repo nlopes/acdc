@@ -4,7 +4,7 @@ use serde_json::{Map, Value, json};
 
 use crate::{
     Document, Footnote, FootnoteDefinition, InlineMacro, InlineNode,
-    ast::{DocumentRef, InlineRef},
+    ast::{DocumentRef, FootnoteDefinitionRef, InlineRef, StructuralRef},
 };
 
 use super::{Error, Profile, metadata, pointer, projection::inlines, unsupported};
@@ -47,11 +47,28 @@ pub(super) fn definitions(document: &Document<'_>, profile: Profile) -> Result<V
         }
         return Ok(Vec::new());
     }
+    validate_scope(
+        StructuralRef::Document(DocumentRef::from(document)),
+        &document.footnotes,
+        "/footnotes",
+    )?;
+    project_definitions(&document.footnotes, "/footnotes", profile)
+}
+
+pub(super) fn validate_scope(
+    owner: StructuralRef<'_>,
+    definitions: &[FootnoteDefinition<'_>],
+    path: &str,
+) -> Result<(), Error> {
     let mut index = BTreeMap::new();
     let mut names = BTreeSet::new();
-    for (ordinal, note) in document.footnotes.iter().enumerate() {
-        let at = pointer("/footnotes", &ordinal.to_string());
-        if note.number == 0 || index.insert(note.number, note).is_some() {
+    for (ordinal, note) in definitions.iter().enumerate() {
+        let at = pointer(path, &ordinal.to_string());
+        if note.number == 0
+            || index
+                .insert(note.number, FootnoteDefinitionRef::from(note))
+                .is_some()
+        {
             return Err(unsupported(
                 &pointer(&at, "number"),
                 "registered footnote numbers must be positive and unique",
@@ -61,10 +78,36 @@ pub(super) fn definitions(document: &Document<'_>, profile: Profile) -> Result<V
         if note.id.is_some_and(|id| !names.insert(id)) {
             return Err(unsupported(
                 &pointer(&at, "id"),
-                "registered footnote IDs must be unique",
+                "registered footnote IDs must be unique within their owner",
             )
             .with_context("footnote", &note.location));
         }
+    }
+    let mut pending = vec![owner];
+    while let Some(node) = pending.pop() {
+        for field in node.content_fields() {
+            visit(field.content().as_inlines(), &mut |note| {
+                check_note(note, &index, path)
+            })?;
+        }
+        pending.extend(node.children().filter(
+            |child| !matches!(child, StructuralRef::TableCell(cell) if cell.owns_footnotes()),
+        ));
+    }
+    for note in definitions {
+        visit(&note.content, &mut |child| check_note(child, &index, path))?;
+    }
+    check_cycles(&index, path)
+}
+
+pub(super) fn project_definitions(
+    definitions: &[FootnoteDefinition<'_>],
+    path: &str,
+    profile: Profile,
+) -> Result<Vec<Value>, Error> {
+    let mut result = Vec::new();
+    for (ordinal, note) in definitions.iter().enumerate() {
+        let at = pointer(path, &ordinal.to_string());
         if note.registration_substitutions.is_some() {
             return Err(unsupported(
                 &pointer(&at, "registration_substitutions"),
@@ -72,19 +115,6 @@ pub(super) fn definitions(document: &Document<'_>, profile: Profile) -> Result<V
             )
             .with_context("footnote", &note.location));
         }
-    }
-    for field in DocumentRef::from(document).content_occurrences() {
-        for inline in field.content().as_inlines() {
-            if let InlineNode::Macro(InlineMacro::Footnote(note)) = inline {
-                check_note(note, &index, "/footnotes")?;
-            }
-        }
-    }
-    check_cycles(&index)?;
-    let mut result = Vec::new();
-    for (ordinal, note) in document.footnotes.iter().enumerate() {
-        let at = pointer("/footnotes", &ordinal.to_string());
-        visit(&note.content, &mut |child| check_note(child, &index, &at))?;
         let mut node = Map::from_iter([
             ("number".into(), json!(note.number)),
             (
@@ -104,7 +134,7 @@ pub(super) fn definitions(document: &Document<'_>, profile: Profile) -> Result<V
 
 fn check_note(
     note: &Footnote<'_>,
-    index: &BTreeMap<u32, &FootnoteDefinition<'_>>,
+    index: &BTreeMap<u32, FootnoteDefinitionRef<'_>>,
     path: &str,
 ) -> Result<(), Error> {
     if note.number == 0 && note.content.is_none() {
@@ -117,11 +147,11 @@ fn check_note(
         )
         .with_context("footnote", &note.location)
     })?;
-    if note.id != definition.id
+    if note.id != definition.id()
         || note
             .content
             .as_ref()
-            .is_some_and(|content| content != &definition.content)
+            .is_some_and(|content| content.as_slice() != definition.content().as_inlines())
     {
         return Err(unsupported(path, "footnote occurrence disagrees with its registered body; repair the document explicitly")
             .with_context("footnote", &note.location));
@@ -129,7 +159,7 @@ fn check_note(
     Ok(())
 }
 
-fn check_cycles(index: &BTreeMap<u32, &FootnoteDefinition<'_>>) -> Result<(), Error> {
+fn check_cycles(index: &BTreeMap<u32, FootnoteDefinitionRef<'_>>, path: &str) -> Result<(), Error> {
     let mut complete = BTreeSet::new();
     for &root in index.keys() {
         let mut active = BTreeSet::new();
@@ -144,13 +174,13 @@ fn check_cycles(index: &BTreeMap<u32, &FootnoteDefinition<'_>>) -> Result<(), Er
                 };
                 if !active.insert(number) {
                     return Err(unsupported(
-                        "/footnotes",
+                        path,
                         "registered footnote bodies contain a reference cycle",
                     )
-                    .with_context("footnote", &definition.location));
+                    .with_context("footnote", &crate::Location::from(definition.location())));
                 }
                 pending.push((number, true));
-                visit(&definition.content, &mut |note| {
+                visit(definition.content().as_inlines(), &mut |note| {
                     if note.number != 0 {
                         pending.push((note.number, false));
                     }
@@ -193,17 +223,30 @@ fn visit<'a>(
 
 // Captured labels link to canonical bodies but do not own historical body copies.
 pub(super) fn check_projected(document: &Map<String, Value>) -> Result<(), Error> {
-    let index = document
-        .get("footnotes")
-        .and_then(Value::as_array)
-        .into_iter()
-        .flatten()
-        .filter_map(|note| {
-            note.get("number")
-                .and_then(Value::as_u64)
-                .map(|number| (number, note.get("id").and_then(Value::as_str)))
-        })
-        .collect::<BTreeMap<_, _>>();
+    let mut index = BTreeMap::new();
+    super::walk::objects(document, "", &[], &mut |node, path| {
+        if let Some(notes) = node.get("footnotes").and_then(Value::as_array) {
+            for (ordinal, note) in notes.iter().enumerate() {
+                if let Some(number) = note.get("number").and_then(Value::as_u64)
+                    && index
+                        .insert(
+                            number,
+                            note.get("id").and_then(Value::as_str).map(str::to_owned),
+                        )
+                        .is_some()
+                {
+                    return Err(link_error(
+                        &pointer(
+                            &pointer(&pointer(path, "footnotes"), &ordinal.to_string()),
+                            "number",
+                        ),
+                        "registered footnote numbers must be unique across owners",
+                    ));
+                }
+            }
+        }
+        Ok(())
+    })?;
     super::walk::objects(document, "", &[], &mut |node, path| {
         if !is_occurrence(node) {
             return Ok(());
@@ -225,7 +268,7 @@ pub(super) fn check_projected(document: &Map<String, Value>) -> Result<(), Error
             };
         }
         let id = index.get(&number).ok_or_else(|| link_error(&pointer(path, "number"), "footnote occurrence has no matching registered body; repair the document explicitly"))?;
-        if *id != node.get("id").and_then(Value::as_str) {
+        if id.as_deref() != node.get("id").and_then(Value::as_str) {
             return Err(link_error(
                 &pointer(path, "id"),
                 "footnote occurrence ID disagrees with its registered body; repair the document explicitly",

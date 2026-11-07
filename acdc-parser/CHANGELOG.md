@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- AsciiDoc table cells now keep separate footnote names and definitions in both
+  modes, matching Asciidoctor's scope. Ordinary cells share their containing
+  owner. Numbers remain unique across the document. Use `TableCellRef::footnotes()`
+  for cell definitions; `DocumentRef::footnotes()` now returns only outer definitions.
+  Native JSON adds `footnote_scope`; named ASG stores canonical bodies in each
+  owner's `footnotes` array. Prepared repair keeps these owners separate.
+
 - Document references in both modes use the `reftext` active at their source
   position. Empty and unset body values select the title. Labels retain the
   winning declaration's source location; caller values have no source location.

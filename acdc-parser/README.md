@@ -146,7 +146,18 @@ snapshot; reading or serializing the tree does not parse the value again.
 Named `reftext` belongs to the referenced element. Xrefs keep their destination,
 explicit label, and automatic-label policy separate. Footnote occurrences separate
 references from definitions: `content()` is absent on a reference and present,
-possibly empty, on a definition. The document catalog contains definitions.
+possibly empty, on a definition. Each AsciiDoc table cell owns a separate catalog,
+read with `TableCellRef::footnotes()`; `DocumentRef::footnotes()` contains only the
+outer document's definitions. Names do not cross outer, sibling, or nested cell
+boundaries. Ordinary cells share their containing owner. Numbers remain unique
+across the document in both compatibility modes. Empty and forward source
+references do not create definitions or bind to a later declaration.
+Native JSON marks a cell owner with `footnote_scope: true` and retains each body
+in its defining occurrence. Named ASG puts canonical bodies in the owning cell's
+`footnotes` array, including an empty array for an owner without definitions.
+Prepared edits can select an owner with `TableColumn::set_footnotes()`; changing
+a cell's style does not change ownership. `rebuild_footnotes()` repairs each
+owner separately and can reuse its retained catalog after a definition is removed.
 Index terms keep display labels separate from registration-time labels.
 
 Locations identify recorded source ranges. Expanded text may point to the

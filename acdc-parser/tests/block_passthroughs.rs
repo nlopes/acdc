@@ -225,7 +225,19 @@ fn block_passthroughs_keep_snapshots_and_included_or_cell_locations(
         selected.push(label);
     }
     assert_eq!(selected, ["Included", "Cell", "Later"]);
-    assert_eq!(parsed.document().footnotes().count(), 2);
+    assert_eq!(parsed.document().footnotes().count(), 1);
+    let cell = parsed
+        .document()
+        .descendants()
+        .find_map(|node| {
+            if let acdc_parser::ast::StructuralRef::TableCell(cell) = node {
+                Some(cell)
+            } else {
+                None
+            }
+        })
+        .ok_or("cell")?;
+    assert_eq!(cell.footnotes().count(), 1);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }

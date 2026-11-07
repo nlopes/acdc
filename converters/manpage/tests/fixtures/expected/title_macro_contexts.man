@@ -75,11 +75,17 @@ T{
 \fBCell title [7]\fR
 .br
 Cell paragraph.
+.sp
+.IP [7] 4
+Cell title note.
 
 T}
 T{
 .sp
-Reused cell note [7] and next [8]\&.
+Reused cell note [cell] and next [8]\&.
+.sp
+.IP [8] 4
+Next cell note.
 
 T}
 .TE
@@ -109,10 +115,6 @@ List title note.
 Attached title note.
 .IP [6] 4
 Description title note.
-.IP [7] 4
-Cell title note.
-.IP [8] 4
-Next cell note.
 .IP [9] 4
 Ordinary cell note.
 .IP [10] 4

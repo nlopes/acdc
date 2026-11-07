@@ -308,9 +308,10 @@ fn footnote_reads_preserve_included_and_table_cell_locations(
         return Err("cell paragraph".into());
     };
     let mut occurrences = notes(paragraph.content());
-    let reference = occurrences.next().ok_or("cell reference")?;
-    assert_eq!(reference.number(), first.number());
-    assert!(reference.content().is_none());
+    assert!(paragraph.content().inlines().any(|node| {
+        matches!(node.kind(), InlineKind::Plain(plain) if plain.text().contains("[n]"))
+    }));
+    assert_eq!(parsed.warnings().len(), 1);
     let definition = occurrences.next().ok_or("cell definition")?;
     assert_eq!(definition.number(), 2);
     assert_eq!(
@@ -321,6 +322,7 @@ fn footnote_reads_preserve_included_and_table_cell_locations(
         parsed.resolve_location(definition.location()).file,
         Some(main)
     );
-    assert_eq!(parsed.document().footnotes().count(), 2);
+    assert_eq!(parsed.document().footnotes().count(), 1);
+    assert_eq!(cell.footnotes().count(), 1);
     Ok(())
 }

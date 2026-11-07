@@ -1,4 +1,40 @@
 {
-  "recovery": null,
-  "warnings": []
+  "recovery": {
+    "location": {
+      "absolute_end": 186,
+      "absolute_start": 175,
+      "file": "compatibility_typography_contexts.adoc",
+      "location": [
+        {
+          "col": 33,
+          "line": 13
+        },
+        {
+          "col": 44,
+          "line": 13
+        }
+      ]
+    },
+    "message": "invalid footnote reference: n"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 186,
+        "absolute_start": 175,
+        "file": "compatibility_typography_contexts.adoc",
+        "location": [
+          {
+            "col": 33,
+            "line": 13
+          },
+          {
+            "col": 44,
+            "line": 13
+          }
+        ]
+      },
+      "message": "invalid footnote reference: n"
+    }
+  ]
 }

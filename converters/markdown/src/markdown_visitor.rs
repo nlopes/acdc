@@ -27,11 +27,11 @@ use acdc_parser::{
         AdmonitionRef, AnchorRef, AttributeValueRef, AttributesRef, AudioRef, AuthorRef,
         AutolinkRef, BlockKind, BlockRef, CalloutListRef, ColumnFormatRef, ContentRef,
         CrossReferenceRef, DescriptionListDefinitionRef, DescriptionListRef, DiscreteHeaderRef,
-        DocumentRef, ElementIdRef, FootnoteRef, HeaderRef, IconRef, ImageRef, IndexTermRef,
-        IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef, KeyboardRef, LinkRef,
-        ListItemRef, OrderedListRef, PageBreakRef, ParagraphRef, ReferenceRef, SectionRef,
-        SourceRef, TableCellRef, TableOfContentsRef, TableRef, TableRowRef, ThematicBreakRef,
-        TocEntryRef, UnorderedListRef, VideoRef,
+        DocumentRef, ElementIdRef, FootnoteDefinitionRef, FootnoteRef, HeaderRef, IconRef,
+        ImageRef, IndexTermRef, IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef,
+        KeyboardRef, LinkRef, ListItemRef, OrderedListRef, PageBreakRef, ParagraphRef,
+        ReferenceRef, SectionRef, SourceRef, TableCellRef, TableOfContentsRef, TableRef,
+        TableRowRef, ThematicBreakRef, TocEntryRef, UnorderedListRef, VideoRef,
     },
 };
 
@@ -855,10 +855,15 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         traversal: &mut TraversalContext<'a>,
         footnote: FootnoteRef<'_>,
     ) -> Result<String, Error> {
-        let id = footnote
-            .id()
+        let id = traversal
+            .footnote_label(footnote.number())
+            .or_else(|| footnote.id())
             .map_or_else(|| footnote.number().to_string(), str::to_owned);
-        if footnote.content().is_none()
+        let content = traversal
+            .footnote_definition(footnote.number())
+            .map(FootnoteDefinitionRef::content)
+            .or_else(|| footnote.content());
+        if content.is_none()
             || self
                 .footnotes
                 .iter()
@@ -877,7 +882,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             visitor
                 .current_section_title
                 .clone_from(&self.current_section_title);
-            if let Some(content) = footnote.content() {
+            if let Some(content) = content {
                 visitor.write_content(traversal, content)?;
             }
         }
@@ -3151,6 +3156,8 @@ impl<'a, W: Write> DocumentVisitor<'a> for MarkdownVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         document: DocumentRef<'a>,
     ) -> Result<(), Error> {
-        self.render_document(traversal, document)
+        traversal.with_document(document, |traversal| {
+            self.render_document(traversal, document)
+        })
     }
 }
