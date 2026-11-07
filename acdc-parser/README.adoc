@@ -846,6 +846,13 @@ literal, while a combining acute accent before `*Mark*` allows bold text.
 Asciidoctor's broader word class leaves the latter literal. These shared rules remain stable
 while the draft's word-boundary rules are open.
 
+A literal `&` allows constrained bold, italic, and monospace to open. Thus
+`&_a_;` formats the inner letter in both modes when quotes are enabled.
+Asciidoctor's default substitutions leave those markers literal because its
+earlier HTML escaping changes the boundary. acdc uses source punctuation before
+output escaping. `&#` remains reserved for character-reference syntax, and the
+semicolon in an authored `&amp;` blocks a following constrained opening.
+
 Visible index shorthand preserves balanced internal parentheses. For example,
 `((Term (R)))` contains the complete label `Term (R)` and displays `Term ®`
 when replacements are enabled. `((fn((x)) tail))` keeps its nested pairs;

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Documented the shared formatting boundary after a literal `&`. With quotes
+  enabled, `&_a_;` formats its inner letter in both modes; Asciidoctor's default
+  substitutions leave the markers literal.
+
 - Explicit `link:` macros now accept custom schemes and paths with colons,
   such as `link:urn:example:target[Read]`, in both modes. Labels, metadata,
   and source locations are preserved.
