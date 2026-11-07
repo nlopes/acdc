@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Native JSON and named ASG exports retain multiple description terms with one
+  shared definition. The TCK projection preserves the same grouping.
+
 - `inspect` displays scalar block controls in name order so repeated runs produce a stable outline. The displayed hierarchy, text, and source ranges are unchanged.
 
 - Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.

@@ -170,6 +170,11 @@ fn extension_schema_rejects_unknown_content_properties() -> Result<(), Error> {
 }
 
 const EXTENSION_ADDITIONS: &[(&str, &[&str])] = &[
+    ("/$defs", &["acdcDescriptionTerm"]),
+    (
+        "/$defs/dlistItem/properties",
+        &["term_metadata", "definition_present", "definition_location"],
+    ),
     ("/$defs/leafBlock/properties", &["notation"]),
     ("/properties", &["profile", "footnotes", "references"]),
     (
@@ -268,6 +273,8 @@ fn extension_schema_only_changes_documented_properties() -> Result<(), Error> {
         ("/$defs/leafBlock/allOf", 1),
         ("/$defs/inlineSpan/allOf", 1),
         ("/$defs/list/allOf", 2),
+        ("/$defs/dlistItem/allOf", 1),
+        ("/$defs/dlistItem/required", 2),
         ("/$defs/blockMacro/allOf", 1),
         ("/$defs/inlineSpan/properties/variant/enum", 4),
         ("/$defs/block/oneOf", 5),

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Description lists render every term with one shared definition. Absent
+  definitions omit the definition wrapper; authored empty principals stay present.
+  Horizontal lists put shared terms in one cell.
+
 - Short and full cross-references retain formatting in parsed custom `caption=`
   prefixes. Only a final unformatted period and space are removed; punctuation
   inside a styled span remains visible.

@@ -111,18 +111,34 @@ fn description_entries_keep_terms_principal_text_and_attached_blocks(
     assert_eq!(list.style(), Some("horizontal"));
     let mut items = list.items();
     let first = items.next().ok_or("first")?;
-    assert_eq!(text(first.term())?, "First");
-    assert!(first.principal().is_empty());
-    assert!(first.blocks().next().is_none());
-    let second = items.next().ok_or("second")?;
-    assert_eq!(text(second.term())?, "Second");
-    assert_eq!(text(second.principal())?, "Principal");
+    let mut terms = first.terms();
+    assert_eq!(text(terms.next().ok_or("first term")?.content())?, "First");
+    let second = terms.next().ok_or("second term")?;
+    assert_eq!(text(second.content())?, "Second");
     assert_eq!(second.delimiter(), "::");
-    let BlockKind::Paragraph(attached) = second.blocks().next().ok_or("attached")?.kind() else {
+    assert!(terms.next().is_none());
+    let definition = first.definition().ok_or("definition")?;
+    assert_eq!(
+        text(definition.principal().ok_or("principal")?)?,
+        "Principal"
+    );
+    let BlockKind::Paragraph(attached) = definition.blocks().next().ok_or("attached")?.kind()
+    else {
         return Err("paragraph".into());
     };
     assert_eq!(text(attached.content())?, "Attached.");
-    assert_eq!(text(items.next().ok_or("third")?.term())?, "Third");
+    assert_eq!(
+        text(
+            items
+                .next()
+                .ok_or("third")?
+                .terms()
+                .next()
+                .ok_or("term")?
+                .content()
+        )?,
+        "Third"
+    );
     assert!(items.next().is_none());
     Ok(())
 }
@@ -188,13 +204,22 @@ fn included_description_delimiters_keep_unicode_source_coordinates() -> Result<(
         return Err("description list".into());
     };
     let item = list.items().next().ok_or("item")?;
-    let location = parsed.resolve_location(item.delimiter_location().ok_or("delimiter")?);
+    let term = item.terms().next().ok_or("term")?;
+    let location = parsed.resolve_location(term.delimiter_location().ok_or("delimiter")?);
     assert_eq!(location.file, Some(include));
     assert_eq!(
         (location.location.start.line, location.location.start.column),
         (1, 2)
     );
-    assert_eq!(text(item.term())?, "λ");
-    assert_eq!(text(item.principal())?, "Meaning");
+    assert_eq!(text(term.content())?, "λ");
+    assert_eq!(
+        text(
+            item.definition()
+                .ok_or("definition")?
+                .principal()
+                .ok_or("principal")?
+        )?,
+        "Meaning"
+    );
     Ok(())
 }

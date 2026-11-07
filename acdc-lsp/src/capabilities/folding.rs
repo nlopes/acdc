@@ -63,7 +63,10 @@ fn collect_ranges(node: StructuralRef<'_>, source: &LineIndex<'_>, ranges: &mut 
                 return;
             }
         }
-        StructuralRef::ListItem(_) | StructuralRef::DescriptionListItem(_) => {}
+        StructuralRef::ListItem(_)
+        | StructuralRef::DescriptionListItem(_)
+        | StructuralRef::DescriptionListTerm(_)
+        | StructuralRef::DescriptionListDefinition(_) => {}
         StructuralRef::Document(_)
         | StructuralRef::Header(_)
         | StructuralRef::CalloutListItem(_)

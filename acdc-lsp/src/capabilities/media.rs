@@ -94,10 +94,12 @@ fn collect_node<'doc>(
         },
         StructuralRef::ListItem(_)
         | StructuralRef::CalloutListItem(_)
-        | StructuralRef::DescriptionListItem(_) => {
+        | StructuralRef::DescriptionListDefinition(_) => {
             collect_field(node, ContentRole::ListPrincipal, context, sources);
         }
-        StructuralRef::Document(_)
+        StructuralRef::DescriptionListItem(_) => {}
+        StructuralRef::DescriptionListTerm(_)
+        | StructuralRef::Document(_)
         | StructuralRef::Header(_)
         | StructuralRef::TableRow(_)
         | StructuralRef::TableCell(_)

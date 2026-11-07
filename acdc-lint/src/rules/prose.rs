@@ -29,12 +29,13 @@ fn lint_one_sentence_structure(
         }
     } else if let StructuralRef::ListItem(item) = node {
         lint_one_sentence_inlines(emitter, item.principal(), lines);
-    } else if let StructuralRef::DescriptionListItem(item) = node
-        && let Some(range) = line_range_for_inlines(item.principal())
+    } else if let StructuralRef::DescriptionListDefinition(definition) = node
+        && let Some(principal) = definition.principal()
+        && let Some(range) = line_range_for_inlines(principal)
     {
         // Exclude the term, which can contain its own sentence punctuation.
         let mut locations = Vec::new();
-        collect_prose_locations(item.principal(), &mut locations);
+        collect_prose_locations(principal, &mut locations);
         lint_prose_lines(emitter, source_lines_for_range(lines, range), &locations);
     }
     for child in node.children() {

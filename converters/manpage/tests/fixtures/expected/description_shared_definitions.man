@@ -1,0 +1,88 @@
+'\" t
+.\"     Title: shared-terms
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-11-07
+.\"    Manual: Controls
+.\"    Source: Controls
+.\"  Language: English
+.\"
+.TH "SHARED\-TERMS" "1" "2026-11-07" "Controls" "Controls"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+shared\-terms \- shared description definitions
+.SH "SYNOPSIS"
+.sp
+Shared term groups.
+.SH "DESCRIPTION"
+.RS 0
+.TP
+\fBFirst
+.br
+Second\fR
+Shared [1] and Shared index\&.
+.RS 0
+.sp
+Attached body refers to [1]\&.
+.RE
+.TP
+\fBEmpty\fR
+
+.TP
+\fBFollowing\fR
+A separate definition.
+.TP
+\fBAbsent one
+.br
+Absent two\fR
+.RE
+.RS 0
+.sp
+\fBHorizontal one
+.br
+Horizontal two\fR \(en Shared horizontal body.
+.RE
+.RS 0
+.TP
+\fBQ: Question one?
+.br
+Question two?\fR
+\fBA:\fP One answer.
+.RE
+.RS 0
+.TP
+\fB1. Ordered one
+.br
+Ordered two\fR
+Shared ordered body.
+.RE
+.RS 0
+.TP
+\fB\(bu Unordered one
+.br
+Unordered two\fR
+Shared unordered body.
+.RE
+.sp
+See [first\-term] and [second\-term]\&.
+.SH "NOTES"
+.IP [1] 4
+One shared note.

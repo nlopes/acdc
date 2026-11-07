@@ -37,57 +37,84 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Term",
-              "location": [
-                {
-                  "line": 3,
-                  "col": 1
-                },
-                {
-                  "line": 3,
-                  "col": 4
-                }
-              ]
-            }
-          ],
-          "delimiter": "::",
-          "description": [
-            {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
+              "content": [
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Description paragraph.",
+                  "value": "Term",
                   "location": [
                     {
-                      "line": 5,
+                      "line": 3,
                       "col": 1
                     },
                     {
-                      "line": 5,
-                      "col": 22
+                      "line": 3,
+                      "col": 4
                     }
                   ]
                 }
               ],
+              "delimiter": "::",
               "location": [
                 {
-                  "line": 5,
+                  "line": 3,
                   "col": 1
                 },
                 {
-                  "line": 5,
-                  "col": 22
+                  "line": 3,
+                  "col": 6
                 }
               ]
             }
           ],
+          "definition": {
+            "principal": [],
+            "blocks": [
+              {
+                "name": "paragraph",
+                "type": "block",
+                "inlines": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Description paragraph.",
+                    "location": [
+                      {
+                        "line": 5,
+                        "col": 1
+                      },
+                      {
+                        "line": 5,
+                        "col": 22
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 5,
+                    "col": 1
+                  },
+                  {
+                    "line": 5,
+                    "col": 22
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 3,
+                "col": 8
+              },
+              {
+                "line": 5,
+                "col": 22
+              }
+            ]
+          },
           "location": [
             {
               "line": 3,

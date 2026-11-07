@@ -1,6 +1,6 @@
 use crate::{
-    CalloutList, CalloutListItem, CalloutRefKind, DescriptionList, DescriptionListItem, ListItem,
-    ListItemCheckedStatus,
+    CalloutList, CalloutListItem, CalloutRefKind, DescriptionList, DescriptionListItem,
+    DescriptionListTerm, ListItem, ListItemCheckedStatus,
 };
 
 use super::{Error, Export, Node, Profile, inlines, metadata, node, pointer, unsupported};
@@ -141,7 +141,13 @@ impl<'a, 'doc> Export<'a, 'doc> {
     ) -> Result<Node, Error> {
         let first = require_items(&value.items, path)?;
         let mut result = node("dlist", "block");
-        result.insert("marker".into(), first.delimiter.into());
+        let term = first.terms.first().ok_or_else(|| {
+            unsupported(
+                &pointer(&pointer(&pointer(path, "items"), "0"), "terms"),
+                "a description item needs at least one term",
+            )
+        })?;
+        result.insert("marker".into(), term.delimiter.into());
         let items = value
             .items
             .iter()
@@ -162,36 +168,105 @@ impl<'a, 'doc> Export<'a, 'doc> {
         value: &'a DescriptionListItem<'doc>,
         path: &str,
     ) -> Result<Value, Error> {
-        if value.delimiter.is_empty() {
-            return Err(unsupported(
-                &pointer(path, "delimiter"),
-                "a description item needs a known delimiter",
-            ));
+        let first = value.terms.first().ok_or_else(|| {
+            unsupported(
+                &pointer(path, "terms"),
+                "a description item needs at least one term",
+            )
+        })?;
+        for (index, term) in value.terms.iter().enumerate() {
+            let at = pointer(&pointer(path, "terms"), &index.to_string());
+            if term.delimiter.is_empty() {
+                return Err(unsupported(
+                    &at,
+                    "a description term needs a known delimiter",
+                ));
+            }
+            if self.profile == Profile::Upstream
+                && (!term.anchors.is_empty() || term.delimiter != first.delimiter)
+            {
+                return Err(unsupported(
+                    &at,
+                    "per-term identities and delimiters need the acdc profile",
+                ));
+            }
         }
         let mut result = node("dlistItem", "block");
-        result.insert("marker".into(), value.delimiter.into());
+        result.insert("marker".into(), first.delimiter.into());
         result.insert(
             "terms".into(),
-            Value::Array(vec![inlines(
-                &value.term,
-                &pointer(&pointer(path, "terms"), "0"),
-                self.profile,
-            )?]),
+            Value::Array(
+                value
+                    .terms
+                    .iter()
+                    .enumerate()
+                    .map(|(index, term)| {
+                        inlines(
+                            &term.content,
+                            &pointer(&pointer(path, "terms"), &index.to_string()),
+                            self.profile,
+                        )
+                    })
+                    .collect::<Result<_, _>>()?,
+            ),
         );
-        result.insert(
-            "principal".into(),
-            inlines(
-                &value.principal_text,
-                &pointer(path, "principal"),
-                self.profile,
-            )?,
-        );
-        result.insert(
-            "blocks".into(),
-            self.nonsection_blocks(&value.description, &pointer(path, "blocks"))?,
-        );
-        self.identity(&mut result, &value.anchors, None, path)?;
+        let blocks = if let Some(definition) = &value.definition {
+            if let Some(principal) = &definition.principal {
+                result.insert(
+                    "principal".into(),
+                    inlines(principal, &pointer(path, "principal"), self.profile)?,
+                );
+            } else if self.profile == Profile::Upstream && definition.blocks.is_empty() {
+                return Err(unsupported(
+                    &pointer(path, "definition"),
+                    "an explicitly empty definition needs the acdc profile",
+                ));
+            }
+            self.nonsection_blocks(&definition.blocks, &pointer(path, "blocks"))?
+        } else {
+            Value::Array(Vec::new())
+        };
+        result.insert("blocks".into(), blocks);
+        if self.profile == Profile::Acdc {
+            let metadata = value
+                .terms
+                .iter()
+                .enumerate()
+                .map(|(index, term)| {
+                    let at = pointer(&pointer(path, "term_metadata"), &index.to_string());
+                    self.description_term_metadata(term, &at)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            result.insert("term_metadata".into(), Value::Array(metadata));
+            result.insert(
+                "definition_present".into(),
+                value.definition.is_some().into(),
+            );
+            if let Some(definition) = &value.definition {
+                metadata::location_property(
+                    &mut result,
+                    "definition_location",
+                    &definition.location,
+                    path,
+                )?;
+            }
+        }
         metadata::location(&mut result, &value.location, path)?;
+        Ok(Value::Object(result))
+    }
+
+    fn description_term_metadata(
+        &mut self,
+        term: &'a DescriptionListTerm<'doc>,
+        path: &str,
+    ) -> Result<Value, Error> {
+        let mut result = node("dlistTerm", "block");
+        result.insert("marker".into(), term.delimiter.into());
+        self.identity(&mut result, &term.anchors, None, path)?;
+        metadata::location(&mut result, &term.location, path)?;
+        if let Some(location) = &term.delimiter_location {
+            metadata::location_property(&mut result, "delimiter_location", location, path)?;
+        }
         Ok(Value::Object(result))
     }
 }

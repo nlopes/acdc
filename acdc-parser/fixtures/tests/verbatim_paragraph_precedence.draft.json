@@ -140,11 +140,26 @@
           },
           "items": [
             {
-              "term": [
+              "terms": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "P01 code",
+                  "content": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "P01 code",
+                      "location": [
+                        {
+                          "line": 13,
+                          "col": 1
+                        },
+                        {
+                          "line": 13,
+                          "col": 8
+                        }
+                      ]
+                    }
+                  ],
+                  "delimiter": ";;",
                   "location": [
                     {
                       "line": 13,
@@ -152,30 +167,41 @@
                     },
                     {
                       "line": 13,
-                      "col": 8
+                      "col": 11
                     }
                   ]
                 }
               ],
-              "delimiter": ";;",
-              "principal_text": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "<1>",
-                  "location": [
-                    {
-                      "line": 13,
-                      "col": 13
-                    },
-                    {
-                      "line": 13,
-                      "col": 15
-                    }
-                  ]
-                }
-              ],
-              "description": [],
+              "definition": {
+                "principal": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "<1>",
+                    "location": [
+                      {
+                        "line": 13,
+                        "col": 13
+                      },
+                      {
+                        "line": 13,
+                        "col": 15
+                      }
+                    ]
+                  }
+                ],
+                "blocks": [],
+                "location": [
+                  {
+                    "line": 13,
+                    "col": 13
+                  },
+                  {
+                    "line": 13,
+                    "col": 15
+                  }
+                ]
+              },
               "location": [
                 {
                   "line": 13,
@@ -183,7 +209,7 @@
                 },
                 {
                   "line": 13,
-                  "col": 16
+                  "col": 15
                 }
               ]
             }
@@ -195,7 +221,7 @@
             },
             {
               "line": 13,
-              "col": 16
+              "col": 15
             }
           ]
         },
@@ -286,11 +312,26 @@
           },
           "items": [
             {
-              "term": [
+              "terms": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "P02 code",
+                  "content": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "P02 code",
+                      "location": [
+                        {
+                          "line": 20,
+                          "col": 1
+                        },
+                        {
+                          "line": 20,
+                          "col": 8
+                        }
+                      ]
+                    }
+                  ],
+                  "delimiter": "::",
                   "location": [
                     {
                       "line": 20,
@@ -298,30 +339,41 @@
                     },
                     {
                       "line": 20,
-                      "col": 8
+                      "col": 10
                     }
                   ]
                 }
               ],
-              "delimiter": "::",
-              "principal_text": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "<1>",
-                  "location": [
-                    {
-                      "line": 20,
-                      "col": 12
-                    },
-                    {
-                      "line": 20,
-                      "col": 14
-                    }
-                  ]
-                }
-              ],
-              "description": [],
+              "definition": {
+                "principal": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "<1>",
+                    "location": [
+                      {
+                        "line": 20,
+                        "col": 12
+                      },
+                      {
+                        "line": 20,
+                        "col": 14
+                      }
+                    ]
+                  }
+                ],
+                "blocks": [],
+                "location": [
+                  {
+                    "line": 20,
+                    "col": 12
+                  },
+                  {
+                    "line": 20,
+                    "col": 14
+                  }
+                ]
+              },
               "location": [
                 {
                   "line": 20,
@@ -329,7 +381,7 @@
                 },
                 {
                   "line": 20,
-                  "col": 15
+                  "col": 14
                 }
               ]
             }
@@ -341,7 +393,7 @@
             },
             {
               "line": 20,
-              "col": 15
+              "col": 14
             }
           ]
         },
@@ -432,11 +484,26 @@
           },
           "items": [
             {
-              "term": [
+              "terms": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "P03 code",
+                  "content": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "P03 code",
+                      "location": [
+                        {
+                          "line": 27,
+                          "col": 1
+                        },
+                        {
+                          "line": 27,
+                          "col": 8
+                        }
+                      ]
+                    }
+                  ],
+                  "delimiter": ":::",
                   "location": [
                     {
                       "line": 27,
@@ -444,30 +511,41 @@
                     },
                     {
                       "line": 27,
-                      "col": 8
+                      "col": 11
                     }
                   ]
                 }
               ],
-              "delimiter": ":::",
-              "principal_text": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "<1>",
-                  "location": [
-                    {
-                      "line": 27,
-                      "col": 13
-                    },
-                    {
-                      "line": 27,
-                      "col": 15
-                    }
-                  ]
-                }
-              ],
-              "description": [],
+              "definition": {
+                "principal": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "<1>",
+                    "location": [
+                      {
+                        "line": 27,
+                        "col": 13
+                      },
+                      {
+                        "line": 27,
+                        "col": 15
+                      }
+                    ]
+                  }
+                ],
+                "blocks": [],
+                "location": [
+                  {
+                    "line": 27,
+                    "col": 13
+                  },
+                  {
+                    "line": 27,
+                    "col": 15
+                  }
+                ]
+              },
               "location": [
                 {
                   "line": 27,
@@ -475,7 +553,7 @@
                 },
                 {
                   "line": 27,
-                  "col": 16
+                  "col": 15
                 }
               ]
             }
@@ -487,7 +565,7 @@
             },
             {
               "line": 27,
-              "col": 16
+              "col": 15
             }
           ]
         },
@@ -1616,11 +1694,26 @@
                   },
                   "items": [
                     {
-                      "term": [
+                      "terms": [
                         {
-                          "name": "text",
-                          "type": "string",
-                          "value": "P14 attached",
+                          "content": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "P14 attached",
+                              "location": [
+                                {
+                                  "line": 76,
+                                  "col": 1
+                                },
+                                {
+                                  "line": 76,
+                                  "col": 12
+                                }
+                              ]
+                            }
+                          ],
+                          "delimiter": ";;",
                           "location": [
                             {
                               "line": 76,
@@ -1628,43 +1721,71 @@
                             },
                             {
                               "line": 76,
-                              "col": 12
+                              "col": 15
                             }
                           ]
                         }
                       ],
-                      "delimiter": ";;",
-                      "principal_text": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "<1>",
-                          "location": [
-                            {
-                              "line": 76,
-                              "col": 17
-                            },
-                            {
-                              "line": 76,
-                              "col": 19
-                            }
-                          ]
-                        }
-                      ],
-                      "description": [
-                        {
-                          "name": "list",
-                          "type": "block",
-                          "variant": "callout",
-                          "items": [
-                            {
-                              "name": "listItem",
-                              "type": "block",
-                              "callout": {
-                                "name": "callout_reference",
-                                "type": "inline",
-                                "variant": "explicit",
-                                "number": 1,
+                      "definition": {
+                        "principal": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "<1>",
+                            "location": [
+                              {
+                                "line": 76,
+                                "col": 17
+                              },
+                              {
+                                "line": 76,
+                                "col": 19
+                              }
+                            ]
+                          }
+                        ],
+                        "blocks": [
+                          {
+                            "name": "list",
+                            "type": "block",
+                            "variant": "callout",
+                            "items": [
+                              {
+                                "name": "listItem",
+                                "type": "block",
+                                "callout": {
+                                  "name": "callout_reference",
+                                  "type": "inline",
+                                  "variant": "explicit",
+                                  "number": 1,
+                                  "location": [
+                                    {
+                                      "line": 78,
+                                      "col": 1
+                                    },
+                                    {
+                                      "line": 78,
+                                      "col": 30
+                                    }
+                                  ]
+                                },
+                                "principal": [
+                                  {
+                                    "name": "text",
+                                    "type": "string",
+                                    "value": "Attached source paragraph.",
+                                    "location": [
+                                      {
+                                        "line": 78,
+                                        "col": 5
+                                      },
+                                      {
+                                        "line": 78,
+                                        "col": 30
+                                      }
+                                    ]
+                                  }
+                                ],
                                 "location": [
                                   {
                                     "line": 78,
@@ -1675,48 +1796,31 @@
                                     "col": 30
                                   }
                                 ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 78,
+                                "col": 1
                               },
-                              "principal": [
-                                {
-                                  "name": "text",
-                                  "type": "string",
-                                  "value": "Attached source paragraph.",
-                                  "location": [
-                                    {
-                                      "line": 78,
-                                      "col": 5
-                                    },
-                                    {
-                                      "line": 78,
-                                      "col": 30
-                                    }
-                                  ]
-                                }
-                              ],
-                              "location": [
-                                {
-                                  "line": 78,
-                                  "col": 1
-                                },
-                                {
-                                  "line": 78,
-                                  "col": 30
-                                }
-                              ]
-                            }
-                          ],
-                          "location": [
-                            {
-                              "line": 78,
-                              "col": 1
-                            },
-                            {
-                              "line": 78,
-                              "col": 30
-                            }
-                          ]
-                        }
-                      ],
+                              {
+                                "line": 78,
+                                "col": 30
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 76,
+                            "col": 17
+                          },
+                          {
+                            "line": 78,
+                            "col": 30
+                          }
+                        ]
+                      },
                       "location": [
                         {
                           "line": 76,
@@ -1784,11 +1888,26 @@
           "type": "block",
           "items": [
             {
-              "term": [
+              "terms": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "P15 ordinary",
+                  "content": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "P15 ordinary",
+                      "location": [
+                        {
+                          "line": 82,
+                          "col": 1
+                        },
+                        {
+                          "line": 82,
+                          "col": 12
+                        }
+                      ]
+                    }
+                  ],
+                  "delimiter": "::",
                   "location": [
                     {
                       "line": 82,
@@ -1796,30 +1915,41 @@
                     },
                     {
                       "line": 82,
-                      "col": 12
+                      "col": 14
                     }
                   ]
                 }
               ],
-              "delimiter": "::",
-              "principal_text": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Still a description list.",
-                  "location": [
-                    {
-                      "line": 82,
-                      "col": 16
-                    },
-                    {
-                      "line": 82,
-                      "col": 40
-                    }
-                  ]
-                }
-              ],
-              "description": [],
+              "definition": {
+                "principal": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Still a description list.",
+                    "location": [
+                      {
+                        "line": 82,
+                        "col": 16
+                      },
+                      {
+                        "line": 82,
+                        "col": 40
+                      }
+                    ]
+                  }
+                ],
+                "blocks": [],
+                "location": [
+                  {
+                    "line": 82,
+                    "col": 16
+                  },
+                  {
+                    "line": 82,
+                    "col": 40
+                  }
+                ]
+              },
               "location": [
                 {
                   "line": 82,
@@ -1827,7 +1957,7 @@
                 },
                 {
                   "line": 82,
-                  "col": 41
+                  "col": 40
                 }
               ]
             }
@@ -1839,7 +1969,7 @@
             },
             {
               "line": 82,
-              "col": 41
+              "col": 40
             }
           ]
         },
@@ -2106,11 +2236,26 @@
           "type": "block",
           "items": [
             {
-              "term": [
+              "terms": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Term",
+                  "content": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Term",
+                      "location": [
+                        {
+                          "line": 102,
+                          "col": 1
+                        },
+                        {
+                          "line": 102,
+                          "col": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "delimiter": "::",
                   "location": [
                     {
                       "line": 102,
@@ -2118,110 +2263,137 @@
                     },
                     {
                       "line": 102,
-                      "col": 4
+                      "col": 6
                     }
                   ]
                 }
               ],
-              "delimiter": "::",
-              "principal_text": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Parent description.",
-                  "location": [
-                    {
-                      "line": 102,
-                      "col": 8
+              "definition": {
+                "principal": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Parent description.",
+                    "location": [
+                      {
+                        "line": 102,
+                        "col": 8
+                      },
+                      {
+                        "line": 102,
+                        "col": 26
+                      }
+                    ]
+                  }
+                ],
+                "blocks": [
+                  {
+                    "name": "dlist",
+                    "type": "block",
+                    "metadata": {
+                      "attributes": {
+                        "language": "text"
+                      },
+                      "style": "source"
                     },
-                    {
-                      "line": 102,
-                      "col": 26
-                    }
-                  ]
-                }
-              ],
-              "description": [
-                {
-                  "name": "dlist",
-                  "type": "block",
-                  "metadata": {
-                    "attributes": {
-                      "language": "text"
-                    },
-                    "style": "source"
-                  },
-                  "items": [
-                    {
-                      "term": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "P18 attached to description",
-                          "location": [
-                            {
-                              "line": 105,
-                              "col": 1
-                            },
-                            {
-                              "line": 105,
-                              "col": 27
-                            }
-                          ]
-                        }
-                      ],
-                      "delimiter": ";;",
-                      "principal_text": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "<1>",
-                          "location": [
-                            {
-                              "line": 105,
-                              "col": 32
-                            },
-                            {
-                              "line": 105,
-                              "col": 34
-                            }
-                          ]
-                        }
-                      ],
-                      "description": [
-                        {
-                          "name": "list",
-                          "type": "block",
-                          "variant": "callout",
-                          "items": [
-                            {
-                              "name": "listItem",
-                              "type": "block",
-                              "callout": {
-                                "name": "callout_reference",
-                                "type": "inline",
-                                "variant": "explicit",
-                                "number": 1,
+                    "items": [
+                      {
+                        "terms": [
+                          {
+                            "content": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "P18 attached to description",
                                 "location": [
                                   {
-                                    "line": 106,
+                                    "line": 105,
                                     "col": 1
                                   },
                                   {
-                                    "line": 106,
-                                    "col": 34
+                                    "line": 105,
+                                    "col": 27
                                   }
                                 ]
+                              }
+                            ],
+                            "delimiter": ";;",
+                            "location": [
+                              {
+                                "line": 105,
+                                "col": 1
                               },
-                              "principal": [
+                              {
+                                "line": 105,
+                                "col": 30
+                              }
+                            ]
+                          }
+                        ],
+                        "definition": {
+                          "principal": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "<1>",
+                              "location": [
                                 {
-                                  "name": "text",
-                                  "type": "string",
-                                  "value": "Description-list continuation.",
+                                  "line": 105,
+                                  "col": 32
+                                },
+                                {
+                                  "line": 105,
+                                  "col": 34
+                                }
+                              ]
+                            }
+                          ],
+                          "blocks": [
+                            {
+                              "name": "list",
+                              "type": "block",
+                              "variant": "callout",
+                              "items": [
+                                {
+                                  "name": "listItem",
+                                  "type": "block",
+                                  "callout": {
+                                    "name": "callout_reference",
+                                    "type": "inline",
+                                    "variant": "explicit",
+                                    "number": 1,
+                                    "location": [
+                                      {
+                                        "line": 106,
+                                        "col": 1
+                                      },
+                                      {
+                                        "line": 106,
+                                        "col": 34
+                                      }
+                                    ]
+                                  },
+                                  "principal": [
+                                    {
+                                      "name": "text",
+                                      "type": "string",
+                                      "value": "Description-list continuation.",
+                                      "location": [
+                                        {
+                                          "line": 107,
+                                          "col": 5
+                                        },
+                                        {
+                                          "line": 107,
+                                          "col": 34
+                                        }
+                                      ]
+                                    }
+                                  ],
                                   "location": [
                                     {
                                       "line": 107,
-                                      "col": 5
+                                      "col": 1
                                     },
                                     {
                                       "line": 107,
@@ -2244,40 +2416,50 @@
                           ],
                           "location": [
                             {
-                              "line": 107,
-                              "col": 1
+                              "line": 105,
+                              "col": 32
                             },
                             {
                               "line": 107,
                               "col": 34
                             }
                           ]
-                        }
-                      ],
-                      "location": [
-                        {
-                          "line": 105,
-                          "col": 1
                         },
-                        {
-                          "line": 107,
-                          "col": 34
-                        }
-                      ]
-                    }
-                  ],
-                  "location": [
-                    {
-                      "line": 104,
-                      "col": 1
-                    },
-                    {
-                      "line": 107,
-                      "col": 34
-                    }
-                  ]
-                }
-              ],
+                        "location": [
+                          {
+                            "line": 105,
+                            "col": 1
+                          },
+                          {
+                            "line": 107,
+                            "col": 34
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 104,
+                        "col": 1
+                      },
+                      {
+                        "line": 107,
+                        "col": 34
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 102,
+                    "col": 8
+                  },
+                  {
+                    "line": 107,
+                    "col": 34
+                  }
+                ]
+              },
               "location": [
                 {
                   "line": 102,
@@ -2536,111 +2718,137 @@
           },
           "items": [
             {
-              "term": [
+              "terms": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "P21 verse",
-                  "location": [
-                    {
-                      "line": 123,
-                      "col": 3
-                    },
-                    {
-                      "line": 123,
-                      "col": 11
-                    }
-                  ]
-                }
-              ],
-              "delimiter": "::",
-              "principal_text": [
-                {
-                  "name": "span",
-                  "type": "inline",
-                  "variant": "strong",
-                  "form": "constrained",
-                  "inlines": [
+                  "content": [
                     {
                       "name": "text",
                       "type": "string",
-                      "value": "Bold",
+                      "value": "P21 verse",
                       "location": [
                         {
                           "line": 123,
-                          "col": 16
-                        },
-                        {
-                          "line": 123,
-                          "col": 19
-                        }
-                      ]
-                    }
-                  ],
-                  "location": [
-                    {
-                      "line": 123,
-                      "col": 15
-                    },
-                    {
-                      "line": 123,
-                      "col": 20
-                    }
-                  ]
-                }
-              ],
-              "description": [
-                {
-                  "name": "list",
-                  "type": "block",
-                  "variant": "unordered",
-                  "marker": "*",
-                  "items": [
-                    {
-                      "name": "listItem",
-                      "type": "block",
-                      "marker": "*",
-                      "principal": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "P22 line, not a list.\n  NOTE: P23 ordinary verse text.",
-                          "location": [
-                            {
-                              "line": 124,
-                              "col": 5
-                            },
-                            {
-                              "line": 125,
-                              "col": 32
-                            }
-                          ]
-                        }
-                      ],
-                      "location": [
-                        {
-                          "line": 124,
                           "col": 3
                         },
                         {
-                          "line": 125,
-                          "col": 32
+                          "line": 123,
+                          "col": 11
                         }
                       ]
                     }
                   ],
+                  "delimiter": "::",
                   "location": [
                     {
-                      "line": 124,
+                      "line": 123,
                       "col": 1
                     },
                     {
-                      "line": 125,
-                      "col": 32
+                      "line": 123,
+                      "col": 13
                     }
                   ]
                 }
               ],
+              "definition": {
+                "principal": [
+                  {
+                    "name": "span",
+                    "type": "inline",
+                    "variant": "strong",
+                    "form": "constrained",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Bold",
+                        "location": [
+                          {
+                            "line": 123,
+                            "col": 16
+                          },
+                          {
+                            "line": 123,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 123,
+                        "col": 15
+                      },
+                      {
+                        "line": 123,
+                        "col": 20
+                      }
+                    ]
+                  }
+                ],
+                "blocks": [
+                  {
+                    "name": "list",
+                    "type": "block",
+                    "variant": "unordered",
+                    "marker": "*",
+                    "items": [
+                      {
+                        "name": "listItem",
+                        "type": "block",
+                        "marker": "*",
+                        "principal": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "P22 line, not a list.\n  NOTE: P23 ordinary verse text.",
+                            "location": [
+                              {
+                                "line": 124,
+                                "col": 5
+                              },
+                              {
+                                "line": 125,
+                                "col": 32
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 124,
+                            "col": 3
+                          },
+                          {
+                            "line": 125,
+                            "col": 32
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 124,
+                        "col": 1
+                      },
+                      {
+                        "line": 125,
+                        "col": 32
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 123,
+                    "col": 15
+                  },
+                  {
+                    "line": 125,
+                    "col": 32
+                  }
+                ]
+              },
               "location": [
                 {
                   "line": 123,

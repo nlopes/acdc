@@ -1,8 +1,8 @@
 //! List item locations and description-list nesting.
 
 use crate::{
-    Block, BlockMetadata, DescriptionList, DescriptionListItem, Location, Title,
-    grammar::ParserState,
+    Block, BlockMetadata, DescriptionList, DescriptionListDefinition, DescriptionListItem,
+    Location, Title, grammar::ParserState,
 };
 use bumpalo::collections::String as BumpString;
 use std::collections::VecDeque;
@@ -100,6 +100,27 @@ pub(super) fn find_dlist_marker(bytes: &[u8], pos: usize) -> bool {
     false
 }
 
+fn item_delimiter<'a>(item: &DescriptionListItem<'a>) -> &'a str {
+    item.terms.first().map_or("", |term| term.delimiter)
+}
+
+fn group_description_terms(items: Vec<DescriptionListItem<'_>>) -> Vec<DescriptionListItem<'_>> {
+    let mut groups: Vec<DescriptionListItem<'_>> = Vec::with_capacity(items.len());
+    for item in items {
+        if let Some(previous) = groups.last_mut()
+            && previous.definition.is_none()
+        {
+            previous.terms.extend(item.terms);
+            previous.definition = item.definition;
+            previous.location.absolute_end = item.location.absolute_end;
+            previous.location.end = item.location.end;
+        } else {
+            groups.push(item);
+        }
+    }
+    groups
+}
+
 fn description_list_location(items: &[DescriptionListItem<'_>]) -> Location {
     let Some((first, rest)) = items.split_first() else {
         return Location::default();
@@ -122,13 +143,13 @@ fn nest_description_list_items<'input>(
 
     while items
         .front()
-        .is_some_and(|item| item.delimiter == delimiter)
+        .is_some_and(|item| item_delimiter(item) == delimiter)
     {
         let Some(mut item) = items.pop_front() else {
             break;
         };
 
-        if let Some(child_delimiter) = items.front().map(|child| child.delimiter)
+        if let Some(child_delimiter) = items.front().map(item_delimiter)
             && child_delimiter != delimiter
             && !ancestors.contains(&child_delimiter)
         {
@@ -139,7 +160,13 @@ fn nest_description_list_items<'input>(
             let location = description_list_location(&children);
             item.location.absolute_end = location.absolute_end;
             item.location.end = location.end.clone();
-            item.description
+            let definition = item.definition.get_or_insert_with(|| {
+                DescriptionListDefinition::new(None, Vec::new(), location.clone())
+            });
+            definition.location.absolute_end = location.absolute_end;
+            definition.location.end = location.end.clone();
+            definition
+                .blocks
                 .push(Block::DescriptionList(DescriptionList {
                     title: Title::default(),
                     metadata: BlockMetadata::default(),
@@ -151,20 +178,21 @@ fn nest_description_list_items<'input>(
         nested.push(item);
     }
 
-    nested
+    group_description_terms(nested)
 }
 
 pub(super) fn build_description_list_topology(
     items: Vec<DescriptionListItem<'_>>,
 ) -> Vec<DescriptionListItem<'_>> {
-    if items
-        .first()
-        .is_none_or(|first| items.iter().all(|item| item.delimiter == first.delimiter))
-    {
-        return items;
+    if items.first().is_none_or(|first| {
+        items
+            .iter()
+            .all(|item| item_delimiter(item) == item_delimiter(first))
+    }) {
+        return group_description_terms(items);
     }
 
     let mut items = VecDeque::from(items);
-    let delimiter = items.front().map_or("", |item| item.delimiter);
+    let delimiter = items.front().map_or("", item_delimiter);
     nest_description_list_items(&mut items, delimiter, &mut Vec::new())
 }

@@ -136,7 +136,7 @@
 
 #[
 #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
-  + #block(width: 100%)[#strong[#text("Short name")#text(":")] #text("Both terms share this answer.")]
+  + #block(width: 100%)[#strong[#text("Short name")#text(":")]#linebreak()#strong[#text("Long name")#text(":")] #text("Both terms share this answer.")]
 ]
 
 #heading(level: 1)[#text("Attached content")] <id-5f61747461636865645f636f6e74656e74>

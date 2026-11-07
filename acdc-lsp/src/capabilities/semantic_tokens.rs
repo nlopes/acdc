@@ -226,10 +226,14 @@ fn collect_tokens_from_structure(
         StructuralRef::ListItem(item) => {
             collect_tokens_from_inlines(item.principal(), source, tokens);
         }
-        StructuralRef::DescriptionListItem(item) => {
-            collect_tokens_from_inlines(item.principal(), source, tokens);
+        StructuralRef::DescriptionListItem(_) => {}
+        StructuralRef::DescriptionListDefinition(definition) => {
+            if let Some(principal) = definition.principal() {
+                collect_tokens_from_inlines(principal, source, tokens);
+            }
         }
-        StructuralRef::Document(_)
+        StructuralRef::DescriptionListTerm(_)
+        | StructuralRef::Document(_)
         | StructuralRef::Header(_)
         | StructuralRef::CalloutListItem(_)
         | StructuralRef::TableRow(_)

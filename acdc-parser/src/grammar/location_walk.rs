@@ -308,16 +308,7 @@ where
             Block::DescriptionList(l) => {
                 self.metadata(&mut l.metadata)?;
                 self.inlines(l.title.inlines_mut())?;
-                for item in &mut l.items {
-                    (self.visit_location)(&mut item.location)?;
-                    self.optional_location(&mut item.delimiter_location)?;
-                    for anchor in &mut item.anchors {
-                        self.anchor(anchor)?;
-                    }
-                    self.inlines(&mut item.term)?;
-                    self.inlines(&mut item.principal_text)?;
-                    self.blocks(&mut item.description)?;
-                }
+                self.description_items(&mut l.items)?;
             }
             Block::CalloutList(l) => {
                 self.metadata(&mut l.metadata)?;
@@ -365,6 +356,28 @@ where
             }
             Block::TableOfContents(block) => self.metadata(&mut block.metadata)?,
             Block::DocumentAttribute(_) | Block::Comment(_) => {}
+        }
+        Ok(())
+    }
+
+    fn description_items(&mut self, items: &mut [crate::DescriptionListItem<'a>]) -> Result<(), E> {
+        for item in items {
+            (self.visit_location)(&mut item.location)?;
+            for term in &mut item.terms {
+                (self.visit_location)(&mut term.location)?;
+                self.optional_location(&mut term.delimiter_location)?;
+                for anchor in &mut term.anchors {
+                    self.anchor(anchor)?;
+                }
+                self.inlines(&mut term.content)?;
+            }
+            if let Some(definition) = &mut item.definition {
+                (self.visit_location)(&mut definition.location)?;
+                if let Some(principal) = &mut definition.principal {
+                    self.inlines(principal)?;
+                }
+                self.blocks(&mut definition.blocks)?;
+            }
         }
         Ok(())
     }

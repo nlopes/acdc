@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Description lists retain every shared term and render their definition once
+  in all supported list styles.
+
 - Short and full cross-references retain formatting in parsed custom `caption=`
   prefixes. Only a final unformatted period and space are removed; punctuation
   inside a styled span remains visible.

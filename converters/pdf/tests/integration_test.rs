@@ -14,6 +14,40 @@ use acdc_converters_pdf::{PageLayout, PageMargins, PageSize, PdfOptions, Process
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn shared_description_styles_keep_terms_notes_and_distinct_destinations() -> Result<(), Error> {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        for style in ["", "horizontal", "qanda", "ordered", "unordered"] {
+            let attributes = if style.is_empty() {
+                String::new()
+            } else {
+                format!("[{style}]\n")
+            };
+            let source = format!(
+                "= Shared\n\n{attributes}[[first]]FirstTerm::\n[[second]]SecondTerm:: Sharedbody footnote:shared[Sharednote].\n+\nAttachedbody footnote:shared[].\n\n<<<\n\nSee <<first,FirstTarget>> and <<second,SecondTarget>>.\n"
+            );
+            let parsed = parse(
+                &source,
+                &Options::builder().with_compatibility_mode(mode).build()?,
+            )?;
+            let pdf = render_parsed(&parsed)?;
+            assert_eq!(pdf.get_pages().len(), 2, "{mode:?}/{style}");
+            let text = pdf.extract_text(&[1, 2])?;
+            for needle in [
+                "FirstTerm",
+                "SecondTerm",
+                "Sharedbody",
+                "Attachedbody",
+                "Sharednote",
+            ] {
+                assert_eq!(text.matches(needle).count(), 1, "{mode:?}/{style}: {text}");
+            }
+            assert_eq!(internal_link_pages(&pdf, 2)?, [1, 1], "{mode:?}/{style}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn decoded_media_links_and_asset_names_reach_pdf() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/source/decoded_output_controls.adoc");

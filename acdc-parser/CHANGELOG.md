@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Description lists now group consecutive terms with one shared definition in both
+  modes. An authored principal that expands to empty remains present. The read API
+  uses `item.terms()` and `item.definition()`; term content, anchors, and delimiters
+  belong to `DescriptionListTerm`, and principal/blocks belong to
+  `DescriptionListDefinition`. Native JSON follows these owners. Named ASG adds
+  term metadata and definition presence; upstream ASG keeps its existing shape.
+
 - `ParseResult::conditionals()` exposes preprocessing decisions in source order,
   with original source files and line numbers. Tools can use the selected branches
   without evaluating conditions against the end-of-header attribute snapshot.

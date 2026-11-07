@@ -32,6 +32,49 @@ fn request(
 }
 
 #[test]
+fn shared_description_terms_keep_distinct_navigation_targets() -> TestResult {
+    let project = Project::new("shared-description-identities")?;
+    let source = "[[first]]*First*::\r\n[[second]]*Second*:: Shared definition.\r\n+\r\nAttached <<first>> and <<second>>.\r\n";
+    for mode in ["asciidoctor", "draft"] {
+        let mut client = LspTestClient::new()?;
+        client.initialize_with_options(json!({"compatibilityMode":mode}))?;
+        let uri = project.uri(&format!("{mode}.adoc"))?;
+        client.open_document(&uri, source)?;
+        for id in ["first", "second"] {
+            let declared = range(source, id)?;
+            let usage = range(source, &format!("<<{id}>>"))?;
+            let definition: Location = serde_json::from_value(request(
+                &mut client,
+                "textDocument/definition",
+                &uri,
+                usage.start,
+            )?)?;
+            assert_eq!(definition.range.start.line, declared.start.line);
+            assert!(
+                definition.range.start <= declared.start && definition.range.end >= declared.end
+            );
+            let references: Vec<Location> = serde_json::from_value(request(
+                &mut client,
+                "textDocument/references",
+                &uri,
+                usage.start,
+            )?)?;
+            assert_eq!(references.len(), 2, "{mode}/{id}");
+            let edit: WorkspaceEdit = serde_json::from_value(request(
+                &mut client,
+                "textDocument/rename",
+                &uri,
+                usage.start,
+            )?)?;
+            let changes = edit.changes.ok_or("rename changes")?;
+            assert_eq!(changes.values().flatten().count(), 2);
+        }
+        client.shutdown();
+    }
+    Ok(())
+}
+
+#[test]
 fn authored_ids_navigate_and_rename_across_block_and_inline_owners() -> TestResult {
     let project = Project::new("authored-id-owners")?;
     let mut client = LspTestClient::new()?;

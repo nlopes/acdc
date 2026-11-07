@@ -129,11 +129,26 @@
                     "type": "block",
                     "items": [
                       {
-                        "term": [
+                        "terms": [
                           {
-                            "name": "text",
-                            "type": "string",
-                            "value": "Actual",
+                            "content": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Actual",
+                                "location": [
+                                  {
+                                    "line": 10,
+                                    "col": 1
+                                  },
+                                  {
+                                    "line": 10,
+                                    "col": 6
+                                  }
+                                ]
+                              }
+                            ],
+                            "delimiter": "::",
                             "location": [
                               {
                                 "line": 10,
@@ -141,30 +156,41 @@
                               },
                               {
                                 "line": 10,
-                                "col": 6
+                                "col": 8
                               }
                             ]
                           }
                         ],
-                        "delimiter": "::",
-                        "principal_text": [
-                          {
-                            "name": "text",
-                            "type": "string",
-                            "value": "Real description.",
-                            "location": [
-                              {
-                                "line": 10,
-                                "col": 10
-                              },
-                              {
-                                "line": 10,
-                                "col": 26
-                              }
-                            ]
-                          }
-                        ],
-                        "description": [],
+                        "definition": {
+                          "principal": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "Real description.",
+                              "location": [
+                                {
+                                  "line": 10,
+                                  "col": 10
+                                },
+                                {
+                                  "line": 10,
+                                  "col": 26
+                                }
+                              ]
+                            }
+                          ],
+                          "blocks": [],
+                          "location": [
+                            {
+                              "line": 10,
+                              "col": 10
+                            },
+                            {
+                              "line": 10,
+                              "col": 26
+                            }
+                          ]
+                        },
                         "location": [
                           {
                             "line": 10,
@@ -172,7 +198,7 @@
                           },
                           {
                             "line": 10,
-                            "col": 27
+                            "col": 26
                           }
                         ]
                       }
@@ -184,7 +210,7 @@
                       },
                       {
                         "line": 10,
-                        "col": 27
+                        "col": 26
                       }
                     ]
                   }

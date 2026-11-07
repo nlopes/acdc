@@ -9,8 +9,9 @@ use acdc_converters_core::{TraversalContext, list::OrderedListNumbering};
 use acdc_parser::{
     ListItemCheckedStatus,
     ast::{
-        AttributeValueRef, BlockKind, BlockRef, CalloutListRef, ContentRef, DescriptionListItemRef,
-        DescriptionListRef, InlineKind, InlineRef, ListItemRef, OrderedListRef, UnorderedListRef,
+        AttributeValueRef, BlockKind, BlockRef, CalloutListRef, ContentRef,
+        DescriptionListDefinitionRef, DescriptionListItemRef, DescriptionListRef, InlineKind,
+        InlineRef, ListItemRef, OrderedListRef, UnorderedListRef,
     },
 };
 
@@ -412,8 +413,13 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
-        for node in item.term().inlines() {
-            temp_visitor.write_inline(traversal, node)?;
+        for (index, term) in item.terms().enumerate() {
+            if index > 0 {
+                write!(temp_visitor.writer, ", ")?;
+            }
+            for node in term.content().inlines() {
+                temp_visitor.write_inline(traversal, node)?;
+            }
         }
         let buffer = temp_visitor
             .into_writer()
@@ -430,15 +436,21 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         writeln!(self.writer)?;
 
         // Render principal text with indentation if present
-        if !item.principal().is_empty() {
+        if let Some(principal) = item
+            .definition()
+            .and_then(DescriptionListDefinitionRef::principal)
+        {
             write_indent(&mut self.writer, indent + 2)?;
-            for node in item.principal().inlines() {
+            for node in principal.inlines() {
                 self.write_inline(traversal, node)?;
             }
             writeln!(self.writer)?;
         }
 
-        self.render_description_blocks(traversal, item.blocks(), indent + 2)
+        if let Some(definition) = item.definition() {
+            self.render_description_blocks(traversal, definition.blocks(), indent + 2)?;
+        }
+        Ok(())
     }
 
     /// Renders a single description list item in horizontal style.
@@ -455,8 +467,13 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
-        for node in item.term().inlines() {
-            temp_visitor.write_inline(traversal, node)?;
+        for (index, term) in item.terms().enumerate() {
+            if index > 0 {
+                write!(temp_visitor.writer, ", ")?;
+            }
+            for node in term.content().inlines() {
+                temp_visitor.write_inline(traversal, node)?;
+            }
         }
         let buffer = temp_visitor
             .into_writer()
@@ -469,16 +486,22 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         ))?;
 
         // Same line: term :: definition
-        if !item.principal().is_empty() {
+        if let Some(principal) = item
+            .definition()
+            .and_then(DescriptionListDefinitionRef::principal)
+        {
             write!(self.writer, " :: ")?;
-            for node in item.principal().inlines() {
+            for node in principal.inlines() {
                 self.write_inline(traversal, node)?;
             }
         }
         writeln!(self.writer)?;
 
         // Render description blocks indented
-        self.render_description_blocks(traversal, item.blocks(), indent + 2)
+        if let Some(definition) = item.definition() {
+            self.render_description_blocks(traversal, definition.blocks(), indent + 2)?;
+        }
+        Ok(())
     }
 
     /// Renders a single description list item in Q&A style.
@@ -495,8 +518,13 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
-        for node in item.term().inlines() {
-            temp_visitor.write_inline(traversal, node)?;
+        for (index, term) in item.terms().enumerate() {
+            if index > 0 {
+                write!(temp_visitor.writer, ", ")?;
+            }
+            for node in term.content().inlines() {
+                temp_visitor.write_inline(traversal, node)?;
+            }
         }
         let buffer = temp_visitor
             .into_writer()
@@ -511,17 +539,23 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         writeln!(self.writer)?;
 
         // Render "A: " prefix + principal text
-        if !item.principal().is_empty() {
+        if let Some(principal) = item
+            .definition()
+            .and_then(DescriptionListDefinitionRef::principal)
+        {
             write_indent(&mut self.writer, indent)?;
             self.writer.queue(PrintStyledContent("A: ".dim()))?;
-            for node in item.principal().inlines() {
+            for node in principal.inlines() {
                 self.write_inline(traversal, node)?;
             }
             writeln!(self.writer)?;
         }
 
         // Render description blocks indented
-        self.render_description_blocks(traversal, item.blocks(), indent + 3)
+        if let Some(definition) = item.definition() {
+            self.render_description_blocks(traversal, definition.blocks(), indent + 3)?;
+        }
+        Ok(())
     }
 
     fn render_description_blocks(

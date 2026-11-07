@@ -1020,11 +1020,26 @@
                   },
                   "items": [
                     {
-                      "term": [
+                      "terms": [
                         {
-                          "name": "text",
-                          "type": "string",
-                          "value": "Term",
+                          "content": [
+                            {
+                              "name": "text",
+                              "type": "string",
+                              "value": "Term",
+                              "location": [
+                                {
+                                  "line": 37,
+                                  "col": 1
+                                },
+                                {
+                                  "line": 37,
+                                  "col": 4
+                                }
+                              ]
+                            }
+                          ],
+                          "delimiter": "::",
                           "location": [
                             {
                               "line": 37,
@@ -1032,30 +1047,41 @@
                             },
                             {
                               "line": 37,
-                              "col": 4
+                              "col": 6
                             }
                           ]
                         }
                       ],
-                      "delimiter": "::",
-                      "principal_text": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "Nested description.",
-                          "location": [
-                            {
-                              "line": 37,
-                              "col": 8
-                            },
-                            {
-                              "line": 37,
-                              "col": 26
-                            }
-                          ]
-                        }
-                      ],
-                      "description": [],
+                      "definition": {
+                        "principal": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Nested description.",
+                            "location": [
+                              {
+                                "line": 37,
+                                "col": 8
+                              },
+                              {
+                                "line": 37,
+                                "col": 26
+                              }
+                            ]
+                          }
+                        ],
+                        "blocks": [],
+                        "location": [
+                          {
+                            "line": 37,
+                            "col": 8
+                          },
+                          {
+                            "line": 37,
+                            "col": 26
+                          }
+                        ]
+                      },
                       "location": [
                         {
                           "line": 37,
@@ -1063,7 +1089,7 @@
                         },
                         {
                           "line": 37,
-                          "col": 27
+                          "col": 26
                         }
                       ]
                     }
@@ -1075,7 +1101,7 @@
                     },
                     {
                       "line": 37,
-                      "col": 27
+                      "col": 26
                     }
                   ]
                 }
@@ -3628,11 +3654,26 @@
           "type": "block",
           "items": [
             {
-              "term": [
+              "terms": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Term",
+                  "content": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Term",
+                      "location": [
+                        {
+                          "line": 126,
+                          "col": 1
+                        },
+                        {
+                          "line": 126,
+                          "col": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "delimiter": "::",
                   "location": [
                     {
                       "line": 126,
@@ -3640,43 +3681,71 @@
                     },
                     {
                       "line": 126,
-                      "col": 4
+                      "col": 6
                     }
                   ]
                 }
               ],
-              "delimiter": "::",
-              "principal_text": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Ordinary description.",
-                  "location": [
-                    {
-                      "line": 126,
-                      "col": 8
-                    },
-                    {
-                      "line": 126,
-                      "col": 28
-                    }
-                  ]
-                }
-              ],
-              "description": [
-                {
-                  "name": "list",
-                  "type": "block",
-                  "variant": "callout",
-                  "items": [
-                    {
-                      "name": "listItem",
-                      "type": "block",
-                      "callout": {
-                        "name": "callout_reference",
-                        "type": "inline",
-                        "variant": "explicit",
-                        "number": 1,
+              "definition": {
+                "principal": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Ordinary description.",
+                    "location": [
+                      {
+                        "line": 126,
+                        "col": 8
+                      },
+                      {
+                        "line": 126,
+                        "col": 28
+                      }
+                    ]
+                  }
+                ],
+                "blocks": [
+                  {
+                    "name": "list",
+                    "type": "block",
+                    "variant": "callout",
+                    "items": [
+                      {
+                        "name": "listItem",
+                        "type": "block",
+                        "callout": {
+                          "name": "callout_reference",
+                          "type": "inline",
+                          "variant": "explicit",
+                          "number": 1,
+                          "location": [
+                            {
+                              "line": 127,
+                              "col": 1
+                            },
+                            {
+                              "line": 127,
+                              "col": 37
+                            }
+                          ]
+                        },
+                        "principal": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Literal description continuation.",
+                            "location": [
+                              {
+                                "line": 127,
+                                "col": 5
+                              },
+                              {
+                                "line": 127,
+                                "col": 37
+                              }
+                            ]
+                          }
+                        ],
                         "location": [
                           {
                             "line": 127,
@@ -3687,48 +3756,31 @@
                             "col": 37
                           }
                         ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 127,
+                        "col": 1
                       },
-                      "principal": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "Literal description continuation.",
-                          "location": [
-                            {
-                              "line": 127,
-                              "col": 5
-                            },
-                            {
-                              "line": 127,
-                              "col": 37
-                            }
-                          ]
-                        }
-                      ],
-                      "location": [
-                        {
-                          "line": 127,
-                          "col": 1
-                        },
-                        {
-                          "line": 127,
-                          "col": 37
-                        }
-                      ]
-                    }
-                  ],
-                  "location": [
-                    {
-                      "line": 127,
-                      "col": 1
-                    },
-                    {
-                      "line": 127,
-                      "col": 37
-                    }
-                  ]
-                }
-              ],
+                      {
+                        "line": 127,
+                        "col": 37
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 126,
+                    "col": 8
+                  },
+                  {
+                    "line": 127,
+                    "col": 37
+                  }
+                ]
+              },
               "location": [
                 {
                   "line": 126,

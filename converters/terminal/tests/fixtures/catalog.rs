@@ -1,5 +1,6 @@
 // (fixture_name, has_osc8_variant [, requires: <cfg>])
 terminal_fixture_catalog!([
+    (description_shared_definitions, true),
     (subs_attributed_passthroughs, true),
     (subs_character_references, true),
     (subs_character_reference_labels, true),

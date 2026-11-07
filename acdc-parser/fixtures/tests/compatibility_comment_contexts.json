@@ -205,11 +205,26 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Term",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Term",
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 1
+                    },
+                    {
+                      "line": 11,
+                      "col": 4
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 11,
@@ -217,100 +232,111 @@
                 },
                 {
                   "line": 11,
-                  "col": 4
+                  "col": 6
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Item",
-              "location": [
-                {
-                  "line": 11,
-                  "col": 8
-                },
-                {
-                  "line": 11,
-                  "col": 11
-                }
-              ]
-            }
-          ],
-          "description": [
-            {
-              "name": "comment",
-              "type": "block",
-              "form": "delimited",
-              "delimiter": "////",
-              "blocks": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Hidden.",
-                  "location": [
-                    {
-                      "line": 15,
-                      "col": 1
-                    },
-                    {
-                      "line": 15,
-                      "col": 7
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 14,
-                  "col": 1
-                },
-                {
-                  "line": 16,
-                  "col": 4
-                }
-              ]
-            },
-            {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Attached description.",
-                  "location": [
-                    {
-                      "line": 17,
-                      "col": 1
-                    },
-                    {
-                      "line": 17,
-                      "col": 21
-                    }
-                  ]
-                }
-              ],
-              "metadata": {
-                "roles": [
-                  "description"
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Item",
+                "location": [
+                  {
+                    "line": 11,
+                    "col": 8
+                  },
+                  {
+                    "line": 11,
+                    "col": 11
+                  }
+                ]
+              }
+            ],
+            "blocks": [
+              {
+                "name": "comment",
+                "type": "block",
+                "form": "delimited",
+                "delimiter": "////",
+                "blocks": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Hidden.",
+                    "location": [
+                      {
+                        "line": 15,
+                        "col": 1
+                      },
+                      {
+                        "line": 15,
+                        "col": 7
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 14,
+                    "col": 1
+                  },
+                  {
+                    "line": 16,
+                    "col": 4
+                  }
                 ]
               },
-              "location": [
-                {
-                  "line": 13,
-                  "col": 1
+              {
+                "name": "paragraph",
+                "type": "block",
+                "inlines": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Attached description.",
+                    "location": [
+                      {
+                        "line": 17,
+                        "col": 1
+                      },
+                      {
+                        "line": 17,
+                        "col": 21
+                      }
+                    ]
+                  }
+                ],
+                "metadata": {
+                  "roles": [
+                    "description"
+                  ]
                 },
-                {
-                  "line": 17,
-                  "col": 21
-                }
-              ]
-            }
-          ],
+                "location": [
+                  {
+                    "line": 13,
+                    "col": 1
+                  },
+                  {
+                    "line": 17,
+                    "col": 21
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 11,
+                "col": 8
+              },
+              {
+                "line": 17,
+                "col": 21
+              }
+            ]
+          },
           "location": [
             {
               "line": 11,

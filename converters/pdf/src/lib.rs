@@ -1356,6 +1356,27 @@ struct PreparationVisitor {
     preparation: PdfPreparation,
 }
 
+impl PreparationVisitor {
+    fn collect_description_list<'doc>(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        list: acdc_parser::ast::DescriptionListRef<'doc>,
+    ) -> Result<(), std::convert::Infallible> {
+        for item in list.items() {
+            for term in item.terms() {
+                collect_inline_preparation(term.content(), traversal, &mut self.preparation);
+            }
+            if let Some(definition) = item.definition() {
+                if let Some(principal) = definition.principal() {
+                    collect_inline_preparation(principal, traversal, &mut self.preparation);
+                }
+                traversal.visit_blocks(self, definition.blocks())?;
+            }
+        }
+        Ok(())
+    }
+}
+
 impl<'doc> BlockVisitor<'doc> for PreparationVisitor {
     type Error = std::convert::Infallible;
 
@@ -1520,11 +1541,7 @@ impl<'doc> BlockVisitor<'doc> for PreparationVisitor {
                 }
             }
             BlockKind::DescriptionList(list) => {
-                for item in list.items() {
-                    collect_inline_preparation(item.term(), traversal, &mut self.preparation);
-                    collect_inline_preparation(item.principal(), traversal, &mut self.preparation);
-                    traversal.visit_blocks(self, item.blocks())?;
-                }
+                self.collect_description_list(traversal, list)?;
             }
             BlockKind::CalloutList(list) => {
                 for item in list.items() {

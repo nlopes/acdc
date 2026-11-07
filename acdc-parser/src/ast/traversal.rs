@@ -1,10 +1,13 @@
 use std::{iter::FusedIterator, mem, slice};
 
-use crate::{Block, CalloutListItem, DescriptionListItem, Header, ListItem, TableColumn, TableRow};
+use crate::{
+    Block, CalloutListItem, DescriptionListDefinition, DescriptionListItem, DescriptionListTerm,
+    Header, ListItem, TableColumn, TableRow,
+};
 
 use super::{
-    BlockKind, BlockRef, CalloutListItemRef, DescriptionListItemRef, DocumentRef, HeaderRef,
-    ListItemRef, TableCellRef, TableRowRef,
+    BlockKind, BlockRef, CalloutListItemRef, DescriptionListDefinitionRef, DescriptionListItemRef,
+    DescriptionListTermRef, DocumentRef, HeaderRef, ListItemRef, TableCellRef, TableRowRef,
 };
 
 /// A document, header, block, list item, table row, or table cell.
@@ -33,6 +36,8 @@ pub enum StructuralRef<'doc> {
     Block(BlockRef<'doc>),
     ListItem(ListItemRef<'doc>),
     DescriptionListItem(DescriptionListItemRef<'doc>),
+    DescriptionListTerm(DescriptionListTermRef<'doc>),
+    DescriptionListDefinition(DescriptionListDefinitionRef<'doc>),
     CalloutListItem(CalloutListItemRef<'doc>),
     TableRow(TableRowRef<'doc>),
     TableCell(TableCellRef<'doc>),
@@ -40,7 +45,8 @@ pub enum StructuralRef<'doc> {
 
 impl<'doc> StructuralRef<'doc> {
     /// Direct children without allocation. A document's header precedes its blocks;
-    /// lists yield items, and tables yield header, body, then footer rows. Each row
+    /// lists yield items; description groups yield terms then their definition.
+    /// Tables yield header, body, then footer rows. Each row
     /// yields cells in stored order, with spanning cells occurring once.
     /// Other containers yield their retained blocks in order.
     pub fn children(self) -> impl FusedIterator<Item = Self> + Send + Sync + 'doc {
@@ -104,11 +110,17 @@ impl<'doc> StructuralRef<'doc> {
                 | BlockKind::Stem(_) => Children::Empty,
             },
             Self::ListItem(item) => Children::Blocks(item.node.blocks.iter()),
-            Self::DescriptionListItem(item) => Children::Blocks(item.node.description.iter()),
+            Self::DescriptionListItem(item) => Children::DescriptionFields {
+                terms: item.node.terms.iter(),
+                definition: item.node.definition.as_ref(),
+            },
+            Self::DescriptionListDefinition(definition) => {
+                Children::Blocks(definition.node.blocks.iter())
+            }
             Self::CalloutListItem(item) => Children::Blocks(item.node.blocks.iter()),
             Self::TableRow(row) => Children::Cells(row.row.columns.iter()),
             Self::TableCell(cell) => Children::Blocks(cell.cell.content.iter()),
-            Self::Header(_) => Children::Empty,
+            Self::DescriptionListTerm(_) | Self::Header(_) => Children::Empty,
         }
     }
 }
@@ -129,6 +141,8 @@ structural_reads!(
     Block(BlockRef),
     ListItem(ListItemRef),
     DescriptionListItem(DescriptionListItemRef),
+    DescriptionListTerm(DescriptionListTermRef),
+    DescriptionListDefinition(DescriptionListDefinitionRef),
     CalloutListItem(CalloutListItemRef),
     TableRow(TableRowRef),
     TableCell(TableCellRef),
@@ -163,6 +177,10 @@ pub(super) enum Children<'doc> {
     Blocks(slice::Iter<'doc, Block<'doc>>),
     Items(slice::Iter<'doc, ListItem<'doc>>),
     Descriptions(slice::Iter<'doc, DescriptionListItem<'doc>>),
+    DescriptionFields {
+        terms: slice::Iter<'doc, DescriptionListTerm<'doc>>,
+        definition: Option<&'doc DescriptionListDefinition<'doc>>,
+    },
     Callouts(slice::Iter<'doc, CalloutListItem<'doc>>),
     Rows {
         header: Option<&'doc TableRow<'doc>>,
@@ -180,6 +198,9 @@ impl Children<'_> {
             Self::Blocks(blocks) => blocks.len() == 0,
             Self::Items(items) => items.len() == 0,
             Self::Descriptions(items) => items.len() == 0,
+            Self::DescriptionFields { terms, definition } => {
+                terms.len() == 0 && definition.is_none()
+            }
             Self::Callouts(items) => items.len() == 0,
             Self::Rows {
                 header,
@@ -206,6 +227,14 @@ impl<'doc> Iterator for Children<'doc> {
             Self::Descriptions(items) => items
                 .next()
                 .map(|item| DescriptionListItemRef::from(item).into()),
+            Self::DescriptionFields { terms, definition } => terms
+                .next()
+                .map(|term| DescriptionListTermRef::from(term).into())
+                .or_else(|| {
+                    definition
+                        .take()
+                        .map(|definition| DescriptionListDefinitionRef::from(definition).into())
+                }),
             Self::Callouts(items) => items
                 .next()
                 .map(|item| CalloutListItemRef::from(item).into()),

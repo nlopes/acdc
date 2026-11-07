@@ -685,11 +685,26 @@
                       "type": "block",
                       "items": [
                         {
-                          "term": [
+                          "terms": [
                             {
-                              "name": "text",
-                              "type": "string",
-                              "value": "Term",
+                              "content": [
+                                {
+                                  "name": "text",
+                                  "type": "string",
+                                  "value": "Term",
+                                  "location": [
+                                    {
+                                      "line": 32,
+                                      "col": 1
+                                    },
+                                    {
+                                      "line": 32,
+                                      "col": 4
+                                    }
+                                  ]
+                                }
+                              ],
+                              "delimiter": "::",
                               "location": [
                                 {
                                   "line": 32,
@@ -697,30 +712,41 @@
                                 },
                                 {
                                   "line": 32,
-                                  "col": 4
+                                  "col": 6
                                 }
                               ]
                             }
                           ],
-                          "delimiter": "::",
-                          "principal_text": [
-                            {
-                              "name": "text",
-                              "type": "string",
-                              "value": "Child.",
-                              "location": [
-                                {
-                                  "line": 32,
-                                  "col": 8
-                                },
-                                {
-                                  "line": 32,
-                                  "col": 13
-                                }
-                              ]
-                            }
-                          ],
-                          "description": [],
+                          "definition": {
+                            "principal": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Child.",
+                                "location": [
+                                  {
+                                    "line": 32,
+                                    "col": 8
+                                  },
+                                  {
+                                    "line": 32,
+                                    "col": 13
+                                  }
+                                ]
+                              }
+                            ],
+                            "blocks": [],
+                            "location": [
+                              {
+                                "line": 32,
+                                "col": 8
+                              },
+                              {
+                                "line": 32,
+                                "col": 13
+                              }
+                            ]
+                          },
                           "location": [
                             {
                               "line": 32,
@@ -728,7 +754,7 @@
                             },
                             {
                               "line": 32,
-                              "col": 14
+                              "col": 13
                             }
                           ]
                         }
@@ -740,7 +766,7 @@
                         },
                         {
                           "line": 32,
-                          "col": 14
+                          "col": 13
                         }
                       ]
                     }

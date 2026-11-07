@@ -134,7 +134,11 @@ pub(super) fn for_each_symbol_child<'doc>(
         match child {
             StructuralRef::Block(block) => visit(block),
             StructuralRef::ListItem(item) => item.blocks().for_each(&mut visit),
-            StructuralRef::DescriptionListItem(item) => item.blocks().for_each(&mut visit),
+            StructuralRef::DescriptionListItem(item) => {
+                if let Some(definition) = item.definition() {
+                    definition.blocks().for_each(&mut visit);
+                }
+            }
             StructuralRef::Document(_)
             | StructuralRef::Header(_)
             | StructuralRef::CalloutListItem(_)

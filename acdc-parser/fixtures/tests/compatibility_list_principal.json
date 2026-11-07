@@ -362,11 +362,26 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Final empty term",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Final empty term",
+                  "location": [
+                    {
+                      "line": 23,
+                      "col": 1
+                    },
+                    {
+                      "line": 23,
+                      "col": 16
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 23,
@@ -374,13 +389,11 @@
                 },
                 {
                   "line": 23,
-                  "col": 16
+                  "col": 18
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "description": [],
           "location": [
             {
               "line": 23,
@@ -388,7 +401,7 @@
             },
             {
               "line": 23,
-              "col": 19
+              "col": 18
             }
           ]
         }
@@ -400,7 +413,7 @@
         },
         {
           "line": 23,
-          "col": 19
+          "col": 18
         }
       ]
     },

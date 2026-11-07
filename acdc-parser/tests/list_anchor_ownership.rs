@@ -69,7 +69,13 @@ fn description_list_metadata_belongs_to_the_following_list() -> Result<(), Error
                 let [item] = &*list.items().collect::<Vec<_>>() else {
                     return Err("expected one description item".into());
                 };
-                let [nested] = &*item.blocks().map(BlockRef::kind).collect::<Vec<_>>() else {
+                let [nested] = &*item
+                    .definition()
+                    .ok_or("definition")?
+                    .blocks()
+                    .map(BlockRef::kind)
+                    .collect::<Vec<_>>()
+                else {
                     return Err("expected one nested list".into());
                 };
                 let anchors = if let BlockKind::UnorderedList(list) = nested {

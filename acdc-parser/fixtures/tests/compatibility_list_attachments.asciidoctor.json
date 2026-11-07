@@ -297,74 +297,100 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Term",
-              "location": [
-                {
-                  "line": 17,
-                  "col": 1
-                },
-                {
-                  "line": 17,
-                  "col": 4
-                }
-              ]
-            }
-          ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Description.",
-              "location": [
-                {
-                  "line": 17,
-                  "col": 8
-                },
-                {
-                  "line": 17,
-                  "col": 19
-                }
-              ]
-            }
-          ],
-          "description": [
-            {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
+              "content": [
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Description text",
+                  "value": "Term",
                   "location": [
                     {
-                      "line": 19,
+                      "line": 17,
                       "col": 1
                     },
                     {
-                      "line": 19,
-                      "col": 16
+                      "line": 17,
+                      "col": 4
                     }
                   ]
                 }
               ],
+              "delimiter": "::",
               "location": [
                 {
-                  "line": 19,
+                  "line": 17,
                   "col": 1
                 },
                 {
-                  "line": 19,
-                  "col": 16
+                  "line": 17,
+                  "col": 6
                 }
               ]
             }
           ],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Description.",
+                "location": [
+                  {
+                    "line": 17,
+                    "col": 8
+                  },
+                  {
+                    "line": 17,
+                    "col": 19
+                  }
+                ]
+              }
+            ],
+            "blocks": [
+              {
+                "name": "paragraph",
+                "type": "block",
+                "inlines": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Description text",
+                    "location": [
+                      {
+                        "line": 19,
+                        "col": 1
+                      },
+                      {
+                        "line": 19,
+                        "col": 16
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 19,
+                    "col": 1
+                  },
+                  {
+                    "line": 19,
+                    "col": 16
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 17,
+                "col": 8
+              },
+              {
+                "line": 19,
+                "col": 16
+              }
+            ]
+          },
           "location": [
             {
               "line": 17,
@@ -377,11 +403,26 @@
           ]
         },
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Other",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Other",
+                  "location": [
+                    {
+                      "line": 20,
+                      "col": 1
+                    },
+                    {
+                      "line": 20,
+                      "col": 5
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 20,
@@ -389,30 +430,41 @@
                 },
                 {
                   "line": 20,
-                  "col": 5
+                  "col": 7
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Sibling or text",
-              "location": [
-                {
-                  "line": 20,
-                  "col": 9
-                },
-                {
-                  "line": 20,
-                  "col": 23
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Sibling or text",
+                "location": [
+                  {
+                    "line": 20,
+                    "col": 9
+                  },
+                  {
+                    "line": 20,
+                    "col": 23
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 20,
+                "col": 9
+              },
+              {
+                "line": 20,
+                "col": 23
+              }
+            ]
+          },
           "location": [
             {
               "line": 20,
@@ -420,7 +472,7 @@
             },
             {
               "line": 20,
-              "col": 24
+              "col": 23
             }
           ]
         }
@@ -432,7 +484,7 @@
         },
         {
           "line": 20,
-          "col": 24
+          "col": 23
         }
       ]
     },

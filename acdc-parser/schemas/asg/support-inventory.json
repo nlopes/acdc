@@ -2941,16 +2941,74 @@
       },
       "strict_export_group": "lists"
     },
+    "src/model/lists.rs::DescriptionListDefinition": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "principal",
+          "blocks",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/dlistItem"
+      },
+      "properties": {
+        "principal": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractListItem/properties/principal"
+        },
+        "blocks": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractListItem/properties/blocks"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      },
+      "strict_export_group": "lists"
+    },
     "src/model/lists.rs::DescriptionListItem": {
       "shape": {
         "kind": "struct",
         "fields": [
+          "terms",
+          "definition",
+          "location"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/dlistItem"
+      },
+      "properties": {
+        "terms": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/dlistItem/properties/terms"
+        },
+        "definition": {
+          "policy": "candidate",
+          "upstream": "#/$defs/abstractListItem"
+        },
+        "location": {
+          "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
+          "upstream": "#/$defs/location"
+        }
+      },
+      "strict_export_group": "lists"
+    },
+    "src/model/lists.rs::DescriptionListTerm": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
           "anchors",
-          "term",
+          "content",
           "delimiter",
           "delimiter_location",
-          "principal_text",
-          "description",
           "location"
         ],
         "variants": {}
@@ -2964,23 +3022,15 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/dlistItem"
         },
-        "term": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/dlistItem"
+        "content": {
+          "policy": "direct-property",
+          "upstream": "#/$defs/dlistItem/properties/terms"
         },
         "delimiter": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/dlistItem"
+          "policy": "direct-property",
+          "upstream": "#/$defs/abstractListItem/properties/marker"
         },
         "delimiter_location": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/dlistItem"
-        },
-        "principal_text": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/dlistItem"
-        },
-        "description": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/dlistItem"
         },
@@ -6923,6 +6973,39 @@
             "asg_integration.rs::independent_labels_and_extra_anchors_cannot_hide_dangling_notes",
             "asg_integration.rs::standalone_catalog_notes_still_require_document_context",
             "asg_integration.rs::strict_and_extension_controls_distinguish_shape_from_meaning"
+          ]
+        },
+        "description_groups": {
+          "owners": {
+            "DescriptionListItem": [
+              "terms",
+              "definition",
+              "location"
+            ],
+            "DescriptionListTerm": [
+              "anchors",
+              "content",
+              "delimiter",
+              "delimiter_location",
+              "location"
+            ],
+            "DescriptionListDefinition": [
+              "principal",
+              "blocks",
+              "location"
+            ]
+          },
+          "schema_pointers": [
+            "#/$defs/dlistItem/properties/term_metadata",
+            "#/$defs/dlistItem/properties/definition_present",
+            "#/$defs/dlistItem/properties/definition_location",
+            "#/$defs/acdcDescriptionTerm"
+          ],
+          "handling": "Retain ordered term content once, paired term metadata with independent identities, optional principal presence, and one shared block collection. Known source locations are retained; unknown constructed locations follow the existing omission policy. Upstream retains terms/principal/blocks and rejects per-term identities, differing markers, and an explicitly empty definition.",
+          "tests": [
+            "asg_description_groups.rs::description_exports_keep_term_order_and_definition_presence",
+            "asg_description_groups.rs::constructed_empty_definitions_and_term_identities_need_named_export",
+            "asg_description_groups.rs::named_description_metadata_is_closed_and_checks_definition_presence"
           ]
         }
       }

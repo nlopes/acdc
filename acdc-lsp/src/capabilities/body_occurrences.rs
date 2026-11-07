@@ -58,8 +58,14 @@ fn visit_structure<'doc, B>(
             | _ => return ControlFlow::Continue(()),
         },
         StructuralRef::ListItem(item) => visit_content(item.principal(), visit)?,
-        StructuralRef::DescriptionListItem(item) => visit_content(item.principal(), visit)?,
-        StructuralRef::Document(_)
+        StructuralRef::DescriptionListItem(_) => {}
+        StructuralRef::DescriptionListDefinition(definition) => {
+            if let Some(principal) = definition.principal() {
+                visit_content(principal, visit)?;
+            }
+        }
+        StructuralRef::DescriptionListTerm(_)
+        | StructuralRef::Document(_)
         | StructuralRef::Header(_)
         | StructuralRef::CalloutListItem(_)
         | StructuralRef::TableRow(_)

@@ -66,7 +66,7 @@ and `ItalicRef` remain distinct.
 | Structural children, including list items and table cells | `children()`; `descendants()` for a depth-first walk |
 | Paragraph, span, or label content | `content().inlines()`; hyperlink labels use `text()` |
 | Every owned inline-content field | `content_occurrences()`; `content_fields()` for direct fields |
-| List principal text and attached blocks | `item.principal()` and `item.blocks()`; description items also have `term()` |
+| Ordinary list principal text and attached blocks | `item.principal()` and `item.blocks()` |
 | Table rows, cells, and resolved decoration | Typed table reads; authored column settings remain separate from presentation |
 | Image alt or inline tooltip | `alt()` or `tooltip()`, each returning optional content |
 | Link, URL, mail, or autolink destination | `target()`; `as_hyperlink()` provides their common reads |
@@ -408,6 +408,20 @@ paragraphs in both modes. Unordered and ordered markers alone do not.
 Metadata before a nested list keeps it attached to the current item.
 A description-list term and its marker must appear on the same line. A marker
 on a later line does not turn an ordinary paragraph into a description list.
+
+Consecutive description terms share one optional definition. Read all terms with
+`item.terms()` and read their definition with `item.definition()`. Each term owns
+its content, anchors, delimiter, and source span. The definition owns optional
+`principal()` content and attached `blocks()`. An absent principal differs from
+one that was authored but expands to empty. Blank lines and line comments keep a
+pending term group; a delimited comment block ends the list.
+
+Structural traversal visits the group, its terms in order, then the definition
+and its blocks once. Owned edits use `DescriptionListTerm` and
+`DescriptionListDefinition`; moving a definition does not copy it into each term.
+Native JSON stores `terms` records and an optional `definition`, with optional
+`principal` and one `blocks` collection. An empty principal is an empty array;
+a retained empty passthrough still has its raw node.
 
 Named titles parse the expanded attribute value. For example, with
 `:word: *Bold*`, `[title='{word}']` produces bold text in both modes.

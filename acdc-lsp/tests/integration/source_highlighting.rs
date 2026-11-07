@@ -48,6 +48,41 @@ fn source_range(line: u32, text: &str, spelling: &str) -> Result<Range, Box<dyn 
 }
 
 #[test]
+fn shared_description_body_is_highlighted_once_with_existing_term_policy() -> TestResult {
+    let project = Project::new("shared-description-highlighting")?;
+    let source = "*First*::\r\n*Second*:: *Shared*.\r\n+\r\n*Attached*.\r\n";
+    for mode in ["asciidoctor", "draft"] {
+        let mut client = LspTestClient::new()?;
+        client.initialize_with_options(json!({"compatibilityMode":mode}))?;
+        let uri = project.uri(&format!("{mode}.adoc"))?;
+        client.open_document(&uri, source)?;
+        let tokens = decoded(&mut client, &uri)?;
+        for (line, spelling) in [(1, "*Shared*"), (3, "*Attached*")] {
+            let text = source.lines().nth(usize::try_from(line)?).ok_or("line")?;
+            let range = source_range(line, text, spelling)?;
+            assert_eq!(
+                tokens
+                    .iter()
+                    .filter(|token| **token
+                        == [
+                            line,
+                            range.start.character,
+                            range.end.character - range.start.character,
+                            4,
+                            0
+                        ])
+                    .count(),
+                1,
+                "{mode}: {tokens:?}"
+            );
+        }
+        assert_eq!(tokens.iter().filter(|token| token[3] == 4).count(), 2);
+        client.shutdown();
+    }
+    Ok(())
+}
+
+#[test]
 fn source_highlighting_keeps_macro_curved_and_include_policies() -> TestResult {
     let project = Project::new("source-highlight-policies")?;
     let uri = project.uri("document.adoc")?;

@@ -53,8 +53,12 @@ fn label(node: StructuralRef<'_>) -> String {
         "header".into()
     } else if let StructuralRef::ListItem(item) = node {
         format!("item:{}", text(item.principal()))
-    } else if let StructuralRef::DescriptionListItem(item) = node {
-        format!("term:{}", text(item.term()))
+    } else if let StructuralRef::DescriptionListItem(_) = node {
+        "description group".into()
+    } else if let StructuralRef::DescriptionListTerm(term) = node {
+        format!("term:{}", text(term.content()))
+    } else if let StructuralRef::DescriptionListDefinition(_) = node {
+        "definition".into()
     } else if let StructuralRef::CalloutListItem(item) = node {
         format!("callout:{}", text(item.principal()))
     } else if let StructuralRef::TableRow(_) = node {
@@ -145,7 +149,7 @@ fn compound_blocks_walk_in_preorder_without_inline_or_catalog_visits(
 #[rstest::rstest]
 #[case("* First\n+\nAttached.\n+\n** Nested\n* Second\n", vec!["ulist", "item:First", "Attached.", "ulist", "item:Nested", "item:Second"])]
 #[case(". First\n+\nAttached.\n\n. Second\n", vec!["olist", "item:First", "Attached.", "item:Second"])]
-#[case("First:: Principal\n+\nAttached.\n\nSecond:: Other\n", vec!["dlist", "term:First", "Attached.", "term:Second"])]
+#[case("First:: Principal\n+\nAttached.\n\nSecond:: Other\n", vec!["dlist", "description group", "term:First", "definition", "Attached.", "description group", "term:Second", "definition"])]
 #[case("----\ncode <1>\n----\n<1> Explanation\n+\nAttached.\n", vec!["listing", "colist", "callout:Explanation", "Attached."])]
 fn lists_visit_items_before_their_attached_blocks(
     #[case] source: &str,

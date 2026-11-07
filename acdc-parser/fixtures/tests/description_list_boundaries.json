@@ -10,11 +10,26 @@
       },
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "First list question?",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "First list question?",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 1
+                    },
+                    {
+                      "line": 2,
+                      "col": 20
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 2,
@@ -22,30 +37,41 @@
                 },
                 {
                   "line": 2,
-                  "col": 20
+                  "col": 22
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "First list answer.",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 24
-                },
-                {
-                  "line": 2,
-                  "col": 41
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "First list answer.",
+                "location": [
+                  {
+                    "line": 2,
+                    "col": 24
+                  },
+                  {
+                    "line": 2,
+                    "col": 41
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 2,
+                "col": 24
+              },
+              {
+                "line": 2,
+                "col": 41
+              }
+            ]
+          },
           "location": [
             {
               "line": 2,
@@ -53,7 +79,7 @@
             },
             {
               "line": 2,
-              "col": 42
+              "col": 41
             }
           ]
         }
@@ -65,7 +91,7 @@
         },
         {
           "line": 2,
-          "col": 42
+          "col": 41
         }
       ]
     },
@@ -94,11 +120,26 @@
       },
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Second list question?",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Second list question?",
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 1
+                    },
+                    {
+                      "line": 6,
+                      "col": 21
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 6,
@@ -106,30 +147,41 @@
                 },
                 {
                   "line": 6,
-                  "col": 21
+                  "col": 23
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Second list answer.",
-              "location": [
-                {
-                  "line": 6,
-                  "col": 25
-                },
-                {
-                  "line": 6,
-                  "col": 43
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Second list answer.",
+                "location": [
+                  {
+                    "line": 6,
+                    "col": 25
+                  },
+                  {
+                    "line": 6,
+                    "col": 43
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 6,
+                "col": 25
+              },
+              {
+                "line": 6,
+                "col": 43
+              }
+            ]
+          },
           "location": [
             {
               "line": 6,
@@ -137,7 +189,7 @@
             },
             {
               "line": 6,
-              "col": 44
+              "col": 43
             }
           ]
         }
@@ -149,7 +201,7 @@
         },
         {
           "line": 6,
-          "col": 44
+          "col": 43
         }
       ]
     },
@@ -175,11 +227,26 @@
       ],
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Plain term",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Plain term",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 1
+                    },
+                    {
+                      "line": 9,
+                      "col": 10
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 9,
@@ -187,30 +254,41 @@
                 },
                 {
                   "line": 9,
-                  "col": 10
+                  "col": 12
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Plain definition.",
-              "location": [
-                {
-                  "line": 9,
-                  "col": 14
-                },
-                {
-                  "line": 9,
-                  "col": 30
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Plain definition.",
+                "location": [
+                  {
+                    "line": 9,
+                    "col": 14
+                  },
+                  {
+                    "line": 9,
+                    "col": 30
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 9,
+                "col": 14
+              },
+              {
+                "line": 9,
+                "col": 30
+              }
+            ]
+          },
           "location": [
             {
               "line": 9,
@@ -218,7 +296,7 @@
             },
             {
               "line": 9,
-              "col": 31
+              "col": 30
             }
           ]
         }
@@ -230,7 +308,7 @@
         },
         {
           "line": 9,
-          "col": 31
+          "col": 30
         }
       ]
     }

@@ -129,26 +129,27 @@ fn description_item_identities_are_preserved_or_explicitly_rejected() -> Result<
     let Some(Block::DescriptionList(list)) = document.blocks.first_mut() else {
         return Err("list".into());
     };
-    list.items
+    let term = list
+        .items
         .first_mut()
         .ok_or("item")?
-        .anchors
+        .terms
+        .first_mut()
+        .ok_or("term")?;
+    term.anchors
         .push(Anchor::new("term-id", Location::default()));
-    let value = asg::document((&document).into())?;
+    term.anchors.push(Anchor::new("alias", Location::default()));
+    assert!(
+        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/items/0/terms/0")
+    );
+    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
     assert_eq!(
-        value.pointer("/blocks/0/items/0/id"),
+        value.pointer("/blocks/0/items/0/term_metadata/0/id"),
         Some(&json!("term-id"))
     );
-    let Some(Block::DescriptionList(list)) = document.blocks.first_mut() else {
-        return Err("list".into());
-    };
-    list.items
-        .first_mut()
-        .ok_or("item")?
-        .anchors
-        .push(Anchor::new("alias", Location::default()));
-    assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/items/0/anchors")
+    assert_eq!(
+        value.pointer("/blocks/0/items/0/term_metadata/0/anchors/0/id"),
+        Some(&json!("alias"))
     );
     Ok(())
 }

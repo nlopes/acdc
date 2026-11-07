@@ -1,7 +1,7 @@
 use crate::{
     Anchor, Block, ContentAttribute, Location, Options,
     ast::{
-        CalloutListRef, DescriptionListItemRef, DescriptionListRef, ListItemRef, OrderedListRef,
+        CalloutListRef, DescriptionListRef, DescriptionListTermRef, ListItemRef, OrderedListRef,
         UnorderedListRef,
     },
     parse,
@@ -42,11 +42,11 @@ fn cloned_owners_preserve_empty_lists_items_and_anchor_content() -> Result<(), E
             }
         })
         .ok_or("description item")?;
-    let mut owner = owner.clone();
+    let mut owner = owner.terms.first().ok_or("term")?.clone();
     let mut anchor = Anchor::new("built-id", Location::default());
     anchor.xreflabel = Some(ContentAttribute::default());
     owner.anchors.push(anchor);
-    let read = DescriptionListItemRef::from(&owner);
+    let read = DescriptionListTermRef::from(&owner);
     let anchor = read.anchors().next().ok_or("anchor")?;
     assert_eq!(anchor.id(), "built-id");
     assert!(anchor.reftext().ok_or("empty reftext")?.is_empty());

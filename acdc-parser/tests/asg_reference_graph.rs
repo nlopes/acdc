@@ -120,14 +120,18 @@ fn prepared_alias_labels_keep_absent_empty_and_formatted_meanings() -> Result<()
 
 #[test]
 fn description_item_declarations_keep_separate_registered_labels() -> Result<(), Error> {
-    let mut item = DescriptionListItem::new(Vec::new(), "::", Location::default());
-    item.set_anchors([
+    let mut term = acdc_parser::DescriptionListTerm::new(Vec::new(), "::", Location::default());
+    term.set_anchors([
         Anchor::new("first", Location::default()).with_xreflabel(Some(text("First"))),
         Anchor::new("second", Location::default()).with_xreflabel(Some(text("Second"))),
     ]);
     let mut document = Document::default();
     document.push_block(Block::DescriptionList(DescriptionList::new(
-        vec![item],
+        vec![DescriptionListItem::new(
+            vec![term],
+            None,
+            Location::default(),
+        )],
         Location::default(),
     )));
     document.set_references([
@@ -144,8 +148,12 @@ fn description_item_declarations_keep_separate_registered_labels() -> Result<(),
     ]);
     let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
     for (id, owner, label) in [
-        ("first", "/blocks/0/items/0", "First"),
-        ("second", "/blocks/0/items/0/anchors/0", "Second"),
+        ("first", "/blocks/0/items/0/term_metadata/0", "First"),
+        (
+            "second",
+            "/blocks/0/items/0/term_metadata/0/anchors/0",
+            "Second",
+        ),
     ] {
         assert_eq!(
             value.pointer(&format!("/references/{id}/owner")),

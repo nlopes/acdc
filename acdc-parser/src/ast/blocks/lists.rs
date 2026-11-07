@@ -16,7 +16,17 @@ node_ref!(
 node_ref!(
     DescriptionListItemRef<'doc>,
     crate::DescriptionListItem<'doc>,
-    "A term and its description."
+    "An ordered term group and its optional shared definition."
+);
+node_ref!(
+    DescriptionListTermRef<'doc>,
+    crate::DescriptionListTerm<'doc>,
+    "One term in a description-list group."
+);
+node_ref!(
+    DescriptionListDefinitionRef<'doc>,
+    crate::DescriptionListDefinition<'doc>,
+    "The definition shared by a description-list group's terms."
 );
 node_ref!(
     CalloutListItemRef<'doc>,
@@ -28,7 +38,7 @@ macro_rules! list_reads {
     ($($name:ident, $owner:ident, $item:ident, $attributes:ident);+ $(;)?) => {
         $(
             impl<'doc> $name<'doc> {
-                /// Items in their parsed order, without grouping adjacent entries.
+                /// Items in their retained order.
                 /// Clones keep independent positions over the same items.
                 pub fn items(self) -> impl Iterator<Item = $item<'doc>> + Clone + Send + Sync + 'doc {
                     self.node.items.iter().map($item::from)
@@ -151,43 +161,82 @@ impl<'doc> ListItemRef<'doc> {
 }
 
 impl<'doc> DescriptionListItemRef<'doc> {
-    /// The term's inline content, excluding the delimiter.
+    /// Terms in retained order, each with its own content and identity.
+    pub fn terms(
+        self,
+    ) -> impl DoubleEndedIterator<Item = DescriptionListTermRef<'doc>>
+    + ExactSizeIterator
+    + Clone
+    + Send
+    + Sync
+    + 'doc {
+        self.node.terms.iter().map(DescriptionListTermRef::from)
+    }
+
+    /// The shared definition; absence differs from a present empty definition.
     #[must_use]
-    pub fn term(self) -> ContentRef<'doc> {
-        ContentRef::new(&self.node.term)
+    pub fn definition(self) -> Option<DescriptionListDefinitionRef<'doc>> {
+        self.node
+            .definition
+            .as_ref()
+            .map(DescriptionListDefinitionRef::from)
     }
+}
 
-    /// Inline description after the delimiter, excluding attached blocks.
+impl<'doc> DescriptionListTermRef<'doc> {
+    /// The term's content, excluding its delimiter.
     #[must_use]
-    pub fn principal(self) -> ContentRef<'doc> {
-        ContentRef::new(&self.node.principal_text)
+    pub fn content(self) -> ContentRef<'doc> {
+        ContentRef::new(&self.node.content)
     }
 
-    /// Attached description blocks in content order.
-    pub fn blocks(self) -> impl Iterator<Item = BlockRef<'doc>> + Send + Sync + 'doc {
-        self.node.description.iter().map(BlockRef::from)
-    }
-
-    /// The retained term delimiter, such as `::` or `;;`.
+    /// The retained delimiter, such as `::` or `;;`.
     #[must_use]
     pub fn delimiter(self) -> &'doc str {
         self.node.delimiter
     }
 
-    /// The delimiter's source span, if retained.
+    /// The delimiter's original source span, if retained.
     #[must_use]
     pub fn delimiter_location(self) -> Option<LocationRef<'doc>> {
         self.node.delimiter_location.as_ref().map(LocationRef::from)
     }
 
-    /// Item anchors in their retained order.
+    /// Term anchors in their retained order.
     pub fn anchors(self) -> impl Iterator<Item = AnchorRef<'doc>> + Send + Sync + 'doc {
         self.node.anchors.iter().map(AnchorRef::from)
     }
 }
 
+impl<'doc> DescriptionListDefinitionRef<'doc> {
+    /// The principal, preserving absent versus authored empty content.
+    #[must_use]
+    pub fn principal(self) -> Option<ContentRef<'doc>> {
+        self.node.principal.as_deref().map(ContentRef::new)
+    }
+
+    /// Attached definition blocks in content order.
+    pub fn blocks(self) -> impl Iterator<Item = BlockRef<'doc>> + Send + Sync + 'doc {
+        self.node.blocks.iter().map(BlockRef::from)
+    }
+}
+
 impl<'doc> From<&'doc crate::DescriptionListItem<'doc>> for DescriptionListItemRef<'doc> {
     fn from(owner: &'doc crate::DescriptionListItem<'doc>) -> Self {
+        Self::new(owner)
+    }
+}
+
+impl<'doc> From<&'doc crate::DescriptionListTerm<'doc>> for DescriptionListTermRef<'doc> {
+    fn from(owner: &'doc crate::DescriptionListTerm<'doc>) -> Self {
+        Self::new(owner)
+    }
+}
+
+impl<'doc> From<&'doc crate::DescriptionListDefinition<'doc>>
+    for DescriptionListDefinitionRef<'doc>
+{
+    fn from(owner: &'doc crate::DescriptionListDefinition<'doc>) -> Self {
         Self::new(owner)
     }
 }
@@ -216,5 +265,7 @@ macro_rules! item_copies {
 item_copies!(
     ListItemRef, ListItem;
     DescriptionListItemRef, DescriptionListItem;
+    DescriptionListTermRef, DescriptionListTerm;
+    DescriptionListDefinitionRef, DescriptionListDefinition;
     CalloutListItemRef, CalloutListItem;
 );

@@ -4,8 +4,8 @@ use acdc_converters_core::{TraversalContext, list::OrderedListNumbering};
 use acdc_parser::{
     ListItemCheckedStatus,
     ast::{
-        AttributeValueRef, BlockKind, BlockRef, CalloutListRef, DescriptionListRef, ListItemRef,
-        OrderedListRef, UnorderedListRef,
+        AttributeValueRef, BlockKind, BlockRef, CalloutListRef, DescriptionListRef,
+        DescriptionListTermRef, ListItemRef, OrderedListRef, UnorderedListRef,
     },
 };
 
@@ -519,29 +519,26 @@ fn visit_horizontal_description_list<'a, W: Write>(
     writeln!(writer, "<table>")?;
     let _ = writer;
 
-    for item_data in data.items() {
-        let mut writer = visitor.writer_mut();
-        writeln!(writer, "<tr>")?;
-        writeln!(writer, "<td class=\"hdlist1\">")?;
-        let _ = writer;
-        visitor.visit_content(traversal, item_data.term())?;
-        writer = visitor.writer_mut();
-        writeln!(writer, "</td>")?;
-        writeln!(writer, "<td class=\"hdlist2\">")?;
-        if !item_data.principal().is_empty() {
-            write!(writer, "<p>")?;
-            let _ = writer;
-            visitor.visit_content(traversal, item_data.principal())?;
-            writer = visitor.writer_mut();
-            writeln!(writer, "</p>")?;
+    for item in data.items() {
+        writeln!(visitor.writer, "<tr>\n<td class=\"hdlist1\">")?;
+        for (index, term) in item.terms().enumerate() {
+            if index > 0 {
+                writeln!(visitor.writer, "<br>")?;
+            }
+            render_description_term(traversal, term, visitor)?;
         }
-        let _ = writer;
-        for block in item_data.blocks() {
-            traversal.visit_block(visitor, block)?;
+        writeln!(visitor.writer, "</td>\n<td class=\"hdlist2\">")?;
+        if let Some(definition) = item.definition() {
+            if let Some(principal) = definition.principal() {
+                write!(visitor.writer, "<p>")?;
+                visitor.visit_content(traversal, principal)?;
+                writeln!(visitor.writer, "</p>")?;
+            }
+            for block in definition.blocks() {
+                traversal.visit_block(visitor, block)?;
+            }
         }
-        writer = visitor.writer_mut();
-        writeln!(writer, "</td>")?;
-        writeln!(writer, "</tr>")?;
+        writeln!(visitor.writer, "</td>\n</tr>")?;
     }
 
     writer = visitor.writer_mut();
@@ -577,36 +574,76 @@ fn visit_standard_description_list<'a, W: Write>(
     writeln!(writer, "<dl>")?;
     let _ = writer;
 
-    for item_data in data.items() {
-        let mut writer = visitor.writer_mut();
-        // Only add hdlist1 class when NOT ordered/unordered
-        if is_marker_style {
-            write!(writer, "<dt>")?;
-        } else {
-            write!(writer, "<dt class=\"hdlist1\">")?;
+    for item in data.items() {
+        for term in item.terms() {
+            if is_marker_style {
+                write!(visitor.writer, "<dt>")?;
+            } else {
+                write!(visitor.writer, "<dt class=\"hdlist1\">")?;
+            }
+            render_description_term(traversal, term, visitor)?;
+            writeln!(visitor.writer, "</dt>")?;
         }
-        let _ = writer;
-        visitor.visit_content(traversal, item_data.term())?;
-        writer = visitor.writer_mut();
-        writeln!(writer, "</dt>")?;
-        writeln!(writer, "<dd>")?;
-        if !item_data.principal().is_empty() {
-            write!(writer, "<p>")?;
-            let _ = writer;
-            visitor.visit_content(traversal, item_data.principal())?;
-            writer = visitor.writer_mut();
-            writeln!(writer, "</p>")?;
+        if let Some(definition) = item.definition() {
+            writeln!(visitor.writer, "<dd>")?;
+            if let Some(principal) = definition.principal() {
+                write!(visitor.writer, "<p>")?;
+                visitor.visit_content(traversal, principal)?;
+                writeln!(visitor.writer, "</p>")?;
+            }
+            for block in definition.blocks() {
+                traversal.visit_block(visitor, block)?;
+            }
+            writeln!(visitor.writer, "</dd>")?;
         }
-        let _ = writer;
-        for block in item_data.blocks() {
-            traversal.visit_block(visitor, block)?;
-        }
-        writer = visitor.writer_mut();
-        writeln!(writer, "</dd>")?;
     }
 
     writer = visitor.writer_mut();
     writeln!(writer, "</dl>")?;
+    Ok(())
+}
+
+fn render_description_term<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
+    term: DescriptionListTermRef<'a>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
+) -> Result<(), Error> {
+    for anchor in term.anchors() {
+        write!(visitor.writer, "<a")?;
+        write_element_id(&mut visitor.writer, Some(anchor.element_id()))?;
+        write!(visitor.writer, "></a>")?;
+    }
+    visitor.visit_content(traversal, term.content())
+}
+
+fn render_description_items_semantic<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
+    list: DescriptionListRef<'a>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
+) -> Result<(), Error> {
+    for item in list.items() {
+        for term in item.terms() {
+            writeln!(visitor.writer, "<dt>")?;
+            render_description_term(traversal, term, visitor)?;
+            writeln!(visitor.writer, "</dt>")?;
+        }
+        if let Some(definition) = item.definition() {
+            writeln!(visitor.writer, "<dd>")?;
+            if let Some(principal) = definition.principal() {
+                if definition.blocks().next().is_none() {
+                    visitor.visit_content(traversal, principal)?;
+                } else {
+                    write!(visitor.writer, "<p>")?;
+                    visitor.visit_content(traversal, principal)?;
+                    writeln!(visitor.writer, "</p>")?;
+                }
+            }
+            for block in definition.blocks() {
+                render_block_in_semantic_list_context(traversal, block, visitor)?;
+            }
+            writeln!(visitor.writer, "</dd>")?;
+        }
+    }
     Ok(())
 }
 
@@ -696,28 +733,7 @@ fn render_bare_dlist_semantic<'a, W: Write>(
     let data = list;
     writeln!(visitor.writer, "<dl>")?;
 
-    for item_data in data.items() {
-        writeln!(visitor.writer, "<dt>")?;
-        visitor.visit_content(traversal, item_data.term())?;
-        writeln!(visitor.writer, "</dt>")?;
-
-        if !item_data.principal().is_empty() || item_data.blocks().next().is_some() {
-            writeln!(visitor.writer, "<dd>")?;
-            if !item_data.principal().is_empty() {
-                if item_data.blocks().next().is_none() {
-                    visitor.visit_content(traversal, item_data.principal())?;
-                } else {
-                    write!(visitor.writer, "<p>")?;
-                    visitor.visit_content(traversal, item_data.principal())?;
-                    writeln!(visitor.writer, "</p>")?;
-                }
-            }
-            for block in item_data.blocks() {
-                render_block_in_semantic_list_context(traversal, block, visitor)?;
-            }
-            writeln!(visitor.writer, "</dd>")?;
-        }
-    }
+    render_description_items_semantic(traversal, data, visitor)?;
 
     writeln!(visitor.writer, "</dl>")?;
     Ok(())
@@ -778,30 +794,7 @@ fn visit_description_list_semantic<'a, W: Write>(
         writeln!(visitor.writer, "<dl>")?;
     }
 
-    for item_data in data.items() {
-        writeln!(visitor.writer, "<dt>")?;
-        visitor.visit_content(traversal, item_data.term())?;
-        writeln!(visitor.writer, "</dt>")?;
-
-        // Only render <dd> if there's content
-        if !item_data.principal().is_empty() || item_data.blocks().next().is_some() {
-            writeln!(visitor.writer, "<dd>")?;
-            if !item_data.principal().is_empty() {
-                // Wrap in <p> only when there are also blocks
-                if item_data.blocks().next().is_none() {
-                    visitor.visit_content(traversal, item_data.principal())?;
-                } else {
-                    write!(visitor.writer, "<p>")?;
-                    visitor.visit_content(traversal, item_data.principal())?;
-                    writeln!(visitor.writer, "</p>")?;
-                }
-            }
-            for block in item_data.blocks() {
-                render_block_in_semantic_list_context(traversal, block, visitor)?;
-            }
-            writeln!(visitor.writer, "</dd>")?;
-        }
-    }
+    render_description_items_semantic(traversal, data, visitor)?;
 
     writeln!(visitor.writer, "</dl>")?;
     writeln!(visitor.writer, "</{wrapper_tag}>")?;

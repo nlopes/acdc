@@ -10,221 +10,387 @@
       },
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "What has ",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 1
-                },
-                {
-                  "line": 2,
-                  "col": 9
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "strong",
-              "form": "constrained",
-              "inlines": [
+              "content": [
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "strong",
+                  "value": "What has ",
                   "location": [
                     {
                       "line": 2,
-                      "col": 11
+                      "col": 1
                     },
                     {
                       "line": 2,
-                      "col": 16
+                      "col": 9
                     }
                   ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 2,
-                  "col": 10
                 },
                 {
-                  "line": 2,
-                  "col": 17
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": " and ",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 18
-                },
-                {
-                  "line": 2,
-                  "col": 22
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "emphasis",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "emphasized",
+                  "name": "span",
+                  "type": "inline",
+                  "variant": "strong",
+                  "form": "constrained",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "strong",
+                      "location": [
+                        {
+                          "line": 2,
+                          "col": 11
+                        },
+                        {
+                          "line": 2,
+                          "col": 16
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 2,
-                      "col": 24
+                      "col": 10
                     },
                     {
                       "line": 2,
-                      "col": 33
+                      "col": 17
                     }
                   ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 2,
-                  "col": 23
                 },
-                {
-                  "line": 2,
-                  "col": 34
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": " words?",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 35
-                },
-                {
-                  "line": 2,
-                  "col": 41
-                }
-              ]
-            }
-          ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "The mixed term must preserve both formats.",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 45
-                },
-                {
-                  "line": 2,
-                  "col": 86
-                }
-              ]
-            }
-          ],
-          "description": [],
-          "location": [
-            {
-              "line": 2,
-              "col": 1
-            },
-            {
-              "line": 2,
-              "col": 87
-            }
-          ]
-        },
-        {
-          "term": [
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "strong",
-              "form": "constrained",
-              "inlines": [
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Whole strong question?",
+                  "value": " and ",
                   "location": [
                     {
-                      "line": 3,
-                      "col": 2
+                      "line": 2,
+                      "col": 18
                     },
                     {
-                      "line": 3,
+                      "line": 2,
+                      "col": 22
+                    }
+                  ]
+                },
+                {
+                  "name": "span",
+                  "type": "inline",
+                  "variant": "emphasis",
+                  "form": "constrained",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "emphasized",
+                      "location": [
+                        {
+                          "line": 2,
+                          "col": 24
+                        },
+                        {
+                          "line": 2,
+                          "col": 33
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 2,
                       "col": 23
+                    },
+                    {
+                      "line": 2,
+                      "col": 34
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " words?",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 35
+                    },
+                    {
+                      "line": 2,
+                      "col": 41
                     }
                   ]
                 }
               ],
+              "delimiter": "::",
               "location": [
                 {
-                  "line": 3,
+                  "line": 2,
                   "col": 1
                 },
                 {
-                  "line": 3,
-                  "col": 24
+                  "line": 2,
+                  "col": 43
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "A whole-term format.",
-              "location": [
-                {
-                  "line": 3,
-                  "col": 28
-                },
-                {
-                  "line": 3,
-                  "col": 47
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "The mixed term must preserve both formats.",
+                "location": [
+                  {
+                    "line": 2,
+                    "col": 45
+                  },
+                  {
+                    "line": 2,
+                    "col": 86
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 2,
+                "col": 45
+              },
+              {
+                "line": 2,
+                "col": 86
+              }
+            ]
+          },
           "location": [
             {
-              "line": 3,
+              "line": 2,
               "col": 1
             },
             {
-              "line": 3,
-              "col": 48
+              "line": 2,
+              "col": 86
             }
           ]
         },
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "What contains ",
+              "content": [
+                {
+                  "name": "span",
+                  "type": "inline",
+                  "variant": "strong",
+                  "form": "constrained",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Whole strong question?",
+                      "location": [
+                        {
+                          "line": 3,
+                          "col": 2
+                        },
+                        {
+                          "line": 3,
+                          "col": 23
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 1
+                    },
+                    {
+                      "line": 3,
+                      "col": 24
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 1
+                },
+                {
+                  "line": 3,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "A whole-term format.",
+                "location": [
+                  {
+                    "line": 3,
+                    "col": 28
+                  },
+                  {
+                    "line": 3,
+                    "col": 47
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 3,
+                "col": 28
+              },
+              {
+                "line": 3,
+                "col": 47
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 47
+            }
+          ]
+        },
+        {
+          "terms": [
+            {
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "What contains ",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 1
+                    },
+                    {
+                      "line": 4,
+                      "col": 14
+                    }
+                  ]
+                },
+                {
+                  "name": "span",
+                  "type": "inline",
+                  "variant": "code",
+                  "form": "constrained",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "code",
+                      "location": [
+                        {
+                          "line": 4,
+                          "col": 16
+                        },
+                        {
+                          "line": 4,
+                          "col": 19
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 15
+                    },
+                    {
+                      "line": 4,
+                      "col": 20
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " and ",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 21
+                    },
+                    {
+                      "line": 4,
+                      "col": 25
+                    }
+                  ]
+                },
+                {
+                  "name": "ref",
+                  "type": "inline",
+                  "variant": "link",
+                  "target": {
+                    "type": "url",
+                    "value": "https://example.com"
+                  },
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "a link",
+                      "location": [
+                        {
+                          "line": 4,
+                          "col": 46
+                        },
+                        {
+                          "line": 4,
+                          "col": 51
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 26
+                    },
+                    {
+                      "line": 4,
+                      "col": 52
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "?",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 53
+                    },
+                    {
+                      "line": 4,
+                      "col": 53
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 4,
@@ -232,129 +398,41 @@
                 },
                 {
                   "line": 4,
-                  "col": 14
+                  "col": 55
                 }
               ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "code",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "code",
-                  "location": [
-                    {
-                      "line": 4,
-                      "col": 16
-                    },
-                    {
-                      "line": 4,
-                      "col": 19
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 4,
-                  "col": 15
-                },
-                {
-                  "line": 4,
-                  "col": 20
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": " and ",
-              "location": [
-                {
-                  "line": 4,
-                  "col": 21
-                },
-                {
-                  "line": 4,
-                  "col": 25
-                }
-              ]
-            },
-            {
-              "name": "ref",
-              "type": "inline",
-              "variant": "link",
-              "target": {
-                "type": "url",
-                "value": "https://example.com"
+            }
+          ],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Code and link formats.",
+                "location": [
+                  {
+                    "line": 4,
+                    "col": 57
+                  },
+                  {
+                    "line": 4,
+                    "col": 78
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 4,
+                "col": 57
               },
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "a link",
-                  "location": [
-                    {
-                      "line": 4,
-                      "col": 46
-                    },
-                    {
-                      "line": 4,
-                      "col": 51
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 4,
-                  "col": 26
-                },
-                {
-                  "line": 4,
-                  "col": 52
-                }
-              ]
-            },
-            {
-              "name": "text",
-              "type": "string",
-              "value": "?",
-              "location": [
-                {
-                  "line": 4,
-                  "col": 53
-                },
-                {
-                  "line": 4,
-                  "col": 53
-                }
-              ]
-            }
-          ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Code and link formats.",
-              "location": [
-                {
-                  "line": 4,
-                  "col": 57
-                },
-                {
-                  "line": 4,
-                  "col": 78
-                }
-              ]
-            }
-          ],
-          "description": [],
+              {
+                "line": 4,
+                "col": 78
+              }
+            ]
+          },
           "location": [
             {
               "line": 4,
@@ -362,7 +440,7 @@
             },
             {
               "line": 4,
-              "col": 79
+              "col": 78
             }
           ]
         }
@@ -374,7 +452,7 @@
         },
         {
           "line": 4,
-          "col": 79
+          "col": 78
         }
       ]
     }

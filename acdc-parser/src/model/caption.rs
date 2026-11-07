@@ -358,7 +358,9 @@ fn visit_captions(blocks: &[Block<'_>], visit: &mut impl FnMut(&Caption<'_>)) {
             }
             Block::DescriptionList(list) => {
                 for item in &list.items {
-                    visit_captions(&item.description, visit);
+                    if let Some(definition) = &item.definition {
+                        visit_captions(&definition.blocks, visit);
+                    }
                 }
             }
             Block::DelimitedBlock(delimited) => match &delimited.inner {
@@ -440,7 +442,9 @@ fn renumber_children(block: &mut Block<'_>, counters: &mut CaptionCounters) {
         }
         Block::DescriptionList(list) => {
             for item in &mut list.items {
-                renumber_blocks(&mut item.description, counters);
+                if let Some(definition) = &mut item.definition {
+                    renumber_blocks(&mut definition.blocks, counters);
+                }
             }
         }
         Block::DelimitedBlock(delimited) => match &mut delimited.inner {

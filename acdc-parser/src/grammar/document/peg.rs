@@ -5,11 +5,11 @@
 use crate::{
     Anchor, Attribution, Audio, Author, Block, BlockMetadata, CalloutList, CalloutListItem,
     CalloutRef, CiteTitle, Comment, CommentKind, CompatibilityMode, DelimitedBlock,
-    DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader, Document,
-    DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineNode, ListItem,
-    ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph, Plain, Position, Section,
-    Source, Subtitle, TableOfContents, ThematicBreak, Title, UnorderedList, Video, Warning,
-    WarningKind,
+    DelimitedBlockType, DescriptionList, DescriptionListDefinition, DescriptionListItem,
+    DescriptionListTerm, DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, Error,
+    Header, Image, InlineNode, ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak,
+    Paragraph, Plain, Position, Section, Source, Subtitle, TableOfContents, ThematicBreak, Title,
+    UnorderedList, Video, Warning, WarningKind,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::{
         ParserState,
@@ -3063,37 +3063,41 @@ peg::parser! {
             item
         }
 
+        // A missing principal can start after blank lines, with the same list boundaries.
+        rule description_list_principal_line(offset: usize)
+        = !eol()
+        !at_callout_list_item()
+        !check_line_is_description_list(offset)
+        !(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())
+        !("+" (whitespace() / eol() / ![_]))
+        !example_delimiter()
+        !listing_delimiter()
+        !literal_delimiter()
+        !sidebar_delimiter()
+        !quote_delimiter()
+        !pass_delimiter()
+        !comment_delimiter()
+        !table_delimiter()
+        !(open_delimiter() (whitespace()* eol()))
+        !markdown_code_delimiter()
+        !attribute_or_anchor_line_match()
+        !heading_boundary(offset)
+
         rule description_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<DescriptionListItem<'input>, Error>
         = term_start:position!()
         term:$((!(description_list_marker() (eol() / " " / ![_]) / eol()) [_])+)
         term_end:position!()
         delim_start:position!() delimiter:description_list_marker() delim_end:position!()
-        whitespace()?
+        whitespace()*
         principal_start:position!()
         principal_content:$(
+            (eol()+ &description_list_principal_line(offset))?
             (!eol() [_])*
             // Implicit text continuation: consume subsequent non-blank lines that
             // aren't new dlist entries, list items, continuation markers, or block
             // delimiters. This mirrors paragraph multi-line handling but with
             // dlist-specific stop conditions.
-            (eol()
-             !eol()                                    // not a blank line
-             !at_callout_list_item()
-             !check_line_is_description_list(offset)
-             !(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())  // not a list item
-             !("+" (whitespace() / eol() / ![_]))      // not a continuation marker
-             !example_delimiter()                      // not a block delimiter
-             !listing_delimiter()
-             !literal_delimiter()
-             !sidebar_delimiter()
-             !quote_delimiter()
-             !pass_delimiter()
-             !comment_delimiter()
-             !table_delimiter()
-             !(open_delimiter() (whitespace()* eol()))
-             !markdown_code_delimiter()
-             !attribute_or_anchor_line_match()             // not block metadata
-             !heading_boundary(offset)  // not a section heading
+            (eol() description_list_principal_line(offset)
              (!eol() [_])+                             // continuation line content
             )*
         )
@@ -3122,36 +3126,44 @@ peg::parser! {
                 }
             }
 
-            // Calculate actual end from last attached block, or fall back to end of principal/term.
-            // The injected `span_end` captures position after consuming blank lines looking for more
-            // continuations (start of the next item), so it's not the right end either — we want
-            // the actual content end.
+            let principal_end = principal_start + principal_content.trim_end().len();
             let actual_end = description.last().map_or_else(
-                || {
-                    // No attached content: use end of principal text line
-                    if principal_content.is_empty() {
-                        // Just term + delimiter
-                        principal_start
-                    } else {
-                        principal_start + principal_content.len()
-                    }
-                },
-                |b| {
-                    let loc = b.location();
-                    loc.absolute_end - offset
-                },
+                || state.create_block_location(term_start, principal_end.max(delim_end), offset).absolute_end - offset,
+                |block| block.location().absolute_end - offset,
             );
 
             let delimiter_location = state.create_block_location(delim_start, delim_end, offset);
-            Ok(DescriptionListItem {
-                anchors: vec![],
-                term,
+            let term = DescriptionListTerm {
+                anchors: Vec::new(),
+                content: term,
                 delimiter,
                 delimiter_location: Some(delimiter_location),
-                principal_text,
-                description: order_block_prefix_events(description),
-                location: state.create_location(span_start+offset, actual_end+offset),
-            })
+                location: state.create_block_location(term_start, delim_end, offset),
+            };
+            let principal = (!principal_content.trim().is_empty()).then_some(principal_text);
+            let blocks = order_block_prefix_events(description);
+            let definition = if principal.is_some() || !blocks.is_empty() {
+                let location = if principal.is_some() {
+                    let start = principal_start + principal_content.len() - principal_content.trim_start().len();
+                    state.create_location(start + offset, actual_end + offset)
+                } else {
+                    let mut location = blocks.first().map_or_else(Location::default, |block| block.location().clone());
+                    if let Some(last) = blocks.last() {
+                        location.absolute_end = last.location().absolute_end;
+                        location.end = last.location().end.clone();
+                    }
+                    location
+                };
+                Some(DescriptionListDefinition { principal, blocks, location })
+            } else {
+                None
+            };
+            let mut location = state.create_location(span_start + offset, actual_end + offset);
+            if definition.is_none() {
+                location.absolute_end = term.location.absolute_end;
+                location.end = term.location.end.clone();
+            }
+            Ok(DescriptionListItem { terms: vec![term], definition, location })
         }
 
         // As with list_item_principal, process parent macros before attachments.

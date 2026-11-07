@@ -145,12 +145,18 @@ pub(crate) fn blocks<'a, V: ReferenceVisitor<'a>>(
             }
             Block::DescriptionList(list) => {
                 for item in &mut list.items {
-                    for anchor in &item.anchors {
-                        visitor.anchor(anchor, anchor.xreflabel.as_ref(), None, None, None)?;
+                    for term in &item.terms {
+                        for anchor in &term.anchors {
+                            visitor.anchor(anchor, anchor.xreflabel.as_ref(), None, None, None)?;
+                        }
+                        inlines(visitor, &term.content)?;
                     }
-                    inlines(visitor, &item.term)?;
-                    inlines(visitor, &item.principal_text)?;
-                    self::blocks(visitor, &mut item.description, record_toc)?;
+                    if let Some(definition) = &mut item.definition {
+                        if let Some(principal) = &definition.principal {
+                            inlines(visitor, principal)?;
+                        }
+                        self::blocks(visitor, &mut definition.blocks, record_toc)?;
+                    }
                 }
             }
             Block::DelimitedBlock(block) => delimited(visitor, &mut block.inner, record_toc)?,

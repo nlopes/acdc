@@ -1,7 +1,7 @@
 use acdc_parser::{
     Location,
     ast::{
-        BlockKind, DescriptionListItemRef, DocumentRef, IdOrigin, InlineRef, SectionRef,
+        BlockKind, DescriptionListTermRef, DocumentRef, IdOrigin, InlineRef, SectionRef,
         StructuralRef,
     },
 };
@@ -41,13 +41,13 @@ pub(crate) fn occurrences(doc: DocumentRef<'_>) -> impl Iterator<Item = IdOccurr
     let terms = doc
         .descendants()
         .filter_map(|node| {
-            if let StructuralRef::DescriptionListItem(item) = node {
+            if let StructuralRef::DescriptionListTerm(item) = node {
                 Some(item)
             } else {
                 None
             }
         })
-        .flat_map(DescriptionListItemRef::anchors)
+        .flat_map(DescriptionListTermRef::anchors)
         .map(|anchor| (anchor.element_id(), None));
     let inlines = doc
         .content_occurrences()

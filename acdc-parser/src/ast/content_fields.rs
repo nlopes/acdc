@@ -90,7 +90,7 @@ impl<'doc> StructuralRef<'doc> {
     ///
     /// Titles precede body/alt content, then attribution, citation title, custom
     /// caption, named reference text, and anchor labels. Headers use title then
-    /// subtitle; description items use term then principal text. Anchor labels
+    /// subtitle. Description terms and definitions own their content separately. Anchor labels
     /// retain anchor order and report the anchor as their owner.
     ///
     /// Absent fields are omitted; present empty fields remain. Child structures,
@@ -153,16 +153,18 @@ impl<'doc> StructuralRef<'doc> {
             Self::CalloutListItem(item) => {
                 Fields::one(owner, ListPrincipal, Some(item.principal()))
             }
-            Self::DescriptionListItem(item) => {
-                let mut fields = Fields::pair(
-                    owner,
-                    (DescriptionTerm, Some(item.term())),
-                    (ListPrincipal, Some(item.principal())),
-                );
-                fields.tail = Tail::anchors(None, &item.node.anchors);
+            Self::DescriptionListTerm(term) => {
+                let mut fields = Fields::one(owner, DescriptionTerm, Some(term.content()));
+                fields.tail = Tail::anchors(None, &term.node.anchors);
                 fields
             }
-            Self::Document(_) | Self::TableRow(_) | Self::TableCell(_) => Fields::empty(owner),
+            Self::DescriptionListDefinition(definition) => {
+                Fields::one(owner, ListPrincipal, definition.principal())
+            }
+            Self::DescriptionListItem(_)
+            | Self::Document(_)
+            | Self::TableRow(_)
+            | Self::TableCell(_) => Fields::empty(owner),
         }
     }
 }

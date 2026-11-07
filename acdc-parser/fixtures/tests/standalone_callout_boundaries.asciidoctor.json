@@ -2224,11 +2224,26 @@
               "type": "block",
               "items": [
                 {
-                  "term": [
+                  "terms": [
                     {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Term",
+                      "content": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Term",
+                          "location": [
+                            {
+                              "line": 143,
+                              "col": 1
+                            },
+                            {
+                              "line": 143,
+                              "col": 4
+                            }
+                          ]
+                        }
+                      ],
+                      "delimiter": "::",
                       "location": [
                         {
                           "line": 143,
@@ -2236,30 +2251,41 @@
                         },
                         {
                           "line": 143,
-                          "col": 4
+                          "col": 6
                         }
                       ]
                     }
                   ],
-                  "delimiter": "::",
-                  "principal_text": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Parent description.",
-                      "location": [
-                        {
-                          "line": 143,
-                          "col": 8
-                        },
-                        {
-                          "line": 143,
-                          "col": 26
-                        }
-                      ]
-                    }
-                  ],
-                  "description": [],
+                  "definition": {
+                    "principal": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Parent description.",
+                        "location": [
+                          {
+                            "line": 143,
+                            "col": 8
+                          },
+                          {
+                            "line": 143,
+                            "col": 26
+                          }
+                        ]
+                      }
+                    ],
+                    "blocks": [],
+                    "location": [
+                      {
+                        "line": 143,
+                        "col": 8
+                      },
+                      {
+                        "line": 143,
+                        "col": 26
+                      }
+                    ]
+                  },
                   "location": [
                     {
                       "line": 143,
@@ -2267,7 +2293,7 @@
                     },
                     {
                       "line": 143,
-                      "col": 27
+                      "col": 26
                     }
                   ]
                 }
@@ -2279,7 +2305,7 @@
                 },
                 {
                   "line": 143,
-                  "col": 27
+                  "col": 26
                 }
               ]
             },

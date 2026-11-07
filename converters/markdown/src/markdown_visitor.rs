@@ -26,12 +26,12 @@ use acdc_parser::{
     ast::{
         AdmonitionRef, AnchorRef, AttributeValueRef, AttributesRef, AudioRef, AuthorRef,
         AutolinkRef, BlockKind, BlockRef, CalloutListRef, ColumnFormatRef, ContentRef,
-        CrossReferenceRef, DescriptionListRef, DiscreteHeaderRef, DocumentRef, ElementIdRef,
-        FootnoteRef, HeaderRef, IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef,
-        InlineImageRef, InlineKind, InlineRef, KeyboardRef, LinkRef, ListItemRef, OrderedListRef,
-        PageBreakRef, ParagraphRef, ReferenceRef, SectionRef, SourceRef, TableCellRef,
-        TableOfContentsRef, TableRef, TableRowRef, ThematicBreakRef, TocEntryRef, UnorderedListRef,
-        VideoRef,
+        CrossReferenceRef, DescriptionListDefinitionRef, DescriptionListRef, DiscreteHeaderRef,
+        DocumentRef, ElementIdRef, FootnoteRef, HeaderRef, IconRef, ImageRef, IndexTermRef,
+        IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef, KeyboardRef, LinkRef,
+        ListItemRef, OrderedListRef, PageBreakRef, ParagraphRef, ReferenceRef, SectionRef,
+        SourceRef, TableCellRef, TableOfContentsRef, TableRef, TableRowRef, ThematicBreakRef,
+        TocEntryRef, UnorderedListRef, VideoRef,
     },
 };
 
@@ -2077,16 +2077,29 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         for item in list.items() {
             self.write_list_indent()?;
             write!(self.writer, "- **")?;
-            self.write_content(traversal, item.term())?;
+            for (index, term) in item.terms().enumerate() {
+                if index > 0 {
+                    write!(self.writer, ", ")?;
+                }
+                for anchor in term.anchors() {
+                    self.write_inline_anchor_node(traversal, anchor)?;
+                }
+                self.write_content(traversal, term.content())?;
+            }
             writeln!(self.writer, "**")?;
 
-            if !item.principal().is_empty() {
+            if let Some(principal) = item
+                .definition()
+                .and_then(DescriptionListDefinitionRef::principal)
+            {
                 self.write_list_indent()?;
                 write!(self.writer, "  ")?;
-                self.write_content(traversal, item.principal())?;
+                self.write_content(traversal, principal)?;
                 writeln!(self.writer)?;
             }
-            self.visit_description_blocks(traversal, item.blocks())?;
+            if let Some(definition) = item.definition() {
+                self.visit_description_blocks(traversal, definition.blocks())?;
+            }
         }
         Ok(())
     }
@@ -2099,15 +2112,30 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         for item in list.items() {
             self.write_list_indent()?;
             write!(self.writer, "**")?;
-            self.write_content(traversal, item.term())?;
+            for (index, term) in item.terms().enumerate() {
+                if index > 0 {
+                    write!(self.writer, ", ")?;
+                }
+                for anchor in term.anchors() {
+                    self.write_inline_anchor_node(traversal, anchor)?;
+                }
+                self.write_content(traversal, term.content())?;
+            }
             write!(self.writer, "**")?;
-            if !item.principal().is_empty() {
+            if let Some(principal) = item
+                .definition()
+                .and_then(DescriptionListDefinitionRef::principal)
+            {
                 write!(self.writer, " — ")?;
-                self.write_content(traversal, item.principal())?;
+                self.write_content(traversal, principal)?;
             }
             writeln!(self.writer, "  ")?;
 
-            for block in item.blocks() {
+            for block in item
+                .definition()
+                .into_iter()
+                .flat_map(DescriptionListDefinitionRef::blocks)
+            {
                 if !matches!(
                     block.kind(),
                     BlockKind::DescriptionList(_)
@@ -2137,21 +2165,34 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             };
             self.write_list_indent()?;
             write!(self.writer, "{number}. <em>")?;
-            self.write_content(traversal, item.term())?;
+            for (index, term) in item.terms().enumerate() {
+                if index > 0 {
+                    write!(self.writer, ", ")?;
+                }
+                for anchor in term.anchors() {
+                    self.write_inline_anchor_node(traversal, anchor)?;
+                }
+                self.write_content(traversal, term.content())?;
+            }
             writeln!(self.writer, "</em>")?;
 
-            if !item.principal().is_empty() {
+            if let Some(principal) = item
+                .definition()
+                .and_then(DescriptionListDefinitionRef::principal)
+            {
                 writeln!(self.writer)?;
                 self.write_list_indent()?;
                 write!(self.writer, "    ")?;
-                self.write_content(traversal, item.principal())?;
+                self.write_content(traversal, principal)?;
                 writeln!(self.writer)?;
             }
-            if item.blocks().next().is_some() {
-                if item.principal().is_empty() {
+            if let Some(definition) = item.definition()
+                && definition.blocks().next().is_some()
+            {
+                if definition.principal().is_none() {
                     writeln!(self.writer)?;
                 }
-                self.visit_description_blocks(traversal, item.blocks())?;
+                self.visit_description_blocks(traversal, definition.blocks())?;
             }
             if index + 1 < item_count {
                 writeln!(self.writer)?;

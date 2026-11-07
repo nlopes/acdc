@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Description-list navigation keeps each term's own destination. Semantic tokens
+  and body displays visit the shared definition once, with their existing term policy.
+
 - Conditional highlighting now follows body attribute assignments and unsets,
   including selected nested includes. Inactive parent conditions and the configured
   backend use the same decisions as document parsing.

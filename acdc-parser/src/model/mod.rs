@@ -45,8 +45,8 @@ pub use caption::{Caption, CaptionKind};
 pub use content_attribute::ContentAttribute;
 pub use inlines::*;
 pub use lists::{
-    CalloutList, CalloutListItem, DescriptionList, DescriptionListItem, ListItem,
-    ListItemCheckedStatus, ListLevel, OrderedList, UnorderedList,
+    CalloutList, CalloutListItem, DescriptionList, DescriptionListDefinition, DescriptionListItem,
+    DescriptionListTerm, ListItem, ListItemCheckedStatus, ListLevel, OrderedList, UnorderedList,
 };
 pub use location::*;
 pub use media::{Audio, Image, InlineImage, Source, SourceUrl, Video};

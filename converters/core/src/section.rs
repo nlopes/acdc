@@ -66,9 +66,10 @@ pub fn contains_index_section<'doc>(mut blocks: impl Iterator<Item = BlockRef<'d
         BlockKind::UnorderedList(list) => list
             .items()
             .any(|item| contains_index_section(item.blocks())),
-        BlockKind::DescriptionList(list) => list
-            .items()
-            .any(|item| contains_index_section(item.blocks())),
+        BlockKind::DescriptionList(list) => list.items().any(|item| {
+            item.definition()
+                .is_some_and(|definition| contains_index_section(definition.blocks()))
+        }),
         BlockKind::CalloutList(list) => list
             .items()
             .any(|item| contains_index_section(item.blocks())),

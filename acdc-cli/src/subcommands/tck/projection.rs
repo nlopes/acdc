@@ -108,8 +108,11 @@ fn blocks<'doc>(values: impl IntoIterator<Item = Block<'doc>>) -> Result<Vec<Blo
                 Block::DescriptionList(list) => {
                     let mut items = list.take_items().collect::<Vec<_>>();
                     for item in &mut items {
-                        let content = blocks(item.take_blocks())?;
-                        item.set_blocks(content);
+                        if let Some(mut definition) = item.take_definition() {
+                            let content = blocks(definition.take_blocks())?;
+                            definition.set_blocks(content);
+                            item.set_definition(Some(definition));
+                        }
                     }
                     list.set_items(items);
                 }

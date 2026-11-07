@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Description lists use the parser's shared term groups and preserve authored
+  empty definitions. Ordered and unordered styles retain every term, unlike
+  Asciidoctor PDF 2.3.15, which omits additional terms in these styles.
+
 - Documented that raw HTML tags and their link attributes stay literal in PDF.
   Use AsciiDoc formatting or `pass:q[...]` for styled text. Asciidoctor PDF
   instead interprets supported inline HTML tags.

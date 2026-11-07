@@ -24,11 +24,26 @@
       ],
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "First deep term",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "First deep term",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 1
+                    },
+                    {
+                      "line": 2,
+                      "col": 15
+                    }
+                  ]
+                }
+              ],
+              "delimiter": ":::",
               "location": [
                 {
                   "line": 2,
@@ -36,58 +51,86 @@
                 },
                 {
                   "line": 2,
-                  "col": 15
+                  "col": 18
                 }
               ]
             }
           ],
-          "delimiter": ":::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "First deep description.",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 20
-                },
-                {
-                  "line": 2,
-                  "col": 42
-                }
-              ]
-            }
-          ],
-          "description": [
-            {
-              "name": "dlist",
-              "type": "block",
-              "items": [
-                {
-                  "term": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Root term",
-                      "location": [
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "First deep description.",
+                "location": [
+                  {
+                    "line": 2,
+                    "col": 20
+                  },
+                  {
+                    "line": 2,
+                    "col": 42
+                  }
+                ]
+              }
+            ],
+            "blocks": [
+              {
+                "name": "dlist",
+                "type": "block",
+                "items": [
+                  {
+                    "terms": [
+                      {
+                        "content": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Root term",
+                            "location": [
+                              {
+                                "line": 3,
+                                "col": 1
+                              },
+                              {
+                                "line": 3,
+                                "col": 9
+                              }
+                            ]
+                          }
+                        ],
+                        "delimiter": "::",
+                        "location": [
+                          {
+                            "line": 3,
+                            "col": 1
+                          },
+                          {
+                            "line": 3,
+                            "col": 11
+                          }
+                        ]
+                      }
+                    ],
+                    "definition": {
+                      "principal": [
                         {
-                          "line": 3,
-                          "col": 1
-                        },
-                        {
-                          "line": 3,
-                          "col": 9
+                          "name": "text",
+                          "type": "string",
+                          "value": "Root description.",
+                          "location": [
+                            {
+                              "line": 3,
+                              "col": 13
+                            },
+                            {
+                              "line": 3,
+                              "col": 29
+                            }
+                          ]
                         }
-                      ]
-                    }
-                  ],
-                  "delimiter": "::",
-                  "principal_text": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Root description.",
+                      ],
+                      "blocks": [],
                       "location": [
                         {
                           "line": 3,
@@ -98,33 +141,42 @@
                           "col": 29
                         }
                       ]
-                    }
-                  ],
-                  "description": [],
-                  "location": [
-                    {
-                      "line": 3,
-                      "col": 1
                     },
-                    {
-                      "line": 3,
-                      "col": 30
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 3,
-                  "col": 1
-                },
-                {
-                  "line": 3,
-                  "col": 30
-                }
-              ]
-            }
-          ],
+                    "location": [
+                      {
+                        "line": 3,
+                        "col": 1
+                      },
+                      {
+                        "line": 3,
+                        "col": 29
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 3,
+                    "col": 1
+                  },
+                  {
+                    "line": 3,
+                    "col": 29
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 2,
+                "col": 20
+              },
+              {
+                "line": 3,
+                "col": 29
+              }
+            ]
+          },
           "location": [
             {
               "line": 2,
@@ -132,7 +184,7 @@
             },
             {
               "line": 3,
-              "col": 30
+              "col": 29
             }
           ]
         }
@@ -144,7 +196,7 @@
         },
         {
           "line": 3,
-          "col": 30
+          "col": 29
         }
       ]
     },
@@ -170,11 +222,26 @@
       ],
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Root jump",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Root jump",
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 1
+                    },
+                    {
+                      "line": 6,
+                      "col": 9
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 6,
@@ -182,58 +249,86 @@
                 },
                 {
                   "line": 6,
-                  "col": 9
+                  "col": 11
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Root jump description.",
-              "location": [
-                {
-                  "line": 6,
-                  "col": 13
-                },
-                {
-                  "line": 6,
-                  "col": 34
-                }
-              ]
-            }
-          ],
-          "description": [
-            {
-              "name": "dlist",
-              "type": "block",
-              "items": [
-                {
-                  "term": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Deep jump",
-                      "location": [
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Root jump description.",
+                "location": [
+                  {
+                    "line": 6,
+                    "col": 13
+                  },
+                  {
+                    "line": 6,
+                    "col": 34
+                  }
+                ]
+              }
+            ],
+            "blocks": [
+              {
+                "name": "dlist",
+                "type": "block",
+                "items": [
+                  {
+                    "terms": [
+                      {
+                        "content": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Deep jump",
+                            "location": [
+                              {
+                                "line": 7,
+                                "col": 1
+                              },
+                              {
+                                "line": 7,
+                                "col": 9
+                              }
+                            ]
+                          }
+                        ],
+                        "delimiter": "::::",
+                        "location": [
+                          {
+                            "line": 7,
+                            "col": 1
+                          },
+                          {
+                            "line": 7,
+                            "col": 13
+                          }
+                        ]
+                      }
+                    ],
+                    "definition": {
+                      "principal": [
                         {
-                          "line": 7,
-                          "col": 1
-                        },
-                        {
-                          "line": 7,
-                          "col": 9
+                          "name": "text",
+                          "type": "string",
+                          "value": "Deep jump description.",
+                          "location": [
+                            {
+                              "line": 7,
+                              "col": 15
+                            },
+                            {
+                              "line": 7,
+                              "col": 36
+                            }
+                          ]
                         }
-                      ]
-                    }
-                  ],
-                  "delimiter": "::::",
-                  "principal_text": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Deep jump description.",
+                      ],
+                      "blocks": [],
                       "location": [
                         {
                           "line": 7,
@@ -244,33 +339,42 @@
                           "col": 36
                         }
                       ]
-                    }
-                  ],
-                  "description": [],
-                  "location": [
-                    {
-                      "line": 7,
-                      "col": 1
                     },
-                    {
-                      "line": 7,
-                      "col": 37
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 7,
-                  "col": 1
-                },
-                {
-                  "line": 7,
-                  "col": 37
-                }
-              ]
-            }
-          ],
+                    "location": [
+                      {
+                        "line": 7,
+                        "col": 1
+                      },
+                      {
+                        "line": 7,
+                        "col": 36
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 7,
+                    "col": 1
+                  },
+                  {
+                    "line": 7,
+                    "col": 36
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 6,
+                "col": 13
+              },
+              {
+                "line": 7,
+                "col": 36
+              }
+            ]
+          },
           "location": [
             {
               "line": 6,
@@ -278,7 +382,7 @@
             },
             {
               "line": 7,
-              "col": 37
+              "col": 36
             }
           ]
         }
@@ -290,7 +394,7 @@
         },
         {
           "line": 7,
-          "col": 37
+          "col": 36
         }
       ]
     },
@@ -316,11 +420,26 @@
       ],
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Semicolon term",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Semicolon term",
+                  "location": [
+                    {
+                      "line": 10,
+                      "col": 1
+                    },
+                    {
+                      "line": 10,
+                      "col": 14
+                    }
+                  ]
+                }
+              ],
+              "delimiter": ";;",
               "location": [
                 {
                   "line": 10,
@@ -328,58 +447,86 @@
                 },
                 {
                   "line": 10,
-                  "col": 14
+                  "col": 16
                 }
               ]
             }
           ],
-          "delimiter": ";;",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Semicolon description.",
-              "location": [
-                {
-                  "line": 10,
-                  "col": 18
-                },
-                {
-                  "line": 10,
-                  "col": 39
-                }
-              ]
-            }
-          ],
-          "description": [
-            {
-              "name": "dlist",
-              "type": "block",
-              "items": [
-                {
-                  "term": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Colon child",
-                      "location": [
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Semicolon description.",
+                "location": [
+                  {
+                    "line": 10,
+                    "col": 18
+                  },
+                  {
+                    "line": 10,
+                    "col": 39
+                  }
+                ]
+              }
+            ],
+            "blocks": [
+              {
+                "name": "dlist",
+                "type": "block",
+                "items": [
+                  {
+                    "terms": [
+                      {
+                        "content": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Colon child",
+                            "location": [
+                              {
+                                "line": 11,
+                                "col": 1
+                              },
+                              {
+                                "line": 11,
+                                "col": 11
+                              }
+                            ]
+                          }
+                        ],
+                        "delimiter": "::",
+                        "location": [
+                          {
+                            "line": 11,
+                            "col": 1
+                          },
+                          {
+                            "line": 11,
+                            "col": 13
+                          }
+                        ]
+                      }
+                    ],
+                    "definition": {
+                      "principal": [
                         {
-                          "line": 11,
-                          "col": 1
-                        },
-                        {
-                          "line": 11,
-                          "col": 11
+                          "name": "text",
+                          "type": "string",
+                          "value": "Colon child description.",
+                          "location": [
+                            {
+                              "line": 11,
+                              "col": 15
+                            },
+                            {
+                              "line": 11,
+                              "col": 38
+                            }
+                          ]
                         }
-                      ]
-                    }
-                  ],
-                  "delimiter": "::",
-                  "principal_text": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Colon child description.",
+                      ],
+                      "blocks": [],
                       "location": [
                         {
                           "line": 11,
@@ -390,33 +537,42 @@
                           "col": 38
                         }
                       ]
-                    }
-                  ],
-                  "description": [],
-                  "location": [
-                    {
-                      "line": 11,
-                      "col": 1
                     },
-                    {
-                      "line": 11,
-                      "col": 39
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 11,
-                  "col": 1
-                },
-                {
-                  "line": 11,
-                  "col": 39
-                }
-              ]
-            }
-          ],
+                    "location": [
+                      {
+                        "line": 11,
+                        "col": 1
+                      },
+                      {
+                        "line": 11,
+                        "col": 38
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 11,
+                    "col": 1
+                  },
+                  {
+                    "line": 11,
+                    "col": 38
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 10,
+                "col": 18
+              },
+              {
+                "line": 11,
+                "col": 38
+              }
+            ]
+          },
           "location": [
             {
               "line": 10,
@@ -424,7 +580,7 @@
             },
             {
               "line": 11,
-              "col": 39
+              "col": 38
             }
           ]
         }
@@ -436,7 +592,7 @@
         },
         {
           "line": 11,
-          "col": 39
+          "col": 38
         }
       ]
     },
@@ -462,11 +618,26 @@
       ],
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Colon term",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Colon term",
+                  "location": [
+                    {
+                      "line": 14,
+                      "col": 1
+                    },
+                    {
+                      "line": 14,
+                      "col": 10
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 14,
@@ -474,58 +645,86 @@
                 },
                 {
                   "line": 14,
-                  "col": 10
+                  "col": 12
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Colon description.",
-              "location": [
-                {
-                  "line": 14,
-                  "col": 14
-                },
-                {
-                  "line": 14,
-                  "col": 31
-                }
-              ]
-            }
-          ],
-          "description": [
-            {
-              "name": "dlist",
-              "type": "block",
-              "items": [
-                {
-                  "term": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Semicolon child",
-                      "location": [
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Colon description.",
+                "location": [
+                  {
+                    "line": 14,
+                    "col": 14
+                  },
+                  {
+                    "line": 14,
+                    "col": 31
+                  }
+                ]
+              }
+            ],
+            "blocks": [
+              {
+                "name": "dlist",
+                "type": "block",
+                "items": [
+                  {
+                    "terms": [
+                      {
+                        "content": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Semicolon child",
+                            "location": [
+                              {
+                                "line": 15,
+                                "col": 1
+                              },
+                              {
+                                "line": 15,
+                                "col": 15
+                              }
+                            ]
+                          }
+                        ],
+                        "delimiter": ";;",
+                        "location": [
+                          {
+                            "line": 15,
+                            "col": 1
+                          },
+                          {
+                            "line": 15,
+                            "col": 17
+                          }
+                        ]
+                      }
+                    ],
+                    "definition": {
+                      "principal": [
                         {
-                          "line": 15,
-                          "col": 1
-                        },
-                        {
-                          "line": 15,
-                          "col": 15
+                          "name": "text",
+                          "type": "string",
+                          "value": "Semicolon child description.",
+                          "location": [
+                            {
+                              "line": 15,
+                              "col": 19
+                            },
+                            {
+                              "line": 15,
+                              "col": 46
+                            }
+                          ]
                         }
-                      ]
-                    }
-                  ],
-                  "delimiter": ";;",
-                  "principal_text": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Semicolon child description.",
+                      ],
+                      "blocks": [],
                       "location": [
                         {
                           "line": 15,
@@ -536,33 +735,42 @@
                           "col": 46
                         }
                       ]
-                    }
-                  ],
-                  "description": [],
-                  "location": [
-                    {
-                      "line": 15,
-                      "col": 1
                     },
-                    {
-                      "line": 15,
-                      "col": 47
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 15,
-                  "col": 1
-                },
-                {
-                  "line": 15,
-                  "col": 47
-                }
-              ]
-            }
-          ],
+                    "location": [
+                      {
+                        "line": 15,
+                        "col": 1
+                      },
+                      {
+                        "line": 15,
+                        "col": 46
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 15,
+                    "col": 1
+                  },
+                  {
+                    "line": 15,
+                    "col": 46
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 14,
+                "col": 14
+              },
+              {
+                "line": 15,
+                "col": 46
+              }
+            ]
+          },
           "location": [
             {
               "line": 14,
@@ -570,7 +778,7 @@
             },
             {
               "line": 15,
-              "col": 47
+              "col": 46
             }
           ]
         }
@@ -582,7 +790,7 @@
         },
         {
           "line": 15,
-          "col": 47
+          "col": 46
         }
       ]
     }

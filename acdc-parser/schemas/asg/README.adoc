@@ -602,6 +602,25 @@ per-marker destination links, so export does not invent them or assume that only
 an adjacent code block can belong to a list. Strict export still rejects inline
 markers and prepared list numbers that its marker/order cannot express.
 
+== Shared description definitions
+
+A description item owns ordered terms and at most one definition. Both profiles
+keep `terms` as inline arrays, optional `principal`, and one `blocks` array.
+A missing principal is omitted; an authored empty principal remains an empty
+array. No definition body is copied into a term.
+
+The acdc profile adds `term_metadata` in matching term order. Each closed
+`dlistTerm` record retains its marker, identities, and known term/delimiter
+locations without repeating inline content. Registered targets point to the
+owning metadata record. Export tests check equal term and metadata counts.
+`definition_present` distinguishes absence from an intentionally empty
+constructed definition; `definition_location` retains its known source span.
+Unknown constructed locations follow the existing optional-location policy.
+
+Strict upstream export rejects explicit term identities, differing term markers,
+and a present definition with neither principal nor blocks. These values have no
+lossless upstream representation. The pinned upstream schema is unchanged.
+
 == Inline line breaks
 
 A resolved hard line break uses `name: "break"` and `type: "inline"`, with its

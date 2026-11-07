@@ -53,36 +53,48 @@ pub struct DescriptionList<'a> {
     pub(crate) location: Location,
 }
 
-/// An item in a description list (term + description).
+/// An ordered group of terms that share one optional definition.
 ///
-/// Principal text follows the delimiter on the same line. Continuations and nested
-/// content are attached blocks, available through [`crate::ast::DescriptionListItemRef::blocks`].
+/// Read the shared body through [`crate::ast::DescriptionListItemRef::definition`].
 ///
 /// ```
 /// # use acdc_parser::ast::DescriptionListItemRef;
-/// fn has_description(item: DescriptionListItemRef<'_>) -> bool {
-///     item.blocks().next().is_some()
+/// fn has_attached_blocks(item: DescriptionListItemRef<'_>) -> bool {
+///     item.definition()
+///         .is_some_and(|definition| definition.blocks().next().is_some())
 /// }
 /// ```
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct DescriptionListItem<'a> {
-    /// Optional anchors (IDs) attached to this item.
+    pub(crate) terms: Vec<DescriptionListTerm<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) definition: Option<DescriptionListDefinition<'a>>,
+    pub(crate) location: Location,
+}
+
+/// One authored term, with its own anchors, delimiter, and source location.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[non_exhaustive]
+pub struct DescriptionListTerm<'a> {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) anchors: Vec<Anchor<'a>>,
-    /// The term being defined (inline content before the delimiter).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub(crate) term: Vec<InlineNode<'a>>,
-    /// The delimiter used (`::`, `:::`, `::::`, or `;;`).
+    pub(crate) content: Vec<InlineNode<'a>>,
     pub(crate) delimiter: &'a str,
-    /// Location of the delimiter in the source.
     #[serde(skip)]
     pub(crate) delimiter_location: Option<Location>,
-    /// Inline content immediately after the delimiter on the same line.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub(crate) principal_text: Vec<InlineNode<'a>>,
-    /// Block content providing the description (singular, not plural).
-    pub(crate) description: Vec<Block<'a>>,
+    pub(crate) location: Location,
+}
+
+/// The single definition shared by a description item's terms.
+///
+/// An absent principal differs from authored text that expands to empty.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[non_exhaustive]
+pub struct DescriptionListDefinition<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) principal: Option<Vec<InlineNode<'a>>>,
+    pub(crate) blocks: Vec<Block<'a>>,
     pub(crate) location: Location,
 }
 
@@ -349,7 +361,6 @@ macro_rules! item_content_edits {
 item_content_edits!(
     ListItem, principal, blocks;
     CalloutListItem, principal, blocks;
-    DescriptionListItem, principal_text, description;
 );
 
 impl<'a> ListItem<'a> {
@@ -406,30 +417,132 @@ impl<'a> CalloutListItem<'a> {
 }
 
 impl<'a> DescriptionListItem<'a> {
-    /// Construct an entry with prepared term content and retained delimiter spelling.
+    /// Construct a group without reparsing terms or rebuilding registrations.
+    #[must_use]
+    pub fn new(
+        terms: Vec<DescriptionListTerm<'a>>,
+        definition: Option<DescriptionListDefinition<'a>>,
+        location: Location,
+    ) -> Self {
+        Self {
+            terms,
+            definition,
+            location,
+        }
+    }
+
+    /// Replace terms in order without changing the shared definition.
+    pub fn set_terms(&mut self, terms: impl IntoIterator<Item = DescriptionListTerm<'a>>) {
+        self.terms = terms.into_iter().collect();
+    }
+
+    /// Append a prepared term to this group without rebuilding registrations.
+    pub fn push_term(&mut self, term: DescriptionListTerm<'a>) {
+        self.terms.push(term);
+    }
+
+    /// Remove terms, retaining their source lifetimes and the shared definition.
+    pub fn take_terms(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = DescriptionListTerm<'a>> + ExactSizeIterator + use<'a>
+    {
+        std::mem::take(&mut self.terms).into_iter()
+    }
+
+    /// Replace the shared definition; `None` leaves it absent.
+    pub fn set_definition(&mut self, definition: Option<DescriptionListDefinition<'a>>) {
+        self.definition = definition;
+    }
+
+    /// Remove the shared definition without copying its content.
+    #[must_use]
+    pub fn take_definition(&mut self) -> Option<DescriptionListDefinition<'a>> {
+        self.definition.take()
+    }
+
+    /// Replace the group span without relocating terms or the definition.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+}
+
+impl<'a> DescriptionListDefinition<'a> {
+    /// Construct a definition with an optional principal and prepared attached blocks.
+    #[must_use]
+    pub fn new(
+        principal: Option<Vec<InlineNode<'a>>>,
+        blocks: Vec<Block<'a>>,
+        location: Location,
+    ) -> Self {
+        Self {
+            principal,
+            blocks,
+            location,
+        }
+    }
+
+    /// Replace principal content, preserving absent versus explicitly empty content.
+    pub fn set_principal(&mut self, principal: Option<Vec<InlineNode<'a>>>) {
+        self.principal = principal;
+    }
+
+    /// Remove the principal without copying its content.
+    #[must_use]
+    pub fn take_principal(&mut self) -> Option<Vec<InlineNode<'a>>> {
+        self.principal.take()
+    }
+
+    /// Replace attached blocks without renesting or rebuilding registrations.
+    pub fn set_blocks(&mut self, blocks: impl IntoIterator<Item = Block<'a>>) {
+        self.blocks = blocks.into_iter().collect();
+    }
+
+    /// Append a prepared block without rebuilding registrations.
+    pub fn push_block(&mut self, block: Block<'a>) {
+        self.blocks.push(block);
+    }
+
+    /// Remove attached blocks, retaining their source lifetimes.
+    pub fn take_blocks(
+        &mut self,
+    ) -> impl DoubleEndedIterator<Item = Block<'a>> + ExactSizeIterator + use<'a> {
+        std::mem::take(&mut self.blocks).into_iter()
+    }
+
+    /// Replace the definition span without relocating its content.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
+    }
+}
+
+impl<'a> DescriptionListTerm<'a> {
+    /// Construct a term with prepared content and retained delimiter spelling.
     #[must_use]
     pub fn new(term: Vec<InlineNode<'a>>, delimiter: &'a str, location: Location) -> Self {
         Self {
-            term,
+            content: term,
             delimiter,
             location,
             anchors: Vec::new(),
             delimiter_location: None,
-            principal_text: Vec::new(),
-            description: Vec::new(),
         }
     }
 
     /// Replace prepared term content without rebuilding anchor or reference registrations.
-    pub fn set_term(&mut self, term: impl IntoIterator<Item = InlineNode<'a>>) {
-        self.term = term.into_iter().collect();
+    pub fn set_content(&mut self, term: impl IntoIterator<Item = InlineNode<'a>>) {
+        self.content = term.into_iter().collect();
     }
 
     /// Remove term content, retaining each inline's original source lifetime.
-    pub fn take_term(
+    pub fn take_content(
         &mut self,
     ) -> impl DoubleEndedIterator<Item = InlineNode<'a>> + ExactSizeIterator + use<'a> {
-        std::mem::take(&mut self.term).into_iter()
+        std::mem::take(&mut self.content).into_iter()
+    }
+
+    /// Replace the term span without relocating its content or anchors.
+    pub fn set_location(&mut self, location: Location) {
+        self.location = location;
     }
 
     /// Replace delimiter spelling without relocating its span or reparsing the entry.

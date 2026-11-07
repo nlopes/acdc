@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Index sections attached to shared description-list definitions remain visible
+  to converters.
+
 - Short and full cross-references retain formatting in parsed custom `caption=`
   prefixes. Only a final unformatted period and space are removed; punctuation
   inside a styled span remains visible.

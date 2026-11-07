@@ -763,11 +763,26 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Term",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Term",
+                  "location": [
+                    {
+                      "line": 51,
+                      "col": 1
+                    },
+                    {
+                      "line": 51,
+                      "col": 4
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 51,
@@ -775,30 +790,41 @@
                 },
                 {
                   "line": 51,
-                  "col": 4
+                  "col": 6
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Description",
-              "location": [
-                {
-                  "line": 51,
-                  "col": 8
-                },
-                {
-                  "line": 51,
-                  "col": 18
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Description",
+                "location": [
+                  {
+                    "line": 51,
+                    "col": 8
+                  },
+                  {
+                    "line": 51,
+                    "col": 18
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 51,
+                "col": 8
+              },
+              {
+                "line": 51,
+                "col": 18
+              }
+            ]
+          },
           "location": [
             {
               "line": 51,
@@ -806,16 +832,31 @@
             },
             {
               "line": 51,
-              "col": 19
+              "col": 18
             }
           ]
         },
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Another term",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Another term",
+                  "location": [
+                    {
+                      "line": 52,
+                      "col": 1
+                    },
+                    {
+                      "line": 52,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 52,
@@ -823,30 +864,41 @@
                 },
                 {
                   "line": 52,
-                  "col": 12
+                  "col": 14
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Another description",
-              "location": [
-                {
-                  "line": 52,
-                  "col": 16
-                },
-                {
-                  "line": 52,
-                  "col": 34
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Another description",
+                "location": [
+                  {
+                    "line": 52,
+                    "col": 16
+                  },
+                  {
+                    "line": 52,
+                    "col": 34
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 52,
+                "col": 16
+              },
+              {
+                "line": 52,
+                "col": 34
+              }
+            ]
+          },
           "location": [
             {
               "line": 52,
@@ -854,7 +906,7 @@
             },
             {
               "line": 52,
-              "col": 35
+              "col": 34
             }
           ]
         }
@@ -866,7 +918,7 @@
         },
         {
           "line": 52,
-          "col": 35
+          "col": 34
         }
       ]
     },

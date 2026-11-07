@@ -149,6 +149,8 @@ fn collect_structural_ranges(
         }
         StructuralRef::ListItem(item) => Some(item.location()),
         StructuralRef::DescriptionListItem(item) => Some(item.location()),
+        StructuralRef::DescriptionListTerm(term) => Some(term.location()),
+        StructuralRef::DescriptionListDefinition(definition) => Some(definition.location()),
         StructuralRef::CalloutListItem(item) => Some(item.location()),
         StructuralRef::TableRow(_) | StructuralRef::TableCell(_) => None,
         StructuralRef::Document(_) | StructuralRef::Header(_) | _ => return,

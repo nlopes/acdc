@@ -7,11 +7,26 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Term 1",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Term 1",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 1
+                    },
+                    {
+                      "line": 1,
+                      "col": 6
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 1,
@@ -19,30 +34,29 @@
                 },
                 {
                   "line": 1,
-                  "col": 6
+                  "col": 8
                 }
               ]
-            }
-          ],
-          "delimiter": "::",
-          "description": [],
-          "location": [
-            {
-              "line": 1,
-              "col": 1
             },
             {
-              "line": 1,
-              "col": 9
-            }
-          ]
-        },
-        {
-          "term": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Term 2",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Term 2",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 1
+                    },
+                    {
+                      "line": 2,
+                      "col": 6
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 2,
@@ -50,38 +64,49 @@
                 },
                 {
                   "line": 2,
-                  "col": 6
+                  "col": 8
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "With description",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 10
-                },
-                {
-                  "line": 2,
-                  "col": 25
-                }
-              ]
-            }
-          ],
-          "description": [],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "With description",
+                "location": [
+                  {
+                    "line": 2,
+                    "col": 10
+                  },
+                  {
+                    "line": 2,
+                    "col": 25
+                  }
+                ]
+              }
+            ],
+            "blocks": [],
+            "location": [
+              {
+                "line": 2,
+                "col": 10
+              },
+              {
+                "line": 2,
+                "col": 25
+              }
+            ]
+          },
           "location": [
             {
-              "line": 2,
+              "line": 1,
               "col": 1
             },
             {
               "line": 2,
-              "col": 26
+              "col": 25
             }
           ]
         }
@@ -93,7 +118,7 @@
         },
         {
           "line": 2,
-          "col": 26
+          "col": 25
         }
       ]
     }

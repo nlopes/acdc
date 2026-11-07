@@ -4,7 +4,10 @@ mod document;
 mod lists;
 
 pub use document::{AuthorRef, DocumentAttributesRef, FootnoteDefinitionRef, HeaderRef};
-pub use lists::{CalloutListItemRef, DescriptionListItemRef, ListItemRef};
+pub use lists::{
+    CalloutListItemRef, DescriptionListDefinitionRef, DescriptionListItemRef,
+    DescriptionListTermRef, ListItemRef,
+};
 
 use std::borrow::Cow;
 

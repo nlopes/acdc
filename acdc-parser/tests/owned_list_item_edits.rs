@@ -130,14 +130,108 @@ item_contract!(
     ". First *item* footnote:[Note].\n+\nAttached paragraph.\n",
     acdc_parser::ListItem::new(Vec::new(), 1, ".", acdc_parser::Location::default())
 );
-item_contract!(
-    description,
-    DescriptionListItem,
-    DescriptionListItemRef,
-    DescriptionList,
-    "[[entry]]\n*Term*:: Principal footnote:[Note].\n+\nAttached paragraph.\n",
-    acdc_parser::DescriptionListItem::new(Vec::new(), "::", acdc_parser::Location::default())
-);
+mod description {
+    use super::Error;
+    use acdc_parser::{
+        Block, CompatibilityMode, DescriptionListDefinition, Location, Options, Paragraph,
+        ParseResult,
+        ast::{BlockKind, DescriptionListDefinitionRef},
+        parse,
+    };
+
+    fn definition(parsed: &ParseResult) -> Result<DescriptionListDefinitionRef<'_>, Error> {
+        let BlockKind::DescriptionList(list) =
+            parsed.document().blocks().next().ok_or("list")?.kind()
+        else {
+            return Err("description list".into());
+        };
+        Ok(list
+            .items()
+            .next()
+            .ok_or("item")?
+            .definition()
+            .ok_or("definition")?)
+    }
+
+    #[rstest::rstest]
+    fn selected_copies_and_content_round_trips_keep_all_prepared_values(
+        #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    ) -> Result<(), Error> {
+        let parsed = parse(
+            "*Term*:: Principal footnote:[Note].\n+\nAttached paragraph.\n",
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let read = definition(&parsed)?;
+        let mut owner = DescriptionListDefinition::from(read);
+        let before = owner.clone();
+        assert_eq!(
+            DescriptionListDefinitionRef::from(&owner).principal(),
+            read.principal()
+        );
+        assert_eq!(
+            DescriptionListDefinitionRef::from(&owner).location(),
+            read.location()
+        );
+        let principal = owner.take_principal();
+        let blocks = owner.take_blocks();
+        assert!(
+            DescriptionListDefinitionRef::from(&owner)
+                .principal()
+                .is_none()
+        );
+        assert_eq!(
+            DescriptionListDefinitionRef::from(&owner).blocks().count(),
+            0
+        );
+        owner.set_principal(principal);
+        owner.set_blocks(blocks);
+        assert_eq!(owner, before);
+        assert_eq!(
+            serde_json::to_value(&owner)?,
+            serde_json::to_value(&before)?
+        );
+        Ok(())
+    }
+
+    #[rstest::rstest]
+    fn principal_and_attached_blocks_outlive_the_old_owner(
+        #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    ) -> Result<(), Error> {
+        let parsed = parse(
+            "*Term*:: Principal footnote:[Note].\n+\nAttached paragraph.\n",
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let before = serde_json::to_value(parsed.document())?;
+        let original = definition(&parsed)?;
+        let (principal, blocks) = {
+            let mut owner = DescriptionListDefinition::from(original);
+            (owner.take_principal(), owner.take_blocks())
+        };
+        let mut rebuilt = DescriptionListDefinition::new(None, Vec::new(), Location::default());
+        rebuilt.set_principal(principal);
+        rebuilt.set_blocks(blocks);
+        let read = DescriptionListDefinitionRef::from(&rebuilt);
+        assert_eq!(read.principal(), original.principal());
+        assert_eq!(
+            read.blocks().map(Block::from).collect::<Vec<_>>(),
+            original.blocks().map(Block::from).collect::<Vec<_>>()
+        );
+        rebuilt.push_block(Block::Paragraph(Paragraph::new(
+            Vec::new(),
+            Location::default(),
+        )));
+        rebuilt.set_location(Location::default());
+        assert_eq!(
+            DescriptionListDefinitionRef::from(&rebuilt)
+                .blocks()
+                .count(),
+            2
+        );
+        assert_eq!(serde_json::to_value(parsed.document())?, before);
+        Ok(())
+    }
+}
+
 item_contract!(
     callout,
     CalloutListItem,
@@ -208,8 +302,8 @@ fn description_terms_anchors_and_delimiter_spans_transfer_independently(
     mode: acdc_parser::CompatibilityMode,
 ) -> Result<(), Error> {
     use acdc_parser::{
-        Anchor, DescriptionListItem, Location, Options,
-        ast::{BlockKind, DescriptionListItemRef},
+        Anchor, DescriptionListTerm, Location, Options,
+        ast::{BlockKind, DescriptionListTermRef},
         parse,
     };
     let parsed = parse(
@@ -220,22 +314,34 @@ fn description_terms_anchors_and_delimiter_spans_transfer_independently(
     else {
         return Err("list".into());
     };
-    let original = list.items().next().ok_or("item")?;
-    let mut item = DescriptionListItem::from(original);
-    assert_eq!(DescriptionListItemRef::from(&item).term(), original.term());
+    let original = list
+        .items()
+        .next()
+        .ok_or("item")?
+        .terms()
+        .next()
+        .ok_or("term")?;
+    let mut item = DescriptionListTerm::from(original);
     assert_eq!(
-        DescriptionListItemRef::from(&item).delimiter(),
+        DescriptionListTermRef::from(&item).content(),
+        original.content()
+    );
+    assert_eq!(
+        DescriptionListTermRef::from(&item).delimiter(),
         original.delimiter()
     );
-    let term = item.take_term();
+    let term = item.take_content();
     let anchors = item.take_anchors();
-    assert!(DescriptionListItemRef::from(&item).term().is_empty());
-    assert_eq!(DescriptionListItemRef::from(&item).anchors().count(), 0);
-    item.set_term(term);
+    assert!(DescriptionListTermRef::from(&item).content().is_empty());
+    assert_eq!(DescriptionListTermRef::from(&item).anchors().count(), 0);
+    item.set_content(term);
     item.set_anchors(anchors);
-    assert_eq!(DescriptionListItemRef::from(&item).term(), original.term());
     assert_eq!(
-        DescriptionListItemRef::from(&item)
+        DescriptionListTermRef::from(&item).content(),
+        original.content()
+    );
+    assert_eq!(
+        DescriptionListTermRef::from(&item)
             .anchors()
             .map(|anchor| (
                 anchor.id(),
@@ -255,27 +361,27 @@ fn description_terms_anchors_and_delimiter_spans_transfer_independently(
     assert_eq!(item.replace_delimiter(";;"), "::");
     item.set_delimiter_location(None);
     item.push_anchor(Anchor::new("later", Location::default()));
-    let read = DescriptionListItemRef::from(&item);
+    let read = DescriptionListTermRef::from(&item);
     assert_eq!(read.delimiter(), ";;");
     assert!(read.delimiter_location().is_none());
-    assert_eq!(read.term(), original.term());
+    assert_eq!(read.content(), original.content());
     assert_eq!(read.anchors().count(), original.anchors().count() + 1);
     Ok(())
 }
 
 #[test]
 fn description_anchor_transfers_outlive_the_previous_item() -> Result<(), Error> {
-    use acdc_parser::{Anchor, DescriptionListItem, Location, ast::DescriptionListItemRef};
+    use acdc_parser::{Anchor, DescriptionListTerm, Location, ast::DescriptionListTermRef};
 
     let id = String::from("retained");
     let anchors = {
-        let mut item = DescriptionListItem::new(Vec::new(), "::", Location::default());
+        let mut item = DescriptionListTerm::new(Vec::new(), "::", Location::default());
         item.push_anchor(Anchor::new(&id, Location::default()));
         item.take_anchors()
     };
-    let mut rebuilt = DescriptionListItem::new(Vec::new(), "::", Location::default());
+    let mut rebuilt = DescriptionListTerm::new(Vec::new(), "::", Location::default());
     rebuilt.set_anchors(anchors);
-    let read = DescriptionListItemRef::from(&rebuilt);
+    let read = DescriptionListTermRef::from(&rebuilt);
     let anchor = read.anchors().next().ok_or("anchor")?;
     assert_eq!(read.anchors().count(), 1);
     assert_eq!(anchor.id(), "retained");

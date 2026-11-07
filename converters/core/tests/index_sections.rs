@@ -173,10 +173,10 @@ fn index_detection_preserves_constructed_compound_and_list_boundaries() -> Resul
                 list.set_items(items);
             } else if let Block::DescriptionList(list) = list {
                 let mut items: Vec<_> = list.take_items().collect();
-                items
-                    .first_mut()
-                    .ok_or("missing description item")?
-                    .push_block(index_section()?);
+                let item = items.first_mut().ok_or("missing description item")?;
+                let mut definition = item.take_definition().ok_or("missing definition")?;
+                definition.push_block(index_section()?);
+                item.set_definition(Some(definition));
                 list.set_items(items);
             } else if let Block::CalloutList(list) = list {
                 let mut items: Vec<_> = list.take_items().collect();

@@ -59,11 +59,26 @@
           "type": "block",
           "items": [
             {
-              "term": [
+              "terms": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "#issue-123",
+                  "content": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "#issue-123",
+                      "location": [
+                        {
+                          "line": 5,
+                          "col": 1
+                        },
+                        {
+                          "line": 5,
+                          "col": 10
+                        }
+                      ]
+                    }
+                  ],
+                  "delimiter": "::",
                   "location": [
                     {
                       "line": 5,
@@ -71,30 +86,41 @@
                     },
                     {
                       "line": 5,
-                      "col": 10
+                      "col": 12
                     }
                   ]
                 }
               ],
-              "delimiter": "::",
-              "principal_text": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "This is an issue reference.\nThe issue description continues here.",
-                  "location": [
-                    {
-                      "line": 5,
-                      "col": 14
-                    },
-                    {
-                      "line": 6,
-                      "col": 37
-                    }
-                  ]
-                }
-              ],
-              "description": [],
+              "definition": {
+                "principal": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "This is an issue reference.\nThe issue description continues here.",
+                    "location": [
+                      {
+                        "line": 5,
+                        "col": 14
+                      },
+                      {
+                        "line": 6,
+                        "col": 37
+                      }
+                    ]
+                  }
+                ],
+                "blocks": [],
+                "location": [
+                  {
+                    "line": 5,
+                    "col": 14
+                  },
+                  {
+                    "line": 6,
+                    "col": 37
+                  }
+                ]
+              },
               "location": [
                 {
                   "line": 5,
@@ -102,16 +128,31 @@
                 },
                 {
                   "line": 6,
-                  "col": 38
+                  "col": 37
                 }
               ]
             },
             {
-              "term": [
+              "terms": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "#bug-456",
+                  "content": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "#bug-456",
+                      "location": [
+                        {
+                          "line": 8,
+                          "col": 1
+                        },
+                        {
+                          "line": 8,
+                          "col": 8
+                        }
+                      ]
+                    }
+                  ],
+                  "delimiter": "::",
                   "location": [
                     {
                       "line": 8,
@@ -119,30 +160,41 @@
                     },
                     {
                       "line": 8,
-                      "col": 8
+                      "col": 10
                     }
                   ]
                 }
               ],
-              "delimiter": "::",
-              "principal_text": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Another term starting with hash.",
-                  "location": [
-                    {
-                      "line": 8,
-                      "col": 12
-                    },
-                    {
-                      "line": 8,
-                      "col": 43
-                    }
-                  ]
-                }
-              ],
-              "description": [],
+              "definition": {
+                "principal": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Another term starting with hash.",
+                    "location": [
+                      {
+                        "line": 8,
+                        "col": 12
+                      },
+                      {
+                        "line": 8,
+                        "col": 43
+                      }
+                    ]
+                  }
+                ],
+                "blocks": [],
+                "location": [
+                  {
+                    "line": 8,
+                    "col": 12
+                  },
+                  {
+                    "line": 8,
+                    "col": 43
+                  }
+                ]
+              },
               "location": [
                 {
                   "line": 8,
@@ -150,7 +202,7 @@
                 },
                 {
                   "line": 8,
-                  "col": 44
+                  "col": 43
                 }
               ]
             }
@@ -162,7 +214,7 @@
             },
             {
               "line": 8,
-              "col": 44
+              "col": 43
             }
           ]
         }

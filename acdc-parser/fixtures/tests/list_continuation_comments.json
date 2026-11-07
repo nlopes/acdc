@@ -268,253 +268,279 @@
       "type": "block",
       "items": [
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Term",
-              "location": [
-                {
-                  "line": 20,
-                  "col": 1
-                },
-                {
-                  "line": 20,
-                  "col": 4
-                }
-              ]
-            }
-          ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Description.",
-              "location": [
-                {
-                  "line": 20,
-                  "col": 8
-                },
-                {
-                  "line": 20,
-                  "col": 19
-                }
-              ]
-            }
-          ],
-          "description": [
-            {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
+              "content": [
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Description paragraph.",
+                  "value": "Term",
                   "location": [
                     {
-                      "line": 23,
+                      "line": 20,
                       "col": 1
                     },
                     {
-                      "line": 23,
-                      "col": 22
+                      "line": 20,
+                      "col": 4
                     }
                   ]
                 }
               ],
+              "delimiter": "::",
               "location": [
                 {
-                  "line": 23,
+                  "line": 20,
                   "col": 1
                 },
                 {
-                  "line": 23,
-                  "col": 22
-                }
-              ]
-            },
-            {
-              "name": "list",
-              "type": "block",
-              "variant": "unordered",
-              "marker": "*",
-              "items": [
-                {
-                  "name": "listItem",
-                  "type": "block",
-                  "marker": "*",
-                  "principal": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Chained",
-                      "location": [
-                        {
-                          "line": 25,
-                          "col": 3
-                        },
-                        {
-                          "line": 25,
-                          "col": 9
-                        }
-                      ]
-                    }
-                  ],
-                  "blocks": [
-                    {
-                      "name": "comment",
-                      "type": "block",
-                      "content": " A comment.",
-                      "location": [
-                        {
-                          "line": 27,
-                          "col": 1
-                        },
-                        {
-                          "line": 27,
-                          "col": 14
-                        }
-                      ]
-                    },
-                    {
-                      "name": "paragraph",
-                      "type": "block",
-                      "inlines": [
-                        {
-                          "name": "text",
-                          "type": "string",
-                          "value": "Next attachment.",
-                          "location": [
-                            {
-                              "line": 29,
-                              "col": 1
-                            },
-                            {
-                              "line": 29,
-                              "col": 16
-                            }
-                          ]
-                        }
-                      ],
-                      "location": [
-                        {
-                          "line": 29,
-                          "col": 1
-                        },
-                        {
-                          "line": 29,
-                          "col": 16
-                        }
-                      ]
-                    }
-                  ],
-                  "location": [
-                    {
-                      "line": 25,
-                      "col": 1
-                    },
-                    {
-                      "line": 29,
-                      "col": 16
-                    }
-                  ]
-                },
-                {
-                  "name": "listItem",
-                  "type": "block",
-                  "marker": "*",
-                  "principal": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Comment before sibling",
-                      "location": [
-                        {
-                          "line": 31,
-                          "col": 3
-                        },
-                        {
-                          "line": 31,
-                          "col": 24
-                        }
-                      ]
-                    }
-                  ],
-                  "blocks": [
-                    {
-                      "name": "comment",
-                      "type": "block",
-                      "content": " A comment.",
-                      "location": [
-                        {
-                          "line": 33,
-                          "col": 1
-                        },
-                        {
-                          "line": 33,
-                          "col": 14
-                        }
-                      ]
-                    }
-                  ],
-                  "location": [
-                    {
-                      "line": 31,
-                      "col": 1
-                    },
-                    {
-                      "line": 33,
-                      "col": 13
-                    }
-                  ]
-                },
-                {
-                  "name": "listItem",
-                  "type": "block",
-                  "marker": "*",
-                  "principal": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Sibling",
-                      "location": [
-                        {
-                          "line": 34,
-                          "col": 3
-                        },
-                        {
-                          "line": 34,
-                          "col": 9
-                        }
-                      ]
-                    }
-                  ],
-                  "location": [
-                    {
-                      "line": 34,
-                      "col": 1
-                    },
-                    {
-                      "line": 34,
-                      "col": 9
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 25,
-                  "col": 1
-                },
-                {
-                  "line": 34,
-                  "col": 9
+                  "line": 20,
+                  "col": 6
                 }
               ]
             }
           ],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Description.",
+                "location": [
+                  {
+                    "line": 20,
+                    "col": 8
+                  },
+                  {
+                    "line": 20,
+                    "col": 19
+                  }
+                ]
+              }
+            ],
+            "blocks": [
+              {
+                "name": "paragraph",
+                "type": "block",
+                "inlines": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Description paragraph.",
+                    "location": [
+                      {
+                        "line": 23,
+                        "col": 1
+                      },
+                      {
+                        "line": 23,
+                        "col": 22
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 23,
+                    "col": 1
+                  },
+                  {
+                    "line": 23,
+                    "col": 22
+                  }
+                ]
+              },
+              {
+                "name": "list",
+                "type": "block",
+                "variant": "unordered",
+                "marker": "*",
+                "items": [
+                  {
+                    "name": "listItem",
+                    "type": "block",
+                    "marker": "*",
+                    "principal": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Chained",
+                        "location": [
+                          {
+                            "line": 25,
+                            "col": 3
+                          },
+                          {
+                            "line": 25,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "blocks": [
+                      {
+                        "name": "comment",
+                        "type": "block",
+                        "content": " A comment.",
+                        "location": [
+                          {
+                            "line": 27,
+                            "col": 1
+                          },
+                          {
+                            "line": 27,
+                            "col": 14
+                          }
+                        ]
+                      },
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Next attachment.",
+                            "location": [
+                              {
+                                "line": 29,
+                                "col": 1
+                              },
+                              {
+                                "line": 29,
+                                "col": 16
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 29,
+                            "col": 1
+                          },
+                          {
+                            "line": 29,
+                            "col": 16
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 25,
+                        "col": 1
+                      },
+                      {
+                        "line": 29,
+                        "col": 16
+                      }
+                    ]
+                  },
+                  {
+                    "name": "listItem",
+                    "type": "block",
+                    "marker": "*",
+                    "principal": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Comment before sibling",
+                        "location": [
+                          {
+                            "line": 31,
+                            "col": 3
+                          },
+                          {
+                            "line": 31,
+                            "col": 24
+                          }
+                        ]
+                      }
+                    ],
+                    "blocks": [
+                      {
+                        "name": "comment",
+                        "type": "block",
+                        "content": " A comment.",
+                        "location": [
+                          {
+                            "line": 33,
+                            "col": 1
+                          },
+                          {
+                            "line": 33,
+                            "col": 14
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 31,
+                        "col": 1
+                      },
+                      {
+                        "line": 33,
+                        "col": 13
+                      }
+                    ]
+                  },
+                  {
+                    "name": "listItem",
+                    "type": "block",
+                    "marker": "*",
+                    "principal": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Sibling",
+                        "location": [
+                          {
+                            "line": 34,
+                            "col": 3
+                          },
+                          {
+                            "line": 34,
+                            "col": 9
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 34,
+                        "col": 1
+                      },
+                      {
+                        "line": 34,
+                        "col": 9
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 25,
+                    "col": 1
+                  },
+                  {
+                    "line": 34,
+                    "col": 9
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 20,
+                "col": 8
+              },
+              {
+                "line": 34,
+                "col": 9
+              }
+            ]
+          },
           "location": [
             {
               "line": 20,
@@ -527,11 +553,26 @@
           ]
         },
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "First term",
+              "content": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "First term",
+                  "location": [
+                    {
+                      "line": 36,
+                      "col": 1
+                    },
+                    {
+                      "line": 36,
+                      "col": 10
+                    }
+                  ]
+                }
+              ],
+              "delimiter": "::",
               "location": [
                 {
                   "line": 36,
@@ -539,46 +580,57 @@
                 },
                 {
                   "line": 36,
-                  "col": 10
+                  "col": 12
                 }
               ]
             }
           ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Description.",
-              "location": [
-                {
-                  "line": 36,
-                  "col": 14
-                },
-                {
-                  "line": 36,
-                  "col": 25
-                }
-              ]
-            }
-          ],
-          "description": [
-            {
-              "name": "comment",
-              "type": "block",
-              "content": " Comment before the next term.",
-              "location": [
-                {
-                  "line": 38,
-                  "col": 1
-                },
-                {
-                  "line": 38,
-                  "col": 33
-                }
-              ]
-            }
-          ],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Description.",
+                "location": [
+                  {
+                    "line": 36,
+                    "col": 14
+                  },
+                  {
+                    "line": 36,
+                    "col": 25
+                  }
+                ]
+              }
+            ],
+            "blocks": [
+              {
+                "name": "comment",
+                "type": "block",
+                "content": " Comment before the next term.",
+                "location": [
+                  {
+                    "line": 38,
+                    "col": 1
+                  },
+                  {
+                    "line": 38,
+                    "col": 33
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 36,
+                "col": 14
+              },
+              {
+                "line": 38,
+                "col": 33
+              }
+            ]
+          },
           "location": [
             {
               "line": 36,
@@ -591,110 +643,136 @@
           ]
         },
         {
-          "term": [
+          "terms": [
             {
-              "name": "text",
-              "type": "string",
-              "value": "Second term",
-              "location": [
+              "content": [
                 {
-                  "line": 39,
-                  "col": 1
-                },
-                {
-                  "line": 39,
-                  "col": 11
-                }
-              ]
-            }
-          ],
-          "delimiter": "::",
-          "principal_text": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "Next.",
-              "location": [
-                {
-                  "line": 39,
-                  "col": 15
-                },
-                {
-                  "line": 39,
-                  "col": 19
-                }
-              ]
-            }
-          ],
-          "description": [
-            {
-              "name": "list",
-              "type": "block",
-              "variant": "unordered",
-              "marker": "*",
-              "items": [
-                {
-                  "name": "listItem",
-                  "type": "block",
-                  "marker": "*",
-                  "principal": [
-                    {
-                      "name": "text",
-                      "type": "string",
-                      "value": "Blank after comment",
-                      "location": [
-                        {
-                          "line": 41,
-                          "col": 3
-                        },
-                        {
-                          "line": 41,
-                          "col": 21
-                        }
-                      ]
-                    }
-                  ],
-                  "blocks": [
-                    {
-                      "name": "comment",
-                      "type": "block",
-                      "content": " A comment.",
-                      "location": [
-                        {
-                          "line": 43,
-                          "col": 1
-                        },
-                        {
-                          "line": 43,
-                          "col": 14
-                        }
-                      ]
-                    }
-                  ],
+                  "name": "text",
+                  "type": "string",
+                  "value": "Second term",
                   "location": [
                     {
-                      "line": 41,
+                      "line": 39,
                       "col": 1
                     },
                     {
-                      "line": 43,
-                      "col": 13
+                      "line": 39,
+                      "col": 11
                     }
                   ]
                 }
               ],
+              "delimiter": "::",
               "location": [
                 {
-                  "line": 41,
+                  "line": 39,
                   "col": 1
                 },
                 {
-                  "line": 43,
+                  "line": 39,
                   "col": 13
                 }
               ]
             }
           ],
+          "definition": {
+            "principal": [
+              {
+                "name": "text",
+                "type": "string",
+                "value": "Next.",
+                "location": [
+                  {
+                    "line": 39,
+                    "col": 15
+                  },
+                  {
+                    "line": 39,
+                    "col": 19
+                  }
+                ]
+              }
+            ],
+            "blocks": [
+              {
+                "name": "list",
+                "type": "block",
+                "variant": "unordered",
+                "marker": "*",
+                "items": [
+                  {
+                    "name": "listItem",
+                    "type": "block",
+                    "marker": "*",
+                    "principal": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Blank after comment",
+                        "location": [
+                          {
+                            "line": 41,
+                            "col": 3
+                          },
+                          {
+                            "line": 41,
+                            "col": 21
+                          }
+                        ]
+                      }
+                    ],
+                    "blocks": [
+                      {
+                        "name": "comment",
+                        "type": "block",
+                        "content": " A comment.",
+                        "location": [
+                          {
+                            "line": 43,
+                            "col": 1
+                          },
+                          {
+                            "line": 43,
+                            "col": 14
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 41,
+                        "col": 1
+                      },
+                      {
+                        "line": 43,
+                        "col": 13
+                      }
+                    ]
+                  }
+                ],
+                "location": [
+                  {
+                    "line": 41,
+                    "col": 1
+                  },
+                  {
+                    "line": 43,
+                    "col": 13
+                  }
+                ]
+              }
+            ],
+            "location": [
+              {
+                "line": 39,
+                "col": 15
+              },
+              {
+                "line": 43,
+                "col": 13
+              }
+            ]
+          },
           "location": [
             {
               "line": 39,

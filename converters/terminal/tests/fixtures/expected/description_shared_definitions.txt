@@ -1,0 +1,40 @@
+[1m[4mshared-terms(1)[0m[2m2026-01-01[0m
+
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mName[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+shared-terms - shared description definitions
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mSynopsis[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+Shared term groups.
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mDescription[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+
+[1mFirst, Second[0m
+  Shared [38;5;14m[1m[1][0m and Shared index.
+  Attached body refers to [38;5;14m[1m[1][0m.
+[1mEmpty[0m
+  
+[1mFollowing[0m
+  A separate definition.
+[1mAbsent one, Absent two[0m
+
+[1mHorizontal one, Horizontal two[0m :: Shared horizontal body.
+
+[1mQ: [0m[1mQuestion one?, Question two?[0m
+[2mA: [0mOne answer.
+
+1. [1mOrdered one, Ordered two[0m
+  Shared ordered body.
+
+• [1mUnordered one, Unordered two[0m
+  Shared unordered body.
+See [38;5;12m[4m[first-term][24m[39m and [38;5;12m[4m[second-term][24m[39m.
+
+─────
+[38;5;14m[1m[1][0m One shared note.

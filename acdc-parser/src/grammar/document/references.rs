@@ -592,7 +592,9 @@ pub(super) fn normalize_bibliography_lists<'a>(state: &ParserState<'a>, blocks: 
             }
             Block::DescriptionList(list) => {
                 for item in &mut list.items {
-                    normalize_bibliography_lists(state, &mut item.description);
+                    if let Some(definition) = &mut item.definition {
+                        normalize_bibliography_lists(state, &mut definition.blocks);
+                    }
                 }
             }
             Block::Admonition(admonition) => {

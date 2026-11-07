@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Description lists retain all terms in a shared group and emit its definition
+  once in standard, horizontal, Q&A, ordered, and unordered styles.
+
 - Short and full cross-references retain formatting in parsed custom `caption=`
   prefixes. Only a final unformatted period and space are removed; punctuation
   inside a styled span remains visible.

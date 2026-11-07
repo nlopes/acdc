@@ -765,14 +765,16 @@ fn renumber_blocks<'a, F>(
             }
             Block::DescriptionList(list) => {
                 for item in &mut list.items {
-                    renumber_blocks(
-                        &mut item.description,
-                        state,
-                        is_book,
-                        suppressed,
-                        record_toc,
-                        record_number,
-                    );
+                    if let Some(definition) = &mut item.definition {
+                        renumber_blocks(
+                            &mut definition.blocks,
+                            state,
+                            is_book,
+                            suppressed,
+                            record_toc,
+                            record_number,
+                        );
+                    }
                 }
             }
             Block::DelimitedBlock(delimited) => renumber_delimited(

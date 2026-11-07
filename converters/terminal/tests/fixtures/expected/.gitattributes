@@ -1,0 +1,2 @@
+# Terminal snapshots preserve rendered indentation on empty lines.
+*.txt whitespace=-blank-at-eol

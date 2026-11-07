@@ -481,12 +481,44 @@
       "allOf": [
         {
           "$ref": "#/$defs/abstractListItem"
+        },
+        {
+          "if": {
+            "properties": {
+              "definition_present": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "principal"
+                  ]
+                },
+                {
+                  "required": [
+                    "definition_location"
+                  ]
+                }
+              ]
+            },
+            "properties": {
+              "blocks": {
+                "maxItems": 0
+              }
+            }
+          }
         }
       ],
       "unevaluatedProperties": false,
       "required": [
         "name",
-        "terms"
+        "terms",
+        "term_metadata",
+        "definition_present"
       ],
       "properties": {
         "name": {
@@ -499,6 +531,19 @@
             "$ref": "#/$defs/inlines"
           },
           "minItems": 1
+        },
+        "term_metadata": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/acdcDescriptionTerm"
+          }
+        },
+        "definition_present": {
+          "type": "boolean"
+        },
+        "definition_location": {
+          "$ref": "#/$defs/location"
         }
       }
     },
@@ -2100,6 +2145,54 @@
           "$ref": "#/$defs/acdcInlineMetadata"
         },
         "location": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "acdcDescriptionTerm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "type",
+        "marker"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "id_location": {
+          "$ref": "#/$defs/location"
+        },
+        "reftext": {
+          "$ref": "#/$defs/inlines"
+        },
+        "anchors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/$defs/acdcAnchor"
+              }
+            ],
+            "unevaluatedProperties": false
+          }
+        },
+        "name": {
+          "const": "dlistTerm"
+        },
+        "type": {
+          "const": "block"
+        },
+        "marker": {
+          "type": "string",
+          "minLength": 1
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "delimiter_location": {
           "$ref": "#/$defs/location"
         }
       }

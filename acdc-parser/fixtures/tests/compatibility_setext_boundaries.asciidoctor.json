@@ -382,11 +382,26 @@
           "type": "block",
           "items": [
             {
-              "term": [
+              "terms": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Term",
+                  "content": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Term",
+                      "location": [
+                        {
+                          "line": 36,
+                          "col": 1
+                        },
+                        {
+                          "line": 36,
+                          "col": 4
+                        }
+                      ]
+                    }
+                  ],
+                  "delimiter": "::",
                   "location": [
                     {
                       "line": 36,
@@ -394,30 +409,41 @@
                     },
                     {
                       "line": 36,
-                      "col": 4
+                      "col": 6
                     }
                   ]
                 }
               ],
-              "delimiter": "::",
-              "principal_text": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Description.",
-                  "location": [
-                    {
-                      "line": 36,
-                      "col": 8
-                    },
-                    {
-                      "line": 36,
-                      "col": 19
-                    }
-                  ]
-                }
-              ],
-              "description": [],
+              "definition": {
+                "principal": [
+                  {
+                    "name": "text",
+                    "type": "string",
+                    "value": "Description.",
+                    "location": [
+                      {
+                        "line": 36,
+                        "col": 8
+                      },
+                      {
+                        "line": 36,
+                        "col": 19
+                      }
+                    ]
+                  }
+                ],
+                "blocks": [],
+                "location": [
+                  {
+                    "line": 36,
+                    "col": 8
+                  },
+                  {
+                    "line": 36,
+                    "col": 19
+                  }
+                ]
+              },
               "location": [
                 {
                   "line": 36,
@@ -425,7 +451,7 @@
                 },
                 {
                   "line": 36,
-                  "col": 20
+                  "col": 19
                 }
               ]
             }
@@ -437,7 +463,7 @@
             },
             {
               "line": 36,
-              "col": 20
+              "col": 19
             }
           ]
         },

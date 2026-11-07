@@ -489,16 +489,28 @@ fn render_list(block: BlockRef<'_>, format: Format) -> String {
             .join("\n"),
         BlockKind::DescriptionList(l) => l
             .items()
-            .map(|i| {
-                let term = inline_text(i.term(), format);
-                let principal = inline_text(i.principal(), format);
-                let nested = render_many(i.blocks(), format);
-                let delimiter = if format == Format::Asciidoc {
-                    "::"
-                } else {
-                    ":"
+            .map(|item| {
+                let terms = item
+                    .terms()
+                    .map(|term| {
+                        let content = inline_text(term.content(), format);
+                        let delimiter = if format == Format::Asciidoc {
+                            term.delimiter()
+                        } else {
+                            ":"
+                        };
+                        format!("{content}{delimiter}")
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let Some(definition) = item.definition() else {
+                    return terms;
                 };
-                format!("{term}{delimiter} {principal}\n{nested}")
+                let principal = definition
+                    .principal()
+                    .map_or_else(String::new, |content| inline_text(content, format));
+                let nested = render_many(definition.blocks(), format);
+                format!("{terms} {principal}\n{nested}")
             })
             .collect::<Vec<_>>()
             .join("\n"),

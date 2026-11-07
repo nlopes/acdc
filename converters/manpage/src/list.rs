@@ -9,8 +9,9 @@ use acdc_converters_core::{TraversalContext, list::OrderedListNumbering};
 use acdc_parser::{
     ListItemCheckedStatus,
     ast::{
-        AttributeValueRef, BlockRef, CalloutListRef, ContentRef, DescriptionListItemRef,
-        DescriptionListRef, InlineKind, InlineRef, ListItemRef, OrderedListRef, UnorderedListRef,
+        AttributeValueRef, BlockRef, CalloutListRef, ContentRef, DescriptionListDefinitionRef,
+        DescriptionListItemRef, DescriptionListRef, InlineKind, InlineRef, ListItemRef,
+        OrderedListRef, UnorderedListRef,
     },
 };
 
@@ -270,7 +271,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             if let Some(marker) = marker {
                 write!(visitor.writer_mut(), "{marker}")?;
             }
-            visitor.write_content(traversal, item.term())
+            visitor.write_description_terms(traversal, item)
         })?;
         writeln!(self.writer_mut())?;
         self.render_description_content(traversal, item, None)
@@ -283,14 +284,20 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         writeln!(self.writer_mut(), ".sp")?;
         self.render_font("\\fB", false, |visitor| {
-            visitor.write_content(traversal, item.term())
+            visitor.write_description_terms(traversal, item)
         })?;
-        if !item.principal().is_empty() {
+        if let Some(principal) = item
+            .definition()
+            .and_then(DescriptionListDefinitionRef::principal)
+        {
             write!(self.writer_mut(), " \\(en ")?;
-            self.write_content(traversal, item.principal())?;
+            self.write_content(traversal, principal)?;
         }
         writeln!(self.writer_mut())?;
-        self.render_description_blocks(traversal, item.blocks(), 4)
+        if let Some(definition) = item.definition() {
+            self.render_description_blocks(traversal, definition.blocks(), 4)?;
+        }
+        Ok(())
     }
 
     fn render_qanda_description_item(
@@ -301,7 +308,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         writeln!(self.writer_mut(), ".TP")?;
         self.render_font("\\fB", false, |visitor| {
             write!(visitor.writer_mut(), "Q: ")?;
-            visitor.write_content(traversal, item.term())
+            visitor.write_description_terms(traversal, item)
         })?;
         writeln!(self.writer_mut())?;
         self.render_description_content(traversal, item, Some("\\fBA:\\fP "))
@@ -313,14 +320,35 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         item: DescriptionListItemRef<'a>,
         prefix: Option<&str>,
     ) -> Result<(), Error> {
-        if !item.principal().is_empty() || (item.blocks().next().is_some() && prefix.is_some()) {
+        let Some(definition) = item.definition() else {
+            return Ok(());
+        };
+        if definition.principal().is_some()
+            || (definition.blocks().next().is_some() && prefix.is_some())
+        {
             if let Some(prefix) = prefix {
                 write!(self.writer_mut(), "{prefix}")?;
             }
-            self.write_content(traversal, item.principal())?;
+            if let Some(principal) = definition.principal() {
+                self.write_content(traversal, principal)?;
+            }
             writeln!(self.writer_mut())?;
         }
-        self.render_description_blocks(traversal, item.blocks(), 0)
+        self.render_description_blocks(traversal, definition.blocks(), 0)
+    }
+
+    fn write_description_terms(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        item: DescriptionListItemRef<'a>,
+    ) -> Result<(), Error> {
+        for (index, term) in item.terms().enumerate() {
+            if index > 0 {
+                write!(self.writer_mut(), "\n.br\n")?;
+            }
+            self.write_content(traversal, term.content())?;
+        }
+        Ok(())
     }
 
     fn render_description_blocks(

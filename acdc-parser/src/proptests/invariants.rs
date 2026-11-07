@@ -263,11 +263,20 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
         Block::DescriptionList(list) => {
             for item in &list.items {
                 visitor(&item.location, "description list item");
-                for inline in &item.term {
-                    walk_inline_locations(inline, visitor);
+                for term in &item.terms {
+                    visitor(&term.location, "description term");
+                    for inline in &term.content {
+                        walk_inline_locations(inline, visitor);
+                    }
                 }
-                for child in &item.description {
-                    walk_block_locations(child, visitor);
+                if let Some(definition) = &item.definition {
+                    visitor(&definition.location, "description definition");
+                    for inline in definition.principal.iter().flatten() {
+                        walk_inline_locations(inline, visitor);
+                    }
+                    for child in &definition.blocks {
+                        walk_block_locations(child, visitor);
+                    }
                 }
             }
         }
@@ -514,9 +523,15 @@ fn verify_block_monotonic(block: &Block) {
         }
         Block::DescriptionList(list) => {
             for item in &list.items {
-                verify_inline_monotonic("DescriptionList term", &item.term);
-                verify_inline_monotonic("DescriptionList principal", &item.principal_text);
-                verify_monotonic_positions("DescriptionList description", &item.description);
+                for term in &item.terms {
+                    verify_inline_monotonic("DescriptionList term", &term.content);
+                }
+                if let Some(definition) = &item.definition {
+                    if let Some(principal) = &definition.principal {
+                        verify_inline_monotonic("DescriptionList principal", principal);
+                    }
+                    verify_monotonic_positions("DescriptionList description", &definition.blocks);
+                }
             }
         }
         Block::CalloutList(list) => {

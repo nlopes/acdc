@@ -25,11 +25,12 @@ use acdc_parser::{
     Substitution, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
     ast::{
         AnchorRef, AttributeValueRef, AttributesRef, AutolinkRef, BlockKind, BlockRef, CaptionRef,
-        ColumnFormatRef, ContentRef, CrossReferenceRef, DescriptionListItemRef, DescriptionListRef,
-        DocumentRef, ElementIdRef, FootnoteRef, IconRef, ImageRef, IndexTermRef,
-        IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef, ListItemRef, LocationRef,
-        MenuRef, PageBreakRef, ParagraphRef, RawRef, ReferenceRef, SectionRef, SourceRef,
-        TableCellRef, TableOfContentsRef, TableRef, TableRowRef, TokensRef, UnorderedListRef,
+        ColumnFormatRef, ContentRef, CrossReferenceRef, DescriptionListDefinitionRef,
+        DescriptionListRef, DescriptionListTermRef, DocumentRef, ElementIdRef, FootnoteRef,
+        IconRef, ImageRef, IndexTermRef, IndexTermRelationshipRef, InlineImageRef, InlineKind,
+        InlineRef, ListItemRef, LocationRef, MenuRef, PageBreakRef, ParagraphRef, RawRef,
+        ReferenceRef, SectionRef, SourceRef, TableCellRef, TableOfContentsRef, TableRef,
+        TableRowRef, TokensRef, UnorderedListRef,
     },
 };
 use acdc_pdf_images::ImageMap;
@@ -2856,13 +2857,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
         self.writer
             .raw("#layout(size => {\nlet term-width = calc.min(calc.max(0pt,\n");
-        for row in description_list_rows(list.items()) {
+        for item in list.items() {
             self.writer.raw("measure([");
             // Measurement content is not displayed, so its anchors must not
             // consume destinations or index entries from the visible term.
             let previous = self.index_catalog.set_suspended(true);
             let previous_anchors = replace(&mut self.anchors.suspended, true);
-            let result = self.write_horizontal_description_terms(traversal, row.clone(), false);
+            let result = self.write_horizontal_description_terms(traversal, item.terms(), false);
             self.anchors.suspended = previous_anchors;
             self.index_catalog.set_suspended(previous);
             result?;
@@ -2872,14 +2873,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             "), size.width * 50%)\ngrid(columns: (term-width, 1fr), column-gutter: 20pt, row-gutter: 0.5em, align: top,\n",
         );
 
-        for row in description_list_rows(list.items()) {
-            let Some(item) = row.clone().last() else {
-                continue;
-            };
+        for item in list.items() {
             self.writer.raw("[");
-            self.write_horizontal_description_terms(traversal, row.clone(), true)?;
+            self.write_horizontal_description_terms(traversal, item.terms(), true)?;
             self.writer.raw("], [");
-            self.write_description_list_item(traversal, item)?;
+            if let Some(definition) = item.definition() {
+                self.write_description_definition(traversal, definition)?;
+            }
             self.writer.raw("],\n");
         }
 
@@ -2894,30 +2894,27 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<(), Error> {
         let indent = "  ".repeat(self.list_depth);
 
-        for row in description_list_rows(list.items()) {
-            let Some(description) = row.clone().last() else {
-                continue;
-            };
+        for item in list.items() {
             let _ = writeln!(
                 self.writer,
                 "{indent}#block(width: 100%, above: 0pt, below: 0.5em)["
             );
-            for (index, item) in row.clone().enumerate() {
+            for (index, term) in item.terms().enumerate() {
                 if index > 0 {
                     self.writer.raw("#linebreak()");
                 }
-                for anchor in item.anchors() {
+                for anchor in term.anchors() {
                     self.write_anchor_target(anchor);
                 }
                 self.writer.raw("#text(weight: \"bold\")[");
-                self.write_content(traversal, item.term())?;
+                self.write_content(traversal, term.content())?;
                 self.writer.raw("]");
             }
-            if !description.principal().is_empty() || description.blocks().next().is_some() {
+            if let Some(definition) = item.definition() {
                 self.writer
                     .raw("\n#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[");
                 self.list_depth += 1;
-                self.write_description_list_item(traversal, description)?;
+                self.write_description_definition(traversal, definition)?;
                 self.list_depth -= 1;
                 self.writer.raw("]");
             }
@@ -2942,24 +2939,26 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_ordered_list_numbering(OrderedListNumbering::Arabic);
         self.writer.raw(", spacing: 1em)\n");
 
-        for row in description_list_rows(list.items()) {
-            let Some(answer) = row.clone().last() else {
-                continue;
-            };
+        for item in list.items() {
             let _ = write!(self.writer, "{indent}  + #block(width: 100%)[");
             self.writer.raw("#block(width: 100%, breakable: false)[");
             self.write_paragraph_alignment(Some(list.attributes()), |visitor| {
-                visitor.write_qanda_description_terms(traversal, row.clone())?;
-                if !answer.principal().is_empty() {
+                visitor.write_qanda_description_terms(traversal, item.terms())?;
+                if let Some(principal) = item
+                    .definition()
+                    .and_then(DescriptionListDefinitionRef::principal)
+                {
                     visitor.writer.raw("#linebreak()\n");
-                    visitor.write_content(traversal, answer.principal())?;
+                    visitor.write_content(traversal, principal)?;
                 }
                 Ok(())
             })?;
             self.writer.raw("]");
-            if answer.blocks().next().is_some() {
+            if let Some(definition) = item.definition()
+                && definition.blocks().next().is_some()
+            {
                 self.writer.raw("\n\n");
-                self.write_blocks(traversal, answer.blocks())?;
+                self.write_blocks(traversal, definition.blocks())?;
             }
             self.writer.raw("]\n");
         }
@@ -2999,41 +2998,42 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer.raw("))))\n");
         }
 
-        for row in description_list_rows(list.items()) {
-            let Some(subject) = row.clone().next() else {
-                continue;
-            };
-            let Some(description) = row.clone().last() else {
-                continue;
-            };
+        for item in list.items() {
             let marker = if ordered { "+" } else { "-" };
             let _ = write!(self.writer, "{indent}  {marker} #block(width: 100%)[");
-            for anchor in subject.anchors() {
-                self.write_anchor_target(anchor);
+            for (index, subject) in item.terms().enumerate() {
+                if index > 0 {
+                    self.writer.raw("#linebreak()");
+                }
+                for anchor in subject.anchors() {
+                    self.write_anchor_target(anchor);
+                }
+                self.writer.raw("#strong[");
+                self.write_content(traversal, subject.content())?;
+                let subject_text = InlineTextTransform::default()
+                    .decode_char_refs(true)
+                    .content_to_string(subject.content());
+                let has_stop = subject_text
+                    .trim_end()
+                    .chars()
+                    .next_back()
+                    .is_some_and(|last| matches!(last, '.' | '!' | '?' | ';' | ':'));
+                if !has_stop && let Some(stop) = subject_stop.or_else(|| (!stacked).then_some(":"))
+                {
+                    self.write_text_expr(stop);
+                }
+                self.writer.raw("]");
             }
-            self.writer.raw("#strong[");
-            self.write_content(traversal, subject.term())?;
-            let subject_text = InlineTextTransform::default()
-                .decode_char_refs(true)
-                .content_to_string(subject.term());
-            let has_stop = subject_text
-                .trim_end()
-                .chars()
-                .next_back()
-                .is_some_and(|last| matches!(last, '.' | '!' | '?' | ';' | ':'));
-            if !has_stop && let Some(stop) = subject_stop.or_else(|| (!stacked).then_some(":")) {
-                self.write_text_expr(stop);
-            }
-            self.writer.raw("]");
-
-            if !description.principal().is_empty() {
-                self.writer
-                    .raw(if stacked { "#linebreak()\n" } else { " " });
-                self.write_content(traversal, description.principal())?;
-            }
-            if description.blocks().next().is_some() {
-                self.writer.raw("\n\n");
-                self.write_blocks(traversal, description.blocks())?;
+            if let Some(definition) = item.definition() {
+                if let Some(principal) = definition.principal() {
+                    self.writer
+                        .raw(if stacked { "#linebreak()\n" } else { " " });
+                    self.write_content(traversal, principal)?;
+                }
+                if definition.blocks().next().is_some() {
+                    self.writer.raw("\n\n");
+                    self.write_blocks(traversal, definition.blocks())?;
+                }
             }
             self.writer.raw("]\n");
         }
@@ -3045,20 +3045,20 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_horizontal_description_terms<'doc>(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        items: impl Iterator<Item = DescriptionListItemRef<'doc>>,
+        terms: impl Iterator<Item = DescriptionListTermRef<'doc>>,
         write_anchors: bool,
     ) -> Result<(), Error> {
-        for (index, item) in items.enumerate() {
+        for (index, term) in terms.enumerate() {
             if index > 0 {
                 self.writer.raw("#linebreak()");
             }
             if write_anchors {
-                for anchor in item.anchors() {
+                for anchor in term.anchors() {
                     self.write_anchor_target(anchor);
                 }
             }
             self.writer.raw("#text(weight: \"bold\")[");
-            self.write_content(traversal, item.term())?;
+            self.write_content(traversal, term.content())?;
             self.writer.raw("]");
         }
         Ok(())
@@ -3067,34 +3067,34 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_qanda_description_terms<'doc>(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        items: impl Iterator<Item = DescriptionListItemRef<'doc>>,
+        terms: impl Iterator<Item = DescriptionListTermRef<'doc>>,
     ) -> Result<(), Error> {
-        for (index, item) in items.enumerate() {
+        for (index, term) in terms.enumerate() {
             if index > 0 {
                 self.writer.raw("#linebreak()");
             }
-            for anchor in item.anchors() {
+            for anchor in term.anchors() {
                 self.write_anchor_target(anchor);
             }
             self.writer.raw("#emph[");
-            self.write_content(traversal, item.term())?;
+            self.write_content(traversal, term.content())?;
             self.writer.raw("]");
         }
         Ok(())
     }
 
-    fn write_description_list_item(
+    fn write_description_definition(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        item: DescriptionListItemRef<'a>,
+        definition: DescriptionListDefinitionRef<'a>,
     ) -> Result<(), Error> {
-        if !item.principal().is_empty() {
-            self.write_content(traversal, item.principal())?;
-            if item.blocks().next().is_some() {
+        if let Some(principal) = definition.principal() {
+            self.write_content(traversal, principal)?;
+            if definition.blocks().next().is_some() {
                 self.writer.raw("\n\n");
             }
         }
-        self.write_blocks(traversal, item.blocks())
+        self.write_blocks(traversal, definition.blocks())
     }
 
     pub(crate) fn write_ordered_list_start(
@@ -4696,22 +4696,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_inline_span_end(state);
         Ok(())
     }
-}
-
-fn description_list_rows<'doc>(
-    mut items: impl Iterator<Item = DescriptionListItemRef<'doc>> + Clone,
-) -> impl Iterator<Item = impl Iterator<Item = DescriptionListItemRef<'doc>> + Clone> {
-    std::iter::from_fn(move || {
-        let row = items.clone();
-        let mut count = 0;
-        for item in items.by_ref() {
-            count += 1;
-            if !item.principal().is_empty() || item.blocks().next().is_some() {
-                break;
-            }
-        }
-        (count > 0).then(|| row.take(count))
-    })
 }
 
 fn table_column_tracks<'doc>(
