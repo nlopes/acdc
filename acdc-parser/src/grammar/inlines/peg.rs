@@ -6,6 +6,7 @@ use crate::{
     grammar::{
         ParserState,
         attributes::AttributeQuote,
+        brackets::escaped_bracket_end,
         helpers::{
             BlockParsingMetadata, PositionWithOffset, is_valid_bibliography_id, restore_url_path,
         },
@@ -621,12 +622,10 @@ peg::parser! {
         // Nested brackets and bracket escapes stay in the captured body.
         // The owning macro consumes its own delimiter escapes.
         rule escaped_balanced_bracket_content() -> &'input str
-        = content:$(escaped_balanced_bracket_content_part()*) { content }
-
-        rule escaped_balanced_bracket_content_part()
-        = "\\" ['[' | ']']
-        / "[" escaped_balanced_bracket_content() "]"
-        / !("\\" ['[' | ']'] / "[" / "]") [_]
+        = #{|input, start| match escaped_bracket_end(input, start) {
+            Some(end) => peg::RuleResult::Matched(end, &input[start..end]),
+            None => peg::RuleResult::Failed,
+        }}
 
         // Link attributes balance nested brackets before their own escape decoding.
         rule balanced_bracket_content()

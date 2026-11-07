@@ -48,6 +48,9 @@ fn text(content: ContentRef<'_>) -> Result<String, Error> {
 #[case("Ctrl,Alt+Del", &["Ctrl", "Alt+Del"])]
 #[case("Ctrl+,", &["Ctrl", ","])]
 #[case("Ctrl+\\]", &["Ctrl", "]"])]
+#[case("[π]", &["[π]"])]
+#[case("\\[π\\]", &["\\[π]"])]
+#[case("[π\\]x]", &["[π]x]"])]
 #[case("Ctrl+pass:[a+b]", &["Ctrl", "a+b"])]
 fn keyboard_key_boundaries_match_the_selected_separator(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
@@ -83,6 +86,65 @@ fn keyboard_key_boundaries_match_the_selected_separator(
             (start, start + 1)
         );
     }
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case::plain("π")]
+#[case::preprocessed("π+")]
+fn keyboard_deep_brackets_do_not_overflow_the_stack(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values("", "Before ")] prefix: &str,
+    #[case] inner: &str,
+) -> Result<(), Error> {
+    let label = format!("{}{inner}{}", "[".repeat(20_000), "]".repeat(20_000));
+    let source = format!(":experimental:\n\n{prefix}kbd:[{label}] after.");
+    let parsed = parse(
+        &source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let content = paragraph(&parsed)?;
+    let keyboard = content
+        .inlines()
+        .find_map(|node| {
+            if let InlineKind::Keyboard(keyboard) = node.kind() {
+                Some(keyboard)
+            } else {
+                None
+            }
+        })
+        .ok_or("missing keyboard")?;
+    assert_eq!(
+        keyboard.keys().map(text).collect::<Result<Vec<_>, _>>()?,
+        [label]
+    );
+    let start = source.find("kbd:[").ok_or("missing authored keyboard")?;
+    assert_eq!(keyboard.location().absolute_start(), start);
+    assert_eq!(
+        keyboard.location().absolute_end(),
+        source.len() - " after.".len() - 1
+    );
+    let last = content.inlines().last().ok_or("missing trailing text")?;
+    assert!(matches!(last.kind(), InlineKind::Plain(value) if value.text() == " after."));
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case::empty("")]
+#[case::unclosed_nested("[")]
+#[case::escaped_close("\\]")]
+#[case::closed_nested("[π]")]
+fn keyboard_unclosed_brackets_remain_literal(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[case] body: &str,
+) -> Result<(), Error> {
+    let literal = format!("Before kbd:[{body}");
+    let source = format!(":experimental:\n\n{literal}");
+    let parsed = parse(
+        &source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    assert_eq!(text(paragraph(&parsed)?)?, literal);
     Ok(())
 }
 

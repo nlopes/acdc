@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Keyboard macros with deeply nested brackets no longer abort parsing with a
+  stack overflow when `:experimental:` is enabled. Both compatibility modes
+  preserve nested labels and escaped brackets.
+
 - AsciiDoc table cells now keep separate footnote names and definitions in both
   modes, matching Asciidoctor's scope. Ordinary cells share their containing
   owner. Numbers remain unique across the document. Use `TableCellRef::footnotes()`

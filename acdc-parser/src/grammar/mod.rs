@@ -5,6 +5,7 @@
 //! grouped by purpose. Shared helpers, parser state, and source mapping stay here.
 
 mod attributes;
+mod brackets;
 mod character_references;
 mod document;
 pub(crate) mod footnotes;

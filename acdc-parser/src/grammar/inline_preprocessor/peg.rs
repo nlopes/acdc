@@ -4,7 +4,9 @@ use std::{borrow::Cow, mem::take};
 
 use crate::{
     DocumentAttributes, Pass, PassthroughKind, Position, Substitution, Warning, WarningKind,
-    grammar::inline_boundaries::check_constrained_opening_boundary,
+    grammar::{
+        brackets::escaped_bracket_end, inline_boundaries::check_constrained_opening_boundary,
+    },
 };
 
 use super::{
@@ -362,9 +364,10 @@ peg::parser! {
         rule kbd_macro_pattern() = "kbd:[" balanced_bracket_content() "]"
 
         rule balanced_bracket_content()
-            = ("\\" ['[' | ']']
-                / "[" balanced_bracket_content() "]"
-                / !("\\" ['[' | ']'] / "[" / "]") [_])*
+            = #{|input, start| match escaped_bracket_end(input, start) {
+                Some(end) => peg::RuleResult::Matched(end, ()),
+                None => peg::RuleResult::Failed,
+            }}
 
         rule monospace_pattern()
             = ({? (!state.defer_monospace).then_some(()).ok_or("attributes precede quotes") })
