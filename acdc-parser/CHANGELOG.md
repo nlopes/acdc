@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Description lists now nest under ordered and unordered items in both modes.
+  Outer siblings remain in their list, and a blank line before `+` attaches the
+  next block to the ordinary parent. Same-line description markers stay literal.
+
 - Description lists now group consecutive terms with one shared definition in both
   modes. An authored principal that expands to empty remains present. The read API
   uses `item.terms()` and `item.definition()`; term content, anchors, and delimiters

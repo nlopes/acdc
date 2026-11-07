@@ -17,7 +17,10 @@ use crate::{
     FootnoteDefinition, Location, Options, Pass, SourceLocation, TocEntry, Warning, WarningKind,
     XrefCaptionLabel, XrefSignifier,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
-    grammar::LineMap,
+    grammar::{
+        LineMap,
+        document::lists::{DescriptionListScope, OrdinaryListScope},
+    },
     model::{
         DocumentAttributeStatus, LeveloffsetRange, REFSIG_ATTRIBUTES, SourceRange,
         substitution::SubstitutionPlan,
@@ -101,6 +104,9 @@ pub(crate) struct ParserState<'a> {
     /// Base offset of the input containing the active callout list.
     /// Reparsed delimited-block content must not terminate that list.
     pub(crate) callout_list_offset: Option<usize>,
+    // Description-list children must leave sibling markers for these parents.
+    pub(crate) ordinary_list_scope: Option<OrdinaryListScope<'a>>,
+    pub(crate) description_list_scope: Option<DescriptionListScope<'a>>,
     /// Verbatim callout references collected since the previous callout list.
     pub(crate) pending_callouts: Vec<CalloutRef>,
     /// The current file being parsed (`None` for inline/string parsing). Used as the
@@ -615,6 +621,8 @@ impl<'a> ParserState<'a> {
             toc_entries: Vec::new(),
             block_context: BlockContext::Document,
             callout_list_offset: None,
+            ordinary_list_scope: None,
+            description_list_scope: None,
             pending_callouts: Vec::new(),
             current_file: None,
             leveloffset_ranges: Vec::new(),
@@ -667,6 +675,8 @@ impl<'a> ParserState<'a> {
             toc_entries: Vec::new(),
             block_context: BlockContext::Document,
             callout_list_offset: None,
+            ordinary_list_scope: None,
+            description_list_scope: None,
             pending_callouts: Vec::new(),
             current_file: None,
             leveloffset_ranges: Vec::new(),
@@ -719,6 +729,8 @@ impl<'a> ParserState<'a> {
             toc_entries: Vec::new(),
             block_context: BlockContext::Document,
             callout_list_offset: None,
+            ordinary_list_scope: None,
+            description_list_scope: None,
             pending_callouts: Vec::new(),
             // Inherit the file so inline sub-parse nodes are stamped with the correct
             // origin file by `create_location` (cheap `Arc` clone).

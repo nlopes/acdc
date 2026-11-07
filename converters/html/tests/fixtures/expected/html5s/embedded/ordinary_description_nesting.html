@@ -1,0 +1,136 @@
+<section class="doc-section level-1">
+<h2 id="_automatic_child_and_shared_body">Automatic child and shared body</h2>
+<div id="parent" class="ulist">
+<ul>
+<li>
+Parent π<div id="nested" class="dlist">
+<dl>
+<dt>
+<a id="short"></a>Short</dt>
+<dt>
+<a id="long"></a>Long</dt>
+<dd>
+<p>One shared body <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> and one index term.</p>
+<ul>
+<li>
+Deep ordinary child.</li>
+</ul>
+</dd>
+</dl>
+</div>
+</li>
+<li>
+Sibling:: remains ordinary text.</li>
+</ul>
+</div>
+<p>See <a href="#short">[short]</a>, <a href="#long">[long]</a>, and <a href="#nested">[nested]</a>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_blank_line_and_alternate_delimiter">Blank line and alternate delimiter</h2>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+Parent<div class="dlist">
+<dl>
+<dt>
+Alpha</dt>
+<dd>
+Definition.</dd>
+</dl>
+</div>
+</li>
+<li>
+Sibling</li>
+</ol>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_explicit_attachment">Explicit attachment</h2>
+<div class="ulist">
+<ul>
+<li>
+Parent<div class="dlist">
+<dl>
+<dt>
+Term</dt>
+<dd>
+Definition.</dd>
+</dl>
+</div>
+</li>
+<li>
+Sibling</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_separate_attachment_owners">Separate attachment owners</h2>
+<div class="ulist">
+<ul>
+<li>
+Parent<div class="dlist">
+<dl>
+<dt>
+Term</dt>
+<dd>
+<p>Definition.</p>
+<p>Attached to the definition.</p>
+</dd>
+</dl>
+</div>
+<p>Attached to the ordinary item.</p>
+</li>
+<li>
+Sibling</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_delimited_child">Delimited child</h2>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+Parent<div class="dlist">
+<dl>
+<dt>
+Term</dt>
+<dd>
+<p>Definition.</p>
+<div class="open-block">
+<div class="content">
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+This ordinary list belongs to the open block.</li>
+</ol>
+</div>
+</div>
+</div>
+</dd>
+</dl>
+</div>
+</li>
+<li>
+Sibling</li>
+</ol>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_literal_principal_control">Literal principal control</h2>
+<div class="ulist">
+<ul>
+<li>
+Inline:: text stays in the principal.</li>
+<li>
+A malformed marker
+Term::word stays in the principal.</li>
+</ul>
+</div>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+One note <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

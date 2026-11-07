@@ -122,41 +122,74 @@
               ]
             }
           ],
-          "location": [
+          "blocks": [
             {
-              "line": 6,
-              "col": 1
-            },
-            {
-              "line": 6,
-              "col": 14
-            }
-          ]
-        }
-      ],
-      "location": [
-        {
-          "line": 5,
-          "col": 1
-        },
-        {
-          "line": 6,
-          "col": 14
-        }
-      ]
-    },
-    {
-      "name": "dlist",
-      "type": "block",
-      "items": [
-        {
-          "terms": [
-            {
-              "content": [
+              "name": "dlist",
+              "type": "block",
+              "items": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Item 1",
+                  "terms": [
+                    {
+                      "content": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Item 1",
+                          "location": [
+                            {
+                              "line": 8,
+                              "col": 1
+                            },
+                            {
+                              "line": 8,
+                              "col": 6
+                            }
+                          ]
+                        }
+                      ],
+                      "delimiter": "::",
+                      "location": [
+                        {
+                          "line": 8,
+                          "col": 1
+                        },
+                        {
+                          "line": 8,
+                          "col": 8
+                        }
+                      ]
+                    }
+                  ],
+                  "definition": {
+                    "principal": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "First description",
+                        "location": [
+                          {
+                            "line": 8,
+                            "col": 10
+                          },
+                          {
+                            "line": 8,
+                            "col": 26
+                          }
+                        ]
+                      }
+                    ],
+                    "blocks": [],
+                    "location": [
+                      {
+                        "line": 8,
+                        "col": 10
+                      },
+                      {
+                        "line": 8,
+                        "col": 26
+                      }
+                    ]
+                  },
                   "location": [
                     {
                       "line": 8,
@@ -164,12 +197,11 @@
                     },
                     {
                       "line": 8,
-                      "col": 6
+                      "col": 26
                     }
                   ]
                 }
               ],
-              "delimiter": "::",
               "location": [
                 {
                   "line": 8,
@@ -177,143 +209,143 @@
                 },
                 {
                   "line": 8,
-                  "col": 8
+                  "col": 26
                 }
               ]
             }
           ],
-          "definition": {
-            "principal": [
-              {
-                "name": "text",
-                "type": "string",
-                "value": "First description",
-                "location": [
-                  {
-                    "line": 8,
-                    "col": 10
-                  },
-                  {
-                    "line": 8,
-                    "col": 26
-                  }
-                ]
-              }
-            ],
-            "blocks": [
-              {
-                "name": "list",
-                "type": "block",
-                "variant": "unordered",
-                "marker": "-",
-                "items": [
-                  {
-                    "name": "listItem",
-                    "type": "block",
-                    "marker": "-",
-                    "principal": [
-                      {
-                        "name": "text",
-                        "type": "string",
-                        "value": "Auto-attached list",
-                        "location": [
-                          {
-                            "line": 10,
-                            "col": 3
-                          },
-                          {
-                            "line": 10,
-                            "col": 20
-                          }
-                        ]
-                      }
-                    ],
-                    "location": [
-                      {
-                        "line": 10,
-                        "col": 1
-                      },
-                      {
-                        "line": 10,
-                        "col": 20
-                      }
-                    ]
-                  },
-                  {
-                    "name": "listItem",
-                    "type": "block",
-                    "marker": "-",
-                    "principal": [
-                      {
-                        "name": "text",
-                        "type": "string",
-                        "value": "Another item",
-                        "location": [
-                          {
-                            "line": 11,
-                            "col": 3
-                          },
-                          {
-                            "line": 11,
-                            "col": 14
-                          }
-                        ]
-                      }
-                    ],
-                    "location": [
-                      {
-                        "line": 11,
-                        "col": 1
-                      },
-                      {
-                        "line": 11,
-                        "col": 14
-                      }
-                    ]
-                  }
-                ],
-                "location": [
-                  {
-                    "line": 10,
-                    "col": 1
-                  },
-                  {
-                    "line": 11,
-                    "col": 14
-                  }
-                ]
-              }
-            ],
-            "location": [
-              {
-                "line": 8,
-                "col": 10
-              },
-              {
-                "line": 11,
-                "col": 14
-              }
-            ]
-          },
           "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
             {
               "line": 8,
-              "col": 1
-            },
-            {
-              "line": 11,
-              "col": 14
+              "col": 26
             }
           ]
         },
         {
-          "terms": [
+          "name": "listItem",
+          "type": "block",
+          "marker": "-",
+          "principal": [
             {
-              "content": [
+              "name": "text",
+              "type": "string",
+              "value": "Auto-attached list",
+              "location": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Item 2",
+                  "line": 10,
+                  "col": 3
+                },
+                {
+                  "line": 10,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "-",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Another item",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 3
+                },
+                {
+                  "line": 11,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "name": "dlist",
+              "type": "block",
+              "items": [
+                {
+                  "terms": [
+                    {
+                      "content": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Item 2",
+                          "location": [
+                            {
+                              "line": 13,
+                              "col": 1
+                            },
+                            {
+                              "line": 13,
+                              "col": 6
+                            }
+                          ]
+                        }
+                      ],
+                      "delimiter": "::",
+                      "location": [
+                        {
+                          "line": 13,
+                          "col": 1
+                        },
+                        {
+                          "line": 13,
+                          "col": 8
+                        }
+                      ]
+                    }
+                  ],
+                  "definition": {
+                    "principal": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Second description",
+                        "location": [
+                          {
+                            "line": 13,
+                            "col": 10
+                          },
+                          {
+                            "line": 13,
+                            "col": 27
+                          }
+                        ]
+                      }
+                    ],
+                    "blocks": [],
+                    "location": [
+                      {
+                        "line": 13,
+                        "col": 10
+                      },
+                      {
+                        "line": 13,
+                        "col": 27
+                      }
+                    ]
+                  },
                   "location": [
                     {
                       "line": 13,
@@ -321,12 +353,11 @@
                     },
                     {
                       "line": 13,
-                      "col": 6
+                      "col": 27
                     }
                   ]
                 }
               ],
-              "delimiter": "::",
               "location": [
                 {
                   "line": 13,
@@ -334,44 +365,14 @@
                 },
                 {
                   "line": 13,
-                  "col": 8
+                  "col": 27
                 }
               ]
             }
           ],
-          "definition": {
-            "principal": [
-              {
-                "name": "text",
-                "type": "string",
-                "value": "Second description",
-                "location": [
-                  {
-                    "line": 13,
-                    "col": 10
-                  },
-                  {
-                    "line": 13,
-                    "col": 27
-                  }
-                ]
-              }
-            ],
-            "blocks": [],
-            "location": [
-              {
-                "line": 13,
-                "col": 10
-              },
-              {
-                "line": 13,
-                "col": 27
-              }
-            ]
-          },
           "location": [
             {
-              "line": 13,
+              "line": 11,
               "col": 1
             },
             {
@@ -383,7 +384,7 @@
       ],
       "location": [
         {
-          "line": 8,
+          "line": 5,
           "col": 1
         },
         {

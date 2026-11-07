@@ -7,6 +7,43 @@ use crate::{
 use bumpalo::collections::String as BumpString;
 use std::collections::VecDeque;
 
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct OrdinaryListScope<'a> {
+    pub(crate) offset: usize,
+    pub(crate) unordered: Option<&'a str>,
+    pub(crate) ordered: Option<&'a str>,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct DescriptionListScope<'a> {
+    pub(crate) offset: usize,
+    // Each of the four delimiter spellings can start one active level.
+    markers: [&'a str; 4],
+}
+
+impl<'a> DescriptionListScope<'a> {
+    pub(crate) fn new(offset: usize) -> Self {
+        Self {
+            offset,
+            ..Self::default()
+        }
+    }
+
+    pub(crate) fn select(&mut self, marker: &'a str) {
+        let mut remaining = self.markers.iter_mut();
+        if let Some(current) = remaining.find(|old| old.is_empty() || **old == marker) {
+            *current = marker;
+            for child in remaining {
+                *child = "";
+            }
+        }
+    }
+
+    pub(crate) fn contains(self, marker: &str) -> bool {
+        self.markers.contains(&marker)
+    }
+}
+
 #[derive(Clone, Copy)]
 pub(super) enum ListMarker<'a> {
     Unordered(&'a str),

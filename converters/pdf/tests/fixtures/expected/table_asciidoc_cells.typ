@@ -123,12 +123,14 @@
 ], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#[
 #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
   + #text("Ordered item one")
-  + #text("Ordered item two")
-]
+  + #block(width: 100%)[#text("Ordered item two")
 
-#block(width: 100%, above: 0pt, below: 0.5em)[
+    #block(width: 100%, above: 0pt, below: 0.5em)[
 #text(weight: "bold")[#text("Term")]
 #block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("Description")]
+    ]
+
+  ]
 ]
 
 #table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Nested A")

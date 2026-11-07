@@ -28,7 +28,7 @@ fn check_positions<'doc>(
 fn list_item_iterators_clone_without_advancing_other_copies(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
-    let source = ". Ordered one\n. Ordered two\n\n//-\n\n* Unordered one\n* Unordered two\n\nFirst:: Description one.\nSecond:: Description two.\n\n[source]\n----\nfirst <1>\nsecond <2>\n----\n<1> Callout one\n<2> Callout two\n";
+    let source = ". Ordered one\n. Ordered two\n\n//-\n\n* Unordered one\n* Unordered two\n\n[]\n\nFirst:: Description one.\nSecond:: Description two.\n\n[source]\n----\nfirst <1>\nsecond <2>\n----\n<1> Callout one\n<2> Callout two\n";
     let parsed = parse(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,

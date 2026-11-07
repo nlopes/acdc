@@ -406,6 +406,10 @@ family and numbering form start the next item. Draft keeps that line as text
 until a blank line or another paragraph boundary. A standalone `+` interrupts ordinary
 paragraphs in both modes. Unordered and ordered markers alone do not.
 Metadata before a nested list keeps it attached to the current item.
+Description lists nest under ordinary items with or without a blank line or `+`.
+A term on the same line as the ordinary marker remains principal text.
+A blank line before `+` returns an attachment to the ordinary parent;
+without that blank line, the attachment belongs to the description definition.
 A description-list term and its marker must appear on the same line. A marker
 on a later line does not turn an ordinary paragraph into a description list.
 

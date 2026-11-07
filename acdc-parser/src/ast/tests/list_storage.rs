@@ -13,7 +13,7 @@ type Error = Box<dyn std::error::Error>;
 fn cloned_owners_preserve_empty_lists_items_and_anchor_content() -> Result<(), Error> {
     fn shared<T: Copy + Send + Sync>(_: T) {}
     let parsed = parse(
-        "[title=\"\"]\n* Text\n\nTerm:: Value\n",
+        "[title=\"\"]\n* Text\n\n[]\n\nTerm:: Value\n",
         &Options::default(),
     )?;
     let Some(Block::UnorderedList(list)) = parsed.document_storage().blocks.first() else {
@@ -60,23 +60,22 @@ fn cloned_owners_preserve_empty_lists_items_and_anchor_content() -> Result<(), E
 
 #[test]
 fn list_owners_convert_to_the_same_public_handles() -> Result<(), Error> {
-    let parsed = parse(
-        ". Ordered\n\nTerm:: Value\n\n<1> Callout\n",
-        &Options::default(),
-    )?;
-    assert_eq!(parsed.document_storage().blocks.len(), 3);
-    for block in &parsed.document_storage().blocks {
-        if let Block::OrderedList(list) = block {
-            assert_eq!(OrderedListRef::from(list).items().count(), list.items.len());
-        } else if let Block::DescriptionList(list) = block {
-            assert_eq!(
-                DescriptionListRef::from(list).items().count(),
-                list.items.len()
-            );
-        } else if let Block::CalloutList(list) = block {
-            assert_eq!(CalloutListRef::from(list).items().count(), list.items.len());
-        } else {
-            return Err("unexpected list form".into());
+    for source in [". Ordered\n", "Term:: Value\n", "<1> Callout\n"] {
+        let parsed = parse(source, &Options::default())?;
+        assert_eq!(parsed.document_storage().blocks.len(), 1);
+        for block in &parsed.document_storage().blocks {
+            if let Block::OrderedList(list) = block {
+                assert_eq!(OrderedListRef::from(list).items().count(), list.items.len());
+            } else if let Block::DescriptionList(list) = block {
+                assert_eq!(
+                    DescriptionListRef::from(list).items().count(),
+                    list.items.len()
+                );
+            } else if let Block::CalloutList(list) = block {
+                assert_eq!(CalloutListRef::from(list).items().count(), list.items.len());
+            } else {
+                return Err("unexpected list form".into());
+            }
         }
     }
     Ok(())

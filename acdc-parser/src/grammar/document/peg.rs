@@ -22,8 +22,8 @@ use crate::{
             delimited::{DelimitedKind, DelimitedParams, build_delimited_block},
             doctype::{is_book_doctype, is_manpage_doctype},
             lists::{
-                ListMarker, assemble_principal_text, build_description_list_topology,
-                calculate_item_end, find_dlist_marker,
+                DescriptionListScope, ListMarker, OrdinaryListScope, assemble_principal_text,
+                build_description_list_topology, calculate_item_end, find_dlist_marker,
             },
             manpage::{
                 ManpageNameSection, derive_manpage_header_attrs, derive_name_section_attrs,
@@ -2002,6 +2002,7 @@ peg::parser! {
             &(whitespace()* ordered_list_marker() whitespace())
             / &at_deeper_unordered_marker(current_marker)
             / !at_callout_parent_item(offset) at_callout_list_item()
+            / !at_list_item_start() !at_callout_list_item() check_line_is_description_list(offset)
         )
 
         rule nested_ordered_child_after_metadata(offset: usize, current_marker: &str, parent_unordered_marker: Option<&'input str>)
@@ -2010,10 +2011,35 @@ peg::parser! {
             &(whitespace()* unordered_list_marker() whitespace())
             / &at_deeper_ordered_marker(current_marker)
             / !at_callout_parent_item(offset) at_callout_list_item()
+            / !at_list_item_start() !at_callout_list_item() check_line_is_description_list(offset)
         )
 
         // Helper rule to check if we're at the start of a new list item (lookahead)
         rule at_list_item_start() = whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace()
+
+        rule enter_ordinary_list(offset: usize, unordered: Option<&'input str>, ordered: Option<&'input str>) -> Option<OrdinaryListScope<'input>>
+        = {
+            let parent = state.ordinary_list_scope;
+            let mut scope = parent.filter(|scope| scope.offset == offset)
+                .unwrap_or(OrdinaryListScope { offset, ..OrdinaryListScope::default() });
+            scope.unordered = unordered.or(scope.unordered);
+            scope.ordered = ordered.or(scope.ordered);
+            state.ordinary_list_scope = Some(scope);
+            parent
+        }
+
+        rule ordinary_list_scope(offset: usize) -> OrdinaryListScope<'input>
+        = { state.ordinary_list_scope.filter(|scope| scope.offset == offset).unwrap_or_default() }
+
+        rule at_ordinary_parent_item(offset: usize)
+        = candidate:(
+            whitespace()* marker:unordered_list_marker() whitespace() { ListMarker::Unordered(marker) }
+            / whitespace()* marker:ordered_list_marker() whitespace() { ListMarker::Ordered(marker) }
+          ) scope:ordinary_list_scope(offset) {?
+            let matches = scope.unordered.is_some_and(|parent| ListMarker::Unordered(parent).is_sibling_or_ancestor(candidate))
+                || scope.ordered.is_some_and(|parent| ListMarker::Ordered(parent).is_sibling_or_ancestor(candidate));
+            matches.then_some(()).ok_or("not an ordinary parent item")
+        }
 
         // Helper rule to check if we're at the start of a section heading (lookahead)
         // This is used to terminate list continuations when a section follows
@@ -2100,6 +2126,7 @@ peg::parser! {
               / &at_list_separator_content()
               / &nested_unordered_child_after_metadata(offset, current_marker, parent_ordered_marker)
               / at_callout_list_item()
+              / check_line_is_description_list(offset)
           )
           line:$((!eol() [_])*) { line }
 
@@ -2113,6 +2140,7 @@ peg::parser! {
               / &at_list_separator_content()
               / &nested_ordered_child_after_metadata(offset, current_marker, parent_unordered_marker)
               / at_callout_list_item()
+              / check_line_is_description_list(offset)
           )
           line:$((!eol() [_])*) { line }
 
@@ -2129,10 +2157,12 @@ peg::parser! {
         // Parse whitespace + marker first to capture base_marker for rest items
         // marker_start captures position before marker for correct first item location
         = whitespace()* marker_start:position!() base_marker:$(unordered_list_marker()) &whitespace()
+        parent_scope:enter_ordinary_list(offset, Some(base_marker), None)
         first:unordered_list_item_after_marker(offset, block_metadata, allow_continuation, base_marker, marker_start, parent_ordered_marker)
         rest:(unordered_list_rest_item(offset, block_metadata, parent_ordered_marker, allow_continuation, base_marker))*
         {
             tracing::debug!("Found unordered list block");
+            state.ordinary_list_scope = parent_scope;
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
@@ -2190,10 +2220,12 @@ peg::parser! {
         // Parse whitespace + marker first to capture base_marker for rest items
         // marker_start captures position before marker for correct first item location
         = whitespace()* marker_start:position!() base_marker:$(ordered_list_marker()) &whitespace()
+        parent_scope:enter_ordinary_list(offset, None, Some(base_marker))
         first:ordered_list_item_after_marker(offset, block_metadata, allow_continuation, base_marker, marker_start, parent_unordered_marker)
         rest:(ordered_list_rest_item(offset, block_metadata, parent_unordered_marker, allow_continuation, base_marker))*
         {
             tracing::debug!("Found ordered list block");
+            state.ordinary_list_scope = parent_scope;
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
@@ -2274,6 +2306,7 @@ peg::parser! {
             / unordered_list_nested_after_attachment(offset, block_metadata, marker, parent_ordered_marker)
         ) { cont })*
         list_dangling_continuation()?
+        description_parent_continuation(offset)?
         {
             tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found unordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
@@ -2318,6 +2351,7 @@ peg::parser! {
         // Parse immediate continuations (0 empty lines) - these attach to this item
         // Ancestor continuations (1+ empty lines) bubble up to parent items
         immediate_continuations:(!at_list_separator() cont:(list_explicit_continuation_immediate(offset, block_metadata, Some(ListMarker::Unordered(marker))) / unordered_list_nested_after_attachment(offset, block_metadata, marker, parent_ordered_marker)) { cont })*
+        description_parent_continuation(offset)?
         {
             tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found unordered list item (immediate continuation only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
@@ -2360,6 +2394,7 @@ peg::parser! {
             / unordered_list_nested_after_attachment(offset, block_metadata, marker, parent_ordered_marker)
         ) { cont })*
         list_dangling_continuation()?
+        description_parent_continuation(offset)?
         {
             tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found unordered list item (after marker)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
@@ -2394,6 +2429,7 @@ peg::parser! {
         principal:list_item_principal(offset, block_metadata, first_line_start, first_line_end, first_line, &continuation_lines)
         nested:(!at_list_separator() nested_content:unordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_ordered_marker) { nested_content })?
         immediate_continuations:(!at_list_separator() cont:(list_explicit_continuation_immediate(offset, block_metadata, Some(ListMarker::Unordered(marker))) / unordered_list_nested_after_attachment(offset, block_metadata, marker, parent_ordered_marker)) { cont })*
+        description_parent_continuation(offset)?
         {
             tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found unordered list item (after marker, immediate only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
@@ -2424,7 +2460,7 @@ peg::parser! {
         /// parent_ordered_marker: the marker of an ancestor ordered list (if any), to prevent
         /// consuming sibling ordered markers that belong to a parent ordered list context
         rule unordered_list_item_nested_after_principal(offset: usize, block_metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_ordered_marker: Option<&'input str>) -> Option<Result<Block<'input>, Error>>
-        = eol() nested:(
+        = eol() comment_line()* nested:(
             unordered_list_item_nested_content_with_metadata(offset, block_metadata, current_marker, parent_ordered_marker)
             / unordered_list_item_nested_content(offset, block_metadata, current_marker, parent_ordered_marker)
           ) { nested }
@@ -2447,6 +2483,7 @@ peg::parser! {
                 list:unordered_list_nested(nested_start, offset, &metadata, current_marker, parent_ordered_marker, true) { list }
               / !at_callout_parent_item(offset)
                 list:callout_list(nested_start, offset, &metadata) { list }
+              / list:description_list(nested_start, offset, &metadata) { list }
           )
         {
             Some(list)
@@ -2467,6 +2504,8 @@ peg::parser! {
             Some(list)
         }
         / list:nested_callout_list(offset, block_metadata) { Some(list) }
+        / start:position!() metadata:nested_list_content_metadata(block_metadata)
+          list:description_list(start, offset, &metadata) { Some(list) }
 
         /// Parse a nested unordered list where all items have markers deeper than parent_marker.
         /// This is used to parse same-type nesting (e.g., ** inside *) as hierarchical content
@@ -2476,11 +2515,13 @@ peg::parser! {
         // Parse first item - must have a deeper marker than parent_marker
         = &at_deeper_unordered_marker(parent_marker)
           whitespace()* marker_start:position!() base_marker:$(unordered_list_marker()) &whitespace()
+          parent_scope:enter_ordinary_list(offset, Some(base_marker), None)
           first:unordered_list_item_after_marker(offset, block_metadata, false, base_marker, marker_start, parent_ordered_marker)
           // Parse rest items - only those at same level as base_marker (not deeper, not shallower than parent)
           rest:(unordered_list_nested_rest_item(offset, block_metadata, parent_marker, base_marker, parent_ordered_marker))*
         {
             tracing::debug!("Found nested unordered list block");
+            state.ordinary_list_scope = parent_scope;
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
@@ -2560,6 +2601,7 @@ peg::parser! {
             / ordered_list_nested_after_attachment(offset, block_metadata, marker, parent_unordered_marker)
         ) { cont })*
         list_dangling_continuation()?
+        description_parent_continuation(offset)?
         {
             tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found ordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
@@ -2603,6 +2645,7 @@ peg::parser! {
         // Parse immediate continuations (0 empty lines) - these attach to this item
         // Ancestor continuations (1+ empty lines) bubble up to parent items
         immediate_continuations:(!at_list_separator() cont:(list_explicit_continuation_immediate(offset, block_metadata, Some(ListMarker::Ordered(marker))) / ordered_list_nested_after_attachment(offset, block_metadata, marker, parent_unordered_marker)) { cont })*
+        description_parent_continuation(offset)?
         {
             tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found ordered list item (immediate continuation only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
@@ -2642,6 +2685,7 @@ peg::parser! {
             / ordered_list_nested_after_attachment(offset, block_metadata, marker, parent_unordered_marker)
         ) { cont })*
         list_dangling_continuation()?
+        description_parent_continuation(offset)?
         {
             tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found ordered list item (after marker)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
@@ -2675,6 +2719,7 @@ peg::parser! {
         principal:list_item_principal(offset, block_metadata, first_line_start, first_line_end, first_line, &continuation_lines)
         nested:(!at_list_separator() nested_content:ordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
         immediate_continuations:(!at_list_separator() cont:(list_explicit_continuation_immediate(offset, block_metadata, Some(ListMarker::Ordered(marker))) / ordered_list_nested_after_attachment(offset, block_metadata, marker, parent_unordered_marker)) { cont })*
+        description_parent_continuation(offset)?
         {
             tracing::debug!(first_line_len = first_line.len(), continuation_count = continuation_lines.len(), "found ordered list item (after marker, immediate only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
@@ -2705,7 +2750,7 @@ peg::parser! {
         /// parent_unordered_marker: the marker of an ancestor unordered list (if any), to prevent
         /// consuming sibling unordered markers that belong to a parent unordered list context
         rule ordered_list_item_nested_after_principal(offset: usize, block_metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_unordered_marker: Option<&'input str>) -> Option<Result<Block<'input>, Error>>
-        = eol() nested:(
+        = eol() comment_line()* nested:(
             ordered_list_item_nested_content_with_metadata(offset, block_metadata, current_marker, parent_unordered_marker)
             / ordered_list_item_nested_content(offset, block_metadata, current_marker, parent_unordered_marker)
           ) { nested }
@@ -2728,6 +2773,7 @@ peg::parser! {
                 list:ordered_list_nested(nested_start, offset, &metadata, current_marker, parent_unordered_marker, true) { list }
               / !at_callout_parent_item(offset)
                 list:callout_list(nested_start, offset, &metadata) { list }
+              / list:description_list(nested_start, offset, &metadata) { list }
           )
         {
             Some(list)
@@ -2748,6 +2794,8 @@ peg::parser! {
             Some(list)
         }
         / list:nested_callout_list(offset, block_metadata) { Some(list) }
+        / start:position!() metadata:nested_list_content_metadata(block_metadata)
+          list:description_list(start, offset, &metadata) { Some(list) }
 
         /// Parse a nested ordered list where all items have markers deeper than parent_marker.
         /// This is used to parse same-type nesting (e.g., .. inside .) as hierarchical content
@@ -2757,11 +2805,13 @@ peg::parser! {
         // Parse first item - must have a deeper marker than parent_marker
         = &at_deeper_ordered_marker(parent_marker)
           whitespace()* marker_start:position!() base_marker:$(ordered_list_marker()) &whitespace()
+          parent_scope:enter_ordinary_list(offset, None, Some(base_marker))
           first:ordered_list_item_after_marker(offset, block_metadata, false, base_marker, marker_start, parent_unordered_marker)
           // Parse rest items - only those at same level as base_marker (not deeper, not shallower than parent)
           rest:(ordered_list_nested_rest_item(offset, block_metadata, parent_marker, base_marker, parent_unordered_marker))*
         {
             tracing::debug!("Found nested ordered list block");
+            state.ordinary_list_scope = parent_scope;
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
@@ -2897,7 +2947,7 @@ peg::parser! {
         // active callout parent must be left for that parent's next item.
         rule nested_callout_list(offset: usize, metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = !at_callout_parent_item(offset) start:position!()
-          child_metadata:callout_child_metadata(metadata)
+          child_metadata:nested_list_content_metadata(metadata)
           list:callout_list(start, offset, &child_metadata) { list }
 
         // Probe for an implicit child without consuming input. A parent marker
@@ -2918,13 +2968,13 @@ peg::parser! {
             metadata:parsed_nested_list_metadata(offset, block_metadata.parent_section_level)
             list:callout_child_list(start, offset, &metadata) { list }
             / eol()* callout_child_marker(offset) start:position!()
-            metadata:callout_child_metadata(block_metadata)
+            metadata:nested_list_content_metadata(block_metadata)
             list:callout_child_list(start, offset, &metadata) { list }
         ) { child }
 
         // Inherit section context and text settings without copying the parent's
         // ID, title, or style onto a child that has no metadata of its own.
-        rule callout_child_metadata(parent: &BlockParsingMetadata<'input>) -> BlockParsingMetadata<'input>
+        rule nested_list_content_metadata(parent: &BlockParsingMetadata<'input>) -> BlockParsingMetadata<'input>
         = {
             BlockParsingMetadata {
                 parent_section_level: parent.parent_section_level,
@@ -2966,6 +3016,7 @@ peg::parser! {
             / list_explicit_continuation_ancestor(offset, block_metadata, None)
         ) { cont })*
         list_dangling_continuation()?
+        description_parent_continuation(offset)?
         {
             let principal = principal?;
             let item_end = calculate_item_end(first_line.is_empty() && continuation_lines.is_empty(), span_start, first_line_end);
@@ -3022,11 +3073,39 @@ peg::parser! {
             }
         }
 
+        rule at_description_parent_item(offset: usize)
+        = at_description_scope_item(offset, state.description_list_scope)
+
+        rule at_description_scope_item(offset: usize, parent: Option<DescriptionListScope<'input>>)
+        = scope:({? parent.filter(|scope| scope.offset == offset).ok_or("no description parent") })
+          (!(description_list_marker() (eol() / " " / ![_]) / eol()) [_])+
+          marker:description_list_marker() &(eol() / " " / ![_]) {?
+              scope.contains(marker).then_some(()).ok_or("not a description parent item")
+          }
+
+        rule enter_description_list(offset: usize) -> Option<DescriptionListScope<'input>>
+        = {
+            let parent = state.description_list_scope;
+            state.description_list_scope = Some(parent.filter(|scope| scope.offset == offset)
+                .unwrap_or_else(|| DescriptionListScope::new(offset)));
+            parent
+        }
+
+        rule select_description_marker(marker: &'input str)
+        = {
+            if let Some(scope) = state.description_list_scope.as_mut() {
+                scope.select(marker);
+            }
+        }
+
         rule description_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = check_line_is_description_list(offset)
+        = !at_list_item_start() !at_callout_list_item() !at_description_parent_item(offset)
+          check_line_is_description_list(offset)
+        parent_scope:enter_description_list(offset)
         first_item:description_list_item(offset, block_metadata)
-        additional_items:description_list_additional_items(offset, block_metadata)*
+        additional_items:description_list_additional_items(offset, block_metadata, parent_scope)*
         {
+            state.description_list_scope = parent_scope;
             tracing::debug!("Found description list block with auto-attachment support");
             let mut items = vec![first_item?];
 
@@ -3051,11 +3130,13 @@ peg::parser! {
         //
         // !at_dlist_block_boundary() prevents continuing the list when a blank line is
         // followed by block attributes. This allows attributes to apply to a new list.
-        rule description_list_additional_items(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<DescriptionListItem<'input>, Error>
+        rule description_list_additional_items(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_scope: Option<DescriptionListScope<'input>>) -> Result<DescriptionListItem<'input>, Error>
         = !at_dlist_block_boundary()
         eol()*
+        !at_description_scope_item(offset, parent_scope)
         !attribute_or_anchor_line_match()
         !at_callout_list_item()
+        !at_list_item_start()
         check_line_is_description_list(offset)
         item:description_list_item(offset, block_metadata)
         {
@@ -3088,6 +3169,7 @@ peg::parser! {
         term:$((!(description_list_marker() (eol() / " " / ![_]) / eol()) [_])+)
         term_end:position!()
         delim_start:position!() delimiter:description_list_marker() delim_end:position!()
+        select_description_marker(delimiter)
         whitespace()*
         principal_start:position!()
         principal_content:$(
@@ -3216,24 +3298,39 @@ peg::parser! {
 
         rule description_list_auto_attached_list(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Vec<Block<'input>>, Error>
         = eol()* list:description_list_auto_attached_list_with_metadata(offset, block_metadata) { list }
-        / eol()* // Consume any blank lines before the list
-        &(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())
-        list_start:position!()
-        list:(unordered_list(list_start, offset, block_metadata, None, true, true) / ordered_list(list_start, offset, block_metadata, None, true, true))
-        {
-            tracing::debug!("Auto-attaching list to description list item");
-            Ok(vec![list?])
-        }
+        / eol()* !at_ordinary_parent_item(offset)
+          list_start:position!()
+          list:description_list_ordinary_child(list_start, offset, block_metadata, false) { Ok(vec![list?]) }
         / list:nested_callout_list(offset, block_metadata) { Ok(vec![list?]) }
 
-        // Metadata belongs to a nested list only when a list marker follows it.
+        // Preserve both ordinary ancestors while parsing a description's child list.
+        rule description_list_ordinary_child(start: usize, offset: usize, metadata: &BlockParsingMetadata<'input>, has_own_metadata: bool) -> Result<Block<'input>, Error>
+        = scope:ordinary_list_scope(offset) list:(
+            parent_is_some(scope.unordered)
+            list:unordered_list_nested(start, offset, metadata, scope.unordered.unwrap_or_default(), scope.ordered, has_own_metadata) { list }
+            / parent_is_none(scope.unordered)
+            list:unordered_list(start, offset, metadata, scope.ordered, true, !has_own_metadata) { list }
+            / parent_is_some(scope.ordered)
+            list:ordered_list_nested(start, offset, metadata, scope.ordered.unwrap_or_default(), scope.unordered, has_own_metadata) { list }
+            / parent_is_none(scope.ordered)
+            list:ordered_list(start, offset, metadata, scope.unordered, true, !has_own_metadata) { list }
+        ) { list }
+
+        // Metadata belongs to a nested list only when a child marker follows it.
         rule description_list_auto_attached_list_with_metadata(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Vec<Block<'input>>, Error>
-        = &((attribute_or_anchor_line_match() eol()*)+ (whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace() / !at_callout_parent_item(offset) at_callout_list_item()))
+        = &((attribute_or_anchor_line_match() eol()*)+ !at_ordinary_parent_item(offset)
+            (at_list_item_start() / !at_callout_parent_item(offset) at_callout_list_item()))
           list_start:position!()
           metadata:parsed_nested_list_metadata(offset, block_metadata.parent_section_level)
-          list:(callout_list(list_start, offset, &metadata) / unordered_list(list_start, offset, &metadata, None, true, false) / ordered_list(list_start, offset, &metadata, None, true, false))
-        {
-            Ok(vec![list?])
+          list:(callout_list(list_start, offset, &metadata)
+            / description_list_ordinary_child(list_start, offset, &metadata, true))
+        { Ok(vec![list?]) }
+
+        // A blank line before `+` returns from a nested description to its ordinary parent.
+        rule description_continuation_gap(offset: usize)
+        = gap:$(eol()*) {?
+            (gap.is_empty() || state.ordinary_list_scope.is_none_or(|scope| scope.offset != offset))
+                .then_some(()).ok_or("continuation belongs to ordinary parent")
         }
 
         // Parse one or more explicit continuations for description lists
@@ -3242,7 +3339,7 @@ peg::parser! {
         // further continuations that belong to the parent item
         rule description_list_explicit_continuation(offset: usize, block_metadata: &BlockParsingMetadata<'input>, delimiter: &'input str) -> Result<Vec<Block<'input>>, Error>
         = continuations:(
-            eol()* "+" eol()
+            description_continuation_gap(offset) "+" eol()
             block:block_in_continuation(offset, block_metadata.parent_section_level, Some(ListMarker::Description(delimiter)))
             { block }
           )+
@@ -3257,7 +3354,7 @@ peg::parser! {
         // further continuations that belong to the parent item.
         // Pattern: exactly one newline before + (content\n+\nblock)
         rule list_explicit_continuation_immediate(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: Option<ListMarker<'input>>) -> Result<Block<'input>, Error>
-        = eol() !eol() "+" eol()
+        = eol() !eol() "+" eol() !at_description_parent_item(offset)
           block:block_in_continuation(offset, block_metadata.parent_section_level, parent_marker)
         {
             tracing::debug!("List immediate continuation block (0 empty lines)");
@@ -3271,12 +3368,15 @@ peg::parser! {
         // further continuations that belong to the parent item.
         // Pattern: two or more newlines before + (content\n\n+\nblock)
         rule list_explicit_continuation_ancestor(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: Option<ListMarker<'input>>) -> Result<Block<'input>, Error>
-        = eol() eol()+ "+" eol()
+        = eol() eol()+ "+" eol() !at_description_parent_item(offset)
           block:block_in_continuation(offset, block_metadata.parent_section_level, parent_marker)
         {
             tracing::debug!("List ancestor continuation block (1+ empty lines)");
             block
         }
+
+        rule description_parent_continuation(offset: usize)
+        = eol()+ "+" whitespace()* eol() &at_description_parent_item(offset)
 
         // Asciidoctor drops a continuation with no attachable block, including one
         // followed only by unused metadata. Leave that metadata for the block sequence
@@ -3484,7 +3584,7 @@ peg::parser! {
 
         // Only Asciidoctor lets a sibling/ancestor interrupt an attached paragraph.
         // Draft uses the same paragraph boundaries inside and outside a list.
-        rule attached_list_boundary(parent_marker: Option<ListMarker<'input>>)
+        rule attached_list_boundary(offset: usize, parent_marker: Option<ListMarker<'input>>)
         = parent:({?
             if state.options.compatibility_mode == CompatibilityMode::Asciidoctor {
                 parent_marker.ok_or("no parent list")
@@ -3492,7 +3592,12 @@ peg::parser! {
                 Err("list items do not interrupt attached Draft paragraphs")
             }
         }) candidate:attached_list_marker() {?
-            parent.is_sibling_or_ancestor(candidate).then_some(()).ok_or("not a sibling list item")
+            let ordinary_ancestor = matches!(parent, ListMarker::Description(_))
+                && state.ordinary_list_scope.filter(|scope| scope.offset == offset).is_some_and(|scope| {
+                    scope.unordered.is_some_and(|marker| ListMarker::Unordered(marker).is_sibling_or_ancestor(candidate))
+                        || scope.ordered.is_some_and(|marker| ListMarker::Ordered(marker).is_sibling_or_ancestor(candidate))
+                });
+            (parent.is_sibling_or_ancestor(candidate) || ordinary_ancestor).then_some(()).ok_or("not a sibling list item")
         }
 
         rule attached_list_marker() -> ListMarker<'input>
@@ -3524,7 +3629,7 @@ peg::parser! {
             / eol() comment_delimiter()
             / eol() open_delimiter() &(whitespace()* eol())
             / eol() at_callout_parent_item(offset)
-            / eol() attached_list_boundary(parent_marker)
+            / eol() attached_list_boundary(offset, parent_marker)
             / eol() &("+" whitespace()* (eol() / ![_]))  // Only a standalone plus continues a list.
             / eol()* &heading_boundary(offset)
             ) [_]

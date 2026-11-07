@@ -87,12 +87,14 @@
 
 #metadata(none)<id-657870616e646564>#text("Expanded target.")
 
-  - #metadata(none)<id-62756c6c6574>#text("List item.")
+  - #block(width: 100%)[#metadata(none)<id-62756c6c6574>#text("List item.")
 
-#block(width: 100%, above: 0pt, below: 0.5em)[
+    #block(width: 100%, above: 0pt, below: 0.5em)[
 #text(weight: "bold")[#metadata(none)<id-7465726d>#text("Term")]
 #block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("Description.")]
-]
+    ]
+
+  ]
 
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#metadata(none)<id-63656c6c>#text("Cell text.")
 

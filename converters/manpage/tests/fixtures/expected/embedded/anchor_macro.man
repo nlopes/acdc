@@ -9,11 +9,13 @@ Expanded target.
 .RS 0
 .IP \(bu 2
 List item.
-.RE
-.RS 0
+.RS 2
+.RS 4
 .TP
 \fBTerm\fR
 Description.
+.RE
+.RE
 .RE
 .TS
 allbox tab(:);

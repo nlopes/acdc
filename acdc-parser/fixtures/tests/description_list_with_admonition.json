@@ -230,41 +230,74 @@
               ]
             }
           ],
-          "location": [
+          "blocks": [
             {
-              "line": 8,
-              "col": 1
-            },
-            {
-              "line": 8,
-              "col": 13
-            }
-          ]
-        }
-      ],
-      "location": [
-        {
-          "line": 7,
-          "col": 1
-        },
-        {
-          "line": 8,
-          "col": 13
-        }
-      ]
-    },
-    {
-      "name": "dlist",
-      "type": "block",
-      "items": [
-        {
-          "terms": [
-            {
-              "content": [
+              "name": "dlist",
+              "type": "block",
+              "items": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Item 2",
+                  "terms": [
+                    {
+                      "content": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Item 2",
+                          "location": [
+                            {
+                              "line": 10,
+                              "col": 1
+                            },
+                            {
+                              "line": 10,
+                              "col": 6
+                            }
+                          ]
+                        }
+                      ],
+                      "delimiter": "::",
+                      "location": [
+                        {
+                          "line": 10,
+                          "col": 1
+                        },
+                        {
+                          "line": 10,
+                          "col": 8
+                        }
+                      ]
+                    }
+                  ],
+                  "definition": {
+                    "principal": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Another description",
+                        "location": [
+                          {
+                            "line": 10,
+                            "col": 10
+                          },
+                          {
+                            "line": 10,
+                            "col": 28
+                          }
+                        ]
+                      }
+                    ],
+                    "blocks": [],
+                    "location": [
+                      {
+                        "line": 10,
+                        "col": 10
+                      },
+                      {
+                        "line": 10,
+                        "col": 28
+                      }
+                    ]
+                  },
                   "location": [
                     {
                       "line": 10,
@@ -272,12 +305,11 @@
                     },
                     {
                       "line": 10,
-                      "col": 6
+                      "col": 28
                     }
                   ]
                 }
               ],
-              "delimiter": "::",
               "location": [
                 {
                   "line": 10,
@@ -285,44 +317,14 @@
                 },
                 {
                   "line": 10,
-                  "col": 8
+                  "col": 28
                 }
               ]
             }
           ],
-          "definition": {
-            "principal": [
-              {
-                "name": "text",
-                "type": "string",
-                "value": "Another description",
-                "location": [
-                  {
-                    "line": 10,
-                    "col": 10
-                  },
-                  {
-                    "line": 10,
-                    "col": 28
-                  }
-                ]
-              }
-            ],
-            "blocks": [],
-            "location": [
-              {
-                "line": 10,
-                "col": 10
-              },
-              {
-                "line": 10,
-                "col": 28
-              }
-            ]
-          },
           "location": [
             {
-              "line": 10,
+              "line": 8,
               "col": 1
             },
             {
@@ -334,7 +336,7 @@
       ],
       "location": [
         {
-          "line": 10,
+          "line": 7,
           "col": 1
         },
         {

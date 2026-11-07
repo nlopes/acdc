@@ -984,11 +984,103 @@
                         {
                           "name": "text",
                           "type": "string",
-                          "value": "P08 ordered <2>\nP09 term:::: <3>",
+                          "value": "P08 ordered <2>",
                           "location": [
                             {
                               "line": 46,
                               "col": 3
+                            },
+                            {
+                              "line": 46,
+                              "col": 17
+                            }
+                          ]
+                        }
+                      ],
+                      "blocks": [
+                        {
+                          "name": "dlist",
+                          "type": "block",
+                          "items": [
+                            {
+                              "terms": [
+                                {
+                                  "content": [
+                                    {
+                                      "name": "text",
+                                      "type": "string",
+                                      "value": "P09 term",
+                                      "location": [
+                                        {
+                                          "line": 47,
+                                          "col": 1
+                                        },
+                                        {
+                                          "line": 47,
+                                          "col": 8
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "delimiter": "::::",
+                                  "location": [
+                                    {
+                                      "line": 47,
+                                      "col": 1
+                                    },
+                                    {
+                                      "line": 47,
+                                      "col": 12
+                                    }
+                                  ]
+                                }
+                              ],
+                              "definition": {
+                                "principal": [
+                                  {
+                                    "name": "text",
+                                    "type": "string",
+                                    "value": "<3>",
+                                    "location": [
+                                      {
+                                        "line": 47,
+                                        "col": 14
+                                      },
+                                      {
+                                        "line": 47,
+                                        "col": 16
+                                      }
+                                    ]
+                                  }
+                                ],
+                                "blocks": [],
+                                "location": [
+                                  {
+                                    "line": 47,
+                                    "col": 14
+                                  },
+                                  {
+                                    "line": 47,
+                                    "col": 16
+                                  }
+                                ]
+                              },
+                              "location": [
+                                {
+                                  "line": 47,
+                                  "col": 1
+                                },
+                                {
+                                  "line": 47,
+                                  "col": 16
+                                }
+                              ]
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 47,
+                              "col": 1
                             },
                             {
                               "line": 47,

@@ -76,11 +76,13 @@ R12 quote body.
 .RS 0
 .IP \(bu 2
 R13 list item.
-.RE
-.RS 0
+.RS 2
+.RS 4
 .TP
 \fBB29 \fII16\fB B30\fR
 R14 description.
+.RE
+.RE
 .RE
 .RS 0
 .sp
