@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Explicit `link:` macros now accept custom schemes and paths with colons,
+  such as `link:urn:example:target[Read]`, in both modes. Labels, metadata,
+  and source locations are preserved.
+
 - Document `reftext` now overrides the authored header label for references to
   its explicit ID in both modes, as it does for document-top references.
   Empty and unset header values select the document title. Authored labels

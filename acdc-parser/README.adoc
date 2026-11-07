@@ -740,7 +740,7 @@ The `ParseResult` ownership model is unchanged from 0.9.
 ** [x] Shorthand notation (\<<id>>)
 ** [x] Attribute substitution in targets and text
 * [x] Links and URLs
-** [x] Link macro
+** [x] Link macro with custom schemes and paths that contain colons
 ** [x] URL detection and autolinks
 ** [x] Autolink syntax (`<https://...>`)
 ** [x] Mailto macro
@@ -1160,6 +1160,15 @@ leave the second adjacent macro literal or include generated quotation entities
 in the URL. acdc keeps its existing nested inline structure under the selected
 SDR-5 separation of parsing and conversion; SDR-5 does not prescribe these exact
 boundary decisions.
+
+== Explicit link targets
+
+An explicit `link:` macro accepts custom schemes and paths with colons, such
+as `link:urn:example:target[Read]` or `link:dir/a:b.html[File]`, in both modes.
+The complete target, formatted label, named attributes, and source span are
+retained. A raw target cannot start with a colon or contain spaces.
+Use passthrough protection for a space, as in `link:++a:x y++[Space]`.
+These target boundaries match Asciidoctor. Bare unknown schemes remain text.
 
 == Incomplete links
 

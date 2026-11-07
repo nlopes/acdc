@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Explicit links to URNs, custom schemes, and paths with colons now render
+  as hyperlinks in both variants instead of literal macro text.
+
 - References to an explicit document ID now honor the header's document
   `reftext`, matching document-top links and Asciidoctor in both HTML variants.
   Empty or unset values fall back to the title; explicit link text still wins.

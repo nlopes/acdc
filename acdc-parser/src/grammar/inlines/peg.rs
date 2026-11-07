@@ -27,8 +27,8 @@ use crate::{
                 byte_came_from_attribute, catalog_escape_allowed, catalog_macro_allowed,
                 check_code_opening_boundary, code_followed_by_attribute, has_at_sign_ahead,
                 has_inline_line_break_prefix, index_content_present, is_plain_text_safe,
-                macro_token_allowed, record_url_boundary, structural_token_allowed,
-                url_opening_allowed,
+                link_label_opening_ahead, macro_token_allowed, record_url_boundary,
+                structural_token_allowed, url_opening_allowed,
             },
             text::{
                 parse_bracket_label, parse_footnote_content, parse_shorthand_label,
@@ -1264,20 +1264,13 @@ peg::parser! {
 
         /// Parse a link target and its optional label or named attributes.
         rule link_macro() -> InlineNode<'input>
-        = "link:" target:link_macro_source() fragment:path_fragment()? open:position!() "["
+        = "link:" target:link_macro_source() open:position!() "["
         content_start:position!() content:link_macro_content() close:position!() "]" check_macro_delimiters(open, close)
         {?
             tracing::debug!("Found link macro inline");
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
-            };
-            let target = match fragment {
-                Some(f) => {
-                    let combined = state.intern_fmt(format_args!("{target}{f}"));
-                    Source::from_str_borrowed(combined).unwrap_or(target)
-                }
-                None => target,
             };
             let ProcessedLinkContent { text, tooltip, metadata, macro_attributes, .. } = process_link_content(state, &bm, content_start, &content, false)
                 .map_err(|_| {
@@ -1297,7 +1290,7 @@ peg::parser! {
 
         /// Recognize link syntax for escaping and inline lookahead.
         rule link_macro_match()
-        = "link:" link_macro_source() path_fragment()? open:position!() "["
+        = "link:" link_macro_source() open:position!() "["
           ("\\]" / !"]" [_])* close:position!() "]" check_macro_delimiters(open, close)
 
         // Later attribute values cannot supply a macro's opening or closing delimiter.
@@ -1309,7 +1302,53 @@ peg::parser! {
 
         // Asciidoctor's URI pass removes this escape before the named link pass.
         rule link_macro_source() -> Source<'input>
-        = ("\\" &("http://" / "https://" / "ftp://" / "irc://"))? target:source() { target }
+        = ("\\" &("http://" / "https://" / "ftp://" / "irc://"))? target:source() fragment:path_fragment()? &"[" {
+            match fragment {
+                Some(fragment) => {
+                    let combined = state.intern_fmt(format_args!("{target}{fragment}"));
+                    Source::from_str_borrowed(combined).unwrap_or(target)
+                }
+                None => target,
+            }
+        }
+        / ("\\" &"file://")? target:colon_link_source() { target }
+
+        // Explicit links accept colons beyond the shared URL and media path syntax.
+        rule colon_link_source() -> Source<'input>
+        = !":" start:position!() check_link_label_opening(start)
+          target:$(link_target_char()+) check_link_target_colon(target)
+          check_colon_link_label(start) {?
+            let inline_state = InlinePreprocessorParserState::new_all_enabled(
+                target,
+                state.line_map.clone(),
+                state.input,
+                state.arena,
+            );
+            let processed = inline_preprocessing::run(target, &state.document_attributes, &inline_state)
+                .map_err(|_| "could not preprocess link target")?;
+            for warning in inline_state.drain_warnings() {
+                state.add_inline_preprocessor_warning(warning);
+            }
+            Source::from_str_borrowed(state.intern_cow(processed.text))
+                .map_err(|_| "failed to parse link target")
+        }
+
+        rule link_target_char()
+        = !['[' | ' ' | '\t' | '\r' | '\n' | '\x0B' | '\x0C'] [_]
+
+        rule check_link_label_opening(start: usize)
+        = {? link_label_opening_ahead(state, start).then_some(()).ok_or("link label opener") }
+
+        rule check_link_target_colon(target: &str)
+        = {? target.contains(':').then_some(()).ok_or("link target containing a colon") }
+
+        // Every later target prefix before this opener has the same label.
+        rule check_colon_link_label(start: usize)
+        = &(open:position!() "[" link_macro_content_part()* close:position!() "]" check_macro_delimiters(open, close))
+        / end:position!() {?
+            state.failed_link_target_range.set(Some((start, end)));
+            Err("incomplete link label")
+        }
 
         // Complete links are tried first. An unfinished link target stays text,
         // while its remaining label can still contain formatting and other links.
@@ -1328,7 +1367,7 @@ peg::parser! {
             / email_at_sign_ahead() email_address())
         // Local targets need recovery only when lookahead accepts a closer that
         // belongs to a nested macro. Other unfinished paths stay ordinary text.
-        / &link_macro_match() "link:" link_macro_source() path_fragment()?
+        / &link_macro_match() "link:" link_macro_source()
 
         /// Parse cross-reference shorthand syntax: <<id>> or <<id,custom text>>
         rule cross_reference_shorthand() -> InlineNode<'input>
@@ -1542,7 +1581,7 @@ peg::parser! {
         rule formatting_link_match()
         = &['f' | 'h' | 'i' | 'l' | 'm' | 'x' | '<'] check_macros() (
             (url_macro_target_match()
-                / "link:" link_macro_source() path_fragment()?
+                / "link:" link_macro_source()
                 / "mailto:" email_address() ("?" url_path_char()*)?)
                 "[" link_macro_content_part()* "]"
             / cross_reference_macro_match() / cross_reference_shorthand_match()

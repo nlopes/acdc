@@ -154,6 +154,8 @@ pub(crate) struct ParserState<'a> {
     /// "no `@`" result at offset X is indistinguishable from "`@` is at X"
     /// and can trigger the expensive email rule the cache was meant to avoid.
     pub(crate) next_at_sign_cache: Cell<Option<AtLookahead>>,
+    /// Target positions that share an absent or incomplete link label.
+    pub(crate) failed_link_target_range: Cell<Option<(usize, usize)>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -630,6 +632,7 @@ impl<'a> ParserState<'a> {
                 ..InlineContext::default()
             },
             next_at_sign_cache: Cell::new(None),
+            failed_link_target_range: Cell::new(None),
         };
         state.initialize_hardbreaks();
         state
@@ -681,6 +684,7 @@ impl<'a> ParserState<'a> {
                 ..InlineContext::default()
             },
             next_at_sign_cache: Cell::new(None),
+            failed_link_target_range: Cell::new(None),
         }
     }
 
@@ -748,6 +752,7 @@ impl<'a> ParserState<'a> {
             scope: ParserScope::Inline,
             inline_ctx,
             next_at_sign_cache: Cell::new(None),
+            failed_link_target_range: Cell::new(None),
         }
     }
 

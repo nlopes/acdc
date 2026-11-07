@@ -728,7 +728,7 @@ The `ParseResult` ownership model is unchanged from 0.9.
     * [x] Shorthand notation (`<<id>>`)
     * [x] Attribute substitution in targets and text
 * [x] Links and URLs
-    * [x] Link macro
+    * [x] Link macro with custom schemes and paths that contain colons
     * [x] URL detection and autolinks
     * [x] Autolink syntax (`<https://...>`)
     * [x] Mailto macro
