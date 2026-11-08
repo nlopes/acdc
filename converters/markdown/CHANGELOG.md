@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `MarkdownVisitor` is internal. Convert documents through `Processor`
+  using `acdc_converters_core::Converter::write_to`.
+  Direct visitor construction and manual callback sequencing are no longer
+  supported. Custom converters can still implement the shared visitor traits.
+
 - Footnotes with the same name in separate AsciiDoc table cells now keep
   distinct reference labels and bodies. Definitions remain at the end of the
   GitHub Flavored Markdown document, including notes from nested cells.

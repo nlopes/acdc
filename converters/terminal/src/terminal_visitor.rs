@@ -26,7 +26,7 @@ pub(crate) fn has_token(attributes: AttributesRef<'_>, name: &str, token: &str) 
 }
 
 /// Terminal visitor that generates terminal output from `AsciiDoc` AST
-pub struct TerminalVisitor<'a, 'd, W: Write> {
+pub(crate) struct TerminalVisitor<'a, 'd, W: Write> {
     pub(crate) writer: W,
     pub(crate) processor: &'d Processor<'a>,
 
@@ -74,7 +74,11 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
         Ok(())
     }
 
-    pub fn new(writer: W, processor: &'d Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
+    pub(super) fn new(
+        writer: W,
+        processor: &'d Processor<'a>,
+        diagnostics: Diagnostics<'d>,
+    ) -> Self {
         Self {
             writer,
             processor,
@@ -92,17 +96,12 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
     }
 
     /// Warn that a block could not be rendered.
-    ///
-    /// # Errors
-    ///
-    /// This callback always succeeds after recording its warning.
-    pub fn visit_unhandled_block(
+    fn visit_unhandled_block(
         &mut self,
         _traversal: &mut TraversalContext<'a>,
         _block: BlockRef<'a>,
-    ) -> Result<(), Error> {
+    ) {
         self.warn_unsupported_parser_variant("block");
-        Ok(())
     }
 
     pub(crate) fn render_title_with_wrapper(
@@ -233,7 +232,7 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
     }
 
     /// Consume the visitor and return the writer
-    pub fn into_writer(self) -> W {
+    pub(super) fn into_writer(self) -> W {
         self.writer
     }
 
@@ -299,7 +298,10 @@ impl<'a, W: Write> BlockVisitor<'a> for TerminalVisitor<'a, '_, W> {
             | BlockKind::Table(_)
             | BlockKind::Stem(_)
             | BlockKind::DelimitedComment(_) => self.render_delimited_block(traversal, block),
-            _ => self.visit_unhandled_block(traversal, block),
+            _ => {
+                self.visit_unhandled_block(traversal, block);
+                Ok(())
+            }
         }
     }
 }
@@ -378,3 +380,6 @@ impl<'a, W: Write> acdc_converters_core::visitor::InlineVisitor<'a> for Terminal
         result
     }
 }
+
+#[cfg(test)]
+mod tests;

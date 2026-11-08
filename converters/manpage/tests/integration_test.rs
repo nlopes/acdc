@@ -1,11 +1,10 @@
 use std::path::{Path, PathBuf};
 
 use acdc_converters_core::{
-    Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, TraversalContext,
-    WarningSource,
+    Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, WarningSource,
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
-use acdc_converters_manpage::{ManpageVisitor, Processor};
+use acdc_converters_manpage::Processor;
 use acdc_parser::{CompatibilityMode, Options as ParserOptions, parse, parse_file};
 
 type Error = Box<dyn std::error::Error>;
@@ -210,36 +209,6 @@ fn nested_links_keep_roff_commands_outside_arguments() -> Result<(), Error> {
 
 fn temp_output_path(name: &str, extension: &str) -> PathBuf {
     std::env::temp_dir().join(format!("acdc-{name}-{}.{extension}", std::process::id()))
-}
-
-#[test]
-fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
-    let parsed = parse("Paragraph.\n", &ParserOptions::default())?;
-    let doc = parsed.document();
-    let block = doc.blocks().next().ok_or("missing test block")?;
-    let processor = Processor::new(
-        ConverterOptions::default(),
-        ParserOptions::builder()
-            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
-    )?;
-    let mut output = Vec::new();
-    let mut warnings = Vec::new();
-    let source = WarningSource::new("manpage");
-    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    {
-        let attribute_header =
-            acdc_converters_core::Converter::document_attributes(&processor).clone();
-        let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = ManpageVisitor::new(&mut output, &processor, diagnostics.reborrow());
-        visitor.visit_unhandled_block(&mut traversal, block)?;
-    }
-
-    assert_eq!(output, [] as [u8; 0]);
-    let warning = warnings.first().ok_or("missing fallback warning")?;
-    assert_eq!(warning.source.converter, "manpage");
-    assert!(warning.message.contains("omitted from manpage output"));
-    assert!(warning.advice().is_some());
-    Ok(())
 }
 
 fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Result<(), Error> {

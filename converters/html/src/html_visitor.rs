@@ -253,7 +253,7 @@ mod head_resources_tests;
 mod head_stylesheet_tests;
 
 /// HTML visitor that generates HTML from `AsciiDoc` AST
-pub struct HtmlVisitor<'a, 'd, W: Write> {
+pub(crate) struct HtmlVisitor<'a, 'd, W: Write> {
     pub(crate) writer: W,
     pub(crate) processor: Rc<Processor<'a>>,
 
@@ -280,7 +280,7 @@ pub struct HtmlVisitor<'a, 'd, W: Write> {
 }
 
 impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
-    pub fn new(
+    pub(super) fn new(
         writer: W,
         processor: Rc<Processor<'a>>,
         render_options: RenderOptions,
@@ -410,7 +410,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     }
 
     /// Consume the visitor and return the writer
-    pub fn into_writer(self) -> W {
+    pub(super) fn into_writer(self) -> W {
         self.writer
     }
 

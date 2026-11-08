@@ -31,7 +31,7 @@ pub(crate) enum IndexCollection {
 }
 
 /// Manpage visitor that generates roff/troff output from `AsciiDoc` AST.
-pub struct ManpageVisitor<'a, 'd, W: Write> {
+pub(crate) struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) writer: W,
     pub(crate) processor: &'d Processor<'a>,
 
@@ -63,7 +63,11 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
 
 impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     /// Create a new manpage visitor.
-    pub fn new(writer: W, processor: &'d Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
+    pub(super) fn new(
+        writer: W,
+        processor: &'d Processor<'a>,
+        diagnostics: Diagnostics<'d>,
+    ) -> Self {
         Self {
             writer,
             processor,
@@ -92,17 +96,12 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     }
 
     /// Warn that a block could not be rendered.
-    ///
-    /// # Errors
-    ///
-    /// This callback always succeeds after recording its warning.
-    pub fn visit_unhandled_block(
+    fn visit_unhandled_block(
         &mut self,
         _traversal: &mut TraversalContext<'a>,
         _block: BlockRef<'a>,
-    ) -> Result<(), Error> {
+    ) {
         self.warn_unsupported_parser_variant("block");
-        Ok(())
     }
 
     pub(crate) fn write_content(
@@ -201,12 +200,6 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         } else if self.second_section_title.is_none() {
             self.second_section_title = Some(title.to_string());
         }
-    }
-
-    /// Consume the visitor and return the writer.
-    #[must_use]
-    pub fn into_writer(self) -> W {
-        self.writer
     }
 
     pub(crate) fn warn_unsupported_parser_variant(&mut self, kind: &str) {
@@ -328,7 +321,10 @@ impl<'a, W: Write> BlockVisitor<'a> for ManpageVisitor<'a, '_, W> {
             | BlockKind::Table(_)
             | BlockKind::Stem(_)
             | BlockKind::DelimitedComment(_) => self.render_delimited_block(traversal, block),
-            _ => self.visit_unhandled_block(traversal, block),
+            _ => {
+                self.visit_unhandled_block(traversal, block);
+                Ok(())
+            }
         }
     }
 }
@@ -454,3 +450,6 @@ impl<'a, W: Write> acdc_converters_core::visitor::InlineVisitor<'a> for ManpageV
         result
     }
 }
+
+#[cfg(test)]
+mod tests;

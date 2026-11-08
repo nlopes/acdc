@@ -528,4 +528,4 @@ mod wrap;
 
 pub use appearance::Capabilities;
 pub use error::Error;
-pub use terminal_visitor::TerminalVisitor;
+use terminal_visitor::TerminalVisitor;

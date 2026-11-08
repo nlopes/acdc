@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `ManpageVisitor` is internal. Convert documents through `Processor`
+  using `acdc_converters_core::Converter::write_to`.
+  Direct visitor construction and manual callback sequencing are no longer
+  supported. Custom converters can still implement the shared visitor traits.
+
 - AsciiDoc table cells now include their local footnote text. Notes from
   sibling and nested cells stay separate from the outer NOTES section.
 
@@ -76,10 +81,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Render parsed copyright and trademark signs, ellipses, and word-internal
   apostrophes while keeping escaped tokens literal. Parsed em dashes retain
   manpage spacing in listing and literal blocks.
-
-- Direct users of `ManpageVisitor` must use the shared `DocumentVisitor`,
-  `BlockVisitor`, and `InlineVisitor` callbacks. Portable roff output, caption
-  numbering, table layouts, and diagnostic locations remain unchanged.
 
 - The manpage visitor supports typed inline callbacks. Font scopes, typography,
   local reference labels, and portable roff output remain unchanged.

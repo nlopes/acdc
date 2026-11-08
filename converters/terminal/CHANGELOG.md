@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `TerminalVisitor` is internal. Convert documents through `Processor`
+  using `acdc_converters_core::Converter::write_to`.
+  Direct visitor construction and manual callback sequencing are no longer
+  supported. Custom converters can still implement the shared visitor traits.
+
 - AsciiDoc table cells now include their local footnote text. Notes from
   sibling and nested cells stay separate from outer document notes.
 
@@ -61,10 +66,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   highlighted code. Protected passthroughs keep their own spacing and
   substitution settings. This retains acdc's parsed-text context policy, which
   can differ from Asciidoctor's default macro order.
-
-- Direct users of `TerminalVisitor` must use the shared `DocumentVisitor`,
-  `BlockVisitor`, and `InlineVisitor` callbacks. Terminal output, table layouts,
-  caption numbering, and diagnostic locations remain unchanged.
 
 - `render_listing_to_ansi` now takes typed content and element attributes. Source
   language aliases and line decoration retain their existing behavior.

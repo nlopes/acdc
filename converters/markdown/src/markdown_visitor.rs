@@ -300,7 +300,7 @@ fn strip_callout_guard<'a>(text: &'a str, language_prefix: Option<&str>) -> Cow<
 }
 
 /// Markdown visitor that generates Markdown output from `AsciiDoc` AST.
-pub struct MarkdownVisitor<'a, 'd, W: Write> {
+pub(crate) struct MarkdownVisitor<'a, 'd, W: Write> {
     writer: W,
     pub(crate) processor: &'d Processor<'a>,
 
@@ -319,7 +319,11 @@ pub struct MarkdownVisitor<'a, 'd, W: Write> {
 
 impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     /// Create a new Markdown visitor.
-    pub fn new(writer: W, processor: &'d Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
+    pub(super) fn new(
+        writer: W,
+        processor: &'d Processor<'a>,
+        diagnostics: Diagnostics<'d>,
+    ) -> Self {
         Self {
             writer,
             processor,
@@ -1418,15 +1422,11 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
 impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     /// Skip a block and report its source range once per conversion.
-    ///
-    /// # Errors
-    ///
-    /// This fallback always succeeds.
-    pub fn visit_unhandled_block(
+    fn visit_unhandled_block(
         &mut self,
         _traversal: &mut TraversalContext<'a>,
         block: BlockRef<'a>,
-    ) -> Result<(), Error> {
+    ) {
         self.warn_once_at(
             "unknown-parser-block",
             format!(
@@ -1435,7 +1435,6 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             "Use a backend that supports this block feature, or replace it with a portable AsciiDoc construct.",
             Some(&block.location().into()),
         );
-        Ok(())
     }
 
     fn render_document(
@@ -1836,7 +1835,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             | BlockKind::Audio(_)
             | BlockKind::Video(_)
             | BlockKind::Comment(_)
-            | _ => self.visit_unhandled_block(traversal, block)?,
+            | _ => self.visit_unhandled_block(traversal, block),
         }
         Ok(())
     }
@@ -3144,7 +3143,10 @@ impl<'a, W: Write> BlockVisitor<'a> for MarkdownVisitor<'a, '_, W> {
             | BlockKind::Quote(_)
             | BlockKind::Verse(_)
             | BlockKind::Stem(_) => self.visit_compound_block(traversal, block),
-            _ => self.visit_unhandled_block(traversal, block),
+            _ => {
+                self.visit_unhandled_block(traversal, block);
+                Ok(())
+            }
         }
     }
 }
@@ -3160,3 +3162,6 @@ impl<'a, W: Write> DocumentVisitor<'a> for MarkdownVisitor<'a, '_, W> {
         })
     }
 }
+
+#[cfg(test)]
+mod tests;

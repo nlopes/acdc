@@ -59,7 +59,8 @@ mod video;
 
 pub(crate) use csp::CspFeatures;
 pub use error::Error;
-pub use html_visitor::{HtmlVisitor, uses_stem};
+use html_visitor::HtmlVisitor;
+pub use html_visitor::uses_stem;
 /// The `MathJax` assets acdc emits when `:stem:` is set, exposed so embedded-mode
 /// consumers can reproduce them: the inline configuration `<script>`, its CSP
 /// hash, and the loader URL.

@@ -122,7 +122,7 @@ mod index;
 mod markdown_visitor;
 
 pub use error::Error;
-pub use markdown_visitor::MarkdownVisitor;
+use markdown_visitor::MarkdownVisitor;
 
 /// Markdown output flavour, owned by the markdown converter.
 ///
