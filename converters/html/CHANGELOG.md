@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `Processor::generate_index` is internal; it describes state
+  computed for one conversion. Request an index catalog with `:acdc-index:` and
+  an `[index]` section through normal processor conversion.
+
 - **Breaking:** `HtmlVisitor` is internal. Convert documents through `Processor`
   using `acdc_converters_core::Converter::write_to`.
   Direct visitor construction and manual callback sequencing are no longer

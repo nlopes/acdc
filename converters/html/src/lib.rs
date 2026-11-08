@@ -197,7 +197,7 @@ impl<'a> Processor<'a> {
     /// Whether acdc's index catalog should be generated (the `:acdc-index:`
     /// attribute is set and the document seeds an `[index]` section).
     #[must_use]
-    pub fn generate_index(&self) -> bool {
+    fn generate_index(&self) -> bool {
         self.generate_index
     }
 

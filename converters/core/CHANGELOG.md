@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `link::strip_uri_scheme` is internal. Use
+  `link::link_fallback(target, true)` to hide a URI scheme in displayed link text.
+
 - **Breaking:** import `InlineTextTransform` from the crate root; `inline_text`
   is private. Replace `inlines_to_string(nodes)` with
   `InlineTextTransform::default().to_string(nodes)` and

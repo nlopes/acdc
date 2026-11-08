@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `EscapeMode` and `manify` are internal. Render documents through
+  `Processor` and `acdc_converters_core::Converter::write_to`; standalone roff
+  escaping is no longer part of the library API.
+
 - **Breaking:** `ManpageVisitor` is internal. Convert documents through `Processor`
   using `acdc_converters_core::Converter::write_to`.
   Direct visitor construction and manual callback sequencing are no longer

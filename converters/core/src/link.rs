@@ -100,7 +100,7 @@ pub fn autolink_fallback(target: &str, bracketed: bool, hide_uri_scheme: bool) -
 
 /// Remove a leading URI scheme and up to two following slashes.
 #[must_use]
-pub fn strip_uri_scheme(target: &str) -> &str {
+fn strip_uri_scheme(target: &str) -> &str {
     let Some(colon) = target.find(':') else {
         return target;
     };

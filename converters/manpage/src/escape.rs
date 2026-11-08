@@ -11,7 +11,7 @@ use std::borrow::Cow;
 
 /// Escape modes for different content types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum EscapeMode {
+pub(crate) enum EscapeMode {
     /// Remove horizontal whitespace around wrapped newlines.
     /// Preserve repeated spaces and tabs within each line.
     /// Retain a leading separator when text continues an inline fragment.
@@ -41,7 +41,7 @@ pub enum EscapeMode {
 ///
 /// The escaped text safe for roff output.
 #[must_use]
-pub fn manify(text: &str, mode: EscapeMode) -> Cow<'_, str> {
+pub(crate) fn manify(text: &str, mode: EscapeMode) -> Cow<'_, str> {
     // Fast path: check if any escaping is needed
     if !needs_escaping(text, mode) {
         return Cow::Borrowed(text);

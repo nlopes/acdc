@@ -65,7 +65,6 @@ mod section;
 mod table;
 
 pub use error::Error;
-pub use escape::{EscapeMode, manify};
 use manpage_visitor::ManpageVisitor;
 
 const MANPAGE_BACKEND: BackendProfile = BackendProfile::new("manpage", "manpage", "man", ".man");
