@@ -12,7 +12,7 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
   pull_request:
-    branches: '*'
+    branches: ['*']
     paths:
       - '.github/workflows/tck.yml'
       - '.github/tck/**'
