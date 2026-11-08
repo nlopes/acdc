@@ -18,6 +18,7 @@ use crate::{
     Location, Options, Warning, WarningKind,
     error::{Error, SourceLocation},
     model::{LeveloffsetRange, Position, SourceRange},
+    warning::WarningCollection,
 };
 
 mod attribute;
@@ -676,7 +677,7 @@ fn decode_bytes(bytes: &[u8], encoding: Option<&str>, source: &str) -> Result<St
 
 /// Preprocessor shared across `Include` / `Conditional` / `Tag` helpers.
 ///
-/// Carries a warning sink (`Rc<RefCell<Vec<Warning>>>`) that the caller
+/// Carries a warning sink (`Rc<RefCell<WarningCollection>>`) that the caller
 /// — typically `parse_input` / `parse_inline` in `lib.rs` — also hands
 /// to the later `ParserState`. That makes preprocessor warnings
 /// (missing includes, unclosed tags, bad attribute lines, if/endif
@@ -688,12 +689,12 @@ fn decode_bytes(bytes: &[u8], encoding: Option<&str>, source: &str) -> Result<St
 /// context across recursive preprocessing.
 #[derive(Debug)]
 pub(crate) struct Preprocessor {
-    warnings: Rc<RefCell<Vec<Warning>>>,
+    warnings: Rc<RefCell<WarningCollection>>,
     include_context: IncludeContext,
 }
 
 impl Preprocessor {
-    fn new(options: &Options<'_>, warnings: Rc<RefCell<Vec<Warning>>>) -> Self {
+    fn new(options: &Options<'_>, warnings: Rc<RefCell<WarningCollection>>) -> Self {
         Self {
             warnings,
             include_context: IncludeContext::root(options),
@@ -703,7 +704,7 @@ impl Preprocessor {
     /// Preprocessor for the content of a resolved include: one level deeper than
     /// the include that produced it. Keeps the depth increment in one place
     /// instead of at each site that recurses.
-    fn nested(warnings: &Rc<RefCell<Vec<Warning>>>, context: IncludeContext) -> Self {
+    fn nested(warnings: &Rc<RefCell<WarningCollection>>, context: IncludeContext) -> Self {
         Self {
             warnings: Rc::clone(warnings),
             include_context: context.nested(),
@@ -864,7 +865,7 @@ impl Preprocessor {
     pub(crate) fn process_reader<R: std::io::Read>(
         mut reader: R,
         options: &Options<'_>,
-        warnings: Rc<RefCell<Vec<Warning>>>,
+        warnings: Rc<RefCell<WarningCollection>>,
     ) -> Result<PreprocessorResult<'static>, Error> {
         let mut input = String::new();
         reader.read_to_string(&mut input).inspect_err(|e| {
@@ -884,7 +885,7 @@ impl Preprocessor {
     pub(crate) fn process<'input>(
         input: &'input str,
         options: &Options<'_>,
-        warnings: Rc<RefCell<Vec<Warning>>>,
+        warnings: Rc<RefCell<WarningCollection>>,
     ) -> Result<PreprocessorResult<'input>, Error> {
         let source_origin = SourceOrigin::memory(options.base_dir.as_deref());
         let preprocessor = Self::new(options, warnings);
@@ -898,7 +899,7 @@ impl Preprocessor {
         input: &'input str,
         file_path: &Path,
         options: &Options<'_>,
-        warnings: Rc<RefCell<Vec<Warning>>>,
+        warnings: Rc<RefCell<WarningCollection>>,
     ) -> Result<PreprocessorResult<'input>, Error> {
         let source_origin = SourceOrigin::entry_file(file_path, options.base_dir.as_deref())?;
         let preprocessor = Self::new(options, warnings);
@@ -911,7 +912,7 @@ impl Preprocessor {
     fn process_file<P: AsRef<Path>>(
         file_path: P,
         options: &Options<'_>,
-        warnings: Rc<RefCell<Vec<Warning>>>,
+        warnings: Rc<RefCell<WarningCollection>>,
     ) -> Result<PreprocessorResult<'static>, Error> {
         if file_path.as_ref().parent().is_some() {
             // Use read_and_decode_file to support UTF-8, UTF-16 LE, and UTF-16 BE with BOM
@@ -2893,7 +2894,7 @@ endif::backend-pdf[]";
     #[test]
     fn test_include_utf16_file() -> Result<(), Error> {
         // Test that include directive works with UTF-16 LE files
-        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
+        let warnings = Rc::<RefCell<WarningCollection>>::default();
         let path = Path::new("fixtures/preprocessor/main_with_include.adoc");
         let options = Options {
             safe_mode: crate::SafeMode::Unsafe,
@@ -2912,7 +2913,7 @@ endif::backend-pdf[]";
 
     #[test]
     fn test_include_with_single_tag() -> Result<(), Error> {
-        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
+        let warnings = Rc::<RefCell<WarningCollection>>::default();
         let path = Path::new("fixtures/preprocessor/include_with_tag.adoc");
         let options = Options {
             safe_mode: crate::SafeMode::Unsafe,
@@ -2936,7 +2937,7 @@ endif::backend-pdf[]";
 
     #[test]
     fn test_include_with_multiple_tags() -> Result<(), Error> {
-        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
+        let warnings = Rc::<RefCell<WarningCollection>>::default();
         let path = Path::new("fixtures/preprocessor/include_multiple_tags.adoc");
         let options = Options {
             safe_mode: crate::SafeMode::Unsafe,
@@ -2955,7 +2956,7 @@ endif::backend-pdf[]";
 
     #[test]
     fn test_include_with_wildcard_excluding_tag() -> Result<(), Error> {
-        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
+        let warnings = Rc::<RefCell<WarningCollection>>::default();
         let path = Path::new("fixtures/preprocessor/include_wildcard_exclude.adoc");
         let options = Options {
             safe_mode: crate::SafeMode::Unsafe,
@@ -2974,7 +2975,7 @@ endif::backend-pdf[]";
 
     #[test]
     fn test_include_with_double_wildcard() -> Result<(), Error> {
-        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
+        let warnings = Rc::<RefCell<WarningCollection>>::default();
         let path = Path::new("fixtures/preprocessor/include_double_wildcard.adoc");
         let options = Options {
             safe_mode: crate::SafeMode::Unsafe,
@@ -2996,7 +2997,7 @@ endif::backend-pdf[]";
 
     #[test]
     fn test_include_with_nested_tag() -> Result<(), Error> {
-        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
+        let warnings = Rc::<RefCell<WarningCollection>>::default();
         let path = Path::new("fixtures/preprocessor/include_nested_tag.adoc");
         let options = Options {
             safe_mode: crate::SafeMode::Unsafe,
@@ -3015,7 +3016,7 @@ endif::backend-pdf[]";
 
     #[test]
     fn test_include_select_untagged_only() -> Result<(), Error> {
-        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
+        let warnings = Rc::<RefCell<WarningCollection>>::default();
         let path = Path::new("fixtures/preprocessor/include_untagged_only.adoc");
         let options = Options {
             safe_mode: crate::SafeMode::Unsafe,
@@ -3037,7 +3038,7 @@ endif::backend-pdf[]";
 
     #[test]
     fn lines_selection_takes_precedence_over_tag_selection() -> Result<(), Error> {
-        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
+        let warnings = Rc::<RefCell<WarningCollection>>::default();
         let path = Path::new("fixtures/preprocessor/include_tag_with_lines.adoc");
         let options = Options {
             safe_mode: crate::SafeMode::Unsafe,
@@ -3060,7 +3061,7 @@ endif::backend-pdf[]";
 
     #[test]
     fn test_include_with_indent() -> Result<(), Error> {
-        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
+        let warnings = Rc::<RefCell<WarningCollection>>::default();
         let path = Path::new("fixtures/preprocessor/include_with_indent.adoc");
         let options = Options {
             safe_mode: crate::SafeMode::Unsafe,
@@ -3078,7 +3079,7 @@ endif::backend-pdf[]";
 
     #[test]
     fn test_include_with_indent_zero() -> Result<(), Error> {
-        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
+        let warnings = Rc::<RefCell<WarningCollection>>::default();
         let path = Path::new("fixtures/preprocessor/include_with_indent_zero.adoc");
         let options = Options {
             safe_mode: crate::SafeMode::Unsafe,
@@ -3096,7 +3097,7 @@ endif::backend-pdf[]";
 
     #[test]
     fn test_include_with_indent_and_tag() -> Result<(), Error> {
-        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
+        let warnings = Rc::<RefCell<WarningCollection>>::default();
         let path = Path::new("fixtures/preprocessor/include_with_indent_and_tag.adoc");
         let options = Options {
             safe_mode: crate::SafeMode::Unsafe,
@@ -3121,7 +3122,7 @@ endif::backend-pdf[]";
         //   nested_include_main.adoc
         //     -> includes subdir/middle.adoc
         //         -> includes inner.adoc (relative to subdir/)
-        let warnings = Rc::<RefCell<Vec<Warning>>>::default();
+        let warnings = Rc::<RefCell<WarningCollection>>::default();
         let path = Path::new("fixtures/preprocessor/nested_include_main.adoc");
         let options = Options {
             safe_mode: crate::SafeMode::Unsafe,

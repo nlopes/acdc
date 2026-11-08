@@ -172,6 +172,7 @@ mod reference_repair;
 mod safe_mode;
 mod source_provider;
 mod warning;
+use warning::WarningCollection;
 
 pub(crate) use grammar::{InlinePreprocessorParserState, ProcessedContent, inline_preprocessing};
 use preprocessor::Preprocessor;
@@ -375,7 +376,7 @@ pub fn parse_from_reader<R: std::io::Read>(
         .prepare_for_parse(document_attribute::InputKind::Reader);
     // Shared across the preprocessor and the grammar state so both layers'
     // warnings land in the same `ParseResult::warnings()` slice.
-    let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
+    let warnings_handle: Rc<RefCell<WarningCollection>> = Rc::default();
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process_reader(reader, &options, Rc::clone(&warnings_handle))?
@@ -426,7 +427,7 @@ pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
     let options = options
         .clone()
         .prepare_for_parse(document_attribute::InputKind::String);
-    let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
+    let warnings_handle: Rc<RefCell<WarningCollection>> = Rc::default();
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process(input, &options, Rc::clone(&warnings_handle))?
@@ -469,7 +470,7 @@ pub fn parse_file<P: AsRef<Path>>(
         .prepare_for_parse(document_attribute::InputKind::File(file_path.as_ref()));
     let path = file_path.as_ref().to_path_buf();
     let raw = preprocessor::read_and_decode_file(file_path.as_ref(), None)?;
-    let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
+    let warnings_handle: Rc<RefCell<WarningCollection>> = Rc::default();
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process_with_file(
@@ -513,7 +514,7 @@ fn parse_input(
     result: preprocessor::PreprocessorResult<'_>,
     mut options: Options<'_>,
     file_path: Option<PathBuf>,
-    warnings_handle: Rc<RefCell<Vec<Warning>>>,
+    warnings_handle: Rc<RefCell<WarningCollection>>,
 ) -> Result<ParseResult, Error> {
     if let Some(front_matter) = result.front_matter {
         options
@@ -614,7 +615,7 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
         .clone()
         .prepare_for_parse(document_attribute::InputKind::String)
         .into_static();
-    let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
+    let warnings_handle: Rc<RefCell<WarningCollection>> = Rc::default();
     let warnings_for_state = Rc::clone(&warnings_handle);
 
     ParseInlineResult::try_new(owner, warnings_handle, move |owner| {

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Faster parsing of documents that produce many warnings, including repeated
+  explicit IDs. Warning contents, order, and source locations are preserved.
+
 - Lines beginning with `+` followed by text, such as `+ (+).`, now stay inside
   ordered, unordered, and description list items in both compatibility modes,
   matching Asciidoctor. Only a standalone `+` acts as a list continuation.

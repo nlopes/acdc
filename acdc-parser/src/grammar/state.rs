@@ -25,6 +25,7 @@ use crate::{
         DocumentAttributeStatus, LeveloffsetRange, REFSIG_ATTRIBUTES, SourceRange,
         substitution::SubstitutionPlan,
     },
+    warning::WarningCollection,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -134,7 +135,7 @@ pub(crate) struct ParserState<'a> {
     pub(crate) included_files: HashSet<String>,
     /// Inline owners share this buffer, map their newly collected diagnostics,
     /// then reinsert them in their parent's coordinates.
-    pub(crate) warnings: Rc<RefCell<Vec<Warning>>>,
+    pub(crate) warnings: Rc<RefCell<WarningCollection>>,
     // Earlier warnings may use a different substring's coordinates.
     pub(super) warnings_start: usize,
     /// When true, inline parsing uses a reduced rule set that only matches formatting
@@ -686,7 +687,7 @@ impl<'a> ParserState<'a> {
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
-            warnings: Rc::new(RefCell::new(Vec::new())),
+            warnings: Rc::default(),
             warnings_start: 0,
             quotes_only: false,
             attribute_passthroughs: Rc::default(),
@@ -742,7 +743,7 @@ impl<'a> ParserState<'a> {
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
-            warnings: Rc::new(RefCell::new(Vec::new())),
+            warnings: Rc::default(),
             warnings_start: 0,
             quotes_only: true,
             attribute_passthroughs: Rc::default(),
@@ -854,18 +855,12 @@ impl<'a> ParserState<'a> {
     /// backtracking can repeat them. Report deprecated `toc2` once per parse.
     pub(crate) fn add_warning(&self, warning: Warning) {
         let mut warnings = self.warnings.borrow_mut();
-        let repeated_toc2 = matches!(warning.kind, WarningKind::DeprecatedToc2Attribute)
-            && warnings
-                .iter()
-                .any(|previous| matches!(previous.kind, WarningKind::DeprecatedToc2Attribute));
-        if !repeated_toc2
-            && !warnings
-                .iter()
-                .skip(self.warnings_start)
-                .any(|previous| previous == &warning)
+        if matches!(warning.kind, WarningKind::DeprecatedToc2Attribute)
+            && warnings.contains_deprecated_toc2()
         {
-            warnings.push(warning);
+            return;
         }
+        warnings.push_unique_from(warning, self.warnings_start);
     }
 
     /// Remove this inline parse's diagnostics before mapping them into its parent.

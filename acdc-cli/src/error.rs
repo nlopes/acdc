@@ -25,6 +25,9 @@ use miette::{Diagnostic, NamedSource, Report, SourceSpan};
 #[cfg(feature = "lint")]
 use miette::{LabeledSpan, Severity};
 
+mod source;
+use source::{IndexedSource, SourceIndex};
+
 /// An error with its source snippet.
 #[cfg(any(
     feature = "html",
@@ -94,15 +97,18 @@ impl<E: std::error::Error + Send + Sync + 'static> LocatedError<E> {
 
 #[derive(Debug, Default)]
 pub(crate) struct SourceCache {
-    sources: HashMap<PathBuf, Option<Arc<String>>>,
+    sources: HashMap<PathBuf, Option<Arc<IndexedSource>>>,
 }
 
 impl SourceCache {
-    fn load(&mut self, path: &Path) -> Option<Arc<String>> {
+    fn load(&mut self, path: &Path) -> Option<Arc<IndexedSource>> {
         if let Some(source) = self.sources.get(path) {
             return source.clone();
         }
-        let source = std::fs::read_to_string(path).ok().map(Arc::new);
+        let source = std::fs::read_to_string(path)
+            .ok()
+            .map(IndexedSource::new)
+            .map(Arc::new);
         self.sources.insert(path.to_owned(), source.clone());
         source
     }
@@ -114,7 +120,7 @@ impl SourceCache {
 struct SourceContext {
     description: String,
     #[source_code]
-    src: Option<NamedSource<Arc<String>>>,
+    src: Option<NamedSource<Arc<IndexedSource>>>,
     #[label("command source")]
     span: Option<SourceSpan>,
 }
@@ -126,11 +132,12 @@ impl SourceContext {
             .file
             .as_deref()
             .and_then(|path| std::fs::read_to_string(path).ok())
+            .map(IndexedSource::new)
             .map(Arc::new);
         Self::with_content(location, content)
     }
 
-    fn with_content(location: &SourceLocation, content: Option<Arc<String>>) -> Self {
+    fn with_content(location: &SourceLocation, content: Option<Arc<IndexedSource>>) -> Self {
         let (line, column) = source_location_line_column(location);
         let mut description = match &location.file {
             Some(path) => format!("{}:{line}:{column}", path.display()),
@@ -147,9 +154,7 @@ impl SourceContext {
             description.push_str(&chain.join(" -> "));
             description.push(')');
         }
-        let span = content
-            .as_deref()
-            .map(|source| source_span_from_source_location(location, source));
+        let span = content.as_deref().map(|source| source.span(location));
         let src = content.map(|source| NamedSource::new(description.clone(), source));
         Self {
             description,
@@ -172,7 +177,7 @@ struct RichWarning {
     advice: Option<String>,
 
     #[source_code]
-    src: NamedSource<Arc<String>>,
+    src: NamedSource<Arc<IndexedSource>>,
 
     #[label("{position_advice}")]
     span: SourceSpan,
@@ -326,51 +331,16 @@ impl Diagnostic for CompactLintDiagnostic {
 }
 
 fn source_span_from_source_location(loc: &SourceLocation, source: &str) -> SourceSpan {
-    // Parser locations are original-source-relative. Resolve their Unicode-scalar
-    // line/column positions back to byte offsets in the source miette will render.
-    let location = &loc.location;
-    let start_offset = offset_from_position(source, location.start.line, location.start.column);
-    let end_offset = if location.start.file == location.end.file {
-        offset_from_position(source, location.end.line, location.end.column).max(start_offset)
-    } else {
-        start_offset
-    };
-    let end_exclusive = source
-        .get(end_offset..)
-        .and_then(|remainder| remainder.chars().next())
-        .map_or(end_offset, |character| end_offset + character.len_utf8());
-    let length = end_exclusive.saturating_sub(start_offset);
-    SourceSpan::new(start_offset.into(), length)
+    SourceIndex::new(source).span(loc, source)
 }
 
 fn source_location_line_column(loc: &SourceLocation) -> (u32, u32) {
     (loc.location.start.line, loc.location.start.column)
 }
 
-/// Resolve 1-indexed line and Unicode-scalar column numbers to a byte offset.
+#[cfg(test)]
 fn offset_from_position(source: &str, line: u32, column: u32) -> usize {
-    let mut current_line = 1_u32;
-    let mut line_start = 0;
-    for source_line in source.split_inclusive('\n') {
-        if current_line == line {
-            let column_index = column.saturating_sub(1);
-            let mut current_column = 0_u32;
-            for (byte_offset, character) in source_line.char_indices() {
-                if current_column == column_index {
-                    return line_start + byte_offset;
-                }
-                if character == '\n' {
-                    return line_start + byte_offset;
-                }
-                current_column = current_column.saturating_add(1);
-            }
-            return line_start + source_line.len();
-        }
-        line_start += source_line.len();
-        current_line = current_line.saturating_add(1);
-    }
-
-    source.len()
+    SourceIndex::new(source).offset_from_position(source, line, column)
 }
 
 /// Attach a source snippet when the warning's file or the context's fallback is readable.
@@ -384,7 +354,7 @@ fn build_warning_report(
     let rich = location.and_then(|loc| {
         let path = loc.file.as_deref().or(context.file)?;
         let source_str = context.sources.load(path)?;
-        let span = source_span_from_source_location(loc, &source_str);
+        let span = source_str.span(loc);
         let (line, column) = source_location_line_column(loc);
         Some(RichWarning {
             message: message.clone(),

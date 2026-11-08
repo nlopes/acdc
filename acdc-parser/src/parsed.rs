@@ -25,6 +25,7 @@ use bumpalo::Bump;
 
 use crate::{
     Document, InlineNode, Location, SourceLocation, Warning, WarningKind, model::SourceRange,
+    warning::WarningCollection,
 };
 
 #[derive(Debug, Default)]
@@ -171,7 +172,7 @@ impl ParseResult {
     /// Build the document with its source map and collect warnings after construction.
     pub(crate) fn try_new<E>(
         owner: OwnedInput,
-        warnings_handle: Rc<RefCell<Vec<Warning>>>,
+        warnings_handle: Rc<RefCell<WarningCollection>>,
         source_files: SourceFiles,
         conditionals: Vec<ConditionalEvaluation>,
         builder: impl for<'a> FnOnce(&'a OwnedInput) -> Result<Document<'a>, E>,
@@ -308,7 +309,7 @@ impl ParseInlineResult {
     /// Internal constructor. Counterpart to [`ParseResult::try_new`].
     pub(crate) fn try_new<E>(
         owner: OwnedInput,
-        warnings_handle: Rc<RefCell<Vec<Warning>>>,
+        warnings_handle: Rc<RefCell<WarningCollection>>,
         builder: impl for<'a> FnOnce(&'a OwnedInput) -> Result<Vec<InlineNode<'a>>, E>,
     ) -> Result<Self, E> {
         let cell = ParsedInlineCell::try_new(owner, builder)?;
@@ -361,11 +362,13 @@ impl ParseInlineResult {
 /// clone is normally unique and `try_unwrap` succeeds. If any other clone
 /// lingers (e.g. a future code path keeps one alive), we fall back to
 /// draining through the `RefCell` rather than losing the warnings.
-fn recover_warnings(handle: Rc<RefCell<Vec<Warning>>>) -> Vec<Warning> {
-    Rc::try_unwrap(handle).map_or_else(
-        |shared| std::mem::take(&mut *shared.borrow_mut()),
-        RefCell::into_inner,
-    )
+fn recover_warnings(handle: Rc<RefCell<WarningCollection>>) -> Vec<Warning> {
+    Rc::try_unwrap(handle)
+        .map_or_else(
+            |shared| std::mem::take(&mut *shared.borrow_mut()),
+            RefCell::into_inner,
+        )
+        .into_vec()
 }
 
 /// Source text with no AST — returned by consumers (e.g. the LSP) when the

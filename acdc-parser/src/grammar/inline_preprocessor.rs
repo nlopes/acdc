@@ -25,6 +25,7 @@ use crate::{
         utf8_utils::{RoundDirection, step_char},
     },
     model::substitution::parse_passthrough_substitutions,
+    warning::WarningCollection,
 };
 
 /// Parser state for the inline preprocessor.
@@ -54,7 +55,7 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     substring_start_offset: Cell<usize>,
     /// Warnings collected during PEG parsing for post-parse emission.
     /// Uses `RefCell` for interior mutability in PEG action blocks.
-    pub(crate) warnings: RefCell<Vec<Warning>>,
+    pub(crate) warnings: RefCell<WarningCollection>,
     /// Whether macro substitutions are enabled for this block.
     /// When `false`, `pass:[]` macros are not extracted by the preprocessor.
     macros_enabled: bool,
@@ -93,7 +94,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             source_map: RefCell::new(SourceMap::default()),
             input: RefCell::new(input),
             substring_start_offset: Cell::new(0),
-            warnings: RefCell::new(Vec::new()),
+            warnings: RefCell::default(),
             macros_enabled,
             attributes_enabled: Cell::new(attributes_enabled),
             defer_monospace: true,
@@ -213,10 +214,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
     /// Collect a warning for post-parse emission. Deduplicates by value.
     pub(crate) fn add_warning(&self, warning: Warning) {
-        let mut warnings = self.warnings.borrow_mut();
-        if !warnings.contains(&warning) {
-            warnings.push(warning);
-        }
+        self.warnings.borrow_mut().push_unique_from(warning, 0);
     }
 
     /// Build an inclusive diagnostic span from a half-open source range.
@@ -245,7 +243,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
     /// Drain collected warnings (for transfer to main `ParserState`).
     pub(super) fn drain_warnings(&self) -> Vec<Warning> {
-        take(&mut *self.warnings.borrow_mut())
+        take(&mut *self.warnings.borrow_mut()).into_vec()
     }
 
     fn extract_pass_macro(&self, full: &'a str, start: Position) -> String {

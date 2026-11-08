@@ -46,8 +46,8 @@ fn repeated_cells_match_independent_parsing_and_semantic_effects(
             "{source}"
         );
         assert_eq!(
-            *repeated.warnings.borrow(),
-            *independent.warnings.borrow(),
+            &**repeated.warnings.borrow(),
+            &**independent.warnings.borrow(),
             "{source}"
         );
     }

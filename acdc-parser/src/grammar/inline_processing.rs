@@ -82,7 +82,7 @@ pub(super) fn process_mapped_inlines<'a>(
     child.warnings = Rc::default();
     child.warnings_start = 0;
     let parsed = process_inlines(&mut child, metadata, 0, text.len(), 0, text);
-    for mut warning in std::mem::take(&mut *child.warnings.borrow_mut()) {
+    for mut warning in std::mem::take(&mut *child.warnings.borrow_mut()).into_vec() {
         if let Some(location) = &mut warning.location {
             *location = mapped_source_location(state, text, source_map, &location.location)?;
         }

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Faster source-snippet rendering for large documents with many warnings.
+  All warnings retain their messages, source locations, and context lines.
+
 - Native JSON and named ASG exports retain multiple description terms with one
   shared definition. The TCK projection preserves the same grouping.
 

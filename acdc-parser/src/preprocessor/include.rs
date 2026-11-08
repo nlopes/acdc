@@ -83,6 +83,7 @@ use crate::{
     Preprocessor, SafeMode, Warning,
     error::{Error, SourceLocation},
     model::{LeveloffsetRange, Position, SourceRange},
+    warning::WarningCollection,
 };
 
 use super::{
@@ -132,7 +133,7 @@ pub(super) struct Include<'a> {
     /// Shared warnings sink threaded from the outer `Preprocessor` so
     /// non-fatal include conditions (disabled URL includes, missing
     /// files, bad line numbers) reach `ParseResult::warnings()`.
-    warnings: Rc<RefCell<Vec<Warning>>>,
+    warnings: Rc<RefCell<WarningCollection>>,
 }
 
 /// The one content selector that applies to an include after attribute
@@ -257,7 +258,7 @@ struct IncludeParserInputs<'a, 'b> {
     options: &'b Options<'a>,
     context: IncludeContext,
     location: LocationContext<'b>,
-    warnings: &'b Rc<RefCell<Vec<Warning>>>,
+    warnings: &'b Rc<RefCell<WarningCollection>>,
 }
 
 impl FromStr for LinesRange {
@@ -554,7 +555,7 @@ impl<'a> Include<'a> {
         location: LocationContext<'_>,
         options: &Options<'a>,
         include_context: IncludeContext,
-        warnings: &Rc<RefCell<Vec<Warning>>>,
+        warnings: &Rc<RefCell<WarningCollection>>,
     ) -> Result<Self, Error> {
         let inputs = IncludeParserInputs {
             source_origin,

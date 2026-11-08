@@ -9,12 +9,15 @@ use std::{borrow::Cow, fmt};
 
 use crate::SourceLocation;
 
+mod collection;
+pub(crate) use collection::WarningCollection;
+
 /// A non-fatal condition detected during parsing.
 ///
 /// Use [`Warning::source_location`] to map to a location for diagnostic
 /// rendering, and [`Warning::advice`] for help text mirroring
 /// [`Error::advice`](crate::Error::advice).
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Hash)]
 #[non_exhaustive]
 pub struct Warning {
     /// The specific non-fatal condition.
@@ -158,7 +161,7 @@ impl fmt::Display for Warning {
 /// to assert on them programmatically (e.g. LSP mapping `kind` to LSP
 /// diagnostic codes, or tests matching on specific conditions without
 /// resorting to string comparison).
-#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Hash, thiserror::Error)]
 #[non_exhaustive]
 pub enum WarningKind {
     /// A section title skips a level relative to its parent — either the first

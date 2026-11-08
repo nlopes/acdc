@@ -240,7 +240,7 @@ impl Error {
 ///
 /// A point diagnostic (one that only knows a line/column) is a zero-width span with
 /// `location.start == location.end` (see [`Location::point`]).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 #[non_exhaustive]
 pub struct SourceLocation {
     /// The file containing the start. Cross-file spans also carry endpoint
