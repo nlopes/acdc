@@ -7,8 +7,11 @@ use crate::{
     VerticalAlignment, Warning, WarningKind,
     blocks::table::{CellSpecifier, MAX_TABLE_COLUMNS},
     grammar::{
-        ParserState, document::delimited::check_delimiters, document_parser,
-        helpers::BlockParsingMetadata, inline_processing::adjust_and_log_parse_error,
+        ParserState,
+        document::delimited::check_delimiters,
+        document_parser,
+        helpers::BlockParsingMetadata,
+        inline_processing::{PreparedInlines, adjust_and_log_parse_error},
         state::BlockContext,
     },
 };
@@ -331,6 +334,7 @@ pub(super) fn parse_table_block_impl<'input>(
                 continue;
             }
             let cell_content = state.intern_str(&cell.content);
+            let mut prepared = None;
             // Duplicates share source text, but each parse must apply its own
             // footnote and document-attribute effects.
             for _ in 0..cell_count {
@@ -347,7 +351,13 @@ pub(super) fn parse_table_block_impl<'input>(
                 {
                     spec.style = Some(col_format.style);
                 }
-                let parsed = parse_table_cell(cell_content, state, cell.content_start, &spec)?;
+                let parsed = parse_table_cell(
+                    cell_content,
+                    state,
+                    cell.content_start,
+                    &spec,
+                    &mut prepared,
+                )?;
                 columns.push(parsed);
             }
         }
@@ -485,11 +495,77 @@ pub(super) fn finalize_footnotes(blocks: &mut [Block<'_>]) {
     .unwrap_or_else(|never: std::convert::Infallible| match never {});
 }
 
+/// Source preparation shared only by copies of one authored normal cell.
+pub(super) struct PreparedTableCellParagraph<'a> {
+    inlines: PreparedInlines<'a>,
+    location: Location,
+}
+
+impl<'a> PreparedTableCellParagraph<'a> {
+    pub(super) fn new(
+        state: &mut ParserState<'a>,
+        start: usize,
+        end: usize,
+        offset: usize,
+        content: &'a str,
+    ) -> Result<Self, Error> {
+        let metadata = BlockParsingMetadata::new(state.options.compatibility_mode);
+        let inlines = PreparedInlines::new(state, &metadata, start, end, offset, content)?;
+        Ok(Self {
+            inlines,
+            location: state.create_block_location(start, end, offset),
+        })
+    }
+
+    pub(super) fn parse(&self, state: &mut ParserState<'a>) -> Result<Block<'a>, Error> {
+        let metadata = BlockParsingMetadata::new(state.options.compatibility_mode);
+        let content = self.inlines.parse(state, &metadata, false)?;
+        Ok(Block::Paragraph(Paragraph::new(
+            content,
+            self.location.clone(),
+        )))
+    }
+}
+
+fn parse_normal_cell<'a>(
+    content: &'a str,
+    state: &mut ParserState<'a>,
+    offset: usize,
+    reuse: bool,
+    prepared: &mut Option<Vec<PreparedTableCellParagraph<'a>>>,
+) -> Result<Vec<Block<'a>>, Error> {
+    if let Some(paragraphs) = prepared {
+        // Run every paragraph action before collecting errors, as the grammar does.
+        return paragraphs
+            .iter()
+            .map(|paragraph| paragraph.parse(state))
+            .collect::<Vec<_>>()
+            .into_iter()
+            .collect();
+    }
+    let mut capture = reuse.then(Vec::new);
+    let result = document_parser::blocks_for_table_cell(content, state, offset, &mut capture);
+    if result.as_ref().is_ok_and(Result::is_ok) {
+        *prepared = capture;
+    }
+    result.unwrap_or_else(|error| {
+        adjust_and_log_parse_error(
+            &error,
+            content,
+            offset,
+            state,
+            "Failed parsing table cell content as blocks",
+        );
+        Ok(Vec::new())
+    })
+}
+
 fn parse_table_cell<'a>(
     content: &'a str,
     state: &mut ParserState<'a>,
     cell_start_offset: usize,
     spec: &CellSpecifier,
+    prepared: &mut Option<Vec<PreparedTableCellParagraph<'a>>>,
 ) -> Result<TableColumn<'a>, Error> {
     // Literal cells keep their source text intact. Unlike listing blocks, they
     // do not run attribute, macro, quote, or callout substitutions.
@@ -521,6 +597,8 @@ fn parse_table_cell<'a>(
     let mut initial_attributes = Vec::new();
     let mut footnotes = None;
     let blocks = if spec.style == Some(ColumnStyle::AsciiDoc) {
+        // Nested documents have their own attributes and parsing context.
+        *prepared = None;
         // An AsciiDoc-style cell is a nested document. It inherits the outer
         // attributes, but its local attributes, section catalog, hard-break
         // state, and pending callout references do not escape into sibling cells or the
@@ -566,7 +644,13 @@ fn parse_table_cell<'a>(
         state.pending_callouts = outer_pending_callouts;
         result
     } else {
-        document_parser::blocks_for_table_cell(content, state, cell_start_offset)
+        Ok(parse_normal_cell(
+            content,
+            state,
+            cell_start_offset,
+            spec.is_duplication && spec.duplication_count > 1,
+            prepared,
+        ))
     }
     .unwrap_or_else(|error| {
         adjust_and_log_parse_error(

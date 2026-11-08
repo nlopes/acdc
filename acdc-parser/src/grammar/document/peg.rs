@@ -8,7 +8,7 @@ use crate::{
     DelimitedBlockType, DescriptionList, DescriptionListDefinition, DescriptionListItem,
     DescriptionListTerm, DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, Error,
     Header, Image, InlineNode, ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak,
-    Paragraph, Plain, Position, Section, Source, Subtitle, TableOfContents, ThematicBreak, Title,
+    Plain, Position, Section, Source, Subtitle, TableOfContents, ThematicBreak, Title,
     UnorderedList, Video, Warning, WarningKind,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::{
@@ -47,7 +47,9 @@ use crate::{
             },
             revision::{IgnoredRevisionFields, RevisionInfo, process_revision_info},
             sections::{apply_leveloffset, expected_child_level},
-            table::{TableClosing, TableParseParams, parse_table_block_impl},
+            table::{
+                PreparedTableCellParagraph, TableClosing, TableParseParams, parse_table_block_impl,
+            },
         },
         helpers::{
             BlockParsingMetadata, PositionWithOffset, is_valid_bibliography_id, restore_url_path,
@@ -776,7 +778,7 @@ peg::parser! {
         = { crate::grammar::document::table::normalize_nested_header(state, header, initial_attributes) }
 
         /// Parse normal cell paragraphs; only blank lines separate them.
-        pub(crate) rule blocks_for_table_cell(offset: usize) -> Result<Vec<Block<'input>>, Error>
+        pub(crate) rule blocks_for_table_cell(offset: usize, prepared: &mut Option<Vec<PreparedTableCellParagraph<'input>>>) -> Result<Vec<Block<'input>>, Error>
         = eol()*
         blocks:(
             start:position!()
@@ -786,18 +788,12 @@ peg::parser! {
             {
                 // Block-looking lines are text in normal cells. Keep inline
                 // substitutions without invoking document block recognition.
-                let (content, _) = process_inlines(
-                    state,
-                    &BlockParsingMetadata::new(state.options.compatibility_mode),
-                    start,
-                    end,
-                    offset,
-                    content,
-                )?;
-                Ok(Block::Paragraph(Paragraph::new(
-                    content,
-                    state.create_block_location(start, end, offset),
-                )))
+                let paragraph = PreparedTableCellParagraph::new(state, start, end, offset, content)?;
+                let parsed = paragraph.parse(state);
+                if let Some(prepared) = prepared.as_mut() {
+                    prepared.push(paragraph);
+                }
+                parsed
             }
         )*
         {

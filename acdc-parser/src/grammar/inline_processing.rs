@@ -19,6 +19,9 @@ use super::{
     state::{InlineContext, InlineRules, ParserScope},
 };
 
+mod prepared;
+pub(super) use prepared::PreparedInlines;
+
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod tests;
@@ -749,42 +752,13 @@ fn process_inline_content<'a>(
     content: &'a str,
     verbatim: bool,
 ) -> Result<(Vec<InlineNode<'a>>, &'a str), Error> {
-    let (location, mut processed) = preprocess_inline_content(
-        state,
-        content_start,
-        end,
-        offset,
-        content,
-        block_metadata.substitutions,
-    )?;
-    let source = processed_text_as_outer(&processed, state);
-    // Empty expansions have no nodes. Whitespace can be dropped for a block,
-    // but remains content inside formatting, including spaces from attributes.
-    if processed.text.is_empty()
-        || (!verbatim && state.scope == ParserScope::Document && processed.text.trim().is_empty())
-    {
-        return Ok((Vec::new(), source));
+    let prepared =
+        PreparedInlines::new(state, block_metadata, content_start, end, offset, content)?;
+    if prepared.is_empty(state, verbatim) {
+        return Ok((Vec::new(), prepared.source()));
     }
-    let content = parse_processed_inlines(
-        &processed,
-        source,
-        state,
-        block_metadata,
-        &location,
-        true,
-        verbatim,
-    )?;
-    processed.attribute_substitutions = block_metadata.substitutions;
-    let inlines =
-        super::location_mapping::map_paragraph_locations(state, &processed, content, &location)?;
-    let source = if processed.passthroughs.is_empty() {
-        source
-    } else {
-        let restored =
-            super::passthrough_processing::replace_passthrough_placeholders(source, &processed);
-        state.intern_str(&restored)
-    };
-    Ok((inlines, source))
+    let inlines = prepared.parse(state, block_metadata, verbatim)?;
+    Ok((inlines, prepared.restored_source(state)))
 }
 
 /// Process inlines with autolinks suppressed.

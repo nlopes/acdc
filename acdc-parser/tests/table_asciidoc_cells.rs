@@ -1,5 +1,5 @@
 use acdc_parser::{
-    DocumentAttributeAssignment, DocumentAttributeValue, Options,
+    CompatibilityMode, DocumentAttributeAssignment, DocumentAttributeValue, Options,
     ast::{
         BlockKind, BlockRef, ContentRef, DocumentRef, FootnoteDefinitionRef, InlineKind,
         ParagraphRef, TableCellRef, TableRef, TocEntryRef,
@@ -486,11 +486,21 @@ fn nested_sections_are_not_outer_toc_entries_but_remain_xref_targets() -> Result
     Ok(())
 }
 
-#[test]
-fn duplicated_cells_parse_footnotes_independently() -> Result<(), Error> {
+#[rstest::rstest]
+#[case("{who} footnote:[duplicated].", 1)]
+#[case("{who} {note}.", 1)]
+#[case("{who} {note}.\n\n世界 footnote:[second paragraph].", 2)]
+fn duplicated_cells_parse_footnotes_independently(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[case] content: &str,
+    #[case] notes_per_cell: u32,
+) -> Result<(), Error> {
+    let source = format!(
+        ":who: Ada\n:note: footnote:[expanded]\n\n[cols=\"2*\"]\n|===\n2*|{content}\n|===\n"
+    );
     let parsed = parse(
-        ":who: Ada\n\n[cols=\"2*\"]\n|===\n2*|{who} footnote:[duplicated].\n|===\n",
-        &Options::default(),
+        &source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let row = first_table(parsed.document())?
         .rows()
@@ -516,12 +526,76 @@ fn duplicated_cells_parse_footnotes_independently() -> Result<(), Error> {
             }
         })
         .collect();
-    assert_eq!(numbers, [1, 2]);
+    let expected: Vec<_> = (1..=notes_per_cell * 2).collect();
+    assert_eq!(numbers, expected);
     let registered: Vec<_> = parsed
         .document()
         .footnotes()
         .map(FootnoteDefinitionRef::number)
         .collect();
-    assert_eq!(registered, [1, 2]);
+    assert_eq!(registered, expected);
+    let spans: Vec<Vec<_>> = row
+        .cells()
+        .map(|cell| {
+            cell.blocks()
+                .map(|block| {
+                    let location = block.location();
+                    (location.absolute_start(), location.absolute_end())
+                })
+                .collect()
+        })
+        .collect();
+    let [first, second] = spans.as_slice() else {
+        return Err("expected two sets of authored paragraph spans".into());
+    };
+    assert_eq!(first, second);
+    assert_eq!(first.len(), usize::try_from(notes_per_cell)?);
+    Ok(())
+}
+
+#[rstest::rstest]
+fn duplicated_cells_keep_mixed_style_footnote_owners(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(
+        ":who: 世界\n\n[cols=\"1,1,a,1,1,l,1\"]\n|===\n7*|{who} footnote:[note].\n|===\n",
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let cells: Vec<_> = first_table(parsed.document())?
+        .rows()
+        .next()
+        .ok_or("missing duplicated row")?
+        .cells()
+        .collect();
+    assert_eq!(cells.len(), 7);
+    for (index, cell) in cells.iter().enumerate() {
+        assert_eq!(cell.owns_footnotes(), index == 2);
+        let numbers: Vec<_> = cell
+            .footnotes()
+            .map(FootnoteDefinitionRef::number)
+            .collect();
+        assert_eq!(numbers, if index == 2 { vec![3] } else { Vec::new() });
+        if index == 5 {
+            let block = cell.blocks().next().ok_or("missing literal paragraph")?;
+            let BlockKind::Paragraph(paragraph) = block.kind() else {
+                return Err("expected a literal paragraph".into());
+            };
+            let inline = paragraph
+                .content()
+                .inlines()
+                .next()
+                .ok_or("missing literal text")?;
+            let InlineKind::Verbatim(text) = inline.kind() else {
+                return Err("expected verbatim cell text".into());
+            };
+            assert_eq!(text.text(), "{who} footnote:[note].");
+        }
+    }
+    let outer_numbers: Vec<_> = parsed
+        .document()
+        .footnotes()
+        .map(FootnoteDefinitionRef::number)
+        .collect();
+    assert_eq!(outer_numbers, [1, 2, 4, 5, 6]);
     Ok(())
 }
