@@ -93,6 +93,45 @@ fn parse_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
+fn inline_scanning_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("inline_scanning");
+    for (name, input) in [
+        (
+            "plain_ascii",
+            "Ordinary words and punctuation, with 123 numbers. ".repeat(64),
+        ),
+        (
+            "macro_near_misses",
+            "anchors: imagery: keyboards: menus: stems: xreferences: ".repeat(64),
+        ),
+        (
+            "sparse_typography",
+            format!(
+                "{}Copyright (C), a word--pair, and an arrow ->.",
+                "Ordinary words and numbers 123. ".repeat(64)
+            ),
+        ),
+        (
+            "dense_typography",
+            "(C) (R) (TM) ... word--pair don't -> <= &lt;- ".repeat(64),
+        ),
+        (
+            "unicode",
+            "Élan, Ελληνικά, 日本語 and *formatted* text. ".repeat(64),
+        ),
+    ] {
+        assert!(Parser::new(&input).parse_inline().is_ok());
+        group.bench_with_input(
+            BenchmarkId::new("parse_inline", name),
+            &input,
+            |b, input| {
+                b.iter(|| black_box(Parser::new(black_box(input)).parse_inline()));
+            },
+        );
+    }
+    group.finish();
+}
+
 fn attribute_declaration_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("document_attributes");
     let header = format!(
@@ -120,5 +159,10 @@ fn attribute_declaration_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, parse_benchmark, attribute_declaration_benchmark);
+criterion_group!(
+    benches,
+    parse_benchmark,
+    inline_scanning_benchmark,
+    attribute_declaration_benchmark
+);
 criterion_main!(benches);

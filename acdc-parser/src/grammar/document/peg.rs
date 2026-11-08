@@ -38,7 +38,7 @@ use crate::{
                 resolve_title, route_block_positions, route_media_attributes, select_heading_style,
                 thematic_break_anchors,
             },
-            paragraph::{ParagraphParams, build_paragraph},
+            paragraph::{ParagraphParams, build_paragraph, paragraph_text_end},
             references::{
                 ParsedSectionHeader, ReferenceCatalog, collect_header_references,
                 collect_references, finalize_inline_semantics, normalize_bibliography_lists,
@@ -780,7 +780,7 @@ peg::parser! {
         = eol()*
         blocks:(
             start:position!()
-            content:$((!(eol()*<2,> / eol()* ![_]) [_])+)
+            content:$(([^'\n']+ / !(eol()*<2,> / eol()* ![_]) [_])+)
             end:position!()
             eol()*
             {
@@ -1300,10 +1300,10 @@ peg::parser! {
         / { Vec::new() }
 
         rule block_metadata_line(offset: usize) -> BlockMetadataLine<'input>
-        = anchor:anchor(offset) { BlockMetadataLine::Anchor(anchor) }
-        / attr:raw_attributes_line() { BlockMetadataLine::Attributes(attr) }
-        / doc_attr:document_attribute_line(offset) { BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1) }
-        / title_line()
+        = &['['] anchor:anchor(offset) { BlockMetadataLine::Anchor(anchor) }
+        / &['['] attr:raw_attributes_line() { BlockMetadataLine::Attributes(attr) }
+        / &[':'] doc_attr:document_attribute_line(offset) { BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1) }
+        / &['.'] title:title_line() { title }
 
         rule metadata_comment_line(offset: usize) -> MetadataComment<'input>
         = start:position!() "//" !"/" content:$([^'\n']*) end:position!() (eol() / ![_]) {
@@ -1339,9 +1339,9 @@ peg::parser! {
 
         // Match metadata in lookahead without expanding attributes or titles.
         rule block_metadata_line_match()
-        = attribute_or_anchor_line_match()
-        / document_attribute_match() (eol() / ![_])
-        / title_line_match()
+        = &['['] attribute_or_anchor_line_match()
+        / &[':'] document_attribute_match() (eol() / ![_])
+        / &['.'] title_line_match()
 
         rule title_line_match()
         = period() ![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']+ (eol() / ![_])
@@ -3607,6 +3607,16 @@ peg::parser! {
         / (!(description_list_marker() (whitespace() / eol() / ![_])) [^'\n'])+
           marker:description_list_marker() &(whitespace() / eol() / ![_]) { ListMarker::Description(marker) }
 
+        rule paragraph_text_run(offset: usize)
+        = !at_line_start(offset) #{|input, start| {
+            let end = paragraph_text_end(input, start);
+            if end == start {
+                peg::RuleResult::Failed
+            } else {
+                peg::RuleResult::Matched(end, ())
+            }
+        }}
+
         rule paragraph_with_list_boundary(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: Option<ListMarker<'input>>) -> Result<Block<'input>, Error>
         = admonition:(structural_block_boundaries(block_metadata) value:admonition() { value })?
         content_start:position!()
@@ -3614,6 +3624,9 @@ peg::parser! {
           !structural_block_boundaries(block_metadata) text:verbatim_paragraph_content() { text }
           / $((
             "[[" (!eol() [_])*
+            // Only line starts and newlines need block-boundary lookahead.
+            // Stop at '[' to retain the anchor-line alternative above.
+            / paragraph_text_run(offset)
             / !(
             eol()*<2,>
             / eol()* ![_]

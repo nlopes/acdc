@@ -1,4 +1,4 @@
-//! Interpret paragraph styles after their source boundaries have been matched.
+//! Paragraph boundaries and style interpretation.
 
 use std::str::FromStr;
 
@@ -18,6 +18,17 @@ use crate::{
     },
     model::Substitution,
 };
+
+/// Scan mid-line text up to a line boundary or possible anchor.
+/// The grammar checks the line start against the outer source and its offset.
+pub(super) fn paragraph_text_end(input: &str, start: usize) -> usize {
+    let Some(tail) = input.as_bytes().get(start..) else {
+        return start;
+    };
+    tail.iter()
+        .position(|byte| matches!(byte, b'\n' | b'['))
+        .map_or(input.len(), |offset| start + offset)
+}
 
 pub(super) fn indented_style(mode: CompatibilityMode, style: Option<&str>) -> Option<&str> {
     match style {

@@ -16,6 +16,8 @@ fn paragraph(parsed: &acdc_parser::ParseResult) -> Result<ContentRef<'_>, Error>
 }
 
 #[rstest::rstest]
+#[case("Plain 123", "Plain 123")]
+#[case("  Plain 123   ", "Plain 123   ")]
 #[case("   π label   ", "π label   ")]
 #[case("\tπ label\t", "π label\t")]
 #[case("\u{a0}π label\u{a0}", "\u{a0}π label\u{a0}")]
@@ -100,7 +102,9 @@ fn shorthand_ascii_whitespace_is_automatic_but_unicode_whitespace_is_explicit(
 }
 
 #[rstest::rstest]
-fn content_attribute_escapes_keep_their_full_authored_span(
+#[case("π \\] end", "π ] end")]
+#[case("Plain 123", "Plain 123")]
+fn content_attributes_keep_their_full_authored_span(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
     #[values(
         "image:photo.png[Alt,title=",
@@ -110,8 +114,10 @@ fn content_attribute_escapes_keep_their_full_authored_span(
         "mailto:team@example.org[Label,title="
     )]
     prefix: &str,
+    #[case] authored: &str,
+    #[case] expected: &str,
 ) -> Result<(), Error> {
-    let source = format!("α {prefix}'π \\] end'] ω.");
+    let source = format!("α {prefix}'{authored}'] ω.");
     let parsed = parse(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
@@ -138,8 +144,7 @@ fn content_attribute_escapes_keep_their_full_authored_span(
     else {
         return Err("expected decoded attribute text".into());
     };
-    assert_eq!(text.text(), "π ] end");
-    let authored = "π \\] end";
+    assert_eq!(text.text(), expected);
     let start = source.find(authored).ok_or("missing authored value")?;
     assert_eq!(
         (

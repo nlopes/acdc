@@ -1,4 +1,4 @@
-use super::document_parser;
+use super::{document_parser, paragraph::paragraph_text_end};
 use crate::{
     Anchor, AttributeValue, Block, CommentKind, CompatibilityMode, DelimitedBlock,
     DelimitedBlockType, Document, Error, Image, InlineMacro, InlineNode, Location, Options, Plain,
@@ -7,6 +7,32 @@ use crate::{
     model::{Caption, CaptionKind, SectionKind},
     parse,
 };
+
+#[test]
+fn paragraph_runs_stop_before_line_boundaries_and_anchor_openers() {
+    for (source, start, end) in [
+        ("paragraph text", 1, 14),
+        ("text\n== Heading", 1, 4),
+        ("text [[id]] after", 1, 5),
+        ("text [not an anchor] after", 1, 5),
+        ("text\n----\ncode\n----", 1, 4),
+        ("text\n\nnext", 1, 4),
+        ("", 0, 0),
+        ("text", 5, 5),
+    ] {
+        assert_eq!(paragraph_text_end(source, start), end, "{source}");
+    }
+}
+
+#[test]
+fn paragraph_runs_preserve_unicode_boundaries() {
+    let source = "世界 café\nnext";
+    for (start, _) in source.char_indices().take_while(|(_, c)| *c != '\n') {
+        let end = paragraph_text_end(source, start);
+        assert!(source.is_char_boundary(end));
+        assert_eq!(end, "世界 café".len());
+    }
+}
 
 #[test]
 #[tracing_test::traced_test]

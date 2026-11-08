@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Faster parsing of paragraphs, mixed ASCII and Unicode text, and formatting in
+  both compatibility modes, including text expanded from attributes, while
+  preserving substitution rules and source locations.
+
 - Keyboard macros with deeply nested brackets no longer abort parsing with a
   stack overflow when `:experimental:` is enabled. Both compatibility modes
   preserve nested labels and escaped brackets.

@@ -60,6 +60,8 @@ pub(crate) struct SubstitutionPlan {
 }
 
 impl SubstitutionPlan {
+    // Default plans are constant inputs at many short inline parse sites.
+    #[inline]
     pub(crate) fn from_substitutions(substitutions: &[Substitution]) -> Self {
         let mut ranks = [DISABLED_SUBSTITUTION; SUBSTITUTION_STAGE_COUNT];
         for (rank, substitution) in substitutions.iter().enumerate() {

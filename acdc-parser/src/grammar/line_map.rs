@@ -6,7 +6,8 @@ use crate::{Position, model::SourceRange};
 ///
 /// `LineMap` scans the input once to build a sorted list of line start offsets
 /// plus a per-line ASCII flag, then provides `O(log n)` line lookups and
-/// `O(1)` column computation for the common all-ASCII case.
+/// `O(1)` column computation for the common all-ASCII case. Unicode columns
+/// count from the last queried position on the same line, in either direction.
 ///
 /// # Key Properties
 ///
@@ -43,6 +44,10 @@ struct CachedLine {
     line_idx: usize,
     range_start: usize,
     range_end: usize,
+    /// Last UTF-8 boundary and its zero-based character column. Nearby lookups
+    /// can count forward or backward instead of rescanning a long Unicode line.
+    column_offset: usize,
+    characters_before: usize,
 }
 
 impl LineMap {
@@ -108,6 +113,8 @@ impl LineMap {
             line_idx,
             range_start,
             range_end,
+            column_offset: range_start,
+            characters_before: 0,
         }));
 
         (line_idx, range_start)
@@ -115,8 +122,8 @@ impl LineMap {
 
     /// Convert byte offset to `Position` using binary search — `O(log n)`
     /// line lookup, `O(1)` column for ASCII lines, `O(line_length)` column
-    /// for lines with non-ASCII content. Pure function, safe for use in PEG
-    /// action blocks.
+    /// for lines with non-ASCII content in the worst case. Nearby Unicode
+    /// lookups reuse the last character column. Safe for PEG backtracking.
     #[tracing::instrument(level = "trace", skip_all, fields(offset = offset))]
     pub(crate) fn offset_to_position(&self, offset: usize, input: &str) -> Position {
         let (line_idx, line_start_byte) = self.line_for_offset(offset);
@@ -145,15 +152,36 @@ impl LineMap {
         let chars_in_line = if self.line_is_ascii.get(line_idx).copied().unwrap_or(false) {
             adjusted_offset - line_start_byte
         } else {
-            input
-                .get(line_start_byte..adjusted_offset)
-                .map_or(0, |s| s.chars().count())
+            self.non_ascii_column(adjusted_offset, line_start_byte, input)
         };
 
         Position::new(
             u32::try_from(line).unwrap_or(u32::MAX),
             u32::try_from(chars_in_line + 1).unwrap_or(u32::MAX),
         )
+    }
+
+    fn non_ascii_column(&self, offset: usize, line_start: usize, input: &str) -> usize {
+        let Some(mut cached) = self.last_line.get() else {
+            return input
+                .get(line_start..offset)
+                .map_or(0, |text| text.chars().count());
+        };
+        let characters = if offset >= cached.column_offset {
+            cached.characters_before
+                + input
+                    .get(cached.column_offset..offset)
+                    .map_or(0, |text| text.chars().count())
+        } else {
+            cached.characters_before
+                - input
+                    .get(offset..cached.column_offset)
+                    .map_or(0, |text| text.chars().count())
+        };
+        cached.column_offset = offset;
+        cached.characters_before = characters;
+        self.last_line.set(Some(cached));
+        characters
     }
 
     /// Source line (1-indexed) for a preprocessed `offset` in a span that begins at
@@ -191,155 +219,4 @@ impl LineMap {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_line_map_single_line() {
-        let input = "Hello, World!";
-        let line_map = LineMap::new(input);
-
-        assert_eq!(line_map.line_starts, vec![0]);
-
-        // Start of input
-        let pos = line_map.offset_to_position(0, input);
-        assert_eq!(pos.line, 1);
-        assert_eq!(pos.column, 1);
-
-        // Middle of line
-        let pos = line_map.offset_to_position(7, input);
-        assert_eq!(pos.line, 1);
-        assert_eq!(pos.column, 8);
-
-        // End of line
-        let pos = line_map.offset_to_position(12, input);
-        assert_eq!(pos.line, 1);
-        assert_eq!(pos.column, 13);
-    }
-
-    #[test]
-    fn test_line_map_multiple_lines() {
-        let input = "Line 1\nLine 2\nLine 3";
-        let line_map = LineMap::new(input);
-
-        assert_eq!(line_map.line_starts, vec![0, 7, 14]);
-
-        // Start of first line
-        let pos = line_map.offset_to_position(0, input);
-        assert_eq!(pos.line, 1);
-        assert_eq!(pos.column, 1);
-
-        // End of first line (before newline)
-        let pos = line_map.offset_to_position(6, input);
-        assert_eq!(pos.line, 1);
-        assert_eq!(pos.column, 7);
-
-        // Start of second line
-        let pos = line_map.offset_to_position(7, input);
-        assert_eq!(pos.line, 2);
-        assert_eq!(pos.column, 1);
-
-        // Middle of second line
-        let pos = line_map.offset_to_position(10, input);
-        assert_eq!(pos.line, 2);
-        assert_eq!(pos.column, 4);
-
-        // Start of third line
-        let pos = line_map.offset_to_position(14, input);
-        assert_eq!(pos.line, 3);
-        assert_eq!(pos.column, 1);
-    }
-
-    #[test]
-    fn test_line_map_empty_lines() {
-        let input = "Line 1\n\nLine 3";
-        let line_map = LineMap::new(input);
-
-        assert_eq!(line_map.line_starts, vec![0, 7, 8]);
-
-        // Start of empty line
-        let pos = line_map.offset_to_position(7, input);
-        assert_eq!(pos.line, 2);
-        assert_eq!(pos.column, 1);
-
-        // Start of line after empty line
-        let pos = line_map.offset_to_position(8, input);
-        assert_eq!(pos.line, 3);
-        assert_eq!(pos.column, 1);
-    }
-
-    #[test]
-    fn test_line_map_asciidoc_example() {
-        let input = "= Document Title\nLorn_Kismet R. Lee <kismet@asciidoctor.org>\nv2.9, 01-09-2024: Fall incarnation\n:description: The document's description.\n:sectanchors:\n:url-repo: https://my-git-repo.com";
-        let line_map = LineMap::new(input);
-
-        // Title start (after "= ")
-        let pos = line_map.offset_to_position(2, input);
-        assert_eq!(pos.line, 1);
-        assert_eq!(pos.column, 3);
-
-        // Author line start (17 = length of "= Document Title\n")
-        let pos = line_map.offset_to_position(17, input);
-        assert_eq!(pos.line, 2);
-        assert_eq!(pos.column, 1);
-
-        // Revision line start (61 = 17 + 44, where 44 is length of author line + newline)
-        let pos = line_map.offset_to_position(61, input);
-        assert_eq!(pos.line, 3);
-        assert_eq!(pos.column, 1);
-    }
-
-    #[test]
-    fn test_line_map_beyond_input() {
-        let input = "Hello";
-        let line_map = LineMap::new(input);
-
-        // Beyond input: offset is clamped to input.len(), giving position after last character
-        let pos = line_map.offset_to_position(100, input);
-        assert_eq!(pos.line, 1);
-        assert_eq!(pos.column, 6); // After 5 characters, column is 6
-    }
-
-    #[test]
-    fn test_line_map_empty_input() {
-        let input = "";
-        let line_map = LineMap::new(input);
-
-        assert_eq!(line_map.line_starts, vec![0]);
-
-        let pos = line_map.offset_to_position(0, input);
-        assert_eq!(pos.line, 1);
-        assert_eq!(pos.column, 1);
-    }
-
-    #[test]
-    fn test_line_map_utf8_content() {
-        // "é" is 2 bytes in UTF-8 (0xC3 0xA9). Line 1 is non-ASCII, line 2 is ASCII.
-        // Bytes: c(0) a(1) f(2) é(3,4) \n(5) b(6) a(7) r(8)
-        let input = "caf\u{00e9}\nbar";
-        let line_map = LineMap::new(input);
-
-        // Slow path: non-ASCII line, column via `chars().count()`.
-        // Offset 5 = byte just past "café" (the '\n'); binary_search Err(1).
-        let pos = line_map.offset_to_position(5, input);
-        assert_eq!(pos.line, 1);
-        assert_eq!(pos.column, 5); // 4 chars in "café" + 1
-
-        // Fast path on the line *after* a non-ASCII line: line_is_ascii[1] is true.
-        let pos = line_map.offset_to_position(8, input);
-        assert_eq!(pos.line, 2);
-        assert_eq!(pos.column, 3);
-
-        // Mid-char offset: offset 4 lands inside the 2-byte 'é' and must
-        // round back to byte 3 before counting chars.
-        let pos = line_map.offset_to_position(4, input);
-        assert_eq!(pos.line, 1);
-        assert_eq!(pos.column, 4); // "caf" = 3 chars + 1
-
-        // Exact match on a line start that follows a non-ASCII line
-        // (binary_search Ok arm, guarding line-index arithmetic).
-        let pos = line_map.offset_to_position(6, input);
-        assert_eq!(pos.line, 2);
-        assert_eq!(pos.column, 1);
-    }
-}
+mod tests;

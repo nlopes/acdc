@@ -25,10 +25,11 @@ use crate::{
                 xref_macro_text,
             },
             recognition::{
-                byte_came_from_attribute, catalog_escape_allowed, catalog_macro_allowed,
-                check_code_opening_boundary, code_followed_by_attribute, has_at_sign_ahead,
-                has_inline_line_break_prefix, index_content_present, is_plain_text_safe,
-                link_label_opening_ahead, macro_token_allowed, record_url_boundary,
+                autolink_start, byte_came_from_attribute, catalog_escape_allowed,
+                catalog_macro_allowed, check_code_opening_boundary, code_followed_by_attribute,
+                formatting_link_prefix, formatting_text_end, has_at_sign_ahead,
+                has_inline_line_break_prefix, index_content_present, link_label_opening_ahead,
+                macro_token_allowed, plain_text_end, plain_text_start, record_url_boundary,
                 structural_token_allowed, url_opening_allowed,
             },
             text::{
@@ -62,7 +63,7 @@ peg::parser! {
         / nodes:normal_inline()+ {? expand_escaped_index_terms(nodes, state) }
 
         rule normal_inline() -> InlineNode<'input>
-        = node:(non_plain_text() / plain_text()) {
+        = node:(ordinary_text_start() text:plain_text() { text } / non_plain_text() / plain_text()) {
             record_url_boundary(state, &node, span_end, &Substitution::Quotes);
             node
         }
@@ -286,7 +287,7 @@ peg::parser! {
                     / paragraph_break()
                     / ![_]
                     / &['\\'] escaped_syntax_match()
-                    / check_quotes() &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (
+                    / &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] check_quotes() (
                         bold_text_unconstrained_match() / bold_text_constrained_match() / italic_text_unconstrained_match() / italic_text_constrained_match() / monospace_text_unconstrained_match() / monospace_text_constrained_match() / highlight_text_unconstrained_match() / highlight_text_constrained_match() / superscript_text_match() / subscript_text_match() / curved_quotation_text_match() / curved_apostrophe_text_match() / standalone_curved_apostrophe_match()
                     )
                 )
@@ -317,58 +318,54 @@ peg::parser! {
             &['\\'] escaped_super_sub:escaped_superscript_subscript() { escaped_super_sub }
             / &['\\'] check_index_terms() prefix:escaped_index_prefix() { prefix }
             // Escaped syntax must come next - backslash prevents any following syntax from being parsed
-            / check_macros() &['\\'] anchor:escaped_anchor_macro() { anchor }
+            / &['\\'] check_macros() anchor:escaped_anchor_macro() { anchor }
             / &['\\'] bracket:index_label_bracket() { bracket }
             / &['\\'] bracket:escaped_label_character() { bracket }
             / &['\\'] passthrough:escaped_passthrough_attributes() { passthrough }
             / &['\\'] escaped_syntax:escaped_syntax() { escaped_syntax }
             // Index terms: concealed (triple parens) must come before flow (double parens)
-            / check_index_terms() &['('] index_term:index_term_concealed() { index_term }
-            / check_index_terms() &['('] index_term:index_term_flow() { index_term }
-            / check_index_terms() &['i'] indexterm:indexterm_macro() { indexterm }
-            / check_index_terms() &['i'] indexterm2:indexterm2_macro() { indexterm2 }
+            / &['('] check_index_terms() index_term:index_term_concealed() { index_term }
+            / &['('] check_index_terms() index_term:index_term_flow() { index_term }
+            / &['i'] check_index_terms() indexterm:indexterm_macro() { indexterm }
+            / &['i'] check_index_terms() indexterm2:indexterm2_macro() { indexterm2 }
             / &['['] passthrough:attributed_passthrough() { passthrough }
-            / check_macros() &['['] invalid_bibliography_anchor:invalid_bibliography_anchor() { invalid_bibliography_anchor }
-            / check_macros() &['[' | 'a'] inline_anchor:inline_anchor() { inline_anchor }
-            / check_macros() &['<'] cross_reference_shorthand:cross_reference_shorthand() { cross_reference_shorthand }
-            / check_macros() &['x'] cross_reference_macro:cross_reference_macro() { cross_reference_macro }
-            / check_hardbreaks() &['\n' | '\r'] automatic_line_break:automatic_line_break() { automatic_line_break }
-            / check_post_replacements() &[' '] hard_wrap:hard_wrap() { hard_wrap }
-            / check_macros() &"footnote:" footnote:footnote() { footnote }
-            / check_macros() &['s' | 'a' | 'l'] stem:inline_stem() { stem }
-            / check_macros() &['i'] image:inline_image() { image }
-            / check_macros() &['i'] icon:inline_icon() { icon }
-            / check_macros() &['k'] keyboard:inline_keyboard() { keyboard }
-            / check_macros() &['b'] button:inline_button() { button }
-            / check_macros() &['m'] menu:inline_menu() { menu }
-            / check_macros() &['"'] menu:inline_implicit_menu() { menu }
+            / &['['] check_macros() invalid_bibliography_anchor:invalid_bibliography_anchor() { invalid_bibliography_anchor }
+            / &['[' | 'a'] check_macros() inline_anchor:inline_anchor() { inline_anchor }
+            / &['<'] check_macros() cross_reference_shorthand:cross_reference_shorthand() { cross_reference_shorthand }
+            / &['x'] check_macros() cross_reference_macro:cross_reference_macro() { cross_reference_macro }
+            / &['\n' | '\r'] check_hardbreaks() automatic_line_break:automatic_line_break() { automatic_line_break }
+            / &[' '] check_post_replacements() hard_wrap:hard_wrap() { hard_wrap }
+            / &"footnote:" check_macros() footnote:footnote() { footnote }
+            / &['s' | 'a' | 'l'] check_macros() stem:inline_stem() { stem }
+            / &['i'] check_macros() image:inline_image() { image }
+            / &['i'] check_macros() icon:inline_icon() { icon }
+            / &['k'] check_macros() keyboard:inline_keyboard() { keyboard }
+            / &['b'] check_macros() button:inline_button() { button }
+            / &['m'] check_macros() menu:inline_menu() { menu }
+            / &['"'] check_macros() menu:inline_implicit_menu() { menu }
             // mailto has to come before the url_macro because url_macro calls url() which
             // also matches against mailto:
-            / check_macros() &['m'] mailto_macro:mailto_macro() { mailto_macro }
-            / check_macros() &['h' | 'f'] url_macro:url_macro() { url_macro }
-            / check_macros() &['p'] pass:inline_pass() { pass }
-            / check_macros() &['l'] link_macro:link_macro() { link_macro }
-            / check_macros() &['l'] target:literal_link_target() { target }
-            // No byte guard: autolink matches bare URLs (`h`/`f` schemes) AND bare
-            // emails (any ASCII alphanumeric), and `<url>` / `<email>`. The
-            // upstream `plain_text_quick_safe` fast path already rejects most
-            // email candidates before we reach non_plain_text, so this
-            // alternative is only tried on positions that actually need it.
-            / check_macros() check_autolinks() inline_autolink:inline_autolink() { inline_autolink }
-            / check_post_replacements() &[' '] inline_line_break:inline_line_break() { inline_line_break }
-            / check_quotes() &['[' | '*'] bold_text_unconstrained:bold_text_unconstrained() { bold_text_unconstrained }
-            / check_quotes() &['[' | '*'] bold_text_constrained:bold_text_constrained() { bold_text_constrained }
-            / check_quotes() &['[' | '_'] italic_text_unconstrained:italic_text_unconstrained() { italic_text_unconstrained }
-            / check_quotes() &['[' | '_'] italic_text_constrained:italic_text_constrained() { italic_text_constrained }
-            / check_quotes() &['[' | '`'] monospace_text_unconstrained:monospace_text_unconstrained() { monospace_text_unconstrained }
-            / check_quotes() &['[' | '`'] monospace_text_constrained:monospace_text_constrained() { monospace_text_constrained }
-            / check_quotes() &['[' | '#'] highlight_text_unconstrained:highlight_text_unconstrained() { highlight_text_unconstrained }
-            / check_quotes() &['[' | '#'] highlight_text_constrained:highlight_text_constrained() { highlight_text_constrained }
-            / check_quotes() &['[' | '^'] superscript_text:superscript_text() { superscript_text }
-            / check_quotes() &['[' | '~'] subscript_text:subscript_text() { subscript_text }
-            / check_quotes() &['[' | '"'] curved_quotation_text:curved_quotation_text() { curved_quotation_text }
-            / check_quotes() &['[' | '\''] curved_apostrophe_text:curved_apostrophe_text() { curved_apostrophe_text }
-            / check_quotes() &['`'] standalone_curved_apostrophe:standalone_curved_apostrophe() { standalone_curved_apostrophe }
+            / &['m'] check_macros() mailto_macro:mailto_macro() { mailto_macro }
+            / &['h' | 'f'] check_macros() url_macro:url_macro() { url_macro }
+            / &['p'] check_macros() pass:inline_pass() { pass }
+            / &['l'] check_macros() link_macro:link_macro() { link_macro }
+            / &['l'] check_macros() target:literal_link_target() { target }
+            // Include quoted and punctuation-started emails as well as URL schemes.
+            / autolink_ahead() check_macros() check_autolinks() inline_autolink:inline_autolink() { inline_autolink }
+            / &[' '] check_post_replacements() inline_line_break:inline_line_break() { inline_line_break }
+            / &['[' | '*'] check_quotes() bold_text_unconstrained:bold_text_unconstrained() { bold_text_unconstrained }
+            / &['[' | '*'] check_quotes() bold_text_constrained:bold_text_constrained() { bold_text_constrained }
+            / &['[' | '_'] check_quotes() italic_text_unconstrained:italic_text_unconstrained() { italic_text_unconstrained }
+            / &['[' | '_'] check_quotes() italic_text_constrained:italic_text_constrained() { italic_text_constrained }
+            / &['[' | '`'] check_quotes() monospace_text_unconstrained:monospace_text_unconstrained() { monospace_text_unconstrained }
+            / &['[' | '`'] check_quotes() monospace_text_constrained:monospace_text_constrained() { monospace_text_constrained }
+            / &['[' | '#'] check_quotes() highlight_text_unconstrained:highlight_text_unconstrained() { highlight_text_unconstrained }
+            / &['[' | '#'] check_quotes() highlight_text_constrained:highlight_text_constrained() { highlight_text_constrained }
+            / &['[' | '^'] check_quotes() superscript_text:superscript_text() { superscript_text }
+            / &['[' | '~'] check_quotes() subscript_text:subscript_text() { subscript_text }
+            / &['[' | '"'] check_quotes() curved_quotation_text:curved_quotation_text() { curved_quotation_text }
+            / &['[' | '\''] check_quotes() curved_apostrophe_text:curved_apostrophe_text() { curved_apostrophe_text }
+            / &['`'] check_quotes() standalone_curved_apostrophe:standalone_curved_apostrophe() { standalone_curved_apostrophe }
             ) {
                 inline
             }
@@ -1578,7 +1575,9 @@ peg::parser! {
         // A complete link owns its label's markers. Recognition has no catalog
         // side effects; its content is parsed only after the outer span succeeds.
         rule formatting_link_match()
-        = &['f' | 'h' | 'i' | 'l' | 'm' | 'x' | '<'] check_macros() (
+        = #{|input, start| {
+            if formatting_link_prefix(&input[start..]) { peg::RuleResult::Matched(start, ()) } else { peg::RuleResult::Failed }
+        }} check_macros() (
             (url_macro_target_match()
                 / "link:" link_macro_source()
                 / "mailto:" email_address() ("?" url_path_char()*)?)
@@ -1599,7 +1598,8 @@ peg::parser! {
 
         // Reject invalid closers while scanning so a later marker can close the span.
         rule constrained_formatting_close(marker: char)
-        = start:position!() constrained_formatting_edge(start.saturating_sub(1))
+        = &(c:[_] {? (c == marker).then_some(()).ok_or("constrained formatting delimiter") })
+        start:position!() constrained_formatting_edge(start.saturating_sub(1))
         c:[_] next:position!() &constrained_boundary_follow(marker) {?
             (c == marker && (c != '`' || code_followed_by_attribute(state, next)
                 || !matches!(state.input.as_bytes().get(next), Some(b'"' | b'\''))))
@@ -1609,7 +1609,13 @@ peg::parser! {
         rule constrained_formatting_content(marker: char)
         = empty_quote_content() &constrained_formatting_close(marker)
         / start:position!() constrained_formatting_edge(start) (formatting_link_match() / [_])
-          (formatting_link_match() / !constrained_formatting_close(marker) [_])*
+          (constrained_formatting_text(marker) / formatting_link_match() / !constrained_formatting_close(marker) [_])*
+
+        rule constrained_formatting_text(marker: char)
+        = #{|input, start| {
+            let end = formatting_text_end(input, start, marker);
+            if end > start { peg::RuleResult::Matched(end, ()) } else { peg::RuleResult::Failed }
+        }}
 
         rule bold_text_constrained() -> InlineNode<'input>
         = attrs:inline_attributes()?
@@ -2292,26 +2298,21 @@ peg::parser! {
             }
         }
 
-        /// Rust-native guard: returns Ok for characters that cannot start any inline
-        /// construct. Uses the static `PLAIN_TEXT_SAFE` lookup table plus context
-        /// checks for email (`@` within 64 bytes) and hard wrap (space followed by `+`).
-        rule plain_text_quick_safe() -> ()
-        = pos:position!() {?
-            let b = state.input.as_bytes().get(pos).copied().unwrap_or(0);
-            if !is_plain_text_safe(b) {
-                return Err("needs full check");
-            }
-            if b == b' ' {
-                if state.input.as_bytes().get(pos + 1).copied() == Some(b'+') {
-                    return Err("potential hard wrap");
-                }
-                return Ok(());
-            }
-            if b.is_ascii_alphanumeric() && has_at_sign_ahead(state, pos) {
-                return Err("potential email");
-            }
-            Ok(())
-        }
+        rule autolink_ahead()
+        = #{|_input, start| {
+            if autolink_start(state, start) { peg::RuleResult::Matched(start, ()) } else { peg::RuleResult::Failed }
+        }}
+
+        rule ordinary_text_start()
+        = #{|_input, start| {
+            if plain_text_start(state, start) { peg::RuleResult::Matched(start, ()) } else { peg::RuleResult::Failed }
+        }}
+
+        rule ordinary_text()
+        = #{|_input, start| {
+            let end = plain_text_end(state, start);
+            if end > start { peg::RuleResult::Matched(end, ()) } else { peg::RuleResult::Failed }
+        }}
 
         rule plain_text() -> InlineNode<'input>
         = start_pos:position!()
@@ -2322,9 +2323,8 @@ peg::parser! {
             / "\\" "~" !([^'~' | ' ' | '\t' | '\n']+ "~")
             // Fast path: characters that can never start any inline construct.
             / ['\t' | ',' | ';' | '.' | '?' | '!' | ':' | '/' | '>' | ')' | ']' | '}' | '|' | '@' | '&' | '=' | '{' | '-' | '\u{00A0}'..='\u{FFFC}' | '\u{FFFE}'..='\u{10FFFF}']+
-            // Quick path: Rust-native lookup table check for safe characters (uppercase,
-            // non-macro lowercase, digits, space). Skips the full 7-branch PEG lookahead.
-            / plain_text_quick_safe() [_]
+            // Ordinary runs stop before potential syntax and leave recognition to PEG.
+            / ordinary_text()
             // Slow path: potential construct trigger character. Use character-class guards to
             // skip groups of rules whose starting character doesn't match.
             / (
@@ -2333,19 +2333,19 @@ peg::parser! {
                     // plain text absorb it when post replacements cannot handle it.
                     check_post_replacements() paragraph_break()
                     / profiled_attribute_match()
-                    / escaped_passthrough_attributes_match()
+                    / &['\\'] escaped_passthrough_attributes_match()
                     / &['['] attributed_passthrough_match()
                     / check_hardbreaks() line_break_eol()
                     / ![_]
                     / &['\\'] (check_macros() "\\" anchor_macro_pattern() / index_label_bracket_match() / escaped_label_character_match() / escaped_syntax_match())
-                    / check_post_replacements() &[' '] (hard_wrap_match() / inline_line_break_match())
+                    / &[' '] check_post_replacements() (hard_wrap_match() / inline_line_break_match())
                     // Macro guard: [ ( < for delimiters, then first letters of each macro:
                     // a=anchor/asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,
                     // k=kbd, l=link/latexmath, m=menu/mailto, p=pass, s=stem, x=xref
-                    / (check_macros() &['"' | '[' | '(' | '<' | 'a' | 'b' | 'f' | 'h' | 'i' | 'k' | 'l' | 'm' | 'p' | 's' | 'x'] (inline_anchor_match() / (check_index_terms() index_term_match()) / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match() / inline_image_match() / inline_icon_match() / inline_stem_match() / inline_keyboard_match() / inline_button_match() / inline_menu_match() / inline_implicit_menu_match() / mailto_macro_match() / url_macro_match(false) / inline_pass_match() / link_macro_match()))
-                    / (check_macros() &['l'] literal_link_target_match())
-                    / (check_macros() check_autolinks() inline_autolink_match(false))
-                    / (check_quotes() &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (bold_text_unconstrained_match() / bold_text_constrained_match() / italic_text_unconstrained_match() / italic_text_constrained_match() / monospace_text_unconstrained_match() / monospace_text_constrained_match() / highlight_text_unconstrained_match() / highlight_text_constrained_match() / superscript_text_match() / subscript_text_match() / curved_quotation_text_match() / curved_apostrophe_text_match() / standalone_curved_apostrophe_match()))
+                    / (&['"' | '[' | '(' | '<' | 'a' | 'b' | 'f' | 'h' | 'i' | 'k' | 'l' | 'm' | 'p' | 's' | 'x'] check_macros() (&['[' | 'a'] inline_anchor_match() / &['(' | 'i'] (check_index_terms() index_term_match()) / &['<'] cross_reference_shorthand_match() / &['x'] cross_reference_macro_match() / &['f'] footnote_match() / &['i'] inline_image_match() / &['i'] inline_icon_match() / &['s' | 'a' | 'l'] inline_stem_match() / &['k'] inline_keyboard_match() / &['b'] inline_button_match() / &['m'] inline_menu_match() / &['"'] inline_implicit_menu_match() / &['m'] mailto_macro_match() / &['h' | 'f' | 'i'] url_macro_match(false) / &['p'] inline_pass_match() / &['l'] link_macro_match()))
+                    / (&['l'] check_macros() literal_link_target_match())
+                    / (autolink_ahead() check_macros() check_autolinks() inline_autolink_match(false))
+                    / (&['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] check_quotes() (bold_text_unconstrained_match() / bold_text_constrained_match() / italic_text_unconstrained_match() / italic_text_constrained_match() / monospace_text_unconstrained_match() / monospace_text_constrained_match() / highlight_text_unconstrained_match() / highlight_text_constrained_match() / superscript_text_match() / subscript_text_match() / curved_quotation_text_match() / curved_apostrophe_text_match() / standalone_curved_apostrophe_match()))
                 ) [_]
             )
         )+)

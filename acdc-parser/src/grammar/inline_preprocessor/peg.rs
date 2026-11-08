@@ -57,21 +57,23 @@ peg::parser! {
                 / !(escaped_passthrough_pattern() / passthrough_pattern(false) / monospace_pattern()) [_]
             )+) { state.advance(source); source }
 
-        rule inlines() -> String = quiet!{
-            inherited_attribute()
-            / unsupported_stem_macro()
-            / stem_macro()
-            /
-            // Keyboard macros can contain plus signs that would otherwise start passthroughs.
-            kbd_macro()
-            / monospace()
-            / escaped_passthrough()
-            / passthrough()
-            // Recognize counters before attributes: counter names contain a colon.
-            / counter_reference()
-            / escaped_attribute_reference()
-            / attribute_reference()
-            / unprocessed_text()
+        rule inlines() -> Cow<'input, str> = quiet!{
+            text:(
+                inherited_attribute()
+                / unsupported_stem_macro()
+                / stem_macro()
+                /
+                // Keyboard macros can contain plus signs that would otherwise start passthroughs.
+                kbd_macro()
+                / monospace()
+                / escaped_passthrough()
+                / passthrough()
+                // Recognize counters before attributes: counter names contain a colon.
+                / counter_reference()
+                / escaped_attribute_reference()
+                / attribute_reference()
+            ) { Cow::Owned(text) }
+            / text:unprocessed_text() { Cow::Borrowed(text) }
         } / expected!("inlines parser failed")
 
         // Formatting and labels reparse expanded text. Copy inherited values
@@ -125,12 +127,12 @@ peg::parser! {
             }
 
         rule unsupported_stem_macro() -> String
-            = start:position() source:$(unsupported_stem_macro_pattern()) {
+            = &['l' | 'a' | 's'] start:position() source:$(unsupported_stem_macro_pattern()) {
                 state.recover_stem_substitutions(source, start)
             }
 
         rule unsupported_stem_macro_pattern()
-            = check_macros() (start:position!()
+            = &['l' | 'a' | 's'] &("latexmath:" / "asciimath:" / "stem:") check_macros() (start:position!()
               {? (!state.input.borrow()[..start].ends_with('\\'))
                   .then_some(()).ok_or("escaped STEM macro") })
               ("latexmath" / "asciimath" / "stem") ":"
@@ -168,7 +170,7 @@ peg::parser! {
             }
 
         rule escaped_attribute_reference() -> String
-            = start:position() source:$(escaped_attribute_reference_pattern()) {
+            = &['\\' | '{'] start:position() source:$(escaped_attribute_reference_pattern()) {
                 let location = state.calculate_location(start, source, 0);
                 let text = if state.attributes_enabled.get() {
                     let text = source.strip_prefix('\\').unwrap_or(source);
@@ -204,7 +206,7 @@ peg::parser! {
                 {? state.attributes_enabled.get().then_some(()).ok_or("attribute substitutions disabled") }
 
         rule attribute_reference() -> String
-            = start:position() "{" attribute_name:attribute_name() "}" {
+            = &"{" start:position() "{" attribute_name:attribute_name() "}" {
                 let location = state.calculate_location(start, attribute_name, 2);
                 state.expand_attribute_reference(attribute_name, location, document_attributes)
             }
@@ -219,7 +221,7 @@ peg::parser! {
         rule check_macros() = {? state.macros_enabled.then_some(()).ok_or("macros disabled") }
 
         rule escaped_passthrough() -> String
-            = check_macros() expanded:("\\" source:$(pass_macro_pattern()) {
+            = &"\\" check_macros() expanded:("\\" source:$(pass_macro_pattern()) {
                 let start = state.get_offset();
                 let expanded = state.extract_single_passthroughs(source, start + 1, document_attributes);
                 state.current_offset.set(start + source.len() + 1);
@@ -236,7 +238,7 @@ peg::parser! {
             }) { expanded }
 
         rule passthrough() -> String = quiet!{
-            check_macros() text:(triple_plus_passthrough() / double_plus_passthrough() / single_plus_passthrough() / pass_macro()) { text }
+            &['+' | 'p'] &("+" / "pass:") check_macros() text:(triple_plus_passthrough() / double_plus_passthrough() / single_plus_passthrough() / pass_macro()) { text }
         } / expected!("passthrough parser failed")
 
         rule single_plus_passthrough() -> String
@@ -320,7 +322,7 @@ peg::parser! {
         rule substitution_value() -> &'input str
             = $(['a'..='z' | 'A'..='Z' | '0'..='9' | '_']+)
 
-        rule unprocessed_text() -> String
+        rule unprocessed_text() -> &'input str
             = text:$((
                 stem_literal_pattern()
                 / [^'{' | '+' | '`' | 'k' | 'p' | 's' | 'a' | 'l' | '\\']+
@@ -328,7 +330,7 @@ peg::parser! {
                 !(unsupported_stem_macro_pattern() / stem_macro_pattern() / escaped_passthrough_pattern() / escaped_attribute_reference_pattern() / passthrough_pattern(false) / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
             )+) {
                 state.advance(text);
-                text.to_string()
+                text
             }
 
         // Copy simple formulas with the surrounding text to avoid extra allocations.
@@ -339,7 +341,7 @@ peg::parser! {
                   .then_some(()).ok_or("STEM content needs passthrough extraction") }
 
         rule stem_macro_pattern()
-            = (check_macros()
+            = &['l' | 'a' | 's'] &("latexmath:[" / "asciimath:[" / "stem:[") (check_macros()
               {? state.attributes_enabled.get().then_some(()).ok_or("STEM attributes already protected") })
               (start:position!()
               {? (!state.input.borrow()[..start].ends_with('\\'))
@@ -370,7 +372,7 @@ peg::parser! {
             }}
 
         rule monospace_pattern()
-            = ({? (!state.defer_monospace).then_some(()).ok_or("attributes precede quotes") })
+            = &"`" (({? (!state.defer_monospace).then_some(()).ok_or("attributes precede quotes") })
               ("``" (!"``" [_])+ "``" / "`" [^('`' | ' ' | '\t' | '\n')] [^'`']* "`")
             / (start:position!()
               {? (!state.input.borrow()[..start].trim_end_matches('`').ends_with('\\'))
@@ -379,7 +381,7 @@ peg::parser! {
               / (start:position!() {? check_constrained_opening_boundary(start, state.input.borrow().as_bytes(), None, b'`')
                   .then_some(()).ok_or("code opening boundary") })
                 "`" ![' ' | '\t'..='\r'] [_]
-                (!monospace_close() [_])* monospace_close())
+                (!monospace_close() [_])* monospace_close()))
 
         // Skip invalid closing candidates so passthroughs stay inside the code
         // scope selected by the inline parser. Lookahead uses this same rule.
@@ -411,7 +413,7 @@ peg::parser! {
             }
         }} { source }
 
-        rule passthrough_pattern(escaped: bool) = check_macros() (
+        rule passthrough_pattern(escaped: bool) = &['+' | 'p'] &("+" / "pass:") check_macros() (
         "+++" (!("+++") [_])+ "+++" /
         "++" (!("++") [_])+ "++" /
         single_plus_pattern(escaped) /

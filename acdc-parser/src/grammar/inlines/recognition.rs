@@ -48,19 +48,102 @@ pub(super) fn catalog_escape_allowed(state: &ParserState<'_>, start: usize) -> b
     }
 }
 
-/// Return whether a byte can start ordinary text without further syntax checks.
-/// Letters that can start macros need a separate check. A space can still begin
-/// the hard-break pattern ` +`.
-pub(super) const fn is_plain_text_safe(b: u8) -> bool {
-    matches!(
-        b,
-        b'A'..=b'Z'
-            | b'0'..=b'9'
-            | b'c' | b'd' | b'e' | b'g' | b'j'
-            | b'n' | b'o' | b'q' | b'r' | b't'
-            | b'u' | b'v' | b'w' | b'y' | b'z'
-            | b' '
-    )
+/// Scan ordinary ASCII without entering the grammar at every character.
+/// Candidates still go through the grammar's substitution and boundary checks.
+pub(super) fn plain_text_end(state: &ParserState<'_>, start: usize) -> usize {
+    let bytes = state.input.as_bytes();
+    let mut end = start;
+    while let Some(&byte) = bytes.get(end) {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' => {
+                if has_at_sign_ahead(state, end) || macro_prefix(&state.input[end..]) {
+                    break;
+                }
+            }
+            b' ' if bytes.get(end + 1) == Some(&b'+') => break,
+            b' ' | b'\t' | b',' | b';' | b'.' | b'?' | b'!' | b':' | b'/' | b'>' | b')' | b']'
+            | b'}' | b'|' | b'@' | b'&' | b'=' | b'{' | b'-' => {}
+            _ => break,
+        }
+        end += 1;
+    }
+    end
+}
+
+/// Avoid trying every node recognizer when the first character is ordinary text.
+pub(super) fn plain_text_start(state: &ParserState<'_>, start: usize) -> bool {
+    match state.input.as_bytes().get(start) {
+        Some(b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9') => {
+            !macro_prefix(&state.input[start..]) && !has_at_sign_ahead(state, start)
+        }
+        // A space before '+' can start a hard break; '.' and '-' can start an email.
+        Some(b' ') => state.input.as_bytes().get(start + 1) != Some(&b'+'),
+        Some(b'.' | b'-') => !has_at_sign_ahead(state, start),
+        Some(
+            b'\t' | b',' | b';' | b'?' | b'!' | b':' | b'/' | b'>' | b')' | b']' | b'}' | b'|'
+            | b'@' | b'&' | b'=' | b'{',
+        ) => true,
+        _ => false,
+    }
+}
+
+fn macro_prefix(text: &str) -> bool {
+    match text.as_bytes().first() {
+        Some(b'a') => text.starts_with("anchor:") || text.starts_with("asciimath:"),
+        Some(b'b') => text.starts_with("btn:"),
+        Some(b'f') => text.starts_with("footnote:") || text.starts_with("ftp://"),
+        Some(b'h') => text.starts_with("http://") || text.starts_with("https://"),
+        Some(b'i') => {
+            text.starts_with("image:")
+                || text.starts_with("icon:")
+                || text.starts_with("indexterm:")
+                || text.starts_with("indexterm2:")
+                || text.starts_with("irc://")
+        }
+        Some(b'k') => text.starts_with("kbd:"),
+        Some(b'l') => text.starts_with("link:") || text.starts_with("latexmath:"),
+        Some(b'm') => text.starts_with("menu:") || text.starts_with("mailto:"),
+        Some(b'p') => text.starts_with("pass:"),
+        Some(b's') => text.starts_with("stem:"),
+        Some(b'x') => text.starts_with("xref:"),
+        _ => false,
+    }
+}
+
+pub(super) fn autolink_start(state: &ParserState<'_>, start: usize) -> bool {
+    let text = &state.input[start..];
+    match text.as_bytes().first() {
+        Some(b'<') => true,
+        Some(b'h') if text.starts_with("http://") || text.starts_with("https://") => true,
+        Some(b'f') if text.starts_with("ftp://") => true,
+        Some(b'i') if text.starts_with("irc://") => true,
+        Some(b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'.' | b'_' | b'%' | b'+' | b'-' | b'"') => {
+            has_at_sign_ahead(state, start)
+        }
+        _ => false,
+    }
+}
+
+pub(super) fn formatting_link_prefix(text: &str) -> bool {
+    match text.as_bytes().first() {
+        Some(b'h') => text.starts_with("http://") || text.starts_with("https://"),
+        Some(b'f') => text.starts_with("ftp://"),
+        Some(b'i') => text.starts_with("irc://"),
+        Some(b'l') => text.starts_with("link:"),
+        Some(b'm') => text.starts_with("mailto:"),
+        Some(b'x') => text.starts_with("xref:"),
+        Some(b'<') => text.starts_with("<<"),
+        _ => false,
+    }
+}
+
+/// Links own the formatting markers in their labels. Stop before either a link
+/// candidate or the outer delimiter so the grammar can check its full context.
+pub(super) fn formatting_text_end(input: &str, start: usize, marker: char) -> usize {
+    let text = &input[start..];
+    text.char_indices()
+        .find(|(offset, ch)| *ch == marker || formatting_link_prefix(&text[*offset..]))
+        .map_or(input.len(), |(offset, _)| start + offset)
 }
 
 pub(super) fn link_label_opening_ahead(state: &ParserState<'_>, position: usize) -> bool {

@@ -1,5 +1,5 @@
 use acdc_parser::{
-    Options, WarningKind,
+    CompatibilityMode, Options, WarningKind,
     ast::{BlockKind, BlockRef, ContentRef, InlineKind, InlineRef},
     parse, parse_inline,
 };
@@ -225,17 +225,31 @@ fn formatted_whitespace_remains_inside_link_labels() -> Result<(), Error> {
     Ok(())
 }
 
-#[test]
-fn whitespace_macro_labels_keep_only_their_source_span() -> Result<(), Error> {
+#[rstest::rstest]
+fn macro_labels_keep_only_their_source_span(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
     for target in [
         "link:https://example.org",
         "https://example.org",
         "mailto:a@example.org",
         "xref:target",
     ] {
-        for body in [" ", "  ", "\t", "{sp}", "{sp}{sp}"] {
+        for body in [
+            " ",
+            "  ",
+            "\t",
+            "{sp}",
+            "{sp}{sp}",
+            "Alpha 123",
+            "Alpha{sp}123",
+            "{sp}Alpha 123{sp}",
+        ] {
             let source = format!("{target}[{body}]");
-            let parsed = parse(&source, &Options::default())?;
+            let parsed = parse(
+                &source,
+                &Options::builder().with_compatibility_mode(mode).build()?,
+            )?;
             let Some(BlockKind::Paragraph(paragraph)) =
                 parsed.document().blocks().next().map(BlockRef::kind)
             else {
@@ -263,7 +277,7 @@ fn whitespace_macro_labels_keep_only_their_source_span() -> Result<(), Error> {
             let [InlineKind::Plain(text)] =
                 &*content.inlines().map(InlineRef::kind).collect::<Vec<_>>()
             else {
-                return Err("expected a whitespace label".into());
+                return Err("expected a plain label".into());
             };
             assert_eq!(text.text(), body.replace("{sp}", " "), "{source}");
             assert_eq!(

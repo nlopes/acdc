@@ -1,7 +1,7 @@
 use std::{borrow::Cow, ops::Range, rc::Rc};
 
 use crate::{
-    Error, InlineNode, InlinePreprocessorParserState, Location, Position, ProcessedContent,
+    Error, InlineNode, InlinePreprocessorParserState, Location, Plain, Position, ProcessedContent,
     SourceLocation,
     grammar::{
         inline_preprocessor::{ProcessedKind, SourceMap},
@@ -18,6 +18,10 @@ use super::{
     inlines::inline_parser,
     state::{InlineContext, InlineRules, ParserScope},
 };
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests;
 
 pub(super) fn process_attribute_inlines<'a>(
     state: &mut ParserState<'a>,
@@ -397,6 +401,48 @@ fn inline_context(
 
 #[tracing::instrument(skip_all, fields(input_len = text.len(), autolinks = autolinks, verbatim = verbatim))]
 fn parse_processed_inlines<'a>(
+    processed: &ProcessedContent<'a>,
+    text: &'a str,
+    state: &mut ParserState<'a>,
+    block_metadata: &BlockParsingMetadata,
+    location: &Location,
+    autolinks: bool,
+    verbatim: bool,
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    // Short formatting bodies and plain paragraphs need neither a nested parser
+    // state nor semantic finishing when no inline syntax can occur. Locations
+    // remain relative here; the caller still applies the original source map.
+    if !verbatim
+        && processed.passthroughs.is_empty()
+        && !text.is_empty()
+        && text.bytes().all(|byte| {
+            byte.is_ascii_alphanumeric() || matches!(byte, b' ' | b',' | b';' | b'.' | b'!' | b'?')
+        })
+        && !text.contains("...")
+    {
+        return Ok(vec![InlineNode::PlainText(Plain {
+            content: text,
+            escaped: false,
+            location: Location {
+                absolute_start: 0,
+                absolute_end: text.len() - 1,
+                start: Position::new(1, 1),
+                end: Position::from_line_col(1, text.len()),
+            },
+        })]);
+    }
+    parse_inline_syntax(
+        processed,
+        text,
+        state,
+        block_metadata,
+        location,
+        autolinks,
+        verbatim,
+    )
+}
+
+fn parse_inline_syntax<'a>(
     processed: &ProcessedContent<'a>,
     text: &'a str,
     state: &mut ParserState<'a>,

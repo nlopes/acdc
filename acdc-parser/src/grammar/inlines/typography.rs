@@ -2,6 +2,8 @@ mod character_references;
 mod encoded_arrows;
 mod neighbors;
 mod split;
+#[cfg(test)]
+mod tests;
 
 use std::{mem::take, ops::Range};
 
@@ -221,33 +223,31 @@ pub(crate) fn pending_word_edges(text: &str) -> (usize, usize) {
 }
 
 pub(crate) fn has_candidate(text: &str) -> bool {
-    text.contains("(C)")
-        || text.contains("(R)")
-        || text.contains("(TM)")
-        || text.contains("...")
-        || text.contains("--")
-        || text.contains('\'')
-        || ["->", "=>", "<-", "<="]
+    text.bytes().enumerate().any(|(index, byte)| match byte {
+        b'(' => ["(C)", "(R)", "(TM)"]
             .iter()
-            .any(|token| text.contains(token))
-        || text.contains('&')
-            && [
-                "-&gt;",
-                "=&gt;",
-                "&lt;-",
-                "&lt;=",
-                r"&lt;\-&gt;",
-                r"&lt;\=&gt;",
-            ]
+            .any(|token| text[index..].starts_with(token)),
+        b'.' => text[index..].starts_with("..."),
+        b'-' => ["--", "->", "-&gt;"]
             .iter()
-            .any(|token| text.contains(token))
+            .any(|token| text[index..].starts_with(token)),
+        b'=' => text[index..].starts_with("=>") || text[index..].starts_with("=&gt;"),
+        b'<' => text[index..].starts_with("<-") || text[index..].starts_with("<="),
+        b'\'' => true,
+        b'&' => ["&lt;-", "&lt;=", r"&lt;\-&gt;", r"&lt;\=&gt;"]
+            .iter()
+            .any(|token| text[index..].starts_with(token)),
+        _ => false,
+    })
 }
 
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub(crate) struct Replacement {
     pub(crate) range: Range<usize>,
     pub(crate) value: ReplacementValue,
 }
 
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub(crate) enum ReplacementValue {
     Remove,
     Symbol(SymbolKind),
@@ -289,11 +289,21 @@ pub(crate) fn replacements(
 ) -> Vec<Replacement> {
     let mut edits = Vec::new();
     let mut cursor = 0;
-    while cursor < text.len() {
-        let escaped = text.as_bytes().get(cursor) == Some(&b'\\');
-        let start = cursor + usize::from(escaped);
+    while let Some(offset) = text
+        .as_bytes()
+        .get(cursor..)
+        .unwrap_or_default()
+        .iter()
+        .position(|byte| matches!(byte, b'(' | b'.' | b'-' | b'=' | b'<' | b'\'' | b'&'))
+    {
+        // Every candidate is ASCII, so both it and an immediately preceding
+        // escape are UTF-8 boundaries. Keep a rejected escape eligible for the
+        // unescaped retry, as required by substitution provenance.
+        let start = cursor + offset;
+        let escaped = offset > 0 && text.as_bytes().get(start - 1) == Some(&b'\\');
+        cursor = start - usize::from(escaped);
         let Some((mut range, kind)) = replacement_at(text, start, edges, words) else {
-            cursor += text[cursor..].chars().next().map_or(1, char::len_utf8);
+            cursor = start + 1;
             continue;
         };
         if escaped
