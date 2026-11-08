@@ -194,7 +194,7 @@ fn image_alternatives_preserve_parser_selected_boundaries() -> Result<(), TestEr
             expected
         );
         assert_eq!(
-            acdc_converters_core::inline_text::InlineTextTransform::default()
+            acdc_converters_core::InlineTextTransform::default()
                 .rendered()
                 .decode_char_refs(true)
                 .content_to_string(tooltip.into()),

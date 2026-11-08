@@ -7,7 +7,7 @@ use rustc_hash::FxHashMap;
 /// `selected = true` includes the tag; `false` excludes it. The names `*` and
 /// `**` retain their Asciidoctor wildcard meanings.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Filter {
+pub(super) struct Filter {
     name: String,
     selected: bool,
 }
@@ -53,7 +53,7 @@ pub(super) fn selects_all(filters: &[Filter]) -> bool {
 /// directive location and target description and converts each issue into the
 /// existing `Warning` representation.
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Issue {
+pub(super) enum Issue {
     UnexpectedEnd {
         name: String,
         line: usize,
@@ -105,7 +105,7 @@ fn extract_tag_directive(line: &str) -> Option<(&'static str, &str)> {
     None
 }
 
-pub(crate) fn is_tag_directive_line(line: &str) -> bool {
+pub(super) fn is_tag_directive_line(line: &str) -> bool {
     extract_tag_directive(line).is_some()
 }
 
@@ -259,7 +259,7 @@ impl<'a> Selector<'a> {
 }
 
 #[cfg(test)]
-pub(crate) fn select_tagged_lines(
+pub(super) fn select_tagged_lines(
     lines: &[&str],
     filters: &[Filter],
     mut report: impl FnMut(Issue),

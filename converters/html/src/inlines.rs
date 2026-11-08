@@ -99,7 +99,7 @@ fn passthrough_substitution_text(raw: RawRef<'_>, text_boundaries: TextBoundarie
 }
 
 /// Escape a URL for a quoted HTML attribute.
-pub(crate) fn escape_href(url: &str) -> String {
+fn escape_href(url: &str) -> String {
     escape_attribute(url)
 }
 
@@ -351,7 +351,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     }
 
     /// Render inline content without nesting generated anchors inside label links.
-    pub(crate) fn render_inline_node(
+    fn render_inline_node(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         node: InlineRef<'_>,
@@ -377,7 +377,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         self.render_inline_node_content(traversal, node, options, subs)
     }
 
-    pub(crate) fn close_inline_link(&mut self) -> Result<(), Error> {
+    fn close_inline_link(&mut self) -> Result<(), Error> {
         if let Some(mut link) = self.inline_link.take() {
             let result = link.close(self.writer_mut());
             self.inline_link = Some(link);

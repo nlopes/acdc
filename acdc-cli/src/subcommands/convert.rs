@@ -38,14 +38,14 @@ type RawAttributes<'a> = std::collections::HashMap<Cow<'a, str>, AttributeValue<
 #[derive(ClapArgs, Debug)]
 #[cfg_attr(feature = "pdf", command(group(clap::ArgGroup::new("theme_or_export").args(["theme", "emit_theme_config"]).multiple(true))))]
 #[allow(clippy::struct_excessive_bools)] // CLI flags are naturally booleans
-pub struct Args {
+pub(crate) struct Args {
     /// Language rules: asciidoctor or draft
     #[arg(long, value_name = "MODE", default_value_t = acdc_parser::CompatibilityMode::default())]
-    pub compatibility_mode: acdc_parser::CompatibilityMode,
+    compatibility_mode: acdc_parser::CompatibilityMode,
 
     /// Input from stdin
     #[arg(long, conflicts_with = "files")]
-    pub stdin: bool,
+    stdin: bool,
 
     /// Output file (default: based on path of input file); use - to output to STDOUT
     ///
@@ -53,11 +53,11 @@ pub struct Args {
     /// the output path from the input file. If multiple input files are
     /// provided with this option, only the first file is processed.
     #[arg(short = 'o', long = "out-file", value_name = "FILE")]
-    pub out_file: Option<String>,
+    out_file: Option<String>,
 
     /// Files to convert.
     #[arg(conflicts_with = "stdin", required_unless_present = "stdin")]
-    pub files: Vec<PathBuf>,
+    files: Vec<PathBuf>,
 
     /// Backend output format
     ///
@@ -65,7 +65,7 @@ pub struct Args {
     /// `--backend` must be supplied explicitly.
     #[arg(short = 'b', long, value_enum)]
     #[cfg_attr(feature = "html", arg(default_value = "html"))]
-    pub backend: BackendArg,
+    backend: BackendArg,
 
     /// Backend output variant
     ///
@@ -79,34 +79,34 @@ pub struct Args {
     /// `--backend html --variant semantic` and rejects `--variant`.
     #[cfg(any(feature = "html", feature = "markdown"))]
     #[arg(long, value_enum, verbatim_doc_comment)]
-    pub variant: Option<VariantArg>,
+    variant: Option<VariantArg>,
 
     /// Document type to use when converting document
     #[arg(short = 'd', long, value_parser = clap::value_parser!(Doctype), default_value = "article")]
-    pub doctype: Doctype,
+    doctype: Doctype,
 
     /// Set safe mode to safe
     #[arg(long, conflicts_with = "safe_mode")]
-    pub safe: bool,
+    safe: bool,
 
     /// Safe mode to use when converting document
     #[arg(short = 'S', long, value_parser = clap::value_parser!(SafeMode), default_value = "unsafe", conflicts_with = "safe")]
-    pub safe_mode: SafeMode,
+    safe_mode: SafeMode,
 
     /// Maximum selected include text per document, in bytes (64 MiB by default)
     ///
     /// Zero permits only empty selections. The 10 MiB per-include limit still applies.
     #[arg(long, value_name = "BYTES", default_value_t = ParserOptions::default().max_total_include_bytes())]
-    pub max_total_include_bytes: usize,
+    max_total_include_bytes: usize,
 
     /// Show timing information
     #[arg(short = 't', long)]
-    pub timings: bool,
+    timings: bool,
 
     /// Extra directory of PDF fonts (`ttf`, `otf`, `ttc`, `otc`). Repeatable.
     #[cfg(feature = "pdf")]
     #[arg(long, value_name = "DIR")]
-    pub font_dir: Vec<PathBuf>,
+    font_dir: Vec<PathBuf>,
 
     /// Maximum simultaneous remote PDF image fetches (default: 2).
     ///
@@ -115,47 +115,47 @@ pub struct Args {
     /// with the network feature.
     #[cfg(feature = "pdf")]
     #[arg(long, value_name = "COUNT")]
-    pub image_concurrency: Option<std::num::NonZeroUsize>,
+    image_concurrency: Option<std::num::NonZeroUsize>,
 
     /// Logo image (SVG or raster) shown in the PDF running header.
     #[cfg(feature = "pdf")]
     #[arg(long, value_name = "FILE")]
-    pub logo: Option<PathBuf>,
+    logo: Option<PathBuf>,
 
     /// Title shown in the PDF running header.
     #[cfg(feature = "pdf")]
     #[arg(long, value_name = "TEXT")]
-    pub title: Option<String>,
+    title: Option<String>,
 
     /// Diagonal gray PDF watermark text stamped on every page.
     #[cfg(feature = "pdf")]
     #[arg(long, value_name = "TEXT")]
-    pub watermark: Option<String>,
+    watermark: Option<String>,
 
     /// Show the current date and time in the PDF footer watermark metadata.
     #[cfg(feature = "pdf")]
     #[arg(long)]
-    pub watermark_timestamp: bool,
+    watermark_timestamp: bool,
 
     /// PDF page size.
     #[cfg(feature = "pdf")]
     #[arg(long, value_enum, value_name = "SIZE")]
-    pub page: Option<PdfPageArg>,
+    page: Option<PdfPageArg>,
 
     /// PDF page layout.
     #[cfg(feature = "pdf")]
     #[arg(long, value_enum, value_name = "LAYOUT")]
-    pub page_layout: Option<PdfPageLayoutArg>,
+    page_layout: Option<PdfPageLayoutArg>,
 
     /// PDF theme YAML file. Defaults to the bundled neutral theme.
     #[cfg(feature = "pdf")]
     #[arg(long, value_name = "FILE")]
-    pub theme: Option<PathBuf>,
+    theme: Option<PathBuf>,
 
     /// PDF theme format. Asciidoctor settings are converted with warnings for unsupported styles.
     #[cfg(feature = "pdf")]
     #[arg(long, value_enum, value_name = "FORMAT", requires = "theme_or_export")]
-    pub theme_format: Option<PdfThemeFormatArg>,
+    theme_format: Option<PdfThemeFormatArg>,
 
     /// Also write the full resolved PDF theme as native acdc YAML.
     ///
@@ -163,22 +163,22 @@ pub struct Args {
     /// and caller page overrides are not included in the file.
     #[cfg(feature = "pdf")]
     #[arg(long, value_name = "FILE")]
-    pub emit_theme_config: Option<PathBuf>,
+    emit_theme_config: Option<PathBuf>,
 
     /// Strip PDF branding chrome (page background, header, footer).
     #[cfg(feature = "pdf")]
     #[arg(long)]
-    pub plain: bool,
+    plain: bool,
 
     /// Prepend a PDF table of contents built from headings.
     #[cfg(feature = "pdf")]
     #[arg(long)]
-    pub toc: bool,
+    toc: bool,
 
     /// Also write the generated Typst markup to this path for debugging.
     #[cfg(feature = "pdf")]
     #[arg(long, value_name = "FILE")]
-    pub emit_typst: Option<PathBuf>,
+    emit_typst: Option<PathBuf>,
 
     /// Attributes to pass to the backend
     #[arg(
@@ -187,7 +187,7 @@ pub struct Args {
         value_name = "NAME[=VALUE | !]",
         action = ArgAction::Append
     )]
-    pub attributes: Vec<String>,
+    attributes: Vec<String>,
 
     /// Force file-qualified cross-references to resolve within this document
     ///
@@ -198,7 +198,7 @@ pub struct Args {
     /// genuine external file references. It does not scope duplicate IDs,
     /// resolve Antora resource IDs, or change page-only references.
     #[arg(long = "force-local-file-xrefs")]
-    pub force_local_file_xrefs: bool,
+    force_local_file_xrefs: bool,
 
     /// Strict mode
     ///
@@ -207,7 +207,7 @@ pub struct Args {
     /// unresolved PDF images or logos will cause conversion to fail instead of using
     /// fallback values.
     #[arg(long)]
-    pub strict: bool,
+    strict: bool,
 
     /// Exit with status 1 if parsing or conversion emits a structured warning
     ///
@@ -215,13 +215,13 @@ pub struct Args {
     /// Pager warnings appear after the pager exits. This option can be used with
     /// --strict.
     #[arg(long)]
-    pub fail_on_warnings: bool,
+    fail_on_warnings: bool,
 
     /// Suppress enclosing document structure and output an embedded document
     ///
     /// The exact wrapper content omitted depends on the selected backend.
     #[arg(short = 'e', long)]
-    pub embedded: bool,
+    embedded: bool,
 
     /// Disable automatic pager for terminal output
     ///
@@ -231,7 +231,7 @@ pub struct Args {
     /// Set PAGER="" to disable without this flag.
     #[cfg(feature = "terminal")]
     #[arg(long)]
-    pub no_pager: bool,
+    no_pager: bool,
 
     /// Open the output file(s) after conversion
     ///
@@ -239,7 +239,7 @@ pub struct Args {
     /// For HTML output, this typically opens a web browser.
     /// Ignored when output is stdout (`-o -`).
     #[arg(long)]
-    pub open: bool,
+    open: bool,
 }
 
 impl Args {
@@ -274,7 +274,7 @@ impl Args {
     }
 }
 
-pub fn run(args: &Args) -> MietteResult<()> {
+pub(crate) fn run(args: &Args) -> MietteResult<()> {
     #[cfg(any(feature = "html", feature = "markdown"))]
     let backend = args.backend.resolve(args.variant)?;
     #[cfg(not(any(feature = "html", feature = "markdown")))]
@@ -1397,7 +1397,7 @@ fn run_terminal_with_pager(
 /// resolver can reject the contradictory `--backend html5s --variant
 /// <anything>` form before lowering it to the typed [`Backend`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum BackendArg {
+enum BackendArg {
     #[cfg(feature = "html")]
     Html,
     #[cfg(feature = "html")]
@@ -1416,7 +1416,7 @@ pub enum BackendArg {
 /// Input schema selected by `--theme-format`.
 #[cfg(feature = "pdf")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum PdfThemeFormatArg {
+enum PdfThemeFormatArg {
     Acdc,
     Asciidoctor,
 }
@@ -1434,7 +1434,7 @@ impl PdfThemeFormatArg {
 /// PDF page size parsed from `--page`.
 #[cfg(feature = "pdf")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum PdfPageArg {
+enum PdfPageArg {
     A3,
     A4,
     A5,
@@ -1462,7 +1462,7 @@ impl PdfPageArg {
 /// PDF page layout parsed from `--page-layout`.
 #[cfg(feature = "pdf")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum PdfPageLayoutArg {
+enum PdfPageLayoutArg {
     Portrait,
     Landscape,
 }
@@ -1502,7 +1502,7 @@ impl Display for BackendArg {
 /// entirely.
 #[cfg(any(feature = "html", feature = "markdown"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum VariantArg {
+enum VariantArg {
     #[cfg(feature = "html")]
     Standard,
     #[cfg(feature = "html")]

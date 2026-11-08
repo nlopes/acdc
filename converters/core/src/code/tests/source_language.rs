@@ -1,6 +1,6 @@
 //! Source language controls preserve exact text and require source-style blocks.
 
-use acdc_converters_core::code::{detect_language, source_language};
+use crate::code::{detect_language, source_language};
 use acdc_parser::{
     AttributeValue, BlockMetadata, CompatibilityMode, Location, Options, Paragraph,
     ast::{BlockKind, ParagraphRef},

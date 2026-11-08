@@ -61,7 +61,7 @@ impl ParsedText {
     /// consumed. The caller is expected to have already drained warnings
     /// out of the `ParseResult` (via `take_warnings()`) before calling
     /// this, so the stored value carries the AST alone.
-    pub(crate) fn from_parsed(raw_source: Box<str>, parsed: ParseResult) -> Self {
+    pub(super) fn from_parsed(raw_source: Box<str>, parsed: ParseResult) -> Self {
         Self {
             source: Arc::new(raw_source.into_string()),
             parsed: Some(Mutex::new(parsed)),
@@ -69,7 +69,7 @@ impl ParsedText {
     }
 
     /// Wrap raw source text (used when parsing failed).
-    pub(crate) fn from_source(source: Box<str>) -> Self {
+    pub(super) fn from_source(source: Box<str>) -> Self {
         Self {
             source: Arc::new(source.into_string()),
             parsed: None,
@@ -219,7 +219,7 @@ impl DocumentState {
 }
 
 /// Extract attribute definitions (`:name: value`) from raw text.
-pub(crate) fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
+pub(super) fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
     let mut defs = Vec::new();
     let mut line_start = 0usize;
 
@@ -266,7 +266,7 @@ pub(crate) fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
 /// Extract attribute references (`{name}`) from raw text.
 ///
 /// Skips escaped references (`\{name}`) and includes references in attribute values.
-pub(crate) fn extract_attribute_refs(text: &str) -> Vec<(String, Location)> {
+pub(super) fn extract_attribute_refs(text: &str) -> Vec<(String, Location)> {
     let mut refs = Vec::new();
     let mut line_start = 0usize;
 
@@ -388,7 +388,7 @@ fn evaluate_condition(
 }
 
 /// Recover primary-source spellings with the decisions made by preprocessing.
-pub(crate) fn evaluated_conditionals(text: &str, parsed: &ParseResult) -> Vec<ConditionalBlock> {
+pub(super) fn evaluated_conditionals(text: &str, parsed: &ParseResult) -> Vec<ConditionalBlock> {
     let lines: Vec<_> = text.lines().collect();
     parsed
         .conditionals()
@@ -425,7 +425,7 @@ pub(crate) fn evaluated_conditionals(text: &str, parsed: &ParseResult) -> Vec<Co
 ///
 /// Used when parsing failed or was skipped. Successful parses use the recorded
 /// preprocessing decisions, which include source-ordered attribute changes.
-pub(crate) fn extract_conditionals(
+pub(super) fn extract_conditionals(
     text: &str,
     attrs: DocumentAttributesRef<'_>,
 ) -> Vec<ConditionalBlock> {

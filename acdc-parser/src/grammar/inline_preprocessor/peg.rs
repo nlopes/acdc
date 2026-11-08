@@ -17,7 +17,7 @@ use super::{
 peg::parser! {
     pub(crate) grammar inline_preprocessing(document_attributes: &DocumentAttributes<'input>, state: &InlinePreprocessorParserState<'input>) for str {
 
-        pub rule run() -> ProcessedContent<'input>
+        pub(in crate::grammar) rule run() -> ProcessedContent<'input>
             = content:content() {
                 let mut source_map = take(&mut *state.source_map.borrow_mut());
                 // Mapping is not read during preprocessing, so sort once after all
@@ -33,10 +33,10 @@ peg::parser! {
                 }
             }
 
-        pub rule content() -> String
+        pub(in crate::grammar::inline_preprocessor) rule content() -> String
             = parts:inlines()+ { parts.join("") }
 
-        pub rule stem_content() -> String
+        pub(in crate::grammar::inline_preprocessor) rule stem_content() -> String
             = parts:(
                 source:$(monospace_pattern()) { state.advance(source); Cow::Borrowed(source) }
                 / text:escaped_passthrough() { Cow::Owned(text) }

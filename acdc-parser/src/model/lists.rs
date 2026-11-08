@@ -14,7 +14,7 @@ use super::{
     title::Title,
 };
 
-pub type ListLevel = u8;
+pub(crate) type ListLevel = u8;
 
 /// A `ListItemCheckedStatus` represents the checked status of a list item.
 #[derive(Clone, Debug, PartialEq)]

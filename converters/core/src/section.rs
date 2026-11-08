@@ -1,15 +1,19 @@
 //! Section presentation utilities shared by converters.
 
 use acdc_parser::{
-    Block, ColumnStyle, SectionKind,
-    ast::{BlockKind, BlockRef, ColumnFormatRef, SectionRef},
+    ColumnStyle, SectionKind,
+    ast::{BlockKind, BlockRef, ColumnFormatRef},
 };
+
+#[cfg(test)]
+use acdc_parser::{Block, ast::SectionRef};
 
 use crate::TraversalContext;
 
 /// Whether the last top-level section has the requested style.
 #[must_use]
-pub fn last_section_has_style(blocks: &[Block<'_>], style: &str) -> bool {
+#[cfg(test)]
+fn last_section_has_style(blocks: &[Block<'_>], style: &str) -> bool {
     let last_section = blocks.iter().rev().find_map(|block| {
         if let Block::Section(section) = block {
             Some(section)
@@ -25,7 +29,8 @@ pub fn last_section_has_style(blocks: &[Block<'_>], style: &str) -> bool {
 /// Compound blocks are searched for nested documents. Section-looking text in
 /// a compound block is a paragraph, so it cannot activate an index catalog.
 #[must_use]
-pub fn has_index_section(blocks: &[Block<'_>]) -> bool {
+#[cfg(test)]
+fn has_index_section(blocks: &[Block<'_>]) -> bool {
     contains_index_section(blocks.iter().map(BlockRef::from))
 }
 
@@ -159,3 +164,6 @@ pub fn appendix_number_prefix(number: &str, caption: Option<&str>) -> String {
         None => format!("{number}. "),
     }
 }
+
+#[cfg(test)]
+mod tests;

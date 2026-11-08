@@ -24,7 +24,7 @@ struct Span {
 
 /// Highlight entry text using the parsed document's source locations.
 /// Skip included-file spans, but still visit their entry-file children.
-pub fn highlight_from_ast(input: &str, doc: DocumentRef<'_>) -> String {
+pub(super) fn highlight_from_ast(input: &str, doc: DocumentRef<'_>) -> String {
     let mut spans = Vec::new();
 
     if let Some(header) = doc.header() {
@@ -1045,7 +1045,7 @@ fn find_line_start(input: &str, pos: usize) -> usize {
 ///
 /// Used as a fallback when parsing fails so the highlight overlay still shows
 /// the current text (the textarea itself has `color: transparent`).
-pub fn escape_html(s: &str) -> String {
+pub(super) fn escape_html(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     escape_into(s, &mut out);
     out

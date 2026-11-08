@@ -63,7 +63,7 @@ impl<'a> TextFragment<'a> {
 
 /// Expand an attribute at its grammar position, before later macros register.
 /// Locations stay relative to the placeholder until the normal source map runs.
-pub(crate) fn process_attribute_placeholder<'a>(
+pub(super) fn process_attribute_placeholder<'a>(
     index: usize,
     start: usize,
     end: usize,
@@ -1467,7 +1467,7 @@ fn restore_fragment_substitutions<'a>(
     result
 }
 
-pub(crate) fn convert_plain_to_raw(node: &mut InlineNode<'_>, subs: &[Substitution]) {
+pub(super) fn convert_plain_to_raw(node: &mut InlineNode<'_>, subs: &[Substitution]) {
     convert_plain_to_raw_with_source(node, subs, None);
 }
 
@@ -1588,10 +1588,7 @@ pub fn parse_text_for_quotes(content: &str) -> ParseInlineResult {
 /// Arena-parameterized variant for internal callers that already have an
 /// arena threaded through `ParserState`. Avoids the per-call `Bump`
 /// allocation that the public entry point does.
-pub(crate) fn parse_text_for_quotes_in<'a>(
-    arena: &'a Bump,
-    content: &'a str,
-) -> Vec<InlineNode<'a>> {
+fn parse_text_for_quotes_in<'a>(arena: &'a Bump, content: &'a str) -> Vec<InlineNode<'a>> {
     if content.is_empty() {
         return Vec::new();
     }
@@ -1646,7 +1643,7 @@ fn plain_text_at<'a>(
 /// This function handles the multi-pass parsing needed for passthroughs with quote substitutions.
 /// It splits the content around placeholders and processes each passthrough according to its
 /// substitution settings.
-pub(crate) fn process_passthrough_placeholders<'a>(
+pub(super) fn process_passthrough_placeholders<'a>(
     content: &'a str,
     processed: &ProcessedContent<'a>,
     state: &ParserState<'a>,
@@ -1721,7 +1718,7 @@ pub(crate) fn process_passthrough_placeholders<'a>(
 
 /// Merge plain text only when its source ranges are contiguous.
 /// Arena-interns the concatenated content so the merged node keeps lifetime `'a`.
-pub(crate) fn merge_adjacent_plain_text_nodes<'a>(
+fn merge_adjacent_plain_text_nodes<'a>(
     state: &ParserState<'a>,
     nodes: Vec<InlineNode<'a>>,
 ) -> Vec<InlineNode<'a>> {
@@ -1757,7 +1754,7 @@ pub(crate) fn merge_adjacent_plain_text_nodes<'a>(
     result
 }
 
-pub(crate) fn replace_passthrough_placeholders(
+pub(super) fn replace_passthrough_placeholders(
     content: &str,
     processed: &ProcessedContent,
 ) -> String {

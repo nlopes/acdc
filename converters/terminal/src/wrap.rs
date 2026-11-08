@@ -87,7 +87,7 @@ fn collect_ansi_escape(chars: &mut std::iter::Peekable<std::str::Chars<'_>>) -> 
 ///
 /// Uses `unicode-width` to correctly measure CJK characters (width 2),
 /// zero-width combining characters, and other non-ASCII text.
-pub(crate) fn visible_len(s: &str) -> usize {
+fn visible_len(s: &str) -> usize {
     let mut len = 0;
     let mut chars = s.chars().peekable();
     while let Some(&ch) = chars.peek() {

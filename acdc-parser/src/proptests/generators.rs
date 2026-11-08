@@ -30,18 +30,18 @@ fn any_text_line() -> impl Strategy<Value = String> {
 
 /// Generate any string including edge cases like empty, very long,
 /// with control characters, invalid UTF-8 sequences (via surrogates), etc.
-pub fn any_document_string() -> impl Strategy<Value = String> {
+pub(super) fn any_document_string() -> impl Strategy<Value = String> {
     prop::string::string_regex(".*").expect("Failed to create any string strategy")
 }
 
 /// Generate ASCII-safe document strings that are more likely to be
 /// valid `AsciiDoc` but still exercise the parser thoroughly.
-pub fn ascii_document() -> impl Strategy<Value = String> {
+pub(super) fn ascii_document() -> impl Strategy<Value = String> {
     prop::string::string_regex(r"[\x20-\x7E\n\t]*").expect("Failed to create ASCII string strategy")
 }
 
 /// Generate potentially problematic Unicode strings to test UTF-8 handling.
-pub fn unicode_stress_test() -> impl Strategy<Value = String> {
+pub(super) fn unicode_stress_test() -> impl Strategy<Value = String> {
     prop_oneof![
         // ASCII with newlines and tabs
         prop::string::string_regex(r"[\x20-\x7E\n\t]{0,100}")
@@ -121,7 +121,7 @@ pub fn unicode_stress_test() -> impl Strategy<Value = String> {
 
 /// Generate strings with AsciiDoc-like structure but potentially invalid.
 /// This helps find issues with delimiter matching, nesting, etc.
-pub fn structured_document() -> impl Strategy<Value = String> {
+pub(super) fn structured_document() -> impl Strategy<Value = String> {
     prop::collection::vec(
         prop_oneof![
             // --- Original entries ---
@@ -181,7 +181,7 @@ pub fn structured_document() -> impl Strategy<Value = String> {
 /// Generate PSV tables with varying dimensions.
 /// Tables have the most complex grammar rules (~600 lines) with
 /// recursive cell parsing, delimiter matching, and column handling.
-pub fn table_document() -> impl Strategy<Value = String> {
+pub(super) fn table_document() -> impl Strategy<Value = String> {
     let cell = any_word();
     let col_count = 1..=4usize;
     let row_count = 1..=5usize;
@@ -212,7 +212,7 @@ pub fn table_document() -> impl Strategy<Value = String> {
 /// Generate description lists with varying delimiter styles.
 /// Description lists have complex term/delimiter/description separation
 /// and support multiple delimiter variants.
-pub fn description_list_document() -> impl Strategy<Value = String> {
+pub(super) fn description_list_document() -> impl Strategy<Value = String> {
     let delimiter = prop_oneof![Just(":: "), Just("::: "), Just(":::: "), Just(";; "),];
     let item_count = 1..=5usize;
 
@@ -238,7 +238,7 @@ pub fn description_list_document() -> impl Strategy<Value = String> {
 
 /// Generate nested unordered and ordered lists (up to 2 levels).
 /// List nesting is "inherently difficult with PEG" per project docs.
-pub fn nested_list_document() -> impl Strategy<Value = String> {
+pub(super) fn nested_list_document() -> impl Strategy<Value = String> {
     let list_type = prop_oneof![Just("ul"), Just("ol")];
     let item_count = 1..=5usize;
 
@@ -273,7 +273,7 @@ pub fn nested_list_document() -> impl Strategy<Value = String> {
 
 /// Generate various delimited blocks with paragraph content inside.
 /// Tests delimiter matching and content recursion for all block types.
-pub fn delimited_block_document() -> impl Strategy<Value = String> {
+pub(super) fn delimited_block_document() -> impl Strategy<Value = String> {
     let block_type = prop_oneof![
         Just(("****", "sidebar")),
         Just(("____", "quote")),
@@ -290,7 +290,7 @@ pub fn delimited_block_document() -> impl Strategy<Value = String> {
 /// Generate text with inline macros and formatting.
 /// Exercises the two-pass inline processing system with passthrough
 /// placeholder replacement and location remapping.
-pub fn inline_formatted_text() -> impl Strategy<Value = String> {
+pub(super) fn inline_formatted_text() -> impl Strategy<Value = String> {
     prop::collection::vec(
         prop_oneof![
             any_word(),
@@ -321,7 +321,7 @@ pub fn inline_formatted_text() -> impl Strategy<Value = String> {
 /// Generate realistic multi-construct documents.
 /// Tests cross-construct interactions with sections, paragraphs,
 /// lists, tables, and delimited blocks composed together.
-pub fn rich_document() -> impl Strategy<Value = String> {
+pub(super) fn rich_document() -> impl Strategy<Value = String> {
     let block = prop_oneof![
         any_text_line().prop_map(|t| format!("{t}\n\n")),
         prop::collection::vec(any_text_line(), 1..=3).prop_map(|items| {

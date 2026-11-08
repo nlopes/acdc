@@ -181,11 +181,11 @@ impl<'a> Icon<'a> {
         self.location = location;
     }
 
-    pub(crate) fn has_metadata(&self) -> bool {
+    pub(in crate::model) fn has_metadata(&self) -> bool {
         !self.metadata.is_empty() || !self.macro_attributes.is_empty()
     }
 
-    pub(crate) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
+    pub(in crate::model) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
         InlineMetadataView {
             attributes: &self.macro_attributes.attributes,
             roles: &self.metadata.roles,

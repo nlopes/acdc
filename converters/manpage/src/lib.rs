@@ -71,21 +71,21 @@ pub use manpage_visitor::ManpageVisitor;
 const MANPAGE_BACKEND: BackendProfile = BackendProfile::new("manpage", "manpage", "man", ".man");
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub(crate) struct IndexTermLabel {
-    pub(crate) plain: String,
-    pub(crate) rendered: String,
+struct IndexTermLabel {
+    plain: String,
+    rendered: String,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct IndexTermEntry {
-    pub(crate) primary: IndexTermLabel,
-    pub(crate) secondary: Option<IndexTermLabel>,
-    pub(crate) tertiary: Option<IndexTermLabel>,
-    pub(crate) relationship: IndexCatalogRelationship,
+struct IndexTermEntry {
+    primary: IndexTermLabel,
+    secondary: Option<IndexTermLabel>,
+    tertiary: Option<IndexTermLabel>,
+    relationship: IndexCatalogRelationship,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) enum IndexCatalogRelationship {
+enum IndexCatalogRelationship {
     None,
     See(IndexTermLabel),
     SeeAlso(Vec<IndexTermLabel>),
@@ -96,14 +96,14 @@ pub(crate) enum IndexCatalogRelationship {
 pub struct Processor<'a> {
     options: Options,
     parser_options: ParserOptions<'a>,
-    pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
+    references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
-    pub(crate) xref_guard: XrefGuard,
-    pub(crate) top_level_section_ids: Rc<HashSet<&'a str>>,
-    pub(crate) static_media_warning: Rc<Cell<bool>>,
-    pub(crate) inline_role_warning: Rc<Cell<bool>>,
-    pub(crate) index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
-    pub(crate) has_valid_index_section: bool,
+    xref_guard: XrefGuard,
+    top_level_section_ids: Rc<HashSet<&'a str>>,
+    static_media_warning: Rc<Cell<bool>>,
+    inline_role_warning: Rc<Cell<bool>>,
+    index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
+    has_valid_index_section: bool,
 }
 
 impl Processor<'_> {

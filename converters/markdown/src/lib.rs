@@ -166,23 +166,23 @@ impl MarkdownVariant {
 const MARKDOWN_BACKEND: BackendProfile = BackendProfile::new("markdown", "markdown", "md", ".md");
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub(crate) struct IndexTermLabel {
-    pub(crate) plain: String,
-    pub(crate) rendered: String,
+struct IndexTermLabel {
+    plain: String,
+    rendered: String,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct IndexTermEntry {
-    pub(crate) primary: IndexTermLabel,
-    pub(crate) secondary: Option<IndexTermLabel>,
-    pub(crate) tertiary: Option<IndexTermLabel>,
-    pub(crate) relationship: IndexCatalogRelationship,
-    pub(crate) anchor_id: String,
-    pub(crate) section_title: Option<String>,
+struct IndexTermEntry {
+    primary: IndexTermLabel,
+    secondary: Option<IndexTermLabel>,
+    tertiary: Option<IndexTermLabel>,
+    relationship: IndexCatalogRelationship,
+    anchor_id: String,
+    section_title: Option<String>,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) enum IndexCatalogRelationship {
+enum IndexCatalogRelationship {
     None,
     See(IndexTermLabel),
     SeeAlso(Vec<IndexTermLabel>),
@@ -201,14 +201,14 @@ pub struct Processor<'a> {
     parser_options: ParserOptions<'a>,
     /// Cross-reference targets keyed by id, cloned from `Document::references`,
     /// so `<<id>>` resolves to its target's reference text.
-    pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
+    references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
-    pub(crate) xref_guard: XrefGuard,
-    pub(crate) document: Option<DocumentRef<'a>>,
-    pub(crate) example_counter: Rc<Cell<u32>>,
-    pub(crate) figure_counter: Rc<Cell<u32>>,
-    pub(crate) listing_counter: Rc<Cell<u32>>,
-    pub(crate) table_counter: Rc<Cell<u32>>,
+    xref_guard: XrefGuard,
+    document: Option<DocumentRef<'a>>,
+    example_counter: Rc<Cell<u32>>,
+    figure_counter: Rc<Cell<u32>>,
+    listing_counter: Rc<Cell<u32>>,
+    table_counter: Rc<Cell<u32>>,
     index_term_counter: Rc<Cell<usize>>,
     index_catalog_counter: Rc<Cell<usize>>,
     index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
@@ -232,17 +232,17 @@ impl Processor<'_> {
     }
 
     #[must_use]
-    pub(crate) fn generate_index(&self) -> bool {
+    fn generate_index(&self) -> bool {
         self.generate_index
     }
 
     #[must_use]
-    pub(crate) fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
+    fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
         &self.index_entries
     }
 
     #[must_use]
-    pub(crate) fn add_index_entry(&self, mut entry: IndexTermEntry) -> String {
+    fn add_index_entry(&self, mut entry: IndexTermEntry) -> String {
         let count = self.index_term_counter.get();
         self.index_term_counter.set(count + 1);
         let anchor_id = format!("_indexterm_{count}");
@@ -251,11 +251,11 @@ impl Processor<'_> {
         anchor_id
     }
 
-    pub(crate) fn mark_fallback(&self, key: &'static str) -> bool {
+    fn mark_fallback(&self, key: &'static str) -> bool {
         self.warned_fallbacks.borrow_mut().insert(key)
     }
 
-    pub(crate) fn caption_prefix(
+    fn caption_prefix(
         &self,
         attributes: AttributesRef<'_>,
         fallback: Option<CaptionKind>,

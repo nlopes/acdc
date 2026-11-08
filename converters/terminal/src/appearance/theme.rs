@@ -14,7 +14,7 @@ impl Theme {
     /// Format is "foreground;background" where higher numbers indicate lighter colors.
     /// Falls back to Dark theme if detection fails.
     #[must_use]
-    pub fn detect() -> Self {
+    pub(super) fn detect() -> Self {
         if let Ok(colorfgbg) = std::env::var("COLORFGBG") {
             // Parse format like "15;0" (white on black) or "0;15" (black on white)
             if let Some(bg) = colorfgbg.split(';').nth(1)
@@ -33,7 +33,7 @@ impl Theme {
     /// Get the appropriate syntax highlighting theme name
     #[cfg(feature = "highlighting")]
     #[must_use]
-    pub const fn syntect_theme(self) -> &'static str {
+    pub(crate) const fn syntect_theme(self) -> &'static str {
         match self {
             Self::Dark => "Solarized (dark)",
             Self::Light => "Solarized (light)",
@@ -75,7 +75,7 @@ pub(crate) struct ColorScheme {
 impl ColorScheme {
     /// Create color scheme for dark terminal background
     #[must_use]
-    pub const fn dark() -> Self {
+    const fn dark() -> Self {
         Self {
             // Sections - varying intensities for hierarchy
             section_h1: Color::Rgb {
@@ -112,7 +112,7 @@ impl ColorScheme {
 
     /// Create color scheme for light terminal background
     #[must_use]
-    pub const fn light() -> Self {
+    const fn light() -> Self {
         Self {
             // Sections - darker colors for light background
             section_h1: Color::Rgb {
@@ -149,7 +149,7 @@ impl ColorScheme {
 
     /// Get the appropriate color scheme for a theme
     #[must_use]
-    pub const fn for_theme(theme: Theme) -> Self {
+    pub(super) const fn for_theme(theme: Theme) -> Self {
         match theme {
             Theme::Dark => Self::dark(),
             Theme::Light => Self::light(),

@@ -158,7 +158,7 @@ fn build_xref_hover_content(
 }
 
 /// Find the innermost retained xref at a position in the editor's input.
-pub(crate) fn find_xref_at_position(
+pub(super) fn find_xref_at_position(
     doc: DocumentRef<'_>,
     position: &acdc_parser::Position,
 ) -> Option<(String, Location)> {
@@ -178,7 +178,7 @@ pub(crate) fn find_xref_at_position(
 }
 
 /// Find the smallest retained ID occurrence under the primary-file cursor.
-pub(crate) fn find_anchor_at_position<'doc>(
+pub(super) fn find_anchor_at_position<'doc>(
     doc: DocumentRef<'doc>,
     position: &acdc_parser::Position,
 ) -> Option<super::identity::IdOccurrence<'doc>> {
@@ -192,7 +192,7 @@ pub(crate) fn find_anchor_at_position<'doc>(
 }
 
 /// Find a link or URL at an original-source scalar position.
-pub(crate) fn find_link_at_position(
+pub(super) fn find_link_at_position(
     doc: DocumentRef<'_>,
     position: &acdc_parser::Position,
 ) -> Option<(String, Location)> {

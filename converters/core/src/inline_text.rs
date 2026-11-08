@@ -344,7 +344,8 @@ fn stylized_id(target: &str) -> Cow<'_, str> {
 
 /// Extract plain text from `inlines` as a `String`.
 #[must_use]
-pub fn inlines_to_string(inlines: &[InlineNode<'_>]) -> String {
+#[cfg(test)]
+fn inlines_to_string(inlines: &[InlineNode<'_>]) -> String {
     InlineTextTransform::default().to_string(inlines)
 }
 

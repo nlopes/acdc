@@ -62,7 +62,11 @@ fn text_policy_preserves_content_and_fragment_context() -> Result<(), Error> {
                 let mut fragments = String::new();
                 for (index, node) in legacy_inlines.iter().enumerate() {
                     transform
-                        .text_boundaries(TextBoundaries::BOTH.for_inline(&legacy_inlines, index))
+                        .text_boundaries(TextBoundaries::BOTH.for_inline_refs(
+                            Some(InlineRef::from(node)),
+                            legacy_inlines.iter().take(index).rev().map(InlineRef::from),
+                            legacy_inlines.iter().skip(index + 1).map(InlineRef::from),
+                        ))
                         .write_inlines(&mut fragments, std::iter::once(InlineRef::from(node)))?;
                 }
                 assert_eq!(fragments, content);

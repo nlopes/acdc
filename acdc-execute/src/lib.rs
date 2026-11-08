@@ -1,7 +1,7 @@
 //! Discover and run command blocks defined in `AsciiDoc` documents.
 
-pub mod command;
-pub mod discovery;
+mod command;
+mod discovery;
 
 pub use command::{
     BuildError, CommandBlock, CommandGraph, CommandGraphBuilder, CommandId, CommandMetadata,

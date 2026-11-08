@@ -47,7 +47,7 @@ lopdf.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"
-unreachable_pub = "warn"
+unreachable_pub = "deny"
 
 [lints.clippy]
 wildcard_enum_match_arm = "deny"

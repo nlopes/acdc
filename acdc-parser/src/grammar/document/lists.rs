@@ -8,14 +8,14 @@ use bumpalo::collections::String as BumpString;
 use std::collections::VecDeque;
 
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct OrdinaryListScope<'a> {
+pub(in crate::grammar) struct OrdinaryListScope<'a> {
     pub(crate) offset: usize,
     pub(crate) unordered: Option<&'a str>,
     pub(crate) ordered: Option<&'a str>,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-pub(crate) struct DescriptionListScope<'a> {
+pub(in crate::grammar) struct DescriptionListScope<'a> {
     pub(crate) offset: usize,
     // Each of the four delimiter spellings can start one active level.
     markers: [&'a str; 4],

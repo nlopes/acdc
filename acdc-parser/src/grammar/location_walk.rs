@@ -11,7 +11,7 @@ use crate::model::{
 };
 
 /// Visit every location in a whole document.
-pub(crate) fn walk_document_locations_mut<F: FnMut(&mut Location)>(
+pub(super) fn walk_document_locations_mut<F: FnMut(&mut Location)>(
     doc: &mut Document<'_>,
     visit: &mut F,
 ) {
@@ -47,7 +47,7 @@ pub(crate) fn walk_document_inline_nodes_mut<'a, F: FnMut(&mut InlineNode<'a>)>(
 }
 
 /// Visit a single inline node's location and recurse into any inline children.
-pub(crate) fn walk_inline_locations_mut<F: FnMut(&mut Location)>(
+pub(super) fn walk_inline_locations_mut<F: FnMut(&mut Location)>(
     node: &mut InlineNode<'_>,
     visit: &mut F,
 ) {
@@ -59,7 +59,7 @@ pub(crate) fn walk_inline_locations_mut<F: FnMut(&mut Location)>(
 }
 
 /// Visit inline locations in preorder, stopping at the first error.
-pub(crate) fn try_walk_inline_locations_mut<E>(
+pub(super) fn try_walk_inline_locations_mut<E>(
     node: &mut InlineNode<'_>,
     visit: &mut impl FnMut(&mut Location) -> Result<(), E>,
 ) -> Result<(), E> {
@@ -104,7 +104,7 @@ pub(super) fn walk_document_reference_texts_mut<'a, E>(
     AstWalker::new(|_| Ok(()), |_| Ok(()), visit, |_| Ok(true)).document(document)
 }
 
-pub(crate) fn walk_inline_reference_texts_mut<'a, E>(
+pub(super) fn walk_inline_reference_texts_mut<'a, E>(
     inlines: &mut [InlineNode<'a>],
     visit: &mut impl FnMut(&mut Option<ContentAttribute<'a>>, &mut Option<usize>) -> Result<(), E>,
 ) -> Result<(), E> {
@@ -112,7 +112,7 @@ pub(crate) fn walk_inline_reference_texts_mut<'a, E>(
 }
 
 /// Visit selected footnote roots; the callback owns traversal into note bodies.
-pub(crate) fn try_walk_footnote_roots_mut<'a, E>(
+pub(super) fn try_walk_footnote_roots_mut<'a, E>(
     header: &mut Option<Header<'a>>,
     blocks: &mut [Block<'a>],
     visit: &mut impl FnMut(&mut crate::Footnote<'a>) -> Result<(), E>,
@@ -136,7 +136,7 @@ pub(crate) fn try_walk_footnote_roots_mut<'a, E>(
     walker.blocks(blocks)
 }
 
-pub(crate) fn try_walk_content_footnote_roots_mut<'a, E>(
+pub(super) fn try_walk_content_footnote_roots_mut<'a, E>(
     nodes: &mut [InlineNode<'a>],
     visit: &mut impl FnMut(&mut crate::Footnote<'a>) -> Result<(), E>,
 ) -> Result<(), E> {
@@ -167,7 +167,7 @@ pub(super) fn try_walk_document_reftext_inlines_mut<'a, E>(
 }
 
 /// Visit owned inline content without entering nested catalog copies.
-pub(crate) fn try_walk_owned_inline_nodes_mut<'a, E>(
+pub(super) fn try_walk_owned_inline_nodes_mut<'a, E>(
     node: &mut InlineNode<'a>,
     visit: &mut impl FnMut(&mut InlineNode<'a>) -> Result<(), E>,
 ) -> Result<(), E> {
@@ -176,7 +176,7 @@ pub(crate) fn try_walk_owned_inline_nodes_mut<'a, E>(
     walker.inline(node)
 }
 
-pub(crate) fn try_walk_document_inline_nodes_mut<'a, E>(
+pub(super) fn try_walk_document_inline_nodes_mut<'a, E>(
     document: &mut Document<'a>,
     visit: &mut impl FnMut(&mut InlineNode<'a>) -> Result<(), E>,
 ) -> Result<(), E> {

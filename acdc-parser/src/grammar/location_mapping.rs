@@ -20,7 +20,7 @@ use super::{
 ///
 /// This only operates on `absolute_start/end` - the canonical byte offsets.
 /// `Position` fields (line/column) are not modified.
-pub(crate) fn clamp_location_bounds(location: &mut Location, input: &str) {
+fn clamp_location_bounds(location: &mut Location, input: &str) {
     let input_len = input.len();
 
     // Clamp to input bounds
@@ -40,17 +40,17 @@ pub(crate) fn clamp_location_bounds(location: &mut Location, input: &str) {
 }
 
 /// Recursively clamp all locations in an `InlineNode` to valid bounds.
-pub(crate) fn clamp_inline_node_locations(node: &mut InlineNode, input: &str) {
+pub(super) fn clamp_inline_node_locations(node: &mut InlineNode, input: &str) {
     super::location_walk::walk_inline_locations_mut(node, &mut |loc| {
         clamp_location_bounds(loc, input);
     });
 }
 
 /// Source text and substitutions for inline locations relative to one base.
-pub(crate) struct LocationMappingContext<'a, 'b> {
-    pub state: &'a ParserState<'b>,
-    pub processed: &'a ProcessedContent<'b>,
-    pub base_location: &'a Location,
+pub(super) struct LocationMappingContext<'a, 'b> {
+    pub(in crate::grammar) state: &'a ParserState<'b>,
+    pub(in crate::grammar) processed: &'a ProcessedContent<'b>,
+    pub(in crate::grammar) base_location: &'a Location,
 }
 
 impl<'a> LocationMappingContext<'_, 'a> {
@@ -77,7 +77,7 @@ impl<'a> LocationMappingContext<'_, 'a> {
 
     /// Map an inclusive preprocessed span to source coordinates, preserving
     /// the end bias of substitutions.
-    pub(crate) fn map_location(&self, loc: &Location) -> Result<Location, Error> {
+    pub(super) fn map_location(&self, loc: &Location) -> Result<Location, Error> {
         let Self {
             state,
             processed,
@@ -125,7 +125,7 @@ impl<'a> LocationMappingContext<'_, 'a> {
 }
 
 /// Expand a collapsed location to its original attribute reference span.
-pub(crate) fn extend_attribute_location_if_needed(
+pub(super) fn extend_attribute_location_if_needed(
     state: &ParserState<'_>,
     processed: &ProcessedContent<'_>,
     mut location: Location,
@@ -166,7 +166,7 @@ pub(crate) fn extend_attribute_location_if_needed(
 
 /// Map formatted text's inner nodes back to source coordinates, expanding
 /// passthrough placeholders and extending attribute-substituted spans.
-pub(crate) fn map_inner_content_locations<'a>(
+pub(super) fn map_inner_content_locations<'a>(
     content: Vec<InlineNode<'a>>,
     ctx: &LocationMappingContext<'_, 'a>,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
@@ -266,7 +266,7 @@ fn contains_passthrough_placeholders(content: &str, processed: &ProcessedContent
 
 /// Map parsed inline locations to source coordinates and expand passthrough placeholders.
 #[tracing::instrument(level = "trace", skip_all, fields(node_count = content.len(), start = location.absolute_start, end = location.absolute_end))]
-pub(crate) fn map_inline_locations<'a>(
+pub(super) fn map_inline_locations<'a>(
     state: &ParserState<'a>,
     processed: &ProcessedContent<'a>,
     content: Vec<InlineNode<'a>>,
@@ -275,7 +275,7 @@ pub(crate) fn map_inline_locations<'a>(
     map_locations(state, processed, content, location, false)
 }
 
-pub(crate) fn map_paragraph_locations<'a>(
+pub(super) fn map_paragraph_locations<'a>(
     state: &ParserState<'a>,
     processed: &ProcessedContent<'a>,
     content: Vec<InlineNode<'a>>,

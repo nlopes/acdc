@@ -58,7 +58,7 @@ peg::parser! {
 
         // Group consecutive ordinary nodes so profiles need no vector per node.
         // Expansions still run at their source position, before later macros.
-        pub(crate) rule inlines() -> Vec<InlineNode<'input>>
+        pub(in crate::grammar) rule inlines() -> Vec<InlineNode<'input>>
         = check_attribute_profiles() chunks:(profiled_attribute() / nodes:normal_inline()+ { nodes })+ {? expand_escaped_index_terms(chunks.into_iter().flatten().collect(), state) }
         / nodes:normal_inline()+ {? expand_escaped_index_terms(nodes, state) }
 
@@ -68,10 +68,10 @@ peg::parser! {
             node
         }
 
-        pub(crate) rule inlines_no_autolinks() -> Vec<InlineNode<'input>>
+        pub(in crate::grammar) rule inlines_no_autolinks() -> Vec<InlineNode<'input>>
         = inlines()
 
-        pub(crate) rule verbatim_inlines() -> Vec<InlineNode<'input>>
+        pub(in crate::grammar) rule verbatim_inlines() -> Vec<InlineNode<'input>>
         = check_attribute_profiles() chunks:(profiled_attribute() / nodes:verbatim_inline()+ { nodes })+ {? expand_escaped_index_terms(chunks.into_iter().flatten().collect(), state) }
         / nodes:verbatim_inline()+ {? expand_escaped_index_terms(nodes, state) }
 
@@ -241,7 +241,7 @@ peg::parser! {
         /// Reduced inline rule set for "quotes" substitution in passthroughs.
         /// Only matches formatting markup + escaped markup + plain text.
         /// Explicit attribute profiles can insert their own enabled constructs.
-        pub(crate) rule quotes_only_inlines() -> Vec<InlineNode<'input>>
+        pub(in crate::grammar) rule quotes_only_inlines() -> Vec<InlineNode<'input>>
         = check_attribute_profiles() chunks:(profiled_attribute() / nodes:quotes_inline()+ { nodes })+ { chunks.into_iter().flatten().collect() }
         / quotes_inline()+
 
@@ -728,19 +728,19 @@ peg::parser! {
             parse_index_term(state, content, IndexTermForm::NamedFlow, location)
         }
 
-        pub(crate) rule index_term_attribute_ranges() -> Vec<Range<usize>>
+        pub(in crate::grammar::inlines) rule index_term_attribute_ranges() -> Vec<Range<usize>>
         = parts:(
             start:position!() (formatting_link_match() / bracket_label_macro_match()) end:position!() { Some(start..end) }
             / [_] { None }
         )* { parts.into_iter().flatten().collect() }
 
-        pub(crate) rule named_index_term_list(base: usize) -> Vec<IndexTermSegment<'input>>
+        pub(in crate::grammar::inlines) rule named_index_term_list(base: usize) -> Vec<IndexTermSegment<'input>>
         = terms:(index_term_segment(base) ** ",") { terms }
 
         /// Parse comma-separated index term list with support for quoted segments
         /// e.g., "knight, Knight of the Round Table, Lancelot"
         /// or "knight, \"Arthur, King\"" (quoted segment with embedded comma)
-        pub(crate) rule index_term_list(base: usize) -> Vec<IndexTermSegment<'input>>
+        pub(in crate::grammar::inlines) rule index_term_list(base: usize) -> Vec<IndexTermSegment<'input>>
         = terms:(index_term_segment(base) ** ",") {
             terms.into_iter().filter(|segment| !segment.text.is_empty()).collect()
         }
@@ -835,7 +835,7 @@ peg::parser! {
         / start:position!() "indexterm:" index_term_macro_content() check_index_token(start, 11) {}
         / start:position!() "indexterm2:" index_term_macro_content() check_index_token(start, 12) {}
 
-        pub rule ui_separators() -> Vec<Separator>
+        pub(in crate::grammar::inlines) rule ui_separators() -> Vec<Separator>
         = separators:(
             bracket_label_macro_match() { None }
             / check_macros() cross_reference_shorthand_match() { None }
@@ -2420,7 +2420,7 @@ peg::parser! {
             = id:$((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+) { id }
 
         /// URL rule matches both web URLs (proto://) and mailto: URLs
-        pub rule url() -> Cow<'input, str> =
+        rule url() -> Cow<'input, str> =
         proto:$("https" / "http" / "ftp" / "irc") "://" path:url_path() { Cow::Owned(format!("{proto}://{path}")) }
         / "mailto:" email:email_address() { Cow::Owned(format!("mailto:{email}")) }
 
@@ -2606,7 +2606,7 @@ peg::parser! {
         ///
         /// ASCII input uses a conservative filename set. Non-ASCII Unicode characters
         /// are accepted unchanged, and `{`/`}` permit `AsciiDoc` attribute substitution.
-        pub rule path() -> Cow<'input, str> = path:$(path_char()+)
+        rule path() -> Cow<'input, str> = path:$(path_char()+)
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
@@ -2650,7 +2650,7 @@ peg::parser! {
         rule media_path_char() = path_char() / ['%' | '\'' | '"']
         rule internal_media_path_spaces() = [' ']+ &media_path_char()
 
-        pub rule source() -> Source<'input>
+        rule source() -> Source<'input>
             = source:
         (
             p:passthrough_placeholder() {

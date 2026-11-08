@@ -5,10 +5,10 @@ use super::{
 
 peg::parser! {
     pub(super) grammar conditional_parser() for str {
-        pub(crate) rule conditional() -> Conditional<'input>
+        pub(in crate::preprocessor::conditional) rule conditional() -> Conditional<'input>
             = ifdef() / ifndef() / ifeval()
 
-        pub(crate) rule endif() -> Endif<'input>
+        pub(in crate::preprocessor::conditional) rule endif() -> Endif<'input>
             = "endif::" condition:attribute_condition()? "[]" {
                 Endif {
                     condition

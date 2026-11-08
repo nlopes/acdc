@@ -12,7 +12,7 @@ use clap::{ArgAction, ArgMatches, Args as ClapArgs, ValueEnum};
 use crate::error::{LintDiagnosticReport, LintDiagnosticReportContext};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-pub enum OutputStyle {
+pub(crate) enum OutputStyle {
     /// Full diagnostics with color, labels, source snippets, and help text
     Full,
     /// Compact diagnostics without colors, symbols, or source snippets
@@ -20,35 +20,35 @@ pub enum OutputStyle {
 }
 
 impl OutputStyle {
-    pub const fn is_full(self) -> bool {
+    pub(crate) const fn is_full(self) -> bool {
         matches!(self, Self::Full)
     }
 }
 
 /// Lint `AsciiDoc` documents
 #[derive(ClapArgs, Debug)]
-pub struct Args {
+pub(crate) struct Args {
     /// Language rules: asciidoctor or draft
     #[arg(long, value_name = "MODE", default_value_t = acdc_parser::CompatibilityMode::default())]
-    pub compatibility_mode: acdc_parser::CompatibilityMode,
+    compatibility_mode: acdc_parser::CompatibilityMode,
 
     /// Safe mode to use while parsing the document
     #[arg(short = 'S', long, default_value = "unsafe")]
-    pub safe_mode: acdc_parser::SafeMode,
+    safe_mode: acdc_parser::SafeMode,
 
     /// Maximum selected include text per document, in bytes (64 MiB by default)
     ///
     /// Zero permits only empty selections. The 10 MiB per-include limit still applies.
     #[arg(long, value_name = "BYTES", default_value_t = acdc_parser::Options::default().max_total_include_bytes())]
-    pub max_total_include_bytes: usize,
+    max_total_include_bytes: usize,
 
     /// Input from stdin
     #[arg(long, conflicts_with = "files")]
-    pub stdin: bool,
+    stdin: bool,
 
     /// List of files to lint
     #[arg(conflicts_with = "stdin", required_unless_present = "stdin")]
-    pub files: Vec<PathBuf>,
+    files: Vec<PathBuf>,
 
     /// Suppress a lint or lint group, optionally scoped as LINT@LOCATION[,LOCATION]...
     #[arg(
@@ -58,7 +58,7 @@ pub struct Args {
         value_parser = clap::value_parser!(LintOverrideSelector),
         action = ArgAction::Append
     )]
-    pub allow: Vec<LintOverrideSelector>,
+    allow: Vec<LintOverrideSelector>,
 
     /// Warn on a lint or lint group, optionally scoped as LINT@LOCATION[,LOCATION]...
     #[arg(
@@ -68,7 +68,7 @@ pub struct Args {
         value_parser = clap::value_parser!(LintOverrideSelector),
         action = ArgAction::Append
     )]
-    pub warn: Vec<LintOverrideSelector>,
+    warn: Vec<LintOverrideSelector>,
 
     /// Deny a lint or lint group, optionally scoped as LINT@LOCATION[,LOCATION]...
     #[arg(
@@ -78,7 +78,7 @@ pub struct Args {
         value_parser = clap::value_parser!(LintOverrideSelector),
         action = ArgAction::Append
     )]
-    pub deny: Vec<LintOverrideSelector>,
+    deny: Vec<LintOverrideSelector>,
 
     /// Forbid a lint or lint group so later flags cannot lower it, optionally scoped as LINT@LOCATION[,LOCATION]...
     #[arg(
@@ -88,14 +88,14 @@ pub struct Args {
         value_parser = clap::value_parser!(LintOverrideSelector),
         action = ArgAction::Append
     )]
-    pub forbid: Vec<LintOverrideSelector>,
+    forbid: Vec<LintOverrideSelector>,
 
     /// Diagnostic output style
     #[arg(long = "output-style", value_enum, default_value = "full")]
-    pub output_style: OutputStyle,
+    pub(crate) output_style: OutputStyle,
 }
 
-pub fn run(args: &Args, matches: &ArgMatches) -> miette::Result<()> {
+pub(crate) fn run(args: &Args, matches: &ArgMatches) -> miette::Result<()> {
     let options = LintOptions::new(ordered_overrides(matches)?)
         .with_safe_mode(args.safe_mode)
         .with_compatibility_mode(args.compatibility_mode)

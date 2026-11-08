@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[tracing::instrument(level = "trace", skip_all, fields(input_len = line.len()))]
-pub(crate) fn parse_line(options: &mut Options<'_>, line: &str) -> Result<(), Error> {
+pub(super) fn parse_line(options: &mut Options<'_>, line: &str) -> Result<(), Error> {
     match attribute_parser::document_attribute(line) {
         Ok(AttributeDeclaration { name, value }) => {
             let value = value.resolve(&options.document_attributes).into_static();

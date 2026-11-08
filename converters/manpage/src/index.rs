@@ -144,7 +144,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         })
     }
 
-    pub(crate) fn register_index_term(
+    fn register_index_term(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         term: IndexTermRef<'_>,

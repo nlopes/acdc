@@ -318,7 +318,7 @@ pub(super) fn thematic_break_anchors<'a>(metadata: &BlockMetadata<'a>) -> Vec<An
     anchors
 }
 
-pub(super) fn merge_attribute_metadata<'input>(
+fn merge_attribute_metadata<'input>(
     metadata: &mut BlockMetadata<'input>,
     mut attribute_metadata: BlockMetadata<'input>,
     mode: CompatibilityMode,

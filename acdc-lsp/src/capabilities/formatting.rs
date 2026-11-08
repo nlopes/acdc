@@ -20,7 +20,7 @@ use crate::{
 /// A line range where formatting must not be applied (e.g., inside listing blocks).
 /// Lines are 0-indexed.
 #[derive(Debug, Clone)]
-pub(crate) struct ProtectedRange {
+pub(super) struct ProtectedRange {
     start_line: usize,
     end_line: usize,
 }
@@ -126,7 +126,7 @@ pub(crate) fn format_range(
 }
 
 /// Protect verbatim blocks in the original text and primary-source AST ranges.
-pub(crate) fn collect_protected_ranges(ast: DocumentRef<'_>, text: &str) -> Vec<ProtectedRange> {
+pub(super) fn collect_protected_ranges(ast: DocumentRef<'_>, text: &str) -> Vec<ProtectedRange> {
     let mut ranges = collect_protected_ranges_from_text(text);
     for block in ast.blocks() {
         collect_protected_ranges_from_block(block, &mut ranges);
@@ -182,7 +182,7 @@ fn collect_protected_ranges_from_block(block: BlockRef<'_>, ranges: &mut Vec<Pro
 }
 
 /// Protect verbatim source through its closing delimiter or end of file.
-pub(crate) fn collect_protected_ranges_from_text(text: &str) -> Vec<ProtectedRange> {
+pub(super) fn collect_protected_ranges_from_text(text: &str) -> Vec<ProtectedRange> {
     let mut ranges = Vec::new();
     let delimiter_chars = ['-', '.', '+', '/'];
 
@@ -219,7 +219,7 @@ pub(crate) fn collect_protected_ranges_from_text(text: &str) -> Vec<ProtectedRan
 }
 
 /// Check if a line falls within any protected range.
-pub(crate) fn is_protected(line: usize, ranges: &[ProtectedRange]) -> bool {
+fn is_protected(line: usize, ranges: &[ProtectedRange]) -> bool {
     ranges
         .iter()
         .any(|r| line >= r.start_line && line <= r.end_line)

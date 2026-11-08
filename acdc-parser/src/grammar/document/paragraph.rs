@@ -30,7 +30,7 @@ pub(super) fn paragraph_text_end(input: &str, start: usize) -> usize {
         .map_or(input.len(), |offset| start + offset)
 }
 
-pub(super) fn indented_style(mode: CompatibilityMode, style: Option<&str>) -> Option<&str> {
+fn indented_style(mode: CompatibilityMode, style: Option<&str>) -> Option<&str> {
     match style {
         Some("paragraph") if mode == CompatibilityMode::Draft => Some("normal"),
         Some(
@@ -42,7 +42,7 @@ pub(super) fn indented_style(mode: CompatibilityMode, style: Option<&str>) -> Op
     }
 }
 
-pub(super) fn process_normal_indented<'a>(
+fn process_normal_indented<'a>(
     state: &ParserState<'a>,
     metadata: &BlockParsingMetadata<'a>,
     content: &'a str,

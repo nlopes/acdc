@@ -11,7 +11,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct Conditional<'input> {
+pub(super) struct Conditional<'input> {
     condition: Condition<'input>,
     content: Option<&'input str>,
 }
@@ -24,7 +24,7 @@ enum Condition<'input> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) enum Operation {
+enum Operation {
     Or,
     And,
 }
@@ -43,14 +43,14 @@ struct EvalCondition {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
-pub(crate) enum EvalValue {
+enum EvalValue {
     String(String),
     Number(f64),
     Boolean(bool),
 }
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum Operator {
+enum Operator {
     Equal,
     NotEqual,
     LessThan,
@@ -60,7 +60,7 @@ pub(crate) enum Operator {
 }
 
 #[derive(Debug)]
-pub(crate) struct Endif<'input> {
+pub(super) struct Endif<'input> {
     condition: Option<AttributeCondition<'input>>,
 }
 
@@ -103,7 +103,7 @@ impl Conditional<'_> {
         if negate { !result } else { result }
     }
 
-    pub(crate) fn is_true(
+    pub(super) fn is_true(
         &self,
         attributes: &DocumentAttributes,
         content: &mut String,
@@ -134,7 +134,7 @@ impl Conditional<'_> {
         Ok(is_true)
     }
 
-    pub(crate) fn has_inline_content(&self) -> bool {
+    pub(super) fn has_inline_content(&self) -> bool {
         self.content.is_some()
     }
 
@@ -148,7 +148,7 @@ impl Conditional<'_> {
 
 impl Endif<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn closes(&self, conditional: &Conditional<'_>) -> bool {
+    pub(super) fn closes(&self, conditional: &Conditional<'_>) -> bool {
         match (&self.condition, conditional.attribute_condition()) {
             (None, _) => true,
             (Some(endif), Some(opening)) => endif.matches(opening),
@@ -236,7 +236,7 @@ impl EvalValue {
 }
 
 #[tracing::instrument(level = "trace", skip_all, fields(line_number = line_number, current_offset = current_offset))]
-pub(crate) fn parse_line<'input>(
+pub(super) fn parse_line<'input>(
     line: &'input str,
     line_number: usize,
     current_offset: usize,
@@ -256,7 +256,7 @@ pub(crate) fn parse_line<'input>(
 }
 
 #[tracing::instrument(level = "trace", skip_all, fields(line_number = line_number, current_offset = current_offset))]
-pub(crate) fn parse_endif<'input>(
+pub(super) fn parse_endif<'input>(
     line: &'input str,
     line_number: usize,
     current_offset: usize,

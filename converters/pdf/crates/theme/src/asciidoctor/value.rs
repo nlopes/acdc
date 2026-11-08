@@ -30,7 +30,7 @@ impl Value {
         }
     }
 
-    pub(super) fn retain_numeric_literals(&mut self, yaml: &str) {
+    fn retain_numeric_literals(&mut self, yaml: &str) {
         match self {
             Self::Number(_, Some(source)) => {
                 if let Some(raw) = source

@@ -21,53 +21,53 @@ use crate::error::{LocatedError, SourceCache, WarningReport, WarningReportContex
 
 /// Execute command blocks defined in an `AsciiDoc` file
 #[derive(ClapArgs, Debug)]
-pub struct Args {
+pub(crate) struct Args {
     /// Language rules: asciidoctor or draft
     #[arg(long, value_name = "MODE", default_value_t = acdc_parser::CompatibilityMode::default())]
-    pub compatibility_mode: acdc_parser::CompatibilityMode,
+    compatibility_mode: acdc_parser::CompatibilityMode,
 
     /// Input `AsciiDoc` file
-    pub file: PathBuf,
+    file: PathBuf,
 
     /// Select command blocks whose id exactly matches this value
     #[arg(long = "id", value_name = "ID", action = ArgAction::Append)]
-    pub ids: Vec<String>,
+    ids: Vec<String>,
 
     /// Select command blocks whose id matches this regex
     #[arg(long = "id-regex", value_name = "REGEX", action = ArgAction::Append)]
-    pub id_regexes: Vec<Regex>,
+    id_regexes: Vec<Regex>,
 
     /// Print selected commands and scripts instead of running them
     #[arg(long, conflicts_with = "list")]
-    pub dry_run: bool,
+    dry_run: bool,
 
     /// List command ids, interpreters, sections, dependencies, and descriptions without running them
     #[arg(long)]
-    pub list: bool,
+    list: bool,
 
     /// Working directory for child processes (defaults to the caller's directory)
     #[arg(long, value_name = "DIRECTORY")]
-    pub cwd: Option<PathBuf>,
+    cwd: Option<PathBuf>,
 
     /// Override a child environment variable; repeat to set more values
     #[arg(long = "env", value_name = "NAME=VALUE", value_parser = parse_environment, action = ArgAction::Append)]
-    pub environment: Vec<(OsString, OsString)>,
+    environment: Vec<(OsString, OsString)>,
 
     /// Stop all commands at the first unsuccessful child exit
     #[arg(long)]
-    pub exit_on_failure: bool,
+    exit_on_failure: bool,
 
     /// Safe mode to use while parsing the document
     ///
     /// This limits document reads and includes; it does not sandbox commands.
     #[arg(short = 'S', long, value_parser = clap::value_parser!(SafeMode), default_value = "safe")]
-    pub safe_mode: SafeMode,
+    safe_mode: SafeMode,
 
     /// Maximum selected include text per document, in bytes (64 MiB by default)
     ///
     /// Zero permits only empty selections. The 10 MiB per-include limit still applies.
     #[arg(long, value_name = "BYTES", default_value_t = acdc_parser::Options::default().max_total_include_bytes())]
-    pub max_total_include_bytes: usize,
+    max_total_include_bytes: usize,
 }
 
 fn parse_environment(value: &str) -> Result<(OsString, OsString), String> {
@@ -80,7 +80,7 @@ fn parse_environment(value: &str) -> Result<(OsString, OsString), String> {
     Ok((name.into(), value.into()))
 }
 
-pub fn run(args: &Args) -> miette::Result<()> {
+pub(crate) fn run(args: &Args) -> miette::Result<()> {
     let parser_options = acdc_parser::Options::builder()
         .with_safe_mode(args.safe_mode)
         .with_compatibility_mode(args.compatibility_mode)

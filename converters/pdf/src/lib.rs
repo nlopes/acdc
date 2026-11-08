@@ -98,12 +98,12 @@ impl From<Theme> for LoadedTheme {
     }
 }
 
-pub(crate) const PDF_BACKEND: BackendProfile =
+const PDF_BACKEND: BackendProfile =
     BackendProfile::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html");
 
 use pdf_visitor::{PdfVisitor, builtin_icon_glyph};
 
-pub(crate) fn warn_with_advice_at(
+fn warn_with_advice_at(
     diagnostics: &mut Diagnostics<'_>,
     location: Option<&Location>,
     message: impl Into<Cow<'static, str>>,
@@ -196,7 +196,7 @@ enum PageMarginSelection {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct PageNumberingPlan {
+struct PageNumberingPlan {
     start: PageNumberingStart,
     has_title_page: bool,
     has_automatic_toc: bool,
@@ -211,11 +211,11 @@ impl PageNumberingPlan {
         }
     }
 
-    pub(crate) const fn has_title_page(self) -> bool {
+    const fn has_title_page(self) -> bool {
         self.has_title_page
     }
 
-    pub(crate) const fn starts_before_header(self) -> bool {
+    const fn starts_before_header(self) -> bool {
         if self.has_title_page {
             matches!(
                 self.start,
@@ -226,7 +226,7 @@ impl PageNumberingPlan {
         }
     }
 
-    pub(crate) const fn starts_before_toc(self) -> bool {
+    const fn starts_before_toc(self) -> bool {
         self.has_automatic_toc
             && (matches!(self.start, PageNumberingStart::Toc)
                 || !self.has_title_page
@@ -236,11 +236,11 @@ impl PageNumberingPlan {
                     ))
     }
 
-    pub(crate) const fn starts_after_toc(self) -> bool {
+    const fn starts_after_toc(self) -> bool {
         self.has_automatic_toc && matches!(self.start, PageNumberingStart::AfterToc)
     }
 
-    pub(crate) const fn starts_at_body(self) -> bool {
+    const fn starts_at_body(self) -> bool {
         matches!(self.start, PageNumberingStart::Body)
             || matches!(self.start, PageNumberingStart::BodyPage(page) if page.get() == 1)
             || !self.has_automatic_toc
@@ -253,7 +253,7 @@ impl PageNumberingPlan {
                 )
     }
 
-    pub(crate) fn conditional_arabic_start(self) -> Option<NonZeroUsize> {
+    fn conditional_arabic_start(self) -> Option<NonZeroUsize> {
         let PageNumberingStart::BodyPage(page) = self.start else {
             return None;
         };
@@ -265,7 +265,7 @@ impl PageNumberingPlan {
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct TypstSourceConfig<'a> {
+struct TypstSourceConfig<'a> {
     theme: &'a Theme,
     emit_options: &'a EmitOptions,
     page_numbering: PageNumberingPlan,
@@ -326,15 +326,15 @@ pub struct Processor<'a> {
     /// visitor renders it.
     references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
-    pub(crate) xref_guard: XrefGuard,
+    xref_guard: XrefGuard,
     /// Fallback counter for example captions the parser did not number.
-    pub(crate) example_counter: Rc<Cell<u32>>,
+    example_counter: Rc<Cell<u32>>,
     /// Fallback counter for figure captions the parser did not number.
-    pub(crate) figure_counter: Rc<Cell<u32>>,
+    figure_counter: Rc<Cell<u32>>,
     /// Fallback counter for listing and source captions the parser did not number.
-    pub(crate) listing_counter: Rc<Cell<u32>>,
+    listing_counter: Rc<Cell<u32>>,
     /// Fallback counter for table captions the parser did not number.
-    pub(crate) table_counter: Rc<Cell<u32>>,
+    table_counter: Rc<Cell<u32>>,
     pdf_options: PdfOptions,
 }
 
@@ -368,19 +368,19 @@ impl Processor<'_> {
         )
     }
 
-    pub(crate) fn options(&self) -> &Options {
+    fn options(&self) -> &Options {
         &self.options
     }
 
-    pub(crate) fn document_attributes(&self) -> &DocumentAttributes<'_> {
+    fn document_attributes(&self) -> &DocumentAttributes<'_> {
         self.parser_options.document_attributes()
     }
 
-    pub(crate) fn pdf_options(&self) -> &PdfOptions {
+    fn pdf_options(&self) -> &PdfOptions {
         &self.pdf_options
     }
 
-    pub(crate) fn render_document(
+    fn render_document(
         &self,
         doc: DocumentRef<'_>,
         source_file: Option<&Path>,
@@ -1143,20 +1143,20 @@ fn read_theme_file(path: &Path) -> Result<String, Error> {
     Ok(yaml)
 }
 
-pub(crate) struct RenderedPdf {
-    pub(crate) pdf: Vec<u8>,
-    pub(crate) resolved_document_image_count: usize,
-    pub(crate) timings: PdfTimings,
+struct RenderedPdf {
+    pdf: Vec<u8>,
+    resolved_document_image_count: usize,
+    timings: PdfTimings,
 }
 
-pub(crate) struct PdfTimings {
+struct PdfTimings {
     assets: Duration,
     emit: Duration,
     render: Duration,
 }
 
 impl PdfTimings {
-    pub(crate) fn write_report(&self, resolved_document_image_count: usize) {
+    fn write_report(&self, resolved_document_image_count: usize) {
         eprintln!(
             "  Resolved {resolved_document_image_count} document PDF image(s) in {}",
             self.assets.pretty_print()

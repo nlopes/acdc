@@ -210,7 +210,7 @@ fn is_escaped_directive(line: &str) -> bool {
 
 /// Caller permissions, include limits, and block state for one parse.
 #[derive(Debug, Clone)]
-pub(super) struct IncludeContext {
+struct IncludeContext {
     allows_uri_read: bool,
     depth: usize,
     max_depth: usize,
@@ -275,7 +275,7 @@ impl IncludeContext {
 /// `base_dir`, which resolves entry includes and remains the Safe/Server boundary;
 /// nested includes derive their resolution directory from the containing file.
 #[derive(Debug, Clone)]
-pub(super) enum SourceOrigin {
+enum SourceOrigin {
     File {
         path: PathBuf,
         base_dir: PathBuf,
@@ -341,7 +341,7 @@ impl SourceOrigin {
 /// One-based source line, byte offset, and indentation shift for an emitted line
 /// or the first line of a contiguous source range.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct SourceLineOrigin {
+struct SourceLineOrigin {
     pub(super) line: usize,
     pub(super) offset: usize,
     pub(super) column_shift: isize,
@@ -360,7 +360,7 @@ impl SourceLineOrigin {
 /// Make a path absolute and collapse `.` and `..` without resolving symlinks.
 /// For example, `/workspace/docs/chapters/../shared.adoc` becomes
 /// `/workspace/docs/shared.adoc`, even if `chapters` is a symlink.
-pub(super) fn absolute_normalized(path: &Path) -> Result<PathBuf, Error> {
+fn absolute_normalized(path: &Path) -> Result<PathBuf, Error> {
     let absolute = std::path::absolute(path)?;
     let mut normalized = PathBuf::new();
     for component in absolute.components() {
@@ -629,11 +629,7 @@ pub(crate) fn read_and_decode_file(
 }
 
 /// Decode source bytes using an explicit encoding, BOM detection, or UTF-8.
-pub(super) fn decode_bytes(
-    bytes: &[u8],
-    encoding: Option<&str>,
-    source: &str,
-) -> Result<String, Error> {
+fn decode_bytes(bytes: &[u8], encoding: Option<&str>, source: &str) -> Result<String, Error> {
     // If there was an encoding specified, decode the entire file as that
     if let Some(enc_label) = encoding {
         if let Some(encoding) = Encoding::for_label(enc_label.as_bytes()) {
@@ -707,7 +703,7 @@ impl Preprocessor {
     /// Preprocessor for the content of a resolved include: one level deeper than
     /// the include that produced it. Keeps the depth increment in one place
     /// instead of at each site that recurses.
-    pub(super) fn nested(warnings: &Rc<RefCell<Vec<Warning>>>, context: IncludeContext) -> Self {
+    fn nested(warnings: &Rc<RefCell<Vec<Warning>>>, context: IncludeContext) -> Self {
         Self {
             warnings: Rc::clone(warnings),
             include_context: context.nested(),
@@ -715,11 +711,7 @@ impl Preprocessor {
     }
 
     /// Store the full warning and trace its category and source position.
-    pub(crate) fn add_warning_at(
-        &self,
-        message: impl Into<Cow<'static, str>>,
-        location: SourceLocation,
-    ) {
+    fn add_warning_at(&self, message: impl Into<Cow<'static, str>>, location: SourceLocation) {
         let warning = Warning::new(WarningKind::Other(message.into()), Some(location));
         warning.emit_trace();
         self.warnings.borrow_mut().push(warning);
@@ -916,7 +908,7 @@ impl Preprocessor {
 
     #[cfg(test)]
     #[tracing::instrument(skip_all, fields(safe_mode = ?options.safe_mode))]
-    pub(crate) fn process_file<P: AsRef<Path>>(
+    fn process_file<P: AsRef<Path>>(
         file_path: P,
         options: &Options<'_>,
         warnings: Rc<RefCell<Vec<Warning>>>,
@@ -1035,7 +1027,7 @@ impl Preprocessor {
     /// - `++++` (passthrough blocks) - 4+ plus signs
     /// - ` ``` ` (markdown code fences) - 3+ backticks
     #[tracing::instrument(level = "trace", skip_all, fields(input_len = line.len()))]
-    pub(super) fn is_verbatim_delimiter(line: &str) -> Option<&str> {
+    fn is_verbatim_delimiter(line: &str) -> Option<&str> {
         let trimmed = line.trim();
 
         // Check for markdown code fences (3+ backticks)

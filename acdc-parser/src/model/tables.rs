@@ -309,7 +309,7 @@ fn is_default_style(s: &ColumnStyle) -> bool {
     *s == ColumnStyle::default()
 }
 
-pub(crate) fn are_all_columns_default(specs: &[ColumnFormat]) -> bool {
+fn are_all_columns_default(specs: &[ColumnFormat]) -> bool {
     specs.iter().all(|s| *s == ColumnFormat::default())
 }
 
@@ -391,7 +391,7 @@ impl<'a> Table<'a> {
         self
     }
 
-    pub(crate) fn refresh_presentation(&mut self, metadata: &BlockMetadata<'_>) {
+    pub(super) fn refresh_presentation(&mut self, metadata: &BlockMetadata<'_>) {
         if let Some(presentation) = &mut self.presentation {
             presentation.value = presentation.defaults.with_local_attributes(metadata);
         }

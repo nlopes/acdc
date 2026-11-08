@@ -84,7 +84,7 @@ pub(super) fn parse_shorthand_label<'a>(
     parsed
 }
 
-pub(super) fn process_unescaped_label<'a>(
+fn process_unescaped_label<'a>(
     state: &mut ParserState<'a>,
     metadata: &BlockParsingMetadata<'_>,
     text: &'a str,

@@ -9,7 +9,7 @@ use acdc_parser::{
 /// A retained ID occurrence, independent of reference-catalog registration.
 pub(crate) struct IdOccurrence<'doc> {
     pub(crate) id: &'doc str,
-    pub(crate) origin: IdOrigin,
+    pub(super) origin: IdOrigin,
     pub(crate) location: Location,
 }
 

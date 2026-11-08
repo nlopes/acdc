@@ -125,26 +125,26 @@ impl std::fmt::Display for HtmlVariant {
 
 /// An entry in the index catalog, collected during document traversal.
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub(crate) struct IndexTermLabel {
-    pub(crate) plain: String,
-    pub(crate) html: String,
+struct IndexTermLabel {
+    plain: String,
+    html: String,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct IndexTermEntry {
-    pub(crate) primary: IndexTermLabel,
-    pub(crate) secondary: Option<IndexTermLabel>,
-    pub(crate) tertiary: Option<IndexTermLabel>,
-    pub(crate) relationship: IndexCatalogRelationship,
-    pub(crate) anchor_id: String,
+struct IndexTermEntry {
+    primary: IndexTermLabel,
+    secondary: Option<IndexTermLabel>,
+    tertiary: Option<IndexTermLabel>,
+    relationship: IndexCatalogRelationship,
+    anchor_id: String,
     /// Plain-text title of the section the term occurs in, used as the
     /// back-link label. `None` for terms outside any section (e.g. the
     /// preamble), which fall back to the document title.
-    pub(crate) section_title: Option<String>,
+    section_title: Option<String>,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) enum IndexCatalogRelationship {
+enum IndexCatalogRelationship {
     None,
     See(IndexTermLabel),
     SeeAlso(Vec<IndexTermLabel>),
@@ -189,7 +189,7 @@ impl<'a> Processor<'a> {
 
     /// Index occurrences collected up to the current rendering position.
     #[must_use]
-    pub(crate) fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
+    fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
         &self.index_entries
     }
 
@@ -243,7 +243,7 @@ impl<'a> Processor<'a> {
     /// Generate a unique anchor ID for an index term and collect the entry,
     /// recording the section it occurs in for the back-link label.
     #[must_use]
-    pub(crate) fn add_index_entry(
+    fn add_index_entry(
         &self,
         primary: IndexTermLabel,
         secondary: Option<IndexTermLabel>,
@@ -375,22 +375,22 @@ pub struct RenderOptions {
     pub hardbreaks: bool,
 }
 
-pub(crate) const COPYCSS_DEFAULT: &str = "";
-pub(crate) const STYLESDIR_DEFAULT: &str = ".";
-pub(crate) const STYLESHEET_DEFAULT: &str = "";
+const COPYCSS_DEFAULT: &str = "";
+const STYLESDIR_DEFAULT: &str = ".";
+const STYLESHEET_DEFAULT: &str = "";
 /// Default filename for the syntax highlighting stylesheet (class-based mode).
 /// Analogous to asciidoctor's `asciidoctor-coderay.css` / `asciidoctor-pygments.css`.
 #[cfg(feature = "highlighting")]
-pub(crate) const HIGHLIGHT_STYLESHEET: &str = "acdc-highlight.css";
+const HIGHLIGHT_STYLESHEET: &str = "acdc-highlight.css";
 // NOTE: If you change the values below, you need to also change them in `load_css`
-pub(crate) const STYLESHEET_LIGHT_MODE: &str = "asciidoctor-light-mode.css";
-pub(crate) const STYLESHEET_DARK_MODE: &str = "asciidoctor-dark-mode.css";
-pub(crate) const STYLESHEET_HTML5S_LIGHT_MODE: &str = "html5s-light-mode.css";
-pub(crate) const STYLESHEET_HTML5S_DARK_MODE: &str = "html5s-dark-mode.css";
-pub(crate) const WEBFONTS_DEFAULT: &str = "";
+const STYLESHEET_LIGHT_MODE: &str = "asciidoctor-light-mode.css";
+const STYLESHEET_DARK_MODE: &str = "asciidoctor-dark-mode.css";
+const STYLESHEET_HTML5S_LIGHT_MODE: &str = "html5s-light-mode.css";
+const STYLESHEET_HTML5S_DARK_MODE: &str = "html5s-dark-mode.css";
+const WEBFONTS_DEFAULT: &str = "";
 
 /// Stylesheet I/O failures all advise the same fix; centralize the wording.
-pub(crate) const STYLESHEET_ADVICE: &str =
+const STYLESHEET_ADVICE: &str =
     "Check stylesheet paths and filesystem permissions, then rerun the conversion.";
 
 /// Whether acdc's index generation is opted into via the `:acdc-index:`
@@ -398,13 +398,11 @@ pub(crate) const STYLESHEET_ADVICE: &str =
 /// html5 backend (see `crate::index`), so it is off unless the author asks for
 /// it. Treated as a boolean attribute: present and not soft-unset (`:!acdc-index:`)
 /// turns it on.
-pub(crate) fn index_generation_enabled<'doc>(
-    attributes: impl Into<DocumentAttributesRef<'doc>>,
-) -> bool {
+fn index_generation_enabled<'doc>(attributes: impl Into<DocumentAttributesRef<'doc>>) -> bool {
     attributes.into().get("acdc-index").is_some()
 }
 
-pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
+fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
     match (variant, dark_mode) {
         (HtmlVariant::Semantic, true) => include_str!("../static/html5s-dark-mode.css"),
         (HtmlVariant::Semantic, false) => include_str!("../static/html5s-light-mode.css"),
@@ -420,7 +418,7 @@ pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
 /// - `syntect-style` and `syntect-css` are `[deprecated]` compatibility aliases.
 ///   An explicit primary assignment, including an unset, takes precedence.
 #[cfg(feature = "highlighting")]
-pub(crate) fn resolve_highlight_settings(
+fn resolve_highlight_settings(
     document_attributes: acdc_parser::ast::DocumentAttributesRef<'_>,
 ) -> (String, syntax::HighlightMode) {
     let dark_mode = document_attributes.contains("dark-mode");
@@ -805,17 +803,14 @@ impl<'a> Processor<'a> {
     }
 }
 
-pub(crate) fn write_element_id<W: std::io::Write + ?Sized>(
+fn write_element_id<W: std::io::Write + ?Sized>(
     writer: &mut W,
     id: Option<ElementIdRef<'_>>,
 ) -> Result<(), std::io::Error> {
     write_id(writer, id.map(ElementIdRef::as_str))
 }
 
-pub(crate) fn write_id<W: Write + ?Sized>(
-    writer: &mut W,
-    id: Option<&str>,
-) -> Result<(), std::io::Error> {
+fn write_id<W: Write + ?Sized>(writer: &mut W, id: Option<&str>) -> Result<(), std::io::Error> {
     if let Some(id) = id {
         write!(writer, " id=\"{}\"", inlines::escape_attribute(id))?;
     }
@@ -823,7 +818,7 @@ pub(crate) fn write_id<W: Write + ?Sized>(
 }
 
 /// Build an escaped HTML class value.
-pub(crate) fn build_class(base: &str, roles: impl IntoIterator<Item = impl AsRef<str>>) -> String {
+fn build_class(base: &str, roles: impl IntoIterator<Item = impl AsRef<str>>) -> String {
     let mut class = base.to_owned();
     let mut separator = if base.is_empty() { "" } else { " " };
     for role in roles {
@@ -1017,7 +1012,7 @@ fn render_highlighted_code<'a, W: std::io::Write>(
 ///
 /// With an active source highlighter, this applies syntax and source-line
 /// decoration. Otherwise it visits the inlines directly.
-pub(crate) fn render_pre_code<'a, W: std::io::Write>(
+fn render_pre_code<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
     content: ContentRef<'_>,
     attributes: Option<AttributesRef<'_>>,
@@ -1128,7 +1123,7 @@ fn attribute_content<'doc>(
 }
 
 /// Write attribution div for quote/verse blocks if author or citation present
-pub(crate) fn write_attribution<'a, W: Write>(
+fn write_attribution<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
     attributes: Option<AttributesRef<'_>>,
@@ -1170,7 +1165,7 @@ pub(crate) fn write_attribution<'a, W: Write>(
 }
 
 /// Write quote or verse attribution in a semantic `<footer>`.
-pub(crate) fn write_semantic_attribution<'a, W: Write>(
+fn write_semantic_attribution<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
     attributes: Option<AttributesRef<'_>>,

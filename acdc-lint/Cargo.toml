@@ -23,6 +23,7 @@ thiserror.workspace = true
 tempfile.workspace = true
 
 [lints.rust]
+unreachable_pub = "deny"
 unsafe_code = "forbid"
 
 [lints.clippy]

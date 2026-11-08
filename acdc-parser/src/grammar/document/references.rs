@@ -28,7 +28,7 @@ use std::{
 /// The first registration of an id wins, matching asciidoctor: when two elements
 /// claim the same id, `<<id>>` uses the reference text of the one that claimed it
 /// first.
-pub(super) fn insert_reference<'a>(
+fn insert_reference<'a>(
     state: &mut ParserState<'a>,
     refs: &mut ReferenceCatalog<'a>,
     anchor: &Anchor<'a>,
@@ -210,7 +210,7 @@ pub(super) fn finalize_inline_semantics<'a>(
     })
 }
 
-pub(super) fn metadata_natural_label<'a>(
+fn metadata_natural_label<'a>(
     state: &ParserState<'a>,
     metadata: &BlockMetadata<'a>,
 ) -> Option<&'a str> {

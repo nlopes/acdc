@@ -34,7 +34,7 @@ pub struct TerminalVisitor<'a, 'd, W: Write> {
     pub(crate) diagnostics: Diagnostics<'d>,
     /// Whether we are inside an inline formatting span (bold, italic, etc.).
     /// When true, em-dash boundary replacement at string start/end is suppressed.
-    pub(crate) in_inline_span: bool,
+    in_inline_span: bool,
     pub(crate) text_boundaries: TextBoundaries,
     /// Colors of the inline spans currently open, innermost last. A span
     /// restores the colors of the span around it on exit instead of resetting

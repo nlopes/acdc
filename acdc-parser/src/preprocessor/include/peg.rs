@@ -7,7 +7,7 @@ use std::{path::Path, rc::Rc};
 
 peg::parser! {
     pub(super) grammar include_parser<'a, 'b>(inputs: &'b IncludeParserInputs<'a, 'b>) for str {
-        pub(crate) rule include() -> Result<Include<'a>, Error>
+        pub(in crate::preprocessor::include) rule include() -> Result<Include<'a>, Error>
             = "include::" target:target() "[" attrs:attributes()? "]" {
                 let target_raw = substitute(&target, HEADER, &inputs.options.document_attributes);
                 let target_as_written = target_raw.into_owned();

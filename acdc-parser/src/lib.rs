@@ -162,7 +162,7 @@ mod caption_repair;
 mod constants;
 mod document_attribute;
 mod error;
-pub(crate) mod grammar;
+mod grammar;
 pub use grammar::footnotes::FootnoteRebuildError;
 mod model;
 mod options;

@@ -150,7 +150,7 @@ fn position_offset(input: &str, position: &Position) -> usize {
 ///
 /// When PEG parses a substring of the document, it reports positions relative to that substring.
 /// This function converts those positions to the correct positions in the original document.
-pub(crate) fn adjust_peg_error_position(
+fn adjust_peg_error_position(
     err: &peg::error::ParseError<peg::str::LineCol>,
     parsed_text: &str,
     doc_start_offset: usize,
@@ -205,7 +205,7 @@ pub(crate) fn adjust_peg_error_position(
 /// Helper for error recovery when parsing from a substring
 ///
 /// Records a content-recovery warning at the original source position.
-pub(crate) fn adjust_and_log_parse_error(
+pub(super) fn adjust_and_log_parse_error(
     err: &peg::error::ParseError<peg::str::LineCol>,
     parsed_text: &str,
     doc_start_offset: usize,
@@ -226,7 +226,7 @@ pub(crate) fn adjust_and_log_parse_error(
 }
 
 #[tracing::instrument(skip_all, fields(content_start = content_start, end = end, offset = offset))]
-pub(crate) fn preprocess_inline_content<'a>(
+fn preprocess_inline_content<'a>(
     state: &mut ParserState<'a>,
     content_start: usize,
     end: usize,
@@ -705,7 +705,7 @@ pub(crate) fn process_inlines<'a>(
     )
 }
 
-pub(crate) fn process_verbatim_inlines<'a>(
+pub(super) fn process_verbatim_inlines<'a>(
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
     content_start: usize,
@@ -795,7 +795,7 @@ fn process_inline_content<'a>(
 /// Used inside URL macros, mailto macros, and cross-references where nested
 /// autolinks would cause incorrect parsing.
 #[tracing::instrument(skip_all, fields(content_start = content_start, end = end, offset = offset))]
-pub(crate) fn process_inlines_no_autolinks<'a>(
+pub(super) fn process_inlines_no_autolinks<'a>(
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
     content_start: usize,

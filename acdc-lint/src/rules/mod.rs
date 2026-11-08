@@ -7,13 +7,13 @@ pub(crate) mod markdown;
 pub(crate) mod prose;
 pub(crate) mod resources;
 pub(crate) mod source;
-pub(crate) mod tables;
+mod tables;
 pub(crate) mod whitespace;
 
 pub(crate) use source::*;
 
 #[cfg(test)]
-pub(super) mod test_support {
+mod test_support {
     use crate::{Error, LintId, LintOptions, LintReport, Lintable};
 
     pub(super) fn report_for(source: &str) -> Result<LintReport, Error> {

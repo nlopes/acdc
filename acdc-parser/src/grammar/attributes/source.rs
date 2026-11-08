@@ -99,7 +99,7 @@ fn collapse_backslashes(
 }
 
 /// Decode only escapes belonging to this enclosure.
-pub(in crate::grammar) fn decode_attribute_escapes(
+pub(super) fn decode_attribute_escapes(
     source: &str,
     delimiter: char,
     mode: CompatibilityMode,

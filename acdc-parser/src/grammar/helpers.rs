@@ -7,7 +7,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct PositionWithOffset {
+pub(super) struct PositionWithOffset {
     pub(crate) offset: usize,
     pub(crate) position: crate::Position,
 }
@@ -17,15 +17,15 @@ pub(crate) struct PositionWithOffset {
 pub(crate) struct BlockParsingMetadata<'input> {
     pub(crate) metadata: BlockMetadata<'input>,
     pub(crate) title: Title<'input>,
-    pub(crate) image_alt: Option<crate::ContentAttribute<'input>>,
-    pub(crate) parent_section_level: Option<SectionLevel>,
+    pub(super) image_alt: Option<crate::ContentAttribute<'input>>,
+    pub(super) parent_section_level: Option<SectionLevel>,
     pub(crate) substitutions: SubstitutionPlan,
     pub(crate) hardbreaks: bool,
     /// Set when the attribute line marks the block as a discrete heading,
     /// either via the `discrete`/`float` block style (`[discrete]`) or as a
     /// bare positional attribute (`[#id,discrete]`).
-    pub(crate) discrete: bool,
-    pub(crate) media_attributes: Option<Box<BlockMetadata<'input>>>,
+    pub(super) discrete: bool,
+    pub(super) media_attributes: Option<Box<BlockMetadata<'input>>>,
 }
 
 impl BlockParsingMetadata<'_> {
@@ -37,12 +37,12 @@ impl BlockParsingMetadata<'_> {
     }
 }
 
-pub(crate) const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";
-pub(crate) const RESERVED_NAMED_ATTRIBUTE_ROLE: &str = "role";
-pub(crate) const RESERVED_NAMED_ATTRIBUTE_OPTIONS: &str = "opts";
-pub(crate) const RESERVED_NAMED_ATTRIBUTE_SUBS: &str = "subs";
+pub(super) const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";
+pub(super) const RESERVED_NAMED_ATTRIBUTE_ROLE: &str = "role";
+pub(super) const RESERVED_NAMED_ATTRIBUTE_OPTIONS: &str = "opts";
+pub(super) const RESERVED_NAMED_ATTRIBUTE_SUBS: &str = "subs";
 
-pub(crate) fn is_valid_bibliography_id(id: &str) -> bool {
+pub(super) fn is_valid_bibliography_id(id: &str) -> bool {
     let mut chars = id.chars();
     chars
         .next()
@@ -66,7 +66,7 @@ pub(crate) fn is_valid_bibliography_id(id: &str) -> bool {
 /// - `\=>` → `=>` (right double arrow escape)
 /// - `\<=` → `<=` (left double arrow escape)
 /// - `\--` → `--` (em-dash escape)
-pub(crate) fn strip_url_backslash_escapes(text: &str) -> Cow<'_, str> {
+fn strip_url_backslash_escapes(text: &str) -> Cow<'_, str> {
     if !text.contains('\\') {
         return Cow::Borrowed(text);
     }
@@ -81,7 +81,7 @@ pub(crate) fn strip_url_backslash_escapes(text: &str) -> Cow<'_, str> {
 }
 
 /// Restore URL passthroughs and remove escapes before URL parsing can normalize them.
-pub(crate) fn restore_url_path(processed: ProcessedContent<'_>) -> String {
+pub(super) fn restore_url_path(processed: ProcessedContent<'_>) -> String {
     let text = if processed.passthroughs.is_empty() {
         processed.text
     } else {
@@ -91,7 +91,7 @@ pub(crate) fn restore_url_path(processed: ProcessedContent<'_>) -> String {
 }
 
 /// Split decoded comma-separated option values and intern each nonempty entry.
-pub(crate) fn parse_comma_separated_values<'a>(
+pub(super) fn parse_comma_separated_values<'a>(
     state: &ParserState<'a>,
     value: &str,
 ) -> Vec<&'a str> {

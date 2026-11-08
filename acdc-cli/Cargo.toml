@@ -85,6 +85,7 @@ dev-tools = ["execute", "inspect"]   # Enable development utilities
 test-tools = ["tck"]                 # Enable testing and compliance tools
 
 [lints.rust]
+unreachable_pub = "deny"
 unsafe_code = "forbid"
 
 [lints.clippy]

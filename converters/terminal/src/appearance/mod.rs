@@ -9,7 +9,7 @@ use theme::{ColorScheme, Theme};
 /// Groups theme, capabilities, and color scheme together as they're
 /// all related to how content is presented in the terminal.
 #[derive(Clone, Debug)]
-pub struct Appearance {
+pub(super) struct Appearance {
     /// Terminal theme (dark or light background)
     /// Used by `syntect_theme()` when `highlighting` feature is enabled.
     #[cfg(feature = "highlighting")]

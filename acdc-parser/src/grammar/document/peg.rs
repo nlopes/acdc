@@ -346,7 +346,7 @@ peg::parser! {
 
         // A blank line ends the header. Blank lines inside an atomic comment
         // block do not end the surrounding header.
-        pub(crate) rule header() -> Result<Option<Header<'input>>, Error>
+        pub(in crate::grammar::document) rule header() -> Result<Option<Header<'input>>, Error>
             = start:position!()
             ((document_attribute() / header_comment()) (eol() / ![_]))*
             metadata:header_metadata()
@@ -431,7 +431,7 @@ peg::parser! {
             }
             / { Ok(BlockMetadata::default()) }
 
-        pub(crate) rule title_authors() -> (Title<'input>, Option<Subtitle<'input>>, Vec<Author<'input>>)
+        rule title_authors() -> (Title<'input>, Option<Subtitle<'input>>, Vec<Author<'input>>)
         // Attribute entries and comments keep each metadata slot open. Consume
         // them outside optional metadata parsing so backtracking cannot assign
         // an entry twice; a blank line still ends the header.
@@ -445,7 +445,7 @@ peg::parser! {
             (title, subtitle, authors.unwrap_or_default())
         }
 
-        pub(crate) rule document_title() -> (Title<'input>, Option<Subtitle<'input>>)
+        pub(in crate::grammar::document) rule document_title() -> (Title<'input>, Option<Subtitle<'input>>)
         = document_title_atx()
         / document_title_setext()
 
@@ -610,7 +610,7 @@ peg::parser! {
                 Ok(authors)
             }
 
-        pub(crate) rule authors() -> Vec<Author<'input>>
+        pub(in crate::grammar::document) rule authors() -> Vec<Author<'input>>
             = authors:(author() ++ (";" whitespace()*)) {
                 authors
             }
@@ -620,7 +620,7 @@ peg::parser! {
         /// - "First Last <email>"
         /// - "First <email>"
         /// - "First Last"
-        pub(crate) rule author() -> Author<'input>
+        pub(in crate::grammar::document) rule author() -> Author<'input>
             = name:author_name() email:author_email()? {
                 let mut author = name;
                 if let Some(email_addr) = email {
@@ -650,7 +650,7 @@ peg::parser! {
                 name
             }
 
-        pub(crate) rule revision() -> ()
+        pub(in crate::grammar::document) rule revision() -> ()
             = "v"? number:$(digits() ++ ".") date:revision_date()? remark:revision_remark()? {
                 let revision_info = RevisionInfo {
                     number: Cow::Owned(number.to_string()),
@@ -732,7 +732,7 @@ peg::parser! {
             state.apply_document_attribute(&att, true, location);
         }
 
-        pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Vec<Block<'input>>, Error>
+        pub(in crate::grammar::document) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Vec<Block<'input>>, Error>
         = blocks:(!trailing_block_metadata_match() block:block(offset, parent_section_level, direct_parent_section_kind) { block })*
           trailing:trailing_block_metadata(offset)?
         {
@@ -743,7 +743,7 @@ peg::parser! {
             Ok(order_block_prefix_events(blocks))
         }
 
-        pub(crate) rule compound_blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block<'input>>, Error>
+        pub(in crate::grammar::document) rule compound_blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block<'input>>, Error>
         = content:blocks(offset, parent_section_level, None) eol()* { content }
 
         rule trailing_block_metadata_match()
@@ -760,7 +760,7 @@ peg::parser! {
             events.into_iter().flatten().collect()
         }
 
-        pub(crate) rule nested_document_blocks(offset: usize, initial_attributes: &mut Vec<(crate::AttributeName<'input>, crate::DocumentAttributeAssignment<'input>)>) -> Result<Vec<Block<'input>>, Error>
+        pub(in crate::grammar::document) rule nested_document_blocks(offset: usize, initial_attributes: &mut Vec<(crate::AttributeName<'input>, crate::DocumentAttributeAssignment<'input>)>) -> Result<Vec<Block<'input>>, Error>
         = eol()*
           header:(
               comment:comment_line_block(offset) eol()* { comment }
@@ -778,7 +778,7 @@ peg::parser! {
         = { crate::grammar::document::table::normalize_nested_header(state, header, initial_attributes) }
 
         /// Parse normal cell paragraphs; only blank lines separate them.
-        pub(crate) rule blocks_for_table_cell(offset: usize, prepared: &mut Option<Vec<PreparedTableCellParagraph<'input>>>) -> Result<Vec<Block<'input>>, Error>
+        pub(in crate::grammar::document) rule blocks_for_table_cell(offset: usize, prepared: &mut Option<Vec<PreparedTableCellParagraph<'input>>>) -> Result<Vec<Block<'input>>, Error>
         = eol()*
         blocks:(
             start:position!()
@@ -816,7 +816,7 @@ peg::parser! {
             blocks.into_iter().collect()
         }
 
-        pub(crate) rule block(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
+        rule block(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
         = eol()*
         // First check: if we're at a same-or-higher-level section, fail the entire block
         // This prevents section content from consuming sibling/parent sections as paragraphs
@@ -1006,7 +1006,7 @@ peg::parser! {
             }))
         }
 
-        pub(crate) rule document_attribute_block(offset: usize) -> Result<Block<'input>, Error>
+        rule document_attribute_block(offset: usize) -> Result<Block<'input>, Error>
         = att:document_attribute_match()
         {
             let name = Cow::Borrowed(att.name);
@@ -1017,7 +1017,7 @@ peg::parser! {
             Ok(Block::DocumentAttribute(event))
         }
 
-        pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
+        rule section(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
         = check_section_blocks() &atx_heading_match()
         block_metadata:(bm:heading_metadata(offset, parent_section_level) {?
             bm.map_err(|_| {
@@ -1154,7 +1154,7 @@ peg::parser! {
         /// Parse a setext-style section (title followed by underline).
         /// Excludes description list items (e.g., `term:: content`) which would otherwise
         /// match as setext titles.
-        pub(crate) rule section_setext(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
+        rule section_setext(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
         = check_section_blocks() !check_line_is_description_list(offset)
         &setext_section_match(parent_section_level)
         block_metadata:(bm:heading_metadata(offset, parent_section_level) {?
@@ -1426,7 +1426,7 @@ peg::parser! {
         rule section_content(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Vec<Block<'input>>, Error>
         = blocks(offset, parent_section_level, direct_parent_section_kind) / { Ok(vec![]) }
 
-        pub(crate) rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
+        rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = start:position!()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|_| {
@@ -3821,7 +3821,7 @@ peg::parser! {
         rule empty_list_separator()
             = whitespace()* "[" whitespace()* "]" whitespace()* eol() eol()
 
-        pub(crate) rule attributes() -> ParsedAttributeList<'input>
+        pub(in crate::grammar::document) rule attributes() -> ParsedAttributeList<'input>
             = block_attribute_start()
               open_square_bracket()
               content_start:position!()
@@ -3844,7 +3844,7 @@ peg::parser! {
         /// Asciidoctor behavior:
         /// - `image::photo.jpg[.role]` -> alt=".role" (literal text, NOT a role)
         /// - `image::photo.jpg[Diablo 4 picture of Lilith.]` -> alt="Diablo 4 picture of Lilith."
-        pub(crate) rule macro_attributes() -> ParsedAttributeList<'input>
+        rule macro_attributes() -> ParsedAttributeList<'input>
             = macro_attributes_for()
 
         rule cached_macro_attributes(block_metadata: &BlockParsingMetadata<'input>) -> ParsedAttributeList<'input>
@@ -3886,7 +3886,7 @@ peg::parser! {
         rule comma() = ","
         rule period() = "."
         /// URL rule matches both web URLs (proto://) and mailto: URLs
-        pub rule url() -> String =
+        rule url() -> String =
         proto:$("https" / "http" / "ftp" / "irc") "://" path:url_path() { format!("{proto}://{path}") }
         / "mailto:" email:email_address() { format!("mailto:{email}") }
 
@@ -4031,7 +4031,7 @@ peg::parser! {
         /// ASCII input uses a conservative filename set. Non-ASCII Unicode characters
         /// are accepted unchanged, and `{`/`}` permit `AsciiDoc` attribute substitution.
         /// Existing percent escapes and internal spaces are preserved.
-        pub rule path() -> String = path:$(path_match())
+        rule path() -> String = path:$(path_match())
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
@@ -4058,7 +4058,7 @@ peg::parser! {
         rule path_match() = path_char() (path_char() / internal_path_spaces())*
 
 
-        pub rule source() -> Source<'input>
+        rule source() -> Source<'input>
             = source:
         (
             u:url() {?

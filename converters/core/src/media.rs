@@ -123,7 +123,8 @@ pub fn image_alt_from_content(source: SourceRef<'_>, alt: Option<ContentRef<'_>>
 
 /// Append the authored start/end playback range to a media URI.
 #[must_use]
-pub fn with_time_range(target: &str, attributes: &acdc_parser::ElementAttributes<'_>) -> String {
+#[cfg(test)]
+fn with_time_range(target: &str, attributes: &acdc_parser::ElementAttributes<'_>) -> String {
     let start = attributes.get_string("start");
     let end = attributes.get_string("end");
     append_time_range(target, start.as_deref(), end.as_deref())
@@ -153,6 +154,8 @@ fn append_time_range(target: &str, start: Option<&str>, end: Option<&str>) -> St
 
 #[cfg(test)]
 mod tests {
+    mod playback_ranges;
+
     use super::*;
 
     fn target(

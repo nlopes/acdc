@@ -125,7 +125,7 @@ impl LineMap {
     /// for lines with non-ASCII content in the worst case. Nearby Unicode
     /// lookups reuse the last character column. Safe for PEG backtracking.
     #[tracing::instrument(level = "trace", skip_all, fields(offset = offset))]
-    pub(crate) fn offset_to_position(&self, offset: usize, input: &str) -> Position {
+    pub(super) fn offset_to_position(&self, offset: usize, input: &str) -> Position {
         let (line_idx, line_start_byte) = self.line_for_offset(offset);
         let line = line_idx + 1;
 
@@ -192,7 +192,7 @@ impl LineMap {
     /// [`source_line`](Self::source_line)), so they count lines the same way and can't
     /// disagree for the same byte. Callers with the start line already cached (the remap,
     /// once per range) save a lookup by calling this instead of `source_line`.
-    pub(crate) fn source_line_from(
+    pub(super) fn source_line_from(
         &self,
         start_line: u32,
         preproc_start_line: u32,

@@ -88,7 +88,7 @@ impl Workspace {
 
     /// Return the configured workspace roots.
     #[must_use]
-    pub(crate) fn workspace_roots(&self) -> Vec<Uri> {
+    fn workspace_roots(&self) -> Vec<Uri> {
         self.analysis_configuration
             .read()
             .unwrap_or_else(PoisonError::into_inner)

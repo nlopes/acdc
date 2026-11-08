@@ -9,37 +9,37 @@ use super::json::{self, Error, Format};
 
 /// Parse a document or inline fragment into native JSON or checked ASG
 #[derive(clap::Args)]
-pub struct Args {
+pub(crate) struct Args {
     /// Input file, or - for stdin
     #[arg(default_value = "-")]
-    pub input: PathBuf,
+    input: PathBuf,
     /// Native AST JSON, pinned upstream ASG, or the acdc ASG v1 extension
     #[arg(long, value_enum, default_value = "native-json")]
-    pub format: Format,
+    format: Format,
     /// Document blocks or an inline fragment
     #[arg(long = "type", value_enum, default_value = "block")]
-    pub kind: InputKind,
+    kind: InputKind,
     /// Language rules: asciidoctor or draft
     #[arg(long, value_name = "MODE", default_value_t = CompatibilityMode::default())]
-    pub compatibility_mode: CompatibilityMode,
+    compatibility_mode: CompatibilityMode,
     /// Safe mode to use while parsing
     #[arg(short = 'S', long, default_value = "unsafe")]
-    pub safe_mode: SafeMode,
+    safe_mode: SafeMode,
     /// Maximum selected include text per document, in bytes
     #[arg(long, value_name = "BYTES", default_value_t = Options::default().max_total_include_bytes())]
-    pub max_total_include_bytes: usize,
+    max_total_include_bytes: usize,
     /// Output file, or - for stdout
     #[arg(short = 'o', long, default_value = "-")]
-    pub output: PathBuf,
+    output: PathBuf,
 }
 
 #[derive(Clone, Copy, clap::ValueEnum)]
-pub enum InputKind {
+enum InputKind {
     Block,
     Inline,
 }
 
-pub fn run(args: &Args) -> Result<(), Error> {
+pub(crate) fn run(args: &Args) -> Result<(), Error> {
     args.format.check_available()?;
     let options = Options::builder()
         .with_compatibility_mode(args.compatibility_mode)

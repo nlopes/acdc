@@ -6,7 +6,7 @@
 use std::borrow::Cow;
 
 use acdc_parser::{
-    InlineNode, NORMAL, Substitution, SymbolKind, VERBATIM,
+    NORMAL, Substitution, SymbolKind, VERBATIM,
     ast::{InlineKind, InlineRef, SubstitutionSpecRef},
 };
 
@@ -106,7 +106,8 @@ impl TextBoundaries {
     /// ordinary anchors contribute no text. Formatting and other macros remain
     /// barriers. Consumed characters and generated text retain their source owners.
     #[must_use]
-    pub fn for_inline(self, nodes: &[InlineNode<'_>], index: usize) -> Self {
+    #[cfg(test)]
+    pub(crate) fn for_inline(self, nodes: &[acdc_parser::InlineNode<'_>], index: usize) -> Self {
         self.for_inline_refs(
             nodes.get(index).map(InlineRef::from),
             nodes.iter().take(index).rev().map(InlineRef::from),
@@ -121,8 +122,8 @@ impl TextBoundaries {
     ///
     /// `before` starts with the preceding sibling and runs backward; `after`
     /// starts with the following sibling and runs forward. Each iterator is
-    /// read only as far as needed, using the same text and barrier rules as
-    /// [`Self::for_inline`].
+    /// read only as far as needed. Invisible nodes do not contribute text,
+    /// and formatting and other macros remain barriers.
     #[must_use]
     pub fn for_inline_refs<'doc>(
         self,
@@ -492,7 +493,8 @@ pub fn protect_replacement_escapes(text: &str, include_arrows: bool) -> Cow<'_, 
 /// replacements, matching the passthrough's requested order. Authored encoded
 /// arrows are recognized when an earlier escaping stage has not protected them.
 #[must_use]
-pub fn apply_passthrough_replacements<'a>(
+#[cfg(test)]
+fn apply_passthrough_replacements<'a>(
     text: &'a str,
     subs: &[Substitution],
     replacements: &Replacements<'_>,
@@ -501,7 +503,11 @@ pub fn apply_passthrough_replacements<'a>(
     apply_passthrough_replacements_iter(text, subs.iter().cloned(), replacements, text_boundaries)
 }
 
-/// Apply [`apply_passthrough_replacements`] using an ordered substitution iterator.
+/// Apply a passthrough's replacement profile using an ordered substitution iterator.
+///
+/// Replacement escapes stay literal, and escapes for disabled formatting rules
+/// are preserved. Source arrows require special-character substitution before
+/// replacements; authored encoded arrows are recognized when not yet protected.
 ///
 /// Consumes the profile once. Without a replacement stage, returns the original
 /// text without copying it.
@@ -1122,6 +1128,8 @@ fn replace_contextual_apostrophes(
 
 #[cfg(test)]
 mod tests {
+    mod inline_boundaries;
+
     use super::*;
 
     #[test]

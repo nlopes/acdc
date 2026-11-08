@@ -287,7 +287,7 @@ pub(super) fn apply_inline(
     Ok(())
 }
 
-pub(super) fn scalar_attributes(
+fn scalar_attributes(
     value: &ElementAttributes<'_>,
     path: &str,
 ) -> Result<Map<String, Value>, Error> {

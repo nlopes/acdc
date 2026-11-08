@@ -1,8 +1,6 @@
 //! Index discovery boundaries and compatibility with existing style queries.
 
-use acdc_converters_core::section::{
-    contains_index_section, has_index_section, last_section_has_style,
-};
+use crate::section::{contains_index_section, has_index_section, last_section_has_style};
 use acdc_parser::{
     Admonition, AdmonitionVariant, Block, ColumnFormat, ColumnStyle, CompatibilityMode,
     DelimitedBlock, DelimitedBlockType, Location, Options, Section, SectionKind, Table, TableRow,

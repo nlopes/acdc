@@ -6,13 +6,13 @@
 // but deprecated in the LSP spec in favor of `tags`. Suppress until tower-lsp-server updates.
 #![allow(deprecated)]
 
-pub(crate) mod backend;
-pub(crate) mod capabilities;
-pub(crate) mod config;
-pub(crate) mod convert;
-pub(crate) mod limits;
+mod backend;
+mod capabilities;
+mod config;
+mod convert;
+mod limits;
 #[cfg(feature = "preview")]
-pub(crate) mod preview;
-pub(crate) mod state;
+mod preview;
+mod state;
 
 pub use backend::Backend;

@@ -2,7 +2,7 @@ use acdc_parser::WarningKind;
 
 use crate::LintId;
 
-pub(crate) fn lint_for_parser_warning(kind: &WarningKind) -> Option<LintId> {
+pub(super) fn lint_for_parser_warning(kind: &WarningKind) -> Option<LintId> {
     match kind {
         WarningKind::TableUnknownFormat { .. } => Some(LintId::TableUnknownFormat),
         WarningKind::TableIncompleteRow => Some(LintId::TableIncompleteRow),

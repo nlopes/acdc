@@ -17,28 +17,28 @@ use acdc_parser::{
 
 pub(crate) use appearance::Appearance;
 
-pub(crate) const FALLBACK_TERMINAL_WIDTH: usize = 80;
-pub(crate) const MAX_TERMINAL_WIDTH: usize = 120;
+const FALLBACK_TERMINAL_WIDTH: usize = 80;
+const MAX_TERMINAL_WIDTH: usize = 120;
 
 const TERMINAL_BACKEND: BackendProfile =
     BackendProfile::new("terminal", "terminal", "terminal", ".terminal");
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub(crate) struct IndexTermLabel {
-    pub(crate) plain: String,
-    pub(crate) rendered: String,
+struct IndexTermLabel {
+    plain: String,
+    rendered: String,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct IndexTermEntry {
-    pub(crate) primary: IndexTermLabel,
-    pub(crate) secondary: Option<IndexTermLabel>,
-    pub(crate) tertiary: Option<IndexTermLabel>,
-    pub(crate) relationship: IndexCatalogRelationship,
+struct IndexTermEntry {
+    primary: IndexTermLabel,
+    secondary: Option<IndexTermLabel>,
+    tertiary: Option<IndexTermLabel>,
+    relationship: IndexCatalogRelationship,
 }
 
 #[derive(Clone, Debug)]
-pub(crate) enum IndexCatalogRelationship {
+enum IndexCatalogRelationship {
     None,
     See(IndexTermLabel),
     SeeAlso(Vec<IndexTermLabel>),
@@ -46,37 +46,37 @@ pub(crate) enum IndexCatalogRelationship {
 
 #[derive(Clone, Debug)]
 pub struct Processor<'a> {
-    pub(crate) options: Options,
-    pub(crate) parser_options: ParserOptions<'a>,
-    pub(crate) document: Option<DocumentRef<'a>>,
-    pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
+    options: Options,
+    parser_options: ParserOptions<'a>,
+    document: Option<DocumentRef<'a>>,
+    references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
-    pub(crate) xref_guard: XrefGuard,
+    xref_guard: XrefGuard,
     /// Fallback counter for example captions the parser did not number.
-    pub(crate) example_counter: Rc<Cell<u32>>,
+    example_counter: Rc<Cell<u32>>,
     /// Fallback counter for figure captions the parser did not number.
-    pub(crate) figure_counter: Rc<Cell<u32>>,
+    figure_counter: Rc<Cell<u32>>,
     /// Fallback counter for listing and source captions the parser did not number.
-    pub(crate) listing_counter: Rc<Cell<u32>>,
+    listing_counter: Rc<Cell<u32>>,
     /// Fallback counter for table captions the parser did not number.
-    pub(crate) table_counter: Rc<Cell<u32>>,
+    table_counter: Rc<Cell<u32>>,
     /// Terminal appearance (theme, capabilities, colors)
-    pub(crate) appearance: Appearance,
+    appearance: Appearance,
     /// Terminal width (read once at start, capped at `MAX_TERMINAL_WIDTH`).
-    pub(crate) terminal_width: usize,
+    terminal_width: usize,
     /// Collected index terms for rendering in the index catalog.
-    pub(crate) index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
+    index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
     /// Whether the section hierarchy contains an `[index]` section.
-    pub(crate) has_valid_index_section: bool,
+    has_valid_index_section: bool,
     /// Current list nesting indentation (shared across clones).
-    pub(crate) list_indent: Rc<Cell<usize>>,
+    list_indent: Rc<Cell<usize>>,
     /// Document-wide fallback warnings already emitted by this converter.
-    pub(crate) warned_fallbacks: Rc<RefCell<HashSet<&'static str>>>,
+    warned_fallbacks: Rc<RefCell<HashSet<&'static str>>>,
 }
 
 /// Build a `Processor` for tests with default document attributes.
 #[cfg(test)]
-pub(crate) fn create_test_processor() -> Processor<'static> {
+fn create_test_processor() -> Processor<'static> {
     create_test_processor_with(DocumentAttributes::default())
 }
 
@@ -85,9 +85,7 @@ pub(crate) fn create_test_processor() -> Processor<'static> {
 /// Every test in the crate goes through here, so a new `Processor` field is
 /// filled in once rather than in each test module.
 #[cfg(test)]
-pub(crate) fn create_test_processor_with(
-    document_attributes: DocumentAttributes<'_>,
-) -> Processor<'_> {
+fn create_test_processor_with(document_attributes: DocumentAttributes<'_>) -> Processor<'_> {
     let appearance = Appearance::detect();
     Processor {
         options: Options::default(),
@@ -221,7 +219,7 @@ impl<'a> Converter<'a> for Processor<'a> {
 
 impl Processor<'_> {
     /// Return the caption prefix for a titled block.
-    pub(crate) fn caption_prefix(
+    fn caption_prefix(
         &self,
         attributes: AttributesRef<'_>,
         fallback: Option<CaptionKind>,
@@ -293,18 +291,18 @@ impl Processor<'_> {
     }
 
     /// Collect an index term entry for later rendering in the index catalog.
-    pub(crate) fn add_index_entry(&self, entry: IndexTermEntry) {
+    fn add_index_entry(&self, entry: IndexTermEntry) {
         self.index_entries.borrow_mut().push(entry);
     }
 
     /// Check whether the document seeds an `[index]` section.
     #[must_use]
-    pub(crate) fn has_valid_index_section(&self) -> bool {
+    fn has_valid_index_section(&self) -> bool {
         self.has_valid_index_section
     }
 
     /// Record a document-wide fallback and return whether its warning is new.
-    pub(crate) fn mark_fallback(&self, key: &'static str) -> bool {
+    fn mark_fallback(&self, key: &'static str) -> bool {
         self.warned_fallbacks.borrow_mut().insert(key)
     }
 }

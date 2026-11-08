@@ -1,7 +1,6 @@
-use acdc_parser::{
-    AttributeValue, BlockMetadata,
-    ast::{AttributeValueRef, AttributesRef},
-};
+use acdc_parser::ast::{AttributeValueRef, AttributesRef};
+#[cfg(test)]
+use acdc_parser::{AttributeValue, BlockMetadata};
 
 mod link;
 pub use link::{
@@ -24,7 +23,8 @@ impl SourceLineOptions {
     /// `highlight` values use visible line numbers when numbering is enabled
     /// with a custom `start`; otherwise they use physical one-based lines.
     #[must_use]
-    pub fn resolve(metadata: &BlockMetadata<'_>, source: &str) -> Self {
+    #[cfg(test)]
+    fn resolve(metadata: &BlockMetadata<'_>, source: &str) -> Self {
         Self::resolve_values(
             metadata.style == Some("source"),
             metadata.attributes.contains_key("linenums")
@@ -39,7 +39,8 @@ impl SourceLineOptions {
 
     /// Resolve source-line decoration from element attributes.
     ///
-    /// Uses the same selector and numbering rules as [`Self::resolve`].
+    /// `highlight` values use visible line numbers when numbering starts at a
+    /// custom `start`; otherwise they use physical one-based lines.
     #[must_use]
     pub fn from_attributes(attributes: AttributesRef<'_>, source: &str) -> Self {
         let text = |name| match attributes.get(name) {
@@ -88,6 +89,7 @@ impl SourceLineOptions {
     }
 }
 
+#[cfg(test)]
 fn string_attribute<'a>(metadata: &'a BlockMetadata<'_>, name: &str) -> Option<&'a str> {
     match metadata.attributes.get(name) {
         Some(AttributeValue::String(value)) => Some(value),
@@ -179,7 +181,8 @@ fn update_highlighted_line(lines: &mut [bool], line: usize, exclude: bool) {
 /// Any language string is returned, not just known ones. This ensures
 /// `[source,text]` and other arbitrary languages get proper `<code>` wrappers.
 #[must_use]
-pub fn detect_language<'a, 'b: 'a>(metadata: &'a BlockMetadata<'b>) -> Option<&'a str> {
+#[cfg(test)]
+fn detect_language<'a, 'b: 'a>(metadata: &'a BlockMetadata<'b>) -> Option<&'a str> {
     language_for_style(
         metadata.style.map(AttributeValueRef::Text),
         metadata
@@ -235,6 +238,9 @@ pub fn default_line_comment(language: Option<&str>) -> Option<&'static str> {
 
 #[cfg(test)]
 mod tests {
+    mod source_language;
+    mod source_line_options;
+
     use std::borrow::Cow;
 
     use acdc_parser::{AttributeValue, BlockMetadata, ElementAttributes};

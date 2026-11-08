@@ -2,7 +2,7 @@ use crate::document_attribute::{AttributeDeclaration, RawAttributeValue};
 
 peg::parser! {
     pub(super) grammar attribute_parser() for str {
-        pub(crate) rule document_attribute() -> AttributeDeclaration<'input>
+        pub(in crate::preprocessor::attribute) rule document_attribute() -> AttributeDeclaration<'input>
             = ":" "!" name:name() ":" { AttributeDeclaration { name, value: RawAttributeValue::Unset } }
             / ":" name:name() "!" ":" { AttributeDeclaration { name, value: RawAttributeValue::Unset } }
             / ":" name:name() ":" whitespace()? value:value()? {

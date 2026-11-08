@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `command` and `discovery` are private modules. Import command
+  types and `DiscoveryError` from `acdc_execute` directly, such as
+  `acdc_execute::CommandBlock`. Execution and discovery capabilities are retained.
+
 - Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
 
 ### Fixed

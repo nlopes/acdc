@@ -56,12 +56,12 @@ impl AssignmentState {
         lock: AttributeLock::Unlocked,
     };
 
-    pub(crate) const PROCESSOR_LOCKED: Self = Self {
+    const PROCESSOR_LOCKED: Self = Self {
         lock: AttributeLock::Locked,
         ..Self::PROCESSOR
     };
 
-    pub(crate) const CALLER_LOCKED: Self = Self {
+    const CALLER_LOCKED: Self = Self {
         origin: AttributeOrigin::Caller,
         lock: AttributeLock::Locked,
     };
@@ -219,17 +219,17 @@ pub(crate) fn initialize_nested_attributes<'a>(
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum AssignmentPolicy {
+enum AssignmentPolicy {
     Modifiable,
     ApiOnly,
     ReadOnly,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct AttributeSpec {
+struct AttributeSpec {
     pub(crate) default: Option<&'static DocumentAttributeValue<'static>>,
-    pub(crate) assignment_policy: AssignmentPolicy,
-    pub(crate) intrinsic: bool,
+    assignment_policy: AssignmentPolicy,
+    intrinsic: bool,
 }
 
 const TEXT_MODIFIABLE: AttributeSpec = AttributeSpec {
@@ -291,7 +291,7 @@ const READ_ONLY_PREFIXES: &[&str] = &[
 ];
 
 /// Look up a static specification without allocating.
-pub(crate) fn attribute_spec(name: &str) -> AttributeSpec {
+fn attribute_spec(name: &str) -> AttributeSpec {
     if let Some(spec) = default_spec(name) {
         spec
     } else if let Some(spec) = intrinsic_spec(name) {

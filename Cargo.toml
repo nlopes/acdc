@@ -86,6 +86,7 @@ percent-encoding = "2"
 usvg = "0.48.1"
 
 [workspace.lints.rust]
+unreachable_pub = "deny"
 unsafe_code = "forbid"
 
 [workspace.lints.clippy]

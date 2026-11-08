@@ -561,7 +561,7 @@ fn check_attribute_name(name: &str, reserved: &[&str]) -> Result<(), ReservedAtt
 }
 
 #[derive(Serialize)]
-pub(crate) struct InlineMetadataView<'node, 'a> {
+pub(super) struct InlineMetadataView<'node, 'a> {
     #[serde(skip_serializing_if = "ElementAttributes::is_empty")]
     pub(crate) attributes: &'node ElementAttributes<'a>,
     #[serde(skip_serializing_if = "TokenAssignment::is_absent")]

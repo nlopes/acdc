@@ -18,11 +18,11 @@
 //!     .build();
 //! ```
 //!
-//! # Modules
+//! # Shared utilities
 //!
 //! - [`code`] - Programming language detection for syntax highlighting
 //! - [`icon`] - Icon rendering mode configuration
-//! - [`inline_text`] - Plain-text extraction from inline nodes
+//! - [`InlineTextTransform`] - Plain-text extraction from inline nodes
 //! - [`media`] - Media target resolution for URI-producing converters
 //! - [`substitutions`] - Text substitution utilities for escape handling
 //! - [`table`] - Table column width calculations
@@ -38,8 +38,8 @@ use std::{
 };
 
 use acdc_parser::{
-    AttributeValue, DelimitedBlockType, DocumentAttributeValue, DocumentAttributes, Error,
-    Options as ParserOptions, OptionsBuilder as ParserOptionsBuilder, SafeMode, ast::DocumentRef,
+    AttributeValue, DocumentAttributeValue, DocumentAttributes, Error, Options as ParserOptions,
+    OptionsBuilder as ParserOptionsBuilder, SafeMode, ast::DocumentRef,
 };
 
 mod backend;
@@ -49,7 +49,7 @@ mod doctype;
 mod document_attributes;
 pub mod icon;
 pub mod index;
-pub mod inline_text;
+mod inline_text;
 pub mod link;
 pub mod list;
 pub mod media;
@@ -65,7 +65,7 @@ pub mod xref;
 pub use backend::BackendProfile;
 pub use doctype::Doctype;
 pub use document_attributes::TraversalContext;
-pub use inline_text::{InlineTextTransform, inlines_to_string};
+pub use inline_text::InlineTextTransform;
 pub use warning::{Diagnostics, Warning, WarningSource};
 
 /// Return stored text, or empty text for presence.
@@ -76,26 +76,6 @@ pub fn document_attribute_text<'a>(
 ) -> Option<&'a str> {
     let value = value?;
     value.as_str().or_else(|| value.is_presence().then_some(""))
-}
-
-/// Whether a delimited block shows its title as a visible caption.
-///
-/// A passthrough block's title serves only as cross-reference text: asciidoctor
-/// never prints it, because the block's whole purpose is to emit its content
-/// untouched. Every other delimited block shows its title.
-///
-/// # Examples
-///
-/// ```
-/// use acdc_converters_core::shows_block_title;
-/// use acdc_parser::DelimitedBlockType;
-///
-/// assert!(!shows_block_title(&DelimitedBlockType::DelimitedPass(Vec::new())));
-/// assert!(shows_block_title(&DelimitedBlockType::DelimitedExample(Vec::new())));
-/// ```
-#[must_use]
-pub fn shows_block_title(inner: &DelimitedBlockType<'_>) -> bool {
-    !matches!(inner, DelimitedBlockType::DelimitedPass(_))
 }
 
 /// Unicode text for a parsed character reference.
@@ -239,15 +219,6 @@ impl ConversionResult {
     #[must_use]
     pub fn output_path(&self) -> Option<&Path> {
         self.output_path.as_deref()
-    }
-
-    /// Return the resolved `outfile` value for this conversion.
-    ///
-    /// This is conversion metadata. It is not a parser-visible document
-    /// attribute and therefore cannot be referenced from source content.
-    #[must_use]
-    pub fn outfile(&self) -> Option<&Path> {
-        self.output_path()
     }
 
     /// Return the resolved `outdir` value for this conversion.
@@ -816,11 +787,11 @@ mod tests {
     fn conversion_result_exposes_post_conversion_output_attributes() {
         let result = ConversionResult::file(PathBuf::from("build/book.html"), Vec::new());
 
-        assert_eq!(result.outfile(), Some(Path::new("build/book.html")));
+        assert_eq!(result.output_path(), Some(Path::new("build/book.html")));
         assert_eq!(result.outdir(), Some(Path::new("build")));
 
         let stdout = ConversionResult::stdout(Vec::new());
-        assert_eq!(stdout.outfile(), None);
+        assert_eq!(stdout.output_path(), None);
         assert_eq!(stdout.outdir(), None);
     }
 }

@@ -59,17 +59,17 @@ pub(crate) struct ParserState<'a> {
     /// Attributes inherited by the current nested document. Asciidoctor-style
     /// table cells may read these values, but attribute entries in the cell
     /// cannot replace or unset them.
-    pub(crate) nested_parent_attributes: Option<Rc<DocumentAttributes<'a>>>,
+    pub(super) nested_parent_attributes: Option<Rc<DocumentAttributes<'a>>>,
     /// Tracks document hard-break changes that apply only to following blocks.
     pub(crate) hardbreaks: bool,
     /// Processed-text offsets where an empty attribute reference was removed.
-    pub(crate) empty_attribute_offsets: Vec<usize>,
+    pub(super) empty_attribute_offsets: Vec<usize>,
     /// Attribute-produced spans used to preserve substitution order in nested parsing.
-    pub(crate) attribute_value_ranges: Vec<Range<usize>>,
+    pub(super) attribute_value_ranges: Vec<Range<usize>>,
     /// Original references for index labels and code boundaries checked before attributes.
-    pub(crate) late_attribute_sources: Vec<(Range<usize>, &'a str)>,
+    pub(super) late_attribute_sources: Vec<(Range<usize>, &'a str)>,
     /// Boundary left by the last completed inline node in this parse.
-    pub(crate) last_url_boundary: Option<InlineUrlBoundary>,
+    pub(super) last_url_boundary: Option<InlineUrlBoundary>,
     pub(crate) line_map: Rc<LineMap>,
     /// Parse options, shared via `Rc` so the per-inline-parse
     /// `for_inline_parsing` sub-state is cheap to construct — the old
@@ -96,7 +96,7 @@ pub(crate) struct ParserState<'a> {
     /// bold/italic/mono/xref content) trigger hundreds of recursive
     /// `process_inlines` calls, and the prior pattern produced O(N×M) work
     /// where N is footnote count and M is the number of nested parses.
-    pub(crate) footnote_tracker: Rc<RefCell<FootnoteTracker<'a>>>,
+    pub(super) footnote_tracker: Rc<RefCell<FootnoteTracker<'a>>>,
     xref_caption_label_snapshots: Rc<RefCell<XrefCaptionLabelSnapshots<'a>>>,
     /// TOC entries collected during parsing, in document order. A section pushes its
     /// [`TocEntry`] here as soon as its title is parsed; `numbered` is `false` for
@@ -106,12 +106,12 @@ pub(crate) struct ParserState<'a> {
     pub(crate) block_context: BlockContext,
     /// Base offset of the input containing the active callout list.
     /// Reparsed delimited-block content must not terminate that list.
-    pub(crate) callout_list_offset: Option<usize>,
+    pub(super) callout_list_offset: Option<usize>,
     // Description-list children must leave sibling markers for these parents.
-    pub(crate) ordinary_list_scope: Option<OrdinaryListScope<'a>>,
-    pub(crate) description_list_scope: Option<DescriptionListScope<'a>>,
+    pub(super) ordinary_list_scope: Option<OrdinaryListScope<'a>>,
+    pub(super) description_list_scope: Option<DescriptionListScope<'a>>,
     /// Verbatim callout references collected since the previous callout list.
-    pub(crate) pending_callouts: Vec<CalloutRef>,
+    pub(super) pending_callouts: Vec<CalloutRef>,
     /// The current file being parsed (`None` for inline/string parsing). Used as the
     /// fallback file for diagnostics (`create_error_source_location`) when an offset
     /// isn't covered by a recorded source range.
@@ -136,22 +136,22 @@ pub(crate) struct ParserState<'a> {
     /// then reinsert them in their parent's coordinates.
     pub(crate) warnings: Rc<RefCell<Vec<Warning>>>,
     // Earlier warnings may use a different substring's coordinates.
-    pub(crate) warnings_start: usize,
+    pub(super) warnings_start: usize,
     /// When true, inline parsing uses a reduced rule set that only matches formatting
     /// markup (bold, italic, monospace, highlight, superscript, subscript, curved quotes)
     /// and plain text. Used by `parse_text_for_quotes` to apply "quotes" substitution
     /// without matching macros, xrefs, etc.
-    pub(crate) quotes_only: bool,
+    pub(super) quotes_only: bool,
     /// Profiled attribute placeholders available to this inline grammar. Consume
     /// them in source order so their notes precede later literal references.
-    pub(crate) attribute_passthroughs: Rc<[Pass<'a>]>,
+    pub(super) attribute_passthroughs: Rc<[Pass<'a>]>,
     // Resolved references cannot contribute syntax to a later stage.
-    pub(crate) resolved_reference_ranges: Vec<Range<usize>>,
+    pub(super) resolved_reference_ranges: Vec<Range<usize>>,
     /// When parsing content extracted from a constrained formatting rule, holds
     /// the delimiter byte of the outer formatting (e.g., `b'_'` for italic).
     /// Used to correctly fail boundary checks when the outer delimiter is a
     /// word character (only `_` among the formatting delimiters).
-    pub(crate) outer_constrained_delimiter: Option<u8>,
+    pub(super) outer_constrained_delimiter: Option<u8>,
     /// Whether this state parses document content or a nested inline segment.
     pub(crate) scope: ParserScope,
     /// Context set before entering the PEG inline parser. These fields are
@@ -162,22 +162,22 @@ pub(crate) struct ParserState<'a> {
     /// `@` in that range, if any. Without the `scanned_up_to` field, a cached
     /// "no `@`" result at offset X is indistinguishable from "`@` is at X"
     /// and can trigger the expensive email rule the cache was meant to avoid.
-    pub(crate) next_at_sign_cache: Cell<Option<AtLookahead>>,
+    pub(super) next_at_sign_cache: Cell<Option<AtLookahead>>,
     /// Target positions that share an absent or incomplete link label.
-    pub(crate) failed_link_target_range: Cell<Option<(usize, usize)>>,
+    pub(super) failed_link_target_range: Cell<Option<(usize, usize)>>,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum InlineUrlBoundary {
+pub(super) enum InlineUrlBoundary {
     Formatted(usize),
     Protected(usize),
     Text(usize, Option<char>),
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct AtLookahead {
-    pub(crate) scanned_up_to: usize,
-    pub(crate) first_at: Option<usize>,
+pub(super) struct AtLookahead {
+    pub(super) scanned_up_to: usize,
+    pub(super) first_at: Option<usize>,
 }
 
 /// Inline parsing context — constant within a single `inlines()` call.
@@ -250,7 +250,7 @@ struct NamedFootnote<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct FootnoteTracker<'a> {
+pub(super) struct FootnoteTracker<'a> {
     /// All registered footnotes in the order they were encountered.
     pub(crate) footnotes: Vec<FootnoteDefinition<'a>>,
     next_number: u32,
@@ -308,7 +308,7 @@ impl<'a> FootnoteTracker<'a> {
     /// Update the first definition after its locations become document-absolute.
     /// Later occurrences keep that body and location. Return the first location
     /// when a repeated definition has different captured text.
-    pub(crate) fn finalize(&mut self, footnote: &mut Footnote<'a>) -> Option<Location> {
+    fn finalize(&mut self, footnote: &mut Footnote<'a>) -> Option<Location> {
         let conflict = footnote.definition_source.take().and_then(|body| {
             let entry = self.named_footnotes.get_mut(footnote.id?)?;
             if let Some((original, location)) = &entry.definition {
@@ -396,7 +396,7 @@ impl<'a> ParserState<'a> {
     /// (attribute substitution, escape unwrapping, …) and need to hand the
     /// result to the inline parser with the outer `'a` lifetime so that the
     /// resulting `InlineNode`s can be returned.
-    pub(crate) fn intern_str(&self, s: &str) -> &'a str {
+    pub(super) fn intern_str(&self, s: &str) -> &'a str {
         self.arena.alloc_str(s)
     }
 
@@ -404,7 +404,7 @@ impl<'a> ParserState<'a> {
     /// into the arena; `Borrowed` values pass through unchanged (no copy)
     /// when their lifetime already outlives `'a`, which is the common case
     /// for substitution results that borrowed from the grammar input.
-    pub(crate) fn intern_cow<'b>(&self, cow: Cow<'b, str>) -> &'a str
+    pub(super) fn intern_cow<'b>(&self, cow: Cow<'b, str>) -> &'a str
     where
         'b: 'a,
     {
@@ -417,7 +417,7 @@ impl<'a> ParserState<'a> {
     /// Format `args` directly into the arena, returning `&'a str`. Avoids the
     /// heap-`String` + `alloc_str`-copy pair that `intern_str(&format!(...))`
     /// forces: a single write into `bumpalo::collections::String`.
-    pub(crate) fn intern_fmt(&self, args: std::fmt::Arguments<'_>) -> &'a str {
+    pub(super) fn intern_fmt(&self, args: std::fmt::Arguments<'_>) -> &'a str {
         use std::fmt::Write as _;
         let mut s = bumpalo::collections::String::new_in(self.arena);
         // `BumpString::write_fmt` is infallible; the `Err` arm is unreachable.
@@ -428,7 +428,7 @@ impl<'a> ParserState<'a> {
     /// Concatenate `parts` into the arena separated by `sep`, returning
     /// `&'a str`. Avoids the heap-`String` `.join(...)` followed by an
     /// `alloc_str` copy.
-    pub(crate) fn intern_join<I, S>(&self, parts: I, sep: &str) -> &'a str
+    pub(super) fn intern_join<I, S>(&self, parts: I, sep: &str) -> &'a str
     where
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
@@ -445,7 +445,7 @@ impl<'a> ParserState<'a> {
         s.into_bump_str()
     }
 
-    pub(crate) fn capture_xref_caption_labels(&self) -> NonZeroUsize {
+    pub(super) fn capture_xref_caption_labels(&self) -> NonZeroUsize {
         let mut snapshots = self.xref_caption_label_snapshots.borrow_mut();
         if let Some((attributes, snapshot)) = &snapshots.last
             && attributes.ptr_eq(&Rc::downgrade(&self.document_attributes))
@@ -507,7 +507,7 @@ impl<'a> ParserState<'a> {
             .and_then(|labels| labels.document_reftext)
     }
 
-    pub(crate) fn xref_signifiers(
+    pub(super) fn xref_signifiers(
         &self,
         snapshot: NonZeroUsize,
     ) -> Option<&'a [XrefSignifier<'a>; REFSIG_ATTRIBUTES.len()]> {
@@ -518,7 +518,7 @@ impl<'a> ParserState<'a> {
             .map(|labels| labels.signifiers)
     }
 
-    pub(crate) fn xref_caption_label(
+    pub(super) fn xref_caption_label(
         &self,
         snapshot: NonZeroUsize,
         kind: CaptionKind,
@@ -543,7 +543,7 @@ impl<'a> ParserState<'a> {
     /// a nested parent lock the name against document changes.
     ///
     /// Returns an AST event when the assignment was accepted.
-    pub(crate) fn apply_document_attribute(
+    pub(super) fn apply_document_attribute(
         &mut self,
         declaration: &AttributeDeclaration<'a>,
         in_header: bool,
@@ -636,7 +636,7 @@ impl<'a> ParserState<'a> {
     }
 
     /// Initialize hard-break state from attributes supplied by the parser API.
-    pub(crate) fn initialize_hardbreaks(&mut self) {
+    fn initialize_hardbreaks(&mut self) {
         let hardbreaks = match self.document_attributes.status("hardbreaks-option") {
             DocumentAttributeStatus::Absent => self.document_attributes.status("hardbreaks"),
             status @ (DocumentAttributeStatus::Set(_) | DocumentAttributeStatus::Unset) => status,
@@ -705,7 +705,7 @@ impl<'a> ParserState<'a> {
     }
 
     /// Minimal constructor for quotes-only parsing where document attributes aren't needed.
-    pub(crate) fn new_quotes_only(input: &'a str, arena: &'a Bump) -> Self {
+    pub(super) fn new_quotes_only(input: &'a str, arena: &'a Bump) -> Self {
         use std::sync::LazyLock;
         // Cache empty options to avoid creating default DocumentAttributes (~80 HashMap
         // entries) on every call. Quotes-only parsing doesn't use document attributes.
@@ -760,7 +760,7 @@ impl<'a> ParserState<'a> {
 
     /// Lightweight constructor for inline parsing that reuses parent state fields
     /// instead of creating expensive defaults that get immediately overwritten.
-    pub(crate) fn for_inline_parsing(
+    pub(super) fn for_inline_parsing(
         input: &'a str,
         parent: &ParserState<'a>,
         inline_ctx: InlineContext,
@@ -834,7 +834,7 @@ impl<'a> ParserState<'a> {
     /// [`Self::add_generic_warning_at`] whenever the call site has a
     /// `Location`; untethered warnings are still useful (e.g. document-
     /// wide conditions) but callers that can place the warning should.
-    pub(crate) fn add_generic_warning(&self, message: String) {
+    fn add_generic_warning(&self, message: String) {
         self.add_warning(Warning::new(WarningKind::Other(Cow::Owned(message)), None));
     }
 
@@ -842,7 +842,7 @@ impl<'a> ParserState<'a> {
     /// Converts through `create_error_source_location` so the resulting
     /// `SourceLocation` carries the correct file, including the mapping
     /// through `source_ranges` for included content.
-    pub(crate) fn add_generic_warning_at(&self, message: String, location: Location) {
+    pub(super) fn add_generic_warning_at(&self, message: String, location: Location) {
         let source_location = self.create_error_source_location(location);
         self.add_warning(Warning::new(
             WarningKind::Other(Cow::Owned(message)),
@@ -869,7 +869,7 @@ impl<'a> ParserState<'a> {
     }
 
     /// Remove this inline parse's diagnostics before mapping them into its parent.
-    pub(crate) fn take_inline_warnings(&self) -> Vec<Warning> {
+    pub(super) fn take_inline_warnings(&self) -> Vec<Warning> {
         self.warnings.borrow_mut().split_off(self.warnings_start)
     }
 
@@ -879,7 +879,7 @@ impl<'a> ParserState<'a> {
     /// `file: None` and post-splice line numbers; this brings warnings from
     /// `include::`d content and after preprocessor edits in line with the resolved
     /// AST node locations and the PEG-error path.
-    pub(crate) fn add_inline_preprocessor_warning(&self, mut warning: Warning) {
+    pub(super) fn add_inline_preprocessor_warning(&self, mut warning: Warning) {
         if let Some(source_location) = warning.location.take() {
             warning.location = Some(self.create_error_source_location(source_location.location));
         }
@@ -982,7 +982,7 @@ impl<'a> ParserState<'a> {
     ///
     /// Adds `offset` to both start and end, then decrements end by one character
     /// (to exclude trailing delimiter/newline). UTF-8 safety is handled by `create_location`.
-    pub(crate) fn create_block_location(
+    pub(super) fn create_block_location(
         &self,
         start: usize,
         end: usize,

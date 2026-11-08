@@ -36,7 +36,7 @@ use miette::{LabeledSpan, Severity};
 #[derive(Debug, Diagnostic, thiserror::Error)]
 #[error("{message}")]
 #[diagnostic()]
-pub(crate) struct RichError {
+struct RichError {
     message: String,
 
     #[help]
@@ -165,7 +165,7 @@ impl SourceContext {
 #[derive(Debug, Diagnostic, thiserror::Error)]
 #[error("{message}")]
 #[diagnostic(severity(Warning))]
-pub(crate) struct RichWarning {
+struct RichWarning {
     message: String,
 
     #[help]
@@ -184,7 +184,7 @@ pub(crate) struct RichWarning {
 #[derive(Debug, Diagnostic, thiserror::Error)]
 #[error("{message}")]
 #[diagnostic(severity(Warning))]
-pub(crate) struct PlainWarning {
+struct PlainWarning {
     message: String,
 
     #[help]
@@ -222,7 +222,7 @@ pub(crate) trait WarningReport {
 #[cfg(feature = "lint")]
 #[derive(Debug, thiserror::Error)]
 #[error("{message}")]
-pub(crate) struct FullLintDiagnostic {
+struct FullLintDiagnostic {
     message: String,
     code: String,
     severity: Severity,
@@ -262,7 +262,7 @@ impl Diagnostic for FullLintDiagnostic {
 #[cfg(feature = "lint")]
 #[derive(Debug, thiserror::Error)]
 #[error("{message}")]
-pub(crate) struct CompactLintDiagnostic {
+struct CompactLintDiagnostic {
     message: String,
     code: String,
     severity: Severity,

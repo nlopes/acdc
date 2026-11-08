@@ -53,13 +53,13 @@ const MAX_TAG_METADATA_BYTES: usize = 10 * 1024 * 1024;
 
 /// Selected text after normalization, with source locations and no added indentation.
 pub(super) struct Selected {
-    pub text: String,
+    pub(super) text: String,
     /// One source location for each selected line, including empty lines.
     /// If `text` is empty, this vector distinguishes no lines from one empty line.
-    pub origins: Vec<SourceLineOrigin>,
+    pub(super) origins: Vec<SourceLineOrigin>,
     /// The caller adds directive locations after a successful read.
     /// If the read fails, it discards these issues with the partial text.
-    pub issues: Vec<tag::Issue>,
+    pub(super) issues: Vec<tag::Issue>,
 }
 
 pub(super) fn read(

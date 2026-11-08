@@ -27,7 +27,7 @@ pub(super) struct IndexTermSegment<'a> {
 }
 
 #[derive(Clone, Copy)]
-pub(super) struct IndexTermLabel<'a> {
+struct IndexTermLabel<'a> {
     pub(super) text: &'a str,
     pub(super) start: usize,
     quote: Option<char>,
@@ -44,7 +44,7 @@ impl<'a> From<IndexTermSegment<'a>> for IndexTermLabel<'a> {
 }
 
 #[derive(Clone)]
-pub(super) enum IndexTermRelationshipSegments<'a> {
+enum IndexTermRelationshipSegments<'a> {
     See(IndexTermLabel<'a>),
     SeeAlso(Vec<IndexTermLabel<'a>>),
 }

@@ -19,31 +19,31 @@ use crossterm::style::Stylize;
 
 /// Show a human-readable structural outline of an `AsciiDoc` document
 #[derive(clap::Args)]
-pub struct Args {
+pub(crate) struct Args {
     /// Language rules: asciidoctor or draft
     #[arg(long, value_name = "MODE", default_value_t = acdc_parser::CompatibilityMode::default())]
-    pub compatibility_mode: acdc_parser::CompatibilityMode,
+    compatibility_mode: acdc_parser::CompatibilityMode,
 
     /// Safe mode to use while parsing the document
     #[arg(short = 'S', long, default_value = "unsafe")]
-    pub safe_mode: acdc_parser::SafeMode,
+    safe_mode: acdc_parser::SafeMode,
 
     /// Maximum selected include text per document, in bytes (64 MiB by default)
     ///
     /// Zero permits only empty selections. The 10 MiB per-include limit still applies.
     #[arg(long, value_name = "BYTES", default_value_t = Options::default().max_total_include_bytes())]
-    pub max_total_include_bytes: usize,
+    max_total_include_bytes: usize,
 
     /// Input `AsciiDoc` file
-    pub file: PathBuf,
+    file: PathBuf,
 
     /// Show location information (line:column)
     #[arg(long)]
-    pub show_locations: bool,
+    show_locations: bool,
 
     /// Maximum depth to display (0 = unlimited)
     #[arg(long, default_value = "0")]
-    pub max_depth: usize,
+    max_depth: usize,
 }
 
 struct TreeVisitor<W: Write> {
@@ -404,7 +404,7 @@ impl<W: Write> TreeVisitor<W> {
     }
 }
 
-pub fn run(args: &Args) -> Result<(), Box<dyn Error>> {
+pub(crate) fn run(args: &Args) -> Result<(), Box<dyn Error>> {
     let options = Options::builder()
         .with_safe_mode(args.safe_mode)
         .with_compatibility_mode(args.compatibility_mode)

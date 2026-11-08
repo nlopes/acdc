@@ -2,7 +2,7 @@
 
 use std::cell::Cell;
 
-use acdc_converters_core::substitutions::{Replacements, TextBoundaries};
+use crate::substitutions::{Replacements, TextBoundaries};
 use acdc_parser::{
     InlineNode, Location, Options, Plain, Raw, Substitution,
     ast::{InlineKind, InlineRef},

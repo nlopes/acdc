@@ -8,18 +8,18 @@ use std::{
 use acdc_parser::{CompatibilityMode, Options, SafeMode, Warning, parse_file};
 use serde_json::{Value, json};
 
-pub type Error = Box<dyn StdError + Send + Sync>;
+pub(crate) type Error = Box<dyn StdError + Send + Sync>;
 
 /// Selects an expectation filename, not a production parser policy.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Variant {
+pub(crate) enum Variant {
     Shared,
     Asciidoctor,
     Draft,
 }
 
 impl Variant {
-    pub fn modes(self) -> &'static [CompatibilityMode] {
+    pub(crate) fn modes(self) -> &'static [CompatibilityMode] {
         match self {
             Self::Shared => &[CompatibilityMode::Asciidoctor, CompatibilityMode::Draft],
             Self::Asciidoctor => &[CompatibilityMode::Asciidoctor],
@@ -27,7 +27,7 @@ impl Variant {
         }
     }
 
-    pub fn name(self) -> &'static str {
+    pub(crate) fn name(self) -> &'static str {
         match self {
             Self::Shared => "shared",
             Self::Asciidoctor => "asciidoctor",
@@ -46,39 +46,39 @@ impl Variant {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum OutcomeKind {
+pub(crate) enum OutcomeKind {
     Json,
     Error,
 }
 
 #[derive(Clone, Debug)]
-pub struct Expectation {
-    pub variant: Variant,
+pub(crate) struct Expectation {
+    pub(crate) variant: Variant,
     kind: OutcomeKind,
     output: PathBuf,
-    pub diagnostics: Option<PathBuf>,
+    pub(crate) diagnostics: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug)]
-pub struct Case {
+pub(crate) struct Case {
     root: PathBuf,
     source: PathBuf,
-    pub name: String,
-    pub expectations: Vec<Expectation>,
+    pub(crate) name: String,
+    pub(crate) expectations: Vec<Expectation>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Observation {
+pub(crate) struct Observation {
     kind: OutcomeKind,
     output: String,
     diagnostics: String,
 }
 
-pub fn fixture_root() -> PathBuf {
+pub(crate) fn fixture_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/tests")
 }
 
-pub fn discover_sources(root: &Path) -> Result<Vec<PathBuf>, Error> {
+pub(crate) fn discover_sources(root: &Path) -> Result<Vec<PathBuf>, Error> {
     let mut sources = Vec::new();
     for entry in fs::read_dir(root)? {
         let entry = entry?;
@@ -117,7 +117,7 @@ pub fn discover_sources(root: &Path) -> Result<Vec<PathBuf>, Error> {
 }
 
 impl Case {
-    pub fn load(root: &Path, source: &Path, allow_new: bool) -> Result<Self, Error> {
+    pub(crate) fn load(root: &Path, source: &Path, allow_new: bool) -> Result<Self, Error> {
         let name = source.strip_prefix(root)?.with_extension("");
         let name = name
             .to_str()
@@ -196,11 +196,11 @@ impl Case {
         })
     }
 
-    pub fn test_name(&self, expectation: &Expectation) -> String {
+    pub(crate) fn test_name(&self, expectation: &Expectation) -> String {
         format!("{}::{}", self.name, expectation.variant.name())
     }
 
-    pub fn observe(&self, mode: CompatibilityMode) -> Result<Observation, Error> {
+    pub(crate) fn observe(&self, mode: CompatibilityMode) -> Result<Observation, Error> {
         let options = Options::builder()
             .with_compatibility_mode(mode)
             .with_safe_mode(SafeMode::Unsafe)
@@ -244,14 +244,14 @@ impl Case {
         })
     }
 
-    pub fn verify(&self, expected: &Expectation) -> Result<(), Error> {
+    pub(crate) fn verify(&self, expected: &Expectation) -> Result<(), Error> {
         for mode in expected.variant.modes() {
             self.verify_mode(expected, *mode)?;
         }
         Ok(())
     }
 
-    pub fn verify_mode(
+    pub(crate) fn verify_mode(
         &self,
         expected: &Expectation,
         mode: CompatibilityMode,
@@ -298,7 +298,7 @@ impl Case {
 }
 
 #[derive(Default)]
-pub struct Generation {
+pub(crate) struct Generation {
     requested: Vec<PathBuf>,
     variant: Option<Variant>,
     pair: bool,
@@ -306,7 +306,9 @@ pub struct Generation {
 }
 
 impl Generation {
-    pub fn from_args(args: impl IntoIterator<Item = impl Into<OsString>>) -> Result<Self, Error> {
+    pub(crate) fn from_args(
+        args: impl IntoIterator<Item = impl Into<OsString>>,
+    ) -> Result<Self, Error> {
         let mut args = args.into_iter().map(Into::into);
         let mut request = Self::default();
         while let Some(arg) = args.next() {
@@ -353,7 +355,7 @@ impl Generation {
         Ok(request)
     }
 
-    pub fn generate(&self, root: &Path) -> Result<usize, Error> {
+    pub(crate) fn generate(&self, root: &Path) -> Result<usize, Error> {
         let sources = discover_sources(root)?;
         for requested in &self.requested {
             if !sources.contains(&root.join(requested)) {

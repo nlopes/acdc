@@ -1,5 +1,5 @@
-pub mod json;
-pub mod parse;
+pub(super) mod json;
+pub(super) mod parse;
 
 #[cfg(any(
     feature = "html",
@@ -8,16 +8,16 @@ pub mod parse;
     feature = "pdf",
     feature = "terminal"
 ))]
-pub mod convert;
+pub(super) mod convert;
 
 #[cfg(feature = "execute")]
-pub mod execute;
+pub(super) mod execute;
 
 #[cfg(feature = "inspect")]
-pub mod inspect;
+pub(super) mod inspect;
 
 #[cfg(feature = "lint")]
-pub mod lint;
+pub(super) mod lint;
 
 #[cfg(feature = "tck")]
-pub mod tck;
+pub(super) mod tck;

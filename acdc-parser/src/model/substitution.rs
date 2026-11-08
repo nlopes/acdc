@@ -546,12 +546,12 @@ fn resolve_source_substitutions(entries: &[String], default: &[Substitution]) ->
 }
 
 /// Append a substitution (or group) to the end of the list.
-pub(crate) fn append_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
+fn append_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     append_expanded_substitution(result, sub, GroupContext::Block);
 }
 
 /// Move a substitution (or group) to the beginning, preserving group order.
-pub(crate) fn prepend_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
+fn prepend_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     // The prepended occurrence wins, including members already enabled by the baseline.
     remove_substitution(result, sub);
     let members = substitution_members(sub, GroupContext::Block);
@@ -559,7 +559,7 @@ pub(crate) fn prepend_substitution(result: &mut Vec<Substitution>, sub: &Substit
 }
 
 /// Remove a substitution (or group) from the list.
-pub(crate) fn remove_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
+fn remove_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     for s in substitution_members(sub, GroupContext::Block) {
         result.retain(|x| x != s);
     }
@@ -1771,7 +1771,7 @@ fn attribute_inline_profile<'text>(
 }
 
 #[derive(PartialEq, Eq)]
-pub(crate) enum AttributeTextSubstitution {
+enum AttributeTextSubstitution {
     Attributes,
     SpecialChars,
 }
@@ -1782,9 +1782,7 @@ fn attribute_text_substitutions(text: &str) -> Option<(&str, Vec<AttributeTextSu
     Some((inner, attribute_text_substitution_names(names)?))
 }
 
-pub(crate) fn attribute_text_substitution_names(
-    names: &str,
-) -> Option<Vec<AttributeTextSubstitution>> {
+fn attribute_text_substitution_names(names: &str) -> Option<Vec<AttributeTextSubstitution>> {
     let mut substitutions = Vec::new();
     if !names.is_empty() {
         for name in names.split(',') {

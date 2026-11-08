@@ -8,14 +8,14 @@ use acdc_parser::{DocumentAttributes, SafeMode, Substitution, substitute};
 /// Constructed once per conversion via `DocInfo::resolve()`, then queried
 /// at each injection point.
 pub(crate) struct DocInfo {
-    pub head: Option<String>,
-    pub header: Option<String>,
-    pub footer: Option<String>,
+    pub(super) head: Option<String>,
+    pub(super) header: Option<String>,
+    pub(super) footer: Option<String>,
 }
 
 impl DocInfo {
     /// Return an empty `DocInfo` with no content at any position.
-    pub fn empty() -> Self {
+    pub(super) fn empty() -> Self {
         Self {
             head: None,
             header: None,
@@ -27,7 +27,7 @@ impl DocInfo {
     ///
     /// Returns a `DocInfo` with pre-loaded content for each position,
     /// or `None` values when no files exist or docinfo is disabled.
-    pub fn resolve(
+    pub(super) fn resolve(
         attributes: &DocumentAttributes,
         safe_mode: SafeMode,
         source_dir: Option<&Path>,

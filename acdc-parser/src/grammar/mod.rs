@@ -16,7 +16,7 @@ mod inline_processing;
 pub(crate) mod inlines;
 mod line_map;
 mod location_mapping;
-pub(crate) mod location_walk;
+mod location_walk;
 mod marked_text;
 mod passthrough_processing;
 pub(crate) mod reference_text;
@@ -24,7 +24,7 @@ pub(crate) mod reference_walk;
 pub(crate) mod setext;
 mod source_remap;
 mod state;
-pub(crate) mod utf8_utils;
+mod utf8_utils;
 
 pub(crate) use attributes::{
     BlockAttributeMode, block_attribute_line, block_attribute_style, style_overrides_block_form,

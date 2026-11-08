@@ -580,11 +580,11 @@ impl<'a> InlineImage<'a> {
         self.location = location;
     }
 
-    pub(crate) fn has_metadata(&self) -> bool {
+    pub(super) fn has_metadata(&self) -> bool {
         !self.metadata.is_empty() || !self.macro_attributes.is_empty()
     }
 
-    pub(crate) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
+    pub(super) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
         InlineMetadataView {
             attributes: &self.macro_attributes.attributes,
             roles: &self.metadata.roles,

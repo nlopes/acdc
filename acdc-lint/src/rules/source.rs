@@ -10,11 +10,11 @@ use crate::{LintDiagnostic, LintId, LintLevel, LintOptions, LintReport, LintSele
 #[derive(Clone, Copy)]
 pub(crate) struct SourceLine<'a> {
     pub(crate) number: usize,
-    pub(crate) text: &'a str,
+    pub(super) text: &'a str,
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct SourceLineRange {
+pub(super) struct SourceLineRange {
     start: usize,
     end: usize,
 }
@@ -36,7 +36,7 @@ impl<'a> LintEmitter<'a> {
         }
     }
 
-    pub(crate) fn emit(
+    pub(super) fn emit(
         &mut self,
         lint: LintId,
         message: impl Into<String>,
@@ -71,7 +71,7 @@ impl<'a> LintEmitter<'a> {
         self.diagnostics.push(diagnostic);
     }
 
-    pub(crate) fn point_location(&self, line: usize, column: usize) -> SourceLocation {
+    pub(super) fn point_location(&self, line: usize, column: usize) -> SourceLocation {
         SourceLocation::at_position(
             self.file.clone(),
             Position::from_line_col(line.max(1), column.max(1)),
@@ -125,7 +125,7 @@ impl<'a> LintEmitter<'a> {
     }
 }
 
-pub(crate) fn clone_source_location(location: &SourceLocation) -> SourceLocation {
+pub(super) fn clone_source_location(location: &SourceLocation) -> SourceLocation {
     SourceLocation::at_location(location.file.clone(), location.location.clone())
 }
 
@@ -140,12 +140,12 @@ pub(crate) fn collect_lines(source: &str) -> Vec<SourceLine<'_>> {
         .collect()
 }
 
-pub(crate) fn source_line_at<'a>(lines: &[SourceLine<'a>], line: u32) -> Option<SourceLine<'a>> {
+pub(super) fn source_line_at<'a>(lines: &[SourceLine<'a>], line: u32) -> Option<SourceLine<'a>> {
     let line = usize::try_from(line).ok()?;
     lines.get(line.checked_sub(1)?).copied()
 }
 
-pub(crate) fn source_lines_for_range<'a>(
+pub(super) fn source_lines_for_range<'a>(
     lines: &'a [SourceLine<'a>],
     range: SourceLineRange,
 ) -> &'a [SourceLine<'a>] {
@@ -162,7 +162,7 @@ pub(crate) fn source_lines_for_range<'a>(
     lines.get(start..end).unwrap_or(&[])
 }
 
-pub(crate) fn line_range_for_location<'doc>(
+pub(super) fn line_range_for_location<'doc>(
     location: impl Into<LocationRef<'doc>>,
 ) -> Option<SourceLineRange> {
     let location = location.into();
@@ -179,7 +179,7 @@ pub(crate) fn line_range_for_location<'doc>(
     Some(SourceLineRange { start, end })
 }
 
-pub(crate) fn line_range_for_inlines(inlines: ContentRef<'_>) -> Option<SourceLineRange> {
+pub(super) fn line_range_for_inlines(inlines: ContentRef<'_>) -> Option<SourceLineRange> {
     let mut ranges = inlines
         .inlines()
         .filter_map(|node| line_range_for_location(node.location()));
@@ -220,7 +220,7 @@ pub(crate) fn skipped_delimited_lines(lines: &[SourceLine<'_>]) -> Vec<bool> {
     skipped
 }
 
-pub(crate) fn delimiter_token(trimmed: &str) -> Option<&str> {
+pub(super) fn delimiter_token(trimmed: &str) -> Option<&str> {
     if trimmed.is_empty() {
         return None;
     }
@@ -253,35 +253,35 @@ pub(crate) fn delimiter_token(trimmed: &str) -> Option<&str> {
     }
 }
 
-pub(crate) fn split_first_char(value: &str) -> Option<(char, &str)> {
+pub(super) fn split_first_char(value: &str) -> Option<(char, &str)> {
     let mut chars = value.chars();
     let first = chars.next()?;
     Some((first, chars.as_str()))
 }
 
-pub(crate) fn is_skipped_line(line_number: usize, skipped_lines: &[bool]) -> bool {
+pub(super) fn is_skipped_line(line_number: usize, skipped_lines: &[bool]) -> bool {
     skipped_lines
         .get(line_number.saturating_sub(1))
         .copied()
         .unwrap_or(false)
 }
 
-pub(crate) fn is_block_attribute_line(trimmed: &str) -> bool {
+pub(super) fn is_block_attribute_line(trimmed: &str) -> bool {
     trimmed.starts_with('[') && trimmed.ends_with(']')
 }
 
-pub(crate) fn is_list_continuation(trimmed: &str) -> bool {
+pub(super) fn is_list_continuation(trimmed: &str) -> bool {
     trimmed == "+"
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ListFamily {
+pub(super) enum ListFamily {
     Description,
     Ordered,
     Unordered,
 }
 
-pub(crate) fn root_list_family(line: &str) -> Option<ListFamily> {
+pub(super) fn root_list_family(line: &str) -> Option<ListFamily> {
     if line.starts_with(char::is_whitespace) {
         return None;
     }
@@ -303,7 +303,7 @@ pub(crate) fn root_list_family(line: &str) -> Option<ListFamily> {
     (trimmed.contains("::") || trimmed.contains(";;")).then_some(ListFamily::Description)
 }
 
-pub(crate) fn leading_run(value: &str, needle: char) -> usize {
+pub(super) fn leading_run(value: &str, needle: char) -> usize {
     value
         .chars()
         .take_while(|ch| *ch == needle)

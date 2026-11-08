@@ -1208,7 +1208,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.pre_wrap_depth -= usize::from(state.pre_wrap);
     }
 
-    pub(crate) fn normalize_prose_whitespace<'text>(&self, text: &'text str) -> Cow<'text, str> {
+    fn normalize_prose_whitespace<'text>(&self, text: &'text str) -> Cow<'text, str> {
         if matches!(self.text_whitespace, TextWhitespace::Preserve) {
             Cow::Borrowed(text)
         } else {
@@ -1316,7 +1316,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     /// Write a collapsible example as an expanded disclosure for print.
-    pub(crate) fn write_disclosure(
+    fn write_disclosure(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         title: Option<ContentRef<'_>>,
@@ -1402,7 +1402,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    pub(crate) fn write_abstract(
+    fn write_abstract(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         title: Option<ContentRef<'_>>,
@@ -1424,7 +1424,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ///
     /// The cited work is only displayed when an author is present, matching
     /// asciidoctor-pdf. Both values keep their inline formatting.
-    pub(crate) fn write_attribution(
+    fn write_attribution(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         attributes: Option<AttributesRef<'_>>,
@@ -1505,7 +1505,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
     }
 
-    pub(crate) fn write_quote_block(
+    fn write_quote_block(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         attributes: Option<AttributesRef<'_>>,
@@ -1537,7 +1537,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     /// Write verse content, which keeps its line breaks and stays proportional.
-    pub(crate) fn write_verse_block<'inline>(
+    fn write_verse_block<'inline>(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
@@ -1603,7 +1603,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ///
     /// A caption with no prefix — an unset or disabled label — still takes the caption style,
     /// matching asciidoctor's captioned title.
-    pub(crate) fn write_captioned_title(
+    fn write_captioned_title(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         title: Option<ContentRef<'_>>,
@@ -1692,7 +1692,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     /// Write an example block inside its light frame. Its title is written by the caller, as
     /// every captioned block's is.
-    pub(crate) fn write_example(
+    fn write_example(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         blocks: impl Iterator<Item = BlockRef<'a>>,
@@ -1702,7 +1702,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     /// Write a sidebar, which centers its title inside the shaded box rather
     /// than setting it above, matching Asciidoctor PDF.
-    pub(crate) fn write_sidebar(
+    fn write_sidebar(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         title: Option<ContentRef<'_>>,
@@ -1730,7 +1730,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    pub(crate) fn write_verbatim_block<'inline>(
+    fn write_verbatim_block<'inline>(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
@@ -2026,7 +2026,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     /// Write passthrough content as escaped, unframed monospace text.
-    pub(crate) fn write_passthrough_block(&mut self, content: ContentRef<'_>) {
+    fn write_passthrough_block(&mut self, content: ContentRef<'_>) {
         self.writer.raw("#block(width: 100%)[#raw(block: false, ");
         self.write_verbatim_string(content);
         self.writer.raw(")]\n\n");
@@ -2591,12 +2591,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         );
     }
 
-    pub(crate) fn write_stem_fallback(
-        &mut self,
-        content: &str,
-        block: bool,
-        location: Option<&Location>,
-    ) {
+    fn write_stem_fallback(&mut self, content: &str, block: bool, location: Option<&Location>) {
         self.warn_unsupported("stem content", "rendering it as literal text", location);
         if block {
             self.writer.raw("#block[");
@@ -2612,7 +2607,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     /// Example, sidebar, and open blocks each read differently in print, so they
     /// do not share one frame: an open block is a transparent container and
     /// takes none.
-    pub(crate) fn write_framed_blocks(
+    fn write_framed_blocks(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         frame: Option<&str>,
@@ -2634,12 +2629,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    pub(crate) fn warn_unsupported(
-        &mut self,
-        feature: &str,
-        fallback: &str,
-        location: Option<&Location>,
-    ) {
+    fn warn_unsupported(&mut self, feature: &str, fallback: &str, location: Option<&Location>) {
         warn_with_advice_at(
             &mut self.diagnostics,
             location,
@@ -2648,7 +2638,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         );
     }
 
-    pub(crate) fn warn_unsupported_once(
+    fn warn_unsupported_once(
         &mut self,
         key: &'static str,
         message: impl Into<Cow<'static, str>>,
@@ -3277,7 +3267,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw(")");
     }
 
-    pub(crate) fn write_table(
+    fn write_table(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         table: TableRef<'a>,
@@ -3350,10 +3340,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    pub(crate) fn write_table_width_start(
-        &mut self,
-        attributes: Option<AttributesRef<'_>>,
-    ) -> bool {
+    fn write_table_width_start(&mut self, attributes: Option<AttributesRef<'_>>) -> bool {
         let Some(width) = table_width(attributes).filter(|width| *width < 100) else {
             return false;
         };
@@ -3361,10 +3348,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         true
     }
 
-    pub(crate) fn write_table_alignment_start(
-        &mut self,
-        attributes: Option<AttributesRef<'_>>,
-    ) -> bool {
+    fn write_table_alignment_start(&mut self, attributes: Option<AttributesRef<'_>>) -> bool {
         let alignment = table_alignment(attributes, self.table_theme.align);
         let has_reduced_width = table_width(attributes).is_some_and(|width| width < 100);
         if alignment == TableAlignment::Left
@@ -3376,7 +3360,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         true
     }
 
-    pub(crate) fn write_table_wrappers_start(
+    fn write_table_wrappers_start(
         &mut self,
         attributes: Option<AttributesRef<'_>>,
         enabled: bool,
@@ -3386,17 +3370,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         (sized, aligned)
     }
 
-    pub(crate) fn table_has_intrinsic_width(attributes: Option<AttributesRef<'_>>) -> bool {
+    fn table_has_intrinsic_width(attributes: Option<AttributesRef<'_>>) -> bool {
         has_attribute_token(attributes, "options", "autowidth")
             && table_width(attributes).is_none()
             && !has_attribute_token(attributes, "role", "stretch")
     }
 
-    pub(crate) fn write_intrinsic_table_start(&mut self) {
+    fn write_intrinsic_table_start(&mut self) {
         self.writer.raw("#context {\nlet acdc-table-body = [\n");
     }
 
-    pub(crate) fn write_intrinsic_table_end(
+    fn write_intrinsic_table_end(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         block: BlockRef<'_>,
@@ -3423,7 +3407,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    pub(crate) fn write_table_wrappers_end(&mut self, sized: bool, aligned: bool) {
+    fn write_table_wrappers_end(&mut self, sized: bool, aligned: bool) {
         if sized {
             self.writer.raw("]\n");
         }
@@ -3435,7 +3419,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
     }
 
-    pub(crate) fn omit_zero_width_table(&mut self, attributes: Option<AttributesRef<'_>>) -> bool {
+    fn omit_zero_width_table(&mut self, attributes: Option<AttributesRef<'_>>) -> bool {
         if table_width(attributes) != Some(0) {
             return false;
         }
@@ -3924,7 +3908,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
     }
 
-    pub(crate) fn write_inline_image(
+    fn write_inline_image(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         image: InlineImageRef<'_>,
@@ -4950,14 +4934,14 @@ const fn typst_vertical_alignment(alignment: VerticalAlignment) -> &'static str 
     }
 }
 
-pub(crate) fn is_collapsible_example(
+fn is_collapsible_example(
     attributes: Option<AttributesRef<'_>>,
     kind: Option<CaptionKind>,
 ) -> bool {
     kind == Some(CaptionKind::Example) && has_attribute_token(attributes, "options", "collapsible")
 }
 
-pub(crate) fn collapse_source_whitespace(text: &str) -> Cow<'_, str> {
+fn collapse_source_whitespace(text: &str) -> Cow<'_, str> {
     let bytes = text.as_bytes();
     let needs_collapsing = bytes
         .iter()

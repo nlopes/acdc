@@ -24,7 +24,7 @@ use crate::{
 };
 
 /// Semantic token types used by this LSP
-pub(crate) const TOKEN_TYPES: &[SemanticTokenType] = &[
+const TOKEN_TYPES: &[SemanticTokenType] = &[
     SemanticTokenType::NAMESPACE, // 0 - section titles
     SemanticTokenType::FUNCTION,  // 1 - macros (xref, link, image, include)
     SemanticTokenType::PROPERTY,  // 2 - attribute names
@@ -37,7 +37,7 @@ pub(crate) const TOKEN_TYPES: &[SemanticTokenType] = &[
 ];
 
 /// Semantic token modifiers
-pub(crate) const TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
+const TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
     SemanticTokenModifier::DECLARATION,     // 0 - anchor definitions
     SemanticTokenModifier::DEFINITION,      // 1 - section with ID
     SemanticTokenModifier::new("disabled"), // 2 - inactive conditional content
@@ -45,7 +45,7 @@ pub(crate) const TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
 
 /// Create the semantic tokens legend for capability registration
 #[must_use]
-pub(crate) fn create_legend() -> SemanticTokensLegend {
+fn create_legend() -> SemanticTokensLegend {
     SemanticTokensLegend {
         token_types: TOKEN_TYPES.to_vec(),
         token_modifiers: TOKEN_MODIFIERS.to_vec(),

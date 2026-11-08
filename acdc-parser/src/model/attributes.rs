@@ -141,7 +141,7 @@ impl<'a> DocumentAttributeValue<'a> {
         }
     }
 
-    pub(crate) fn as_borrowed(&self) -> DocumentAttributeValue<'_> {
+    fn as_borrowed(&self) -> DocumentAttributeValue<'_> {
         DocumentAttributeValue(match &self.0 {
             ValueKind::Text(value) => ValueKind::Text(Cow::Borrowed(value)),
             ValueKind::Passthrough {
@@ -214,7 +214,7 @@ impl<'a> DocumentAttributeValue<'a> {
         }
     }
 
-    pub(crate) fn with_passthrough_ranges(text: Cow<'a, str>, ranges: Vec<Range<usize>>) -> Self {
+    pub(super) fn with_passthrough_ranges(text: Cow<'a, str>, ranges: Vec<Range<usize>>) -> Self {
         Self::with_inline_fragments(text, ranges, Vec::new())
     }
 
@@ -225,7 +225,7 @@ impl<'a> DocumentAttributeValue<'a> {
         }
     }
 
-    pub(crate) fn with_inline_fragments(
+    pub(super) fn with_inline_fragments(
         text: Cow<'a, str>,
         ranges: Vec<Range<usize>>,
         mut fragments: Vec<AttributeInlineFragment>,
@@ -321,7 +321,7 @@ impl<'a> DocumentAttributeAssignment<'a> {
         }
     }
 
-    pub(crate) fn to_static(&self) -> DocumentAttributeAssignment<'static> {
+    fn to_static(&self) -> DocumentAttributeAssignment<'static> {
         match self {
             Self::Set(value) => DocumentAttributeAssignment::Set(value.as_borrowed().into_static()),
             Self::Unset => DocumentAttributeAssignment::Unset,
@@ -339,7 +339,7 @@ impl<'a> DocumentAttributeAssignment<'a> {
         self.value().and_then(DocumentAttributeValue::stored_text)
     }
 
-    pub(crate) fn serialized_value(&self) -> SerializedDocumentAttributeValue<'_> {
+    pub(super) fn serialized_value(&self) -> SerializedDocumentAttributeValue<'_> {
         match self {
             Self::Set(value) => value.serialized_value(),
             Self::Unset => SerializedDocumentAttributeValue::Bool(false),
@@ -347,7 +347,7 @@ impl<'a> DocumentAttributeAssignment<'a> {
     }
 }
 
-pub(crate) enum SerializedDocumentAttributeValue<'a> {
+pub(super) enum SerializedDocumentAttributeValue<'a> {
     Text(&'a str),
     Bool(bool),
     Integer(i128),
@@ -970,7 +970,7 @@ impl<'a> DocumentAttributes<'a> {
             .is_some_and(|entry| entry.state.origin == AttributeOrigin::Document)
     }
 
-    pub(crate) fn stored_text(&self, name: &str) -> Option<&Cow<'a, str>> {
+    pub(super) fn stored_text(&self, name: &str) -> Option<&Cow<'a, str>> {
         if let Some(entry) = self.entry(name) {
             return entry.assignment.stored_text();
         }
@@ -1022,7 +1022,7 @@ impl<'a> DocumentAttributes<'a> {
         default_value(name)
     }
 
-    pub(crate) fn serialization_is_empty(&self) -> bool {
+    pub(super) fn serialization_is_empty(&self) -> bool {
         self.entries
             .values()
             .all(|entry| matches!(entry.assignment, DocumentAttributeAssignment::Unset))

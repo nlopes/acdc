@@ -46,9 +46,9 @@ struct TckInput {
 
 /// Run TCK test (no args, reads from stdin)
 #[derive(clap::Args)]
-pub struct Args;
+pub(crate) struct Args;
 
-pub fn run(_args: &Args) -> Result<(), Error> {
+pub(crate) fn run(_args: &Args) -> Result<(), Error> {
     let stdin = io::stdin();
     let reader = BufReader::new(stdin.lock());
     let tck_input: TckInput = serde_json::from_reader(reader)?;

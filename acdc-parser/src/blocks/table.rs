@@ -1,7 +1,7 @@
 use crate::{ColumnStyle, HorizontalAlignment, Table, VerticalAlignment};
 
 pub(crate) const MAX_TABLE_COLUMNS: usize = 100;
-pub(crate) const MAX_TABLE_ROWS: usize = 1_000;
+const MAX_TABLE_ROWS: usize = 1_000;
 
 /// A cell part with its unescaped content and original start position.
 struct CellPart {
@@ -257,15 +257,15 @@ fn csv_style_delimiter(separator: &str) -> Option<u8> {
 /// - `3*|content` → duplicate cell 3 times
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct CellSpecifier {
-    pub colspan: usize,
-    pub rowspan: usize,
-    pub halign: Option<HorizontalAlignment>,
-    pub valign: Option<VerticalAlignment>,
-    pub style: Option<ColumnStyle>,
+    pub(crate) colspan: usize,
+    pub(crate) rowspan: usize,
+    pub(crate) halign: Option<HorizontalAlignment>,
+    pub(crate) valign: Option<VerticalAlignment>,
+    pub(crate) style: Option<ColumnStyle>,
     /// If true, this is a duplication specifier (`*`) rather than a span (`+`).
-    pub is_duplication: bool,
+    pub(crate) is_duplication: bool,
     /// For duplication, this is the count (e.g., `3*` means 3 copies).
-    pub duplication_count: usize,
+    pub(crate) duplication_count: usize,
 }
 
 impl Default for CellSpecifier {
@@ -313,7 +313,7 @@ impl CellSpecifier {
     /// - `"3*rest"` → `duplication_count`=3
     /// - `"plain"` → defaults (no specifier found)
     #[must_use]
-    pub fn parse(content: &str) -> (Self, usize) {
+    fn parse(content: &str) -> (Self, usize) {
         let bytes = content.as_bytes();
         let mut pos = 0;
 
@@ -536,11 +536,11 @@ impl CellSpecifier {
 /// resolve to the line of the offending token, not the cell's style prefix.
 #[derive(Debug)]
 pub(crate) struct ParsedCell {
-    pub content: String,
-    pub start: usize,
-    pub content_start: usize,
-    pub end: usize,
-    pub spec: CellSpecifier,
+    pub(crate) content: String,
+    pub(crate) start: usize,
+    pub(crate) content_start: usize,
+    pub(crate) end: usize,
+    pub(crate) spec: CellSpecifier,
 }
 
 #[derive(Debug)]

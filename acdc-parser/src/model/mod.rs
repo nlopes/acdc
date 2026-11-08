@@ -44,9 +44,10 @@ pub use attribution::{Attribution, CiteTitle};
 pub use caption::{Caption, CaptionKind};
 pub use content_attribute::ContentAttribute;
 pub use inlines::*;
+pub(crate) use lists::ListLevel;
 pub use lists::{
     CalloutList, CalloutListItem, DescriptionList, DescriptionListDefinition, DescriptionListItem,
-    DescriptionListTerm, ListItem, ListItemCheckedStatus, ListLevel, OrderedList, UnorderedList,
+    DescriptionListTerm, ListItem, ListItemCheckedStatus, OrderedList, UnorderedList,
 };
 pub use location::*;
 pub use media::{Audio, Image, InlineImage, Source, SourceUrl, Video};

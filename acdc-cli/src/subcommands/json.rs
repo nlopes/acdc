@@ -7,7 +7,7 @@ use acdc_parser::{ParseInlineResult, Warning, ast::DocumentRef};
 use serde_json::{Value, json};
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
+pub(crate) enum Error {
     #[error(transparent)]
     Io(#[from] io::Error),
     #[error(transparent)]
@@ -28,14 +28,14 @@ pub enum Error {
 }
 
 #[derive(Clone, Copy, Debug, clap::ValueEnum)]
-pub enum Format {
+pub(super) enum Format {
     NativeJson,
     UpstreamAsg,
     AcdcAsgV1,
 }
 
 impl Format {
-    pub fn check_available(self) -> Result<(), Error> {
+    pub(super) fn check_available(self) -> Result<(), Error> {
         if !cfg!(feature = "asg") && !matches!(self, Self::NativeJson) {
             return Err(Error::UnavailableFormat);
         }
@@ -43,7 +43,7 @@ impl Format {
     }
 }
 
-pub fn document(value: DocumentRef<'_>, format: Format) -> Result<Value, Error> {
+pub(super) fn document(value: DocumentRef<'_>, format: Format) -> Result<Value, Error> {
     match format {
         Format::NativeJson => Ok(serde_json::to_value(value)?),
         #[cfg(feature = "asg")]
@@ -58,7 +58,7 @@ pub fn document(value: DocumentRef<'_>, format: Format) -> Result<Value, Error> 
     }
 }
 
-pub fn inlines(parsed: &ParseInlineResult, format: Format) -> Result<Value, Error> {
+pub(super) fn inlines(parsed: &ParseInlineResult, format: Format) -> Result<Value, Error> {
     match format {
         Format::NativeJson => Ok(serde_json::to_value(parsed.content())?),
         #[cfg(feature = "asg")]
@@ -73,7 +73,7 @@ pub fn inlines(parsed: &ParseInlineResult, format: Format) -> Result<Value, Erro
     }
 }
 
-pub fn warnings(warnings: &[Warning]) -> Result<(), Error> {
+pub(super) fn warnings(warnings: &[Warning]) -> Result<(), Error> {
     let mut stderr = io::stderr().lock();
     for warning in warnings {
         let value = json!({"severity":"warning","kind":"parser-warning","message":warning.to_string(),
@@ -84,7 +84,7 @@ pub fn warnings(warnings: &[Warning]) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn write(value: &Value, output: &Path) -> Result<(), Error> {
+pub(super) fn write(value: &Value, output: &Path) -> Result<(), Error> {
     let mut bytes = serde_json::to_vec(value)?;
     bytes.push(b'\n');
     if output == Path::new("-") {
@@ -95,7 +95,7 @@ pub fn write(value: &Value, output: &Path) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn finish(result: Result<(), Error>) {
+pub(crate) fn finish(result: Result<(), Error>) {
     if let Err(error) = result {
         let value = diagnostic(&error);
         let mut stderr = io::stderr().lock();

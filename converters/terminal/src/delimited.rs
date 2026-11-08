@@ -506,7 +506,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     }
 }
 
-pub(crate) fn render_preformatted_content(
+fn render_preformatted_content(
     inlines: ContentRef<'_>,
     attributes: AttributesRef<'_>,
     processor: &Processor<'_>,

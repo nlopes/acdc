@@ -113,7 +113,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         acdc_converters_core::visitor::InlineVisitor::visit_inline_nodes(self, traversal, content)
     }
 
-    pub(crate) fn write_inline(
+    fn write_inline(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         node: InlineRef<'_>,

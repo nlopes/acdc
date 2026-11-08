@@ -31,7 +31,7 @@ pub(super) fn constrained_passthrough_end(source: &str, start: usize) -> Option<
     None
 }
 
-pub(crate) fn has_stem_substitution_list(source: &str) -> bool {
+pub(in crate::grammar) fn has_stem_substitution_list(source: &str) -> bool {
     source.contains(':')
         && ["stem:", "asciimath:", "latexmath:"]
             .into_iter()

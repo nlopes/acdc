@@ -114,7 +114,7 @@ Escaping the directive is necessary even if it appears in a verbatim block since
 not aware of the surrounding document structure.
 */
 #[derive(Debug)]
-pub(crate) struct Include<'a> {
+pub(super) struct Include<'a> {
     source_origin: SourceOrigin,
     target: Target,
     target_as_written: String,
@@ -338,14 +338,14 @@ impl LinesRange {
 ///
 /// Contains included text and its source and leveloffset mappings.
 #[derive(Debug)]
-pub(crate) struct IncludeResult {
+pub(super) struct IncludeResult {
     pub(crate) content: String,
     /// Whether `content` is synthesized fallback text that belongs to the include
     /// directive rather than content read from the target.
     pub(crate) synthetic: bool,
     /// The effective leveloffset value to apply to this included content.
     /// This is the sum of the current document's leveloffset and the include's leveloffset.
-    pub(crate) effective_leveloffset: Option<isize>,
+    pub(super) effective_leveloffset: Option<isize>,
     /// Leveloffset ranges produced while preprocessing the selected target lines.
     pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
     /// The include target exactly as written in the directive (after attribute

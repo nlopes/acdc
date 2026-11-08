@@ -799,10 +799,7 @@ impl LintSourceRange {
         diagnostic.overlaps(scope)
     }
 
-    pub(crate) fn source_location(
-        self,
-        file: Option<std::path::PathBuf>,
-    ) -> acdc_parser::SourceLocation {
+    fn source_location(self, file: Option<std::path::PathBuf>) -> acdc_parser::SourceLocation {
         let start = acdc_parser::Position::new(
             self.start.line.max(1),
             self.start.column.unwrap_or(1).max(1),
@@ -1195,7 +1192,7 @@ impl LintOptions {
     }
 
     #[must_use]
-    pub(crate) fn may_emit(&self, lint: LintId) -> bool {
+    fn may_emit(&self, lint: LintId) -> bool {
         let mut global_level = lint.default_level();
         for lint_override in &self.overrides {
             if !lint_override.selector.contains(lint) || lint_override.location.is_some() {
@@ -1215,7 +1212,7 @@ impl LintOptions {
             })
     }
 
-    pub(crate) fn matching_scoped_override_indexes(
+    fn matching_scoped_override_indexes(
         &self,
         lint: LintId,
         location: &acdc_parser::SourceLocation,

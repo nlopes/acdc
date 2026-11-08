@@ -3,10 +3,9 @@
 use std::{borrow::Cow, collections::HashSet, fmt::Write as _, io::Write, mem::take, rc::Rc};
 
 use acdc_converters_core::{
-    Converter, Diagnostics, TraversalContext, Warning,
+    Converter, Diagnostics, InlineTextTransform, TraversalContext, Warning,
     code::{SourceLineOptions, default_line_comment, source_language},
     document_attribute_text, icon,
-    inline_text::InlineTextTransform,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
     list::OrderedListNumbering,
     media::{resolve_target, with_time_range_from_attributes},
@@ -315,7 +314,7 @@ pub struct MarkdownVisitor<'a, 'd, W: Write> {
     collect_index_terms: bool,
     current_section_title: Option<String>,
     /// Footnotes collected for document-end output as `(id, number, rendered content)`.
-    pub(crate) footnotes: Vec<(String, u32, String)>,
+    footnotes: Vec<(String, u32, String)>,
 }
 
 impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {

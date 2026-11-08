@@ -19,7 +19,10 @@ use crate::{
 
 use super::recognition::structural_token_allowed;
 
-pub(crate) fn needs_profile_context(nodes: &[InlineNode<'_>], empty_profile: bool) -> bool {
+pub(in crate::grammar) fn needs_profile_context(
+    nodes: &[InlineNode<'_>],
+    empty_profile: bool,
+) -> bool {
     (empty_profile || contains_raw(nodes)) && nodes.iter().any(neighbors::needs_word_context)
 }
 
@@ -35,7 +38,7 @@ fn contains_raw(nodes: &[InlineNode<'_>]) -> bool {
     })
 }
 
-pub(crate) fn resolve_plain<'a>(
+pub(in crate::grammar) fn resolve_plain<'a>(
     nodes: Vec<InlineNode<'a>>,
     state: &ParserState<'a>,
     paragraph: bool,
@@ -146,7 +149,7 @@ fn resolve_plain_with_context<'a>(
     result
 }
 
-pub(crate) fn resolve_raw<'a>(
+pub(in crate::grammar) fn resolve_raw<'a>(
     raw: Raw<'a>,
     state: &ParserState<'a>,
     edges: Edges,
@@ -188,7 +191,7 @@ fn resolve_raw_with_context<'a>(
 }
 
 /// Return byte lengths of edges that still need outside word context.
-pub(crate) fn pending_word_edges(text: &str) -> (usize, usize) {
+pub(in crate::grammar) fn pending_word_edges(text: &str) -> (usize, usize) {
     let prefix_text = text.strip_prefix('\\').unwrap_or(text);
     let prefix_escape = text.len() - prefix_text.len();
     let prefix = if prefix_text
@@ -222,7 +225,7 @@ pub(crate) fn pending_word_edges(text: &str) -> (usize, usize) {
     (prefix, suffix.min(text.len() - prefix))
 }
 
-pub(crate) fn has_candidate(text: &str) -> bool {
+pub(in crate::grammar) fn has_candidate(text: &str) -> bool {
     text.bytes().enumerate().any(|(index, byte)| match byte {
         b'(' => ["(C)", "(R)", "(TM)"]
             .iter()
@@ -242,13 +245,13 @@ pub(crate) fn has_candidate(text: &str) -> bool {
 }
 
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
-pub(crate) struct Replacement {
+pub(in crate::grammar) struct Replacement {
     pub(crate) range: Range<usize>,
     pub(crate) value: ReplacementValue,
 }
 
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
-pub(crate) enum ReplacementValue {
+pub(in crate::grammar) enum ReplacementValue {
     Remove,
     Symbol(SymbolKind),
     Literal(Range<usize>),
@@ -259,13 +262,13 @@ pub(crate) enum ReplacementValue {
 }
 
 #[derive(Clone, Copy, Default)]
-pub(crate) struct Edges {
+pub(in crate::grammar) struct Edges {
     pub(crate) start: bool,
     pub(crate) end: bool,
 }
 
 #[derive(Clone, Copy, Default)]
-pub(crate) struct WordContext {
+pub(in crate::grammar) struct WordContext {
     before: Option<(char, bool)>,
     after: Option<(char, bool)>,
 }
@@ -427,7 +430,7 @@ fn replacement_at(
     None
 }
 
-pub(crate) fn arrow_allowed(
+pub(in crate::grammar) fn arrow_allowed(
     text: &str,
     range: Range<usize>,
     kind: SymbolKind,
@@ -438,7 +441,7 @@ pub(crate) fn arrow_allowed(
             != plan.precedes(&Substitution::SpecialChars, &Substitution::Replacements)
 }
 
-pub(crate) fn is_arrow(kind: SymbolKind) -> bool {
+pub(in crate::grammar) fn is_arrow(kind: SymbolKind) -> bool {
     matches!(
         kind,
         SymbolKind::RightArrow

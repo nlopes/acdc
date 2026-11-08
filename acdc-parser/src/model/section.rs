@@ -17,7 +17,7 @@ use crate::{
 use super::title::Title;
 
 /// A `SectionLevel` represents a section depth in a document.
-pub type SectionLevel = u8;
+pub(crate) type SectionLevel = u8;
 const DEFAULT_NUMBERED_SECTION_LEVELS: SectionLevel = 3;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -998,7 +998,7 @@ fn to_upper_roman(mut number: usize) -> String {
 /// A `SafeId` represents a sanitized ID.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub enum SafeId<'a> {
+enum SafeId<'a> {
     Generated(&'a str),
     Explicit(&'a str),
 }
@@ -1021,7 +1021,7 @@ impl<'a> SafeId<'a> {
     /// with `_` into the arena; an empty generated slug stays empty; `Explicit`
     /// is returned unchanged.
     #[must_use]
-    pub(crate) fn as_arena_str(&self, arena: &'a Bump) -> &'a str {
+    fn as_arena_str(&self, arena: &'a Bump) -> &'a str {
         match self {
             SafeId::Generated("") => "",
             SafeId::Generated(id) => {
@@ -1178,7 +1178,7 @@ impl<'a> Section<'a> {
     /// `metadata.anchors` (e.g. `[[foo]]`), otherwise auto-generates one from the title
     /// and interns it into the supplied arena.
     #[must_use]
-    pub(crate) fn generate_id(
+    fn generate_id(
         arena: &'a Bump,
         metadata: &BlockMetadata<'a>,
         title: &[InlineNode<'a>],

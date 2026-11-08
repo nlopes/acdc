@@ -37,32 +37,32 @@ use crate::{
 /// line/column on demand.
 #[derive(Debug)]
 pub(crate) struct InlinePreprocessorParserState<'a> {
-    pub(crate) pass_found_count: Cell<usize>,
-    pub(crate) passthroughs: RefCell<Vec<Pass<'a>>>,
+    pass_found_count: Cell<usize>,
+    pub(super) passthroughs: RefCell<Vec<Pass<'a>>>,
     /// Current byte offset in the full document input.
     pub(crate) current_offset: Cell<usize>,
     /// Pre-computed line map for O(log n) offset→position lookups.
     pub(crate) line_map: Rc<LineMap>,
     /// Full document input (for `LineMap` position lookups).
-    pub(crate) full_input: &'a str,
+    full_input: &'a str,
     /// Arena for interning synthesized passthrough strings produced during
     /// preprocessing (character-replacement expansions, escape-stripped text).
     pub(crate) arena: &'a Bump,
-    pub(crate) source_map: RefCell<SourceMap>,
+    pub(super) source_map: RefCell<SourceMap>,
     /// The substring currently being parsed.
     pub(crate) input: RefCell<&'a str>,
-    pub(crate) substring_start_offset: Cell<usize>,
+    substring_start_offset: Cell<usize>,
     /// Warnings collected during PEG parsing for post-parse emission.
     /// Uses `RefCell` for interior mutability in PEG action blocks.
     pub(crate) warnings: RefCell<Vec<Warning>>,
     /// Whether macro substitutions are enabled for this block.
     /// When `false`, `pass:[]` macros are not extracted by the preprocessor.
-    pub(crate) macros_enabled: bool,
+    macros_enabled: bool,
     /// Whether attribute substitutions are enabled in the current context.
     /// When `false`, `{attribute}` references are not expanded by the preprocessor.
     pub(crate) attributes_enabled: Cell<bool>,
-    pub(crate) defer_monospace: bool,
-    pub(crate) attribute_value_ranges: Vec<Range<usize>>,
+    pub(super) defer_monospace: bool,
+    pub(super) attribute_value_ranges: Vec<Range<usize>>,
 }
 
 impl<'a> InlinePreprocessorParserState<'a> {
@@ -102,7 +102,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
     }
 
     /// Create a new state with all substitutions enabled (macros + attributes).
-    pub(crate) fn new_all_enabled(
+    pub(super) fn new_all_enabled(
         input: &'a str,
         line_map: Rc<LineMap>,
         full_input: &'a str,
@@ -185,7 +185,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
     }
 
     /// Set the initial position for parsing a substring within the document.
-    pub(crate) fn set_initial_position(&mut self, _location: &Location, absolute_offset: usize) {
+    pub(super) fn set_initial_position(&mut self, _location: &Location, absolute_offset: usize) {
         self.substring_start_offset.set(absolute_offset);
         self.current_offset.set(absolute_offset);
     }
@@ -220,11 +220,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
     }
 
     /// Build an inclusive diagnostic span from a half-open source range.
-    pub(crate) fn source_location_for(
-        &self,
-        start_offset: usize,
-        end_offset: usize,
-    ) -> SourceLocation {
+    fn source_location_for(&self, start_offset: usize, end_offset: usize) -> SourceLocation {
         let end_offset = if start_offset < end_offset {
             step_char(self.full_input, end_offset, RoundDirection::Backward)
         } else {
@@ -248,7 +244,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
     }
 
     /// Drain collected warnings (for transfer to main `ParserState`).
-    pub(crate) fn drain_warnings(&self) -> Vec<Warning> {
+    pub(super) fn drain_warnings(&self) -> Vec<Warning> {
         take(&mut *self.warnings.borrow_mut())
     }
 
@@ -552,23 +548,23 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
 #[derive(Debug)]
 pub(crate) struct ProcessedContent<'a> {
-    pub text: Cow<'a, str>,
-    pub passthroughs: Vec<Pass<'a>>,
-    pub(crate) source_map: SourceMap,
-    pub(crate) attribute_substitutions: crate::model::substitution::SubstitutionPlan,
+    pub(crate) text: Cow<'a, str>,
+    pub(crate) passthroughs: Vec<Pass<'a>>,
+    pub(super) source_map: SourceMap,
+    pub(super) attribute_substitutions: crate::model::substitution::SubstitutionPlan,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct Replacement {
-    pub absolute_start: usize,
-    pub absolute_end: usize,
-    pub byte_len: usize,
-    pub kind: ProcessedKind,
+pub(super) struct Replacement {
+    pub(in crate::grammar) absolute_start: usize,
+    pub(in crate::grammar) absolute_end: usize,
+    pub(in crate::grammar) byte_len: usize,
+    pub(in crate::grammar) kind: ProcessedKind,
 }
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct SourceMap {
-    pub replacements: Vec<Replacement>,
+pub(super) struct SourceMap {
+    pub(in crate::grammar) replacements: Vec<Replacement>,
     origin: Option<Box<SourceMapOrigin>>,
 }
 
@@ -579,7 +575,7 @@ struct SourceMapOrigin {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum ProcessedKind {
+pub(super) enum ProcessedKind {
     Attribute,
     // Declaration values have a character-escaping stage before body expansion.
     DocumentAttribute(Box<[Range<usize>]>),
@@ -591,7 +587,7 @@ pub(crate) enum ProcessedKind {
 }
 
 impl ProcessedKind {
-    pub(crate) const fn is_attribute(&self) -> bool {
+    pub(super) const fn is_attribute(&self) -> bool {
         matches!(
             self,
             Self::Attribute | Self::DocumentAttribute(_) | Self::RawAttribute(_)
@@ -617,7 +613,7 @@ fn to_unsigned(value: i32, context: &str) -> Result<usize, Error> {
 
 impl SourceMap {
     /// Map through an earlier transformation after applying this map.
-    pub(crate) fn with_origin(mut self, map: Self, offset: usize) -> Self {
+    pub(super) fn with_origin(mut self, map: Self, offset: usize) -> Self {
         self.origin = Some(Box::new(SourceMapOrigin { map, offset }));
         self
     }
@@ -626,7 +622,7 @@ impl SourceMap {
     /// - `absolute_start`: where in the original text the replaced span begins
     /// - `absolute_end`: where in the original text the replaced span ends
     /// - `replacement_length`: the byte length of the inserted replacement
-    pub(crate) fn add_replacement(
+    pub(super) fn add_replacement(
         &mut self,
         absolute_start: usize,
         absolute_end: usize,
@@ -642,12 +638,12 @@ impl SourceMap {
     }
 
     /// Map a position in the processed text back to the original source.
-    pub(crate) fn map_position(&self, pos: usize) -> Result<usize, Error> {
+    pub(super) fn map_position(&self, pos: usize) -> Result<usize, Error> {
         self.map_position_with_bias(pos, false)
     }
 
     /// Map a token start past empty attributes, retaining nonempty reference spans.
-    pub(crate) fn map_token_position(&self, pos: usize) -> Result<usize, Error> {
+    pub(super) fn map_token_position(&self, pos: usize) -> Result<usize, Error> {
         let mut mapped = self.map_local_position(pos, false)?;
         for replacement in &self.replacements {
             if replacement.absolute_start > mapped {
@@ -668,12 +664,12 @@ impl SourceMap {
     }
 
     /// Map an inclusive end position in the processed text back to the original source.
-    pub(crate) fn map_end_position(&self, pos: usize) -> Result<usize, Error> {
+    pub(super) fn map_end_position(&self, pos: usize) -> Result<usize, Error> {
         self.map_position_with_bias(pos, true)
     }
 
     /// Find processed-text offsets where attributes expanded to an empty string.
-    pub(crate) fn empty_attribute_offsets(&self, original_start: usize) -> Vec<usize> {
+    pub(super) fn empty_attribute_offsets(&self, original_start: usize) -> Vec<usize> {
         // Track the same point in the original and processed coordinate spaces.
         let mut original_cursor = original_start;
         let mut processed_cursor = 0;
@@ -700,7 +696,7 @@ impl SourceMap {
     }
 
     /// Return attribute-produced spans so nested parsing preserves substitution order.
-    pub(crate) fn attribute_value_ranges(&self, original_start: usize) -> Vec<Range<usize>> {
+    pub(super) fn attribute_value_ranges(&self, original_start: usize) -> Vec<Range<usize>> {
         let mut original_cursor = original_start;
         let mut processed_cursor = 0;
         let mut ranges = Vec::new();
@@ -721,7 +717,7 @@ impl SourceMap {
         ranges
     }
 
-    pub(crate) fn document_attribute_ranges(&self, original_start: usize) -> Vec<Range<usize>> {
+    pub(super) fn document_attribute_ranges(&self, original_start: usize) -> Vec<Range<usize>> {
         let mut original_cursor = original_start;
         let mut processed_cursor = 0;
         let mut ranges = Vec::new();
@@ -739,7 +735,7 @@ impl SourceMap {
         ranges
     }
 
-    pub(crate) fn raw_attribute_ranges(&self, original_start: usize) -> Vec<Range<usize>> {
+    pub(super) fn raw_attribute_ranges(&self, original_start: usize) -> Vec<Range<usize>> {
         let mut original_cursor = original_start;
         let mut processed_cursor = 0;
         let mut ranges = Vec::new();

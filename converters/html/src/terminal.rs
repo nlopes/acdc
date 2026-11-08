@@ -123,7 +123,7 @@ struct SpanStyle {
     decorations: CellDecorations,
 }
 
-pub(crate) fn is_enabled(attrs: &DocumentAttributes<'_>) -> bool {
+fn is_enabled(attrs: &DocumentAttributes<'_>) -> bool {
     DocumentAttributesRef::from(attrs)
         .get("acdc-terminal")
         .is_some()

@@ -278,7 +278,7 @@ macro_rules! hyperlink_controls {
                 self.location = location;
             }
 
-            pub(crate) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
+            pub(in crate::model) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
                 InlineMetadataView {
                     attributes: &self.macro_attributes.attributes,
                     roles: &self.metadata.roles, options: &self.macro_attributes.options, id: &self.metadata.id,

@@ -3,7 +3,7 @@ use crate::{ElementId, Error, InlineNode, Location};
 use super::location_mapping::LocationMappingContext;
 
 /// Shared access and source-location mapping for formatted inline nodes.
-pub(crate) trait MarkedText<'a>: Sized {
+pub(super) trait MarkedText<'a>: Sized {
     /// The type of content this formatted node contains (typically Vec<`InlineNode`<'a>>)
     type Content: LocationMappable<'a>;
 
@@ -44,7 +44,7 @@ pub(crate) trait MarkedText<'a>: Sized {
 }
 
 /// Formatted content whose locations can be mapped back to source.
-pub trait LocationMappable<'a> {
+pub(super) trait LocationMappable<'a> {
     /// Map this content using the source context.
     fn map_locations_with(&mut self, ctx: &LocationMappingContext<'_, 'a>) -> Result<(), Error>;
 }
@@ -105,7 +105,7 @@ impl_marked_text!(
     CurvedApostrophe,
 );
 
-pub(crate) fn map_marked_text_locations<'a>(
+pub(super) fn map_marked_text_locations<'a>(
     inline: &mut InlineNode<'a>,
     ctx: &LocationMappingContext<'_, 'a>,
 ) -> Result<(), Error> {

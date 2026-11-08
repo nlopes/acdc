@@ -660,7 +660,7 @@ fn attach_resize_listeners(state: &Rc<EditorState>) -> Result<(), JsValue> {
 /// Wire up all DOM event listeners for the editor page.
 ///
 /// Called once from `init()` after the panic hook is installed.
-pub fn setup() -> Result<(), JsValue> {
+pub(super) fn setup() -> Result<(), JsValue> {
     let window = web_sys::window().ok_or("no global window")?;
     let doc = window.document().ok_or("no document")?;
 

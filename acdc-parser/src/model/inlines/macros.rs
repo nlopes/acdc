@@ -370,7 +370,7 @@ impl<'a> Keyboard<'a> {
 }
 
 /// One key label in a keyboard shortcut.
-pub type Key<'a> = ContentAttribute<'a>;
+type Key<'a> = ContentAttribute<'a>;
 
 /// A `CrossReference` represents an inline cross-reference (xref) in a document.
 ///
@@ -591,7 +591,7 @@ impl<'a> CrossReference<'a> {
         self.location = location;
     }
 
-    pub(crate) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
+    pub(in crate::model) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
         InlineMetadataView {
             attributes: &self.macro_attributes.attributes,
             roles: &self.metadata.roles,
@@ -1122,7 +1122,7 @@ impl<'a> IndexTerm<'a> {
         self.location = location;
     }
 
-    pub(crate) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
+    pub(in crate::model) fn metadata_view(&self) -> InlineMetadataView<'_, 'a> {
         InlineMetadataView {
             attributes: &self.macro_attributes.attributes,
             roles: &self.metadata.roles,

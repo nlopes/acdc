@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** import `InlineTextTransform` from the crate root; `inline_text`
+  is private. Replace `inlines_to_string(nodes)` with
+  `InlineTextTransform::default().to_string(nodes)` and
+  `ConversionResult::outfile()` with `output_path()`.
+
+- **Breaking:** converter compatibility helpers now use typed parser reads.
+  Replace `SourceLineOptions::resolve` with `SourceLineOptions::from_attributes`,
+  `detect_language` with `source_language`, and `with_time_range` with
+  `with_time_range_from_attributes`. Replace `has_index_section` with
+  `contains_index_section` over typed blocks. For `last_section_has_style`,
+  inspect the last top-level `SectionRef::style()`; this differs from searching
+  the whole document for an index section.
+
+- **Breaking:** replace `TextBoundaries::for_inline` with `for_inline_refs`,
+  passing the current inline, preceding siblings in reverse order, and following
+  siblings in source order. Replace `apply_passthrough_replacements` with
+  `apply_passthrough_replacements_iter` and `subs.iter().cloned()`.
+  `shows_block_title` is removed; converters should inspect typed block kinds
+  and suppress visible captions for passthrough blocks.
+
 - Document traversal now provides footnote bodies and distinct output labels
   for notes owned by AsciiDoc table cells. Custom document visitors can use
   `TraversalContext::with_document()` to provide the same context.
@@ -162,8 +182,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   calls retain label formatting, fallback text, destinations, and registered IDs.
 
 - `SourceLineOptions::from_attributes` accepts typed element attributes for
-  source numbering and highlights. The metadata-based `resolve` remains supported
-  with the same selector rules.
+  source numbering and highlights.
 
 - Library converters can read source languages from typed block attributes.
   Unknown and empty names are preserved; document defaults stay separate.
@@ -230,7 +249,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   position. Set, repeated set, and unset events override the header snapshot,
   and nested AsciiDoc table cells restore the parent values when they end.
 - Backend profiles now expose `embedded` only for embedded output, and
-  `ConversionResult::outdir` and `ConversionResult::outfile` expose resolved
+  `ConversionResult::outdir` and `ConversionResult::output_path` expose resolved
   post-conversion output metadata without making it visible to document source.
 - Plain-text and shared converter output now resolve title-based shorthand
   references to matching section IDs while preserving written text for
@@ -255,10 +274,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own from recursing. Asciidoctor falls back to `[refid]` at the same point,
   except where it reuses a target's cached converted title, which can carry one
   already-resolved level and makes its result depend on document order.
-- `shows_block_title` answers whether a delimited block shows its title as a
-  visible caption, so every backend applies the passthrough rule (title is
-  reference text only) the same way.
-- `inline_text::InlineTextTransform` now carries the text of every inline node,
+- `InlineTextTransform` now carries the text of every inline node,
   so a heading or caption loses nothing it cannot render as markup: a link
   contributes its link text, an image its alt text, an icon its alternative
   text (or a readable form of its target), a
@@ -275,7 +291,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their backend, base-backend, file-type, output-suffix, and HTML syntax and
   apply the corresponding intrinsic and doctype convenience attributes
   consistently.
-- `inline_text::InlineTextTransform` and `inlines_to_string()` provide shared
+- `InlineTextTransform` provides shared
   plain-text extraction from inline nodes for converters and tooling, including
   configurable hard-line-break rendering.
 - **`#` callout guards in shell-session and PowerShell blocks** — `[source,console]`,
