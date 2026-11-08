@@ -2134,7 +2134,7 @@ peg::parser! {
           !(
               &eol()
               / &at_list_item_start()
-              / &"+"
+              / &("+" whitespace()* (eol() / ![_]))
               / &at_section_start()
               / &at_list_separator_content()
               / &nested_unordered_child_after_metadata(offset, current_marker, parent_ordered_marker)
@@ -2148,7 +2148,7 @@ peg::parser! {
           !(
               &eol()
               / &at_list_item_start()
-              / &"+"
+              / &("+" whitespace()* (eol() / ![_]))
               / &at_section_start()
               / &at_list_separator_content()
               / &nested_ordered_child_after_metadata(offset, current_marker, parent_unordered_marker)
@@ -3163,7 +3163,7 @@ peg::parser! {
         !at_callout_list_item()
         !check_line_is_description_list(offset)
         !(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())
-        !("+" (whitespace() / eol() / ![_]))
+        !("+" whitespace()* (eol() / ![_]))
         !example_delimiter()
         !listing_delimiter()
         !literal_delimiter()

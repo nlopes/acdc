@@ -1750,6 +1750,129 @@ fn test_callout_item_explicit_continuation_attaches_block() -> Result<(), Error>
     Ok(())
 }
 
+#[rstest::rstest]
+#[case("* Zoom In", "* Fit.")]
+#[case(". Zoom In", ". Fit.")]
+#[case("Zoom:: Zoom In", "Fit:: Fit.")]
+fn list_principals_keep_plus_prefixed_text(
+    #[case] first: &str,
+    #[case] second: &str,
+    #[values("+ (+).", "+ more words", "+\tmore words", "+words", "++words")] line: &str,
+    #[values("", "\n")] ending: &str,
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let source = format!("{first}\n{line}\n{second}{ending}");
+    let parsed = parse(
+        &source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let principal = match parsed.document_storage().blocks.as_slice() {
+        [Block::UnorderedList(list)] => {
+            assert_eq!(list.items.len(), 2);
+            assert_eq!(list.items[0].blocks, []);
+            &list.items[0].principal
+        }
+        [Block::OrderedList(list)] => {
+            assert_eq!(list.items.len(), 2);
+            assert_eq!(list.items[0].blocks, []);
+            &list.items[0].principal
+        }
+        [Block::DescriptionList(list)] => {
+            assert_eq!(list.items.len(), 2);
+            let definition = list.items[0].definition.as_ref().expect("definition");
+            assert_eq!(definition.blocks, []);
+            definition.principal.as_ref().expect("principal text")
+        }
+        blocks => unreachable!("expected a single list, got {blocks:?}"),
+    };
+    let text: String = principal
+        .iter()
+        .map(|node| {
+            let InlineNode::PlainText(plain) = node else {
+                unreachable!("expected plain text, got {node:?}");
+            };
+            plain.content
+        })
+        .collect();
+    assert_eq!(text, format!("Zoom In\n{line}"));
+    assert_eq!(
+        principal.last().expect("last inline").location().end.line,
+        2
+    );
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case("* Zoom In", "* Fit.")]
+#[case(". Zoom In", ". Fit.")]
+#[case("Zoom:: Zoom In", "Fit:: Fit.")]
+fn standalone_plus_still_attaches_a_list_block(
+    #[case] first: &str,
+    #[case] second: &str,
+    #[values("+", "+ ", "+\t")] marker: &str,
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let source = format!("{first}\n{marker}\nAttached paragraph.\n\n{second}\n");
+    let parsed = parse(
+        &source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let blocks = match parsed.document_storage().blocks.as_slice() {
+        [Block::UnorderedList(list)] => {
+            assert_eq!(list.items.len(), 2);
+            &list.items[0].blocks
+        }
+        [Block::OrderedList(list)] => {
+            assert_eq!(list.items.len(), 2);
+            &list.items[0].blocks
+        }
+        [Block::DescriptionList(list)] => {
+            assert_eq!(list.items.len(), 2);
+            &list.items[0]
+                .definition
+                .as_ref()
+                .expect("definition")
+                .blocks
+        }
+        blocks => unreachable!("expected a single list, got {blocks:?}"),
+    };
+    assert!(matches!(blocks.as_slice(), [Block::Paragraph(_)]));
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case("*", ".")]
+#[case(".", "*")]
+fn nested_list_principals_keep_plus_prefixed_text(
+    #[case] outer: &str,
+    #[case] inner: &str,
+    #[values("", "+\n")] continuation: &str,
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let source = format!("{outer} Parent\n{continuation}{inner} Zoom In\n+ (+).\n{inner} Fit.\n");
+    let parsed = parse(
+        &source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let items = match parsed.document_storage().blocks.as_slice() {
+        [Block::UnorderedList(list)] => &list.items,
+        [Block::OrderedList(list)] => &list.items,
+        blocks => unreachable!("expected a single outer list, got {blocks:?}"),
+    };
+    assert_eq!(items.len(), 1);
+    let nested = match items[0].blocks.as_slice() {
+        [Block::UnorderedList(list)] => &list.items,
+        [Block::OrderedList(list)] => &list.items,
+        blocks => unreachable!("expected a single nested list, got {blocks:?}"),
+    };
+    assert_eq!(nested.len(), 2);
+    assert_eq!(nested[0].blocks, []);
+    assert!(nested[0].principal.iter().any(|node| {
+        matches!(node, InlineNode::PlainText(plain) if plain.content.contains("+ (+)."))
+    }));
+    Ok(())
+}
+
 /// A titled block with an id is collected into `references` so a `<<id>>`
 /// reference can resolve to its title.
 #[test]
