@@ -242,6 +242,7 @@ impl AnalysisConfiguration {
         settings.resolve(self.unscoped.resolve(self.fallback))
     }
 
+    #[cfg(any(feature = "preview", test))]
     pub(crate) fn backend_for(&self, uri: &Uri) -> AnalysisBackend {
         self.settings_for(uri).backend
     }

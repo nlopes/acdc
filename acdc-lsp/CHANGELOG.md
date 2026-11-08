@@ -47,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Builds without the default preview features no longer emit unused-code warnings.
+
 - IDs without recorded source coordinates no longer produce navigation targets
   at line zero. Generated section IDs still navigate to their heading.
 

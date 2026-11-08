@@ -1,7 +1,7 @@
 use std::{
     error::Error,
     fs,
-    io::Write,
+    io::{self, Write},
     process::{Command, Output, Stdio},
 };
 
@@ -15,12 +15,19 @@ fn run(args: &[&str], input: &str) -> Result<Output, Box<dyn Error>> {
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
-    child
+    let write_result = child
         .stdin
         .take()
         .ok_or("stdin")?
-        .write_all(input.as_bytes())?;
-    Ok(child.wait_with_output()?)
+        .write_all(input.as_bytes());
+    let output = child.wait_with_output()?;
+    // Early rejection can close stdin before the test finishes writing input.
+    if let Err(error) = write_result
+        && (error.kind() != io::ErrorKind::BrokenPipe || output.status.success())
+    {
+        return Err(error.into());
+    }
+    Ok(output)
 }
 
 #[test]
@@ -163,8 +170,10 @@ fn inline_input_and_parser_warnings_keep_stdout_as_json() -> Result<(), Box<dyn 
 #[cfg(not(feature = "asg"))]
 #[test]
 fn unavailable_asg_formats_fail_before_writing_output() -> Result<(), Box<dyn Error>> {
+    // Exceed pipe capacity to exercise rejection while stdin is still being written.
+    let input = "Text.\n".repeat(256 * 1024);
     for format in ["upstream-asg", "acdc-asg-v1"] {
-        let output = run(&["parse", "--format", format], "Text.")?;
+        let output = run(&["parse", "--format", format], &input)?;
         assert!(!output.status.success());
         assert_eq!(output.stdout, [] as [u8; 0]);
         let error: Value = serde_json::from_slice(&output.stderr)?;

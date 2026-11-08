@@ -11,12 +11,14 @@ use dashmap::{DashMap, mapref::one::Ref};
 
 use tower_lsp_server::ls_types::{Diagnostic, Uri};
 
+#[cfg(any(feature = "preview", test))]
+use crate::config::AnalysisBackend;
 use crate::{
     capabilities::{
         definition, diagnostics, media,
         workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
     },
-    config::{AnalysisBackend, AnalysisConfiguration, ParserProfiles, ServerOptions},
+    config::{AnalysisConfiguration, ParserProfiles, ServerOptions},
     convert::{file_path_to_uri, location_to_utf16_range, source_uri},
     limits::{MAX_INDEXABLE_FILE_BYTES, read_bounded},
     state::{DocumentState, document::ParsedText},
@@ -182,6 +184,7 @@ impl Workspace {
             .settings_for(uri)
     }
 
+    #[cfg(feature = "preview")]
     fn backend_for(&self, uri: &Uri) -> AnalysisBackend {
         self.settings_for(uri).backend
     }
