@@ -28,7 +28,7 @@ struct TocRenderConfig<'a> {
 /// when pre-part sections exist before the first level-0 section.
 fn render_entries<'a, 'doc, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    entries: &(impl Iterator<Item = TocEntryRef<'doc>> + Clone),
+    entries: &[TocEntryRef<'doc>],
     visitor: &mut HtmlVisitor<'a, '_, W>,
     config: &TocRenderConfig,
     current_level: u8,
@@ -46,21 +46,24 @@ fn render_entries<'a, 'doc, W: Write>(
     // Only normal level-0 sections are parts.
     let first_real_part_idx = if parts_at_current_level {
         entries
-            .clone()
-            .enumerate()
-            .skip(range.start)
-            .take(range.len())
-            .find(|(_, entry)| entry.level() == 0 && entry.kind() == SectionKind::Normal)
-            .map(|(index, _)| index)
+            .get(range.clone())
+            .unwrap_or_default()
+            .iter()
+            .position(|entry| entry.level() == 0 && entry.kind() == SectionKind::Normal)
+            .map(|index| range.start + index)
     } else {
         None
     };
 
+    // Slice before adapting the entries. Skipping through a mapped iterator
+    // walks its prefix again for every sibling and becomes quadratic.
     let current_level_entries: Vec<(usize, TocEntryRef<'doc>)> = entries
-        .clone()
+        .get(range.clone())
+        .unwrap_or_default()
+        .iter()
+        .copied()
         .enumerate()
-        .skip(range.start)
-        .take(range.len())
+        .map(|(index, entry)| (range.start + index, entry))
         .filter(|(idx, entry)| {
             let eff_level = entry_level(*entry, config.has_real_parts);
             if eff_level == current_level {
@@ -132,9 +135,9 @@ fn render_entries<'a, 'doc, W: Write>(
 
         let children = start_search..end_search;
         let has_children = entries
-            .clone()
-            .skip(children.start)
-            .take(children.len())
+            .get(children.clone())
+            .unwrap_or_default()
+            .iter()
             .any(|entry| entry.level() == child_level);
 
         if has_children && child_level <= config.max_level {
@@ -223,9 +226,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             // toc::[] macro adds class="title" to the toctitle div
             let is_macro = placement == "macro";
 
-            let entries = processor.toc_entries.iter().map(TocEntryRef::from);
+            let entries: Vec<_> = processor
+                .toc_entries
+                .iter()
+                .map(TocEntryRef::from)
+                .collect();
             let section_numbers =
-                number_prefixes(entries.clone(), &section_number_config(traversal));
+                number_prefixes(entries.iter().copied(), &section_number_config(traversal));
 
             if semantic {
                 writeln!(
@@ -255,10 +262,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             // section can sit at that tier without establishing a part.
             // When pre-part sections (level 1) appear before the first part (level 0),
             // the outer list starts at sectlevel1 and parts are merged into that tier.
-            let has_real_parts = has_parts(entries.clone());
+            let has_real_parts = has_parts(entries.iter().copied());
             let first_level = entries
-                .clone()
-                .next()
+                .first()
+                .copied()
                 .map_or(1, |entry| entry_level(entry, has_real_parts));
             let parts_at_current_level = first_level > 0 && has_real_parts;
             let start_level = if parts_at_current_level {
@@ -294,9 +301,68 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Write as _;
+
+    use acdc_converters_core::Options as ConverterOptions;
     use acdc_parser::{CompatibilityMode, Options, ast::BlockKind, parse};
 
     use super::toc_class;
+    use crate::{HtmlVariant, Processor, RenderOptions};
+
+    #[rstest::rstest]
+    fn many_siblings_keep_nested_lists_and_global_section_numbers(
+        #[values(HtmlVariant::Standard, HtmlVariant::Semantic)] variant: HtmlVariant,
+        #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut source = String::from("= Contents\n:toc:\n:toclevels: 3\n:sectnums:\n\n");
+        for index in 0..64 {
+            writeln!(
+                source,
+                "== Parent {index}\n\n=== Child {index}\n\n==== Leaf {index}\n"
+            )?;
+        }
+        let parsed = parse(
+            &source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let processor = Processor::new_with_variant(
+            ConverterOptions::default(),
+            Options::builder().with_compatibility_mode(mode),
+            variant,
+        )?;
+        let output = processor.convert_to_string(parsed.document(), &RenderOptions::default())?;
+        let tag = if variant == HtmlVariant::Semantic {
+            "ol class=\"toc-list level-"
+        } else {
+            "ul class=\"sectlevel"
+        };
+        assert_eq!(output.matches(&format!("<{tag}1\">")).count(), 1);
+        assert_eq!(output.matches(&format!("<{tag}2\">")).count(), 64);
+        assert_eq!(output.matches(&format!("<{tag}3\">")).count(), 64);
+        let mut previous = 0;
+        for index in 0..64 {
+            let number = index + 1;
+            for (name, prefix) in [
+                ("Parent", format!("{number}.")),
+                ("Child", format!("{number}.1.")),
+                ("Leaf", format!("{number}.1.1.")),
+            ] {
+                let link = format!(
+                    "<a href=\"#_{}_{index}\">{prefix} {name} {index}</a>",
+                    name.to_lowercase()
+                );
+                assert_eq!(
+                    output.matches(&link).count(),
+                    1,
+                    "{variant:?} {mode:?}: {link}"
+                );
+                let position = output.find(&link).ok_or("missing TOC link")?;
+                assert!(position > previous);
+                previous = position;
+            }
+        }
+        Ok(())
+    }
 
     #[rstest::rstest]
     #[case("toc::[role=\"custom second\"]", "custom second", "custom second")]

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Large tables of contents (`:toc:` or `toc::[]`) render faster in both HTML
+  variants, preserving section order, hierarchy, links, and numbering.
+
 - **Breaking:** `Processor::generate_index` is internal; it describes state
   computed for one conversion. Request an index catalog with `:acdc-index:` and
   an `[index]` section through normal processor conversion.

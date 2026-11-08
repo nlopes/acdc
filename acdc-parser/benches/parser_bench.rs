@@ -1,6 +1,6 @@
 use std::{fs, hint::black_box, time::Duration};
 
-use acdc_parser::Parser;
+use acdc_parser::{Options, Parser, parse, parse_file};
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
 #[allow(clippy::expect_used)]
@@ -159,10 +159,53 @@ fn attribute_declaration_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
+#[allow(clippy::expect_used)]
+fn diagnostic_collection_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("diagnostic_collection");
+    let options = Options::default();
+    for (name, source, warnings) in [
+        (
+            "quiet",
+            "A paragraph with *bold*, _emphasis_, and `code`.\n\n".repeat(1000),
+            0,
+        ),
+        (
+            "duplicate_ids",
+            "[[duplicate]]\nA *formatted* paragraph.\n\n".repeat(1000),
+            999,
+        ),
+    ] {
+        let file = tempfile::NamedTempFile::new().expect("create benchmark input");
+        fs::write(file.path(), &source).expect("write benchmark input");
+        assert_eq!(
+            parse(&source, &options)
+                .expect("valid benchmark")
+                .warnings()
+                .len(),
+            warnings
+        );
+        assert_eq!(
+            parse_file(file.path(), &options)
+                .expect("valid benchmark file")
+                .warnings()
+                .len(),
+            warnings
+        );
+        group.bench_with_input(BenchmarkId::new("string", name), &source, |b, input| {
+            b.iter(|| black_box(parse(black_box(input), &options)));
+        });
+        group.bench_with_input(BenchmarkId::new("file", name), file.path(), |b, input| {
+            b.iter(|| black_box(parse_file(black_box(input), &options)));
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     parse_benchmark,
     inline_scanning_benchmark,
-    attribute_declaration_benchmark
+    attribute_declaration_benchmark,
+    diagnostic_collection_benchmark
 );
 criterion_main!(benches);
