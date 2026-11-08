@@ -257,6 +257,7 @@ fn map_nodes<'a>(
 
 fn contains_passthrough_placeholders(content: &str, processed: &ProcessedContent<'_>) -> bool {
     !processed.passthroughs.is_empty()
+        && content.contains("���")
         && processed.passthroughs.iter().enumerate().any(|(index, _)| {
             let placeholder = format!("���{index}���");
             content.contains(&placeholder)

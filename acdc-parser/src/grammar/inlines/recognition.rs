@@ -1,5 +1,8 @@
 //! Inline syntax recognition and substitution-order checks.
 
+#[cfg(test)]
+mod tests;
+
 use crate::{
     InlineMacro, InlineNode, Substitution,
     grammar::{
@@ -63,6 +66,13 @@ pub(super) fn plain_text_end(state: &ParserState<'_>, start: usize) -> usize {
             b' ' if bytes.get(end + 1) == Some(&b'+') => break,
             b' ' | b'\t' | b',' | b';' | b'.' | b'?' | b'!' | b':' | b'/' | b'>' | b')' | b']'
             | b'}' | b'|' | b'@' | b'&' | b'=' | b'{' | b'-' => {}
+            0xef => {
+                let Some(next) = plain_placeholder_end(state, end) else {
+                    break;
+                };
+                end = next;
+                continue;
+            }
             _ => break,
         }
         end += 1;
@@ -83,8 +93,30 @@ pub(super) fn plain_text_start(state: &ParserState<'_>, start: usize) -> bool {
             b'\t' | b',' | b';' | b'?' | b'!' | b':' | b'/' | b'>' | b')' | b']' | b'}' | b'|'
             | b'@' | b'&' | b'=' | b'{',
         ) => true,
+        Some(0xef) => plain_placeholder_end(state, start).is_some(),
         _ => false,
     }
+}
+
+/// Unprofiled placeholders remain plain text until source mapping expands them.
+/// Attribute profiles must still run at their grammar position for side effects.
+fn plain_placeholder_end(state: &ParserState<'_>, start: usize) -> Option<usize> {
+    const MARKER: &str = "���";
+    let tail = state.input.get(start..)?.strip_prefix(MARKER)?;
+    let digits = tail.bytes().take_while(u8::is_ascii_digit).count();
+    if digits == 0 || !tail.get(digits..)?.starts_with(MARKER) {
+        return None;
+    }
+    if let Some(pass) = tail
+        .get(..digits)?
+        .parse::<usize>()
+        .ok()
+        .and_then(|index| state.attribute_passthroughs.get(index))
+        && !pass.attribute_fragments.is_empty()
+    {
+        return None;
+    }
+    Some(start + MARKER.len() * 2 + digits)
 }
 
 fn macro_prefix(text: &str) -> bool {

@@ -489,6 +489,8 @@ fn nested_sections_are_not_outer_toc_entries_but_remain_xref_targets() -> Result
 #[rstest::rstest]
 #[case("{who} footnote:[duplicated].", 1)]
 #[case("{who} {note}.", 1)]
+#[case("{who} {profiled}.", 1)]
+#[case("{who} pass:m[footnote:[passthrough\\]].", 1)]
 #[case("{who} {note}.\n\n世界 footnote:[second paragraph].", 2)]
 fn duplicated_cells_parse_footnotes_independently(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
@@ -496,7 +498,7 @@ fn duplicated_cells_parse_footnotes_independently(
     #[case] notes_per_cell: u32,
 ) -> Result<(), Error> {
     let source = format!(
-        ":who: Ada\n:note: footnote:[expanded]\n\n[cols=\"2*\"]\n|===\n2*|{content}\n|===\n"
+        ":who: Ada\n:note: footnote:[expanded]\n:profiled: pass:m[footnote:[profiled]]\n\n[cols=\"2*\"]\n|===\n2*|{content}\n|===\n"
     );
     let parsed = parse(
         &source,

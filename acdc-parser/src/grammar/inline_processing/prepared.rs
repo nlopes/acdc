@@ -6,7 +6,7 @@ use super::{
 };
 
 /// Reuse requires the same source span, attributes, and substitution plan.
-/// Parsing still runs for every occurrence to register its own semantic effects.
+/// Each parse registers its own semantic effects.
 pub(crate) struct PreparedInlines<'a> {
     location: Location,
     processed: ProcessedContent<'a>,
@@ -33,26 +33,35 @@ impl<'a> PreparedInlines<'a> {
         })
     }
 
-    pub(super) fn is_empty(&self, state: &ParserState<'_>, verbatim: bool) -> bool {
+    fn is_empty(&self, state: &ParserState<'_>, verbatim: bool) -> bool {
         // Whitespace remains content inside formatting, including attribute expansions.
         self.source.is_empty()
             || (!verbatim && state.scope == ParserScope::Document && self.source.trim().is_empty())
     }
 
-    pub(super) fn source(&self) -> &'a str {
-        self.source
-    }
-
-    pub(super) fn restored_source(&self, state: &ParserState<'a>) -> &'a str {
-        if self.processed.passthroughs.is_empty() {
-            self.source
-        } else {
-            let restored = crate::grammar::passthrough_processing::replace_passthrough_placeholders(
-                self.source,
-                &self.processed,
-            );
-            state.intern_str(&restored)
-        }
+    /// This restricted alphabet cannot invoke macros, anchors, index terms, or
+    /// attributed formatting, including in speculative grammar branches. Reject
+    /// passthroughs too: their opaque placeholders can hide semantic effects.
+    pub(crate) fn is_simple_text(&self) -> bool {
+        self.processed.passthroughs.is_empty()
+            && self.source.bytes().all(|byte| {
+                byte.is_ascii_alphanumeric()
+                    || matches!(
+                        byte,
+                        b' ' | b'\t'
+                            | b'\n'
+                            | b'\r'
+                            | b'*'
+                            | b'_'
+                            | b'`'
+                            | b'.'
+                            | b','
+                            | b'!'
+                            | b'?'
+                            | b';'
+                            | b'-'
+                    )
+            })
     }
 
     pub(crate) fn parse(

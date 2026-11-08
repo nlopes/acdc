@@ -8,7 +8,7 @@ use crate::{
     DelimitedBlockType, DescriptionList, DescriptionListDefinition, DescriptionListItem,
     DescriptionListTerm, DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, Error,
     Header, Image, InlineNode, ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak,
-    Plain, Position, Section, Source, Subtitle, TableOfContents, ThematicBreak, Title,
+    Paragraph, Plain, Position, Section, Source, Subtitle, TableOfContents, ThematicBreak, Title,
     UnorderedList, Video, Warning, WarningKind,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::{
@@ -788,12 +788,28 @@ peg::parser! {
             {
                 // Block-looking lines are text in normal cells. Keep inline
                 // substitutions without invoking document block recognition.
-                let paragraph = PreparedTableCellParagraph::new(state, start, end, offset, content)?;
-                let parsed = paragraph.parse(state);
                 if let Some(prepared) = prepared.as_mut() {
+                    let mut paragraph = PreparedTableCellParagraph::new(state, start, end, offset, content)?;
+                    let parsed = paragraph.parse(state);
+                    if let Ok(block) = &parsed {
+                        paragraph.retain_simple_content(block);
+                    }
                     prepared.push(paragraph);
+                    parsed
+                } else {
+                    let (content, _) = process_inlines(
+                        state,
+                        &BlockParsingMetadata::new(state.options.compatibility_mode),
+                        start,
+                        end,
+                        offset,
+                        content,
+                    )?;
+                    Ok(Block::Paragraph(Paragraph::new(
+                        content,
+                        state.create_block_location(start, end, offset),
+                    )))
                 }
-                parsed
             }
         )*
         {

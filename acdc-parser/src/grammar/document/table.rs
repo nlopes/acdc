@@ -1,5 +1,8 @@
 //! Table blocks and cell content.
 
+#[cfg(test)]
+mod tests;
+
 use crate::{
     AttributeName, AttributeValue, Block, ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock,
     DelimitedBlockType, DocumentAttribute, DocumentAttributeAssignment, Error, HorizontalAlignment,
@@ -495,10 +498,15 @@ pub(super) fn finalize_footnotes(blocks: &mut [Block<'_>]) {
     .unwrap_or_else(|never: std::convert::Infallible| match never {});
 }
 
-/// Source preparation shared only by copies of one authored normal cell.
+/// Prepared content shared only by copies of one authored normal cell.
 pub(super) struct PreparedTableCellParagraph<'a> {
-    inlines: PreparedInlines<'a>,
+    content: PreparedCellContent<'a>,
     location: Location,
+}
+
+enum PreparedCellContent<'a> {
+    Inlines(PreparedInlines<'a>),
+    Simple(Vec<InlineNode<'a>>),
 }
 
 impl<'a> PreparedTableCellParagraph<'a> {
@@ -512,19 +520,55 @@ impl<'a> PreparedTableCellParagraph<'a> {
         let metadata = BlockParsingMetadata::new(state.options.compatibility_mode);
         let inlines = PreparedInlines::new(state, &metadata, start, end, offset, content)?;
         Ok(Self {
-            inlines,
+            content: PreparedCellContent::Inlines(inlines),
             location: state.create_block_location(start, end, offset),
         })
     }
 
     pub(super) fn parse(&self, state: &mut ParserState<'a>) -> Result<Block<'a>, Error> {
         let metadata = BlockParsingMetadata::new(state.options.compatibility_mode);
-        let content = self.inlines.parse(state, &metadata, false)?;
+        let content = match &self.content {
+            PreparedCellContent::Inlines(inlines) => inlines.parse(state, &metadata, false)?,
+            PreparedCellContent::Simple(content) => content.clone(),
+        };
         Ok(Block::Paragraph(Paragraph::new(
             content,
             self.location.clone(),
         )))
     }
+
+    pub(super) fn retain_simple_content(&mut self, block: &Block<'a>) {
+        if let PreparedCellContent::Inlines(inlines) = &self.content
+            && inlines.is_simple_text()
+            && let Block::Paragraph(paragraph) = block
+            && simple_cell_nodes(&paragraph.content)
+        {
+            self.content = PreparedCellContent::Simple(paragraph.content.clone());
+        }
+    }
+}
+
+fn simple_cell_nodes(nodes: &[InlineNode<'_>]) -> bool {
+    nodes.iter().all(|node| match node {
+        InlineNode::PlainText(_) => true,
+        InlineNode::BoldText(text) => text.id.is_none() && simple_cell_nodes(&text.content),
+        InlineNode::ItalicText(text) => text.id.is_none() && simple_cell_nodes(&text.content),
+        InlineNode::MonospaceText(text) => text.id.is_none() && simple_cell_nodes(&text.content),
+        InlineNode::Symbol(_)
+        | InlineNode::CharacterReference(_)
+        | InlineNode::RawText(_)
+        | InlineNode::VerbatimText(_)
+        | InlineNode::HighlightText(_)
+        | InlineNode::SubscriptText(_)
+        | InlineNode::SuperscriptText(_)
+        | InlineNode::CurvedQuotationText(_)
+        | InlineNode::CurvedApostropheText(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::InlineAnchor(_)
+        | InlineNode::Macro(_)
+        | InlineNode::CalloutRef(_) => false,
+    })
 }
 
 fn parse_normal_cell<'a>(
