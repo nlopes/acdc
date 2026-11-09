@@ -9,7 +9,7 @@ use std::{
 use acdc_converters_core::{
     Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, WarningSource,
 };
-use acdc_converters_dev::output::remove_lines_trailing_whitespace;
+use acdc_converters_dev::{fixtures::parse_fixture, output::remove_lines_trailing_whitespace};
 use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
 use acdc_parser::{
     AttributeValue, Block, CompatibilityMode, DelimitedBlockType, Options as ParserOptions,
@@ -1381,12 +1381,7 @@ fn run_fixture_test(
         .and_then(|s| s.to_str())
         .ok_or("Invalid fixture file name")?;
 
-    let parsed = parse_file(
-        path,
-        &ParserOptions::builder()
-            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .build()?,
-    )?;
+    let parsed = parse_fixture(path)?;
     // Require both baselines even in highlighting-enabled CI, so new inputs
     // cannot omit the plain rendering coverage.
     if support::has_highlighter(parsed.document()) {
@@ -1411,10 +1406,7 @@ fn run_fixture_test(
 }
 
 fn render_fixture(path: &Path, variant: HtmlVariant, embedded: bool) -> Result<String, Error> {
-    let parser_options = ParserOptions::builder()
-        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-        .build()?;
-    let parsed = parse_file(path, &parser_options)?;
+    let parsed = parse_fixture(path)?;
     render_fixture_document(parsed.document(), variant, embedded)
 }
 
@@ -1423,34 +1415,9 @@ fn render_fixture_document(
     variant: HtmlVariant,
     embedded: bool,
 ) -> Result<String, Error> {
-    let converter_options = ConverterOptions::builder()
-        .safe_mode(acdc_parser::SafeMode::Unsafe)
-        .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-        .build();
-    let processor = Processor::new_with_variant(
-        converter_options,
-        ParserOptions::builder()
-            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
-        variant,
-    )?;
-    let render_options = RenderOptions {
-        embedded,
-        source_dir: doc
-            .attributes()
-            .get("docdir")
-            .and_then(|value| value.text())
-            .map(PathBuf::from),
-        ..RenderOptions::default()
-    };
-
-    let mut output = Vec::new();
-    let mut warnings = Vec::new();
-    let source = WarningSource::new("html");
-    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
-
-    Ok(String::from_utf8(output)?)
+    Ok(String::from_utf8(
+        support::render_document(doc, variant, embedded)?.output,
+    )?)
 }
 
 #[rstest::rstest]

@@ -1,13 +1,10 @@
-//! Generate expected Manpage output files for integration tests.
-//!
+//! Generate expected manpage fixture output with the test adapter.
 //! Optional arguments select fixture stems; omit them to generate all fixtures.
-//!
-//! Usage:
-//!   `cargo run --example generate_manpage_fixtures`
 
-use acdc_converters_core::{Converter, GeneratorMetadata, Options};
 use acdc_converters_dev::generate_fixtures::FixtureGenerator;
-use acdc_converters_manpage::Processor;
+
+#[path = "../tests/support/mod.rs"]
+mod fixture_support;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let arguments = std::env::args().skip(1).collect::<Vec<_>>();
@@ -18,25 +15,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         generator.with_fixtures(&names)
     };
-    generator.generate(|subdir, doc, output| {
-        let embedded = subdir == Some("embedded");
-        let options = Options::builder()
-            .safe_mode(acdc_parser::SafeMode::Unsafe)
-            .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-            .embedded(embedded)
-            .build();
-        let processor = Processor::new(
-            options,
-            acdc_parser::Options::builder()
-                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .with_attributes(
-                    acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
-                ),
-        )?;
-        let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("manpage");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        processor.write_document(doc, output, None, &mut diagnostics)?;
+    generator.generate(|subdir, path, output| {
+        output.extend(fixture_support::render(path, subdir == Some("embedded"))?.output);
         Ok(())
     })
 }

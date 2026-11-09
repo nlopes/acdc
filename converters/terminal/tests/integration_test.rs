@@ -5,6 +5,8 @@ use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_terminal::{Capabilities, Processor};
 use acdc_parser::{CompatibilityMode, Options as ParserOptions, parse};
 
+mod support;
+
 type Error = Box<dyn std::error::Error>;
 
 #[test]
@@ -227,43 +229,8 @@ fn test_fixture_variants(fixture_name: &str, has_osc8_variant: bool) -> Result<(
 }
 
 fn test_fixture_variant(fixture_name: &str, osc8: bool) -> Result<(), Error> {
-    crossterm::style::force_color_output(true);
-
     let input_path = PathBuf::from("tests/fixtures/source").join(format!("{fixture_name}.adoc"));
-
-    // Parse the `AsciiDoc` input with rendering defaults
-    let parser_options = ParserOptions::builder()
-        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-        .build()?;
-    let parsed = acdc_parser::parse_file(&input_path, &parser_options)?;
-    let doc = parsed.document();
-
-    // Convert to Terminal output
-    let mut output = Vec::new();
-    let processor = Processor::new(
-        ConverterOptions::builder()
-            .safe_mode(acdc_parser::SafeMode::Unsafe)
-            .build(),
-        ParserOptions::builder()
-            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
-    )?
-    .with_terminal_width(80)
-    .with_dark_mode(true)
-    .with_terminal_capabilities(Capabilities {
-        unicode: true,
-        osc8_links: osc8,
-    });
-    let mut warnings = Vec::new();
-    let source = WarningSource::new("terminal");
-    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(
-        doc,
-        &mut output,
-        Some(input_path.as_path()),
-        None,
-        &mut diagnostics,
-    )?;
+    let rendered = support::render(&input_path, osc8)?;
 
     let plain_name = if osc8 {
         format!("{fixture_name}.no-highlighting.osc8.txt")
@@ -286,7 +253,7 @@ fn test_fixture_variant(fixture_name: &str, osc8: bool) -> Result<(), Error> {
     let expected = std::fs::read_to_string(&expected_path)?;
 
     // Compare (with normalization)
-    let actual = String::from_utf8(output)?;
+    let actual = String::from_utf8(rendered.output)?;
     let expected_normalized = remove_lines_trailing_whitespace(&expected);
     let actual_normalized = remove_lines_trailing_whitespace(&actual);
 

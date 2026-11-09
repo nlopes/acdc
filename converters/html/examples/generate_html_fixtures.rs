@@ -9,9 +9,8 @@
 
 use std::{error::Error, fs, path::Path};
 
-use acdc_converters_core::{Diagnostics, GeneratorMetadata, Options, WarningSource};
-use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
-use acdc_parser::{Options as ParserOptions, parse_file};
+use acdc_converters_dev::fixtures::{parse_fixture, source_files};
+use acdc_converters_html::HtmlVariant;
 
 #[path = "../tests/support/mod.rs"]
 mod fixture_support;
@@ -26,15 +25,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         for mode in ["embedded", "standalone"] {
             let source_dir = fixtures.join("source").join(directory).join(mode);
             let expected_dir = fixtures.join("expected").join(directory).join(mode);
-            let mut paths = source_dir
-                .read_dir()?
-                .map(|entry| entry.map(|entry| entry.path()))
-                .collect::<Result<Vec<_>, _>>()?;
-            paths.sort();
-            for path in paths {
-                if path.extension().is_none_or(|extension| extension != "adoc") {
-                    continue;
-                }
+            for path in source_files(&source_dir)? {
                 let stem = path
                     .file_stem()
                     .and_then(|stem| stem.to_str())
@@ -42,42 +33,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if !names.is_empty() && !names.iter().any(|name| name == stem) {
                     continue;
                 }
-                let parsed = parse_file(
-                    &path,
-                    &ParserOptions::builder()
-                        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                        .build()?,
-                )?;
+                let parsed = parse_fixture(&path)?;
                 let doc = parsed.document();
                 if !cfg!(feature = "highlighting") && !fixture_support::has_highlighter(doc) {
                     continue;
                 }
                 let output_path = fixture_support::expected_fixture_path(&expected_dir, stem, doc);
-                let options = Options::builder()
-                    .safe_mode(acdc_parser::SafeMode::Unsafe)
-                    .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-                    .build();
-                let processor = Processor::new_with_variant(
-                    options,
-                    ParserOptions::builder()
-                        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                        .with_attributes(
-                            acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
-                        ),
-                    variant,
-                )?;
-                let render_options = RenderOptions {
-                    embedded: mode == "embedded",
-                    source_dir: path.parent().map(Path::to_path_buf),
-                    ..RenderOptions::default()
-                };
-                let mut output = Vec::new();
-                let mut warnings = Vec::new();
-                let source = WarningSource::new("html").with_variant(variant.as_str());
-                let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-                processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
+                let rendered = fixture_support::render_document(doc, variant, mode == "embedded")?;
                 fs::create_dir_all(&expected_dir)?;
-                fs::write(&output_path, output)?;
+                fs::write(&output_path, rendered.output)?;
                 println!("Generated {}", output_path.display());
             }
         }

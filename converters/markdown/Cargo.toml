@@ -19,6 +19,7 @@ pretty_assertions.workspace = true
 pulldown-cmark = { version = "0.13.4", default-features = false }
 rstest.workspace = true
 tracing-test.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

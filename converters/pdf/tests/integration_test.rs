@@ -11,6 +11,10 @@ use acdc_converters_core::{
 };
 use acdc_converters_pdf::{PageLayout, PageMargins, PageSize, PdfOptions, Processor, ThemeFormat};
 
+mod support;
+
+use support::processor as cli_fixture_processor;
+
 type Error = Box<dyn std::error::Error>;
 
 #[test]
@@ -3851,18 +3855,6 @@ fn anchors_in_repeated_table_headers_resolve_to_the_first_page() -> Result<(), E
     Ok(())
 }
 
-fn fixture_theme(doc: acdc_parser::ast::DocumentRef<'_>) -> Option<PathBuf> {
-    doc.attributes()
-        .get("acdc-pdf-test-theme")
-        .and_then(|value| value.text())
-        .map(|name| {
-            Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("tests/fixtures/themes")
-                .join(name)
-                .with_extension("yaml")
-        })
-}
-
 fn assert_repeated_table_header_index(pdf: &[u8]) -> Result<(), Error> {
     let rendered = PdfDocument::load_mem(pdf)?;
     let pages = rendered.get_pages().keys().copied().collect::<Vec<_>>();
@@ -3898,15 +3890,6 @@ fn assert_repeated_table_header_index(pdf: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
-fn cli_fixture_processor(builder: acdc_parser::OptionsBuilder<'_>) -> Result<Processor<'_>, Error> {
-    Ok(Processor::new(
-        ConverterOptions::builder()
-            .safe_mode(acdc_parser::SafeMode::Unsafe)
-            .build(),
-        builder.with_safe_mode(acdc_parser::SafeMode::Unsafe),
-    )?)
-}
-
 fn run_typst_fixture(path: &Path) -> Result<(), Error> {
     let file_name = path
         .file_stem()
@@ -3916,29 +3899,9 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
     let expected_path = Path::new("tests/fixtures/expected")
         .join(file_name)
         .with_extension("typ");
-    let bootstrap = cli_fixture_processor(Options::builder())?;
-    let parsed = parse_file(path, bootstrap.parser_options())?;
-    let output_dir = tempfile::tempdir()?;
-    let typst_path = output_dir.path().join("actual.typ");
-    let processor = cli_fixture_processor(Options::builder().with_attributes(
-        acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
-    ))?
-    .with_pdf_options(PdfOptions {
-        emit_typst: Some(typst_path.clone()),
-        theme: fixture_theme(parsed.document()),
-        ..PdfOptions::default()
-    });
-    let mut pdf = Vec::new();
-    let mut warnings = Vec::new();
-    let source = WarningSource::new("pdf");
-    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(
-        parsed.document(),
-        &mut pdf,
-        Some(path),
-        None,
-        &mut diagnostics,
-    )?;
+    let (rendered, actual) = support::render(path)?;
+    let pdf = rendered.output;
+    let warnings = rendered.warnings;
 
     if file_name == "silent_metadata" {
         assert_eq!(
@@ -3999,7 +3962,6 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
         );
     }
     let expected = read_to_string(expected_path)?;
-    let actual = read_to_string(typst_path)?;
     pretty_assertions::assert_eq!(
         expected,
         actual,

@@ -41,6 +41,14 @@ Shared utilities in `core/`:
 
 ## Fixture regeneration
 
+- Each backend's `tests/support/mod.rs` owns fixture parsing and render configuration.
+  Both its integration harness and generator example use this adapter. Keep safe
+  mode, processor defaults, source paths, variant selection, and diagnostics there;
+  keep snapshot comparisons and semantic assertions in the tests.
+- Shared discovery and ordinary fixture parsing live in
+  `acdc_converters_dev::fixtures`. `FixtureGenerator` passes each source path to
+  the backend adapter, so backend defaults are applied before parsing when needed.
+  CommonMark and GFM fixtures both use Unsafe mode, matching their generator.
 - Generate new expectations without asking. Get approval before regenerating or changing existing expectations.
 - Record `git status --short` before regeneration.
 - Run one generator at a time. Each generator may rewrite its full fixture corpus.

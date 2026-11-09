@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
 
-use acdc_converters_core::{
-    Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, WarningSource,
-};
+use acdc_converters_core::{Converter, Diagnostics, Options as ConverterOptions, WarningSource};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_manpage::Processor;
 use acdc_parser::{CompatibilityMode, Options as ParserOptions, parse, parse_file};
+
+mod support;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -219,36 +219,13 @@ fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Resu
 
     let expected_path = expected_dir.join(file_name).with_extension("man");
 
-    // Parse the `AsciiDoc` input with rendering defaults
-    let parser_options = ParserOptions::builder()
-        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-        .build()?;
-    let parsed = parse_file(path, &parser_options)?;
-    let doc = parsed.document();
-
-    // Convert to manpage output
-    let mut output = Vec::new();
-    let converter_options = ConverterOptions::builder()
-        .safe_mode(acdc_parser::SafeMode::Unsafe)
-        .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-        .embedded(embedded)
-        .build();
-    let processor = Processor::new(
-        converter_options,
-        ParserOptions::builder()
-            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
-    )?;
-    let mut warnings = Vec::new();
-    let source = WarningSource::new("manpage");
-    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, Some(path), None, &mut diagnostics)?;
+    let rendered = support::render(path, embedded)?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
 
     // Compare (with normalization)
-    let actual = String::from_utf8(output)?;
+    let actual = String::from_utf8(rendered.output)?;
     let expected_normalized = remove_lines_trailing_whitespace(&expected);
     let actual_normalized = remove_lines_trailing_whitespace(&actual);
 

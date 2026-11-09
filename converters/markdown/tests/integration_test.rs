@@ -12,6 +12,8 @@ use pulldown_cmark::{
     Tag, TagEnd,
 };
 
+mod support;
+
 type Error = Box<dyn std::error::Error>;
 
 #[test]
@@ -506,109 +508,62 @@ fn assert_canonical_final_newline(output: &str, fixture: &str) {
     );
 }
 
+fn run_markdown_fixture(path: &Path, label: &str) -> Result<(), Error> {
+    let file_name = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or("Invalid fixture file name")?;
+    let expected_path = Path::new("tests/fixtures/expected").join(format!("{file_name}.md"));
+    let rendered = support::render(path)?;
+    let actual = String::from_utf8(rendered.output)?;
+    let expected = std::fs::read_to_string(expected_path)?;
+    assert_canonical_final_newline(&actual, file_name);
+    pretty_assertions::assert_eq!(
+        remove_lines_trailing_whitespace(&expected),
+        remove_lines_trailing_whitespace(&actual),
+        "{label} output mismatch for fixture: {file_name}",
+    );
+    Ok(())
+}
+
 /// Parses the input `.adoc` file, converts to Markdown (GFM), and compares with expected output.
 /// Excludes commonmark_* files which have their own test function.
 #[rstest::rstest]
 #[tracing_test::traced_test]
 fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> Result<(), Error> {
-    let file_name = path
+    let stem = path
         .file_stem()
         .and_then(|s| s.to_str())
         .ok_or("Invalid fixture file name")?;
-
-    // Skip commonmark_* files - they have their own test
-    if file_name.starts_with("commonmark_") {
+    if stem.starts_with("commonmark_") {
         return Ok(());
     }
-    // Match the Asciidoctor CLI's Unsafe mode.
-    let parser_options = ParserOptions::builder()
-        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-        .build()?;
-    let parsed = acdc_parser::parse_file(&path, &parser_options)?;
-    let expected_path = Path::new("tests/fixtures/expected").join(format!("{file_name}.md"));
-    let doc = parsed.document();
-
-    // Convert to Markdown (GFM variant)
-    let mut output = Vec::new();
-    let converter_options = ConverterOptions::builder()
-        .safe_mode(acdc_parser::SafeMode::Unsafe)
-        .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-        .build();
-    let processor = Processor::new(
-        converter_options,
-        ParserOptions::builder()
-            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
-    )?
-    .with_variant(MarkdownVariant::GitHubFlavored);
-    let mut warnings = Vec::new();
-    let source = WarningSource::new("markdown");
-    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, Some(&path), None, &mut diagnostics)?;
-
-    // Read expected output
-    let expected = std::fs::read_to_string(&expected_path)?;
-
-    // Compare (with normalization)
-    let actual = String::from_utf8(output)?;
-    assert_canonical_final_newline(&actual, file_name);
-    let expected_normalized = remove_lines_trailing_whitespace(&expected);
-    let actual_normalized = remove_lines_trailing_whitespace(&actual);
-
-    pretty_assertions::assert_eq!(
-        expected_normalized,
-        actual_normalized,
-        "Markdown output mismatch for fixture: {file_name}",
-    );
-    Ok(())
+    run_markdown_fixture(&path, "Markdown")
 }
 
-/// Test `CommonMark` variant separately for features that differ
+/// Test `CommonMark` variant separately for features that differ.
 #[rstest::rstest]
 #[tracing_test::traced_test]
 fn test_commonmark_variant(
     #[files("tests/fixtures/source/commonmark_*.adoc")] path: PathBuf,
 ) -> Result<(), Error> {
-    let file_name = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .ok_or("Invalid fixture file name")?;
-    // Parse the AsciiDoc input
-    let parser_options = ParserOptions::default();
-    let parsed = acdc_parser::parse_file(&path, &parser_options)?;
-    let expected_path = Path::new("tests/fixtures/expected").join(format!("{file_name}.md"));
-    let doc = parsed.document();
+    run_markdown_fixture(&path, "CommonMark")
+}
 
-    // Convert to Markdown (CommonMark variant)
-    let mut output = Vec::new();
-    let converter_options = ConverterOptions::builder()
-        .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
-        .build();
-    let processor = Processor::new(
-        converter_options,
-        ParserOptions::builder()
-            .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
-    )?
-    .with_variant(MarkdownVariant::CommonMark);
-    let mut warnings = Vec::new();
-    let source = WarningSource::new("markdown");
-    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, Some(&path), None, &mut diagnostics)?;
-
-    // Read expected output
-    let expected = std::fs::read_to_string(&expected_path)?;
-
-    // Compare (with normalization)
-    let actual = String::from_utf8(output)?;
-    assert_canonical_final_newline(&actual, file_name);
-    let expected_normalized = remove_lines_trailing_whitespace(&expected);
-    let actual_normalized = remove_lines_trailing_whitespace(&actual);
-
-    pretty_assertions::assert_eq!(
-        expected_normalized,
-        actual_normalized,
-        "CommonMark output mismatch for fixture: {file_name}",
-    );
+#[rstest::rstest]
+#[case::gfm("fixture")]
+#[case::commonmark("commonmark_fixture")]
+fn fixture_adapter_resolves_includes_with_the_generator_configuration(
+    #[case] stem: &str,
+) -> Result<(), Error> {
+    let directory = tempfile::tempdir()?;
+    std::fs::create_dir(directory.path().join("includes"))?;
+    std::fs::write(directory.path().join("includes/part.adoc"), "*Included*.\n")?;
+    let path = directory.path().join(format!("{stem}.adoc"));
+    std::fs::write(&path, "include::includes/part.adoc[]\n")?;
+    let rendered = support::render(&path)?;
+    assert_eq!(String::from_utf8(rendered.output)?, "**Included**.\n");
+    assert!(rendered.warnings.is_empty(), "{:?}", rendered.warnings);
     Ok(())
 }
 

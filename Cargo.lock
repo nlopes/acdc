@@ -102,6 +102,7 @@ dependencies = [
  "pretty_assertions",
  "pulldown-cmark",
  "rstest",
+ "tempfile",
  "thiserror",
  "tracing",
  "tracing-test",

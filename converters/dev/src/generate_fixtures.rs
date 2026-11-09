@@ -10,20 +10,16 @@
 //!
 //! // Simple: process top-level files and auto-discover subdirectories
 //! FixtureGenerator::new("manpage", "man")
-//!     .generate(|subdir, doc, output| {
-//!         let embedded = subdir == Some("embedded");
-//!         let options = Options::builder().embedded(embedded).build();
-//!         let attributes = acdc_parser::DocumentAttributes::from(doc.attributes());
-//!         let processor = Processor::new(options, ParserOptions::builder()
-//!             .with_attributes(attributes.into_inputs()))?;
-//!         processor.convert_to_writer(doc, output)?;
+//!     .generate(|subdir, source, output| {
+//!         // Use the same backend adapter as the fixture tests.
+//!         output.extend(fixture_support::render(source, subdir == Some("embedded"))?.output);
 //!         Ok(())
 //!     })?;
 //!
 //! // Variants: scope to each top-level subdirectory
 //! let gen = FixtureGenerator::new("html", "html");
 //! for variant in gen.subdirs()? {
-//!     gen.in_subdir(&variant).generate(|mode, doc, output| {
+//!     gen.in_subdir(&variant).generate(|mode, source, output| {
 //!         // variant = "html" or "html5s", mode = Some("embedded") or Some("standalone")
 //!         Ok(())
 //!     })?;
@@ -37,13 +33,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_parser::{Options, ast::DocumentRef};
 use crossterm::style::{PrintStyledContent, Stylize};
+
+use crate::fixtures::source_files;
 
 /// Builder for generating expected fixture output files.
 ///
-/// Handles directory scanning, `AsciiDoc` parsing, error reporting, and file writing.
-/// Each converter provides a closure to handle the actual conversion.
+/// Handles directory scanning, error reporting, and file writing. Each converter
+/// provides its fixture adapter to parse and render the selected source path.
 pub struct FixtureGenerator {
     converter_name: String,
     output_extension: String,
@@ -147,22 +144,22 @@ impl FixtureGenerator {
     /// Returns an error if parsing, conversion, directory creation, or file I/O fails.
     pub fn generate<F>(&self, convert_fn: F) -> Result<(), Box<dyn Error>>
     where
-        F: Fn(Option<&str>, DocumentRef<'_>, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
+        F: Fn(Option<&str>, &Path, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
     {
         let base_source = self.source_dir();
         let base_expected = self.expected_dir();
 
         // Process top-level files
-        self.generate_dir(&base_source, &base_expected, &|doc, output| {
-            convert_fn(None, doc, output)
+        self.generate_dir(&base_source, &base_expected, &|source, output| {
+            convert_fn(None, source, output)
         })?;
 
         // Process subdirectories
         for subdir in sorted_subdirs(&base_source)? {
             let input_dir = base_source.join(&subdir);
             let output_dir = base_expected.join(&subdir);
-            self.generate_dir(&input_dir, &output_dir, &|doc, output| {
-                convert_fn(Some(&subdir), doc, output)
+            self.generate_dir(&input_dir, &output_dir, &|source, output| {
+                convert_fn(Some(&subdir), source, output)
             })?;
         }
 
@@ -176,7 +173,7 @@ impl FixtureGenerator {
         convert_fn: &F,
     ) -> Result<(), Box<dyn Error>>
     where
-        F: Fn(DocumentRef<'_>, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
+        F: Fn(&Path, &mut Vec<u8>) -> Result<(), Box<dyn Error>>,
     {
         // Ensure output directory exists
         fs::create_dir_all(output_dir)?;
@@ -189,11 +186,8 @@ impl FixtureGenerator {
         let mut success_count = 0;
         let mut error_count = 0;
 
-        for entry in input_dir.read_dir()? {
-            let input_path = entry?.path();
-            if input_path.extension().is_none_or(|ext| ext != "adoc")
-                || !self.includes_fixture(&input_path)
-            {
+        for input_path in source_files(input_dir)? {
+            if !self.includes_fixture(&input_path) {
                 continue;
             }
             let Some(output_path) = input_path
@@ -208,27 +202,9 @@ impl FixtureGenerator {
                 continue;
             };
 
-            // Reference fixtures use the Asciidoctor CLI's Unsafe mode.
-            let parser_options = Options::builder()
-                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-                .build()?;
-
-            let parsed = match acdc_parser::parse_file(&input_path, &parser_options) {
-                Ok(parsed) => parsed,
-                Err(e) => {
-                    println!(
-                        "{} Error parsing {}: {e}",
-                        PrintStyledContent("❌".red()),
-                        input_path.display()
-                    );
-                    error_count += 1;
-                    continue;
-                }
-            };
-
             // Convert using the provided function
             let mut output = Vec::new();
-            if let Err(e) = convert_fn(parsed.document(), &mut output) {
+            if let Err(e) = convert_fn(&input_path, &mut output) {
                 println!(
                     "{} Error converting {} to {}: {e}",
                     PrintStyledContent("❌".red()),
@@ -297,6 +273,7 @@ mod tests {
     use std::cell::Cell;
 
     use super::*;
+    use crate::fixtures::parse_fixture;
 
     #[test]
     fn failed_conversions_return_an_error_without_overwriting_expectations()
@@ -310,18 +287,16 @@ mod tests {
         fs::write(input.join("good.adoc"), "Text.")?;
         fs::write(output.join("bad.txt"), "previous expectation")?;
 
-        let result = FixtureGenerator::new("test", "txt").generate_dir(
-            &input,
-            &output,
-            &|document, bytes| {
+        let result =
+            FixtureGenerator::new("test", "txt").generate_dir(&input, &output, &|source, bytes| {
+                let parsed = parse_fixture(source)?;
                 bytes.extend_from_slice(b"converted");
-                if document.attributes().contains("fail") {
+                if parsed.document().attributes().contains("fail") {
                     Err("conversion failed after writing partial output".into())
                 } else {
                     Ok(())
                 }
-            },
-        );
+            });
         assert!(result.is_err());
         assert_eq!(
             fs::read_to_string(output.join("bad.txt"))?,
@@ -340,10 +315,12 @@ mod tests {
         fs::create_dir_all(&input)?;
         fs::write(input.join("bad.adoc"), [0xff])?;
         let converted = Cell::new(false);
-        let result = FixtureGenerator::new("test", "txt").generate_dir(&input, &output, &|_, _| {
-            converted.set(true);
-            Ok(())
-        });
+        let result =
+            FixtureGenerator::new("test", "txt").generate_dir(&input, &output, &|source, _| {
+                let _ = parse_fixture(source)?;
+                converted.set(true);
+                Ok(())
+            });
         assert!(result.is_err());
         assert!(!converted.get());
         assert!(!output.join("bad.txt").exists());
@@ -376,27 +353,24 @@ mod tests {
         let output = temp.path().join("expected");
         fs::create_dir_all(&input)?;
         fs::write(input.join("typed.adoc"), ":control: value\n\n*Text* λ 😀.")?;
-        FixtureGenerator::new("test", "txt").generate_dir(
-            &input,
-            &output,
-            &|document: DocumentRef<'_>, bytes| {
-                assert_eq!(
-                    document
-                        .attributes()
-                        .get("control")
-                        .and_then(|value| value.text()),
-                    Some("value")
-                );
-                let block = document.blocks().next().ok_or("missing paragraph")?;
-                let acdc_parser::ast::BlockKind::Paragraph(paragraph) = block.kind() else {
-                    return Err("expected paragraph".into());
-                };
-                assert!(!paragraph.content().is_empty());
-                bytes
-                    .extend_from_slice(paragraph.source_text().ok_or("missing source")?.as_bytes());
-                Ok(())
-            },
-        )?;
+        FixtureGenerator::new("test", "txt").generate_dir(&input, &output, &|source, bytes| {
+            let parsed = parse_fixture(source)?;
+            let document = parsed.document();
+            assert_eq!(
+                document
+                    .attributes()
+                    .get("control")
+                    .and_then(|value| value.text()),
+                Some("value")
+            );
+            let block = document.blocks().next().ok_or("missing paragraph")?;
+            let acdc_parser::ast::BlockKind::Paragraph(paragraph) = block.kind() else {
+                return Err("expected paragraph".into());
+            };
+            assert!(!paragraph.content().is_empty());
+            bytes.extend_from_slice(paragraph.source_text().ok_or("missing source")?.as_bytes());
+            Ok(())
+        })?;
         assert_eq!(
             fs::read_to_string(output.join("typed.txt"))?,
             "*Text* λ 😀."
