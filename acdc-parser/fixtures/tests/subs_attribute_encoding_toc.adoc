@@ -1,0 +1,14 @@
+= Attribute encoding
+:toc:
+:label: pass:c[Research & <Development>]
+:toc-title: {label}
+
+== Section
+
+Inline control: {label}.
+
+:body-label: pass:c[Body & <value>]
+
+Body control: {body-label}.
+
+Symbols: (C) (R) (TM).

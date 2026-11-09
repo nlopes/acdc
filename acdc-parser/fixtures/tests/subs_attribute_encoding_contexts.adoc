@@ -1,0 +1,36 @@
+= Attribute presentation contexts
+:toc: macro
+:label: pass:c[Research & <Development>]
+:raw-label: pass:[<em>Raw title</em>]
+:toc-title: {label}
+:example-caption: pass:c[Example & <label>]
+:revnumber: 1.0
+:version-label: pass:c[Version & <label>]
+:revremark: pass:c[Literal &amp; and &#169;]
+
+== Section
+
+.Caption
+====
+Inside the example.
+====
+
+Ordinary: {label}.
+
+[subs=none]
+Literal: {label} (C) &#169;.
+
+[subs=attributes]
+Attributes only: {label} (C) &#169;.
+
+:toc-title: pass:c[Body &amp; and &#169;]
+
+toc::[]
+
+Body inline: {toc-title}.
+
+:toc-title: {raw-label}
+
+toc::[]
+
+Symbols: (C) (R) (TM) -> ... and \(C).

@@ -171,7 +171,14 @@ fn resolve_raw_with_context<'a>(
     }
     let plan = SubstitutionPlan::from_substitutions(&raw.subs);
     let edits = replacements(raw.content, edges, words, |range, kind| {
-        arrow_allowed(raw.content, range, kind, plan)
+        (!is_arrow(kind)
+            || raw
+                .subs
+                .iter()
+                .filter(|stage| **stage == Substitution::SpecialChars)
+                .count()
+                < 2)
+            && arrow_allowed(raw.content, range, kind, plan)
     });
     if edits.is_empty() {
         return vec![InlineNode::RawText(raw)];

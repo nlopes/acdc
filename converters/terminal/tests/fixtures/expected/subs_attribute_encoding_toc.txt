@@ -1,0 +1,11 @@
+[1m[4mAttribute encoding[0m
+[1mResearch & <Development>[0m
+Section
+
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mSection[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+Inline control: Research & <Development>.
+Body control: Body & <value>.
+Symbols: © ® ™.

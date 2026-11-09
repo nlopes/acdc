@@ -139,6 +139,6 @@
 
 #text("P25 ")#text("&amp;#169;")
 
-#raw(block: true, "C01 © <tag> &\nC02 &#169; &lt;tag&gt; &amp;\nC03 &#169; \\&#169;\nC04 &#9; &#x9; &#0000169; &#X00A9;")
+#raw(block: true, "C01 © <tag> &\nC02 &#169; <tag> &\nC03 &#169; \\&#169;\nC04 &#9; &#x9; &#0000169; &#X00A9;")
 
 #raw(block: true, "D01 pass:c,r[&#169;]")

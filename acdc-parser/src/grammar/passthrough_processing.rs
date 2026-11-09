@@ -9,15 +9,14 @@ use crate::{
     SubstitutionSpec, Symbol, SymbolKind, Warning,
     document_attribute::AssignmentState,
     model::substitution::{
-        SubstitutionPlan, character_reference_end, escape_attribute_characters,
-        resolve_passthrough_substitutions,
+        SubstitutionPlan, character_reference_end, resolve_passthrough_substitutions,
     },
     parsed::OwnedInput,
 };
 
 use super::{
     ParserState,
-    character_references::{body, whole},
+    character_references::{restore, whole},
     inlines::{inline_parser, typography::Edges},
     location_mapping::clamp_inline_node_locations,
     state::{InlineContext, InlineRules},
@@ -528,11 +527,9 @@ fn apply_raw_substitution<'a>(
 ) -> Vec<InlineNode<'a>> {
     match substitution {
         Substitution::SpecialChars => {
-            if raw.subs.last() == Some(&Substitution::SpecialChars) {
-                // Keep one deferred escape stage. Earlier escapes are literal
-                // text, including when an attribute introduced the fragment.
-                raw.content = state.intern_str(&escape_attribute_characters(raw.content));
-            } else {
+            if raw.subs.last() != Some(&Substitution::SpecialChars)
+                || raw.content.contains(['&', '<', '>'])
+            {
                 raw.subs.push(substitution.clone());
             }
             vec![InlineNode::RawText(raw)]
@@ -558,12 +555,29 @@ fn apply_raw_substitution<'a>(
     }
 }
 
+fn is_encoded_arrow(text: &str, start: usize, end: usize) -> bool {
+    match &text[start..end] {
+        "&gt;" => start > 0 && matches!(text.as_bytes().get(start - 1), Some(b'-' | b'=')),
+        "&lt;" => {
+            matches!(text.as_bytes().get(end), Some(b'-' | b'='))
+                || text[end..].starts_with("\\-&gt;")
+                || text[end..].starts_with("\\=&gt;")
+        }
+        _ => false,
+    }
+}
+
 fn restore_raw_character_references<'a>(
     raw: &Raw<'a>,
     following: &[Substitution],
     state: &ParserState<'a>,
 ) -> Option<Vec<InlineNode<'a>>> {
-    if !raw.content.contains('&') {
+    let escaping = raw
+        .subs
+        .iter()
+        .filter(|stage| **stage == Substitution::SpecialChars)
+        .count();
+    if !raw.content.contains('&') && (escaping < 2 || !raw.content.contains(['<', '>'])) {
         return None;
     }
     let mut fragments = Vec::new();
@@ -572,26 +586,37 @@ fn restore_raw_character_references<'a>(
     if !subs.contains(&Substitution::Replacements) {
         subs.push(Substitution::Replacements);
     }
-    for (amp, _) in raw.content.match_indices('&') {
+    for (amp, character) in raw
+        .content
+        .char_indices()
+        .filter(|(_, c)| matches!(c, '&' | '<' | '>'))
+    {
         if amp < cursor {
             continue;
         }
-        let Some(length) = character_reference_end(&raw.content[amp..]) else {
+        let reference_end = (character == '&')
+            .then(|| character_reference_end(&raw.content[amp..]))
+            .flatten();
+        if reference_end.is_none() && escaping > 1 {
+            push_raw_segment(&mut fragments, raw, cursor, amp, subs.clone(), state);
+            push_raw_segment(
+                &mut fragments,
+                raw,
+                amp,
+                amp + 1,
+                vec![Substitution::SpecialChars; escaping - 1],
+                state,
+            );
+            cursor = amp + 1;
+            continue;
+        }
+        let Some(length) = reference_end else {
             continue;
         };
         let end = amp + length;
         // Keep encoded arrow tokens together for deferred replacements. A prior
         // escape stage instead protects the authored reference from that rule.
-        let encoded_arrow = match &raw.content[amp..end] {
-            "&gt;" => amp > 0 && matches!(raw.content.as_bytes().get(amp - 1), Some(b'-' | b'=')),
-            "&lt;" => {
-                matches!(raw.content.as_bytes().get(end), Some(b'-' | b'='))
-                    || raw.content[end..].starts_with("\\-&gt;")
-                    || raw.content[end..].starts_with("\\=&gt;")
-            }
-            _ => false,
-        };
-        if encoded_arrow && !raw.subs.contains(&Substitution::SpecialChars) {
+        if is_encoded_arrow(raw.content, amp, end) && escaping == 0 {
             continue;
         }
         let mut start = if amp > cursor && raw.content.as_bytes().get(amp - 1) == Some(&b'\\') {
@@ -599,26 +624,13 @@ fn restore_raw_character_references<'a>(
         } else {
             amp
         };
-        let mut prepared = raw.content[start..end].to_owned();
-        for substitution in &raw.subs {
-            if *substitution == Substitution::SpecialChars {
-                prepared = escape_attribute_characters(&prepared);
-            }
-        }
-        let escaped = prepared.starts_with('\\');
-        let reference = prepared.strip_prefix('\\').unwrap_or(&prepared);
-        if reference
-            .strip_prefix("&amp;")
-            .and_then(|text| body(text, state.options.compatibility_mode))
-            .is_some()
-        {
-            prepared = if escaped {
-                reference.to_owned()
-            } else {
-                format!("&{}", &reference[5..])
-            };
-        }
-
+        let escaped = raw.content[start..end].starts_with('\\');
+        let (prepared, escaping) = restore(
+            &raw.content[start..end],
+            escaping,
+            state.options.compatibility_mode,
+        );
+        let mut prepared = prepared.into_owned();
         if prepared.starts_with('\\') {
             start = amp;
             prepared.remove(0);
@@ -626,6 +638,7 @@ fn restore_raw_character_references<'a>(
 
         let location = raw_segment_location(raw, start, end, state);
         if !escaped
+            && escaping == 0
             && !following.contains(&Substitution::SpecialChars)
             && let Some(reference) = whole(
                 state.intern_str(&prepared),
@@ -640,14 +653,8 @@ fn restore_raw_character_references<'a>(
         }
         // Retain an escaping stage for literal references, but remove it from
         // restored ones so every converter sees the same active character.
-        let mut reference_subs = Vec::new();
-        for (encoded, decoded) in [("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">")] {
-            if let Some(rest) = prepared.strip_prefix(encoded) {
-                prepared = format!("{decoded}{rest}");
-                reference_subs.push(Substitution::SpecialChars);
-                break;
-            }
-        }
+        let (prepared, escaping) = super::character_references::literal(&prepared, escaping);
+        let reference_subs = vec![Substitution::SpecialChars; escaping];
         push_raw_segment(&mut fragments, raw, cursor, start, subs.clone(), state);
         fragments.push(InlineNode::RawText(Raw {
             metadata: None,
@@ -1107,7 +1114,8 @@ fn expand_prepared_attribute<'a>(
     let mut value_cursor = 0;
     // Prepared ranges have already undergone definition-time substitutions.
     // Only ordinary attribute text still needs its header escaping here.
-    for range in resolved.passthrough_ranges() {
+    for fragment in resolved.text_fragments() {
+        let range = &fragment.range;
         if value_cursor < range.start {
             result.push(InlineNode::RawText(Raw {
                 metadata: None,
@@ -1120,7 +1128,7 @@ fn expand_prepared_attribute<'a>(
             metadata: None,
             content: state.intern_str(&value[range.clone()]),
             location: location.clone(),
-            subs: Vec::new(),
+            subs: vec![Substitution::SpecialChars; fragment.special_chars],
         }));
         value_cursor = range.end;
     }

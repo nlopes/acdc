@@ -103,6 +103,11 @@ fn document_passthroughs_expose_lowered_text_and_remaining_substitutions(
     shared(raw.substitutions());
     assert_eq!(raw.text(), "<é> *raw*");
     assert_eq!(raw.substitutions().collect::<Vec<_>>(), substitutions);
+    let part = raw.text_part();
+    shared(part);
+    shared(part.substitutions());
+    assert_eq!(part.text(), "<é> *raw*");
+    assert_eq!(part.substitutions().collect::<Vec<_>>(), substitutions);
     assert_eq!(
         source.get(raw.location().absolute_start()..=raw.location().absolute_end()),
         Some("<é> *raw*")
@@ -256,6 +261,19 @@ fn owner_reads_keep_distinct_text_policies_and_ordered_substitutions() {
     let verbatim = Verbatim::new("  *x*\n", location.clone());
     assert!(PlainRef::from(&plain).is_escaped());
     assert_eq!(PlainRef::from(&plain).text(), RawRef::from(&raw).text());
+    let part_substitutions = {
+        let part = RawRef::from(&raw).text_part();
+        assert_eq!(part.text(), "*x*");
+        part.substitutions()
+    };
+    assert_eq!(
+        part_substitutions.collect::<Vec<_>>(),
+        [
+            Substitution::SpecialChars,
+            Substitution::Replacements,
+            Substitution::SpecialChars,
+        ]
+    );
     let substitutions = {
         let read = RawRef::from(&raw);
         read.substitutions()

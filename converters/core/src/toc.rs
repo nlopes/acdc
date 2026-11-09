@@ -12,7 +12,7 @@
 //! - `macro` - Render where `toc::[]` macro appears
 
 use acdc_parser::{
-    SectionKind, TableOfContents, TocEntry,
+    DocumentAttributeValue, SectionKind, TableOfContents, TocEntry,
     ast::{AttributeValueRef, TableOfContentsRef, TocEntryRef},
 };
 
@@ -135,7 +135,7 @@ pub fn number_prefixes<'doc>(
 #[non_exhaustive]
 pub struct Config {
     placement: String,
-    title: Option<String>,
+    title: Option<DocumentAttributeValue<'static>>,
     levels: u8,
     toc_class: String,
 }
@@ -182,8 +182,9 @@ impl Config {
 
         let title = attributes
             .get("toc-title")
-            .and_then(|value| value.text())
-            .map(str::to_owned);
+            .filter(|value| value.text().is_some())
+            .cloned()
+            .map(DocumentAttributeValue::into_static);
 
         let levels = toc_macro
             .and_then(|toc| toc.attributes().get("levels"))
@@ -232,7 +233,13 @@ impl Config {
     /// Get the TOC title, if set via `:toc-title:`.
     #[must_use]
     pub fn title(&self) -> Option<&str> {
-        self.title.as_deref()
+        self.title.as_ref().and_then(DocumentAttributeValue::text)
+    }
+
+    /// Get retained title text and its output substitutions.
+    #[must_use]
+    pub const fn title_value(&self) -> Option<&DocumentAttributeValue<'static>> {
+        self.title.as_ref()
     }
 
     /// Get the number of heading levels to include (default: 2).

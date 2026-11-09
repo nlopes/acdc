@@ -126,12 +126,18 @@ pub(super) fn resolve_fragments<'a>(
                             || text[range.clone()].contains('&')
                                 && !text[range.start.max(span.start)..range.end.min(span.end)]
                                     .contains('&')
-                            || arrow_allowed(
-                                &text,
-                                range.clone(),
-                                kind,
-                                SubstitutionPlan::from_substitutions(&raw.subs),
-                            ))
+                            || raw
+                                .subs
+                                .iter()
+                                .filter(|stage| **stage == Substitution::SpecialChars)
+                                .count()
+                                < 2
+                                && arrow_allowed(
+                                    &text,
+                                    range.clone(),
+                                    kind,
+                                    SubstitutionPlan::from_substitutions(&raw.subs),
+                                ))
                 })
                 && (!late_attributes
                     || !covered.windows(2).any(|pair| {

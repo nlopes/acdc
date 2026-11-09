@@ -66,3 +66,45 @@ pub(super) fn whole(
     }
     CharacterReference::new(kind, location)
 }
+
+/// Apply reference restoration to retained escaping state. Only authored
+/// reference syntax is interpreted; output encoding belongs to converters.
+pub(super) fn restore(
+    text: &str,
+    escaping: usize,
+    mode: CompatibilityMode,
+) -> (std::borrow::Cow<'_, str>, usize) {
+    let (reference, escaped) = text.strip_prefix('\\').map_or((text, false), |s| (s, true));
+    if escaping > 0 {
+        if escaping > 1
+            || reference
+                .strip_prefix('&')
+                .and_then(|s| body(s, mode))
+                .is_some()
+        {
+            return (reference.into(), escaping - usize::from(!escaped));
+        }
+    } else if let Some(rest) = reference.strip_prefix("&amp;")
+        && body(rest, mode).is_some()
+    {
+        return if escaped {
+            (reference.into(), 0)
+        } else {
+            (format!("&{rest}").into(), 0)
+        };
+    }
+    (text.into(), escaping)
+}
+
+/// Preserve an authored basic reference as literal text when it is part of a
+/// larger token or protected from character-reference recognition.
+pub(super) fn literal(text: &str, escaping: usize) -> (std::borrow::Cow<'_, str>, usize) {
+    if escaping == 0 {
+        for (reference, character) in [("&amp;", '&'), ("&lt;", '<'), ("&gt;", '>')] {
+            if let Some(rest) = text.strip_prefix(reference) {
+                return (format!("{character}{rest}").into(), 1);
+            }
+        }
+    }
+    (text.into(), escaping)
+}

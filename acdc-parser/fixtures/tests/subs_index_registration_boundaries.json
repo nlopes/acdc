@@ -448,7 +448,10 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&gt;",
+              "value": ">",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 16,
@@ -463,7 +466,10 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&gt;",
+              "value": ">",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 16,
@@ -1202,7 +1208,10 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&gt;",
+              "value": ">",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 25,
@@ -1217,7 +1226,10 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&gt;",
+              "value": ">",
+              "substitutions": [
+                "special_chars"
+              ],
               "location": [
                 {
                   "line": 25,

@@ -1,0 +1,9 @@
+= Attribute substitution order
+:toc:
+:seed: pass:[Early & <value>]
+:toc-title: pass:a,c[{seed}]
+:seed: Late
+
+== Section
+
+Frozen title: {toc-title}. Current seed: {seed}.

@@ -24,6 +24,13 @@ const DEPRECATED_HIGHLIGHT_ATTRIBUTES: [(&str, &str); 2] = [
     ("syntect-style", "highlight-style"),
 ];
 
+fn displayed_attribute_text(attributes: DocumentAttributesRef<'_>, name: &str) -> Option<String> {
+    attributes
+        .get(name)
+        .filter(|value| value.text().is_some())
+        .map(crate::inlines::render_attribute_text)
+}
+
 fn link_css<W: Write>(
     writer: &mut W,
     attributes: DocumentAttributesRef<'_>,
@@ -44,8 +51,8 @@ fn link_css<W: Write>(
     writeln!(
         writer,
         r#"<link rel="stylesheet" href="{}/{}">"#,
-        stylesdir.trim_end_matches('/'),
-        stylesheet
+        crate::inlines::escape_attribute(stylesdir.trim_end_matches('/')),
+        crate::inlines::escape_attribute(stylesheet)
     )?;
 
     // Add supplementary styles for stem blocks
@@ -663,9 +670,10 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     /// `:revnumber:` keeps whatever it was given.
     fn render_footer_version(&mut self) -> Result<(), Error> {
         let attributes = DocumentAttributesRef::from(self.processor.document_attributes());
-        if let Some(revnumber) = attributes.get("revnumber").and_then(|value| value.text()) {
-            let label =
-                document_attribute_text(attributes.get("version-label")).unwrap_or("Version");
+        if let Some(revnumber) = displayed_attribute_text(attributes, "revnumber") {
+            let label = attributes
+                .get("version-label")
+                .map_or_else(|| "Version".into(), crate::inlines::render_attribute_text);
             writeln!(self.writer, "{label} {revnumber}<br>")?;
         }
         Ok(())
@@ -1070,8 +1078,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             writeln!(self.writer, "</h1>")?;
             // Output details div if there are authors or revision info
             let attributes = traversal.header();
-            let revnumber = attributes.get("revnumber").and_then(|value| value.text());
-            let revdate = attributes.get("revdate").and_then(|value| value.text());
+            let revnumber = displayed_attribute_text(attributes, "revnumber");
+            let revdate = displayed_attribute_text(attributes, "revdate");
             let has_revision = revnumber.is_some() || revdate.is_some();
             if header.authors().next().is_some() || has_revision {
                 writeln!(self.writer, "<div class=\"details\">")?;
@@ -1121,8 +1129,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 // explicit `:revnumber:` keeps whatever it was given. The
                 // trailing comma is emitted only when a revdate follows.
                 if let Some(revnumber) = revnumber {
-                    let label = document_attribute_text(attributes.get("version-label"))
-                        .unwrap_or("Version");
+                    let label = attributes
+                        .get("version-label")
+                        .map_or_else(|| "Version".into(), crate::inlines::render_attribute_text);
                     writeln!(
                         self.writer,
                         "<span id=\"revnumber\">{} {revnumber}{}</span>",
@@ -1133,8 +1142,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 if let Some(revdate) = revdate {
                     writeln!(self.writer, "<span id=\"revdate\">{revdate}</span>")?;
                 }
-                if let Some(revremark) = attributes.get("revremark").and_then(|value| value.text())
-                {
+                if let Some(revremark) = displayed_attribute_text(attributes, "revremark") {
                     writeln!(self.writer, "<br><span id=\"revremark\">{revremark}</span>")?;
                 }
                 writeln!(self.writer, "</div>")?;

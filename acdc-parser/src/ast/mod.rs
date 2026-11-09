@@ -219,6 +219,7 @@ mod substitutions;
 mod tables;
 #[cfg(test)]
 mod tests;
+mod text;
 mod traversal;
 mod values;
 
@@ -234,5 +235,6 @@ pub use location::{LocationRef, PositionRef};
 pub use media::{ImageRef, InlineImageRef, SourceKind, SourceRef};
 pub use substitutions::{SubstitutionEntryRef, SubstitutionSpecKind, SubstitutionSpecRef};
 pub use tables::{ColumnFormatRef, TableCellRef, TableRef, TableRowRef};
+pub use text::TextPartRef;
 pub use traversal::StructuralRef;
 pub use values::{AttributeValueRef, ElementIdRef, IdOrigin, TokensRef};

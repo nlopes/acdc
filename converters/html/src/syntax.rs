@@ -390,7 +390,16 @@ pub(crate) fn extract_text_and_callouts<'inline>(
                 result.push_str(verbatim.text());
             }
             InlineKind::Raw(raw) => {
-                result.push_str(raw.text());
+                let mut text = raw.text().to_owned();
+                // The highlighter supplies the final HTML escaping stage.
+                for _ in raw
+                    .substitutions()
+                    .filter(|stage| *stage == acdc_parser::Substitution::SpecialChars)
+                    .skip(1)
+                {
+                    text = crate::inlines::escape_pcdata(&text);
+                }
+                result.push_str(&text);
             }
             InlineKind::Plain(plain) => {
                 result.push_str(plain.text());

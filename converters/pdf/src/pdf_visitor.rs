@@ -582,10 +582,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             return Ok(());
         }
 
-        let config = TocConfig::resolve(
-            toc_macro,
-            &TraversalContext::new(self.processor.document_attributes()),
-        );
+        let config = TocConfig::resolve(toc_macro, traversal);
         let configured_placement =
             if config.placement() == "none" && self.processor.pdf_options().toc {
                 "auto"

@@ -440,8 +440,9 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "&lt;mark&gt;inserted&lt;/mark&gt;",
+          "value": "<mark>inserted</mark>",
           "substitutions": [
+            "special_chars",
             "special_chars"
           ],
           "location": [
@@ -538,8 +539,9 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "&amp;#169;",
+          "value": "&#169;",
           "substitutions": [
+            "special_chars",
             "special_chars"
           ],
           "location": [

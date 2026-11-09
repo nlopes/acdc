@@ -33,7 +33,7 @@ pub use admonition::{Admonition, AdmonitionForm, AdmonitionVariant};
 pub use anchor::{Anchor, Reference, TocEntry, UNNUMBERED_SECTION_STYLES};
 pub(crate) use attributes::RawAttributes;
 pub(crate) use attributes::{
-    AttributeInlineFragment, AttributeInlineSource, DocumentAttributeStatus,
+    AttributeInlineFragment, AttributeInlineSource, AttributeTextFragment, DocumentAttributeStatus,
     canonical_attribute_name, default_document_attribute_values,
 };
 pub use attributes::{

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking since 0.11:** `pass:c[...]` attribute text, native JSON, and raw
+  inline text retain unencoded characters. Read displayed attribute pieces through
+  `DocumentAttributeValue::parts()` and apply their retained substitutions
+  in the converter. Raw inline text offers the same view through
+  `RawRef::text_part()`. Scalar conditions and include targets now use neutral text,
+  which can differ from Asciidoctor's encoded strings. Parsed snapshot reuse
+  preserves preparation; `into_inputs()` deliberately exports fresh scalar input.
+
 - Parser contributors can select regression suites by area with `--test`, such as
   `--test substitutions` or `--test read_api`, while retaining individual nextest
   case filters and separate allocation measurements.

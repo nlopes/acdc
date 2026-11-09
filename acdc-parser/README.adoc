@@ -1168,14 +1168,36 @@ escaping runs after quotes or macros, acdc retains their structured formatting a
 instead display escaped generated markup. This rendering difference remains
 separate from resolving the requested stage order.
 
-Ordinary attribute values still follow the established Asciidoctor compatibility
-rules. `:value: *Bold*` displays literal `*Bold*` under normal substitutions;
-`subs="attributes,quotes"` lets that value introduce formatting. Text-only
-attribute definitions also retain character escaping, so `:value: <x>` exposes
-`&lt;x&gt;` in attribute text reads. These are deliberate compatibility choices,
-not SDR-5 requirements: SDR-5 proposes attribute expansion before inline grammar
-and output escaping during conversion. Formatted `pass:` attribute values retain
-the source-profile policy described in the architecture documentation.
+Ordinary attribute values follow the established substitution order.
+`:value: *Bold*` displays literal `*Bold*` under normal substitutions;
+`subs="attributes,quotes"` lets that value introduce formatting.
+
+Attribute text reads are independent of the output format. For example,
+`:label: pass:c[Research & <Development>]` retains `Research & <Development>`
+for `text()`, `write_text()`, native JSON, conditions, and include targets.
+`DocumentAttributeValue::parts()` returns ordered `ast::TextPartRef` pieces. Each
+piece exposes `text()` and `substitutions()` for its retained escaping stages.
+Use this view for displayed attributes such as TOC titles;
+use scalar text reads for paths and configuration. HTML applies these stages,
+while terminal and PDF can write the literal text. An explicit `pass:[]` span
+has no escaping stages. Aliases, body assignments, and cloned snapshots preserve
+this distinction. `RawRef::substitutions()` can retain repeated escaping stages
+without embedding generated HTML entities in `RawRef::text()`.
+`RawRef::text_part()` exposes the same view for raw inline content.
+Both views borrow existing text; attribute `text()` remains a contiguous scalar
+read. Reading pieces does not apply a formatted attribute's deferred inline rules.
+
+Definition-time escaping and later inline replacements remain separate.
+`:label: pass:c[Literal &amp; and &#169;]` displays literal `&amp;` and `&#169;`
+as a TOC title, while ordinary paragraph text `{label}` resolves them to `&`
+and `©`. `(C)` remains a semantic copyright symbol when replacements are enabled;
+converters choose its output representation. Asciidoctor stores encoded attribute
+strings instead, so scalar comparisons and include paths containing `&`, `<`,
+or `>` can differ. Native JSON shows neutral text; it is not a lossless export of
+prepared attribute profiles. Reuse parsed values with
+`Options::with_document_attributes()`; `DocumentAttributes::into_inputs()`
+intentionally discards preparation when creating fresh configuration.
+
 
 Passthrough arrow replacements honor the list order. `pass:c,r[->]` renders
 `→`; `pass:r,c[->]` and `pass:r[->]` retain `->`, matching Asciidoctor.

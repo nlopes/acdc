@@ -1,0 +1,7 @@
+= Literal entity spellings
+:toc:
+:toc-title: pass:c[Literal &amp; and &#169;]
+
+== Section
+
+Inline control: {toc-title}.

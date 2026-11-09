@@ -124,13 +124,17 @@ fn bibliography_attribute_values_do_not_become_new_passthroughs() -> Result<(), 
     for node in label.inlines() {
         if let InlineKind::Plain(plain) = node.kind() {
             text.push_str(plain.text());
-        } else if let InlineKind::CharacterReference(reference) = node.kind() {
-            text.push_str(&reference.kind().to_string());
+        } else if let InlineKind::Raw(raw) = node.kind() {
+            assert_eq!(
+                raw.substitutions().collect::<Vec<_>>(),
+                [acdc_parser::Substitution::SpecialChars]
+            );
+            text.push_str(raw.text());
         } else {
             return Err("bibliography text became markup".into());
         }
     }
-    assert_eq!(text, "+++&lt;mark&gt;raw&lt;/mark&gt;+++");
+    assert_eq!(text, "+++<mark>raw</mark>+++");
     Ok(())
 }
 

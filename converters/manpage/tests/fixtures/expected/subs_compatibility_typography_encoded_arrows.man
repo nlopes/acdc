@@ -44,7 +44,7 @@ Authored entities stay literal by default: \-> => <\- <=\&.
 .sp
 \-> => <\- <=\&.
 .sp
-\-&gt; &lt;\-\&.
+\-> <\-\&.
 .sp
 <\(-> <\(rA \(<-> \(lA> \e<\(->\&.
 .sp

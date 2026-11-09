@@ -1,6 +1,6 @@
 use crate::{
     LineBreak, Pass, PassthroughKind, Plain, Raw, StandaloneCurvedApostrophe, Substitution,
-    Verbatim,
+    Verbatim, ast::TextPartRef,
 };
 
 use super::{
@@ -45,6 +45,15 @@ impl<'doc> RawRef<'doc> {
     #[must_use]
     pub fn text(self) -> &'doc str {
         self.node.content
+    }
+
+    /// The text and remaining substitutions as a shared view.
+    ///
+    /// This is the same view returned for document attribute pieces. Identity,
+    /// roles, and source location remain available on this raw inline node.
+    #[must_use]
+    pub fn text_part(self) -> TextPartRef<'doc> {
+        TextPartRef::new(self.node.content, &self.node.subs)
     }
 
     /// Remaining substitutions in order, including repeated entries.

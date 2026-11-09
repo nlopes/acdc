@@ -52,7 +52,7 @@ P08 &#169; &lt;tag&gt; &amp;
 .sp
 P09 \(co
 .sp
-P10 &#169; &lt;tag&gt; &amp;
+P10 &#169; <tag> &
 .sp
 P11 \(co
 .sp
@@ -84,10 +84,10 @@ P23 head \(em \(co
 .sp
 P24 &amp;#169; &amp;
 .sp
-P25 &amp;#169;
+P25 &#169;
 .EX
 C01 \(co <tag> &
-C02 &#169; &lt;tag&gt; &amp;
+C02 &#169; <tag> &
 C03 &#169; \e&#169;
 C04 &#9; &#x9; &#0000169; &#X00A9;
 .EE

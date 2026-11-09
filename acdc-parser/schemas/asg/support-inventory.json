@@ -412,6 +412,28 @@
       "properties": {},
       "strict_export_group": "block-metadata"
     },
+    "src/model/attributes.rs::AttributeTextFragment": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "range",
+          "special_chars"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "source-state"
+      },
+      "properties": {
+        "range": {
+          "policy": "source-state"
+        },
+        "special_chars": {
+          "policy": "source-state"
+        }
+      },
+      "strict_export_group": "pending-content"
+    },
     "src/model/attributes.rs::AttributeValue": {
       "shape": {
         "kind": "enum",

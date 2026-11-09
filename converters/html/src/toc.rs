@@ -199,10 +199,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         placement: &str,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
-        let config = TocConfig::resolve(
-            toc_macro,
-            &TraversalContext::new(processor.document_attributes()),
-        );
+        let config = TocConfig::resolve(toc_macro, traversal);
 
         // Determine if TOC should render at this placement point
         // - "auto" placement point accepts: auto, left, right, top, bottom (all render in header)
@@ -234,17 +231,20 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             let section_numbers =
                 number_prefixes(entries.iter().copied(), &section_number_config(traversal));
 
+            let title = config
+                .title_value()
+                .map(crate::inlines::render_attribute_text);
             if semantic {
                 writeln!(
                     self.writer_mut(),
                     "<nav id=\"toc\" class=\"{toc_class}\" role=\"doc-toc\">"
                 )?;
-                let title = config.title().unwrap_or("Table of Contents");
+                let title = title.as_deref().unwrap_or("Table of Contents");
                 writeln!(self.writer_mut(), "<h2 id=\"toc-title\">{title}</h2>")?;
             } else {
                 writeln!(self.writer_mut(), "<div id=\"toc\" class=\"{toc_class}\">")?;
                 let title_class = if is_macro { " class=\"title\"" } else { "" };
-                if let Some(title) = config.title() {
+                if let Some(title) = title {
                     writeln!(
                         self.writer_mut(),
                         "<div id=\"toctitle\"{title_class}>{title}</div>"

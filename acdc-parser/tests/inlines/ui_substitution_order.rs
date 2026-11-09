@@ -66,7 +66,7 @@ fn keyboard_boundaries_follow_attribute_substitution_order(
 #[rstest::rstest]
 #[case("", "Open > Close", &["Open", "Close"])]
 #[case("", "Open,Close", &["Open", "Close"])]
-#[case("[subs=\"macros,attributes,quotes,replacements\"]\n", "Open > Close", &["Open &gt; Close"])]
+#[case("[subs=\"macros,attributes,quotes,replacements\"]\n", "Open > Close", &["Open > Close"])]
 #[case("[subs=\"macros,attributes,quotes,replacements\"]\n", "Open,Close", &["Open,Close"])]
 fn menu_boundaries_follow_attribute_substitution_order(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,

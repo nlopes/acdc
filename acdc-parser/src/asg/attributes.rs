@@ -5,7 +5,7 @@ use crate::{DocumentAttribute, DocumentAttributeAssignment, DocumentAttributeVal
 use super::{Error, Profile, pointer, unsupported};
 
 pub(super) fn value(attribute: &DocumentAttributeValue<'_>, path: &str) -> Result<Value, Error> {
-    if !attribute.inline_fragments().is_empty() || !attribute.passthrough_ranges().is_empty() {
+    if !attribute.inline_fragments().is_empty() || !attribute.text_fragments().is_empty() {
         return Err(unsupported(
             path,
             "attribute content protection cannot be flattened into a scalar string",

@@ -4,12 +4,12 @@ use crate::{
     Anchor, AttributeValue, CompatibilityMode, Error, IndexTermKind, IndexTermRelationship,
     InlineMacro, InlineNode, Location, PassthroughKind, Plain, ProcessedContent, Source,
     Substitution,
-    model::substitution::{SubstitutionPlan, character_reference_end, escape_attribute_characters},
+    model::substitution::{SubstitutionPlan, character_reference_end},
 };
 
 use super::{
     ParserState,
-    character_references::{body, whole},
+    character_references::{restore, whole},
     marked_text::map_marked_text_locations,
     passthrough_processing::replace_passthrough_placeholders,
     utf8_utils::{self, RoundDirection, snap_to_boundary},
@@ -803,84 +803,52 @@ fn raw_tag_end(text: &str) -> Option<usize> {
     None
 }
 
-fn restore_attribute_character_reference(text: &str, mode: CompatibilityMode) -> Cow<'_, str> {
-    let (reference, escaped) = text
-        .strip_prefix('\\')
-        .map_or((text, false), |text| (text, true));
-    if reference
-        .strip_prefix("&amp;")
-        .and_then(|text| body(text, mode))
-        .is_some()
-    {
-        if escaped {
-            reference.to_owned().into()
-        } else {
-            format!("&{}", &reference[5..]).into()
-        }
-    } else {
-        text.into()
-    }
-}
-
 fn attribute_fragment_content(
     text: &str,
     plan: SubstitutionPlan,
     mode: CompatibilityMode,
-    document_value: bool,
+    mut escaping: usize,
 ) -> (Cow<'_, str>, Vec<Substitution>) {
-    let escape = plan.precedes(&Substitution::Attributes, &Substitution::SpecialChars);
-    let restore = text.strip_prefix('\\').unwrap_or(text).starts_with('&')
-        && plan.precedes(&Substitution::Attributes, &Substitution::Replacements);
-    let restore_first = restore
-        && (!escape || plan.precedes(&Substitution::Replacements, &Substitution::SpecialChars));
-    let mut content = if document_value {
-        Cow::Owned(escape_attribute_characters(text))
-    } else {
-        Cow::Borrowed(text)
-    };
-    if restore_first
-        && let Cow::Owned(restored) = restore_attribute_character_reference(&content, mode)
-    {
-        content = Cow::Owned(restored);
+    let mut content = Cow::Borrowed(text);
+    for stage in plan.after(&Substitution::Attributes) {
+        match stage {
+            Substitution::SpecialChars => escaping += 1,
+            Substitution::Replacements
+                if text.strip_prefix('\\').unwrap_or(text).starts_with('&') =>
+            {
+                let (restored, remaining) = restore(&content, escaping, mode);
+                if let Cow::Owned(restored) = restored {
+                    content = Cow::Owned(restored);
+                } else if content.starts_with('\\') && !restored.starts_with('\\') {
+                    content = Cow::Owned(restored.into_owned());
+                }
+                escaping = remaining;
+            }
+            Substitution::Replacements if escaping > 1 => escaping -= 1,
+            Substitution::Attributes
+            | Substitution::Replacements
+            | Substitution::Macros
+            | Substitution::PostReplacements
+            | Substitution::Normal
+            | Substitution::Verbatim
+            | Substitution::Quotes
+            | Substitution::Callouts => {}
+        }
     }
-    if escape {
-        content = escape_attribute_characters(&content).into();
-    }
-    if restore
-        && !restore_first
-        && let Cow::Owned(restored) = restore_attribute_character_reference(&content, mode)
-    {
-        content = Cow::Owned(restored);
-    }
-    // Prepared attribute text can contain escaped characters. Keep one
-    // escaping stage on the character so every backend gets its meaning.
-    if (text.strip_prefix('\\').unwrap_or(text).starts_with('&') || escape)
-        && (content.contains("&amp;") || content.contains("&lt;") || content.contains("&gt;"))
-    {
-        (
-            content
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&amp;", "&")
-                .into(),
-            vec![Substitution::SpecialChars],
-        )
-    } else {
-        (content, Vec::new())
-    }
+    (content, vec![Substitution::SpecialChars; escaping])
 }
 
 fn attribute_fragment<'a>(
     text: &str,
-    document_value: bool,
+    escaping: usize,
     location: Location,
     ctx: &LocationMappingContext<'_, 'a>,
 ) -> InlineNode<'a> {
-    let (content, subs) = attribute_fragment_content(
+    let (content, mut subs) = attribute_fragment_content(
         text,
         ctx.processed.attribute_substitutions,
         ctx.state.options.compatibility_mode,
-        document_value,
+        escaping,
     );
     let content = ctx.state.intern_str(&content);
     let restored = subs.is_empty()
@@ -899,15 +867,29 @@ fn attribute_fragment<'a>(
     };
     reference.map_or_else(
         || {
+            let (content, escaping) = super::character_references::literal(content, subs.len());
+            subs.resize(escaping, Substitution::SpecialChars);
             InlineNode::RawText(crate::Raw {
                 metadata: None,
-                content,
+                content: ctx.state.intern_str(&content),
                 location,
                 subs,
             })
         },
         InlineNode::CharacterReference,
     )
+}
+
+fn attribute_character_end(text: &str, offset: usize, raw: bool) -> Option<usize> {
+    let tail = &text[offset..];
+    let length = if tail.starts_with('<') && raw {
+        raw_tag_end(tail)
+    } else if tail.starts_with('&') {
+        character_reference_end(tail)
+    } else {
+        None
+    };
+    length.map(|length| offset + length)
 }
 
 fn attribute_fragments<'a>(
@@ -925,10 +907,10 @@ fn attribute_fragments<'a>(
         .processed
         .source_map
         .document_attribute_ranges(ctx.base_location.absolute_start);
-    let raw_ranges = ctx
+    let prepared_ranges = ctx
         .processed
         .source_map
-        .raw_attribute_ranges(ctx.base_location.absolute_start);
+        .prepared_attribute_ranges(ctx.base_location.absolute_start);
     if attribute_ranges.is_empty() {
         return Ok(None);
     }
@@ -947,19 +929,13 @@ fn attribute_fragments<'a>(
         }
         // Keep raw tags and character references intact. Highlighting can then
         // preserve tags, and non-HTML converters can decode character references.
-        let raw = raw_ranges
-            .iter()
-            .any(|range| range.contains(&(plain.location.absolute_start + offset)));
-        let raw_end = if character == '<' {
-            raw.then(|| raw_tag_end(&plain.content[offset..]))
-                .flatten()
-                .map(|length| offset + length)
-        } else if character == '&' {
-            character_reference_end(&plain.content[offset..]).map(|length| offset + length)
-        } else {
-            None
-        }
-        .filter(|end| {
+        let prepared = prepared_ranges.iter().find(|fragment| {
+            fragment
+                .range
+                .contains(&(plain.location.absolute_start + offset))
+        });
+        let raw = prepared.is_some_and(|fragment| fragment.special_chars == 0);
+        let raw_end = attribute_character_end(plain.content, offset, raw).filter(|end| {
             attribute_ranges.iter().any(|range| {
                 range.contains(&(plain.location.absolute_start + offset))
                     && plain.location.absolute_start + end <= range.end
@@ -997,9 +973,16 @@ fn attribute_fragments<'a>(
         );
         fragments.push(attribute_fragment(
             &plain.content[offset..end],
-            !raw && document_ranges
-                .iter()
-                .any(|range| range.contains(&(plain.location.absolute_start + offset))),
+            prepared.map_or_else(
+                || {
+                    usize::from(
+                        document_ranges
+                            .iter()
+                            .any(|range| range.contains(&(plain.location.absolute_start + offset))),
+                    )
+                },
+                |fragment| fragment.special_chars,
+            ),
             location,
             ctx,
         ));

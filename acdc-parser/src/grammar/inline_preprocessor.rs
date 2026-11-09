@@ -497,7 +497,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
         let mut value = String::new();
         let _ = resolved.write_text(&mut value);
-        let raw = resolved.passthrough_ranges();
+        let raw = resolved.text_fragments();
         let kind = if document_attributes.is_document_value(attribute_name) {
             ProcessedKind::DocumentAttribute(raw.into())
         } else if raw.is_empty() {
@@ -576,8 +576,8 @@ struct SourceMapOrigin {
 pub(super) enum ProcessedKind {
     Attribute,
     // Declaration values have a character-escaping stage before body expansion.
-    DocumentAttribute(Box<[Range<usize>]>),
-    RawAttribute(Box<[Range<usize>]>),
+    DocumentAttribute(Box<[crate::model::AttributeTextFragment]>),
+    RawAttribute(Box<[crate::model::AttributeTextFragment]>),
     Escape,
     /// Removed leading whitespace maps to the first retained byte.
     Indentation,
@@ -733,7 +733,10 @@ impl SourceMap {
         ranges
     }
 
-    pub(super) fn raw_attribute_ranges(&self, original_start: usize) -> Vec<Range<usize>> {
+    pub(super) fn prepared_attribute_ranges(
+        &self,
+        original_start: usize,
+    ) -> Vec<crate::model::AttributeTextFragment> {
         let mut original_cursor = original_start;
         let mut processed_cursor = 0;
         let mut ranges = Vec::new();
@@ -747,7 +750,11 @@ impl SourceMap {
             {
                 ranges.extend(
                     raw.iter()
-                        .map(|range| range.start + processed_cursor..range.end + processed_cursor),
+                        .map(|fragment| crate::model::AttributeTextFragment {
+                            range: fragment.range.start + processed_cursor
+                                ..fragment.range.end + processed_cursor,
+                            special_chars: fragment.special_chars,
+                        }),
                 );
             }
             processed_cursor += replacement.byte_len;

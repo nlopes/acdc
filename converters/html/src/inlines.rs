@@ -25,8 +25,8 @@ use acdc_parser::{
         ContentRef, CrossReferenceRef, CurvedApostropheRef, CurvedQuotationRef, ElementIdRef,
         FootnoteRef, HighlightRef, IconRef, IndexTermRef, IndexTermRelationshipRef, InlineImageRef,
         InlineKind, InlineRef, ItalicRef, KeyboardRef, LinkRef, MailtoRef, MenuRef, MonospaceRef,
-        PassRef, PlainRef, RawRef, StemRef, SubscriptRef, SuperscriptRef, TokensRef, UrlRef,
-        VerbatimRef,
+        PassRef, PlainRef, RawRef, StemRef, SubscriptRef, SuperscriptRef, TextPartRef, TokensRef,
+        UrlRef, VerbatimRef,
     },
 };
 
@@ -58,7 +58,7 @@ fn replacements() -> Replacements<'static> {
     replacements
 }
 
-fn passthrough_substitution_text(raw: RawRef<'_>, text_boundaries: TextBoundaries) -> String {
+fn passthrough_substitution_text(raw: TextPartRef<'_>, text_boundaries: TextBoundaries) -> String {
     let mut text = raw.text().to_owned();
     let mut applied_special_chars = false;
 
@@ -68,6 +68,9 @@ fn passthrough_substitution_text(raw: RawRef<'_>, text_boundaries: TextBoundarie
                 // Keep source arrow characters until replacements have run.
                 // Ampersands still follow the requested stage order so authored
                 // references and generated typography escape independently.
+                if applied_special_chars {
+                    text = text.replace('>', "&gt;").replace('<', "&lt;");
+                }
                 text = text.replace('&', "&amp;");
                 applied_special_chars = true;
             }
@@ -96,6 +99,19 @@ fn passthrough_substitution_text(raw: RawRef<'_>, text_boundaries: TextBoundarie
     } else {
         text
     }
+}
+
+/// Render an attribute's text pieces with their retained output substitutions.
+pub(crate) fn render_attribute_text(value: &acdc_parser::DocumentAttributeValue<'_>) -> String {
+    let mut output = String::new();
+    for part in value.parts() {
+        let mut text = part.text().to_owned();
+        for _ in part.substitutions() {
+            text = escape_pcdata(&text);
+        }
+        output.push_str(&text);
+    }
+    output
 }
 
 /// Escape a URL for a quoted HTML attribute.
@@ -593,7 +609,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     }
 
     fn render_raw(&mut self, r: RawRef<'_>) -> Result<(), Error> {
-        let mut text = passthrough_substitution_text(r, self.text_boundaries());
+        let mut text = passthrough_substitution_text(r.text_part(), self.text_boundaries());
         let id = r.id().filter(|_| !self.processor.xref_guard.is_resolving());
         if id.is_some() || !r.roles().is_empty() {
             text = format!(

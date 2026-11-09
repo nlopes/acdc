@@ -853,8 +853,9 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "-&gt;",
+          "value": "->",
           "substitutions": [
+            "special_chars",
             "special_chars"
           ],
           "location": [
@@ -889,8 +890,9 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "&lt;-",
+          "value": "<-",
           "substitutions": [
+            "special_chars",
             "special_chars"
           ],
           "location": [

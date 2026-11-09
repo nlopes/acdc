@@ -2130,7 +2130,7 @@ fn passthrough_character_references_preserve_visible_pdf_code() -> Result<(), Er
             .join(" ");
         for expected in [
             "H01 © <tag> &",
-            "H02 &#169; &lt;tag&gt; &amp;",
+            "H02 &#169; <tag> &",
             r"H03 &#169; \&#169;",
             "H04 &#9; &#x9; &#0000169; &#X00A9;",
         ] {

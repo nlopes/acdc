@@ -43,7 +43,7 @@
     "manvolnum": "1",
     "name": "Early",
     "revdate": "2026-10-01",
-    "value": "&lt;tag&gt; &amp; {name}"
+    "value": "<tag> & {name}"
   },
   "blocks": [
     {

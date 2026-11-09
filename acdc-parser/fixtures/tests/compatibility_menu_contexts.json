@@ -175,12 +175,9 @@
                 ]
               },
               {
-                "name": "raw",
+                "name": "charref",
                 "type": "string",
-                "value": ">",
-                "substitutions": [
-                  "special_chars"
-                ],
+                "value": "&gt;",
                 "location": [
                   {
                     "line": 8,

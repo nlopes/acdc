@@ -68,7 +68,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             if let Some(number) = section.number() {
                 let prefix =
                     part_number_prefix(number, string_attribute(traversal, "part-signifier"));
-                write!(self.writer, "{prefix}")?;
+                write!(self.writer, "{}", crate::inlines::escape_pcdata(&prefix))?;
             }
         } else {
             if processor.variant() == HtmlVariant::Semantic {
@@ -92,7 +92,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                         .flatten();
                     section_number_prefix(number, signifier)
                 };
-                write!(self.writer, "{prefix}")?;
+                write!(self.writer, "{}", crate::inlines::escape_pcdata(&prefix))?;
             }
         }
 

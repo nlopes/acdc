@@ -1500,8 +1500,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&lt;",
+              "value": "<",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -1536,8 +1537,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&gt;",
+              "value": ">",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -1572,8 +1574,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;",
+              "value": "&",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -2535,8 +2538,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;#169;",
+              "value": "&#169;",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -2760,8 +2764,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&lt;",
+              "value": "<",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -2796,8 +2801,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&gt;",
+              "value": ">",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -2832,8 +2838,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;",
+              "value": "&",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [

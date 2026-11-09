@@ -2392,7 +2392,7 @@
           "value": "-",
           "substitutions": [
             "special_chars",
-            "replacements"
+            "special_chars"
           ],
           "location": [
             {
@@ -2406,9 +2406,12 @@
           ]
         },
         {
-          "name": "charref",
+          "name": "raw",
           "type": "string",
-          "value": "&gt;",
+          "value": ">",
+          "substitutions": [
+            "special_chars"
+          ],
           "location": [
             {
               "line": 84,

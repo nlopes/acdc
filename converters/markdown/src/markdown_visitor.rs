@@ -441,7 +441,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         if let Some(content) = attribute_content(attributes, "caption") {
             self.write_content(traversal, content)?;
         } else if let Some(caption) = self.processor.caption_prefix(attributes, fallback) {
-            write!(self.writer, "{}", Self::escape_markdown(&caption))?;
+            write!(self.writer, "{}", Self::escape_attribute_text(&caption))?;
         }
         if let Some(title) = title {
             self.write_content(traversal, title)?;
@@ -1077,21 +1077,21 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         let has_date = date.is_some();
         if let Some(number) = number {
             if let Some(label) = label {
-                write!(self.writer, "{} ", Self::escape_markdown(&label))?;
+                write!(self.writer, "{} ", Self::escape_attribute_text(&label))?;
             }
-            write!(self.writer, "{}", Self::escape_markdown(&number))?;
+            write!(self.writer, "{}", Self::escape_attribute_text(&number))?;
             if has_date {
                 write!(self.writer, ", ")?;
             }
         }
         if let Some(date) = date {
-            write!(self.writer, "{}", Self::escape_markdown(&date))?;
+            write!(self.writer, "{}", Self::escape_attribute_text(&date))?;
         }
         if has_number || has_date {
             writeln!(self.writer)?;
         }
         if let Some(remark) = remark {
-            writeln!(self.writer, "{}", Self::escape_markdown(&remark))?;
+            writeln!(self.writer, "{}", Self::escape_attribute_text(&remark))?;
         }
         Ok(())
     }
@@ -1261,16 +1261,12 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         }
 
         let processor = self.processor;
-        let config = TocConfig::resolve(
-            toc_macro,
-            &TraversalContext::new(processor.document_attributes()),
-        );
-        let title = config.title().or_else(|| {
-            (processor.document_attributes().get("toc-title").is_none())
-                .then_some("Table of Contents")
-        });
+        let config = TocConfig::resolve(toc_macro, traversal);
+        let title = config
+            .title()
+            .or_else(|| (traversal.get("toc-title").is_none()).then_some("Table of Contents"));
         if let Some(title) = title.filter(|title| !title.is_empty()) {
-            writeln!(self.writer, "## {}", Self::escape_markdown(title))?;
+            writeln!(self.writer, "## {}", Self::escape_attribute_text(title))?;
             writeln!(self.writer)?;
         }
 
@@ -3078,6 +3074,12 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             }
         }
         Ok(())
+    }
+
+    // Attribute presentation is literal text; entity syntax must not become
+    // a Markdown character reference at this output boundary.
+    fn escape_attribute_text(text: &str) -> String {
+        Self::escape_markdown(&text.replace('&', "&amp;"))
     }
 
     /// Preserve literal text in Markdown prose.

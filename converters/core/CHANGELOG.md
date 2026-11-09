@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- TOC configuration preserves attribute presentation rules. Custom converters can
+  use `toc::Config::title_value()` for target-specific escaping; `title()` returns
+  literal text, including authored entity spellings.
+
 - **Breaking:** `link::strip_uri_scheme` is internal. Use
   `link::link_fallback(target, true)` to hide a URI scheme in displayed link text.
 

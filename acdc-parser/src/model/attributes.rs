@@ -8,6 +8,7 @@ use serde::{
 
 use crate::{
     Error, SourceLocation,
+    ast::TextPartRef,
     document_attribute::{
         AssignmentDecision, AssignmentRequest, AssignmentState, AttributeLock, AttributeOrigin,
         MAX_INCLUDE_DEPTH_ATTR, RawAttributeValue, assignment_decision, default_value,
@@ -41,7 +42,7 @@ enum ValueKind<'a> {
     // These fragments are already prepared for insertion, including through aliases.
     Passthrough {
         text: Cow<'a, str>,
-        ranges: Box<[Range<usize>]>,
+        ranges: Box<[AttributeTextFragment]>,
         fragments: Box<[AttributeInlineFragment]>,
     },
     Presence,
@@ -49,6 +50,12 @@ enum ValueKind<'a> {
         value: i128,
         source: Option<Cow<'a, str>>,
     },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct AttributeTextFragment {
+    pub(crate) range: Range<usize>,
+    pub(crate) special_chars: usize,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -108,9 +115,64 @@ impl<'a> DocumentAttributeValue<'a> {
     ///
     /// Presence and generated integer defaults have no supplied text. This does
     /// not remove surrounding quotes or undo definition-time substitution.
+    /// Characters remain unencoded; [`Self::parts`] retains the escaping
+    /// information needed when displaying this value.
     #[must_use]
     pub fn text(&self) -> Option<&str> {
         self.stored_text().map(AsRef::as_ref)
+    }
+
+    /// Read ordered text pieces with their remaining output substitutions.
+    ///
+    /// Ordinary declaration text retains special-character escaping. Explicit
+    /// passthrough spans retain their own escaping stages, including none.
+    /// Pieces borrow the contiguous text returned by [`Self::text`] without
+    /// allocating. An absent or empty text value produces no pieces.
+    ///
+    /// This read does not apply inline parsing rules retained by formatted
+    /// attributes. Those rules take effect when the attribute is used in content.
+    /// Scalar configuration consumers should use [`Self::text`].
+    ///
+    /// ```
+    /// use acdc_parser::{Options, Substitution, parse};
+    ///
+    /// let parsed = parse(
+    ///     ":literal: pass:c[<em>Literal</em>]\n:raw: pass:[<em>Raw</em>]\n:combined: {literal}{raw}\n\nBody.",
+    ///     &Options::default(),
+    /// )?;
+    /// let value = parsed.document().attributes().get("combined").unwrap();
+    /// assert_eq!(value.text(), Some("<em>Literal</em><em>Raw</em>"));
+    /// let parts: Vec<_> = value.parts()
+    ///     .map(|part| (part.text(), part.substitutions().collect::<Vec<_>>()))
+    ///     .collect();
+    /// assert_eq!(parts, [
+    ///     ("<em>Literal</em>", vec![Substitution::SpecialChars]),
+    ///     ("<em>Raw</em>", vec![]),
+    /// ]);
+    /// # Ok::<(), acdc_parser::Error>(())
+    /// ```
+    pub fn parts(&self) -> impl Iterator<Item = TextPartRef<'_>> + Send + Sync {
+        let text = self.text().unwrap_or_default();
+        let mut fragments = self.text_fragments().iter().peekable();
+        let mut cursor = 0;
+        std::iter::from_fn(move || {
+            if cursor == text.len() {
+                return None;
+            }
+            let (end, special_chars) = if let Some(fragment) = fragments.peek() {
+                if cursor < fragment.range.start {
+                    (fragment.range.start, 1)
+                } else {
+                    let fragment = fragments.next()?;
+                    (fragment.range.end, fragment.special_chars)
+                }
+            } else {
+                (text.len(), 1)
+            };
+            let part = TextPartRef::with_special_chars(&text[cursor..end], special_chars);
+            cursor = end;
+            Some(part)
+        })
     }
 
     /// Write the attribute-reference representation without allocating.
@@ -207,14 +269,17 @@ impl<'a> DocumentAttributeValue<'a> {
         }
     }
 
-    pub(crate) fn passthrough_ranges(&self) -> &[Range<usize>] {
+    pub(crate) fn text_fragments(&self) -> &[AttributeTextFragment] {
         match &self.0 {
             ValueKind::Passthrough { ranges, .. } => ranges,
             ValueKind::Text(_) | ValueKind::Presence | ValueKind::Integer { .. } => &[],
         }
     }
 
-    pub(super) fn with_passthrough_ranges(text: Cow<'a, str>, ranges: Vec<Range<usize>>) -> Self {
+    pub(super) fn with_passthrough_ranges(
+        text: Cow<'a, str>,
+        ranges: Vec<AttributeTextFragment>,
+    ) -> Self {
         Self::with_inline_fragments(text, ranges, Vec::new())
     }
 
@@ -227,7 +292,7 @@ impl<'a> DocumentAttributeValue<'a> {
 
     pub(super) fn with_inline_fragments(
         text: Cow<'a, str>,
-        ranges: Vec<Range<usize>>,
+        ranges: Vec<AttributeTextFragment>,
         mut fragments: Vec<AttributeInlineFragment>,
     ) -> Self {
         if !fragments.is_empty() {
@@ -235,11 +300,13 @@ impl<'a> DocumentAttributeValue<'a> {
             // Protect those raw spans from the surrounding use-site rules.
             for range in &ranges {
                 if !fragments.iter().any(|fragment| {
-                    fragment.range.start <= range.start && fragment.range.end >= range.end
+                    fragment.range.start <= range.range.start
+                        && fragment.range.end >= range.range.end
                 }) {
                     fragments.push(AttributeInlineFragment {
-                        range: range.clone(),
-                        substitutions: Box::default(),
+                        range: range.range.clone(),
+                        substitutions: vec![crate::Substitution::SpecialChars; range.special_chars]
+                            .into_boxed_slice(),
                         source: None,
                     });
                 }

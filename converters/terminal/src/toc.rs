@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
-    Converter, TraversalContext,
+    TraversalContext,
     section::book_chapter_signifier,
     toc::{Config as TocConfig, NumberingConfig, entry_level, has_parts, number_prefixes},
 };
@@ -105,10 +105,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         };
 
         let processor = self.processor;
-        let config = TocConfig::resolve(
-            toc_macro,
-            &TraversalContext::new(processor.document_attributes()),
-        );
+        let config = TocConfig::resolve(toc_macro, traversal);
         let should_render = match placement {
             "auto" => matches!(
                 config.placement(),

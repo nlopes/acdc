@@ -6,19 +6,18 @@ use acdc_parser::{
 
 type Error = Box<dyn std::error::Error>;
 
-// Header values are not serialized in fixture JSON.
 #[test]
 fn document_attribute_text_pass_stores_definition_time_results() -> Result<(), Error> {
     let source = include_str!("../../fixtures/tests/subs_document_attribute_text_pass.adoc");
     let parsed = parse(source, &Options::default())?;
     for (name, expected) in [
         ("a", "Early *Bold*"),
-        ("c", "&lt;x&gt; &amp; {name} *Bold*"),
-        ("ac", "&lt;raw&gt; &amp;"),
+        ("c", "<x> & {name} *Bold*"),
+        ("ac", "<raw> &"),
         ("ca", "<raw> &"),
-        ("normal-a", "&lt;ordinary&gt; &amp;"),
-        ("normal-ac", "&amp;lt;ordinary&amp;gt; &amp;amp;"),
-        ("normal-ca", "&lt;ordinary&gt; &amp;"),
+        ("normal-a", "<ordinary> &"),
+        ("normal-ac", "<ordinary> &"),
+        ("normal-ca", "<ordinary> &"),
         ("duplicate", "<raw> &"),
         ("none", "{name} &"),
         ("escaped", r"{name} {name} {name} \{name}"),
@@ -27,10 +26,10 @@ fn document_attribute_text_pass_stores_definition_time_results() -> Result<(), E
         ("empty", ""),
         ("missing", "{not-set}"),
         ("brackets", r"Early a\]b"),
-        ("verbatim", "&lt;x&gt; &amp; {name}"),
-        ("long-verbatim", "&lt;x&gt; &amp; {name}"),
-        ("entities", "&amp;#169; &amp;amp;"),
-        ("unicode", "café &lt;α&gt; &amp;"),
+        ("verbatim", "<x> & {name}"),
+        ("long-verbatim", "<x> & {name}"),
+        ("entities", "&#169; &amp;"),
+        ("unicode", "café <α> &"),
         ("character", "<>&"),
     ] {
         assert_eq!(

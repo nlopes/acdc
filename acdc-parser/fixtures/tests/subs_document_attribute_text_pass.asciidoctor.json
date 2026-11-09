@@ -32,19 +32,19 @@
   },
   "attributes": {
     "a": "Early *Bold*",
-    "ac": "&lt;raw&gt; &amp;",
-    "alias": "prefix &lt;x&gt; &amp; {name} *Bold* / Early *Bold*",
+    "ac": "<raw> &",
+    "alias": "prefix <x> & {name} *Bold* / Early *Bold*",
     "brackets": "Early a\\]b",
-    "c": "&lt;x&gt; &amp; {name} *Bold*",
+    "c": "<x> & {name} *Bold*",
     "ca": "<raw> &",
     "character": "<>&",
     "doctype": "manpage",
     "duplicate": "<raw> &",
     "empty": "",
-    "entities": "&amp;#169; &amp;amp;",
+    "entities": "&#169; &amp;",
     "escaped": "{name} {name} {name} \\{name}",
-    "long": "Early &lt;x&gt; &amp;",
-    "long-verbatim": "&lt;x&gt; &amp; {name}",
+    "long": "Early <x> &",
+    "long-verbatim": "<x> & {name}",
     "manmanual": "Attribute tests",
     "manname": "attribute-text-pass",
     "manname-title": "Name",
@@ -57,15 +57,15 @@
     "nested": "pass:[Early]",
     "nested-c": "pass:c[Early]",
     "none": "{name} &",
-    "none-c": "&lt;&amp;&gt;",
-    "normal-a": "&lt;ordinary&gt; &amp;",
-    "normal-ac": "&amp;lt;ordinary&amp;gt; &amp;amp;",
-    "normal-ca": "&lt;ordinary&gt; &amp;",
+    "none-c": "<&>",
+    "normal-a": "<ordinary> &",
+    "normal-ac": "<ordinary> &",
+    "normal-ca": "<ordinary> &",
     "ordinary": "<ordinary> &",
     "raw": "<raw> &",
     "revdate": "2026-10-01",
-    "unicode": "café &lt;α&gt; &amp;",
-    "verbatim": "&lt;x&gt; &amp; {name}"
+    "unicode": "café <α> &",
+    "verbatim": "<x> & {name}"
   },
   "blocks": [
     {
@@ -1668,12 +1668,9 @@
               ]
             },
             {
-              "name": "raw",
+              "name": "charref",
               "type": "string",
-              "value": "&",
-              "substitutions": [
-                "special_chars"
-              ],
+              "value": "&amp;",
               "location": [
                 {
                   "line": 73,
@@ -2514,8 +2511,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&lt;",
+              "value": "<",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -2547,8 +2545,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&gt;",
+              "value": ">",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -2580,8 +2579,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;",
+              "value": "&",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3266,8 +3266,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&lt;",
+              "value": "<",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3299,8 +3300,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&gt;",
+              "value": ">",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3332,8 +3334,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;",
+              "value": "&",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3455,8 +3458,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&lt;",
+              "value": "<",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3488,8 +3492,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&gt;",
+              "value": ">",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3521,8 +3526,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;",
+              "value": "&",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3554,8 +3560,10 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;lt;",
+              "value": "<",
               "substitutions": [
+                "special_chars",
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3587,8 +3595,10 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;gt;",
+              "value": ">",
               "substitutions": [
+                "special_chars",
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3620,8 +3630,10 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;amp;",
+              "value": "&",
               "substitutions": [
+                "special_chars",
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3653,8 +3665,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;#169;",
+              "value": "&#169;",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3686,8 +3699,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;amp;",
+              "value": "&amp;",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3744,8 +3758,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&lt;",
+              "value": "<",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3777,8 +3792,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&gt;",
+              "value": ">",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3810,8 +3826,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;",
+              "value": "&",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3843,8 +3860,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&lt;",
+              "value": "<",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3876,8 +3894,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&gt;",
+              "value": ">",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -3909,8 +3928,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;",
+              "value": "&",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -4132,8 +4152,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&lt;",
+              "value": "<",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -4165,8 +4186,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&gt;",
+              "value": ">",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [
@@ -4198,8 +4220,9 @@
             {
               "name": "raw",
               "type": "string",
-              "value": "&amp;",
+              "value": "&",
               "substitutions": [
+                "special_chars",
                 "special_chars"
               ],
               "location": [

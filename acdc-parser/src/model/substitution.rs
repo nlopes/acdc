@@ -1577,7 +1577,9 @@ pub(crate) fn resolve_attribute_entry_text<'text>(
             Ok((inner, mut substitutions)) => {
                 let source = ordered_attribute_source(inner, &substitutions, attributes);
                 let inner = if substitutions.contains(&Substitution::Attributes) {
-                    expand_attribute_entry_references(inner, attributes, false).into()
+                    expand_attribute_entry_references(inner, &[], attributes, false)
+                        .0
+                        .into()
                 } else {
                     Cow::Borrowed(inner)
                 };
@@ -1619,22 +1621,27 @@ pub(crate) fn resolve_attribute_entry_text<'text>(
                 return (value, None);
             }
         }
+        let mut ranges = vec![super::AttributeTextFragment {
+            range: 0..inner.len(),
+            special_chars: 0,
+        }];
         let mut inner = Cow::Borrowed(inner);
         for substitution in substitutions {
-            inner = match substitution {
+            match substitution {
                 AttributeTextSubstitution::Attributes => {
-                    expand_attribute_entry_references(&inner, attributes, true).into()
+                    let (expanded, fragments) =
+                        expand_attribute_entry_references(&inner, &ranges, attributes, true);
+                    inner = expanded.into();
+                    ranges = fragments;
                 }
                 AttributeTextSubstitution::SpecialChars => {
-                    escape_attribute_characters(&inner).into()
+                    for fragment in &mut ranges {
+                        fragment.special_chars += 1;
+                    }
                 }
-            };
+            }
         }
-        let ranges = if inner.is_empty() {
-            Vec::new()
-        } else {
-            std::iter::once(0..inner.len()).collect()
-        };
+        ranges.retain(|fragment| !fragment.range.is_empty());
         return (
             super::DocumentAttributeValue::with_passthrough_ranges(inner, ranges),
             None,
@@ -1651,16 +1658,20 @@ fn ordered_attribute_source(
     let position = substitutions
         .iter()
         .position(|stage| *stage == Substitution::Attributes)?;
+    let prepared_references = !resolve_attribute_references(text, attributes, false)
+        .text_fragments()
+        .is_empty();
     if !text.contains('{')
-        || !substitutions.iter().take(position).any(|stage| {
-            matches!(
-                stage,
-                Substitution::Quotes
-                    | Substitution::Macros
-                    | Substitution::Replacements
-                    | Substitution::PostReplacements
-            )
-        })
+        || !prepared_references
+            && !substitutions.iter().take(position).any(|stage| {
+                matches!(
+                    stage,
+                    Substitution::Quotes
+                        | Substitution::Macros
+                        | Substitution::Replacements
+                        | Substitution::PostReplacements
+                )
+            })
     {
         return None;
     }
@@ -1703,12 +1714,12 @@ fn resolve_attribute_references<'text>(
                         fragment
                     }),
             );
-            ranges.extend(
-                value
-                    .passthrough_ranges()
-                    .iter()
-                    .map(|range| range.start + offset..range.end + offset),
-            );
+            ranges.extend(value.text_fragments().iter().map(|fragment| {
+                super::AttributeTextFragment {
+                    range: fragment.range.start + offset..fragment.range.end + offset,
+                    special_chars: fragment.special_chars,
+                }
+            }));
         },
     );
     if protect_gaps && !fragments.is_empty() {
@@ -1802,12 +1813,6 @@ fn attribute_text_substitution_names(names: &str) -> Option<Vec<AttributeTextSub
     Some(substitutions)
 }
 
-pub(crate) fn escape_attribute_characters(text: &str) -> String {
-    text.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-}
-
 /// Find a reference-shaped token, including its existing `amp;` escaping.
 pub(crate) fn character_reference_end(text: &str) -> Option<usize> {
     let component = |text: &str| {
@@ -1832,51 +1837,116 @@ pub(crate) fn character_reference_end(text: &str) -> Option<usize> {
     Some(end)
 }
 
+// Copy text and its escaping state without converting either to output markup.
+fn append_attribute_slice(
+    output: &mut String,
+    prepared: &mut Vec<super::AttributeTextFragment>,
+    text: &str,
+    slice: std::ops::Range<usize>,
+    fragments: &[super::AttributeTextFragment],
+    default_escaping: usize,
+) {
+    let mut cursor = slice.start;
+    let mut append = |range: std::ops::Range<usize>, special_chars| {
+        if range.is_empty() {
+            return;
+        }
+        let start = output.len();
+        output.push_str(&text[range]);
+        prepared.push(super::AttributeTextFragment {
+            range: start..output.len(),
+            special_chars,
+        });
+    };
+    for fragment in fragments {
+        let start = fragment.range.start.max(slice.start);
+        let end = fragment.range.end.min(slice.end);
+        if start >= end {
+            continue;
+        }
+        if cursor < start {
+            append(cursor..start, default_escaping);
+        }
+        append(start..end, fragment.special_chars);
+        cursor = end;
+    }
+    if cursor < slice.end {
+        append(cursor..slice.end, default_escaping);
+    }
+}
+
 fn expand_attribute_entry_references(
     text: &str,
+    fragments: &[super::AttributeTextFragment],
     attributes: &DocumentAttributes<'_>,
-    escape_document_values: bool,
-) -> String {
+    prepare_document_values: bool,
+) -> (String, Vec<super::AttributeTextFragment>) {
     let mut output = String::with_capacity(text.len());
-    let mut remaining = text;
-    while let Some((prefix, candidate)) = remaining.split_once('{') {
-        let Some((name, rest)) = candidate.split_once('}') else {
+    let mut prepared = Vec::new();
+    let mut cursor = 0;
+    while let Some(relative) = text[cursor..].find('{') {
+        let start = cursor + relative;
+        let Some(close) = text[start..].find('}') else {
             break;
         };
-        if prefix.ends_with('\\') || name.ends_with('\\') {
-            output.push_str(prefix.strip_suffix('\\').unwrap_or(prefix));
-            output.push('{');
-            output.push_str(name.strip_suffix('\\').unwrap_or(name));
-            output.push('}');
+        let end = start + close + 1;
+        let name = &text[start + 1..end - 1];
+        let escaped_start = text[cursor..start].ends_with('\\');
+        if escaped_start || name.ends_with('\\') {
+            append_attribute_slice(
+                &mut output,
+                &mut prepared,
+                text,
+                cursor..start - usize::from(escaped_start),
+                fragments,
+                0,
+            );
+            let literal = format!("{{{}}}", name.strip_suffix('\\').unwrap_or(name));
+            let escaping = fragments
+                .iter()
+                .find(|f| f.range.contains(&start))
+                .map_or(0, |f| f.special_chars);
+            append_attribute_slice(
+                &mut output,
+                &mut prepared,
+                &literal,
+                0..literal.len(),
+                &[],
+                escaping,
+            );
         } else if let Some(value) = attributes.get(name) {
-            output.push_str(prefix);
+            append_attribute_slice(
+                &mut output,
+                &mut prepared,
+                text,
+                cursor..start,
+                fragments,
+                0,
+            );
             let mut value_text = String::new();
             let _ = value.write_text(&mut value_text);
-            if escape_document_values && attributes.is_document_value(name) {
-                // Ordinary entries already underwent header escaping. Raw ranges
-                // contain prepared text and must not be escaped a second time.
-                let mut cursor = 0;
-                for range in value.passthrough_ranges() {
-                    output.push_str(&escape_attribute_characters(
-                        &value_text[cursor..range.start],
-                    ));
-                    output.push_str(&value_text[range.clone()]);
-                    cursor = range.end;
-                }
-                output.push_str(&escape_attribute_characters(&value_text[cursor..]));
-            } else {
-                output.push_str(&value_text);
-            }
+            append_attribute_slice(
+                &mut output,
+                &mut prepared,
+                &value_text,
+                0..value_text.len(),
+                value.text_fragments(),
+                usize::from(prepare_document_values && attributes.is_document_value(name)),
+            );
         } else {
-            output.push_str(prefix);
-            output.push('{');
-            output.push_str(name);
-            output.push('}');
+            append_attribute_slice(&mut output, &mut prepared, text, cursor..end, fragments, 0);
         }
-        remaining = rest;
+        cursor = end;
     }
-    output.push_str(remaining);
-    output
+    append_attribute_slice(
+        &mut output,
+        &mut prepared,
+        text,
+        cursor..text.len(),
+        fragments,
+        0,
+    );
+    (output, prepared)
 }
 
 fn substitute_attributes_with_ranges<'text, 'value>(

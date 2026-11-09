@@ -7,6 +7,7 @@ mod attribute_configuration;
 mod attribute_continuation;
 mod attribute_first_code;
 mod attribute_mapping;
+mod attribute_parts;
 mod attribute_shorthand;
 mod content_attributes;
 mod decoded_element_attributes;

@@ -959,6 +959,32 @@ which assigns their encoding to converters after parsing. SDR-5 does not
 prescribe this exact example; the behavior follows acdc's boundary rule and
 deferred escaping.
 
+Attribute text reads are independent of the output format. For example,
+`:label: pass:c[Research & <Development>]` retains `Research & <Development>`
+for `text()`, `write_text()`, native JSON, conditions, and include targets.
+`DocumentAttributeValue::parts()` returns ordered `ast::TextPartRef` pieces. Each
+piece exposes `text()` and `substitutions()` for its retained escaping stages.
+Use this view for displayed attributes such as TOC titles;
+use scalar text reads for paths and configuration. HTML applies these stages,
+while terminal and PDF can write the literal text. An explicit `pass:[]` span
+has no escaping stages. Aliases, body assignments, and cloned snapshots preserve
+this distinction. `RawRef::substitutions()` can retain repeated escaping stages
+without embedding generated HTML entities in `RawRef::text()`.
+`RawRef::text_part()` exposes the same view for raw inline content.
+Both views borrow existing text; attribute `text()` remains a contiguous scalar
+read. Reading pieces does not apply a formatted attribute's deferred inline rules.
+
+Definition-time escaping and later inline replacements remain separate.
+`:label: pass:c[Literal &amp; and &#169;]` displays literal `&amp;` and `&#169;`
+as a TOC title, while ordinary paragraph text `{label}` resolves them to `&`
+and `©`. `(C)` remains a semantic copyright symbol when replacements are enabled;
+converters choose its output representation. Asciidoctor stores encoded attribute
+strings instead, so scalar comparisons and include paths containing `&`, `<`,
+or `>` can differ. Native JSON shows neutral text; it is not a lossless export of
+prepared attribute profiles. Reuse parsed values with
+`Options::with_document_attributes()`; `DocumentAttributes::into_inputs()`
+intentionally discards preparation when creating fresh configuration.
+
 Formatted attributes retain AsciiDoc source text
 and supported inline parsing profiles. For example, `:value: pass:q[*Bold*]`
 retains `*Bold*` for `text()`, JSON, conditions, and include paths, while its

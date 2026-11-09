@@ -6,7 +6,7 @@ use acdc_parser::{
 
 type Error = Box<dyn std::error::Error>;
 
-// Fixture JSON omits raw substitution flags; check them alongside source spans.
+// Check retained substitutions alongside exact authored source spans.
 #[test]
 fn passthrough_character_references_preserve_complete_source_spans() -> Result<(), Error> {
     for (source, token, expected, escaped) in [
@@ -15,7 +15,7 @@ fn passthrough_character_references_preserve_complete_source_spans() -> Result<(
         ("é pass:c,r[&#9;] Ω", "&#9;", "&#9;", true),
         ("é pass:r[&amp;#169;] Ω", "&amp;#169;", "&#169;", false),
         ("é pass:c,r[&lt;] Ω", "&lt;", "&lt;", false),
-        ("é pass:r,c[&lt;] Ω", "&lt;", "&lt;", true),
+        ("é pass:r,c[&lt;] Ω", "&lt;", "<", true),
     ] {
         let parsed = parse(source, &Options::default())?;
         let [BlockKind::Paragraph(paragraph)] = &*parsed

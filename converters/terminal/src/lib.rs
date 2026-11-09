@@ -364,12 +364,12 @@ pub fn render_listing_to_ansi(
     width: usize,
     dark_mode: bool,
 ) -> Result<Vec<u8>, Error> {
-    let processor = Processor::new(
-        options,
-        ParserOptions::builder().with_attributes(document_attributes.into_inputs()),
-    )?
-    .with_terminal_width(width)
-    .with_dark_mode(dark_mode);
+    let mut processor = Processor::new(options, ParserOptions::builder())?
+        .with_terminal_width(width)
+        .with_dark_mode(dark_mode);
+    processor.parser_options = processor
+        .parser_options
+        .with_document_attributes(document_attributes);
     let color_guard = ColorOutputGuard::force_enabled();
     let language =
         acdc_converters_core::code::source_language(attributes).map(preview_highlight_language);

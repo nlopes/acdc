@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Explicit TOC macros read `toc-title` changes at their position in the body,
+  including retained literal and raw attribute text.
+
+- TOC titles and revision labels escape literal attribute text during rendering,
+  preserving explicit raw TOC passthroughs and mixed literal/raw attribute pieces.
+  Attribute aliases and repeated escaping retain their HTML output, including
+  highlighted source blocks.
+
 - Large tables of contents (`:toc:` or `toc::[]`) render faster in both HTML
   variants, preserving section order, hierarchy, links, and numbering.
 

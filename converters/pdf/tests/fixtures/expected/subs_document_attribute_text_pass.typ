@@ -129,17 +129,17 @@
 
 #text("P22 pass:c[Early]")
 
-#raw(block: true, "C01 Early *Bold*\nC02 <x> & {name} *Bold*\nC03 <raw> &\nC05 Early <x> &\nC07 {name} {name} {name} \\{name}\nC08 pass:[Early]\nC09 Before  after.\nC10 Before {not-set} after.\nC11 Early a\\]b\nC12 prefix <x> & {name} *Bold* / Early *Bold*\nC13 <ordinary> &\nC14 &lt;ordinary&gt; &amp;\nC15 <ordinary> &\nC17 <x> & {name} | <x> & {name}\nC18 &#169; &amp;\nC19 café <α> &\nC22 pass:c[Early]")
+#raw(block: true, "C01 Early *Bold*\nC02 <x> & {name} *Bold*\nC03 <raw> &\nC05 Early <x> &\nC07 {name} {name} {name} \\{name}\nC08 pass:[Early]\nC09 Before  after.\nC10 Before {not-set} after.\nC11 Early a\\]b\nC12 prefix <x> & {name} *Bold* / Early *Bold*\nC13 <ordinary> &\nC14 <ordinary> &\nC15 <ordinary> &\nC17 <x> & {name} | <x> & {name}\nC18 &#169; &amp;\nC19 café <α> &\nC22 pass:c[Early]")
 
 #raw(block: true, "C06 {name} &")
 
-#raw(block: true, "N01 <x> & {name} *Bold*\nN02 &lt;ordinary&gt; &amp;\nN03 &#169; &amp;")
+#raw(block: true, "N01 <x> & {name} *Bold*\nN02 <ordinary> &\nN03 &#169; &amp;")
 
-#raw(block: true, "R01 &lt;x&gt; &amp; {name} *Bold*\nR02 &amp;lt;ordinary&amp;gt; &amp;amp;\nR03 &amp;#169; &amp;amp;")
+#raw(block: true, "R01 <x> & {name} *Bold*\nR02 <ordinary> &\nR03 &#169; &amp;")
 
-#raw(block: true, "O01 &lt;x&gt; &amp; {name} *Bold*\nO02 &lt;ordinary&gt; &amp;\nO03 &#169; &amp;")
+#raw(block: true, "O01 <x> & {name} *Bold*\nO02 <ordinary> &\nO03 &#169; &amp;")
 
-#raw(block: true, "O04 <x> & {name} *Bold*\nO05 &lt;ordinary&gt; &amp;\nO06 &#169; &amp;")
+#raw(block: true, "O04 <x> & {name} *Bold*\nO05 <ordinary> &\nO06 &#169; &amp;")
 
 #raw(block: true, "D01 {a} | {c}")
 
